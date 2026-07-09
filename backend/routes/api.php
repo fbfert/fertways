@@ -17,6 +17,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/colony', [ColonyController::class, 'show']);
     Route::post('/colony', [ColonyController::class, 'store']);
 
+    // Diretório de destinos possíveis para um despacho. Sem ele, `destination_type = colonia`
+    // é inalcançável pela UI: o jogador não tem como descobrir o `id` de ninguém.
+    Route::get('/colonies', [ColonyController::class, 'index']);
+
     Route::get('/buildings', [BuildingController::class, 'specs']);
     Route::post('/buildings/{building}/upgrade', [BuildingController::class, 'upgrade']);
     Route::patch('/buildings/{building}/recipe', [BuildingController::class, 'recipe']);

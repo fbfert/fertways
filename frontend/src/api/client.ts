@@ -51,10 +51,29 @@ export type Sessao = { token: string; user: { id: number; nickname: string } }
 export type Colonia = {
   id: number
   name: string
+  x: number
+  y: number
   fert: number
   last_tick_at?: string
   buildings: { type: string; level: number }[]
   resources: Record<string, number>
+}
+
+/**
+ * Uma colônia alheia, como o diretório a publica.
+ *
+ * `building_levels_sum` é a soma dos níveis das construções — um sinal de porte arbitrado
+ * (D-38). **Não** é o "Marco" do GDD, que ainda não tem fórmula. Recursos e saldo do vizinho
+ * não vêm: escolher destino não é espionar.
+ */
+export type ColoniaVizinha = {
+  id: number
+  name: string
+  nickname: string
+  x: number
+  y: number
+  distance: number
+  building_levels_sum: number
 }
 
 export type Spec = {
@@ -142,6 +161,14 @@ export const api = {
 
   colonia: () => req<Colonia>('/colony'),
 
+  /**
+   * Diretório de colônias, do vizinho mais próximo ao mais distante.
+   *
+   * É o que torna o despacho entre colônias alcançável: `dispatch` pede a PK do destino, e sem
+   * isto o jogador não teria como descobrir o `id` de ninguém.
+   */
+  colonias: () => req<{ colonies: ColoniaVizinha[] }>('/colonies'),
+
   fundarColonia: (name: string) =>
     req<Colonia>('/colony', { method: 'POST', body: JSON.stringify({ name }) }),
 
@@ -158,6 +185,16 @@ export const api = {
     req<Veiculo>(`/vehicles/${veiculo}/dispatch`, {
       method: 'POST',
       body: JSON.stringify({ destination_type: 'mercado_central', cargo }),
+    }),
+
+  /**
+   * Leva carga do estoque ao slot de outro colono — o comércio informal do §25.7, em que os dois
+   * combinam a troca por fora e o veículo faz a parte física. O tributo incide na entrega (D-32).
+   */
+  enviarAColonia: (veiculo: number, destino: number, cargo: Record<string, number>) =>
+    req<Veiculo>(`/vehicles/${veiculo}/dispatch`, {
+      method: 'POST',
+      body: JSON.stringify({ destination_type: 'colonia', destination_id: destino, cargo }),
     }),
 
   /** Manda um veículo buscar carga da doca. O saldo é reservado já no despacho (D-32). */

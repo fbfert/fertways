@@ -71,6 +71,23 @@ $c->resources()->where("resource_type", "energia")->update(["amount" => 1000]);
 App\Models\MarketAccount::create([
     "colony_id" => $c->id, "resource_type" => "metal_bruto", "amount" => 500,
 ]);
+
+// Um segundo furgão. A colônia nasce com um só, e o teste do despacho à Capital o deixa em rota:
+// sem este aqui, o formulário de envio a outro colono não teria veículo ocioso e nada provaria.
+$c->vehicles()->create([
+    "type" => "furgao_de_comercio", "level" => 1, "status" => "ocioso",
+    "capacity" => App\Models\Vehicle::CAPACIDADE["furgao_de_comercio"],
+]);
+
+// Uma vizinha, para o diretório de colônias ter o que listar. A 3 slots de (48,50).
+$v = App\Models\User::create([
+    "name" => "Vizinha", "nickname" => "vizinha",
+    "email" => "vizinha@fertways.test",
+    "password" => Illuminate\Support\Facades\Hash::make("segredo-forte-123"),
+]);
+app(App\Domain\Colony\CreateColony::class)->handle($v, "Colônia vizinha")
+    ->forceFill(["x" => 45, "y" => 50])->save();
+
 echo "colono e2e pronto na colônia {$c->id}\n";
 ' | tail -1
 

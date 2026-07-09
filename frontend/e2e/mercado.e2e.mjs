@@ -200,6 +200,41 @@ try {
     console.log((await textoDaPagina(page)).slice(0, 1200))
   }
 
+  console.log('\nDiretório: enviar carga a outro colono')
+  /*
+   * O despacho aceita `destino = colonia` desde a fatia de logística, mas até o diretório existir
+   * não havia como o jogador descobrir o `id` de ninguém, e a tela só oferecia a Capital.
+   *
+   * Os `select` da aba, em ordem: [0] recurso de "Levar à doca", [1] destino e [2] recurso de
+   * "Enviar a outro colono", [3] recurso de "Buscar na doca".
+   */
+  const selects = await page.$$('select')
+  const rotulos = await selects[1].$$eval('option', (os) => os.map((o) => o.textContent.trim()))
+  checar(
+    rotulos.includes('vizinha · 3 slots'),
+    `o diretório lista a vizinha e a distância até ela (viu: ${rotulos.join(' | ')})`,
+  )
+
+  await selects[2].select('metal_bruto')
+
+  // O segundo furgão: o teste anterior deixou o primeiro em rota para a Capital.
+  const camposDeQtd = await page.$$('input[inputmode=numeric]')
+  await camposDeQtd[1].type('7')
+
+  const enviar = await acharPorTexto(page, 'button', /^Enviar$/)
+  checar(await enviar.evaluate((b) => !b.disabled), 'o botão de envio habilita')
+  await enviar.click()
+  await page.waitForNetworkIdle({ idleTime: 800 })
+
+  // O pagamento do diretório: a rota deixa de dizer "a colônia #2" e nomeia o colono.
+  const rumoAVizinha = await esperarTexto(page, /levando carga para a colônia de vizinha/)
+  checar(rumoAVizinha, 'o veículo entra em rota rumo ao slot da vizinha, que o diretório nomeia')
+
+  if (!rumoAVizinha) {
+    console.log('\n--- texto da tela no momento da falha ---')
+    console.log((await textoDaPagina(page)).slice(0, 1200))
+  }
+
   console.log('\nLogout')
   const guardado = await page.evaluate(() => localStorage.getItem('fertways.token'))
   checar(!!guardado, 'o token está no localStorage enquanto a sessão vive')

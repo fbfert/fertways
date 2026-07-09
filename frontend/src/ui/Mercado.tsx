@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { api, ApiError } from '../api/client'
-import type { Colonia, ContaDoMercado, Frota, Livro, Veiculo } from '../api/client'
+import type { Colonia, ColoniaVizinha, ContaDoMercado, Frota, Livro, Veiculo } from '../api/client'
 import { NEGOCIAVEIS, fert, nomeRecurso, nomeVeiculo, paraMicro, relogio, segundosRestantes } from './recursos'
 
 const INTERVALO_MS = 3000
@@ -17,6 +17,7 @@ export function Mercado({ colonia, aoFechar }: { colonia: Colonia; aoFechar: () 
   const [frota, setFrota] = useState<Frota | null>(null)
   const [conta, setConta] = useState<ContaDoMercado | null>(null)
   const [livro, setLivro] = useState<Livro | null>(null)
+  const [vizinhas, setVizinhas] = useState<ColoniaVizinha[]>([])
   const [recurso, setRecurso] = useState('metal_bruto')
   const [erro, setErro] = useState<string | null>(null)
 
@@ -36,6 +37,19 @@ export function Mercado({ colonia, aoFechar }: { colonia: Colonia; aoFechar: () 
     const t = setInterval(() => void carregar(), INTERVALO_MS)
     return () => clearInterval(t)
   }, [carregar])
+
+  /*
+   * O diretório só muda quando alguém funda colônia — raro. Buscá-lo uma vez ao abrir a tela
+   * basta, e mantém o polling de 3 s enxuto: ele já carrega frota, conta e livro.
+   */
+  useEffect(() => {
+    api
+      .colonias()
+      .then((r) => setVizinhas(r.colonies))
+      .catch((e: unknown) => {
+        if (e instanceof ApiError) setErro(e.message)
+      })
+  }, [])
 
   // Faz as contagens regressivas andarem sem bater na API.
   const [, tique] = useState(0)
@@ -96,6 +110,7 @@ export function Mercado({ colonia, aoFechar }: { colonia: Colonia; aoFechar: () 
             conta={conta}
             frota={frota}
             ociosos={ociosos}
+            vizinhas={vizinhas}
             agir={agir}
           />
         ) : (
@@ -116,15 +131,29 @@ function Doca({
   conta,
   frota,
   ociosos,
+  vizinhas,
   agir,
 }: {
   colonia: Colonia
   conta: ContaDoMercado | null
   frota: Frota | null
   ociosos: Veiculo[]
+  vizinhas: ColoniaVizinha[]
   agir: (a: () => Promise<unknown>) => Promise<void>
 }) {
   const naDoca = conta?.balances ?? []
+
+  /*
+   * Do mais abundante para o menos. Sem ordenar, `Object.entries` manda primeiro o que o catálogo
+   * listar primeiro, e o campo abria num raro do kit inicial, do qual o colono tem punhados — a
+   * opção que ele quase nunca quer despachar.
+   *
+   * Energia fica de fora: ela é o combustível da viagem (§21.1), não carga.
+   */
+  const doEstoque = Object.entries(colonia.resources)
+    .filter(([c, q]) => q > 0 && c !== 'energia')
+    .sort(([, a], [, b]) => b - a)
+    .map(([c, q]) => ({ codigo: c, disponivel: q }))
 
   return (
     <div className="mt-5 grid gap-6 md:grid-cols-2">
@@ -135,7 +164,7 @@ function Doca({
         )}
         <div className="mt-2 space-y-2">
           {frota?.vehicles.map((v) => (
-            <LinhaVeiculo key={v.id} v={v} />
+            <LinhaVeiculo key={v.id} v={v} vizinhas={vizinhas} />
           ))}
         </div>
 
@@ -166,20 +195,32 @@ function Doca({
           titulo="Levar à doca"
           ajuda="A carga sai do estoque agora. O tributo incide quando ela chega."
           veiculos={ociosos}
-          /*
-           * Do mais abundante para o menos. Sem ordenar, `Object.entries` manda primeiro o que
-           * o catálogo listar primeiro, e o campo abria num raro do kit inicial, do qual o
-           * colono tem punhados — a opção que ele quase nunca quer despachar.
-           *
-           * Energia fica de fora: ela é o combustível da viagem (§21.1), não carga.
-           */
-          opcoes={Object.entries(colonia.resources)
-            .filter(([c, q]) => q > 0 && c !== 'energia')
-            .sort(([, a], [, b]) => b - a)
-            .map(([c, q]) => ({ codigo: c, disponivel: q }))}
+          opcoes={doEstoque}
           rotuloBotao="Despachar"
           aoEnviar={(veiculo, codigo, qtd) =>
             agir(() => api.depositar(veiculo, { [codigo]: qtd }))
+          }
+        />
+
+        {/*
+         * Comércio informal (§25.7): os dois colonos combinam a troca por fora, e o veículo faz a
+         * parte física. Não há escrow aqui — é o canal com risco de calote, por design.
+         */}
+        <FormularioDeCarga
+          titulo="Enviar a outro colono"
+          ajuda="A carga sai do estoque agora. O tributo incide quando ela chega ao slot dele."
+          veiculos={ociosos}
+          opcoes={doEstoque}
+          destinos={vizinhas.map((c) => ({
+            id: c.id,
+            rotulo: `${c.nickname} · ${c.distance} slots`,
+          }))}
+          rotuloBotao="Enviar"
+          aoEnviar={(veiculo, codigo, qtd, destino) =>
+            // `podeEnviar` já garante o destino quando há lista; isto é a rede, não a regra.
+            destino === undefined
+              ? Promise.resolve()
+              : agir(() => api.enviarAColonia(veiculo, destino, { [codigo]: qtd }))
           }
         />
 
@@ -198,11 +239,22 @@ function Doca({
   )
 }
 
-function LinhaVeiculo({ v }: { v: Veiculo }) {
+function LinhaVeiculo({ v, vizinhas }: { v: Veiculo; vizinhas: ColoniaVizinha[] }) {
   const restam = segundosRestantes(v.arrives_at)
 
+  /*
+   * Antes do diretório, um veículo em rota só sabia dizer "a colônia #7" — o `id` cru, que não
+   * significa nada para quem joga. Agora ele nomeia o colono. O `#id` fica de reserva para o
+   * intervalo entre abrir a tela e o diretório chegar, e para um destino que suma da lista.
+   */
+  const alvo = vizinhas.find((c) => c.id === v.destination_id)
+
   const destino =
-    v.destination_type === 'mercado_central' ? 'a Capital' : `a colônia #${v.destination_id}`
+    v.destination_type === 'mercado_central'
+      ? 'a Capital'
+      : alvo
+        ? `a colônia de ${alvo.nickname}`
+        : `a colônia #${v.destination_id}`
 
   return (
     <div className="border-rust/15 border p-2">
@@ -247,6 +299,7 @@ function FormularioDeCarga({
   ajuda,
   veiculos,
   opcoes,
+  destinos,
   rotuloBotao,
   aoEnviar,
 }: {
@@ -254,30 +307,45 @@ function FormularioDeCarga({
   ajuda: string
   veiculos: Veiculo[]
   opcoes: { codigo: string; disponivel: number }[]
+  /**
+   * Quando ausente, o destino é implícito (a doca da Capital) e nenhum seletor aparece. Quando
+   * presente, o colono escolhe para onde a carga vai — e uma lista vazia é impedimento, não um
+   * `<select>` vazio que deixa apertar o botão.
+   */
+  destinos?: { id: number; rotulo: string }[]
   rotuloBotao: string
-  aoEnviar: (veiculo: number, codigo: string, qtd: number) => Promise<void>
+  aoEnviar: (veiculo: number, codigo: string, qtd: number, destino?: number) => Promise<void>
 }) {
   const [codigo, setCodigo] = useState('')
   const [qtd, setQtd] = useState('')
+  const [destinoId, setDestinoId] = useState<number | null>(null)
 
   const escolhido = opcoes.find((o) => o.codigo === codigo) ?? opcoes[0]
+  const destino = destinos?.find((d) => d.id === destinoId) ?? destinos?.[0]
   const veiculo = veiculos[0]
   const quantidade = Number(qtd)
 
   const impedimento = !veiculo
     ? 'Nenhum veículo ocioso.'
-    : !escolhido
-      ? 'Nada para carregar.'
-      : !Number.isInteger(quantidade) || quantidade <= 0
-        ? null
-        : quantidade > escolhido.disponivel
-          ? `Você tem ${escolhido.disponivel.toLocaleString('pt-BR')}.`
-          : quantidade > veiculo.capacity
-            ? `O veículo leva ${veiculo.capacity.toLocaleString('pt-BR')}.`
-            : null
+    : destinos && !destino
+      ? 'Nenhuma outra colônia no servidor.'
+      : !escolhido
+        ? 'Nada para carregar.'
+        : !Number.isInteger(quantidade) || quantidade <= 0
+          ? null
+          : quantidade > escolhido.disponivel
+            ? `Você tem ${escolhido.disponivel.toLocaleString('pt-BR')}.`
+            : quantidade > veiculo.capacity
+              ? `O veículo leva ${veiculo.capacity.toLocaleString('pt-BR')}.`
+              : null
 
   const podeEnviar =
-    !!veiculo && !!escolhido && Number.isInteger(quantidade) && quantidade > 0 && !impedimento
+    !!veiculo &&
+    !!escolhido &&
+    (!destinos || !!destino) &&
+    Number.isInteger(quantidade) &&
+    quantidade > 0 &&
+    !impedimento
 
   return (
     <div className="border-rust/20 border p-3">
@@ -285,6 +353,23 @@ function FormularioDeCarga({
       <p className="text-ink-soft mt-1 text-xs">{ajuda}</p>
 
       <div className="mt-3 space-y-2">
+        {destinos && (
+          <select
+            aria-label="Destino"
+            className="border-rust/25 bg-sand focus:border-rust w-full border px-2 py-1.5 text-sm outline-none"
+            value={destino?.id ?? ''}
+            onChange={(e) => setDestinoId(Number(e.target.value))}
+            disabled={destinos.length === 0}
+          >
+            {destinos.length === 0 && <option>—</option>}
+            {destinos.map((d) => (
+              <option key={d.id} value={d.id}>
+                {d.rotulo}
+              </option>
+            ))}
+          </select>
+        )}
+
         <select
           className="border-rust/25 bg-sand w-full border px-2 py-1.5 text-sm outline-none focus:border-rust"
           value={escolhido?.codigo ?? ''}
@@ -312,7 +397,9 @@ function FormularioDeCarga({
         <button
           disabled={!podeEnviar}
           onClick={() => {
-            void aoEnviar(veiculo.id, escolhido.codigo, quantidade).then(() => setQtd(''))
+            void aoEnviar(veiculo.id, escolhido.codigo, quantidade, destino?.id).then(() =>
+              setQtd(''),
+            )
           }}
           className="bg-rust text-sand-light hover:bg-rust-bright w-full py-2 text-sm font-bold disabled:cursor-not-allowed disabled:opacity-40"
         >

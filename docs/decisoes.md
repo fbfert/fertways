@@ -831,3 +831,49 @@ apontando `APP_CONFIG_CACHE` para um arquivo inexistente. O script novo não rep
   abortar, em vez de confiar que o ambiente foi configurado certo.
 - Backup diário às 03:00 e binlog desligado significam **até 24 h de perda**. Se algum dado passar
   a importar, ligar o binlog é o primeiro passo.
+
+---
+
+## D-37 — O diretório de colônias lista todas, sem névoa de guerra.
+**Data:** 2026-07-09 · **Status:** implementado · **GDD: omisso**
+
+`POST /vehicles/{id}/dispatch` aceita `destination_type = colonia` desde a fatia de logística, e
+exige a **chave primária** da colônia de destino. Não havia endpoint que revelasse o `id` de
+ninguém: o despacho entre colônias era inalcançável pela UI, que só oferecia o Mercado Central.
+
+**O GDD não decide.** Ele nunca usa a palavra "diretório". O §24.2 garante que o slot de um colono
+é clicável no mapa e mostra avatar e nickname; o §25.6 exige que a posição no mapa importe. Mas não
+há lista, busca, nem regra de descoberta. O D-29 já registrava que o GDD sequer define coordenadas.
+
+**Arbitrado pelo usuário:** `GET /colonies` lista **todas** as colônias, ordenadas da mais próxima
+à mais distante, sem névoa de guerra e sem limite de alcance.
+
+**Consequência assumida:** o **Drone de Exploração** (§05, §21) existe no GDD para "revelar mapa ao
+redor do slot e zonas neutras". Com o diretório aberto, não lhe restam colônias a revelar — só as
+zonas neutras. O GDD nunca publicou raio, persistência nem custo de revelação, então honrar a
+névoa exigiria inventar as três coisas. Preferiu-se a decisão explícita à mecânica inventada.
+**Não "conserte" isto achando que é esquecimento.** Se um dia a névoa entrar, este é o ponto.
+
+## D-38 — `building_levels_sum` é um sinal de porte arbitrado, e **não** é o Marco do GDD.
+**Data:** 2026-07-09 · **Status:** implementado · **GDD: define o conceito, não a fórmula**
+
+O diretório publica, de cada colônia, um sinal de porte. O GDD **nomeia marcos** — 1 Sobrevivente,
+5 Colono, 10 Pioneiro, 20 Desbravador, 35 Construtor, 50 Arquiteto, 75 Guardião, 100 Lenda de
+Fertways (§03, "Marcos de colonização") — mas **nunca publica como o número se calcula**. E
+`colonies.milestone` é uma string congelada em `colonizacao_inicial` desde a fundação, que não é
+sequer um dos nomes do GDD: nada no código a atualiza.
+
+**Arbitrado pelo usuário:** o campo é a **soma dos níveis das construções** da colônia.
+
+Chama-se `building_levels_sum`, e não `level` nem `milestone`, exatamente para **não** ser
+confundido com o Marco. Os limiares 1/5/10/20 do GDD **não se aplicam a ele**. A colônia nasce com
+as 16 construções em nível 0, então a soma começa em zero — o valor honesto: ninguém construiu nada.
+
+Quando o Marco for implementado de verdade (o que exige decidir sua fórmula, e atualizá-lo no
+tick), será um **campo à parte**, não a renomeação deste.
+
+**Privacidade.** O diretório expõe `id`, `name`, `nickname`, `x`, `y`, `distance` e
+`building_levels_sum`. Recursos, saldo e frota do vizinho ficam de fora: o §13 fala em "relatórios
+privados" sem enumerar o que é público, e escolher destino não é espionar. As coordenadas entram
+por decisão do usuário — o §24.2 já torna o slot alheio clicável no mapa, e uma tela de mapa
+precisará delas.
