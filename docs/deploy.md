@@ -84,7 +84,7 @@ sudo -u fertways /usr/bin/php84 artisan tinker --execute='echo config("app.debug
 cd ../frontend
 export PATH="/usr/local/lib/nodejs/node-v22.12.0-linux-x64/bin:$PATH"
 npm ci && npm run build
-cp -r dist/. /home/fertways/public_html/
+/bin/cp -rf dist/. /home/fertways/public_html/   # `cp` é alias de `cp -i` no root: sem -f ele trava num prompt e não copia nada
 chown -R fertways:fertways /home/fertways/public_html
 ```
 

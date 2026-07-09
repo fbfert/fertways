@@ -26,21 +26,26 @@ O MVP tem, funcionando e no ar em `https://fertways.tars.art.br`:
   e **livro de ofertas com escrow** (§07, D-35). `GET/POST /central/market/orders`,
   `DELETE /central/market/orders/{id}`, `GET /central/market/account`,
   `POST /central/vehicles/{id}/withdraw`. O Mercado casa ordens; não compra nem vende.
-- Frontend: login, HUD, colônia desenhada como colmeia em Phaser
+- Frontend: login, HUD, colônia em Phaser, e a **tela do Mercado** (botão no HUD): doca, frota com
+  contagem regressiva, despacho e retirada, livro de ofertas com escrow
 
 **101 testes, 1523 asserções, verdes.** O **cron do tick está instalado** (crontab do usuário
 `fertways`, log em `/home/fertways/logs/fertways-tick.log`) — o mundo avança sozinho.
 
-O item 5 do MVP (Mercado Central) está **fechado no backend**. O que falta para um jogador usá-lo
-é tela.
+O item 5 do MVP (Mercado Central) está **fechado, backend e tela**.
+
+> ⚠️ **A tela do Mercado nunca foi aberta num navegador.** `tsc -b` e `oxlint` passam, e os tipos
+> espelham os controllers, mas ninguém a viu renderizar. Não há teste de frontend no projeto.
 
 ## Perguntas em aberto — faça estas ao usuário ao retomar
 
 1. **Qual o próximo passo?**
-   - **UI do Mercado e do despacho**: todo o backend existe e está testado, mas o jogador não
-     consegue despachar carga, ver a frota em rota, consultar o saldo na doca nem pôr uma ordem
-     no livro pelo navegador. É o maior salto de valor por esforço, e não depende de nenhuma
-     decisão de GDD pendente.
+   - **Teste de frontend**: não existe nenhum, e a tela do Mercado foi ao ar sem nunca ter sido
+     aberta num navegador. Um Playwright que faça login, abra o Mercado, ponha uma ordem e confira
+     o livro viraria rede de segurança permanente.
+   - **Despacho entre colônias pela UI**: os endpoints aceitam `destino = colonia`, mas a tela só
+     oferece o Mercado, porque **não há endpoint de diretório de colônias** — o jogador não tem
+     como descobrir o `id` de ninguém. Falta um `GET /central/colonies`.
    - **Serviço logístico público** (§07): o GDD o cita como alternativa ao veículo próprio na
      retirada, e ele não existe. Hoje o comprador precisa de Furgão ou Caminhão. O GDD não
      publica preço nem prazo do serviço — precisaria de arbitragem.
@@ -75,7 +80,11 @@ O item 5 do MVP (Mercado Central) está **fechado no backend**. O que falta para
   comportamento mas não publica a curva de desgaste, o limite crítico nem o custo de manutenção.
 - **Zonas neutras como destino de carga** — o despacho aceita `colonia`; zona neutra precisa do
   Depósito de Zona Neutra.
-- **Frontend** — o bundle passa de 1,5 MB sem code splitting. Não incomoda ainda.
+- **Frontend** — o bundle passa de 1,5 MB sem code splitting (quase tudo é Phaser). Não incomoda
+  ainda. O `vite build` avisa a cada compilação.
+- **`cp` é alias de `cp -i` para o root.** No passo de deploy do frontend ele trava num prompt e
+  copia nada, em silêncio, com saída que *parece* sucesso. Use `/bin/cp -rf dist/. …`. Confira o
+  hash do bundle servido contra o de `dist/assets/` antes de dizer que publicou.
 
 ## Verificação rápida (rode antes de confiar nesta página)
 
