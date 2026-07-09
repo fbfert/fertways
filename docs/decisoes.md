@@ -570,3 +570,83 @@ arquivos e o `<env>` volta a valer. Verificado com o config de produção presen
 `database.default=sqlite`, `app.env=testing`, 59 testes verdes.
 
 Fixar `APP_URL` no `phpunit.xml` (primeira tentativa) resolvia só enquanto o cache não existisse.
+
+---
+
+## D-28 — Central de Transportes não entrega caminhões de graça
+**Data:** 2026-07-09 · **Status:** decidido pelo próprio GDD
+
+Duas passagens se contradizem:
+
+- **§28.5** ("Regra Definitiva"): "Os caminhões correspondentes ao nível atual **já estão incluídos
+  no upgrade da Central — sem custo adicional**."
+- **§5** (resumo de Logística e frota): "O upgrade libera capacidade de manter veículos ativos;
+  **não entrega caminhões gratuitos**."
+
+Diferente do caso do tributo (D-11), aqui a **tabela de precedência da seção 0 resolve
+expressamente**. Ela lista o tema "Central de Transportes — interpretação de caminhões concedidos
+pela estrutura" e a decisão vigente é: "**Libera vagas de frota; veículo é fabricado ou adquirido
+separadamente.**"
+
+**Decisão: o nível da Central define o número máximo de veículos de carga simultâneos. Nenhum
+caminhão é concedido.** A §28.5 está revogada nesta matéria.
+
+---
+
+## D-29 — O GDD não define o mapa; adotamos grade 100×100 com Capital no centro
+**Data:** 2026-07-09 · **Status:** decidido pelo usuário (fora do GDD)
+
+O GDD exige que a posição importe — §25.6: "dois colonos vizinhos comerciam rápido e barato; dois
+colonos em regiões opostas do planeta pagam muito mais" — e põe o Mercado Central "no núcleo do
+mapa" (§25.8). Mas **nunca define coordenadas, tamanho, nem métrica de distância**. A palavra
+"slot" aparece como unidade de velocidade (§21.2: "4 slots de mapa por minuto") sem que slot seja
+definido geometricamente. A tabela `colonies` sequer tinha coordenadas.
+
+**Decisão do usuário:** grade quadrada 100×100, coordenadas inteiras, Capital em (50,50),
+distância euclidiana arredondada meio-para-cima. As distâncias de exemplo do §25.6 (5, 15, 30 e 60
+slots) caem em faixas plausíveis nessa grade; os cantos opostos ficam a 140 slots.
+
+A posição de fundação é **sorteada** entre as células livres. Qualquer regra determinística (a
+próxima livre, a mais perto da Capital) daria vantagem logística sistemática a quem fundasse
+primeiro, o que contraria o pilar "competição justa por design".
+
+---
+
+## D-30 — A viagem é ida e volta; carga sai no despacho, tributo incide na entrega
+**Data:** 2026-07-09 · **Status:** decidido
+
+O GDD diz que o veículo "fica indisponível até completar a viagem (ida, ou ida e volta)" (§25.5) e
+que "o veículo fica disponível novamente apenas após completar o trajeto". Não diz **quando** a
+carga deixa o estoque nem **quando** a energia é cobrada.
+
+**Decisões:**
+1. **A carga sai do estoque no despacho**, não na entrega. É o que torna o calote do comércio
+   informal "real e visível" (§25.7): se A entrega e B nunca despacha, A perdeu o recurso. Se a
+   carga só saísse na entrega, um veículo interceptado devolveria o recurso à origem.
+2. **A energia dos dois trechos é debitada no despacho.** Cobrar na chegada permitiria um veículo
+   partir sem ter como voltar. Energia é recurso inteiro, e a viagem pode custar fração de kWh:
+   arredondamos **para cima**, porque cobrar a menos criaria energia do nada.
+3. **O tributo incide no fim da ida**, conforme D-11 (§25.2 vence §8.3). A `economic_event_key` é
+   `entrega:{veiculo}:{timestamp de partida}:{recurso}` — deriva do evento de entrega, e o índice
+   único de `tax_events` segura retry do cron e crons concorrentes.
+4. O tributo é **retido em unidades do próprio recurso** (D-12), truncando: `intdiv(qtd × bps,
+   10000)`. Arredondar para cima cobraria acima da alíquota em cargas pequenas.
+
+---
+
+## D-31 — A energia do Caminhão a 5 slots: o GDD errou a própria conta
+**Data:** 2026-07-09 · **Status:** exceção fixada em teste
+
+§21.3 publica: Caminhão a 1,5 slots por minuto, 3 kW/h por minuto de viagem. A 5 slots o tempo
+exato é 3,333… min, logo a energia exata é **10,0 kWh**. A tabela do §25.6 publica **9,9** — o GDD
+multiplicou 3 pelo tempo **já arredondado para exibição** (3,3). Nas outras três distâncias da
+tabela (15, 30 e 60) o tempo é redondo e a diferença desaparece.
+
+**Decisão:** o motor calcula pelo tempo exato, em segundos inteiros. O teste
+`tests/Gdd/LogisticaSpecsTest.php` fixa a exceção, para que ninguém "conserte" a fórmula tentando
+bater com a célula. É o mesmo tratamento dado ao Tanque de Combustível nível 4 (D-02).
+
+**Fora do MVP, documentado:** a depreciação e manutenção de §16.4 (veículo perde velocidade e
+capacidade com o uso, e trava abaixo de um limite crítico). O GDD descreve o comportamento mas
+**não publica a curva de desgaste, o limite crítico nem o custo de manutenção**. Implementar agora
+exigiria inventar valores. Decisão do usuário: fica para v2.

@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\BuildingController;
 use App\Http\Controllers\Api\ColonyController;
+use App\Http\Controllers\Api\VehicleController;
 use Illuminate\Support\Facades\Route;
 
 Route::post('/register', [AuthController::class, 'register']);
@@ -16,4 +17,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/buildings/{building}/upgrade', [BuildingController::class, 'upgrade']);
     Route::patch('/buildings/{building}/recipe', [BuildingController::class, 'recipe']);
     Route::get('/queue', [BuildingController::class, 'queue']);
+
+    Route::get('/vehicles', [VehicleController::class, 'index']);
+    Route::get('/vehicles/route', [VehicleController::class, 'rota']);
+    Route::post('/vehicles/{vehicle}/dispatch', [VehicleController::class, 'despachar']);
 });

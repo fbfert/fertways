@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Domain\Logistics\ConcluirTrechos;
 use App\Domain\Production\ColonyTick;
 use App\Models\Colony;
 use App\Models\NeutralZone;
@@ -25,7 +26,7 @@ class TickColonies extends Command
 
     protected $description = 'Avança produção, conclui upgrades e expira proteções, por delta de tempo';
 
-    public function handle(ColonyTick $tick): int
+    public function handle(ColonyTick $tick, ConcluirTrechos $trechos): int
     {
         $agora = now();
         $processadas = 0;
@@ -51,7 +52,14 @@ class TickColonies extends Command
 
         $zonas = $this->expirarProtecoes($agora);
 
-        $this->info("tick: {$processadas} colônias, {$falhas} falhas, {$zonas} proteções expiradas");
+        /*
+         * Fora do laço por colônia: um veículo da colônia A entrega na B, e o relógio da viagem
+         * não tem relação com o `last_tick_at` de nenhuma das duas. Rodar por colônia entregaria
+         * a carga só quando a colônia de origem fosse processada.
+         */
+        $entregas = $trechos->handle();
+
+        $this->info("tick: {$processadas} colônias, {$falhas} falhas, {$zonas} proteções expiradas, {$entregas} trechos concluídos");
 
         return $falhas > 0 ? self::FAILURE : self::SUCCESS;
     }

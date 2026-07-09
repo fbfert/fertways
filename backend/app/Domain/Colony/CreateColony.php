@@ -2,6 +2,7 @@
 
 namespace App\Domain\Colony;
 
+use App\Domain\Logistics\EscolherPosicao;
 use App\Models\Building;
 use App\Models\Colony;
 use App\Models\Ledger;
@@ -30,14 +31,19 @@ use Illuminate\Support\Facades\DB;
  */
 class CreateColony
 {
+    public function __construct(private readonly EscolherPosicao $posicao) {}
+
     public function handle(User $user, string $nome): Colony
     {
         return DB::transaction(function () use ($user, $nome) {
             $agora = now();
+            [$x, $y] = $this->posicao->handle();
 
             $colony = Colony::create([
                 'user_id' => $user->id,
                 'name' => $nome,
+                'x' => $x,
+                'y' => $y,
                 'founded_at' => $agora,
                 'milestone' => 'colonizacao_inicial',
                 'fert_micro' => Colony::SALDO_INICIAL_MICRO,

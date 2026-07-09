@@ -9,13 +9,14 @@ class Vehicle extends Model
 {
     protected $fillable = [
         'colony_id', 'type', 'level', 'status', 'capacity',
-        'origin_id', 'destination_type', 'destination_id',
+        'origin_id', 'destination_type', 'destination_id', 'leg', 'distance_slots',
         'departs_at', 'arrives_at', 'cargo_json',
     ];
 
     protected $casts = [
         'level' => 'integer',
         'capacity' => 'integer',
+        'distance_slots' => 'integer',
         'departs_at' => 'datetime',
         'arrives_at' => 'datetime',
         'cargo_json' => 'array',

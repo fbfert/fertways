@@ -32,6 +32,7 @@ class Ledger extends Model
         'transferencia',
         'saldo_inicial',      // 50 Fert$ de onboarding
         'kit_inicial',        // raros concedidos na fundação — decisão de design, D-17
+        'energia_viagem',     // §21.1: consumo do veículo por distância percorrida
         'estorno',
     ];
 
