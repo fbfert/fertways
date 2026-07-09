@@ -139,6 +139,44 @@ Nota: o SQLite aceitou o schema quebrado sem reclamar. Validar migrations contra
 
 ---
 
+## D-10 — O GDD não publica tempo de construção para 10 das 25 tabelas
+**Data:** 2026-07-08 · **Status:** ABERTO, bloqueia MVP itens 3 e 4 · **Lacuna do GDD**
+
+As tabelas de §4.2/§4.3 trazem linha `Tempo (min)` para 15 construções. Não trazem para:
+
+| Sem tempo no GDD | Precisa no MVP? |
+|---|---|
+| `central_de_transportes` | **sim** (item 4) |
+| `destilaria` | **sim** (item 3 — cadeia do Biocombustível) |
+| `furgao_de_comercio` | **sim** (item 4) |
+| `caminhao_de_carga` | **sim** (item 4) |
+| `deposito_de_zona_neutra` | item 6 |
+| `drone_de_exploracao`, `robo_minerador`, `infiltrador`, `predador`, `nave_de_transporte_planetaria` | não (v2) |
+
+Procurado também no corpo v3.0 (§19.5, §19.6, §20, §21): não existe. §19.5 dá, para a Central
+de Transportes, apenas **caminhões base por nível** (1..10) e **consumo de energia** — nunca tempo.
+
+**Situação atual:** `building_specs.build_time_seconds` é `NULL` para essas dez.
+`NULL` significa "o GDD não diz", **não** "instantâneo". Enfileirar uma dessas construções deve
+falhar explicitamente até que os tempos sejam definidos. Há teste garantindo que ninguém preencha
+esses campos com valor inventado (`test_construcoes_sem_tempo_no_gdd_ficam_nulas_e_nao_zeradas`).
+
+---
+
+## D-11 — Inconsistências menores do GDD, registradas e não resolvidas
+**Data:** 2026-07-08 · **Status:** ABERTO, não bloqueia
+
+1. **Base de cálculo do tributo.** §8.3 diz "3% **do volume** enviado". §22.6 exemplifica a venda
+   de 1.000 unidades de Água e calcula "Tributo (3%): 0,186 Fert$", que é 3% do **valor em Fert$**
+   (6,20), não do volume. §25.2 separa "volume movimentado" (transporte) de "Fert$ movimentado"
+   (mercado). O schema comporta ambos (`tax_events.kind` + `base_amount`), mas a semântica do
+   `base_amount` no transporte precisa de confirmação.
+2. **Quantos recursos raros existem.** A taxonomia narrativa lista **8** raros. A tabela de
+   preços-base §22.4 lista **9**, incluindo "Bioenergia Curativa", ausente da primeira lista.
+   O catálogo semeado tem os 9 de §22.4.
+
+---
+
 ## D-09 — Invariantes que o banco garante, não o código
 
 - `tax_events.economic_event_key` é **UNIQUE**. "Uma incidência por fato econômico/lote"

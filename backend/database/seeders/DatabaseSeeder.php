@@ -2,22 +2,17 @@
 
 namespace Database\Seeders;
 
-use App\Models\User;
-// use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
 class DatabaseSeeder extends Seeder
 {
-    /**
-     * Seed the application's database.
-     */
     public function run(): void
     {
-        // User::factory(10)->create();
-
-        User::factory()->create([
-            'name' => 'Test User',
-            'email' => 'test@example.com',
+        // Ordem importa: resources, ledger e tax_events têm FK para resource_types.code,
+        // e os cost_json de building_specs referenciam esses mesmos códigos.
+        $this->call([
+            ResourceTypeSeeder::class,
+            BuildingSpecSeeder::class,
         ]);
     }
 }

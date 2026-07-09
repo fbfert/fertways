@@ -1,0 +1,210 @@
+[
+  {
+    "code": "agua",
+    "nome": "Água",
+    "tax_class": "primario",
+    "producao_max_hora": 405,
+    "preco_base_micro": 6200,
+    "tax_bps": 300
+  },
+  {
+    "code": "aluminio",
+    "nome": "Alumínio",
+    "tax_class": "secundario",
+    "producao_max_hora": 100,
+    "preco_base_micro": 25300,
+    "tax_bps": 200
+  },
+  {
+    "code": "biocombustivel",
+    "nome": "Biocombustível",
+    "tax_class": "secundario",
+    "producao_max_hora": 152,
+    "preco_base_micro": 16600,
+    "tax_bps": 200
+  },
+  {
+    "code": "bioenergia_curativa",
+    "nome": "Bioenergia Curativa",
+    "tax_class": "raro",
+    "producao_max_hora": 5,
+    "preco_base_micro": 506000,
+    "tax_bps": 100
+  },
+  {
+    "code": "biomassa",
+    "nome": "Biomassa",
+    "tax_class": "primario",
+    "producao_max_hora": 304,
+    "preco_base_micro": 8300,
+    "tax_bps": 300
+  },
+  {
+    "code": "cobre",
+    "nome": "Cobre",
+    "tax_class": "secundario",
+    "producao_max_hora": 80,
+    "preco_base_micro": 31600,
+    "tax_bps": 200
+  },
+  {
+    "code": "componentes_eletronicos",
+    "nome": "Componentes Eletrônicos",
+    "tax_class": "secundario",
+    "producao_max_hora": 76,
+    "preco_base_micro": 33300,
+    "tax_bps": 200
+  },
+  {
+    "code": "compostos_quimicos",
+    "nome": "Compostos Químicos",
+    "tax_class": "secundario",
+    "producao_max_hora": 152,
+    "preco_base_micro": 16600,
+    "tax_bps": 200
+  },
+  {
+    "code": "cristal_de_helio_3",
+    "nome": "Cristal de Hélio-3",
+    "tax_class": "raro",
+    "producao_max_hora": 8,
+    "preco_base_micro": 316300,
+    "tax_bps": 100
+  },
+  {
+    "code": "energia",
+    "nome": "Energia",
+    "tax_class": "primario",
+    "producao_max_hora": 759,
+    "preco_base_micro": 3300,
+    "tax_bps": 300
+  },
+  {
+    "code": "estanho",
+    "nome": "Estanho",
+    "tax_class": "secundario",
+    "producao_max_hora": 80,
+    "preco_base_micro": 31600,
+    "tax_bps": 200
+  },
+  {
+    "code": "ferro_vermelho",
+    "nome": "Ferro Vermelho",
+    "tax_class": "raro",
+    "producao_max_hora": 12,
+    "preco_base_micro": 210800,
+    "tax_bps": 100
+  },
+  {
+    "code": "fungo_bioluminescente",
+    "nome": "Fungo Bioluminescente",
+    "tax_class": "raro",
+    "producao_max_hora": 10,
+    "preco_base_micro": 253000,
+    "tax_bps": 100
+  },
+  {
+    "code": "gelo_de_metano",
+    "nome": "Gelo de Metano",
+    "tax_class": "raro",
+    "producao_max_hora": 10,
+    "preco_base_micro": 253000,
+    "tax_bps": 100
+  },
+  {
+    "code": "ligas_metalicas",
+    "nome": "Ligas Metálicas",
+    "tax_class": "secundario",
+    "producao_max_hora": 202,
+    "preco_base_micro": 12500,
+    "tax_bps": 200
+  },
+  {
+    "code": "litio",
+    "nome": "Lítio",
+    "tax_class": "secundario",
+    "producao_max_hora": 50,
+    "preco_base_micro": 50600,
+    "tax_bps": 200
+  },
+  {
+    "code": "metal_bruto",
+    "nome": "Metal Bruto",
+    "tax_class": "primario",
+    "producao_max_hora": null,
+    "preco_base_micro": null,
+    "tax_bps": 300
+  },
+  {
+    "code": "niobio_alienigena",
+    "nome": "Nióbio Alienígena",
+    "tax_class": "raro",
+    "producao_max_hora": 8,
+    "preco_base_micro": 316300,
+    "tax_bps": 100
+  },
+  {
+    "code": "ouro",
+    "nome": "Ouro",
+    "tax_class": "secundario",
+    "producao_max_hora": 20,
+    "preco_base_micro": 126500,
+    "tax_bps": 200
+  },
+  {
+    "code": "oxigenio",
+    "nome": "Oxigênio",
+    "tax_class": "primario",
+    "producao_max_hora": 506,
+    "preco_base_micro": 5000,
+    "tax_bps": 300
+  },
+  {
+    "code": "plasma_fossilizado",
+    "nome": "Plasma Fossilizado",
+    "tax_class": "raro",
+    "producao_max_hora": 6,
+    "preco_base_micro": 421700,
+    "tax_bps": 100
+  },
+  {
+    "code": "quartzo_piezoeletrico",
+    "nome": "Quartzo Piezoelétrico",
+    "tax_class": "raro",
+    "producao_max_hora": 8,
+    "preco_base_micro": 316300,
+    "tax_bps": 100
+  },
+  {
+    "code": "resina_organica",
+    "nome": "Resina Orgânica",
+    "tax_class": "raro",
+    "producao_max_hora": 8,
+    "preco_base_micro": 316300,
+    "tax_bps": 100
+  },
+  {
+    "code": "silicio",
+    "nome": "Silício",
+    "tax_class": "secundario",
+    "producao_max_hora": 70,
+    "preco_base_micro": 36100,
+    "tax_bps": 200
+  },
+  {
+    "code": "tantalo",
+    "nome": "Tântalo",
+    "tax_class": "secundario",
+    "producao_max_hora": 25,
+    "preco_base_micro": 101200,
+    "tax_bps": 200
+  },
+  {
+    "code": "tungstenio",
+    "nome": "Tungstênio",
+    "tax_class": "secundario",
+    "producao_max_hora": 45,
+    "preco_base_micro": 56200,
+    "tax_bps": 200
+  }
+]

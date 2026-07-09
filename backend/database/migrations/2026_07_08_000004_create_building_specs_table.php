@@ -23,7 +23,11 @@ return new class extends Migration
             $table->unsignedTinyInteger('level');
 
             // Verbatim do GDD. Nunca calculado.
-            $table->unsignedInteger('build_time_seconds');
+            // Anulável porque o GDD simplesmente NÃO define tempo de construção para
+            // Central de Transportes, Destilaria, Depósito de Zona Neutra nem para os
+            // veículos — nem em §4.2/§4.3, nem no corpo v3.0. Ver docs/decisoes.md D-10.
+            // NULL significa "o GDD não diz", não "instantâneo": enfileirar deve falhar.
+            $table->unsignedInteger('build_time_seconds')->nullable();
 
             // {"agua":50,"biomassa":30,"energia":10,"oxigenio":5}
             $table->json('cost_json');
