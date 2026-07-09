@@ -5,8 +5,10 @@ namespace App\Domain\Logistics;
 use App\Exceptions\DomainRuleException;
 use App\Models\Colony;
 use App\Models\Ledger;
+use App\Models\MarketAccount;
 use App\Models\ResourceType;
 use App\Models\Vehicle;
+use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -23,6 +25,59 @@ class DespacharVeiculo
 {
     public function handle(Colony $origem, Vehicle $veiculo, string $destinoTipo, ?int $destinoId, array $carga): Vehicle
     {
+        $this->validarVeiculo($origem, $veiculo);
+
+        $destino = $this->resolverDestino($origem, $destinoTipo, $destinoId);
+        $this->validarCarga($veiculo, $carga);
+
+        [$distancia, $energia] = $this->trajeto($origem, $veiculo, $destino);
+
+        return DB::transaction(function () use ($origem, $veiculo, $destinoTipo, $destino, $carga, $distancia, $energia) {
+            $agora = now();
+            $ref = $this->partir($origem, $veiculo, $energia, $agora);
+
+            foreach ($carga as $recurso => $qtd) {
+                $this->debitarEstoque($origem, $recurso, $qtd, 'transferencia', $ref);
+            }
+
+            return $this->emRota($veiculo, $destinoTipo, $destino['id'], 'entrega', $distancia, $carga, $agora);
+        });
+    }
+
+    /**
+     * Retirada do Mercado Central (§25.8): "ele precisa enviar um veículo próprio para retirá-lo
+     * e levá-lo até seu slot". O veículo vai vazio, carrega na Capital e volta com a carga — o
+     * tributo só incide quando ela chega ao slot do colono, no fim da volta.
+     *
+     * O saldo é debitado da conta **aqui, no despacho**, não na chegada do veículo ao Mercado.
+     * É a mesma regra do estoque na entrega (D-30): sem reservar, dois veículos partiriam
+     * prometendo o mesmo saldo e um deles voltaria vazio depois de gastar energia. Ver D-32.
+     */
+    public function retirar(Colony $origem, Vehicle $veiculo, array $pedido): Vehicle
+    {
+        $this->validarVeiculo($origem, $veiculo);
+
+        $destino = $this->resolverDestino($origem, 'mercado_central', null);
+        $this->validarCarga($veiculo, $pedido);
+
+        [$distancia, $energia] = $this->trajeto($origem, $veiculo, $destino);
+
+        return DB::transaction(function () use ($origem, $veiculo, $pedido, $distancia, $energia) {
+            $agora = now();
+            $ref = $this->partir($origem, $veiculo, $energia, $agora);
+
+            foreach ($pedido as $recurso => $qtd) {
+                $this->debitarConta($origem, $recurso, $qtd, $ref);
+            }
+
+            // `cargo_json` numa retirada é a carga **reservada**, que só embarca de fato ao
+            // chegar na Capital. O veículo viaja vazio na ida; `trip_purpose` diz qual é qual.
+            return $this->emRota($veiculo, 'mercado_central', null, 'retirada', $distancia, $pedido, $agora);
+        });
+    }
+
+    private function validarVeiculo(Colony $origem, Vehicle $veiculo): void
+    {
         if ($veiculo->colony_id !== $origem->id) {
             throw new DomainRuleException('veiculo_de_outra_colonia', 'Este veículo não é seu.');
         }
@@ -31,58 +86,56 @@ class DespacharVeiculo
         if (! $veiculo->disponivel()) {
             throw new DomainRuleException('veiculo_ocupado', 'O veículo está em rota.');
         }
+    }
 
-        $destino = $this->resolverDestino($origem, $destinoTipo, $destinoId);
-        $this->validarCarga($veiculo, $carga);
-
+    /** @return array{0: int, 1: int} distância em slots e energia da viagem inteira */
+    private function trajeto(Colony $origem, Vehicle $veiculo, array $destino): array
+    {
         $distancia = MapaFertways::distancia($origem->x, $origem->y, $destino['x'], $destino['y']);
 
         if ($distancia === 0) {
             throw new DomainRuleException('destino_igual_origem', 'Origem e destino são o mesmo ponto.');
         }
 
-        $energia = VeiculoSpecs::energiaDaViagem($veiculo->type, $distancia);
+        return [$distancia, VeiculoSpecs::energiaDaViagem($veiculo->type, $distancia)];
+    }
 
-        return DB::transaction(function () use ($origem, $veiculo, $destinoTipo, $destino, $carga, $distancia, $energia) {
-            $agora = now();
-            $ref = "viagem:{$veiculo->id}:{$agora->getTimestamp()}";
+    /** Debita a energia e devolve a referência que amarra todos os lançamentos da viagem. */
+    private function partir(Colony $origem, Vehicle $veiculo, int $energia, CarbonInterface $agora): string
+    {
+        $ref = "viagem:{$veiculo->id}:{$agora->getTimestamp()}";
 
-            $this->debitar($origem, 'energia', $energia, 'energia_viagem', $ref);
+        $this->debitarEstoque($origem, 'energia', $energia, 'energia_viagem', $ref);
 
-            foreach ($carga as $recurso => $qtd) {
-                $this->debitar($origem, $recurso, $qtd, 'transferencia', $ref);
-            }
+        return $ref;
+    }
 
-            $veiculo->forceFill([
-                'status' => 'em_rota',
-                'leg' => 'ida',
-                'destination_type' => $destinoTipo,
-                'destination_id' => $destino['id'],
-                'distance_slots' => $distancia,
-                'departs_at' => $agora,
-                'arrives_at' => $agora->copy()->addSeconds(
-                    VeiculoSpecs::segundosDoTrecho($veiculo->type, $distancia),
-                ),
-                'cargo_json' => $carga,
-            ])->save();
+    private function emRota(Vehicle $veiculo, string $destinoTipo, ?int $destinoId, string $proposito, int $distancia, array $carga, CarbonInterface $agora): Vehicle
+    {
+        $veiculo->forceFill([
+            'status' => 'em_rota',
+            'leg' => 'ida',
+            'trip_purpose' => $proposito,
+            'destination_type' => $destinoTipo,
+            'destination_id' => $destinoId,
+            'distance_slots' => $distancia,
+            'departs_at' => $agora,
+            'arrives_at' => $agora->copy()->addSeconds(
+                VeiculoSpecs::segundosDoTrecho($veiculo->type, $distancia),
+            ),
+            'cargo_json' => $carga,
+        ])->save();
 
-            return $veiculo;
-        });
+        return $veiculo;
     }
 
     /** @return array{id: ?int, x: int, y: int} */
     private function resolverDestino(Colony $origem, string $tipo, ?int $id): array
     {
+        // §25.8: o destino é fixo — o Mercado Central fica no núcleo do mapa. Não tem `id`
+        // porque não é uma colônia; quem identifica o dono da carga é a origem da viagem.
         if ($tipo === 'mercado_central') {
-            /*
-             * §25.8 exige que o recurso seja depositado numa conta do colono no Mercado antes de
-             * poder ser vendido. Essa conta não existe ainda — entregar aqui evaporaria a carga.
-             * Recusamos com um código estável em vez de perder recurso do jogador.
-             */
-            throw new DomainRuleException(
-                'mercado_central_indisponivel',
-                'O depósito no Mercado Central ainda não está implementado.',
-            );
+            return ['id' => null, 'x' => MapaFertways::CAPITAL_X, 'y' => MapaFertways::CAPITAL_Y];
         }
 
         if ($tipo !== 'colonia') {
@@ -129,7 +182,7 @@ class DespacharVeiculo
         }
     }
 
-    private function debitar(Colony $colonia, string $recurso, int $qtd, string $tipoLancamento, string $ref): void
+    private function debitarEstoque(Colony $colonia, string $recurso, int $qtd, string $tipoLancamento, string $ref): void
     {
         // `where amount >= qtd` no UPDATE: dois despachos simultâneos não podem gastar o mesmo
         // estoque. A coluna é unsigned, então um saldo negativo seria erro de banco, não bug silencioso.
@@ -142,10 +195,33 @@ class DespacharVeiculo
             throw new DomainRuleException('recurso_insuficiente', "Falta {$recurso} para esta viagem.");
         }
 
+        $this->lancar($colonia, $tipoLancamento, -$qtd, $recurso, $ref);
+    }
+
+    /** Mesma guarda atômica do estoque, agora sobre o saldo do colono no Mercado. */
+    private function debitarConta(Colony $colonia, string $recurso, int $qtd, string $ref): void
+    {
+        $afetadas = MarketAccount::where('colony_id', $colonia->id)
+            ->where('resource_type', $recurso)
+            ->where('amount', '>=', $qtd)
+            ->decrement('amount', $qtd);
+
+        if ($afetadas === 0) {
+            throw new DomainRuleException(
+                'saldo_mercado_insuficiente',
+                "Sua conta no Mercado não tem {$qtd} de {$recurso}.",
+            );
+        }
+
+        $this->lancar($colonia, 'retirada_mercado', -$qtd, $recurso, $ref);
+    }
+
+    private function lancar(Colony $colonia, string $tipo, int $valor, string $recurso, string $ref): void
+    {
         Ledger::create([
             'colony_id' => $colonia->id,
-            'type' => $tipoLancamento,
-            'amount' => -$qtd,
+            'type' => $tipo,
+            'amount' => $valor,
             'resource_type' => $recurso,
             'ref' => $ref,
             'created_at' => now(),

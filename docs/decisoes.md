@@ -650,3 +650,32 @@ bater com a célula. É o mesmo tratamento dado ao Tanque de Combustível nível
 capacidade com o uso, e trava abaixo de um limite crítico). O GDD descreve o comportamento mas
 **não publica a curva de desgaste, o limite crítico nem o custo de manutenção**. Implementar agora
 exigiria inventar valores. Decisão do usuário: fica para v2.
+
+---
+
+## D-32 — A conta no Mercado Central: reserva no despacho, tributo em cada entrega física
+**Data:** 2026-07-09 · **Status:** decidido
+
+§25.8 exige que o recurso seja **fisicamente entregue** ao Mercado antes de poder ser vendido, e
+que o recurso comprado fique numa conta até o colono "enviar um veículo próprio para retirá-lo e
+levá-lo até seu slot". O GDD não diz como essa conta se comporta.
+
+**Decisões:**
+1. **A conta é um saldo por colônia e recurso** (`market_accounts`), fora do estoque da colônia:
+   não conta para o `storage_cap`, não é produzida nem consumida. Entra por veículo, sai por veículo.
+2. **A retirada reserva o saldo no despacho**, não na chegada do veículo ao Mercado. É a mesma
+   regra da carga em D-30: sem reservar, dois veículos partiriam prometendo o mesmo saldo e um
+   voltaria vazio depois de gastar energia. O veículo viaja vazio na ida; `vehicles.trip_purpose`
+   distingue `entrega` de `retirada`, e `cargo_json` numa retirada é a carga **reservada**.
+3. **Depósito e retirada são dois fatos tributáveis**, porque são duas entregas físicas. §25.9
+   cobra o tributo "uma única vez, no momento da entrega física pelo veículo" — uma vez **por
+   entrega**. Consequência econômica: mandar 1.000 de Metal Bruto ao Mercado e trazê-lo de volta
+   sem vender custa 59 unidades (30 + 29). Não é bug; é o preço de mudar de ideia. Fixado em teste.
+4. O tributo do depósito incide no **fim da ida**; o da retirada, no **fim da volta** ("tributo na
+   chegada", §25.8). As `economic_event_key` são `deposito:…` e `retirada:…`, nunca colidem, e
+   preservam o prefixo `entrega:` já gravado para as entregas entre colônias.
+
+**Fora desta fatia:** a **venda** por Fert$. Ela depende de um preço, e §22.2 e §24.8 divergem em
+trinta e oito vezes para os Componentes Eletrônicos (**D-24, ainda sem arbitragem**). Depósito e
+retirada não dependem de preço nenhum, então foram primeiro. §25.8 garante que a venda, quando
+existir, **não gera novo tributo de volume** — a movimentação física já foi tributada.

@@ -9,7 +9,7 @@ class Vehicle extends Model
 {
     protected $fillable = [
         'colony_id', 'type', 'level', 'status', 'capacity',
-        'origin_id', 'destination_type', 'destination_id', 'leg', 'distance_slots',
+        'origin_id', 'destination_type', 'destination_id', 'leg', 'trip_purpose', 'distance_slots',
         'departs_at', 'arrives_at', 'cargo_json',
     ];
 

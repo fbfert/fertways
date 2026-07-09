@@ -29,6 +29,7 @@ class VehicleController extends Controller
                 'status' => $v->status,
                 'capacity' => $v->capacity,
                 'leg' => $v->leg,
+                'trip_purpose' => $v->trip_purpose,
                 'distance_slots' => $v->distance_slots,
                 'destination_type' => $v->destination_type,
                 'destination_id' => $v->destination_id,

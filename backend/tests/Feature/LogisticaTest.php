@@ -191,16 +191,6 @@ class LogisticaTest extends TestCase
     }
 
     #[Test]
-    public function mercado_central_ainda_nao_aceita_deposito(): void
-    {
-        [$a] = $this->duasColonias();
-        $this->abastecer($a, ['metal_bruto' => 1_000, 'energia' => 100]);
-
-        $this->expectExceptionMessage('Mercado Central ainda não está implementado');
-        app(DespacharVeiculo::class)->handle($a, $this->furgao($a), 'mercado_central', null, ['metal_bruto' => 100]);
-    }
-
-    #[Test]
     public function toda_colonia_nasce_com_coordenada_unica_fora_da_capital(): void
     {
         $c = $this->colonia('c@t.test', 'gama', 7, 7);

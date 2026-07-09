@@ -33,6 +33,8 @@ class Ledger extends Model
         'saldo_inicial',      // 50 Fert$ de onboarding
         'kit_inicial',        // raros concedidos na fundação — decisão de design, D-17
         'energia_viagem',     // §21.1: consumo do veículo por distância percorrida
+        'deposito_mercado',   // §25.8: carga entregue entra na conta do colono no Mercado
+        'retirada_mercado',   // §25.8: saldo reservado no Mercado para um veículo vir buscar
         'estorno',
     ];
 

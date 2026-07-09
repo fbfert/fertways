@@ -19,7 +19,9 @@ use Illuminate\Support\Facades\DB;
  * entrega carga em qualquer destino" — e não o §8.3, que falava em cobrar na saída. Um veículo
  * perdido antes de entregar não gera lançamento tributário.
  *
- * Trecho de **volta** (§25.5): só ao completá-lo o veículo volta a ficar disponível.
+ * Trecho de **volta** (§25.5): só ao completá-lo o veículo volta a ficar disponível. Numa
+ * **retirada** do Mercado (§25.8) é também nele que a carga chega ao slot do colono, e é aí que
+ * o tributo incide — "mesma lógica de distância e tributo na chegada".
  */
 class ConcluirTrechos
 {
@@ -52,20 +54,49 @@ class ConcluirTrechos
 
     private function concluirIda(Vehicle $v): void
     {
-        $destino = Colony::find($v->destination_id);
         $origem = Colony::find($v->colony_id);
+
+        /*
+         * Retirada: o veículo chegou vazio ao Mercado e embarca a carga que já reservou no
+         * despacho. Nada é entregue e nada é tributado aqui — a carga ainda não chegou a
+         * lugar nenhum. Por isso `cargo_json` sobrevive ao trecho.
+         */
+        if ($v->trip_purpose === 'retirada') {
+            $this->iniciarVolta($v, manterCarga: true);
+
+            return;
+        }
+
+        if ($v->destination_type === 'mercado_central') {
+            if ($origem) {
+                foreach ($v->cargo_json ?? [] as $recurso => $qtd) {
+                    $this->depositarNoMercado($origem, $v, $recurso, (int) $qtd);
+                }
+            }
+
+            $this->iniciarVolta($v, manterCarga: false);
+
+            return;
+        }
+
+        $destino = Colony::find($v->destination_id);
 
         // A colônia de destino pode ter sido apagada durante o trajeto. A carga se perde; o
         // veículo volta. Não há regra no GDD para isso, e evaporar é melhor que travar o veículo.
         if ($destino && $origem) {
             foreach ($v->cargo_json ?? [] as $recurso => $qtd) {
-                $this->entregar($origem, $destino, $v, $recurso, (int) $qtd);
+                $this->entregar($origem, $destino, $v, $recurso, (int) $qtd, 'entrega');
             }
         }
 
+        $this->iniciarVolta($v, manterCarga: false);
+    }
+
+    private function iniciarVolta(Vehicle $v, bool $manterCarga): void
+    {
         $v->forceFill([
             'leg' => 'volta',
-            'cargo_json' => null,
+            'cargo_json' => $manterCarga ? $v->cargo_json : null,
             // A volta parte de quando a ida terminou, não de `now()`: se o cron atrasar, o
             // atraso não pode encurtar nem alongar o trecho de volta.
             'arrives_at' => $v->arrives_at->copy()->addSeconds(
@@ -76,9 +107,25 @@ class ConcluirTrechos
 
     private function concluirVolta(Vehicle $v): void
     {
+        /*
+         * §25.8: o colono "precisa enviar um veículo próprio para retirá-lo e levá-lo até seu
+         * slot — mesma lógica de distância e tributo na chegada". A chegada é aqui: origem e
+         * destino são a mesma colônia, e ela paga o tributo sobre o que retirou.
+         */
+        if ($v->trip_purpose === 'retirada') {
+            $colonia = Colony::find($v->colony_id);
+
+            if ($colonia) {
+                foreach ($v->cargo_json ?? [] as $recurso => $qtd) {
+                    $this->entregar($colonia, $colonia, $v, $recurso, (int) $qtd, 'retirada');
+                }
+            }
+        }
+
         $v->forceFill([
             'status' => 'ocioso',
             'leg' => null,
+            'trip_purpose' => null,
             'destination_type' => null,
             'destination_id' => null,
             'distance_slots' => null,
@@ -88,7 +135,12 @@ class ConcluirTrechos
         ])->save();
     }
 
-    private function entregar(Colony $origem, Colony $destino, Vehicle $v, string $recurso, int $qtd): void
+    /**
+     * Depósito na conta do colono no Mercado Central (§25.8). É uma entrega física como
+     * qualquer outra: "Tributo de transporte cobrado na entrega, exatamente como qualquer
+     * outro destino". Quem credita é a conta, não o estoque da colônia.
+     */
+    private function depositarNoMercado(Colony $origem, Vehicle $v, string $recurso, int $qtd): void
     {
         $tipo = ResourceType::find($recurso);
 
@@ -96,56 +148,108 @@ class ConcluirTrechos
             return;
         }
 
-        /*
-         * "Uma incidência por fato econômico/lote" (GDD, seção 0 e §25.9) não é regra de
-         * aplicação, é invariante de dados. A chave deriva do **evento de entrega** — veículo e
-         * instante de partida identificam a viagem, e o recurso identifica o lote. Um retry do
-         * tick, ou dois crons concorrentes, colidem no índice único e não tributam duas vezes.
-         */
-        $chave = "entrega:{$v->id}:{$v->departs_at->getTimestamp()}:{$recurso}";
+        $chave = $this->chave('deposito', $v, $recurso);
+        $tributo = intdiv($qtd * $tipo->tax_bps, 10_000);
+        $liquido = $qtd - $tributo;
+
+        if (! $this->tributar($chave, $origem, $recurso, $qtd, $tipo->tax_bps, $tributo)) {
+            return;
+        }
+
+        // A conta pode não existir ainda: este é o primeiro depósito deste recurso. O
+        // `insertOrIgnore` deixa duas entregas simultâneas do mesmo recurso criarem a linha
+        // sem que uma delas estoure no índice único.
+        DB::table('market_accounts')->insertOrIgnore([
+            'colony_id' => $origem->id,
+            'resource_type' => $recurso,
+            'amount' => 0,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        DB::table('market_accounts')
+            ->where('colony_id', $origem->id)
+            ->where('resource_type', $recurso)
+            ->increment('amount', $liquido);
+
+        $this->lancar($origem, 'deposito_mercado', $liquido, $recurso, $chave);
+        $this->lancarTributo($origem, $tributo, $recurso, $chave);
+    }
+
+    private function entregar(Colony $origem, Colony $destino, Vehicle $v, string $recurso, int $qtd, string $prefixo): void
+    {
+        $tipo = ResourceType::find($recurso);
+
+        if (! $tipo) {
+            return;
+        }
+
+        $chave = $this->chave($prefixo, $v, $recurso);
 
         // Truncamento: o tributo é retido em unidades inteiras do próprio recurso (D-12), e
         // arredondar para cima cobraria mais do que a alíquota em cargas pequenas.
         $tributo = intdiv($qtd * $tipo->tax_bps, 10_000);
         $liquido = $qtd - $tributo;
 
+        if (! $this->tributar($chave, $origem, $recurso, $qtd, $tipo->tax_bps, $tributo)) {
+            return;
+        }
+
+        $destino->resources()->where('resource_type', $recurso)->increment('amount', $liquido);
+
+        $this->lancar($destino, 'transferencia', $liquido, $recurso, $chave);
+        $this->lancarTributo($origem, $tributo, $recurso, $chave);
+    }
+
+    /**
+     * "Uma incidência por fato econômico/lote" (GDD, seção 0 e §25.9) não é regra de
+     * aplicação, é invariante de dados. A chave deriva do **evento de entrega** — veículo e
+     * instante de partida identificam a viagem, e o recurso identifica o lote. Um retry do
+     * tick, ou dois crons concorrentes, colidem no índice único e não tributam duas vezes.
+     *
+     * O prefixo separa os dois fatos tributáveis de uma mesma viagem de retirada: nenhum é
+     * gerado, mas a ida de uma entrega e a volta de uma retirada nunca poderiam colidir.
+     */
+    private function chave(string $prefixo, Vehicle $v, string $recurso): string
+    {
+        return "{$prefixo}:{$v->id}:{$v->departs_at->getTimestamp()}:{$recurso}";
+    }
+
+    /** @return bool false se este lote já foi tributado numa execução anterior do tick */
+    private function tributar(string $chave, Colony $origem, string $recurso, int $qtd, int $bps, int $tributo): bool
+    {
         $inserido = DB::table('tax_events')->insertOrIgnore([
             'economic_event_key' => $chave,
             'kind' => 'transporte_entrega',
             'colony_id' => $origem->id,
             'resource_type' => $recurso,
             'base_amount' => $qtd,
-            'tax_bps' => $tipo->tax_bps,
+            'tax_bps' => $bps,
             'tax_amount' => $tributo,
             'created_at' => now(),
         ]);
 
         // Já tributado numa execução anterior: a carga também já foi creditada. Sair sem creditar
         // de novo é o que torna o tick seguro para repetir.
-        if ($inserido === 0) {
-            return;
-        }
+        return $inserido !== 0;
+    }
 
-        $destino->resources()->where('resource_type', $recurso)->increment('amount', $liquido);
-
+    private function lancar(Colony $colonia, string $tipo, int $valor, string $recurso, string $ref): void
+    {
         Ledger::create([
-            'colony_id' => $destino->id,
-            'type' => 'transferencia',
-            'amount' => $liquido,
+            'colony_id' => $colonia->id,
+            'type' => $tipo,
+            'amount' => $valor,
             'resource_type' => $recurso,
-            'ref' => $chave,
+            'ref' => $ref,
             'created_at' => now(),
         ]);
+    }
 
+    private function lancarTributo(Colony $origem, int $tributo, string $recurso, string $ref): void
+    {
         if ($tributo > 0) {
-            Ledger::create([
-                'colony_id' => $origem->id,
-                'type' => 'tributo',
-                'amount' => -$tributo,
-                'resource_type' => $recurso,
-                'ref' => $chave,
-                'created_at' => now(),
-            ]);
+            $this->lancar($origem, 'tributo', -$tributo, $recurso, $ref);
         }
     }
 }

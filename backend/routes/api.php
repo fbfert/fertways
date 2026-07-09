@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\BuildingController;
 use App\Http\Controllers\Api\ColonyController;
+use App\Http\Controllers\Api\MarketController;
 use App\Http\Controllers\Api\VehicleController;
 use Illuminate\Support\Facades\Route;
 
@@ -21,4 +22,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/vehicles', [VehicleController::class, 'index']);
     Route::get('/vehicles/route', [VehicleController::class, 'rota']);
     Route::post('/vehicles/{vehicle}/dispatch', [VehicleController::class, 'despachar']);
+
+    Route::get('/market/account', [MarketController::class, 'conta']);
+    Route::post('/vehicles/{vehicle}/withdraw', [MarketController::class, 'retirar']);
 });
