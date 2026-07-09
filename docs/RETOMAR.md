@@ -117,6 +117,23 @@ diff <(ls frontend/dist/assets/*.js | xargs -n1 basename) \
 ## Contas de teste
 
 `publico@fertways.test` · `mapa2@fertways.test` — senha `segredo-forte-123` nas duas.
+Recriadas em 2026-07-09 depois do incidente do D-36; nascem zeradas, sem nada na doca.
+`f@t.test` ("Nova Aurora") veio do backup e sua senha não está documentada.
+
+## ⚠️ Ferramentas destrutivas neste deploy
+
+Existe `backend/bootstrap/cache/config.php`. **Com a config cacheada, o Laravel não lê `env()`**:
+exportar `DB_CONNECTION=sqlite` não redireciona nada, e `migrate:fresh` cai no MariaDB de produção.
+Foi assim que o banco do jogo foi apagado uma vez (D-36).
+
+Toda ferramenta que rode `migrate:fresh`, `db:wipe` ou `truncate` precisa **exportar também
+`APP_CONFIG_CACHE`** para um caminho inexistente (como o `phpunit.xml` faz desde o D-27) **e
+verificar o alvo antes de executar**. O `tools/e2e.sh` faz as duas coisas e aborta se a conexão
+efetiva não for o SQLite temporário.
+
+O binlog do MariaDB está **desligado** e o backup é diário, às 03:00 (`/backup-local/mysql/`, dump
+de *todos* os bancos do servidor — extraia só o `fertwaysbd` antes de restaurar). Isso significa
+**até 24 h de perda**. Se algum dado passar a importar, ligar o binlog é o primeiro passo.
 
 ## Leia também
 
