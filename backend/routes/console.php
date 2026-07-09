@@ -1,8 +1,15 @@
 <?php
 
-use Illuminate\Foundation\Inspiring;
-use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Schedule;
 
-Artisan::command('inspire', function () {
-    $this->comment(Inspiring::quote());
-})->purpose('Display an inspiring quote');
+/**
+ * Um tick por minuto, acionado pelo cron do sistema via `schedule:run`.
+ *
+ * `withoutOverlapping` importa: se um tick demorar mais de 60 s (colônia com semanas de
+ * delta acumulado), o minuto seguinte não pode entrar e processar o mesmo delta de novo.
+ * `runInBackground` evita que o tick atrase outras tarefas do scheduler.
+ */
+Schedule::command('fertways:tick')
+    ->everyMinute()
+    ->withoutOverlapping(10)
+    ->runInBackground();

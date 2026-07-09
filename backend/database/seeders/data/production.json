@@ -1,0 +1,297 @@
+{
+  "gerador_de_atmosfera": {
+    "producao": {
+      "1": {
+        "oxigenio": 100
+      },
+      "2": {
+        "oxigenio": 150
+      },
+      "3": {
+        "oxigenio": 225
+      },
+      "4": {
+        "oxigenio": 338
+      },
+      "5": {
+        "oxigenio": 506
+      }
+    },
+    "consumo_energia": {
+      "1": 25,
+      "2": 38,
+      "3": 56,
+      "4": 84,
+      "5": 127
+    }
+  },
+  "captacao_de_agua": {
+    "producao": {
+      "1": {
+        "agua": 80
+      },
+      "2": {
+        "agua": 120
+      },
+      "3": {
+        "agua": 180
+      },
+      "4": {
+        "agua": 270
+      },
+      "5": {
+        "agua": 405
+      }
+    },
+    "consumo_energia": {
+      "1": 12,
+      "2": 18,
+      "3": 27,
+      "4": 40,
+      "5": 61
+    }
+  },
+  "fazenda": {
+    "producao": {
+      "1": {
+        "biomassa": 60
+      },
+      "2": {
+        "biomassa": 90
+      },
+      "3": {
+        "biomassa": 135
+      },
+      "4": {
+        "biomassa": 202
+      },
+      "5": {
+        "biomassa": 304
+      }
+    },
+    "consumo_energia": {
+      "1": 15,
+      "2": 22,
+      "3": 34,
+      "4": 51,
+      "5": 76
+    }
+  },
+  "reator_de_energia": {
+    "producao": {
+      "1": {
+        "energia": 150
+      },
+      "2": {
+        "energia": 225
+      },
+      "3": {
+        "energia": 338
+      },
+      "4": {
+        "energia": 506
+      },
+      "5": {
+        "energia": 759
+      }
+    },
+    "consumo_energia": {}
+  },
+  "oficina": {
+    "producao": {
+      "1": {
+        "ligas_metalicas": 40,
+        "componentes_eletronicos": 15
+      },
+      "2": {
+        "ligas_metalicas": 60,
+        "componentes_eletronicos": 22
+      },
+      "3": {
+        "ligas_metalicas": 90,
+        "componentes_eletronicos": 34
+      },
+      "4": {
+        "ligas_metalicas": 135,
+        "componentes_eletronicos": 51
+      },
+      "5": {
+        "ligas_metalicas": 202,
+        "componentes_eletronicos": 76
+      }
+    },
+    "consumo_energia": {
+      "1": 25,
+      "2": 38,
+      "3": 56,
+      "4": 84,
+      "5": 127
+    }
+  },
+  "refinaria_quimica": {
+    "producao": {
+      "1": {
+        "compostos_quimicos": 30
+      },
+      "2": {
+        "compostos_quimicos": 45
+      },
+      "3": {
+        "compostos_quimicos": 68
+      },
+      "4": {
+        "compostos_quimicos": 101
+      },
+      "5": {
+        "compostos_quimicos": 152
+      }
+    },
+    "consumo_energia": {
+      "1": 28,
+      "2": 42,
+      "3": 63,
+      "4": 94,
+      "5": 142
+    }
+  },
+  "estrutura_de_sobrevivencia": {
+    "producao": {},
+    "consumo_energia": {
+      "1": 10,
+      "2": 15,
+      "3": 22,
+      "4": 34,
+      "5": 51
+    }
+  },
+  "laboratorio": {
+    "producao": {},
+    "consumo_energia": {
+      "1": 20,
+      "2": 30,
+      "3": 45,
+      "4": 68,
+      "5": 101
+    }
+  },
+  "antena_de_comunicacao": {
+    "producao": {},
+    "consumo_energia": {
+      "1": 8,
+      "2": 12,
+      "3": 18,
+      "4": 27,
+      "5": 40
+    }
+  },
+  "torre_de_defesa": {
+    "producao": {},
+    "consumo_energia": {
+      "1": 18,
+      "2": 27,
+      "3": 40,
+      "4": 61,
+      "5": 91
+    }
+  },
+  "mercado_local": {
+    "producao": {},
+    "consumo_energia": {
+      "1": 6,
+      "2": 9,
+      "3": 14,
+      "4": 20,
+      "5": 30
+    }
+  },
+  "quartel": {
+    "producao": {},
+    "consumo_energia": {
+      "1": 20,
+      "2": 30,
+      "3": 45,
+      "4": 68,
+      "5": 101
+    }
+  },
+  "plataforma_de_pouso": {
+    "producao": {},
+    "consumo_energia": {
+      "1": 16,
+      "2": 24,
+      "3": 36,
+      "4": 54,
+      "5": 81
+    }
+  },
+  "central_de_transportes": {
+    "producao": {},
+    "consumo_energia": {
+      "1": 22,
+      "2": 33,
+      "3": 50,
+      "4": 74,
+      "5": 111,
+      "6": 167,
+      "7": 251,
+      "8": 376,
+      "9": 564,
+      "10": 847
+    }
+  },
+  "mina_local": {
+    "producao": {
+      "1": {
+        "metal_bruto": 15
+      },
+      "2": {
+        "metal_bruto": 22
+      },
+      "3": {
+        "metal_bruto": 34
+      },
+      "4": {
+        "metal_bruto": 51
+      },
+      "5": {
+        "metal_bruto": 76
+      }
+    },
+    "consumo_energia": {}
+  },
+  "destilaria": {
+    "producao": {
+      "1": {
+        "biocombustivel": 20
+      },
+      "2": {
+        "biocombustivel": 30
+      },
+      "3": {
+        "biocombustivel": 45
+      },
+      "4": {
+        "biocombustivel": 68
+      },
+      "5": {
+        "biocombustivel": 101
+      },
+      "6": {
+        "biocombustivel": 152
+      },
+      "7": {
+        "biocombustivel": 228
+      },
+      "8": {
+        "biocombustivel": 342
+      },
+      "9": {
+        "biocombustivel": 513
+      },
+      "10": {
+        "biocombustivel": 769
+      }
+    },
+    "consumo_energia": {}
+  }
+}

@@ -9,13 +9,14 @@ O teste em tests/Gdd/ roda de novo e compara com o que está no banco.
 Cuidados que o formato do GDD exige:
   - "1.413" é 1413 (ponto = separador de milhar), não 1,413.
   - As tabelas de 10 níveis e as de veículos não têm linha de Tempo.
-  - Custo confere com half-up(base * 1.65^(n-1)); tempo NÃO confere com curva alguma.
+  - Custo usa half-up(base * 1.65^(n-1)); tempo e produção usam half-EVEN sobre 1.50.
+    Os tempos-base reais (não inteiros) estão em §20.3-20.5, não em §4.2.
 """
 import html
 import json
 import re
 import sys
-from decimal import Decimal, ROUND_HALF_UP
+from decimal import Decimal, ROUND_HALF_UP, ROUND_HALF_EVEN
 from pathlib import Path
 
 TIME_ROW = "Tempo (min)"
@@ -144,6 +145,74 @@ def parse_tempos_base(rows) -> dict:
     return out
 
 
+# O GDD escreve "Reator" nas tabelas de §19 e "Reator de Energia" nas de custo.
+# Mapeado explicitamente para não depender de coincidência de slug.
+ALIAS_CONSTRUCAO = {"reator": "reator_de_energia"}
+
+
+def parse_producao_e_consumo(rows) -> dict:
+    """
+    §19.2/§19.3: produção por hora, por nível. §19.4/§19.5: consumo de energia por hora.
+    Retorna {tipo: {"producao": {nivel: {recurso: qtd}}, "consumo_energia": {nivel: qtd}}}.
+
+    Não inclui Oficina (Ligas), Refinaria (Compostos) nem Componentes Eletrônicos na
+    produção efetiva: o GDD publica a TAXA mas nunca a RECEITA de insumos dessas linhas.
+    Produzi-las sem consumir insumo seria criar recurso do nada. Ver docs/decisoes.md D-19.
+    """
+    out = {}
+
+    def cria(tipo):
+        return out.setdefault(tipo, {"producao": {}, "consumo_energia": {}})
+
+    def linhas(inicio, fim):
+        return [r for r in slice_section(rows, inicio, fim) if "|" in r]
+
+    # §19.2 e §19.3: rótulo "Construção — Recurso".
+    for r in linhas(r"^19\.2 Recursos Primários", r"^19\.4 Consumo"):
+        p = [c.strip() for c in r.split("|") if c.strip()]
+        if len(p) != 6 or "—" not in p[0] or not all(is_num(x) for x in p[1:]):
+            continue
+        construcao, recurso = [x.strip() for x in p[0].split("—", 1)]
+        recurso = re.sub(r"\s*\(.*\)$", "", recurso)  # "Energia (kW/h)" -> "Energia"
+        tipo = ALIAS_CONSTRUCAO.get(slug(construcao), slug(construcao))
+        alvo = cria(tipo)["producao"]
+        for i, v in enumerate(p[1:], start=1):
+            alvo.setdefault(i, {})[slug(recurso)] = to_int(v)
+
+    # §19.4: rótulo é só o nome da construção.
+    for r in linhas(r"^19\.4 Consumo", r"^19\.5 Central"):
+        p = [c.strip() for c in r.split("|") if c.strip()]
+        if len(p) != 6 or p[0] == "Construção" or not all(is_num(x) for x in p[1:]):
+            continue
+        alvo = cria(slug(p[0]))["consumo_energia"]
+        for i, v in enumerate(p[1:], start=1):
+            alvo[i] = to_int(v)
+
+    # §19.5: a Central de Transportes só tem consumo, em 10 níveis.
+    for r in linhas(r"^19\.5 Central", r"^19\.6 Depósito"):
+        p = [c.strip() for c in r.split("|") if c.strip()]
+        if p[0] != "Consumo energia":
+            continue
+        alvo = cria("central_de_transportes")["consumo_energia"]
+        for i, v in enumerate(p[1:], start=1):
+            alvo[i] = to_int(v)
+
+    # Mina Local e Destilaria trazem a produção nas próprias seções da Parte II.
+    for titulo, fim, tipo, recurso, rotulo in [
+        (r"^Mina Local — Metal Bruto", r"^Mina Governamental", "mina_local", "metal_bruto", "Produção de Metal Bruto/h"),
+        (r"^Destilaria — Biocombustível", r"^Terraformação", "destilaria", "biocombustivel", "Produção/h"),
+    ]:
+        for r in linhas(titulo, fim):
+            p = [c.strip() for c in r.split("|") if c.strip()]
+            if p[0] != rotulo:
+                continue
+            alvo = cria(tipo)["producao"]
+            for i, v in enumerate(p[1:], start=1):
+                alvo.setdefault(i, {})[recurso] = to_int(v)
+
+    return out
+
+
 def mina_local_prod_max(rows) -> int:
     """Produção/hora do Metal Bruto no nível máximo da Mina Local (§19)."""
     corpo = slice_section(rows, r"^Mina Local — Produção", r"^Mina Governamental")
@@ -248,6 +317,34 @@ def main():
     print(f"tabelas SEM linha de tempo: {len(sem_tempo)}")
     for s in sem_tempo:
         print("  - " + s)
+
+    prod = parse_producao_e_consumo(rows)
+    Path(dest.parent / "production.json").write_text(
+        json.dumps(prod, ensure_ascii=False, indent=2), encoding="utf-8")
+    print(f"\nproducao/consumo (§19): {len(prod)} construções")
+    for tipo, d in sorted(prod.items()):
+        p = sorted({r for lv in d["producao"].values() for r in lv})
+        print(f"  {tipo:28} produz={p or '-'}  consumo_energia={'sim' if d['consumo_energia'] else '-'}")
+
+    # A curva de §19.1 é Base × 1,5^(N-1). Confere o arredondamento, como fizemos com tempo.
+    div = []
+    for tipo, d in prod.items():
+        for recurso in {r for lv in d["producao"].values() for r in lv}:
+            base = d["producao"][1][recurso]
+            for nivel, vals in d["producao"].items():
+                esperado = int(Decimal(repr(base * 1.5 ** (nivel - 1))).quantize(
+                    Decimal("1"), rounding=ROUND_HALF_EVEN))
+                if esperado != vals[recurso]:
+                    div.append(f"{tipo}.{recurso} n{nivel}: GDD={vals[recurso]} curva={esperado}")
+        for nivel, v in d["consumo_energia"].items():
+            base = d["consumo_energia"][1]
+            esperado = int(Decimal(repr(base * 1.5 ** (nivel - 1))).quantize(
+                Decimal("1"), rounding=ROUND_HALF_EVEN))
+            if esperado != v:
+                div.append(f"{tipo}.consumo_energia n{nivel}: GDD={v} curva={esperado}")
+    print(f"  divergencias da curva 1,5 half-even: {len(div)}")
+    for d_ in div:
+        print("    ! " + d_)
 
     bases = parse_tempos_base(rows)
     Path(dest.parent / "build_time_bases.json").write_text(

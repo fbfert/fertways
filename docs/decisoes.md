@@ -379,3 +379,77 @@ confere que o subsídio deixa de valer. Remover o stub quando as missões existi
   a seção 0 exige, e seria indistinguível do comércio informal.
 - Os quatro índices de reputação são **colunas separadas**, nunca um agregado: o GDD veda
   expressamente compensação cruzada entre eles.
+
+---
+
+## D-19 — ⚠ Oficina e Refinaria não produzem: o GDD não dá as receitas
+**Data:** 2026-07-08 · **Status:** ABERTO, limita o item 3 do MVP
+
+§19.3 publica a **taxa** de produção por hora — Oficina 40 Ligas/h e 15 Componentes/h,
+Refinaria 30 Compostos/h — mas **nunca a receita de insumos** dessas linhas. Sobre as Ligas o
+GDD diz apenas que "Metal Bruto é extraído, Ligas são transformadas", sem proporção. Sobre os
+Compostos Químicos, nada. Creditar a saída sem debitar entrada criaria recurso do nada.
+
+**Estado atual:** `ColonyTick::SEM_RECEITA` bloqueia as duas. O consumo de energia delas continua
+sendo debitado. Há teste garantindo que não produzem, e mutação confirmando que o teste morde.
+
+O que o GDD **define** e foi implementado:
+- **Destilaria** (§18.2): "converte 2 Biomassas + 3 Energias em 1 Biocombustível... a taxa é fixa".
+  Limitado pelo insumo disponível.
+- **Mina Local**, **Gerador**, **Captação**, **Fazenda**, **Reator**: produção sem insumo.
+
+O que fica de fora por natureza:
+- **Componentes Eletrônicos**: três receitas por tier, com minerais e energia, e "energia e insumos
+  são debitados no início do ciclo, e a saída somente é creditada na conclusão do **job** da
+  Oficina". É sistema de jobs, não produção passiva. Precisa de modelo próprio.
+
+Falta, para destravar: proporção Metal Bruto → Ligas Metálicas, e a receita dos Compostos Químicos.
+
+---
+
+## D-20 — Déficit de energia trava o estoque em zero
+**Data:** 2026-07-08 · **Status:** decidido (fora do GDD)
+
+Energia é estoque (custo de construção, §4.2) **e** fluxo (consumo operacional por hora, §19.4).
+O Reator credita; toda construção debita. O saldo pode ficar negativo — e o GDD **não define** o
+que ocorre: não há regra de apagão, de produção reduzida nem de dívida.
+
+**Decisão:** o estoque trava em zero, sem outro efeito. `resources.amount` é unsigned, então dívida
+nem seria representável. Quando o GDD definir a penalidade, ela entra aqui.
+
+---
+
+## D-21 — Fuso do MariaDB × fuso do Laravel
+**Data:** 2026-07-08 · **Status:** corrigido · **Encontrado ao verificar o tick**
+
+Este servidor roda MariaDB em `-03` (`@@time_zone = SYSTEM`) e o Laravel em `UTC`. Seis colunas
+usam `CURRENT_TIMESTAMP` como default, entre elas **`colonies.last_tick_at`**.
+
+Sem intervenção, uma inserção que omitisse essa coluna gravaria hora local — três horas no passado
+em relação ao relógio da aplicação. O primeiro tick veria um delta de três horas e creditaria
+produção grátis. O mesmo valeria para `ledger.created_at` e `tax_events.created_at`, corrompendo a
+auditoria.
+
+**Correção:** `config/database.php` passa `'timezone' => '+00:00'` na conexão mysql. Verificado:
+`SELECT NOW()` na sessão do Laravel devolve o mesmo instante que `now()` do PHP, e um insert que
+omite `last_tick_at` grava UTC.
+
+---
+
+## D-22 — Aritmética do tick é inteira, com resto carregado
+**Data:** 2026-07-08 · **Status:** decidido
+
+O tick roda a cada minuto. Uma produção de 100/h renderia `floor(100 × 60 ÷ 3600) = 1` unidade por
+minuto em vez de 1,67 — perda silenciosa e permanente de 40% da economia.
+
+`resources.production_remainder` guarda o resto em unidades de 1/3600. O tick soma
+`numerador = taxa × segundos`, credita `numerador div 3600` e carrega `numerador mod 3600`.
+Inteiro, exato, sem float.
+
+Dois cuidados aprendidos na prática:
+1. **`Carbon::diffInSeconds()` devolve float** no Carbon 3. Um delta de 3600,99 s fazia a Destilaria
+   consumir 41 de biomassa onde devia consumir 40. O tick usa `getTimestamp()` e trunca ao segundo.
+2. **O delta é fatiado em cada conclusão de upgrade.** Uma colônia parada por dois dias com um
+   upgrade concluindo no meio precisa produzir com o nível antigo até a conclusão e com o novo
+   depois. Há teste que distingue os dois casos — a primeira versão dele não distinguia, porque
+   usava um upgrade de nível 0 para 1, e nível 0 não produz.

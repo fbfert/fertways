@@ -27,9 +27,16 @@ class BuildingSpecSeeder extends Seeder
             true, flags: JSON_THROW_ON_ERROR,
         )['tempos_base_minutos'] ?? [];
 
+        // §19.2–§19.5: produção e consumo de energia por hora, por nível. Extraídos do GDD.
+        $prod = json_decode(
+            file_get_contents(database_path('seeders/data/production.json')),
+            true, flags: JSON_THROW_ON_ERROR,
+        );
+
         $linhas = [];
         foreach ($tabelas as $t) {
             $baseMin = $override[$t['type']] ?? null;
+            $p = $prod[$t['type']] ?? ['producao' => [], 'consumo_energia' => []];
 
             foreach ($t['levels'] as $lv) {
                 $tempo = $lv['build_time_seconds'];
@@ -45,14 +52,17 @@ class BuildingSpecSeeder extends Seeder
                     $derivado = true;
                 }
 
+                $nivel = (string) $lv['level'];
+                $producao = $p['producao'][$nivel] ?? null;
+
                 $linhas[] = [
                     'building_type' => $t['type'],
                     'level' => $lv['level'],
                     'build_time_seconds' => $tempo,
                     'build_time_derivado' => $derivado,
                     'cost_json' => json_encode($lv['cost'], JSON_UNESCAPED_UNICODE),
-                    'energia_consumo_hora' => 0,
-                    'producao_hora_json' => null,
+                    'energia_consumo_hora' => $p['consumo_energia'][$nivel] ?? 0,
+                    'producao_hora_json' => $producao ? json_encode($producao) : null,
                 ];
             }
         }
@@ -60,7 +70,8 @@ class BuildingSpecSeeder extends Seeder
         DB::table('building_specs')->upsert(
             $linhas,
             ['building_type', 'level'],
-            ['build_time_seconds', 'build_time_derivado', 'cost_json'],
+            ['build_time_seconds', 'build_time_derivado', 'cost_json',
+                'energia_consumo_hora', 'producao_hora_json'],
         );
 
         $semTempo = collect($linhas)->whereNull('build_time_seconds')

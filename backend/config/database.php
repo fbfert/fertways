@@ -51,6 +51,12 @@ return [
             'username' => env('DB_USERNAME', 'root'),
             'password' => env('DB_PASSWORD', ''),
             'unix_socket' => env('DB_SOCKET', ''),
+
+            // Este servidor roda MariaDB em -03 e o Laravel em UTC. Seis colunas usam
+            // CURRENT_TIMESTAMP como default (colonies.last_tick_at entre elas): sem forçar
+            // a sessão a UTC, uma inserção que omita a coluna nasce 3 horas no passado, e o
+            // primeiro tick creditaria 3 horas de produção grátis. Ver docs/decisoes.md D-21.
+            'timezone' => env('DB_TIMEZONE', '+00:00'),
             'charset' => env('DB_CHARSET', 'utf8mb4'),
             'collation' => env('DB_COLLATION', 'utf8mb4_unicode_ci'),
             'prefix' => '',
