@@ -12,22 +12,18 @@ class Resource extends Model
     protected $casts = ['amount' => 'integer', 'storage_cap' => 'integer'];
 
     /**
-     * Recursos que uma colônia do slot principal pode estocar no MVP.
-     * Primários (§22.2) + industriais/secundários produzidos ou consumidos localmente.
-     * Os 8 minerais eletrônicos ficam de fora: na Temporada 1 o jogador não os extrai,
-     * compra-os no Mercado Central (GDD, "Minerais eletrônicos (governo inicial)").
+     * A colônia pode estocar qualquer recurso do catálogo.
+     *
+     * A primeira versão listava só primários e industriais, o que tornava a Oficina
+     * inconstruível: ela custa 1 de Ferro Vermelho (raro) já no nível 1. Oito das onze
+     * construções de progressão exigem raros no nível 1, e os 8 minerais eletrônicos são
+     * insumo dos Componentes Eletrônicos. Qualquer recorte aqui é arbitrário e quebra
+     * alguma cadeia. Ver docs/decisoes.md D-16.
      */
-    public const DA_COLONIA = [
-        'oxigenio',
-        'agua',
-        'biomassa',
-        'energia',
-        'metal_bruto',
-        'ligas_metalicas',
-        'compostos_quimicos',
-        'componentes_eletronicos',
-        'biocombustivel',
-    ];
+    public static function daColonia(): array
+    {
+        return ResourceType::orderBy('code')->pluck('code')->all();
+    }
 
     public function colony(): BelongsTo
     {

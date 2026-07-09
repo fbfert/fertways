@@ -285,7 +285,66 @@ a produção. Escolher um número seria inventar balanceamento. Quando o teto ex
 
 ---
 
-## D-09 — Invariantes que o banco garante, não o código
+## D-15 — Custo é debitado no enfileiramento
+**Data:** 2026-07-08 · **Status:** decidido (fora do GDD)
+
+O GDD só diz que o subsídio "é registrado no ledger **no momento de concluir**" (§4.1). Não diz
+quando o custo próprio é debitado.
+
+**Decisão:** debitar no enfileiramento. Caso contrário o jogador enfileiraria mais do que pode
+pagar, e a conclusão falharia — deixando a fila num estado que ninguém sabe resolver. O custo
+cotado congela em `quoted_cost_json` no mesmo instante (§4.1).
+
+O lançamento do **subsídio** (`subsidio_governo`) continua na conclusão, como o GDD manda: quem
+é subsidiado não paga nada no enfileiramento.
+
+---
+
+## D-16 — A colônia estoca todos os recursos do catálogo
+**Data:** 2026-07-08 · **Status:** decidido · **Bug encontrado por teste**
+
+A primeira versão listava à mão nove recursos "da colônia" (primários + industriais). Um teste
+de fila revelou que isso torna a **Oficina inconstruível**: ela custa 1 de **Ferro Vermelho**
+(raro) já no nível 1, e a colônia não tinha onde guardá-lo.
+
+Qualquer recorte manual quebra alguma cadeia: os 8 minerais eletrônicos são insumo dos
+Componentes Eletrônicos, e 8 das 11 construções de progressão exigem raros no nível 1.
+
+**Decisão:** `Resource::daColonia()` devolve todos os códigos de `resource_types`. Uma linha por
+recurso, zerada. Sem lista escrita à mão, sem cadeia quebrada.
+
+---
+
+## D-17 — ⚠ Muro de progressão: 8 das 16 construções do MVP exigem recursos raros
+**Data:** 2026-07-08 · **Status:** ABERTO, bloqueia o MVP na prática
+
+Custo de nível 1, direto do §4.2:
+
+| Construção | Raro exigido |
+|---|---|
+| Oficina | Ferro Vermelho ×1 |
+| Refinaria Química | Quartzo Piezoelétrico ×1 |
+| Laboratório | Resina Orgânica ×2 |
+| Antena de Comunicação | Quartzo Piezoelétrico ×2 |
+| Torre de Defesa | Nióbio Alienígena ×2 |
+| Mercado Local | Resina Orgânica ×1 |
+| Quartel | Nióbio Alienígena ×3 |
+| Plataforma de Pouso | Gelo de Metano ×3 |
+
+Construíveis sem raros: as 5 essenciais, Mina Local, Destilaria, Central de Transportes.
+
+**Por que isso trava.** O GDD diz que os raros, na Temporada 1, são "obtidos por eventos, zonas
+profundas e contratos do governo" — **nenhum desses sistemas está no MVP**. Pior: a Oficina é a
+única fonte de **Ligas Metálicas**, exigidas por quase toda construção. Sem 1 unidade de Ferro
+Vermelho, o jogador para logo após as cinco essenciais (que são subsidiadas até o nível 3 e por
+isso não consomem Ligas).
+
+A saída prevista pelo próprio §24.7 — "usa o saldo de 50 Fert$ para comprar o primeiro lote de
+Ligas Metálicas no Mercado Central" — também não fecha: a tabela de progressão do GDD desbloqueia
+o **Mercado Central só no nível 5** ("Colono"). Inconsistência interna adicional.
+
+Precisa de decisão de escopo. Nada foi inventado; o código simplesmente recusa o enfileiramento
+com `recursos_insuficientes`.
 
 - `tax_events.economic_event_key` é **UNIQUE**. "Uma incidência por fato econômico/lote"
   (GDD seção 0 e §25.2) é invariante de dados: sem a chave, um retry de request ou dois ticks

@@ -53,7 +53,7 @@ class CreateColony
                     'amount' => 0,
                     // NULL: o GDD não define teto de armazenamento do slot principal.
                     'storage_cap' => null,
-                ], Resource::DA_COLONIA),
+                ], Resource::daColonia()),
             );
 
             $colony->vehicles()->create([

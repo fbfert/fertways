@@ -51,9 +51,9 @@ class ColonyCreationTest extends TestCase
         $this->assertCount(count(Building::MVP), $colony->buildings);
         $this->assertTrue($colony->buildings->every(fn ($b) => $b->level === 0));
 
-        // As nove linhas de recurso, zeradas. O colono compra o primeiro lote de Ligas
-        // no Mercado Central com os 50 Fert$ (§24.7).
-        $this->assertCount(count(Resource::DA_COLONIA), $colony->resources);
+        // Uma linha por recurso do catálogo, zeradas. O colono compra o primeiro lote de
+        // Ligas no Mercado Central com os 50 Fert$ (§24.7).
+        $this->assertCount(count(Resource::daColonia()), $colony->resources);
         $this->assertTrue($colony->resources->every(fn ($r) => $r->amount === 0));
 
         // "Todo colono começa com um" Furgão (GDD, kit inicial). 6 m³ = 6.000 un (§25.4).
