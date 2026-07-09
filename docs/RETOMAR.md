@@ -26,27 +26,32 @@ O MVP tem, funcionando e no ar em `https://fertways.tars.art.br`:
   e **livro de ofertas com escrow** (§07, D-35). `GET/POST /central/market/orders`,
   `DELETE /central/market/orders/{id}`, `GET /central/market/account`,
   `POST /central/vehicles/{id}/withdraw`. O Mercado casa ordens; não compra nem vende.
+- **Logout de verdade**: `POST /central/logout` revoga no servidor o token que fez a chamada — só
+  ele, para não derrubar outra sessão do mesmo colono. Token do Sanctum não expira, então apagar o
+  `localStorage` sozinho deixava credencial válida circulando para sempre.
 - Frontend: login, HUD, colônia em Phaser, e a **tela do Mercado** (botão no HUD): doca, frota com
   contagem regressiva, despacho e retirada, livro de ofertas com escrow
 
-**101 testes, 1523 asserções, verdes.** O **cron do tick está instalado** (crontab do usuário
+**109 testes, 1584 asserções, verdes.** O **cron do tick está instalado** (crontab do usuário
 `fertways`, log em `/home/fertways/logs/fertways-tick.log`) — o mundo avança sozinho.
 
 O item 5 do MVP (Mercado Central) está **fechado, backend e tela**, e a tela tem **teste de ponta
 a ponta em navegador de verdade**: `npm run e2e` (ou `./tools/e2e.sh`) sobe uma pilha efêmera
 (SQLite temporário + `artisan serve` + `vite dev`) e dirige o Chromium do sistema com
-`puppeteer-core`. 19 verificações. Nunca toca produção nem o MariaDB.
+`puppeteer-core`. 23 verificações. Nunca toca produção nem o MariaDB.
 
-> ⚠️ **Produção serve um bundle mais velho que o `main`.** O último `git commit` do frontend
-> (ordenação das opções de carga) **não foi publicado** — o deploy exige autorização explícita.
-> Publique com o comando de `docs/deploy.md` e confira o hash do bundle servido.
+> **O frontend foi publicado em 2026-07-09**, e o logout foi verificado contra produção (login →
+> `/colony` 200 → `/logout` 200 → `/colony` 401). O deploy **não** é automático e exige autorização
+> explícita: confira sempre o hash do bundle servido com o `diff` da "Verificação rápida" antes de
+> supor que o que está no ar é o que está em `main`.
 
 ## Perguntas em aberto — faça estas ao usuário ao retomar
 
-1. **Qual o próximo passo?**
-   - **Despacho entre colônias pela UI**: os endpoints aceitam `destino = colonia`, mas a tela só
-     oferece o Mercado, porque **não há endpoint de diretório de colônias** — o jogador não tem
-     como descobrir o `id` de ninguém. Falta um `GET /central/colonies`.
+1. **Qual o próximo passo?** Em 2026-07-09 o usuário escolheu o **diretório de colônias**; os
+   outros dois continuam abertos depois dele.
+   - **Despacho entre colônias pela UI** ← *escolhido, em andamento*: os endpoints aceitam
+     `destino = colonia`, mas a tela só oferece o Mercado, porque **não há endpoint de diretório de
+     colônias** — o jogador não tem como descobrir o `id` de ninguém. Falta um `GET /central/colonies`.
    - **Serviço logístico público** (§07): o GDD o cita como alternativa ao veículo próprio na
      retirada, e ele não existe. Hoje o comprador precisa de Furgão ou Caminhão. O GDD não
      publica preço nem prazo do serviço — precisaria de arbitragem.
@@ -62,10 +67,10 @@ a ponta em navegador de verdade**: `npm run e2e` (ou `./tools/e2e.sh`) sobe uma 
    Enquanto não houver separação: **aplique a migration antes de salvar o código que depende
    dela.** Foi o que se fez na fatia do Mercado, e não houve janela quebrada.
 
-3. **Zerar as colônias de teste?** `publico@fertways.test` foi abastecida à mão (1.000 de Metal
-   Bruto, 100 de energia) para verificar o depósito em produção. Depois as duas contas fizeram um
-   negócio real no livro: `publico` tem 54,85 Fert$ e 770 na doca; `mapa2` tem 45 Fert$ e 100 na
-   doca. Não atrapalha ninguém, mas não é um estado "natural" de jogo.
+3. ~~**Zerar as colônias de teste?**~~ **Decidido em 2026-07-09: deixar como está.** `publico` tem
+   54,85 Fert$ e 770 na doca; `mapa2` tem 45 Fert$ e 100 na doca — estado artificial (abastecimento
+   à mão mais um negócio real no livro), mas serve de cenário pronto para testar o Mercado. Não
+   atrapalha ninguém. Só repergunte se o jogo abrir para gente de fora.
 
 ## Pendências conhecidas, sem bloquear
 
