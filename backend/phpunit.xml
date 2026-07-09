@@ -23,6 +23,29 @@
     </source>
     <php>
         <env name="APP_ENV" value="testing"/>
+        <!--
+            Fixo, porque em produção o `.env` traz `APP_URL=https://fertways.tars.art.br/central`:
+            a aplicação é montada sob um subcaminho. As chamadas de teste (`$this->get('/')`)
+            derivam a URL daqui, e um APP_URL com caminho faria todas baterem em `/central/...`,
+            que não é rota — 28 testes viravam 404 sem nenhuma mudança de código.
+        -->
+        <env name="APP_URL" value="http://localhost"/>
+
+        <!--
+            Este repositório é implantado na mesma máquina em que se roda a suíte, e lá existe
+            um `bootstrap/cache/config.php` gerado por `php artisan config:cache`. Um config em
+            cache é lido ANTES do .env e ignora todo o `<env>` acima: os testes passavam a ver
+            `database.default=mysql` e `app.env=production`, ou seja, `RefreshDatabase` mirando
+            o banco de produção. O que impediu o estrago foi o `migrate:fresh` se recusar a
+            rodar sob `APP_ENV=production` sem a flag de força — sorte, não projeto.
+
+            Apontar as caches para um caminho inexistente faz `configurationIsCached()` devolver
+            false e a configuração ser lida dos arquivos, com o `<env>` valendo. Vale em qualquer
+            máquina; num CI limpo, onde não há cache, não muda nada.
+        -->
+        <env name="APP_CONFIG_CACHE" value="bootstrap/cache/nao-existe-config.php"/>
+        <env name="APP_ROUTES_CACHE" value="bootstrap/cache/nao-existe-routes.php"/>
+        <env name="APP_EVENTS_CACHE" value="bootstrap/cache/nao-existe-events.php"/>
         <env name="APP_MAINTENANCE_DRIVER" value="file"/>
         <env name="BCRYPT_ROUNDS" value="4"/>
         <env name="CACHE_STORE" value="array"/>
