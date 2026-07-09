@@ -20,13 +20,33 @@ class BuildingSpecSeeder extends Seeder
         $path = database_path('seeders/data/building_specs.json');
         $tabelas = json_decode(file_get_contents($path), true, flags: JSON_THROW_ON_ERROR);
 
+        // Tempos-base definidos fora do GDD, para as construções que ele não cronometra.
+        // Vazio por padrão: sem entrada aqui, o tempo permanece NULL.
+        $override = json_decode(
+            file_get_contents(database_path('seeders/data/build_times_base.json')),
+            true, flags: JSON_THROW_ON_ERROR,
+        )['tempos_base_minutos'] ?? [];
+
         $linhas = [];
         foreach ($tabelas as $t) {
+            $baseMin = $override[$t['type']] ?? null;
+
             foreach ($t['levels'] as $lv) {
+                $tempo = $lv['build_time_seconds'];
+                $derivado = false;
+
+                if ($tempo === null && $baseMin !== null) {
+                    // half-up, não half-even: a curva do GDD arredonda 82,5 para 83.
+                    $minutos = (int) bcadd((string) ($baseMin * 1.5 ** ($lv['level'] - 1)), '0.5', 0);
+                    $tempo = $minutos * 60;
+                    $derivado = true;
+                }
+
                 $linhas[] = [
                     'building_type' => $t['type'],
                     'level' => $lv['level'],
-                    'build_time_seconds' => $lv['build_time_seconds'],
+                    'build_time_seconds' => $tempo,
+                    'build_time_derivado' => $derivado,
                     'cost_json' => json_encode($lv['cost'], JSON_UNESCAPED_UNICODE),
                     'energia_consumo_hora' => 0,
                     'producao_hora_json' => null,
@@ -37,7 +57,7 @@ class BuildingSpecSeeder extends Seeder
         DB::table('building_specs')->upsert(
             $linhas,
             ['building_type', 'level'],
-            ['build_time_seconds', 'cost_json'],
+            ['build_time_seconds', 'build_time_derivado', 'cost_json'],
         );
 
         $semTempo = collect($linhas)->whereNull('build_time_seconds')

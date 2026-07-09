@@ -70,15 +70,45 @@ class GddSpecsTest extends TestCase
         $this->assertNotSame($porFormula, $gerador[2], 'tempo virou fórmula — a tabela do GDD foi perdida');
     }
 
-    public function test_construcoes_sem_tempo_no_gdd_ficam_nulas_e_nao_zeradas(): void
+    /** As construções que o GDD não cronometra (D-10). */
+    private const SEM_TEMPO_NO_GDD = [
+        'central_de_transportes', 'destilaria', 'deposito_de_zona_neutra',
+        'furgao_de_comercio', 'caminhao_de_carga', 'drone_de_exploracao',
+        'robo_minerador', 'infiltrador', 'predador', 'nave_de_transporte_planetaria',
+    ];
+
+    /**
+     * Um tempo dessas construções só pode ser NULL ("o GDD não diz") ou explicitamente
+     * marcado como derivado. Nunca zero — zero seria construção instantânea — e nunca
+     * passando por tempo publicado do GDD.
+     */
+    public function test_construcoes_sem_tempo_no_gdd_ficam_nulas_ou_marcadas_como_derivadas(): void
     {
-        // NULL = "o GDD não publica". Zero significaria construção instantânea.
-        foreach (['central_de_transportes', 'destilaria', 'furgao_de_comercio', 'caminhao_de_carga'] as $tipo) {
-            $tempos = DB::table('building_specs')->where('building_type', $tipo)
-                ->pluck('build_time_seconds');
-            $this->assertGreaterThan(0, $tempos->count(), "{$tipo} não foi semeado");
-            $this->assertTrue($tempos->every(fn ($t) => $t === null), "{$tipo} ganhou tempo inventado");
+        foreach (self::SEM_TEMPO_NO_GDD as $tipo) {
+            $linhas = DB::table('building_specs')->where('building_type', $tipo)->get();
+            $this->assertNotEmpty($linhas, "{$tipo} não foi semeado");
+
+            foreach ($linhas as $l) {
+                $this->assertNotSame(0, $l->build_time_seconds, "{$tipo} n{$l->level}: tempo zero");
+                if ($l->build_time_seconds !== null) {
+                    $this->assertTrue(
+                        (bool) $l->build_time_derivado,
+                        "{$tipo} n{$l->level} ganhou tempo sem ser marcado como derivado",
+                    );
+                }
+            }
         }
+    }
+
+    /** O inverso: nada que o GDD cronometra pode aparecer como derivado. */
+    public function test_tempos_publicados_no_gdd_nunca_sao_marcados_como_derivados(): void
+    {
+        $derivadosIndevidos = DB::table('building_specs')
+            ->where('build_time_derivado', true)
+            ->whereNotIn('building_type', self::SEM_TEMPO_NO_GDD)
+            ->pluck('building_type')->unique();
+
+        $this->assertEmpty($derivadosIndevidos->all(), 'tempo do GDD marcado como derivado');
     }
 
     public function test_niveis_maximos_batem_com_o_gdd(): void
