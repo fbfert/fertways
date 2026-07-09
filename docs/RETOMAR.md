@@ -29,34 +29,44 @@ O MVP tem, funcionando e no ar em `https://fertways.tars.art.br`:
 - **Logout de verdade**: `POST /central/logout` revoga no servidor o token que fez a chamada — só
   ele, para não derrubar outra sessão do mesmo colono. Token do Sanctum não expira, então apagar o
   `localStorage` sozinho deixava credencial válida circulando para sempre.
+- **Diretório de colônias**: `GET /central/colonies` lista as demais colônias, da mais próxima à
+  mais distante, com `nickname`, `x`, `y`, `distance` e `building_levels_sum`. É o que tornou o
+  despacho entre colônias alcançável pela UI — `dispatch` sempre pediu a PK do destino, e não havia
+  como descobrir o `id` de ninguém. Ver D-37 e D-38.
 - Frontend: login, HUD, colônia em Phaser, e a **tela do Mercado** (botão no HUD): doca, frota com
-  contagem regressiva, despacho e retirada, livro de ofertas com escrow
+  contagem regressiva, despacho e retirada, livro de ofertas com escrow, **envio de carga ao slot
+  de outro colono**, e veículos em rota que **nomeiam** o colono de destino em vez de mostrar o `id`
 
-**109 testes, 1584 asserções, verdes.** O **cron do tick está instalado** (crontab do usuário
+**120 testes, 1621 asserções, verdes.** O **cron do tick está instalado** (crontab do usuário
 `fertways`, log em `/home/fertways/logs/fertways-tick.log`) — o mundo avança sozinho.
 
 O item 5 do MVP (Mercado Central) está **fechado, backend e tela**, e a tela tem **teste de ponta
 a ponta em navegador de verdade**: `npm run e2e` (ou `./tools/e2e.sh`) sobe uma pilha efêmera
 (SQLite temporário + `artisan serve` + `vite dev`) e dirige o Chromium do sistema com
-`puppeteer-core`. 23 verificações. Nunca toca produção nem o MariaDB.
+`puppeteer-core`. 26 verificações. Nunca toca produção nem o MariaDB.
 
-> **O frontend foi publicado em 2026-07-09**, e o logout foi verificado contra produção (login →
-> `/colony` 200 → `/logout` 200 → `/colony` 401). O deploy **não** é automático e exige autorização
-> explícita: confira sempre o hash do bundle servido com o `diff` da "Verificação rápida" antes de
-> supor que o que está no ar é o que está em `main`.
+> **Tudo publicado e verificado contra produção em 2026-07-09**: o logout (login → `/colony` 200 →
+> `/logout` 200 → `/colony` 401) e o diretório (401 sem token; com token, lista ordenada por
+> distância). O deploy **não** é automático e exige autorização explícita: confira sempre o hash do
+> bundle servido com o `diff` da "Verificação rápida" antes de supor que o que está no ar é o que
+> está em `main`.
 
 ## Perguntas em aberto — faça estas ao usuário ao retomar
 
-1. **Qual o próximo passo?** Em 2026-07-09 o usuário escolheu o **diretório de colônias**; os
-   outros dois continuam abertos depois dele.
-   - **Despacho entre colônias pela UI** ← *escolhido, em andamento*: os endpoints aceitam
-     `destino = colonia`, mas a tela só oferece o Mercado, porque **não há endpoint de diretório de
-     colônias** — o jogador não tem como descobrir o `id` de ninguém. Falta um `GET /central/colonies`.
+1. **Qual o próximo passo?** O despacho entre colônias, escolhido em 2026-07-09, está **fechado**
+   (D-37, D-38). Restam:
+   - **Acordo de Troca** (§26.5): hoje o envio a outro colono é carga de mão única — quem manda
+     confia. O Acordo é o contrato que falta ao redor disso: sem escrow, com o risco de calote
+     deliberadamente real. Faz par com o Mercado e está no MVP social. **É o sucessor natural.**
    - **Serviço logístico público** (§07): o GDD o cita como alternativa ao veículo próprio na
      retirada, e ele não existe. Hoje o comprador precisa de Furgão ou Caminhão. O GDD não
      publica preço nem prazo do serviço — precisaria de arbitragem.
-   - **Comércio informal com Acordo de Troca** (§26.5): o outro canal, sem escrow, com o risco de
-     calote deliberadamente real. Faz par com o Mercado e está no MVP social.
+   - **O Marco do GDD** (§03): `colonies.milestone` é uma string congelada em `colonizacao_inicial`
+     desde a fundação, e nada a atualiza. O GDD nomeia os marcos (1 Sobrevivente … 100 Lenda de
+     Fertways) mas **não publica a fórmula**. Precisaria de arbitragem. Ver D-38 — o
+     `building_levels_sum` do diretório é um proxy, e não deve ser renomeado para virar o Marco.
+   - **O Drone de Exploração ficou sem função** (D-37): o diretório revela todas as colônias, então
+     restam-lhe as zonas neutras. É consequência assumida, não esquecimento.
 
 2. **Separar o diretório de deploy do diretório de trabalho?** Hoje `public_html/central` é um
    symlink para `backend/public`, então **editar código aqui é publicar**. Já quebrei a fundação
@@ -123,7 +133,10 @@ diff <(ls frontend/dist/assets/*.js | xargs -n1 basename) \
 
 `publico@fertways.test` · `mapa2@fertways.test` — senha `segredo-forte-123` nas duas.
 Recriadas em 2026-07-09 depois do incidente do D-36; nascem zeradas, sem nada na doca.
-`f@t.test` ("Nova Aurora") veio do backup e sua senha não está documentada.
+`f@t.test` ("Nova Aurora", nickname `fb`) veio do backup e sua senha não está documentada.
+
+Há ainda uma quarta colônia em produção, `teste` (nickname `Teste`), de origem não documentada —
+apareceu quando o diretório começou a listar todo mundo. Produção tem **4 colônias**.
 
 ## ⚠️ Ferramentas destrutivas neste deploy
 
@@ -142,6 +155,6 @@ de *todos* os bancos do servidor — extraia só o `fertwaysbd` antes de restaur
 
 ## Leia também
 
-- `docs/decisoes.md` — 30 decisões, com as divergências e lacunas do GDD. **A regra de ouro é
+- `docs/decisoes.md` — 37 decisões, com as divergências e lacunas do GDD. **A regra de ouro é
   não inventar valores.** Quando o GDD não decide, pergunte ao usuário e registre ali.
 - `docs/deploy.md` — php84, Node, o symlink `/central`, e por que `route:cache` está proibido.
