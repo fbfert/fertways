@@ -758,3 +758,44 @@ levá-lo até seu slot". O GDD não diz como essa conta se comporta.
 trinta e oito vezes para os Componentes Eletrônicos (**D-24, ainda sem arbitragem**). Depósito e
 retirada não dependem de preço nenhum, então foram primeiro. §25.8 garante que a venda, quando
 existir, **não gera novo tributo de volume** — a movimentação física já foi tributada.
+
+---
+
+## D-35 — Livro de ofertas do Mercado Central: escrow, taxa por categoria, sem faixa de preço
+**Data:** 2026-07-09 · **Status:** decidido
+
+O §06 diz que o preço-base "é **faixa de segurança, não preço obrigatório de compra e venda**" e
+que "jogadores podem negociar dentro da faixa". O §07 descreve o fluxo: "O vendedor transporta o
+lote até a doca de mercado. Ao chegar, o lote é reservado em escrow e a listagem é criada. O
+comprador paga em Fert$; o sistema transfere o crédito líquido ao vendedor e registra a taxa de
+mercado." Logo **o Mercado não compra nem vende: ele casa ordens de colonos.**
+
+**Decisões (usuário, 2026-07-09):**
+1. **Livro de ofertas com escrow**, não preço fixo. É o que o §07 descreve e o que o critério de
+   aceite do MVP (§16) chama de "Mercado em escrow". Vender exige o recurso **já na doca**: sem
+   entrega física não há listagem. Comprar reserva Fert$ no ato.
+2. **A taxa de fechamento reusa as alíquotas do §8.3** (3% primários, 2% secundários, 1% raros),
+   aplicadas ao **valor em Fert$**, não ao volume. O §07 pede "parâmetros públicos por categoria" e
+   não publica a tabela; o §8.3 é a única tabela por categoria que existe. Nenhum número inventado.
+   Ela recai sobre **o vendedor** — §07: "crédito líquido ao vendedor".
+3. **Sem teto e sem piso no MVP.** O §06 fala em "faixa de segurança" e diz que a Secretaria altera
+   "teto, piso", mas **não publica a largura da faixa**. Inventar um percentual ou travaria o
+   mercado ou não travaria nada. O preço-base é exibido como referência. Quando a Secretaria
+   existir, teto e piso entram sem migration: são política, não schema.
+4. **O preço de execução é o da ordem em repouso**, não o de quem cruza. Convenção de qualquer
+   livro; o GDD não diz outra coisa. Quem cruza pode ganhar preço melhor que o pedido — e a
+   diferença escrowada volta ao comprador.
+5. **Uma colônia não casa com a própria ordem.** §26.4 trata conta vinculada como fraude; casar
+   consigo mesmo é a versão trivial disso e só serviria para simular volume. As duas ordens ficam
+   no livro.
+
+`market_orders` **já existia** desde 2026-07-08, órfã, com as colunas de escrow e o status
+`parcial`. `tax_events.kind` já previa `mercado_venda`, e a migration já dizia que ali a base é
+"valor em micro-Fert$, conforme `kind`". Nenhuma migration nova foi precisa.
+
+**Verificado em produção:** vendedor e comprador começam com 50 Fert$ cada; após um negócio de 100
+unidades a 0,05 Fert$, ficam com 54,85 e 45,00. A soma cai de 100 para 99,85 — exatamente a taxa
+de 3%. O Mercado não cria Fert$.
+
+**Não implementado, e o GDD pede:** `§07` cita "serviço logístico público" como alternativa ao
+veículo próprio na retirada. Não existe. O comprador precisa de Furgão ou Caminhão.

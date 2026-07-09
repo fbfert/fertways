@@ -22,24 +22,30 @@ O MVP tem, funcionando e no ar em `https://fertways.tars.art.br`:
 - Fabricação de Componentes Eletrônicos pelas três receitas do §24.5
 - **Logística física**: mapa 100×100, despacho de carga entre colônias, tempo e energia por
   distância, tributo na entrega, viagem de ida e volta
-- **Conta no Mercado Central** (última fatia, §25.8): depósito e retirada físicos. `GET
-  /central/market/account` e `POST /central/vehicles/{id}/withdraw`. Ver D-32.
+- **Mercado Central** (última fatia): conta na doca com depósito e retirada físicos (§25.8, D-32)
+  e **livro de ofertas com escrow** (§07, D-35). `GET/POST /central/market/orders`,
+  `DELETE /central/market/orders/{id}`, `GET /central/market/account`,
+  `POST /central/vehicles/{id}/withdraw`. O Mercado casa ordens; não compra nem vende.
 - Frontend: login, HUD, colônia desenhada como colmeia em Phaser
 
-**83 testes, 1466 asserções, verdes.** O **cron do tick está instalado** (crontab do usuário
+**101 testes, 1523 asserções, verdes.** O **cron do tick está instalado** (crontab do usuário
 `fertways`, log em `/home/fertways/logs/fertways-tick.log`) — o mundo avança sozinho.
+
+O item 5 do MVP (Mercado Central) está **fechado no backend**. O que falta para um jogador usá-lo
+é tela.
 
 ## Perguntas em aberto — faça estas ao usuário ao retomar
 
 1. **Qual o próximo passo?**
-   - **Venda no Mercado Central**: a conta existe e recebe carga, mas **não há venda**. O preço
-     deixou de ser bloqueio: o D-24 foi arbitrado (§24.8, 1,2778 para os Componentes). Falta
-     decidir o **mecanismo**: preço fixo do catálogo, livro de ofertas entre colonos, ou
-     sensibilidade à distância (o §25.8 chama o Mercado de "Sensível à Distância", mas a única
-     sensibilidade que ele descreve é o custo de levar a carga até lá, que já existe). Pergunte
-     antes de escrever código.
-   - **UI de despacho**: os endpoints de logística e de mercado existem, mas não há tela. O
-     jogador não consegue despachar carga nem ver seu saldo no Mercado pelo navegador.
+   - **UI do Mercado e do despacho**: todo o backend existe e está testado, mas o jogador não
+     consegue despachar carga, ver a frota em rota, consultar o saldo na doca nem pôr uma ordem
+     no livro pelo navegador. É o maior salto de valor por esforço, e não depende de nenhuma
+     decisão de GDD pendente.
+   - **Serviço logístico público** (§07): o GDD o cita como alternativa ao veículo próprio na
+     retirada, e ele não existe. Hoje o comprador precisa de Furgão ou Caminhão. O GDD não
+     publica preço nem prazo do serviço — precisaria de arbitragem.
+   - **Comércio informal com Acordo de Troca** (§26.5): o outro canal, sem escrow, com o risco de
+     calote deliberadamente real. Faz par com o Mercado e está no MVP social.
 
 2. **Separar o diretório de deploy do diretório de trabalho?** Hoje `public_html/central` é um
    symlink para `backend/public`, então **editar código aqui é publicar**. Já quebrei a fundação
@@ -50,9 +56,10 @@ O MVP tem, funcionando e no ar em `https://fertways.tars.art.br`:
    Enquanto não houver separação: **aplique a migration antes de salvar o código que depende
    dela.** Foi o que se fez na fatia do Mercado, e não houve janela quebrada.
 
-3. **Zerar a colônia de teste `publico@fertways.test`?** Ela foi abastecida à mão (1.000 de Metal
-   Bruto, 100 de energia) para verificar o depósito em produção, e tem 970 de Metal Bruto na conta
-   do Mercado. Não atrapalha ninguém, mas não é um estado "natural" de jogo.
+3. **Zerar as colônias de teste?** `publico@fertways.test` foi abastecida à mão (1.000 de Metal
+   Bruto, 100 de energia) para verificar o depósito em produção. Depois as duas contas fizeram um
+   negócio real no livro: `publico` tem 54,85 Fert$ e 770 na doca; `mapa2` tem 45 Fert$ e 100 na
+   doca. Não atrapalha ninguém, mas não é um estado "natural" de jogo.
 
 ## Pendências conhecidas, sem bloquear
 

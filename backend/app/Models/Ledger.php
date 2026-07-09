@@ -35,6 +35,7 @@ class Ledger extends Model
         'energia_viagem',     // §21.1: consumo do veículo por distância percorrida
         'deposito_mercado',   // §25.8: carga entregue entra na conta do colono no Mercado
         'retirada_mercado',   // §25.8: saldo reservado no Mercado para um veículo vir buscar
+        'escrow_mercado',     // §07: recurso ou Fert$ reservado ao abrir uma ordem no livro
         'estorno',
     ];
 

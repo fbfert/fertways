@@ -25,4 +25,8 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::get('/market/account', [MarketController::class, 'conta']);
     Route::post('/vehicles/{vehicle}/withdraw', [MarketController::class, 'retirar']);
+
+    Route::get('/market/orders', [MarketController::class, 'livro']);
+    Route::post('/market/orders', [MarketController::class, 'ordenar']);
+    Route::delete('/market/orders/{order}', [MarketController::class, 'cancelar']);
 });
