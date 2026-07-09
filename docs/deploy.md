@@ -53,6 +53,20 @@ montada em `/central`. Por isso `apiPrefix` é vazio (ver `docs/decisoes.md`, D-
 Como o `.env` e o `vendor/` vivem **acima** de `public/`, não há rota até eles: `/central/.env`
 devolve 404.
 
+## Atenção: editar o código aqui é publicar
+
+`public_html/central` é um symlink para `backend/public`, e não há build intermediário no PHP.
+Qualquer arquivo salvo em `backend/` **entra no ar no próximo request**. Não existe janela entre
+"escrevi" e "publiquei".
+
+A consequência prática: **rode a migration antes de salvar o código que depende dela.** Salvar
+primeiro deixa a produção quebrada no intervalo. Já aconteceu — a logística introduziu
+`colonies.x`/`y`, e fundar colônia devolveu 500 até a migration rodar.
+
+Se isso incomodar, a solução estrutural é separar o diretório de deploy do diretório de trabalho
+(clonar o repo em outro lugar e apontar o symlink para lá), fazendo o deploy ser um `git pull`
+explícito. Hoje não é assim.
+
 ## Passos de um deploy
 
 ```sh
