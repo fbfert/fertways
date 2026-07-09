@@ -230,6 +230,45 @@ nunca falha por saldo insuficiente de Fert$; e dispensa preço-base para tributa
 
 ---
 
+## D-13 — Fundação da colônia: o que o GDD dá e o que ele cala
+**Data:** 2026-07-08 · **Status:** decidido
+
+**Do GDD, sem interpretação:**
+- Saldo inicial de **50 Fert$** ("Todo colono recebe 50 Fert$ ao chegar em Fertways").
+- **Um Furgão de Comércio** no kit inicial: "Veículo terrestre leve para rotas locais entre
+  slots vizinhos. Parte do kit inicial — **todo colono começa com um**." Capacidade 6.000
+  unidades (§25.4). Isto não estava no prompt do MVP e teria passado batido.
+
+**Interpretação assumida — construções começam no nível 0.**
+§17.1 ("Construções Essenciais do Slot — Kit Inicial") apenas *descreve* as cinco essenciais;
+não diz que vêm construídas. §24.7 diz que o governo "cobre **a construção** e os upgrades
+dessas 5 estruturas até o nível 3", o que pressupõe que o nível 1 ainda seja construído, não
+concedido. Logo: 16 construções do MVP criadas no nível 0.
+
+**Recursos começam em zero.** §24.7 explica o desenho: "o colono usa o saldo de 50 Fert$ inicial
+para comprar o primeiro lote de Ligas Metálicas no Mercado Central antes de ter produção própria".
+Dar recursos iniciais quebraria esse loop de onboarding.
+
+**Fundação é transacional.** Cria colônia + 16 construções + 9 recursos + 1 veículo + 1 lançamento.
+Falha no meio deixaria colônia sem recursos ou sem veículo — estados que nenhuma outra parte do
+jogo sabe consertar. Há teste que força a falha e confere que nada persiste.
+
+**O saldo entra como lançamento no ledger** (`type = saldo_inicial`), não como número mudo na
+coluna. `colonies.fert_micro` é projeção do saldo; o ledger é a fonte auditável (seção 0).
+
+---
+
+## D-14 — `storage_cap` do slot principal é NULL
+**Data:** 2026-07-08 · **Status:** ABERTO · **Lacuna do GDD**
+
+O GDD define capacidade de armazenamento apenas para o **Depósito de Zona Neutra**
+(§19.6: 500 → 19.222 por nível). Para o slot principal, nenhuma tabela.
+
+`resources.storage_cap` é anulável. `NULL` significa "o GDD não define teto", e o tick **não capa**
+a produção. Escolher um número seria inventar balanceamento. Quando o teto existir, basta preencher.
+
+---
+
 ## D-09 — Invariantes que o banco garante, não o código
 
 - `tax_events.economic_event_key` é **UNIQUE**. "Uma incidência por fato econômico/lote"
