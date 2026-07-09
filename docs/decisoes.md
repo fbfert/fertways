@@ -166,10 +166,35 @@ As tabelas de §4.2/§4.3 trazem linha `Tempo (min)` para 15 construções. Não
 Procurado também no corpo v3.0 (§19.5, §19.6, §20, §21): não existe. §19.5 dá, para a Central
 de Transportes, apenas **caminhões base por nível** (1..10) e **consumo de energia** — nunca tempo.
 
-**Situação atual:** `building_specs.build_time_seconds` é `NULL` para essas dez.
-`NULL` significa "o GDD não diz", **não** "instantâneo". Enfileirar uma dessas construções deve
-falhar explicitamente até que os tempos sejam definidos. Há teste garantindo que ninguém preencha
-esses campos com valor inventado (`test_construcoes_sem_tempo_no_gdd_ficam_nulas_e_nao_zeradas`).
+**Resolução parcial (2026-07-08):** o autor forneceu os tempos-base de nível 1 das quatro
+construções do MVP. Os demais níveis saem de `half-up(base × 1,5^(n-1))`, gravados com
+`build_time_derivado = true`:
+
+| Construção | Base (min) | Níveis derivados |
+|---|---|---|
+| Central de Transportes | 6 | 6, 9, 14, 20, 30, 46, 68, 103, 154, 231 |
+| Destilaria | 10 | 10, 15, 23, 34, 51, 76, 114, 171, 256, 384 |
+| Furgão de Comércio | 7 | 7, 11, 16, 24, 35 |
+| Caminhão de Carga | 14 | 14, 21, 32, 47, 71 |
+
+Seis continuam `NULL` (Depósito de Zona Neutra, Drone, Robô Minerador, Infiltrador, Predador,
+Nave de Transporte Planetária). `NULL` significa "o GDD não diz", **não** "instantâneo":
+enfileirar uma delas deve falhar explicitamente.
+
+**Sobre a inclinação — correção de uma afirmação anterior.** Dizer que as construções derivadas
+teriam "outra escala" era exagero. Medindo as 15 tabelas publicadas contra `half-up(t1 × 1,5^(n-1))`:
+
+- **4 reproduzem exatamente**: Laboratório, Torre de Defesa, Tanque de Combustível, Mina Local.
+- **11 divergem por 1–2 minutos** em alguns níveis (Plataforma de Pouso erra só no nível 4:
+  94 vs 95; Fazenda só no nível 5: 21 vs 20).
+
+Ou seja: o GDD gerou os tempos com a curva 1,5 a partir de uma base **não inteira** e publicou os
+valores arredondados. Ancorar no nível 1 já arredondado reintroduz esse erro. A inclinação é a
+mesma; o desvio é de arredondamento. Curiosidade: com base 14, o Caminhão de Carga derivado sai
+idêntico às tabelas publicadas da Mina Local e da Torre de Defesa.
+
+Dois testes guardam a fronteira nos dois sentidos: tempo do GDD nunca é marcado como derivado, e
+tempo escolhido fora do GDD nunca passa por publicado.
 
 ---
 

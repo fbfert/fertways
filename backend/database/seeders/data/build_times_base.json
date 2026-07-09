@@ -2,10 +2,16 @@
   "_leia_me": [
     "Tempo-base (MINUTOS, nível 1) para as construções que o GDD NÃO cronometra. Ver docs/decisoes.md D-10.",
     "Os demais níveis saem de half-up(base * 1,5^(n-1)) e são marcados com build_time_derivado = true.",
-    "Estes valores NÃO vêm do GDD: são decisão de design. Deixar fora daqui mantém o tempo NULL,",
-    "e enfileirar a construção deve falhar explicitamente, em vez de virar construção instantânea.",
+    "Estes valores NÃO vêm do GDD: são decisão de design, fornecida pelo autor em 2026-07-08.",
+    "Uma construção ausente daqui mantém tempo NULL, e enfileirá-la deve falhar explicitamente,",
+    "em vez de virar construção instantânea.",
     "Atenção: a curva 1,50x não reproduz os tempos que o GDD publica (Gerador: tabela 4,5,8,12,18;",
-    "curva daria 4,6,9,14,20). Tempos derivados terão inclinação diferente do resto do jogo."
+    "curva daria 4,6,9,14,20). Estas construções progridem numa inclinação que nenhuma outra tem."
   ],
-  "tempos_base_minutos": {}
+  "tempos_base_minutos": {
+    "central_de_transportes": 6,
+    "destilaria": 10,
+    "furgao_de_comercio": 7,
+    "caminhao_de_carga": 14
+  }
 }
