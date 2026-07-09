@@ -72,10 +72,22 @@ await page.setViewport({ width: 1400, height: 900 })
 page.on('pageerror', (e) => erros.push(`pageerror: ${e.message}`))
 const ignoravel = (url) => (url ?? '').endsWith('/favicon.ico')
 
+/*
+ * O teste do logout provoca um 401 de propósito, para provar que o token morreu no servidor.
+ * `esperandoFalha` marca essa janela; fora dela, qualquer 4xx/5xx reprova.
+ *
+ * Uma requisição falha chega por **dois** caminhos — o evento `response` e um "Failed to load
+ * resource" no `console` —, então os dois consultam a flag. Guardar só um deixa o outro reprovar.
+ */
+let esperandoFalha = false
+
 page.on('console', (m) => {
   // O 404 do favicon também chega aqui, e sem a URL no texto: ela vive em `location`.
-  if (m.type() === 'error' && !ignoravel(m.location()?.url)) erros.push(`console: ${m.text()}`)
+  if (m.type() === 'error' && !ignoravel(m.location()?.url) && !esperandoFalha) {
+    erros.push(`console: ${m.text()}`)
+  }
 })
+
 /*
  * Um 404 no console não diz *o quê* faltou. Isto diz.
  *
@@ -83,10 +95,18 @@ page.on('console', (m) => {
  * `favicon.svg`. Não é o app pedindo coisa que não existe.
  */
 page.on('response', (r) => {
-  if (r.status() >= 400 && !ignoravel(r.url())) {
+  if (r.status() >= 400 && !ignoravel(r.url()) && !esperandoFalha) {
     erros.push(`HTTP ${r.status()} em ${r.url()}`)
   }
 })
+
+/*
+ * Os eventos de console e de resposta chegam pelo CDP, e não necessariamente antes de o `fetch`
+ * do navegador resolver. Baixar a flag no instante seguinte à chamada abriria uma corrida: o
+ * evento chegaria com a janela já fechada, e o 401 esperado reprovaria a suíte de forma
+ * intermitente. Este respiro deixa os dois assentarem.
+ */
+const assentar = () => new Promise((r) => setTimeout(r, 300))
 
 try {
   console.log('\nLogin')
@@ -179,6 +199,34 @@ try {
     console.log('\n--- texto da tela no momento da falha ---')
     console.log((await textoDaPagina(page)).slice(0, 1200))
   }
+
+  console.log('\nLogout')
+  const guardado = await page.evaluate(() => localStorage.getItem('fertways.token'))
+  checar(!!guardado, 'o token está no localStorage enquanto a sessão vive')
+
+  await (await acharPorTexto(page, 'button', /^×$/)).click()
+  await (await acharPorTexto(page, 'button', /^Sair$/)).click()
+  await page.waitForNetworkIdle({ idleTime: 800 })
+
+  checar(await esperarTexto(page, /entrar|login|e-mail/i), 'sair devolve à tela de login')
+  checar(
+    (await page.evaluate(() => localStorage.getItem('fertways.token'))) === null,
+    'o token some do localStorage',
+  )
+
+  // O ponto do logout: o token velho tem de morrer **no servidor**. Apagá-lo do navegador
+  // sozinho deixaria uma credencial válida para sempre — token do Sanctum não expira.
+  esperandoFalha = true
+  const status = await page.evaluate(async (t) => {
+    const r = await fetch('/central/colony', {
+      headers: { Accept: 'application/json', Authorization: `Bearer ${t}` },
+    })
+    return r.status
+  }, guardado)
+  await assentar()
+  esperandoFalha = false
+
+  checar(status === 401, `o token revogado já não autentica (recebeu ${status})`)
 } catch (e) {
   falhas.push(`exceção: ${e.message}`)
   try {

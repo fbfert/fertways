@@ -134,6 +134,12 @@ export const api = {
   login: (b: { email: string; password: string }) =>
     req<Sessao>('/login', { method: 'POST', body: JSON.stringify(b) }),
 
+  /**
+   * Revoga o token no servidor. Token do Sanctum não expira: sem esta chamada, apagar o
+   * `localStorage` deixaria uma credencial válida em circulação para sempre.
+   */
+  logout: () => req<{ message: string }>('/logout', { method: 'POST' }),
+
   colonia: () => req<Colonia>('/colony'),
 
   fundarColonia: (name: string) =>

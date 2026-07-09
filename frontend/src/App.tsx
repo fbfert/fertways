@@ -40,6 +40,31 @@ export default function App() {
     }
   }, [])
 
+  /**
+   * Sair de verdade: revoga o token no servidor antes de apagá-lo daqui.
+   *
+   * Se a chamada falhar — rede caída, ou token já inválido porque o servidor o revogou antes —
+   * ainda assim saímos localmente. O pior desfecho de insistir seria prender o colono numa
+   * sessão que ele pediu para encerrar.
+   */
+  const sair = useCallback(async () => {
+    // Derruba o polling **antes** de revogar. Na ordem inversa, o `setInterval` de 5 s dispara
+    // `/colony`, `/buildings` e `/queue` com um token que o servidor acabou de invalidar, e o
+    // colono vê três 401 no console ao sair.
+    setAutenticado(false)
+    setMercadoAberto(false)
+    setColonia(null)
+
+    try {
+      await api.logout()
+    } catch {
+      // Rede caída, ou token já revogado pelo servidor. Sair localmente mesmo assim: o pior
+      // desfecho de insistir seria prender o colono numa sessão que ele pediu para encerrar.
+    }
+
+    token.clear()
+  }, [])
+
   useEffect(() => {
     if (!autenticado) return
     void carregar()
@@ -101,6 +126,14 @@ export default function App() {
               Fundar
             </button>
           </form>
+
+          {/* Sem isto, quem entra e ainda não fundou colônia não tem como sair da conta. */}
+          <button
+            onClick={() => void sair()}
+            className="text-ink-soft hover:text-rust mt-5 text-xs"
+          >
+            Sair
+          </button>
         </div>
       </div>
     )
@@ -160,11 +193,8 @@ export default function App() {
       </div>
 
       <button
-        onClick={() => {
-          token.clear()
-          setAutenticado(false)
-        }}
-        className="text-ink-soft hover:text-rust absolute bottom-4 left-5 text-xs"
+        onClick={() => void sair()}
+        className="painel bg-sand-light text-ink-soft hover:text-rust hover:bg-sand eyebrow absolute bottom-4 left-5 px-4 py-2"
       >
         Sair
       </button>

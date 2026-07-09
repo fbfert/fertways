@@ -11,6 +11,9 @@ Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
 
 Route::middleware('auth:sanctum')->group(function () {
+    // Revoga o token que fez a chamada. Sem isto, "sair" só apaga o token do navegador.
+    Route::post('/logout', [AuthController::class, 'logout']);
+
     Route::get('/colony', [ColonyController::class, 'show']);
     Route::post('/colony', [ColonyController::class, 'store']);
 
