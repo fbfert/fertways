@@ -343,8 +343,32 @@ A saída prevista pelo próprio §24.7 — "usa o saldo de 50 Fert$ para comprar
 Ligas Metálicas no Mercado Central" — também não fecha: a tabela de progressão do GDD desbloqueia
 o **Mercado Central só no nível 5** ("Colono"). Inconsistência interna adicional.
 
-Precisa de decisão de escopo. Nada foi inventado; o código simplesmente recusa o enfileiramento
-com `recursos_insuficientes`.
+**Resolução (2026-07-08, decisão do autor):** o kit inicial concede recursos raros.
+
+A quantidade **não é digitada**: `CreateColony::concederRarosDoKit()` soma, de `building_specs`,
+o custo de raros de nível 1 das 16 construções do MVP. Dá exatamente o bastante para erguer cada
+uma **uma vez**. Hoje isso resulta em Ferro Vermelho ×1, Gelo de Metano ×3, Nióbio Alienígena ×5,
+Quartzo Piezoelétrico ×3, Resina Orgânica ×3 — mas se o GDD mudar, o kit acompanha sozinho.
+
+Cada concessão vira lançamento `kit_inicial` no ledger, com o recurso nomeado. Isto é decisão de
+design, não do GDD: quando existirem eventos, zonas profundas ou contratos do governo, o kit deve
+ser reavaliado.
+
+---
+
+## D-18 — Tutoria marcada como concluída na fundação (stub)
+**Data:** 2026-07-08 · **Status:** decidido, temporário
+
+A tabela de onboarding do GDD condiciona a subvenção à "conclusão da tutoria" (cinco missões nos
+três primeiros dias). O corpo de §24.7, porém, **não menciona tutoria**: diz simplesmente que as
+cinco essenciais "são custeadas pelo Governo Central até o nível 3".
+
+As missões estão fora do MVP. Sem destravar, o subsídio nunca vale, o colono tem zero recursos e
+não constrói nada — nem o Gerador de Atmosfera do vertical slice.
+
+**Decisão:** `CreateColony` grava `tutorial_completed_at = now()`. A regra continua **viva** no
+código (`EnqueueUpgrade` consulta `tutoriaConcluida()`), e há teste que remove a marcação e
+confere que o subsídio deixa de valer. Remover o stub quando as missões existirem.
 
 - `tax_events.economic_event_key` é **UNIQUE**. "Uma incidência por fato econômico/lote"
   (GDD seção 0 e §25.2) é invariante de dados: sem a chave, um retry de request ou dois ticks

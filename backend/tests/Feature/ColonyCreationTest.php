@@ -26,6 +26,9 @@ class ColonyCreationTest extends TestCase
     {
         parent::setUp();
         $this->seed(\Database\Seeders\ResourceTypeSeeder::class);
+        // O kit de raros é somado de building_specs, então o catálogo de construções
+        // também é pré-requisito para fundar colônia. Ver D-17.
+        $this->seed(\Database\Seeders\BuildingSpecSeeder::class);
     }
 
     private function colono(): User
@@ -51,10 +54,22 @@ class ColonyCreationTest extends TestCase
         $this->assertCount(count(Building::MVP), $colony->buildings);
         $this->assertTrue($colony->buildings->every(fn ($b) => $b->level === 0));
 
-        // Uma linha por recurso do catálogo, zeradas. O colono compra o primeiro lote de
-        // Ligas no Mercado Central com os 50 Fert$ (§24.7).
+        // Uma linha por recurso do catálogo. Não-raros zerados: o colono compra o primeiro
+        // lote de Ligas no Mercado Central com os 50 Fert$ (§24.7).
         $this->assertCount(count(Resource::daColonia()), $colony->resources);
-        $this->assertTrue($colony->resources->every(fn ($r) => $r->amount === 0));
+
+        $raros = \App\Models\ResourceType::where('tax_class', 'raro')->pluck('code');
+        $naoRaros = $colony->resources->whereNotIn('resource_type', $raros);
+        $this->assertTrue($naoRaros->every(fn ($r) => $r->amount === 0));
+
+        // Kit de raros (D-17): exatamente a soma dos custos de nível 1 das 16 construções.
+        $esperado = ['ferro_vermelho' => 1, 'gelo_de_metano' => 3, 'niobio_alienigena' => 5,
+            'quartzo_piezoeletrico' => 3, 'resina_organica' => 3];
+        foreach ($esperado as $codigo => $qtd) {
+            $this->assertSame($qtd, $colony->resources->firstWhere('resource_type', $codigo)->amount, $codigo);
+        }
+        // Os demais raros do catálogo não entram no kit.
+        $this->assertSame(0, $colony->resources->firstWhere('resource_type', 'plasma_fossilizado')->amount);
 
         // "Todo colono começa com um" Furgão (GDD, kit inicial). 6 m³ = 6.000 un (§25.4).
         $this->assertCount(1, $colony->vehicles);
@@ -77,10 +92,14 @@ class ColonyCreationTest extends TestCase
         $user = $this->colono();
         $this->actingAs($user)->postJson('/api/colony', ['name' => 'Auditada'])->assertCreated();
 
-        $l = Ledger::where('colony_id', $user->colony->id)->get();
-        $this->assertCount(1, $l);
-        $this->assertSame('saldo_inicial', $l->first()->type);
-        $this->assertSame(Colony::SALDO_INICIAL_MICRO, $l->first()->amount);
+        $saldo = Ledger::where(['colony_id' => $user->colony->id, 'type' => 'saldo_inicial'])->get();
+        $this->assertCount(1, $saldo);
+        $this->assertSame(Colony::SALDO_INICIAL_MICRO, $saldo->first()->amount);
+
+        // O kit de raros também é auditável: cinco lançamentos, um por raro concedido.
+        $kit = Ledger::where(['colony_id' => $user->colony->id, 'type' => 'kit_inicial'])->get();
+        $this->assertCount(5, $kit);
+        $this->assertTrue($kit->every(fn ($l) => $l->amount > 0 && $l->resource_type !== null));
     }
 
     public function test_ledger_e_append_only(): void

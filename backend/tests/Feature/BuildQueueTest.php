@@ -59,8 +59,12 @@ class BuildQueueTest extends TestCase
             ->assertJsonPath('cost.agua', 50)
             ->assertJsonPath('cost.biomassa', 30);
 
-        // Recursos intactos: o colono tinha 0 e continua com 0.
-        $this->assertTrue($user->colony->resources->every(fn ($x) => $x->amount === 0));
+        // Nenhum recurso é debitado: o Gerador n1 custa água/biomassa/energia/oxigênio,
+        // e o colono continua com 0 de todos eles (o kit inicial só traz raros).
+        $colony = $user->colony()->first();
+        foreach (['agua', 'biomassa', 'energia', 'oxigenio'] as $r) {
+            $this->assertSame(0, $colony->resources->firstWhere('resource_type', $r)->amount, $r);
+        }
         $this->assertSame(0, Ledger::where('type', 'custo_construcao')->count());
     }
 
@@ -81,6 +85,29 @@ class BuildQueueTest extends TestCase
         $this->assertSame(10_000 - 225, $agua);
     }
 
+    /**
+     * D-17: a Oficina custa 1 de Ferro Vermelho no nível 1, e não há fonte de raros no MVP.
+     * O kit inicial cobre exatamente o custo de nível 1 de cada construção. Sem ele, a
+     * Oficina — única fonte de Ligas Metálicas — seria inconstruível.
+     */
+    public function test_kit_inicial_de_raros_destrava_a_oficina(): void
+    {
+        $user = $this->colono();
+        $colony = $user->colony;
+
+        $this->assertSame(1, $colony->resources->firstWhere('resource_type', 'ferro_vermelho')->amount);
+
+        // Dá os não-raros; os raros vêm do kit.
+        $colony->resources()->whereIn('resource_type', ['biomassa', 'ligas_metalicas', 'compostos_quimicos', 'agua', 'energia'])
+            ->update(['amount' => 1000]);
+
+        $this->actingAs($user)->postJson('/api/buildings/' . $this->predio($user, 'oficina')->id . '/upgrade')
+            ->assertCreated();
+
+        // O Ferro Vermelho foi consumido: o kit dá o suficiente para exatamente uma vez.
+        $this->assertSame(0, $colony->fresh()->resources->firstWhere('resource_type', 'ferro_vermelho')->amount);
+    }
+
     public function test_construcao_de_progressao_nunca_e_subsidiada(): void
     {
         $user = $this->colono();
@@ -92,15 +119,29 @@ class BuildQueueTest extends TestCase
             ->assertJsonPath('subsidized', false);
     }
 
+    /**
+     * A regra do GDD ("mediante conclusão da tutoria") continua ativa no código. Hoje a
+     * fundação marca a tutoria como concluída, porque as missões estão fora do MVP (D-18).
+     * Aqui desfazemos essa marcação para provar que a regra existe e morde.
+     */
     public function test_sem_tutoria_o_subsidio_nao_vale_e_falta_recurso(): void
     {
-        $user = User::factory()->create(['tutorial_completed_at' => null]);
-        app(CreateColony::class)->handle($user, 'Sem Tutoria');
+        $user = $this->colono();
+        $user->forceFill(['tutorial_completed_at' => null])->save();
+
         $gerador = $this->predio($user->fresh(), 'gerador_de_atmosfera');
 
-        $this->actingAs($user)->postJson("/api/buildings/{$gerador->id}/upgrade")
+        $this->actingAs($user->fresh())->postJson("/api/buildings/{$gerador->id}/upgrade")
             ->assertStatus(422)
             ->assertJsonPath('code', 'recursos_insuficientes');
+    }
+
+    /** A fundação destrava a tutoria (stub do MVP), senão nada é construível. */
+    public function test_fundacao_marca_tutoria_como_concluida(): void
+    {
+        $user = $this->colono();
+        $this->assertNotNull($user->tutorial_completed_at);
+        $this->assertTrue($user->tutoriaConcluida());
     }
 
     // ---- Custo congelado (§4.1) ----

@@ -31,6 +31,7 @@ class Ledger extends Model
         'compra_mercado',
         'transferencia',
         'saldo_inicial',      // 50 Fert$ de onboarding
+        'kit_inicial',        // raros concedidos na fundação — decisão de design, D-17
         'estorno',
     ];
 

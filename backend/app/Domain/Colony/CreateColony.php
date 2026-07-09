@@ -6,6 +6,7 @@ use App\Models\Building;
 use App\Models\Colony;
 use App\Models\Ledger;
 use App\Models\Resource;
+use App\Models\ResourceType;
 use App\Models\User;
 use App\Models\Vehicle;
 use Illuminate\Support\Facades\DB;
@@ -74,7 +75,60 @@ class CreateColony
                 'created_at' => $agora,
             ]);
 
+            $this->concederRarosDoKit($colony, $agora);
+
+            // Stub: as cinco missões de tutoria ("cinco missões nos três primeiros dias")
+            // estão fora do MVP. Sem isto o subsídio de §24.7 nunca destrava e o colono não
+            // constrói nada. Note que o corpo de §24.7 sequer menciona tutoria — só a tabela
+            // de onboarding a exige. Remover quando as missões existirem. Ver D-18.
+            $user->forceFill(['tutorial_completed_at' => $agora])->save();
+
             return $colony->fresh(['buildings', 'resources', 'vehicles']);
         });
+    }
+
+    /**
+     * Concede os recursos raros necessários para erguer cada construção do MVP uma vez, no
+     * nível 1. A quantidade NÃO é digitada: é somada de `building_specs`, que vem do GDD.
+     * Assim o kit acompanha o documento em vez de virar constante mágica.
+     *
+     * Por que existe: 8 das 16 construções exigem raros no nível 1, e as fontes de raros da
+     * Temporada 1 (eventos, zonas profundas, contratos do governo) estão fora do MVP. Sem o
+     * kit, o jogador para logo depois das cinco essenciais. É decisão de design, não do GDD.
+     * Ver docs/decisoes.md D-17.
+     */
+    private function concederRarosDoKit(Colony $colony, $agora): void
+    {
+        // Somado em PHP de propósito. Um JOIN com json_extract exigiria concatenação de
+        // string, e `||` é concat no SQLite mas OR no MariaDB: passaria nos testes e
+        // quebraria em produção.
+        $codigosRaros = ResourceType::where('tax_class', 'raro')->pluck('code')->flip();
+
+        $especificacoes = DB::table('building_specs')
+            ->where('level', 1)
+            ->whereIn('building_type', Building::MVP)
+            ->pluck('cost_json');
+
+        $total = [];
+        foreach ($especificacoes as $json) {
+            foreach (json_decode($json, true) as $recurso => $qtd) {
+                if ($codigosRaros->has($recurso)) {
+                    $total[$recurso] = ($total[$recurso] ?? 0) + $qtd;
+                }
+            }
+        }
+
+        foreach ($total as $codigo => $qtd) {
+            $colony->resources()->where('resource_type', $codigo)->update(['amount' => $qtd]);
+
+            Ledger::create([
+                'colony_id' => $colony->id,
+                'type' => 'kit_inicial',
+                'amount' => $qtd,
+                'resource_type' => $codigo,
+                'ref' => 'onboarding:kit_raros',
+                'created_at' => $agora,
+            ]);
+        }
     }
 }
