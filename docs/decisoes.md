@@ -799,3 +799,35 @@ de 3%. O Mercado não cria Fert$.
 
 **Não implementado, e o GDD pede:** `§07` cita "serviço logístico público" como alternativa ao
 veículo próprio na retirada. Não existe. O comprador precisa de Furgão ou Caminhão.
+
+---
+
+## D-36 — O e2e apagou o banco de produção. `config:cache` derrota `env()`.
+**Data:** 2026-07-09 · **Status:** corrigido · **Incidente**
+
+`tools/e2e.sh` exportava `DB_CONNECTION=sqlite` e rodava `migrate:fresh --seed`. O Laravel ignorou
+a variável e resolveu `mysql fertwaysbd`: existe `bootstrap/cache/config.php` neste deploy, e **com
+a config cacheada `env()` não é lida**. O `migrate:fresh` apagou todas as tabelas do jogo em
+produção.
+
+O binlog do MariaDB está **desligado** (`log_bin=OFF`), então não há recuperação ponto-a-ponto. O
+backup diário mais recente era de 03:00, anterior às contas de teste criadas naquela manhã: elas
+se perderam de vez.
+
+**Isto já era sabido.** O D-27 registra exatamente esta armadilha e o `phpunit.xml` se protege dela
+apontando `APP_CONFIG_CACHE` para um arquivo inexistente. O script novo não replicou a proteção.
+
+**Correções:**
+1. `tools/e2e.sh` exporta `APP_CONFIG_CACHE` para um caminho inexistente, como o `phpunit.xml`.
+2. **Guarda antes do `migrate`:** o script pergunta ao próprio Laravel qual conexão ele resolveu
+   (`config('database.default')` e o caminho do SQLite) e **aborta** se não for o banco temporário.
+   A guarda é testada sabotando o remédio: sem ele, o script morre com código 1 antes de tocar em
+   `migrate`, dizendo `resolveu [mysql fertwaysbd]`.
+
+**Lições, para quem escrever a próxima ferramenta:**
+- Neste deploy, exportar `DB_*` **não** basta para redirecionar o banco. Sempre exportar também
+  `APP_CONFIG_CACHE`, ou apagar o cache.
+- Toda ferramenta destrutiva (`migrate:fresh`, `db:wipe`, `truncate`) deve **verificar o alvo** e
+  abortar, em vez de confiar que o ambiente foi configurado certo.
+- Backup diário às 03:00 e binlog desligado significam **até 24 h de perda**. Se algum dado passar
+  a importar, ligar o binlog é o primeiro passo.

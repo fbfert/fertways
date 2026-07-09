@@ -25,6 +25,23 @@ export DB_CONNECTION=sqlite
 export DB_DATABASE="$BANCO"
 export APP_ENV=local
 
+# ...mas NÃO vence `bootstrap/cache/config.php`. Com a config cacheada, `env()` é ignorada por
+# completo e `database.default` continua `mysql`. Foi assim que uma versão anterior deste script
+# rodou `migrate:fresh` contra o MariaDB de produção e apagou o banco do jogo. O `phpunit.xml`
+# já se protegia disto desde o D-27; este script não. Apontar o cache para um arquivo inexistente
+# é o mesmo remédio.
+export APP_CONFIG_CACHE="$RAIZ/backend/bootstrap/cache/nao-existe-config.php"
+
+# Cinto e suspensório: pergunta ao próprio Laravel qual conexão ele resolveu, e aborta se não for
+# o SQLite temporário. Um teste jamais deve poder destruir dados de produção.
+efetiva=$(cd "$RAIZ/backend" && $PHP artisan tinker --execute='echo config("database.default")." ".config("database.connections.sqlite.database");' 2>/dev/null | tail -1)
+if [ "$efetiva" != "sqlite $BANCO" ]; then
+  echo "ABORTADO: o Laravel resolveu [$efetiva], e não [sqlite $BANCO]." >&2
+  echo "Rodar migrate:fresh assim apagaria o banco de produção. Ver docs/decisoes.md D-27." >&2
+  exit 1
+fi
+echo "==> conexão efetiva conferida: $efetiva"
+
 pids=()
 limpar() {
   for p in "${pids[@]:-}"; do kill "$p" 2>/dev/null || true; done
