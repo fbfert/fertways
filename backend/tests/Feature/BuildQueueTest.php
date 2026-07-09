@@ -51,7 +51,7 @@ class BuildQueueTest extends TestCase
         $user = $this->colono();
         $gerador = $this->predio($user, 'gerador_de_atmosfera');
 
-        $r = $this->actingAs($user)->postJson("/api/buildings/{$gerador->id}/upgrade");
+        $r = $this->actingAs($user)->postJson("/buildings/{$gerador->id}/upgrade");
 
         $r->assertCreated()
             ->assertJsonPath('subsidized', true)
@@ -76,7 +76,7 @@ class BuildQueueTest extends TestCase
         $gerador->update(['level' => 3]);
         $this->darRecursos($user->colony);
 
-        $this->actingAs($user)->postJson("/api/buildings/{$gerador->id}/upgrade")
+        $this->actingAs($user)->postJson("/buildings/{$gerador->id}/upgrade")
             ->assertCreated()
             ->assertJsonPath('target_level', 4)
             ->assertJsonPath('subsidized', false);
@@ -102,7 +102,7 @@ class BuildQueueTest extends TestCase
         $colony->resources()->whereIn('resource_type', ['biomassa', 'ligas_metalicas', 'compostos_quimicos', 'agua', 'energia'])
             ->update(['amount' => 1000]);
 
-        $this->actingAs($user)->postJson('/api/buildings/' . $this->predio($user, 'oficina')->id . '/upgrade')
+        $this->actingAs($user)->postJson('/buildings/' . $this->predio($user, 'oficina')->id . '/upgrade')
             ->assertCreated();
 
         // O Ferro Vermelho foi consumido: o kit dá o suficiente para exatamente uma vez.
@@ -115,7 +115,7 @@ class BuildQueueTest extends TestCase
         $oficina = $this->predio($user, 'oficina');
         $this->darRecursos($user->colony);
 
-        $this->actingAs($user)->postJson("/api/buildings/{$oficina->id}/upgrade")
+        $this->actingAs($user)->postJson("/buildings/{$oficina->id}/upgrade")
             ->assertCreated()
             ->assertJsonPath('subsidized', false);
     }
@@ -132,7 +132,7 @@ class BuildQueueTest extends TestCase
 
         $gerador = $this->predio($user->fresh(), 'gerador_de_atmosfera');
 
-        $this->actingAs($user->fresh())->postJson("/api/buildings/{$gerador->id}/upgrade")
+        $this->actingAs($user->fresh())->postJson("/buildings/{$gerador->id}/upgrade")
             ->assertStatus(422)
             ->assertJsonPath('code', 'recursos_insuficientes');
     }
@@ -153,7 +153,7 @@ class BuildQueueTest extends TestCase
         $oficina = $this->predio($user, 'oficina');
         $this->darRecursos($user->colony);
 
-        $this->actingAs($user)->postJson("/api/buildings/{$oficina->id}/upgrade")->assertCreated();
+        $this->actingAs($user)->postJson("/buildings/{$oficina->id}/upgrade")->assertCreated();
         $cotado = BuildQueue::first()->quoted_cost_json;
 
         // Rebalanceamento posterior não pode recotar o que já está na fila.
@@ -173,11 +173,11 @@ class BuildQueueTest extends TestCase
 
         $this->assertSame(2, BuildQueue::vagasDe($user));
 
-        $this->actingAs($user)->postJson('/api/buildings/' . $this->predio($user, 'gerador_de_atmosfera')->id . '/upgrade')->assertCreated();
-        $this->actingAs($user)->postJson('/api/buildings/' . $this->predio($user, 'fazenda')->id . '/upgrade')->assertCreated();
+        $this->actingAs($user)->postJson('/buildings/' . $this->predio($user, 'gerador_de_atmosfera')->id . '/upgrade')->assertCreated();
+        $this->actingAs($user)->postJson('/buildings/' . $this->predio($user, 'fazenda')->id . '/upgrade')->assertCreated();
 
         // A terceira não cabe.
-        $this->actingAs($user)->postJson('/api/buildings/' . $this->predio($user, 'oficina')->id . '/upgrade')
+        $this->actingAs($user)->postJson('/buildings/' . $this->predio($user, 'oficina')->id . '/upgrade')
             ->assertStatus(422)->assertJsonPath('code', 'fila_cheia');
 
         // Só a primeira constrói; a segunda espera.
@@ -193,8 +193,8 @@ class BuildQueueTest extends TestCase
 
         $this->assertSame(1, BuildQueue::vagasDe($user));
 
-        $this->actingAs($user)->postJson('/api/buildings/' . $this->predio($user, 'gerador_de_atmosfera')->id . '/upgrade')->assertCreated();
-        $this->actingAs($user)->postJson('/api/buildings/' . $this->predio($user, 'fazenda')->id . '/upgrade')
+        $this->actingAs($user)->postJson('/buildings/' . $this->predio($user, 'gerador_de_atmosfera')->id . '/upgrade')->assertCreated();
+        $this->actingAs($user)->postJson('/buildings/' . $this->predio($user, 'fazenda')->id . '/upgrade')
             ->assertStatus(422)->assertJsonPath('code', 'fila_cheia');
     }
 
@@ -215,8 +215,8 @@ class BuildQueueTest extends TestCase
         $user = $this->colono();
         $gerador = $this->predio($user, 'gerador_de_atmosfera');
 
-        $this->actingAs($user)->postJson("/api/buildings/{$gerador->id}/upgrade")->assertCreated();
-        $this->actingAs($user)->postJson("/api/buildings/{$gerador->id}/upgrade")
+        $this->actingAs($user)->postJson("/buildings/{$gerador->id}/upgrade")->assertCreated();
+        $this->actingAs($user)->postJson("/buildings/{$gerador->id}/upgrade")
             ->assertStatus(422)->assertJsonPath('code', 'ja_na_fila');
     }
 
@@ -227,7 +227,7 @@ class BuildQueueTest extends TestCase
         $gerador->update(['level' => 5]);   // máximo do Gerador no GDD
         $this->darRecursos($user->colony);
 
-        $this->actingAs($user)->postJson("/api/buildings/{$gerador->id}/upgrade")
+        $this->actingAs($user)->postJson("/buildings/{$gerador->id}/upgrade")
             ->assertStatus(422)->assertJsonPath('code', 'nivel_maximo');
     }
 
@@ -237,7 +237,7 @@ class BuildQueueTest extends TestCase
         $b = $this->colono(['email' => 'b@t.test', 'nickname' => 'colonoB']);
         $predioDeB = $this->predio($b, 'gerador_de_atmosfera');
 
-        $this->actingAs($a)->postJson("/api/buildings/{$predioDeB->id}/upgrade")
+        $this->actingAs($a)->postJson("/buildings/{$predioDeB->id}/upgrade")
             ->assertStatus(422)->assertJsonPath('code', 'construcao_de_outra_colonia');
     }
 
@@ -258,7 +258,7 @@ class BuildQueueTest extends TestCase
         $oficina = $this->predio($user, 'oficina');
         $this->darRecursos($user->colony);
 
-        $this->actingAs($user)->postJson("/api/buildings/{$oficina->id}/upgrade")->assertCreated();
+        $this->actingAs($user)->postJson("/buildings/{$oficina->id}/upgrade")->assertCreated();
 
         $lancamentos = Ledger::where('type', 'custo_construcao')->get();
         $this->assertNotEmpty($lancamentos);
@@ -275,7 +275,7 @@ class BuildQueueTest extends TestCase
         // e ligas de menos: o débito da biomassa não pode persistir.
         $user->colony->resources()->where('resource_type', 'biomassa')->update(['amount' => 500]);
 
-        $this->actingAs($user)->postJson("/api/buildings/{$oficina->id}/upgrade")
+        $this->actingAs($user)->postJson("/buildings/{$oficina->id}/upgrade")
             ->assertStatus(422)->assertJsonPath('code', 'recursos_insuficientes');
 
         $this->assertSame(500, $user->colony->resources()->where('resource_type', 'biomassa')->value('amount'));

@@ -163,7 +163,7 @@ class ComponentRecipesTest extends TestCase
         $user = $this->colono();
         $oficina = $user->colony->buildings->firstWhere('type', 'oficina');
 
-        $this->actingAs($user)->patchJson("/api/buildings/{$oficina->id}/recipe", ['recipe' => 'intermediaria'])
+        $this->actingAs($user)->patchJson("/buildings/{$oficina->id}/recipe", ['recipe' => 'intermediaria'])
             ->assertOk()
             ->assertJsonPath('recipe', 'intermediaria')
             ->assertJsonPath('insumos_por_unidade.tungstenio', 3);
@@ -177,10 +177,10 @@ class ComponentRecipesTest extends TestCase
         $oficina = $user->colony->buildings->firstWhere('type', 'oficina');
         $fazenda = $user->colony->buildings->firstWhere('type', 'fazenda');
 
-        $this->actingAs($user)->patchJson("/api/buildings/{$oficina->id}/recipe", ['recipe' => 'lendaria'])
+        $this->actingAs($user)->patchJson("/buildings/{$oficina->id}/recipe", ['recipe' => 'lendaria'])
             ->assertStatus(422)->assertJsonValidationErrors('recipe');
 
-        $this->actingAs($user)->patchJson("/api/buildings/{$fazenda->id}/recipe", ['recipe' => 'basica'])
+        $this->actingAs($user)->patchJson("/buildings/{$fazenda->id}/recipe", ['recipe' => 'basica'])
             ->assertStatus(422)->assertJsonPath('code', 'sem_receita');
     }
 }

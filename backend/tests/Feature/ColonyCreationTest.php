@@ -41,7 +41,7 @@ class ColonyCreationTest extends TestCase
     {
         $user = $this->colono();
 
-        $resposta = $this->actingAs($user)->postJson('/api/colony', ['name' => 'Nova Aurora']);
+        $resposta = $this->actingAs($user)->postJson('/colony', ['name' => 'Nova Aurora']);
 
         $resposta->assertCreated();
 
@@ -82,7 +82,7 @@ class ColonyCreationTest extends TestCase
     public function test_storage_cap_fica_nulo_porque_o_gdd_nao_o_define(): void
     {
         $user = $this->colono();
-        $this->actingAs($user)->postJson('/api/colony', ['name' => 'Sem Teto'])->assertCreated();
+        $this->actingAs($user)->postJson('/colony', ['name' => 'Sem Teto'])->assertCreated();
 
         $this->assertTrue($user->colony->resources->every(fn ($r) => $r->storage_cap === null));
     }
@@ -91,7 +91,7 @@ class ColonyCreationTest extends TestCase
     public function test_saldo_inicial_vira_lancamento_no_ledger(): void
     {
         $user = $this->colono();
-        $this->actingAs($user)->postJson('/api/colony', ['name' => 'Auditada'])->assertCreated();
+        $this->actingAs($user)->postJson('/colony', ['name' => 'Auditada'])->assertCreated();
 
         $saldo = Ledger::where(['colony_id' => $user->colony->id, 'type' => 'saldo_inicial'])->get();
         $this->assertCount(1, $saldo);
@@ -106,7 +106,7 @@ class ColonyCreationTest extends TestCase
     public function test_ledger_e_append_only(): void
     {
         $user = $this->colono();
-        $this->actingAs($user)->postJson('/api/colony', ['name' => 'Colônia'])->assertCreated();
+        $this->actingAs($user)->postJson('/colony', ['name' => 'Colônia'])->assertCreated();
 
         $l = Ledger::first();
 
@@ -117,7 +117,7 @@ class ColonyCreationTest extends TestCase
     public function test_ledger_recusa_tipo_de_lancamento_desconhecido(): void
     {
         $user = $this->colono();
-        $this->actingAs($user)->postJson('/api/colony', ['name' => 'Colônia'])->assertCreated();
+        $this->actingAs($user)->postJson('/colony', ['name' => 'Colônia'])->assertCreated();
 
         $this->expectException(RuntimeException::class);
         Ledger::create([
@@ -162,23 +162,23 @@ class ColonyCreationTest extends TestCase
     public function test_um_jogador_funda_no_maximo_uma_colonia(): void
     {
         $user = $this->colono();
-        $this->actingAs($user)->postJson('/api/colony', ['name' => 'Primeira'])->assertCreated();
-        $this->actingAs($user)->postJson('/api/colony', ['name' => 'Segunda'])->assertStatus(422);
+        $this->actingAs($user)->postJson('/colony', ['name' => 'Primeira'])->assertCreated();
+        $this->actingAs($user)->postJson('/colony', ['name' => 'Segunda'])->assertStatus(422);
 
         $this->assertSame(1, Colony::where('user_id', $user->id)->count());
     }
 
     public function test_colonia_exige_autenticacao(): void
     {
-        $this->postJson('/api/colony', ['name' => 'Anônima'])->assertUnauthorized();
-        $this->getJson('/api/colony')->assertUnauthorized();
+        $this->postJson('/colony', ['name' => 'Anônima'])->assertUnauthorized();
+        $this->getJson('/colony')->assertUnauthorized();
     }
 
     public function test_nickname_e_unico_no_servidor(): void
     {
         User::factory()->create(['nickname' => 'colono1']);
 
-        $this->postJson('/api/register', [
+        $this->postJson('/register', [
             'name' => 'Outro', 'nickname' => 'colono1',
             'email' => 'outro@t.test', 'password' => 'SenhaForte#2026',
         ])->assertStatus(422)->assertJsonValidationErrors('nickname');

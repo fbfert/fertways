@@ -167,7 +167,7 @@ class TickColoniesTest extends TestCase
         $user = $this->colono();
         $gerador = $user->colony->buildings->firstWhere('type', 'gerador_de_atmosfera');
 
-        $this->actingAs($user)->postJson("/api/buildings/{$gerador->id}/upgrade")->assertCreated();
+        $this->actingAs($user)->postJson("/buildings/{$gerador->id}/upgrade")->assertCreated();
 
         // Gerador n1 leva 4 min (GDD). Avança 5.
         $this->tick($user, now()->addMinutes(5));
@@ -198,7 +198,7 @@ class TickColoniesTest extends TestCase
 
         $t0 = now()->startOfSecond();
         Carbon::setTestNow($t0);
-        $this->actingAs($user)->postJson("/api/buildings/{$gerador->id}/upgrade")->assertCreated();
+        $this->actingAs($user)->postJson("/buildings/{$gerador->id}/upgrade")->assertCreated();
         $user->colony->update(['last_tick_at' => $t0]);
 
         // Gerador n2: 5 min de obra, e depois 150 oxigênio/h (§19.2).
@@ -224,8 +224,8 @@ class TickColoniesTest extends TestCase
         $g = $user->colony->buildings->firstWhere('type', 'gerador_de_atmosfera');
         $f = $user->colony->buildings->firstWhere('type', 'fazenda');
 
-        $this->actingAs($user)->postJson("/api/buildings/{$g->id}/upgrade")->assertCreated();
-        $this->actingAs($user)->postJson("/api/buildings/{$f->id}/upgrade")->assertCreated();
+        $this->actingAs($user)->postJson("/buildings/{$g->id}/upgrade")->assertCreated();
+        $this->actingAs($user)->postJson("/buildings/{$f->id}/upgrade")->assertCreated();
 
         $this->assertSame('queued', BuildQueue::where('building_id', $f->id)->value('status'));
 
@@ -244,7 +244,7 @@ class TickColoniesTest extends TestCase
         $user->colony->resources()->update(['amount' => 5000]);
         $mina = $user->colony->buildings->firstWhere('type', 'mina_local');
 
-        $this->actingAs($user)->postJson("/api/buildings/{$mina->id}/upgrade")->assertCreated();
+        $this->actingAs($user)->postJson("/buildings/{$mina->id}/upgrade")->assertCreated();
         $this->tick($user, now()->addMinutes(20));
 
         $this->assertSame(1, $mina->fresh()->level);
