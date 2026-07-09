@@ -17,6 +17,12 @@ return new class extends Migration
      * saída", §25.2 diz "na entrega". Decisão do usuário em 2026-07-08: vale §25.2.
      * Logo a economic_event_key deriva do evento de CHEGADA do veículo. Viagem cancelada
      * ou veículo perdido antes da entrega não gera lançamento algum.
+     *
+     * Unidade do tributo (decisão de 2026-07-08, D-12):
+     *   kind=transporte_entrega -> base_amount e tax_amount em UNIDADES do resource_type.
+     *       "3% do volume enviado vai para o Tesouro" (§8.3). Retém-se da carga: entrega
+     *       1.000 de Água, chegam 970, 30 vão ao Tesouro. Nunca falha por falta de saldo.
+     *   kind=mercado_venda     -> base_amount e tax_amount em MICRO-FERT$, resource_type nulo.
      */
     public function up(): void
     {

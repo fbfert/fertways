@@ -127,6 +127,14 @@ def to_micro(cell: str) -> int:
 TAX_BPS = {"primario": 300, "secundario": 200, "raro": 100}
 
 
+def mina_local_prod_max(rows) -> int:
+    """Produção/hora do Metal Bruto no nível máximo da Mina Local (§19)."""
+    corpo = slice_section(rows, r"^Mina Local — Produção", r"^Mina Governamental")
+    linha = next(r for r in corpo if r.startswith("Produção/hora"))
+    vals = [c.strip() for c in linha.split("|")[1:] if c.strip()]
+    return to_int(vals[-1])
+
+
 def parse_resources(rows):
     recursos = {}
 
@@ -164,11 +172,25 @@ def parse_resources(rows):
             "producao_max_hora": to_int(p[1]), "preco_base_micro": to_micro(p[2]),
         }
 
-    # Metal Bruto não aparece em nenhuma tabela de preço-base. D-04: primário.
-    recursos.setdefault("metal_bruto", {
+    # Metal Bruto não aparece em nenhuma tabela de preço-base (§22.2/22.3/22.4).
+    # §24.8 dá a fórmula para primários e brutos, e lista Metal Bruto entre os aplicáveis:
+    #     Preço(r) = Preço(Oxigênio) × (ProdMáx/h Oxigênio ÷ ProdMáx/h r)
+    # "ProdMáx/h" é o valor de nível 5 das tabelas de §19. A fórmula reproduz Água,
+    # Biomassa e Energia exatamente como o GDD as publica — daí a confiança nela.
+    # O preço resultante é DERIVADO, não publicado: fica marcado como tal. Ver D-04.
+    ox = recursos["oxigenio"]
+    prod_metal = mina_local_prod_max(rows)
+    preco = (Decimal(ox["preco_base_micro"]) / 1_000_000) * Decimal(ox["producao_max_hora"]) / Decimal(prod_metal)
+    preco_4c = preco.quantize(Decimal("0.0001"), rounding=ROUND_HALF_UP)  # o GDD publica 4 casas
+    recursos["metal_bruto"] = {
         "code": "metal_bruto", "nome": "Metal Bruto", "tax_class": "primario",
-        "producao_max_hora": None, "preco_base_micro": None,
-    })
+        "producao_max_hora": prod_metal,
+        "preco_base_micro": int(preco_4c * 1_000_000),
+        "preco_base_derivado": True,
+    }
+
+    for r in recursos.values():
+        r.setdefault("preco_base_derivado", False)
 
     for r in recursos.values():
         r["tax_bps"] = TAX_BPS[r["tax_class"]]

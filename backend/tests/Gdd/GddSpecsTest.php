@@ -110,6 +110,33 @@ class GddSpecsTest extends TestCase
         }
     }
 
+    /**
+     * Metal Bruto é o único preço derivado (§24.8), porque nenhuma tabela de §22 o publica.
+     * O teste refaz a fórmula a partir do Oxigênio e das produções máximas do próprio banco:
+     * se alguém trocar o valor por um número escolhido a dedo, isto quebra.
+     */
+    public function test_preco_do_metal_bruto_sai_da_formula_do_gdd(): void
+    {
+        $ox = DB::table('resource_types')->where('code', 'oxigenio')->first();
+        $mb = DB::table('resource_types')->where('code', 'metal_bruto')->first();
+
+        $esperado = ($ox->preco_base_micro / 1_000_000) * $ox->producao_max_hora / $mb->producao_max_hora;
+        $esperado4c = round($esperado, 4);
+
+        $this->assertSame(76, $mb->producao_max_hora, 'produção máx/h da Mina Local (§19)');
+        $this->assertSame((int) round($esperado4c * 1_000_000), (int) $mb->preco_base_micro);
+        $this->assertTrue((bool) $mb->preco_base_derivado, 'preço derivado precisa estar marcado como tal');
+    }
+
+    public function test_apenas_o_metal_bruto_tem_preco_derivado(): void
+    {
+        $derivados = DB::table('resource_types')->where('preco_base_derivado', true)->pluck('code');
+        $this->assertSame(['metal_bruto'], $derivados->all());
+
+        // Nenhum recurso pode ficar sem preço: a precificação do Mercado Central depende disso.
+        $this->assertSame(0, DB::table('resource_types')->whereNull('preco_base_micro')->count());
+    }
+
     /** Todo recurso citado em custo precisa existir no catálogo, senão as FKs quebram. */
     public function test_todo_recurso_usado_em_custo_existe_no_catalogo(): void
     {

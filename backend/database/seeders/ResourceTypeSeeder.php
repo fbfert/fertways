@@ -28,6 +28,7 @@ class ResourceTypeSeeder extends Seeder
             'tax_class' => $r['tax_class'],
             'tax_bps' => $r['tax_bps'],
             'preco_base_micro' => $r['preco_base_micro'],
+            'preco_base_derivado' => $r['preco_base_derivado'],
             'producao_max_hora' => $r['producao_max_hora'],
             'created_at' => $agora,
             'updated_at' => $agora,
@@ -36,7 +37,7 @@ class ResourceTypeSeeder extends Seeder
         DB::table('resource_types')->upsert(
             $linhas,
             ['code'],
-            ['nome', 'tax_class', 'tax_bps', 'preco_base_micro', 'producao_max_hora', 'updated_at'],
+            ['nome', 'tax_class', 'tax_bps', 'preco_base_micro', 'preco_base_derivado', 'producao_max_hora', 'updated_at'],
         );
 
         $this->command->info(sprintf('resource_types: %d recursos semeados.', count($linhas)));

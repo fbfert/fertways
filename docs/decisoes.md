@@ -77,6 +77,16 @@ processados do governo.
 
 Isto é design fora do GDD. Se uma revisão futura do GDD classificar diferente, ela prevalece.
 
+**Preço-base do Metal Bruto (2026-07-08):** nenhuma tabela de §22 o precifica. §24.8 dá a fórmula
+para primários e brutos e **lista Metal Bruto entre os aplicáveis**:
+
+> `Preço(r) = Preço(Oxigênio) × (Produção máx/h Oxigênio ÷ Produção máx/h de r)`
+
+Com Oxigênio = 0,0050 Fert$ e 506/h, e Mina Local = 76/h no nível 5 (§19), resulta
+**0,0333 Fert$**. A fórmula reproduz exatamente os três primários publicados (Água 0,0062,
+Biomassa 0,0083, Energia 0,0033), o que a valida. O valor é **derivado, não publicado**:
+`resource_types.preco_base_derivado = true` o marca, e há teste refazendo a conta.
+
 ---
 
 ## D-05 — O slot principal não tem número fixo de slots de construção
@@ -163,17 +173,35 @@ esses campos com valor inventado (`test_construcoes_sem_tempo_no_gdd_ficam_nulas
 
 ---
 
-## D-11 — Inconsistências menores do GDD, registradas e não resolvidas
-**Data:** 2026-07-08 · **Status:** ABERTO, não bloqueia
+## D-11 — Inconsistências menores do GDD
+**Data:** 2026-07-08 · **Status:** item 1 RESOLVIDO (era falso positivo), item 2 aberto
 
-1. **Base de cálculo do tributo.** §8.3 diz "3% **do volume** enviado". §22.6 exemplifica a venda
-   de 1.000 unidades de Água e calcula "Tributo (3%): 0,186 Fert$", que é 3% do **valor em Fert$**
-   (6,20), não do volume. §25.2 separa "volume movimentado" (transporte) de "Fert$ movimentado"
-   (mercado). O schema comporta ambos (`tax_events.kind` + `base_amount`), mas a semântica do
-   `base_amount` no transporte precisa de confirmação.
+1. **Base de cálculo do tributo — não havia contradição.** §8.3 ("3% do volume") e §22.6
+   (exemplo cobrando 0,186 Fert$ sobre 1.000 de Água) dão o **mesmo número**, porque
+   `valor = volume × preço`: 3% de 1.000 unidades são 30 unidades, e 30 × 0,0062 = 0,186 Fert$.
+   O §22.6 apenas expressa em Fert$ o que o §8.3 descreve em unidades. Ver D-12 para a
+   pergunta que de fato estava escondida aqui.
 2. **Quantos recursos raros existem.** A taxonomia narrativa lista **8** raros. A tabela de
    preços-base §22.4 lista **9**, incluindo "Bioenergia Curativa", ausente da primeira lista.
    O catálogo semeado tem os 9 de §22.4.
+
+---
+
+## D-12 — O tributo é retido em recurso, não cobrado em Fert$
+**Data:** 2026-07-08 · **Status:** decidido pelo usuário
+
+Como §8.3 e §22.6 concordam no valor (ver D-11), a questão real é a **unidade retida**.
+§8.3 é literal: "3% do volume enviado **vai para o Tesouro**".
+
+**Decisão:** o tributo de transporte é **retido da própria carga**, em unidades do recurso.
+Entregar 1.000 de Água faz chegarem 970 ao destino e 30 ao Tesouro.
+
+Justificativa: é a leitura literal do §8.3 e de §25.2 ("volume de recurso movimentado");
+nunca falha por saldo insuficiente de Fert$; e dispensa preço-base para tributar.
+
+**Implementação em `tax_events`:**
+- `kind = transporte_entrega` → `base_amount`/`tax_amount` em **unidades** do `resource_type`.
+- `kind = mercado_venda` → `base_amount`/`tax_amount` em **micro-Fert$**, `resource_type` nulo.
 
 ---
 
