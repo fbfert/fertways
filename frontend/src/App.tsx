@@ -4,6 +4,7 @@ import type { Colonia, Fila, Spec } from './api/client'
 import { ColonyCanvas } from './game/ColonyCanvas'
 import { Login } from './ui/Login'
 import { Marca } from './ui/Marca'
+import { Mercado } from './ui/Mercado'
 import { Detalhe, FilaDeObras, Recursos } from './ui/Hud'
 
 /** Sem websocket nesta fase: polling simples, como o plano define. */
@@ -18,6 +19,7 @@ export default function App() {
   const [erro, setErro] = useState<string | null>(null)
   const [semColonia, setSemColonia] = useState(false)
   const [nome, setNome] = useState('')
+  const [mercadoAberto, setMercadoAberto] = useState(false)
 
   const carregar = useCallback(async () => {
     try {
@@ -116,15 +118,35 @@ export default function App() {
         </div>
 
         {colonia && (
-          <div className="painel bg-sand-light pointer-events-auto px-5 py-3 text-right">
-            <div className="text-rust eyebrow">{colonia.name}</div>
-            <div className="text-ink text-xl font-black tabular-nums">
-              {colonia.fert.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}{' '}
-              <span className="text-rust text-sm">Fert$</span>
+          <div className="pointer-events-auto flex items-start gap-3">
+            <button
+              onClick={() => setMercadoAberto(true)}
+              className="painel bg-rust text-sand-light hover:bg-rust-bright eyebrow px-5 py-4"
+            >
+              Mercado
+            </button>
+
+            <div className="painel bg-sand-light px-5 py-3 text-right">
+              <div className="text-rust eyebrow">{colonia.name}</div>
+              <div className="text-ink text-xl font-black tabular-nums">
+                {colonia.fert.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}{' '}
+                <span className="text-rust text-sm">Fert$</span>
+              </div>
             </div>
           </div>
         )}
       </header>
+
+      {colonia && mercadoAberto && (
+        <Mercado
+          colonia={colonia}
+          aoFechar={() => {
+            setMercadoAberto(false)
+            // O depósito tira recurso do estoque na hora: o HUD tem de refletir isso já.
+            void carregar()
+          }}
+        />
+      )}
 
       {colonia && (
         <div className="absolute top-24 left-5">

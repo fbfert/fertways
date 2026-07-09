@@ -81,6 +81,52 @@ export type ItemDaFila = {
 
 export type Fila = { slots: number; used: number; items: ItemDaFila[] }
 
+export type Veiculo = {
+  id: number
+  type: string
+  level: number
+  status: 'ocioso' | 'carregando' | 'em_rota' | 'descarregando'
+  capacity: number
+  leg: 'ida' | 'volta' | null
+  trip_purpose: 'entrega' | 'retirada' | null
+  distance_slots: number | null
+  destination_type: string | null
+  destination_id: number | null
+  arrives_at: string | null
+  cargo: Record<string, number> | null
+}
+
+export type Frota = {
+  colony: { x: number; y: number }
+  capital: { x: number; y: number }
+  vehicles: Veiculo[]
+}
+
+/** O saldo do colono na doca do Mercado (§25.8). Não é estoque da colônia. */
+export type ContaDoMercado = {
+  capital: { x: number; y: number }
+  distance_slots: number
+  balances: { resource_type: string; amount: number }[]
+}
+
+export type Ordem = {
+  id: number
+  side: 'buy' | 'sell'
+  price_micro: number
+  qty: number
+  status: 'aberta' | 'parcial' | 'executada' | 'cancelada'
+}
+
+export type Livro = {
+  resource_type: string
+  /** Referência exibida, não teto nem piso (§06, D-35). */
+  preco_base_micro: number
+  taxa_bps: number
+  bids: { price_micro: number; qty: number }[]
+  asks: { price_micro: number; qty: number }[]
+  minhas_ordens: Ordem[]
+}
+
 export const api = {
   register: (b: { name: string; nickname: string; email: string; password: string }) =>
     req<Sessao>('/register', { method: 'POST', body: JSON.stringify(b) }),
@@ -98,4 +144,31 @@ export const api = {
   enfileirar: (id: number) => req<ItemDaFila>(`/buildings/${id}/upgrade`, { method: 'POST' }),
 
   fila: () => req<Fila>('/queue'),
+
+  frota: () => req<Frota>('/vehicles'),
+
+  /** Leva carga do estoque até a doca do Mercado. O tributo incide na chegada (D-32). */
+  depositar: (veiculo: number, cargo: Record<string, number>) =>
+    req<Veiculo>(`/vehicles/${veiculo}/dispatch`, {
+      method: 'POST',
+      body: JSON.stringify({ destination_type: 'mercado_central', cargo }),
+    }),
+
+  /** Manda um veículo buscar carga da doca. O saldo é reservado já no despacho (D-32). */
+  retirar: (veiculo: number, cargo: Record<string, number>) =>
+    req<Veiculo>(`/vehicles/${veiculo}/withdraw`, {
+      method: 'POST',
+      body: JSON.stringify({ cargo }),
+    }),
+
+  conta: () => req<ContaDoMercado>('/market/account'),
+
+  livro: (recurso: string) =>
+    req<Livro>(`/market/orders?resource_type=${encodeURIComponent(recurso)}`),
+
+  ordenar: (b: { side: 'buy' | 'sell'; resource_type: string; qty: number; price_micro: number }) =>
+    req<Ordem>('/market/orders', { method: 'POST', body: JSON.stringify(b) }),
+
+  cancelar: (ordem: number) =>
+    req<{ id: number; status: string }>(`/market/orders/${ordem}`, { method: 'DELETE' }),
 }

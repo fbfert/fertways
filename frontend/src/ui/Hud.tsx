@@ -1,26 +1,15 @@
 import type { Colonia, Fila, Spec } from '../api/client'
 import { rotulo } from '../game/ColonyScene'
+import { nomeRecurso } from './recursos'
 
 /** Ordem do slide 07: primários, depois industriais. Só o que a colônia realmente move. */
 const PRIMARIOS = ['oxigenio', 'agua', 'biomassa', 'energia']
 const INDUSTRIAIS = ['metal_bruto', 'ligas_metalicas', 'compostos_quimicos', 'biocombustivel', 'componentes_eletronicos']
 
-const NOME_RECURSO: Record<string, string> = {
-  oxigenio: 'Oxigênio',
-  agua: 'Água',
-  biomassa: 'Biomassa',
-  energia: 'Energia',
-  metal_bruto: 'Metal Bruto',
-  ligas_metalicas: 'Ligas Metálicas',
-  compostos_quimicos: 'Compostos Químicos',
-  biocombustivel: 'Biocombustível',
-  componentes_eletronicos: 'Componentes',
-}
-
 function Linha({ codigo, valor }: { codigo: string; valor: number }) {
   return (
     <div className="border-rust/10 flex items-center justify-between border-b py-1.5 last:border-0">
-      <span className="text-ink-soft text-sm">{NOME_RECURSO[codigo] ?? codigo}</span>
+      <span className="text-ink-soft text-sm">{nomeRecurso(codigo)}</span>
       <span className="text-ink font-bold tabular-nums">{valor.toLocaleString('pt-BR')}</span>
     </div>
   )
