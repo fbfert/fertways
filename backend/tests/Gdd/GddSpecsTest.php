@@ -55,19 +55,70 @@ class GddSpecsTest extends TestCase
     }
 
     /**
-     * O tempo NÃO segue a curva 1,50×. Se algum dia passar a seguir, é porque alguém
-     * substituiu a tabela do GDD por uma fórmula — e este teste avisa.
+     * O tempo publicado É derivável — mas da base NÃO INTEIRA de §20.3–20.5
+     * ("Gerador de Atmosfera — tempo base 3,5 min"), e com arredondamento BANCÁRIO.
+     * Ancorar no nível 1 já arredondado não funciona: 4 × 1,5 = 6, e o GDD diz 5.
+     *
+     * Uma única célula das 14 tabelas escapa: Tanque de Combustível nível 4, onde
+     * 12 × 1,5³ = 40,5 e o GDD publica 41 (half-up), não 40. Provável artefato de
+     * planilha. A tabela continua sendo a fonte; a curva é só a conferência.
      */
-    public function test_tempo_nao_e_derivavel_da_curva_1_50(): void
+    public function test_tempo_publicado_sai_da_base_do_gdd_com_arredondamento_bancario(): void
     {
-        $gerador = DB::table('building_specs')->where('building_type', 'gerador_de_atmosfera')
-            ->orderBy('level')->pluck('build_time_seconds', 'level');
+        $bases = json_decode(
+            file_get_contents(database_path('seeders/data/build_time_bases.json')), true,
+        );
+        $this->assertCount(14, $bases, 'os 14 tempos-base de §20.3–20.5');
 
-        $this->assertSame([240, 300, 480, 720, 1080], array_values($gerador->toArray()));
+        $excecoes = ['tanque_de_combustivel' => [4]];
+        $conferidos = 0;
 
-        $base = $gerador[1];
-        $porFormula = $this->halfUp($base * 1.5 ** (2 - 1));
-        $this->assertNotSame($porFormula, $gerador[2], 'tempo virou fórmula — a tabela do GDD foi perdida');
+        foreach ($bases as $tipo => $base) {
+            $niveis = DB::table('building_specs')->where('building_type', $tipo)
+                ->orderBy('level')->pluck('build_time_seconds', 'level');
+
+            foreach ($niveis as $level => $segundos) {
+                if (in_array($level, $excecoes[$tipo] ?? [], true)) {
+                    continue;
+                }
+                $esperado = (int) round($base * 1.5 ** ($level - 1), 0, PHP_ROUND_HALF_EVEN);
+                $this->assertSame(
+                    $esperado * 60,
+                    $segundos,
+                    "{$tipo} n{$level}: GDD=" . $segundos / 60 . "min, curva={$esperado}min",
+                );
+                $conferidos++;
+            }
+        }
+        $this->assertSame(69, $conferidos, '14 tabelas × 5 níveis, menos 1 exceção');
+    }
+
+    /** A exceção existe mesmo. Se o GDD for corrigido, este teste avisa para removê-la. */
+    public function test_a_unica_excecao_da_curva_de_tempo_continua_sendo_o_tanque_n4(): void
+    {
+        $t = DB::table('building_specs')
+            ->where(['building_type' => 'tanque_de_combustivel', 'level' => 4])
+            ->value('build_time_seconds');
+
+        $this->assertSame(41 * 60, $t, 'GDD publica 41 min onde a curva bancária daria 40');
+    }
+
+    /** Custo usa half-UP, tempo usa half-EVEN. Trocar um pelo outro corrompe os dois. */
+    public function test_custo_e_tempo_usam_modos_de_arredondamento_diferentes(): void
+    {
+        // 50 × 1,65 = 82,5. GDD diz 83 (half-up). Half-even daria 82.
+        $agua = json_decode(
+            DB::table('building_specs')->where(['building_type' => 'gerador_de_atmosfera', 'level' => 2])
+                ->value('cost_json'), true,
+        )['agua'];
+        $this->assertSame(83, $agua);
+        $this->assertSame(82, (int) round(50 * 1.65, 0, PHP_ROUND_HALF_EVEN));
+
+        // 7 × 1,5 = 10,5. GDD diz 10 (half-even). Half-up daria 11.
+        $reator = DB::table('building_specs')->where(['building_type' => 'reator_de_energia', 'level' => 2])
+            ->value('build_time_seconds');
+        $this->assertSame(10 * 60, $reator);
+        $this->assertSame(11, $this->halfUp(7 * 1.5));
     }
 
     /** As construções que o GDD não cronometra (D-10). */

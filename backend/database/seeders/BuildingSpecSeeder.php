@@ -36,8 +36,11 @@ class BuildingSpecSeeder extends Seeder
                 $derivado = false;
 
                 if ($tempo === null && $baseMin !== null) {
-                    // half-up, não half-even: a curva do GDD arredonda 82,5 para 83.
-                    $minutos = (int) bcadd((string) ($baseMin * 1.5 ** ($lv['level'] - 1)), '0.5', 0);
+                    // half-EVEN: é a convenção que o GDD usa para tempo. Confere em 13 das
+                    // 14 tabelas cujo tempo-base ele publica em §20.3–20.5 (Reator base 7
+                    // -> 10,5 -> 10, não 11). Custo, ao contrário, usa half-UP (82,5 -> 83).
+                    // Os dois modos convivem no mesmo documento; não são intercambiáveis.
+                    $minutos = (int) round($baseMin * 1.5 ** ($lv['level'] - 1), 0, PHP_ROUND_HALF_EVEN);
                     $tempo = $minutos * 60;
                     $derivado = true;
                 }

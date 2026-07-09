@@ -127,6 +127,23 @@ def to_micro(cell: str) -> int:
 TAX_BPS = {"primario": 300, "secundario": 200, "raro": 100}
 
 
+def parse_tempos_base(rows) -> dict:
+    """
+    §20.3–20.5 publicam o tempo-base de 14 construções, em minutos e NÃO inteiros
+    ("Gerador de Atmosfera — tempo base 3,5 min"). É a âncora real da curva 1,50×.
+    As tabelas de §4.2 mostram os valores já arredondados, o que esconde a base.
+
+    Não semeia nada: serve para o teste conferir que a tabela do GDD é consistente
+    com a própria curva declarada. O seed continua vindo das tabelas, verbatim.
+    """
+    out = {}
+    for r in rows:
+        m = re.match(r"^(.+?) — tempo base ([\d,]+) min$", r)
+        if m:
+            out[slug(m.group(1))] = float(m.group(2).replace(",", "."))
+    return out
+
+
 def mina_local_prod_max(rows) -> int:
     """Produção/hora do Metal Bruto no nível máximo da Mina Local (§19)."""
     corpo = slice_section(rows, r"^Mina Local — Produção", r"^Mina Governamental")
@@ -231,6 +248,11 @@ def main():
     print(f"tabelas SEM linha de tempo: {len(sem_tempo)}")
     for s in sem_tempo:
         print("  - " + s)
+
+    bases = parse_tempos_base(rows)
+    Path(dest.parent / "build_time_bases.json").write_text(
+        json.dumps(bases, ensure_ascii=False, indent=2), encoding="utf-8")
+    print(f"\ntempos-base publicados (§20.3–20.5): {len(bases)}")
 
     if dest_res:
         recursos = parse_resources(rows)

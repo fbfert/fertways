@@ -21,20 +21,40 @@ Excluir o v3.4 inteiro implicaria construir o MVP sobre custos expressamente rev
 
 ---
 
-## D-02 — Custo é fórmula; tempo de construção não é
-**Data:** 2026-07-08 · **Status:** decidido · **Verificado numericamente**
+## D-02 — Custo usa half-up; tempo usa half-even. Ambos são deriváveis.
+**Data:** 2026-07-08 · **Status:** decidido · **CORRIGIDO em 2026-07-08**
 
-- **Custo** = `half-up(base × 1,65^(nível-1))`. Reproduz 9/9 séries testadas de §4.2, exato.
-  Atenção: arredondamento **meio-para-cima**. `round()` de PHP e Python usa half-even e produz
-  82 onde a tabela do GDD diz 83 (50 × 1,65 = 82,5).
-- **Tempo** **não** deriva de `base × 1,50^(nível-1)`. Gerador de Atmosfera: tabela `4,5,8,12,18`;
-  a fórmula daria `4,6,9,14,20`. Reator de Energia (`7,10,16,24,35`) não é reproduzível por
-  nenhuma base oculta. O "curva 1,50× preservada" do cabeçalho descreve a origem histórica dos
-  números, não um cálculo refazível.
+> **Retratação.** A primeira versão deste item afirmava que "o tempo não é derivável" e que o
+> Reator de Energia "não é reproduzível por nenhuma base oculta". **Ambas as afirmações eram
+> falsas.** Elas nasceram de duas falhas de método: eu procurei a base só nas tabelas de §4.2,
+> sem ler §20.3–20.5, que a publicam; e testei apenas arredondamento half-up, quando o tempo
+> usa half-even. O texto original fica abaixo tachado, para não perder o rastro do erro.
 
-**Decisão:** `building_specs` é semeada **verbatim** das tabelas do GDD. A fórmula de custo existe
-apenas como teste de propriedade em `tests/Gdd/`, validando o seed contra o HTML. Nada é calculado
-em runtime a partir de curva.
+**Custo** = `half-up(base × 1,65^(nível-1))`. Reproduz **25/25** tabelas de §4.2, exato.
+Atenção: `round()` de PHP e Python usa half-even por padrão e produz 82 onde o GDD diz 83
+(50 × 1,65 = 82,5).
+
+**Tempo** = `half-even(base × 1,50^(nível-1))`, onde `base` é o **tempo-base não inteiro** que
+§20.3–20.5 publicam ("Gerador de Atmosfera — tempo base 3,5 min"). Reproduz **13 das 14** tabelas
+com base publicada, exato.
+
+A armadilha: ancorar no nível 1 **já arredondado** não funciona. O Gerador exibe 4 min no nível 1,
+mas sua base real é 3,5. Por isso `4 × 1,5 = 6` erra o `5` que o GDD publica.
+
+Os dois modos de arredondamento convivem no mesmo documento e não são intercambiáveis:
+- Custo, Gerador n2: `50 × 1,65 = 82,5` → GDD **83** (half-up; half-even daria 82).
+- Tempo, Reator n2: `7 × 1,5 = 10,5` → GDD **10** (half-even; half-up daria 11).
+
+**Única exceção conhecida:** Tanque de Combustível nível 4, onde `12 × 1,5³ = 40,5` e o GDD
+publica **41**, não 40. Provável artefato de planilha. Há teste fixando essa exceção: se o GDD for
+corrigido, o teste avisa.
+
+**Decisão:** `building_specs` continua semeada **verbatim** das tabelas. As curvas vivem apenas
+como testes de propriedade em `tests/Gdd/`, conferindo o seed contra o documento. Nada é calculado
+em runtime a partir de curva — as exceções acima mostram por quê.
+
+~~Tempo não deriva de base × 1,50^(n-1); o Reator não sai de base alguma; a curva 1,50× é
+descrição histórica, não cálculo refazível.~~ *(errado — ver retratação acima)*
 
 **Consequência:** níveis são limitados (5 na maioria; 10 em Central de Transportes, Depósito de
 Zona Neutra e Destilaria). Nunca há extrapolação acima do tabelado.
@@ -181,17 +201,13 @@ Seis continuam `NULL` (Depósito de Zona Neutra, Drone, Robô Minerador, Infiltr
 Nave de Transporte Planetária). `NULL` significa "o GDD não diz", **não** "instantâneo":
 enfileirar uma delas deve falhar explicitamente.
 
-**Sobre a inclinação — correção de uma afirmação anterior.** Dizer que as construções derivadas
-teriam "outra escala" era exagero. Medindo as 15 tabelas publicadas contra `half-up(t1 × 1,5^(n-1))`:
+**Sobre a inclinação.** A hipótese de que o GDD gerou os tempos com a curva 1,5 a partir de uma
+base **não inteira** foi depois **confirmada**: §20.3–20.5 publicam essas bases. Ver D-02.
+As quatro construções acima seguem exatamente a mesma curva e o mesmo arredondamento (half-even)
+das construções publicadas. Não há mudança de escala.
 
-- **4 reproduzem exatamente**: Laboratório, Torre de Defesa, Tanque de Combustível, Mina Local.
-- **11 divergem por 1–2 minutos** em alguns níveis (Plataforma de Pouso erra só no nível 4:
-  94 vs 95; Fazenda só no nível 5: 21 vs 20).
-
-Ou seja: o GDD gerou os tempos com a curva 1,5 a partir de uma base **não inteira** e publicou os
-valores arredondados. Ancorar no nível 1 já arredondado reintroduz esse erro. A inclinação é a
-mesma; o desvio é de arredondamento. Curiosidade: com base 14, o Caminhão de Carga derivado sai
-idêntico às tabelas publicadas da Mina Local e da Torre de Defesa.
+Curiosidade: com base 14, o Caminhão de Carga derivado sai idêntico às tabelas publicadas da
+Torre de Defesa (que tem base 14 no GDD) e da Mina Local.
 
 Dois testes guardam a fronteira nos dois sentidos: tempo do GDD nunca é marcado como derivado, e
 tempo escolhido fora do GDD nunca passa por publicado.
