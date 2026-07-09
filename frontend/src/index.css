@@ -1,0 +1,48 @@
+@import 'tailwindcss';
+
+/*
+ * Tokens amostrados dos PNGs do deck em /home/fertways/pitch — não escolhidos a olho.
+ * Ver docs/design-tokens.md e tools/sample_png.py.
+ */
+@theme {
+  --color-rust: #b4450b;
+  --color-rust-bright: #cd5512;
+  --color-ember: #eaae65;
+  --color-sand: #f8e7d6;
+  --color-sand-light: #fdf0e2;
+  --color-ink: #1e1c17;
+  --color-ink-soft: #372f27;
+}
+
+/* O deck nunca usa preto nem branco puros em texto, e o fundo é sempre quente. */
+body {
+  margin: 0;
+  background-color: var(--color-sand);
+  color: var(--color-ink);
+  font-family: 'Archivo', 'Inter', system-ui, sans-serif;
+}
+
+/* Os painéis do deck têm um entalhe no canto, não são retângulos secos. */
+.painel {
+  clip-path: polygon(
+    1.25rem 0,
+    100% 0,
+    100% calc(100% - 1.25rem),
+    calc(100% - 1.25rem) 100%,
+    0 100%,
+    0 1.25rem
+  );
+}
+
+/* Hexágono é o motivo repetido do deck: logo, ícones, marcadores. */
+.hex {
+  clip-path: polygon(50% 0%, 93% 25%, 93% 75%, 50% 100%, 7% 75%, 7% 25%);
+}
+
+/* Versalete espaçado dos subtítulos do deck. */
+.eyebrow {
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  font-weight: 700;
+  font-size: 0.7rem;
+}
