@@ -209,6 +209,35 @@ class GddSpecsTest extends TestCase
         $this->assertTrue((bool) $mb->preco_base_derivado, 'preço derivado precisa estar marcado como tal');
     }
 
+    /**
+     * §24.8 revoga a fórmula de escassez para recursos fabricados e republica o preço dos
+     * Componentes Eletrônicos. §22.2 ainda traz o valor antigo, 0,0333 — trinta e oito vezes
+     * menor, e abaixo do próprio custo dos insumos. O catálogo tem de trazer o do §24.8.
+     *
+     * Dos três preços do §24.8, um por receita do §24.5, vale o do Componente Básico: o estoque
+     * é fungível e só cabe um. Decisão do usuário em 2026-07-09, ver docs/decisoes.md D-24.
+     */
+    public function test_componentes_eletronicos_usam_o_preco_do_24_8_nao_o_do_22_2(): void
+    {
+        $ce = DB::table('resource_types')->where('code', 'componentes_eletronicos')->first();
+
+        $this->assertSame(1_277_800, (int) $ce->preco_base_micro, '§24.8: Componente Básico, 1,2778 Fert$');
+        $this->assertNotSame(33_300, (int) $ce->preco_base_micro, '33300 é o valor revogado do §22.2');
+
+        // O preço é publicado no GDD, não calculado por nós: não é "derivado".
+        $this->assertFalse((bool) $ce->preco_base_derivado);
+
+        // Custo de insumos 0,9127 + markup de 40% (§24.8, receitas com minerais raros) dá
+        // 1,27778 exatos. O GDD publica quatro casas: 1,2778. Em micro-Fert$, quatro casas são
+        // múltiplos de 100 — por isso o valor termina em 00, e não em 80.
+        $this->assertSame(1_277_780, (int) round(912_700 * 1.40));
+        $this->assertSame(1_277_800, (int) (round(912_700 * 1.40 / 100) * 100));
+
+        // A regra que motiva tudo isto: fabricar não pode dar prejuízo. Com 0,0333 o colono
+        // ganharia mais vendendo os insumos crus do que o componente pronto.
+        $this->assertGreaterThan(912_700, (int) $ce->preco_base_micro);
+    }
+
     public function test_apenas_o_metal_bruto_tem_preco_derivado(): void
     {
         $derivados = DB::table('resource_types')->where('preco_base_derivado', true)->pluck('code');

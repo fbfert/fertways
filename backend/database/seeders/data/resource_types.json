@@ -58,7 +58,7 @@
     "nome": "Componentes Eletrônicos",
     "tax_class": "secundario",
     "producao_max_hora": 76,
-    "preco_base_micro": 33300,
+    "preco_base_micro": 1277800,
     "preco_base_derivado": false,
     "tax_bps": 200
   },

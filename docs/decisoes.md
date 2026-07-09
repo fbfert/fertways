@@ -437,8 +437,8 @@ o GDD dizer qual tier cada construção consome.
 
 ---
 
-## D-24 — Preço dos Componentes Eletrônicos: §22.2 contradiz §24.8
-**Data:** 2026-07-08 · **Status:** ABERTO, não bloqueia
+## D-24 — Preço dos Componentes Eletrônicos: §24.8 vence §22.2, no valor do Básico
+**Data:** 2026-07-08 · **Resolvido:** 2026-07-09 · **Status:** decidido
 
 - §22.2 lista "Componentes Eletrônicos | Secundário | 76/h | **0,0333 Fert$**", calculado com a
   fórmula dos **primários** (`0,0050 × 506 ÷ 76`).
@@ -446,8 +446,43 @@ o GDD dizer qual tier cada construção consome.
   (`custo dos insumos × (1 + markup)`) e publica **Básico 1,2778 · Intermediário 1,5473 ·
   Avançado 2,0877 Fert$** — trinta e oito vezes maior.
 
-O seed traz `0,0333` (de §22.2). Não foi alterado porque escolher um dos três tiers seria arbitrar
-o que o D-23 deixa em aberto. Só afeta o Mercado Central, ainda não implementado.
+**Não era bem uma contradição.** §24.8 diz textualmente: "Recursos que passam por processo de
+fabricação (Componentes Eletrônicos, Biocombustível, e futuramente outros) usam a fórmula de custo
+de insumos + markup. Recursos extraídos diretamente continuam na fórmula de escassez." Ou seja, o
+§24.8 **revoga** o §22.2 para os fabricados, e o seed é que tinha ficado no valor velho.
+
+**Decisões (usuário, 2026-07-09):**
+1. Vale o **§24.8**. Com 0,0333 o componente valeria menos que a soma dos insumos (0,9127) e
+   fabricar seria irracional: o colono ganharia mais vendendo o Metal Bruto cru.
+2. Dos três preços, vale o do **Componente Básico: 1,2778 Fert$** (`1.277.800` micro). O estoque é
+   fungível — uma coluna por recurso — e não há como saber, depois, qual lote saiu de qual receita
+   do §24.5. Rastrear lote por receita quebraria a fungibilidade do estoque, da carga do veículo e
+   da conta do Mercado. As receitas melhores seguem valendo a pena pela **eficiência de insumos**,
+   não por um preço de venda maior.
+3. O valor **não é digitado**: `tools/extract_gdd_specs.py` agora lê a tabela do §24.8 e sobrescreve
+   o preço do §22.2, conferindo de passagem o markup de 40% que a seção declara. Regenerar o
+   catálogo não reverte mais o preço em silêncio. Fixado em `GddSpecsTest`.
+
+`0,9127 × 1,40 = 1,27778`; o GDD publica quatro casas, daí `1,2778`. O preço **não** é marcado como
+derivado: ele está publicado, só que numa seção mais nova que a tabela de preços-base.
+
+**Pendência que isto revelou — ver D-33.** O §24.8 põe o **Biocombustível** na mesma regra, mas não
+publica preço nenhum para ele.
+
+---
+
+## D-33 — Biocombustível: §24.8 revoga o preço, e não publica substituto
+**Data:** 2026-07-09 · **Status:** ABERTO, não bloqueia
+
+§24.8 nomeia o Biocombustível entre os recursos fabricados que "usam a fórmula de custo de insumos
++ markup", mas a tabela "Preços Atualizados" só traz os Componentes Eletrônicos. O catálogo segue
+com **0,0166 Fert$**, o valor do §22.2 — que o próprio §24.8 acabou de revogar para ele.
+
+Calcular exigiria a receita do Biocombustível (custo de insumos) e a escolha do markup entre os 30%
+"simples" e os 40% "com minerais raros". **O GDD não publica a receita.** Inventar qualquer um dos
+dois violaria a regra de ouro. Fica aberto até alguém arbitrar, ou até o GDD publicar a receita.
+
+Só passa a doer quando o Mercado Central vender Biocombustível.
 
 ---
 

@@ -32,10 +32,12 @@ O MVP tem, funcionando e no ar em `https://fertways.tars.art.br`:
 ## Perguntas em aberto — faça estas ao usuário ao retomar
 
 1. **Qual o próximo passo?**
-   - **Venda no Mercado Central**: a conta existe e recebe carga, mas **não há venda**. Ela
-     precisa de um preço, e isso esbarra em **D-24** — §22.2 e §24.8 divergem em trinta e oito
-     vezes no preço dos Componentes Eletrônicos. Só o usuário pode arbitrar. Fazer esta pergunta
-     antes de escrever qualquer código de venda.
+   - **Venda no Mercado Central**: a conta existe e recebe carga, mas **não há venda**. O preço
+     deixou de ser bloqueio: o D-24 foi arbitrado (§24.8, 1,2778 para os Componentes). Falta
+     decidir o **mecanismo**: preço fixo do catálogo, livro de ofertas entre colonos, ou
+     sensibilidade à distância (o §25.8 chama o Mercado de "Sensível à Distância", mas a única
+     sensibilidade que ele descreve é o custo de levar a carga até lá, que já existe). Pergunte
+     antes de escrever código.
    - **UI de despacho**: os endpoints de logística e de mercado existem, mas não há tela. O
      jogador não consegue despachar carga nem ver seu saldo no Mercado pelo navegador.
 
@@ -54,9 +56,9 @@ O MVP tem, funcionando e no ar em `https://fertways.tars.art.br`:
 
 ## Pendências conhecidas, sem bloquear
 
-- **D-24 — agora é o bloqueio do próximo passo.** §22.2 e §24.8 dão preços trinta e oito vezes
-  diferentes para os Componentes Eletrônicos. O seed usa o de §22.2. Depósito e retirada não
-  dependem de preço, mas a **venda** depende. Alguém terá que arbitrar.
+- **D-33** — §24.8 revoga o preço do **Biocombustível** junto com o dos Componentes, mas não
+  publica substituto, e o GDD não traz a receita dele. O catálogo segue com o valor revogado do
+  §22.2 (0,0166). Só dói quando o Mercado vender Biocombustível.
 - **Ida e volta ao Mercado sem vender custa tributo duas vezes** (D-32). É o §25.9 aplicado à
   letra: uma incidência por entrega física, e são duas entregas. Fixado em teste. Se o usuário
   achar punitivo demais, é decisão de balanceamento, não bug.

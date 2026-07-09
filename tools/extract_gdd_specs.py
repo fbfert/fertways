@@ -252,6 +252,29 @@ def mina_local_prod_max(rows) -> int:
     return to_int(vals[-1])
 
 
+def preco_componente_basico(rows) -> int:
+    """
+    §24.8 revoga a fórmula de escassez para recursos fabricados e republica o preço dos
+    Componentes Eletrônicos: "Recursos que passam por processo de fabricação (Componentes
+    Eletrônicos, Biocombustível, e futuramente outros) usam a fórmula de custo de insumos +
+    markup." §22.2 ainda traz o valor antigo, 0,0333 — trinta e oito vezes menor.
+
+    A tabela publica três preços, um por receita do §24.5. O estoque é fungível (uma coluna
+    por recurso), então só cabe um: o do Componente Básico, 1,2778. Ver docs/decisoes.md D-24.
+    """
+    for r in slice_section(rows, r"^24\.8 Fórmula de Preço Ajustada", r"^24\.9 "):
+        p = [c.strip() for c in r.split("|") if c.strip()]
+        if len(p) == 3 and p[0] == "Componente Básico" and is_num(p[1]) and is_num(p[2]):
+            custo, preco = to_micro(p[1]), to_micro(p[2])
+            # Confere o markup de 40% que o §24.8 declara para receitas com minerais raros.
+            # Se o GDD for reeditado com números incoerentes, isto estoura aqui e não em jogo.
+            if round(preco / custo, 2) != 1.40:
+                raise SystemExit(f"§24.8: markup inesperado, {preco}/{custo}")
+            return preco
+
+    raise SystemExit("§24.8: tabela de preços dos Componentes Eletrônicos não encontrada")
+
+
 def parse_resources(rows):
     recursos = {}
 
@@ -305,6 +328,10 @@ def parse_resources(rows):
         "preco_base_micro": int(preco_4c * 1_000_000),
         "preco_base_derivado": True,
     }
+
+    # §24.8 vence §22.2 para os Componentes Eletrônicos: o valor não é derivado por nós, é
+    # publicado — só está numa seção mais nova que a tabela de preços-base.
+    recursos["componentes_eletronicos"]["preco_base_micro"] = preco_componente_basico(rows)
 
     for r in recursos.values():
         r.setdefault("preco_base_derivado", False)
