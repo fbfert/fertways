@@ -497,3 +497,76 @@ Dois cuidados aprendidos na prática:
    upgrade concluindo no meio precisa produzir com o nível antigo até a conclusão e com o novo
    depois. Há teste que distingue os dois casos — a primeira versão dele não distinguia, porque
    usava um upgrade de nível 0 para 1, e nível 0 não produz.
+
+---
+
+## D-25 — A API é montada em `/central`, e por isso `apiPrefix` é vazio
+**Data:** 2026-07-09 · **Status:** decidido
+
+O jogo é servido em `https://fertways.tars.art.br` e a API em `https://fertways.tars.art.br/central`.
+Um domínio só: sem CORS, sem certificado novo, mesma origem para o `fetch` do front.
+
+O Apache monta a aplicação sob `/central` através de um symlink `public_html/central -> backend/public`
+e **já remove esse trecho do caminho** antes de entregá-lo ao PHP (o Symfony deduz o ponto de
+montagem a partir do `SCRIPT_NAME`). O Laravel enxerga `/login`, não `/central/login`.
+
+**Decisão:** `apiPrefix: ''` no `bootstrap/app.php`. Um `apiPrefix: 'central'` produziria
+`/central/central/login`. As rotas passaram de `/api/...` para a raiz; o cliente do front usa
+`const BASE = '/central'`, e o proxy do Vite reescreve `/central/*` para a raiz do `artisan serve`,
+já que em desenvolvimento não há Apache para fazer essa remoção.
+
+O `<Directory>` que eu havia criado em `/etc/httpd/conf.d/` para liberar o alvo do symlink era
+**inerte** e foi removido: o Apache não canonicaliza o link, então serve por
+`/home/fertways/public_html/central/` e aplica o `<Directory /home/fertways/public_html>` do
+Virtualmin. O `.env` continua inacessível porque vive acima de `public/`, não por causa daquele
+bloco. Verificado: `/central/.env` e `/central/../.env` devolvem 404.
+
+---
+
+## D-26 — Sem `route:cache`: ele quebra a raiz de uma aplicação montada em subcaminho
+**Data:** 2026-07-09 · **Status:** decidido · **Encontrado por bug em produção**
+
+`GET /central/` devolvia **405**, e `GET /central` devolvia **404**, embora `/central/colony` e
+`/central/up` funcionassem. Só acontecia com as rotas em cache.
+
+Causa: o `CompiledRouteCollection` do Laravel remove a barra final do `REQUEST_URI` antes de casar
+a rota. Com a aplicação montada em `/central`, o `REQUEST_URI` `/central/` vira `/central` — que é
+exatamente o `baseUrl` — e o caminho da rota fica vazio, não casando com a rota `/`.
+
+**Decisão:** não usar `route:cache` neste deploy. São 12 rotas; o ganho é irrelevante perto de um
+404 na raiz da API. O `config:cache`, onde está o ganho real, continua ativo.
+
+A raiz `/` do backend deixou de servir a página de boas-vindas do Laravel (que não dizia nada e
+revelava a versão do framework) e passou a devolver um índice JSON dos endpoints.
+
+---
+
+## D-27 — A suíte de testes precisa ser imune ao `config:cache` de produção
+**Data:** 2026-07-09 · **Status:** corrigido · **Quase causou perda de dados**
+
+Este repositório é implantado na mesma máquina em que se roda a suíte. Lá existe um
+`bootstrap/cache/config.php` gerado por `php artisan config:cache`. Um config em cache é lido
+**antes** do `.env` e **ignora todo o bloco `<env>` do `phpunit.xml`**.
+
+Uma sonda dentro de um teste mostrou o que a suíte realmente enxergava:
+
+```
+app.url          = https://fertways.tars.art.br/central
+database.default = mysql
+app.env          = production
+config cached?   = SIM
+```
+
+Ou seja: os testes de Feature, que usam `RefreshDatabase`, estavam apontados para o banco de
+**produção** `fertwaysbd`. Nada foi apagado apenas porque `migrate:fresh` se recusa a rodar sob
+`APP_ENV=production` sem a flag de força. Isso é sorte, não projeto.
+
+O sintoma visível era outro: 28 testes falhando com 404, porque `$this->get('/')` deriva a URL de
+`app.url` e passava a bater em `/central/...`, que não é rota.
+
+**Correção:** o `phpunit.xml` aponta `APP_CONFIG_CACHE`, `APP_ROUTES_CACHE` e `APP_EVENTS_CACHE`
+para caminhos inexistentes. `configurationIsCached()` devolve false, a configuração é lida dos
+arquivos e o `<env>` volta a valer. Verificado com o config de produção presente no disco:
+`database.default=sqlite`, `app.env=testing`, 59 testes verdes.
+
+Fixar `APP_URL` no `phpunit.xml` (primeira tentativa) resolvia só enquanto o cache não existisse.
