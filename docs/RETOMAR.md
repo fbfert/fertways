@@ -56,9 +56,11 @@ O MVP tem, funcionando e no ar em `https://fertways.tars.art.br`:
 
 ## Pendências conhecidas, sem bloquear
 
-- **D-33** — §24.8 revoga o preço do **Biocombustível** junto com o dos Componentes, mas não
-  publica substituto, e o GDD não traz a receita dele. O catálogo segue com o valor revogado do
-  §22.2 (0,0166). Só dói quando o Mercado vender Biocombustível.
+- **O tributo do Mercado contradiz o §07 de propósito** (D-32). O §07 proíbe dupla incidência e
+  isentaria depósito e retirada; o usuário arbitrou pelo §25.8, que tributa cada entrega física.
+  **Não "conserte" sem perguntar.**
+- **Metal Bruto vale 5,5× menos do que o §07 diz** (D-34, arbitrado). Se a economia de mineração
+  parecer fraca quando o Mercado abrir, é o primeiro número a revisitar.
 - **Ida e volta ao Mercado sem vender custa tributo duas vezes** (D-32). É o §25.9 aplicado à
   letra: uma incidência por entrega física, e são duas entregas. Fixado em teste. Se o usuário
   achar punitivo demais, é decisão de balanceamento, não bug.

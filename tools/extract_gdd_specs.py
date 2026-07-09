@@ -275,6 +275,22 @@ def preco_componente_basico(rows) -> int:
     raise SystemExit("§24.8: tabela de preços dos Componentes Eletrônicos não encontrada")
 
 
+def tabela_precos_do_mercado(rows) -> dict:
+    """
+    A tabela "Preços-base do Mercado Central" do §07. É uma **terceira** lista de preços, além
+    das de §22 e §24.8, e diverge das outras em exatamente dois recursos. Ver D-33 e D-34.
+    """
+    precos = {}
+    for r in slice_section(rows, r"^Os valores abaixo definem a referência inicial", r"^Mineral eletrônico"):
+        p = [c.strip() for c in r.split("|") if c.strip()]
+        if len(p) != 3 or p[0] == "Recurso":
+            continue
+        valor = p[2].replace("Fert$", "").strip()
+        if is_num(valor):
+            precos[slug(p[0])] = to_micro(valor)
+    return precos
+
+
 def parse_resources(rows):
     recursos = {}
 
@@ -312,7 +328,10 @@ def parse_resources(rows):
             "producao_max_hora": to_int(p[1]), "preco_base_micro": to_micro(p[2]),
         }
 
-    # Metal Bruto não aparece em nenhuma tabela de preço-base (§22.2/22.3/22.4).
+    # Metal Bruto não aparece nas tabelas de preço-base de §22 — mas aparece na do §07, a
+    # 0,1830 Fert$. Esse valor é descartado: o §24.8 lista o Metal Bruto entre os recursos que
+    # seguem a fórmula de escassez, e a fórmula reproduz Água, Biomassa e Energia exatamente.
+    # Decisão do usuário, ver D-34. O preço segue derivado.
     # §24.8 dá a fórmula para primários e brutos, e lista Metal Bruto entre os aplicáveis:
     #     Preço(r) = Preço(Oxigênio) × (ProdMáx/h Oxigênio ÷ ProdMáx/h r)
     # "ProdMáx/h" é o valor de nível 5 das tabelas de §19. A fórmula reproduz Água,
@@ -332,6 +351,24 @@ def parse_resources(rows):
     # §24.8 vence §22.2 para os Componentes Eletrônicos: o valor não é derivado por nós, é
     # publicado — só está numa seção mais nova que a tabela de preços-base.
     recursos["componentes_eletronicos"]["preco_base_micro"] = preco_componente_basico(rows)
+
+    # §07 traz uma terceira tabela de preços. A regra que a concilia com as outras (D-33):
+    # o §24.8 decide qual **família de fórmula** rege cada recurso, e o §07 só fornece número
+    # publicado onde o §24.8 não impõe fórmula.
+    #   - Biocombustível: §24.8 revoga a escassez ("recursos processados") e não publica número.
+    #     O 0,0345 do §07 é o único valor publicado compatível. Vence.
+    #   - Metal Bruto: §24.8 mantém a fórmula de escassez para ele, nominalmente. O 0,1830 do
+    #     §07 é descartado, e o preço segue derivado (D-34, arbitrado pelo usuário).
+    precos_mercado = tabela_precos_do_mercado(rows)
+    recursos["biocombustivel"]["preco_base_micro"] = precos_mercado["biocombustivel"]
+
+    # Fora esses dois, o §07 tem de concordar com o §22.2. Se uma reedição do GDD mexer em
+    # qualquer outro preço, isto estoura aqui em vez de divergir em silêncio no catálogo.
+    for code, micro in precos_mercado.items():
+        if code in ("metal_bruto", "biocombustivel"):
+            continue
+        if recursos[code]["preco_base_micro"] != micro:
+            raise SystemExit(f"§07 diverge de §22.2 em {code}: {micro} vs {recursos[code]['preco_base_micro']}")
 
     for r in recursos.values():
         r.setdefault("preco_base_derivado", False)

@@ -22,7 +22,7 @@
     "nome": "Biocombustível",
     "tax_class": "secundario",
     "producao_max_hora": 152,
-    "preco_base_micro": 16600,
+    "preco_base_micro": 34500,
     "preco_base_derivado": false,
     "tax_bps": 200
   },

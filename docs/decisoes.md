@@ -471,18 +471,50 @@ publica preço nenhum para ele.
 
 ---
 
-## D-33 — Biocombustível: §24.8 revoga o preço, e não publica substituto
-**Data:** 2026-07-09 · **Status:** ABERTO, não bloqueia
+## D-33 — Três tabelas de preço no GDD, e a regra que as concilia
+**Data:** 2026-07-09 · **Status:** decidido
 
-§24.8 nomeia o Biocombustível entre os recursos fabricados que "usam a fórmula de custo de insumos
-+ markup", mas a tabela "Preços Atualizados" só traz os Componentes Eletrônicos. O catálogo segue
-com **0,0166 Fert$**, o valor do §22.2 — que o próprio §24.8 acabou de revogar para ele.
+O GDD publica preços em **três** lugares, e eles divergem:
 
-Calcular exigiria a receita do Biocombustível (custo de insumos) e a escolha do markup entre os 30%
-"simples" e os 40% "com minerais raros". **O GDD não publica a receita.** Inventar qualquer um dos
-dois violaria a regra de ouro. Fica aberto até alguém arbitrar, ou até o GDD publicar a receita.
+| Recurso | §22.2 (escassez) | §24.8 (custo+markup) | §07 (Mercado Central) |
+|---|---|---|---|
+| Componentes Eletrônicos | 0,0333 | **1,2778** (Básico) | *ausente* |
+| Biocombustível | 0,0166 | *nomeado, sem número* | **0,0345** |
+| Metal Bruto | *ausente* | *fórmula de escassez* | 0,1830 |
+| Oxigênio, Energia, Água, Biomassa, Ligas, Compostos | — | — | *idênticos ao §22.2* |
 
-Só passa a doer quando o Mercado Central vender Biocombustível.
+**Regra de conciliação (usuário, 2026-07-09):** o **§24.8 decide qual família de fórmula rege cada
+recurso**, e o **§07 só fornece número publicado onde o §24.8 não impõe fórmula**.
+
+- **Componentes Eletrônicos** → §24.8 publica direto: 1,2778. Ver D-24.
+- **Biocombustível** → §24.8 o chama de processado e revoga a escassez, mas não publica número, e
+  o GDD não traz a receita. O §07 publica **0,0345**, maior que o 0,0166 da escassez e portanto
+  coerente com "custo de insumos + markup". É o único valor publicado compatível. **Adotado.**
+- **Metal Bruto** → §24.8 mantém a escassez para ele, nominalmente ("Aplicável a: Oxigênio, Água,
+  Biomassa, Energia, Metal Bruto…"). O 0,1830 do §07 é descartado. Ver D-34.
+
+O extrator agora lê a tabela do §07 e **exige** que ela concorde com o §22.2 em todos os outros
+recursos: se uma reedição do GDD mexer em qualquer preço, ele estoura em vez de divergir em
+silêncio. Fixado em `GddSpecsTest`.
+
+---
+
+## D-34 — Metal Bruto: o §07 publica 0,1830; ficamos com o derivado 0,0333
+**Data:** 2026-07-09 · **Status:** decidido
+
+Durante a arbitragem do D-24 descobriu-se que o §07 traz "Metal Bruto | Industrial estratégico |
+**0,1830 Fert$**". O comentário do extrator afirmava que "Metal Bruto não aparece em nenhuma tabela
+de preço-base" — isso era **falso**: ele só não aparece nas tabelas de §22. O comentário foi
+corrigido.
+
+**Decisão do usuário:** fica o valor **derivado, 0,0333**. O §24.8 lista o Metal Bruto entre os
+recursos que seguem a fórmula de escassez, e essa fórmula reproduz Água, Biomassa e Energia
+exatamente como o GDD as publica — é a evidência mais forte de que ela é a regra viva. O 0,1830
+seria a tabela velha, ou uma classe tributária ("Industrial estratégico") que o §8.3 nem reconhece.
+
+Consequência: o Metal Bruto vale 5,5× menos do que o §07 diz. Se a economia de mineração parecer
+fraca quando o Mercado abrir, **este é o primeiro número a revisitar** — e a mudança é de uma linha
+no extrator. Fixado em teste para não ser trocado por acidente.
 
 ---
 
@@ -706,6 +738,18 @@ levá-lo até seu slot". O GDD não diz como essa conta se comporta.
    cobra o tributo "uma única vez, no momento da entrega física pelo veículo" — uma vez **por
    entrega**. Consequência econômica: mandar 1.000 de Metal Bruto ao Mercado e trazê-lo de volta
    sem vender custa 59 unidades (30 + 29). Não é bug; é o preço de mudar de ideia. Fixado em teste.
+
+   ⚠️ **Isto contradiz o §07, conscientemente.** O §07 ("Comércio entre colonos e federações")
+   diz: *"Proibição de dupla incidência: a mesma unidade de recurso não pode ser tributada pela
+   entrega, pela venda e pela retirada"* e *"A retirada física posterior gera custo de
+   energia/logística, não novo tributo sobre o mesmo lote"*. A tabela de incidência do §07 vai
+   além: o tributo de recurso incide na *"transferência entre proprietários, quando a entrega
+   muda a propriedade"*, e **não incide** *"no deslocamento de recursos entre estruturas do mesmo
+   dono"* — o que isentaria o depósito também, já que o dono não muda.
+
+   **O usuário arbitrou pelo §25.8 em 2026-07-09**, ciente disso: tributo de recurso em cada
+   entrega física, inclusive a retirada. Não "conserte" isto sem perguntar. A escolha foi feita
+   depois de ler os dois lados, e é a mesma linha do D-11 (§25.2 vence §8.3).
 4. O tributo do depósito incide no **fim da ida**; o da retirada, no **fim da volta** ("tributo na
    chegada", §25.8). As `economic_event_key` são `deposito:…` e `retirada:…`, nunca colidem, e
    preservam o prefixo `entrega:` já gravado para as entregas entre colônias.

@@ -238,6 +238,37 @@ class GddSpecsTest extends TestCase
         $this->assertGreaterThan(912_700, (int) $ce->preco_base_micro);
     }
 
+    /**
+     * O GDD tem três tabelas de preço, e elas divergem. A regra que as concilia (D-33): o §24.8
+     * decide qual **família de fórmula** rege cada recurso, e o §07 só fornece número publicado
+     * onde o §24.8 não impõe fórmula.
+     *
+     * Biocombustível: o §24.8 o chama de processado e revoga a escassez, mas não publica número.
+     * O §07 publica 0,0345 — o único valor compatível. Decisão do usuário, 2026-07-09.
+     */
+    public function test_biocombustivel_usa_o_preco_publicado_no_07(): void
+    {
+        $bio = DB::table('resource_types')->where('code', 'biocombustivel')->first();
+
+        $this->assertSame(34_500, (int) $bio->preco_base_micro, '§07: 0,0345 Fert$');
+        $this->assertNotSame(16_600, (int) $bio->preco_base_micro, '16600 é o valor de escassez do §22.2');
+        $this->assertFalse((bool) $bio->preco_base_derivado, 'é publicado, não derivado por nós');
+    }
+
+    /**
+     * O §07 publica "Metal Bruto | Industrial estratégico | 0,1830 Fert$", cinco vezes e meia o
+     * nosso valor. Mas o §24.8 mantém nominalmente a fórmula de escassez para o Metal Bruto
+     * ("Aplicável a: Oxigênio, Água, Biomassa, Energia, Metal Bruto…"), e a fórmula reproduz
+     * Água, Biomassa e Energia exatamente. O usuário arbitrou pelo derivado. Ver D-34.
+     */
+    public function test_o_preco_do_07_para_metal_bruto_foi_descartado(): void
+    {
+        $mb = DB::table('resource_types')->where('code', 'metal_bruto')->first();
+
+        $this->assertSame(33_300, (int) $mb->preco_base_micro);
+        $this->assertNotSame(183_000, (int) $mb->preco_base_micro, '0,1830 do §07 é o valor descartado');
+    }
+
     public function test_apenas_o_metal_bruto_tem_preco_derivado(): void
     {
         $derivados = DB::table('resource_types')->where('preco_base_derivado', true)->pluck('code');
