@@ -166,8 +166,16 @@ function Doca({
           titulo="Levar à doca"
           ajuda="A carga sai do estoque agora. O tributo incide quando ela chega."
           veiculos={ociosos}
+          /*
+           * Do mais abundante para o menos. Sem ordenar, `Object.entries` manda primeiro o que
+           * o catálogo listar primeiro, e o campo abria num raro do kit inicial, do qual o
+           * colono tem punhados — a opção que ele quase nunca quer despachar.
+           *
+           * Energia fica de fora: ela é o combustível da viagem (§21.1), não carga.
+           */
           opcoes={Object.entries(colonia.resources)
             .filter(([c, q]) => q > 0 && c !== 'energia')
+            .sort(([, a], [, b]) => b - a)
             .map(([c, q]) => ({ codigo: c, disponivel: q }))}
           rotuloBotao="Despachar"
           aoEnviar={(veiculo, codigo, qtd) =>
@@ -179,7 +187,9 @@ function Doca({
           titulo="Buscar na doca"
           ajuda="O saldo é reservado já no despacho. O tributo incide na chegada ao seu slot."
           veiculos={ociosos}
-          opcoes={naDoca.map((b) => ({ codigo: b.resource_type, disponivel: b.amount }))}
+          opcoes={[...naDoca]
+            .sort((a, b) => b.amount - a.amount)
+            .map((b) => ({ codigo: b.resource_type, disponivel: b.amount }))}
           rotuloBotao="Buscar"
           aoEnviar={(veiculo, codigo, qtd) => agir(() => api.retirar(veiculo, { [codigo]: qtd }))}
         />
