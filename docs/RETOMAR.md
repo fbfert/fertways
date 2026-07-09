@@ -32,17 +32,18 @@ O MVP tem, funcionando e no ar em `https://fertways.tars.art.br`:
 **101 testes, 1523 asserções, verdes.** O **cron do tick está instalado** (crontab do usuário
 `fertways`, log em `/home/fertways/logs/fertways-tick.log`) — o mundo avança sozinho.
 
-O item 5 do MVP (Mercado Central) está **fechado, backend e tela**.
+O item 5 do MVP (Mercado Central) está **fechado, backend e tela**, e a tela tem **teste de ponta
+a ponta em navegador de verdade**: `npm run e2e` (ou `./tools/e2e.sh`) sobe uma pilha efêmera
+(SQLite temporário + `artisan serve` + `vite dev`) e dirige o Chromium do sistema com
+`puppeteer-core`. 19 verificações. Nunca toca produção nem o MariaDB.
 
-> ⚠️ **A tela do Mercado nunca foi aberta num navegador.** `tsc -b` e `oxlint` passam, e os tipos
-> espelham os controllers, mas ninguém a viu renderizar. Não há teste de frontend no projeto.
+> ⚠️ **Produção serve um bundle mais velho que o `main`.** O último `git commit` do frontend
+> (ordenação das opções de carga) **não foi publicado** — o deploy exige autorização explícita.
+> Publique com o comando de `docs/deploy.md` e confira o hash do bundle servido.
 
 ## Perguntas em aberto — faça estas ao usuário ao retomar
 
 1. **Qual o próximo passo?**
-   - **Teste de frontend**: não existe nenhum, e a tela do Mercado foi ao ar sem nunca ter sido
-     aberta num navegador. Um Playwright que faça login, abra o Mercado, ponha uma ordem e confira
-     o livro viraria rede de segurança permanente.
    - **Despacho entre colônias pela UI**: os endpoints aceitam `destino = colonia`, mas a tela só
      oferece o Mercado, porque **não há endpoint de diretório de colônias** — o jogador não tem
      como descobrir o `id` de ninguém. Falta um `GET /central/colonies`.
@@ -104,6 +105,13 @@ tail -3 /home/fertways/logs/fertways-tick.log
 # Frontend: o typecheck honesto é `npm run build`, não `tsc --noEmit`.
 export PATH="/usr/local/lib/nodejs/node-v22.12.0-linux-x64/bin:$PATH"
 cd /home/fertways/apps/fertways/frontend && npm run build
+
+# A tela do Mercado num navegador de verdade. Sobe e derruba a própria pilha.
+cd /home/fertways/apps/fertways && ./tools/e2e.sh
+
+# O bundle no ar é o do último build? (o deploy do front não é automático)
+diff <(ls frontend/dist/assets/*.js | xargs -n1 basename) \
+     <(curl -s https://fertways.tars.art.br/ | grep -oE 'index-[A-Za-z0-9_-]+\.js')
 ```
 
 ## Contas de teste
