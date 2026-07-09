@@ -12,6 +12,7 @@ class DatabaseSeeder extends Seeder
         // e os cost_json de building_specs referenciam esses mesmos códigos.
         $this->call([
             ResourceTypeSeeder::class,
+            ComponentRecipeSeeder::class,
             BuildingSpecSeeder::class,
         ]);
     }

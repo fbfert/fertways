@@ -1,0 +1,42 @@
+{
+  "basica": {
+    "nome": "Básica",
+    "contexto": "4 minerais (Oficina nível 1-2, Furgão, Robô Minerador)",
+    "insumos": {
+      "estanho": 8,
+      "cobre": 8,
+      "silicio": 6,
+      "aluminio": 5,
+      "agua": 5,
+      "energia": 10
+    }
+  },
+  "intermediaria": {
+    "nome": "Intermediária",
+    "contexto": "5 minerais (Laboratório, Antena, Caminhão)",
+    "insumos": {
+      "estanho": 6,
+      "cobre": 6,
+      "silicio": 8,
+      "litio": 4,
+      "tungstenio": 3,
+      "oxigenio": 4,
+      "energia": 14
+    }
+  },
+  "avancada": {
+    "nome": "Avançada",
+    "contexto": "7 minerais (Plataforma de Pouso, Nave de Transporte, Infiltrador, Predador)",
+    "insumos": {
+      "estanho": 5,
+      "cobre": 5,
+      "silicio": 7,
+      "litio": 5,
+      "tungstenio": 4,
+      "tantalo": 2,
+      "ouro": 1,
+      "biocombustivel": 3,
+      "energia": 20
+    }
+  }
+}

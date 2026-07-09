@@ -35,11 +35,17 @@ class ColonyTick
     private const RECEITA_DESTILARIA = ['biomassa' => 2, 'energia' => 3];
 
     /**
-     * Oficina (Ligas, Componentes) e Refinaria (Compostos) têm TAXA publicada em §19.3 mas
-     * nenhuma RECEITA de insumos. Creditar a saída sem debitar entrada criaria recurso do
-     * nada. Ficam sem produzir até o GDD definir os insumos. Ver docs/decisoes.md D-19.
+     * Saídas cuja RECEITA o GDD nunca publica, embora publique a taxa em §19.3:
+     * Ligas Metálicas ("Metal Bruto é extraído, Ligas são transformadas" — sem proporção) e
+     * Compostos Químicos (nada). Creditá-las sem debitar insumo criaria recurso do nada.
+     * Ver docs/decisoes.md D-19.
+     *
+     * Componentes Eletrônicos NÃO estão aqui: §24.5 publica as três receitas.
      */
-    private const SEM_RECEITA = ['oficina', 'refinaria_quimica'];
+    private const SAIDAS_SEM_RECEITA = ['ligas_metalicas', 'compostos_quimicos'];
+
+    /** Receita usada pela Oficina quando o jogador não escolheu nenhuma. */
+    public const RECEITA_PADRAO = 'basica';
 
     public function handle(Colony $colony, CarbonInterface $agora): void
     {
@@ -141,11 +147,12 @@ class ColonyTick
         $taxas = [];
         $consumoEnergia = 0;
         $taxaDestilaria = 0;
+        $taxaComponentes = 0;
 
         foreach ($especificacoes as $tipo => $spec) {
             $consumoEnergia += $spec->energia_consumo_hora;
 
-            if (in_array($tipo, self::SEM_RECEITA, true) || ! $spec->producao_hora_json) {
+            if (! $spec->producao_hora_json) {
                 continue;
             }
 
@@ -156,9 +163,17 @@ class ColonyTick
                 continue;
             }
 
+            if ($tipo === 'oficina') {
+                // Ligas ficam de fora (sem receita); Componentes entram via §24.5.
+                $taxaComponentes = $producao['componentes_eletronicos'] ?? 0;
+                continue;
+            }
+
             if (in_array($tipo, self::PRODUCAO_SEM_INSUMO, true)) {
                 foreach ($producao as $recurso => $qtd) {
-                    $taxas[$recurso] = ($taxas[$recurso] ?? 0) + $qtd;
+                    if (! in_array($recurso, self::SAIDAS_SEM_RECEITA, true)) {
+                        $taxas[$recurso] = ($taxas[$recurso] ?? 0) + $qtd;
+                    }
                 }
             }
         }
@@ -174,8 +189,15 @@ class ColonyTick
             $this->acumular($estoque[$recurso], $porHora * $segundos);
         }
 
+        // Ordem importa: a receita Avançada de Componentes consome Biocombustível, que a
+        // Destilaria acabou de produzir neste mesmo segmento.
         if ($taxaDestilaria > 0) {
-            $this->destilar($estoque, $taxaDestilaria * $segundos);
+            $this->converter($estoque, $taxaDestilaria * $segundos, self::RECEITA_DESTILARIA, 'biocombustivel');
+        }
+
+        if ($taxaComponentes > 0) {
+            $receita = $this->receitaDaOficina($colony);
+            $this->converter($estoque, $taxaComponentes * $segundos, $receita, 'componentes_eletronicos');
         }
 
         foreach ($estoque as $linha) {
@@ -199,12 +221,23 @@ class ColonyTick
         $linha->production_remainder = $total % 3600;
     }
 
-    /** 2 Biomassa + 3 Energia -> 1 Biocombustível, limitado pelo insumo disponível. */
-    private function destilar($estoque, int $numeradorDesejado): void
+    /**
+     * Converte insumos em saída, limitado pelo insumo disponível. Serve à Destilaria
+     * (2 Biomassa + 3 Energia -> 1 Biocombustível, §18.2) e à Oficina (§24.5).
+     *
+     * `$numeradorDesejado` e o resultado estão em unidades de 1/3600, como o resto do tick.
+     * Se faltar qualquer insumo, produz-se o máximo possível — nunca parcialmente debitado.
+     *
+     * @param array<string,int> $receita insumo => quantidade por unidade produzida
+     */
+    private function converter($estoque, int $numeradorDesejado, array $receita, string $saida): void
     {
         $possivel = $numeradorDesejado;
 
-        foreach (self::RECEITA_DESTILARIA as $insumo => $porUnidade) {
+        foreach ($receita as $insumo => $porUnidade) {
+            if (! isset($estoque[$insumo])) {
+                return;   // insumo fora do catálogo da colônia: não converte nada
+            }
             $disponivel = $estoque[$insumo]->amount * 3600 + $estoque[$insumo]->production_remainder;
             $possivel = min($possivel, intdiv($disponivel, $porUnidade));
         }
@@ -213,11 +246,29 @@ class ColonyTick
             return;
         }
 
-        foreach (self::RECEITA_DESTILARIA as $insumo => $porUnidade) {
+        foreach ($receita as $insumo => $porUnidade) {
             $this->acumular($estoque[$insumo], -$possivel * $porUnidade);
         }
 
-        $this->acumular($estoque['biocombustivel'], $possivel);
+        $this->acumular($estoque[$saida], $possivel);
+    }
+
+    /**
+     * §24.5 dá três receitas. O parêntese do GDD mistura faixa de nível da Oficina
+     * ("Oficina nível 1-2") com unidades de destino ("Furgão, Robô Minerador"), e a Oficina
+     * não custa Componentes nos níveis 1-2 — então "destino" não pode ser a leitura.
+     * O jogador escolhe a receita; o padrão é a Básica. Ver docs/decisoes.md D-23.
+     *
+     * @return array<string,int>
+     */
+    private function receitaDaOficina(Colony $colony): array
+    {
+        $escolhida = $colony->buildings()->where('type', 'oficina')->value('recipe')
+            ?? self::RECEITA_PADRAO;
+
+        $receita = DB::table('component_recipes')->where('code', $escolhida)->value('insumos_json');
+
+        return json_decode($receita ?? '{}', true);
     }
 
     /** @return array<string, object> spec vigente de cada construção erguida */

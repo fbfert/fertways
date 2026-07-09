@@ -20,6 +20,7 @@ class TickColoniesTest extends TestCase
     {
         parent::setUp();
         $this->seed(\Database\Seeders\ResourceTypeSeeder::class);
+        $this->seed(\Database\Seeders\ComponentRecipeSeeder::class);
         $this->seed(\Database\Seeders\BuildingSpecSeeder::class);
     }
 
@@ -99,26 +100,33 @@ class TickColoniesTest extends TestCase
     }
 
     /**
-     * Oficina e Refinaria têm taxa publicada mas nenhuma receita de insumo no GDD.
-     * Creditar a saída seria criar recurso do nada. Ver D-19.
+     * D-19: Ligas Metálicas e Compostos Químicos têm taxa publicada em §19.3 e nenhuma
+     * receita de insumo em lugar nenhum do GDD. Creditá-las seria criar recurso do nada.
+     *
+     * Componentes Eletrônicos NÃO estão nesse caso — §24.5 dá as receitas, e eles são
+     * fabricados. Aqui a colônia não tem minerais, então também não saem; a cobertura da
+     * fabricação está em ComponentRecipesTest.
      */
-    public function test_oficina_e_refinaria_nao_produzem_sem_receita(): void
+    public function test_ligas_e_compostos_nunca_sao_produzidos(): void
     {
         $user = $this->colono();
         $this->erguer($user, 'oficina', 1);
         $this->erguer($user, 'refinaria_quimica', 1);
         $this->erguer($user, 'reator_de_energia', 5);
 
+        // Minerais de sobra: se as Ligas tivessem receita implícita, sairiam aqui.
+        $user->colony->resources()
+            ->whereIn('resource_type', ['estanho', 'cobre', 'silicio', 'aluminio', 'agua', 'metal_bruto'])
+            ->update(['amount' => 100_000]);
+
         $user->colony->update(['last_tick_at' => now()->subHours(5)]);
         $this->tick($user, now());
 
         $this->assertSame(0, $this->estoque($user, 'ligas_metalicas'));
-        $this->assertSame(0, $this->estoque($user, 'componentes_eletronicos'));
         $this->assertSame(0, $this->estoque($user, 'compostos_quimicos'));
 
-        // Mas o consumo de energia delas é debitado normalmente.
-        $reator = 759; $consumo = 25 + 28;   // Reator n5; Oficina n1 + Refinaria n1
-        $this->assertSame(($reator - $consumo) * 5, $this->estoque($user, 'energia'));
+        // Componentes saem: 15/h × 5 h.
+        $this->assertSame(75, $this->estoque($user, 'componentes_eletronicos'));
     }
 
     /** "2 Biomassas + 3 Energias em 1 Biocombustível" (§18.2), limitado pelo insumo. */

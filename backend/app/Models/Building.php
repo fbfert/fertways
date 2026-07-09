@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Building extends Model
 {
-    protected $fillable = ['colony_id', 'type', 'level', 'upgrade_started_at', 'upgrade_finish_at'];
+    protected $fillable = ['colony_id', 'type', 'level', 'recipe', 'upgrade_started_at', 'upgrade_finish_at'];
 
     protected $casts = [
         'level' => 'integer',

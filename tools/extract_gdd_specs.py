@@ -213,6 +213,37 @@ def parse_producao_e_consumo(rows) -> dict:
     return out
 
 
+def parse_receitas_componentes(rows) -> dict:
+    """
+    §24.5 — três receitas de Componentes Eletrônicos, com insumo por unidade produzida.
+
+    O parêntese de cada receita mistura faixa de nível da Oficina ("Oficina nível 1-2") com
+    unidades de destino ("Furgão, Robô Minerador"). Guardamos o texto cru; a interpretação
+    fica em docs/decisoes.md D-23, não aqui.
+    """
+    corpo = slice_section(rows, r"^24\.5 Componentes Eletrônicos", r"^24\.6 Biocombustível")
+    receitas, atual = {}, None
+
+    for r in corpo:
+        m = re.match(r"^Receita (\w+) — (.+)$", r)
+        if m:
+            atual = slug(m.group(1))
+            receitas[atual] = {"nome": m.group(1), "contexto": m.group(2), "insumos": {}}
+            continue
+        if not atual or "|" not in r:
+            continue
+        p = [c.strip() for c in r.split("|") if c.strip()]
+        if len(p) != 2 or p[0] == "Insumo":
+            continue
+        # "Energia | 10 kW/h" -> energia: 10.  "Tântalo ★" -> tantalo.
+        qtd = re.sub(r"[^\d].*$", "", p[1])
+        if not qtd:
+            continue
+        receitas[atual]["insumos"][slug(re.sub(r"\s*★", "", p[0]))] = int(qtd)
+
+    return receitas
+
+
 def mina_local_prod_max(rows) -> int:
     """Produção/hora do Metal Bruto no nível máximo da Mina Local (§19)."""
     corpo = slice_section(rows, r"^Mina Local — Produção", r"^Mina Governamental")
@@ -317,6 +348,13 @@ def main():
     print(f"tabelas SEM linha de tempo: {len(sem_tempo)}")
     for s in sem_tempo:
         print("  - " + s)
+
+    receitas = parse_receitas_componentes(rows)
+    Path(dest.parent / "component_recipes.json").write_text(
+        json.dumps(receitas, ensure_ascii=False, indent=2), encoding="utf-8")
+    print(f"\nreceitas de Componentes Eletrônicos (§24.5): {len(receitas)}")
+    for k, v in receitas.items():
+        print(f"  {k:14} {v['insumos']}")
 
     prod = parse_producao_e_consumo(rows)
     Path(dest.parent / "production.json").write_text(

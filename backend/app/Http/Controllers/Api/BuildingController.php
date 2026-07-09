@@ -10,6 +10,7 @@ use App\Models\Building;
 use App\Models\BuildQueue;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class BuildingController extends Controller
 {
@@ -37,6 +38,38 @@ class BuildingController extends Controller
                 : null,
             'finishes_at' => $item->finishes_at,
         ], 201);
+    }
+
+    /**
+     * Escolhe a receita de Componentes Eletrônicos da Oficina (§24.5). As três produzem o
+     * mesmo recurso `componentes_eletronicos`, com insumos distintos. Ver D-23.
+     */
+    public function recipe(Request $request, Building $building): JsonResponse
+    {
+        $colony = $request->user()->colony;
+
+        if (! $colony || $building->colony_id !== $colony->id) {
+            throw new DomainRuleException('construcao_de_outra_colonia', 'Esta construção não é sua.');
+        }
+
+        if ($building->type !== 'oficina') {
+            throw new DomainRuleException('sem_receita', 'Só a Oficina escolhe receita.');
+        }
+
+        $dados = $request->validate([
+            'recipe' => ['required', 'string', 'exists:component_recipes,code'],
+        ]);
+
+        $building->update(['recipe' => $dados['recipe']]);
+
+        $receita = DB::table('component_recipes')->where('code', $dados['recipe'])->first();
+
+        return response()->json([
+            'recipe' => $receita->code,
+            'nome' => $receita->nome,
+            'contexto' => $receita->contexto,
+            'insumos_por_unidade' => json_decode($receita->insumos_json, true),
+        ]);
     }
 
     public function queue(Request $request): JsonResponse

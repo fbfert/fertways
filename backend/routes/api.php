@@ -14,5 +14,6 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::get('/buildings', [BuildingController::class, 'specs']);
     Route::post('/buildings/{building}/upgrade', [BuildingController::class, 'upgrade']);
+    Route::patch('/buildings/{building}/recipe', [BuildingController::class, 'recipe']);
     Route::get('/queue', [BuildingController::class, 'queue']);
 });

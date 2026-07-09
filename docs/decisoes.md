@@ -382,28 +382,72 @@ confere que o subsídio deixa de valer. Remover o stub quando as missões existi
 
 ---
 
-## D-19 — ⚠ Oficina e Refinaria não produzem: o GDD não dá as receitas
-**Data:** 2026-07-08 · **Status:** ABERTO, limita o item 3 do MVP
+## D-19 — Ligas Metálicas e Compostos Químicos não têm receita publicada
+**Data:** 2026-07-08 · **Status:** ABERTO · **Escopo reduzido em 2026-07-08**
 
-§19.3 publica a **taxa** de produção por hora — Oficina 40 Ligas/h e 15 Componentes/h,
-Refinaria 30 Compostos/h — mas **nunca a receita de insumos** dessas linhas. Sobre as Ligas o
-GDD diz apenas que "Metal Bruto é extraído, Ligas são transformadas", sem proporção. Sobre os
-Compostos Químicos, nada. Creditar a saída sem debitar entrada criaria recurso do nada.
+> **Correção.** A primeira versão deste item incluía os **Componentes Eletrônicos**. Estava
+> errado: o **§24.5** publica as três receitas de fabricação, e elas foram implementadas.
+> D-19 vale agora só para Ligas Metálicas e Compostos Químicos.
 
-**Estado atual:** `ColonyTick::SEM_RECEITA` bloqueia as duas. O consumo de energia delas continua
-sendo debitado. Há teste garantindo que não produzem, e mutação confirmando que o teste morde.
+§19.3 publica a **taxa** de produção por hora:
 
-O que o GDD **define** e foi implementado:
-- **Destilaria** (§18.2): "converte 2 Biomassas + 3 Energias em 1 Biocombustível... a taxa é fixa".
-  Limitado pelo insumo disponível.
-- **Mina Local**, **Gerador**, **Captação**, **Fazenda**, **Reator**: produção sem insumo.
+| Construção | Saída | Nível 1 | Receita publicada? |
+|---|---|---|---|
+| Oficina | Componentes Eletrônicos | 15/h | **sim, §24.5** — implementado |
+| Oficina | Ligas Metálicas | 40/h | **não** |
+| Refinaria Química | Compostos Químicos | 30/h | **não** |
 
-O que fica de fora por natureza:
-- **Componentes Eletrônicos**: três receitas por tier, com minerais e energia, e "energia e insumos
-  são debitados no início do ciclo, e a saída somente é creditada na conclusão do **job** da
-  Oficina". É sistema de jobs, não produção passiva. Precisa de modelo próprio.
+Sobre as Ligas, o GDD diz apenas que "Metal Bruto é extraído, Ligas são transformadas" — sem
+proporção. Sobre os Compostos Químicos, nada em lugar algum. Creditar a saída sem debitar entrada
+criaria recurso do nada.
+
+**Estado atual:** `ColonyTick::SAIDAS_SEM_RECEITA` bloqueia as duas saídas. O consumo de energia
+das construções continua sendo debitado. Há teste que dá minerais e Metal Bruto de sobra e confere
+que nenhuma Liga sai — mutação confirma que ele morde.
 
 Falta, para destravar: proporção Metal Bruto → Ligas Metálicas, e a receita dos Compostos Químicos.
+
+---
+
+## D-23 — Componentes Eletrônicos: um recurso, três receitas
+**Data:** 2026-07-08 · **Status:** decidido
+
+§24.5 dá três receitas (Básica, Intermediária, Avançada), extraídas do GDD para
+`component_recipes`. Todas produzem o **mesmo** recurso `componentes_eletronicos`.
+
+**Por que não são três recursos separados.** As doze construções e unidades que consomem
+componentes usam, nas tabelas de custo de §4.2/§4.3, um **único código**: "Componentes
+Eletrônicos". Dividir em tiers exigiria reescrever esse `cost_json`, que é semeado verbatim do
+GDD — exatamente o que a regra de ouro proíbe. E não haveria como fazê-lo: o §24.5 nomeia destinos
+para nove consumidores, mas **Central de Transportes, Tanque de Combustível e Drone de Exploração
+ficam sem tier**.
+
+**Como a receita é escolhida.** O parêntese do §24.5 mistura duas coisas: "Receita Básica — 4
+minerais (**Oficina nível 1-2**, Furgão, Robô Minerador)" traz uma faixa de nível da Oficina junto
+de unidades de destino. A leitura "destino" não se sustenta: a Oficina **não custa componentes nos
+níveis 1-2** (conferido em `building_specs`). Logo o parêntese é ambíguo e não define regra.
+
+Decisão: **o jogador escolhe a receita** (`PATCH /api/buildings/{id}/recipe`), padrão `basica`.
+A escolha fica em `buildings.recipe`.
+
+**Consequência econômica conhecida:** como as três receitas geram o mesmo bem, a Básica domina —
+é a mais barata. §24.8 precifica os três tiers separadamente (Básico 1,2778 · Intermediário
+1,5473 · Avançado 2,0877 Fert$), o que só faz sentido se forem bens distintos. Resolver isso exige
+o GDD dizer qual tier cada construção consome.
+
+---
+
+## D-24 — Preço dos Componentes Eletrônicos: §22.2 contradiz §24.8
+**Data:** 2026-07-08 · **Status:** ABERTO, não bloqueia
+
+- §22.2 lista "Componentes Eletrônicos | Secundário | 76/h | **0,0333 Fert$**", calculado com a
+  fórmula dos **primários** (`0,0050 × 506 ÷ 76`).
+- §24.8, sob o título "**Preços Atualizados**", corrige a fórmula para recursos processados
+  (`custo dos insumos × (1 + markup)`) e publica **Básico 1,2778 · Intermediário 1,5473 ·
+  Avançado 2,0877 Fert$** — trinta e oito vezes maior.
+
+O seed traz `0,0333` (de §22.2). Não foi alterado porque escolher um dos três tiers seria arbitrar
+o que o D-23 deixa em aberto. Só afeta o Mercado Central, ainda não implementado.
 
 ---
 

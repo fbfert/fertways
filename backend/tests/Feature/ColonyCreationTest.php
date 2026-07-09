@@ -26,6 +26,7 @@ class ColonyCreationTest extends TestCase
     {
         parent::setUp();
         $this->seed(\Database\Seeders\ResourceTypeSeeder::class);
+        $this->seed(\Database\Seeders\ComponentRecipeSeeder::class);
         // O kit de raros é somado de building_specs, então o catálogo de construções
         // também é pré-requisito para fundar colônia. Ver D-17.
         $this->seed(\Database\Seeders\BuildingSpecSeeder::class);

@@ -21,6 +21,7 @@ class BuildQueueTest extends TestCase
     {
         parent::setUp();
         $this->seed(\Database\Seeders\ResourceTypeSeeder::class);
+        $this->seed(\Database\Seeders\ComponentRecipeSeeder::class);
         $this->seed(\Database\Seeders\BuildingSpecSeeder::class);
     }
 
