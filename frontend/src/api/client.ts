@@ -186,6 +186,71 @@ export type PrazoMinimo = {
   minimum_deadline_at: string
 }
 
+/** Os quatro índices do §26.2. Isolados: o §26.9 proíbe compensar um com outro. */
+export type Reputacao = {
+  confianca_comercial: number
+  conduta_social: number
+  status_civico: number
+  honra_militar_diplomatica: number
+}
+
+/** Uma linha da tabela fixa do §26.8. A pena não é segredo, e o conciliador não a escolhe (D-49). */
+export type Violacao = {
+  violation: string
+  indice: keyof Reputacao
+  pontos: number
+  punicoes: string[]
+  /** §9.2: caso grave não passa por conciliador jogador. */
+  grave: boolean
+  /** Depende de chat, leilões ou tratados, que não existem. Grava e não morde (D-44). */
+  inerte: boolean
+  fonte: string
+}
+
+export type PunicaoVigente = {
+  kind: string
+  index_name: string | null
+  points: number
+  expires_at: string | null
+}
+
+export type Ministerio = {
+  reputacao: Reputacao
+  limiar_mercado: number
+  persona_non_grata: boolean
+  conciliador: {
+    nomeado: boolean
+    suspenso: boolean
+    reversoes: number
+    limite_reversoes: number
+    salario_diario_micro: number
+    bonus_micro: number
+  }
+  punicoes: PunicaoVigente[]
+  catalogo: Violacao[]
+}
+
+export type Denuncia = {
+  id: number
+  violation: string
+  fonte: string
+  texto: string
+  evidence_type: string
+  trade_agreement_id: number | null
+  status: 'triagem' | 'rejeitado' | 'atribuido' | 'na_equipe' | 'decidido' | 'apelado' | 'revertido' | 'encerrado'
+  decision: 'procedente' | 'improcedente' | null
+  grave: boolean
+  eu_denunciei: boolean
+  reporter_colony_id: number
+  accused_colony_id: number
+  /** As 48 h do §26.8, quando o caso está com um conciliador. */
+  deadline_at: string | null
+  decided_at: string | null
+  /** As 48 h para apelar (D-50). */
+  appeal_until: string | null
+  punicao_tabelada: { indice: keyof Reputacao; pontos: number; punicoes: string[] }
+}
+
 export const api = {
   register: (b: { name: string; nickname: string; email: string; password: string }) =>
     req<Sessao>('/register', { method: 'POST', body: JSON.stringify(b) }),
@@ -268,6 +333,33 @@ export const api = {
 
   /** Recusa ou desistência, enquanto o acordo não foi aceito. Depois de aceito, não há saída. */
   cancelarAcordo: (id: number) => req<Acordo>(`/trade/agreements/${id}`, { method: 'DELETE' }),
+
+  /** Reputação, punições vigentes, cargo, e o catálogo de violações com a pena de cada uma. */
+  ministerio: () => req<Ministerio>('/ministry/me'),
+
+  /** As que fiz, as que sofri, e — se eu for conciliador — as que devo julgar. */
+  denuncias: () => req<{ minhas: Denuncia[]; a_julgar: Denuncia[] }>('/ministry/reports'),
+
+  denunciar: (b: {
+    accused_colony_id: number
+    violation: string
+    texto: string
+    evidence_type: string
+    trade_agreement_id?: number
+  }) => req<Denuncia>('/ministry/reports', { method: 'POST', body: JSON.stringify(b) }),
+
+  /**
+   * O conciliador julga o **fato**, não a pena: a punição sai da tabela fixa do §26.8. Por isso o
+   * corpo só carrega `procedente`.
+   */
+  decidirDenuncia: (id: number, procedente: boolean) =>
+    req<Denuncia>(`/ministry/reports/${id}/decide`, {
+      method: 'POST',
+      body: JSON.stringify({ procedente }),
+    }),
+
+  /** §9.3: as partes contestam a decisão, e a equipe do jogo julga a apelação por fora. */
+  apelar: (id: number) => req<Denuncia>(`/ministry/reports/${id}/appeal`, { method: 'POST' }),
 
   /** Manda um veículo buscar carga da doca. O saldo é reservado já no despacho (D-32). */
   retirar: (veiculo: number, cargo: Record<string, number>) =>

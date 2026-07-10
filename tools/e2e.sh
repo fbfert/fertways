@@ -101,6 +101,47 @@ app(App\Domain\Trade\ProporAcordo::class)->handle(
     $cv, $c, ["agua" => 100], ["metal_bruto" => 100], now()->addDays(2),
 );
 
+/*
+ * Um acordo já quebrado entre os dois: é a evidência mínima que o §26.8 exige para denunciar. Sem
+ * ele, a aba de denunciar não tem o que anexar e o botão nunca habilita — que é, aliás, a regra.
+ */
+$quebrado = app(App\Domain\Trade\ProporAcordo::class)->handle(
+    $c, $cv, ["metal_bruto" => 20], ["agua" => 20], now()->addDays(2),
+);
+$quebrado->forceFill(["status" => "quebrado"])->save();
+
+// O colono do e2e é conciliador: é o cargo que faz aparecer a aba "A julgar" (§9.3).
+$u->forceFill(["conciliador_desde" => now()])->save();
+
+/*
+ * Duas colônias distantes, e um caso entre elas para o e2e julgar. **Distantes de propósito**: o
+ * diretório ordena por distância, e o teste do Acordo propõe para a primeira da lista.
+ *
+ * O caso é entre elas, e não com a vizinha, por causa do impedimento do §26.8: o e2e tem um Acordo
+ * recente com a vizinha, e um conciliador não julga quem negociou com ele nos últimos 30 dias.
+ */
+$colonias = [];
+foreach ([["ré", 10, 10], ["autora", 11, 10]] as [$nick, $x, $y]) {
+    $usuario = App\Models\User::create([
+        "name" => $nick, "nickname" => $nick,
+        "email" => "{$nick}@fertways.test",
+        "password" => Illuminate\Support\Facades\Hash::make("segredo-forte-123"),
+    ]);
+    $colonias[$nick] = app(App\Domain\Colony\CreateColony::class)->handle($usuario, "Colônia {$nick}");
+    $colonias[$nick]->forceFill(["x" => $x, "y" => $y])->save();
+}
+
+$entreElas = app(App\Domain\Trade\ProporAcordo::class)->handle(
+    $colonias["autora"], $colonias["ré"], ["metal_bruto" => 30], ["agua" => 30], now()->addDays(2),
+);
+$entreElas->forceFill(["status" => "quebrado"])->save();
+
+app(App\Domain\Ministry\AbrirDenuncia::class)->handle(
+    $colonias["autora"], $colonias["ré"], "calote_reincidente",
+    "Aceitou o acordo, deixou o prazo vencer e não mandou nada.",
+    "acordo_expirado", $entreElas->id,
+);
+
 echo "colono e2e pronto na colônia {$c->id}\n";
 ' | tail -1
 
@@ -134,3 +175,4 @@ cd "$RAIZ/frontend"
 # furgões em rota. O do Acordo despacha o terceiro.
 E2E_URL="http://127.0.0.1:$PORTA_WEB" node e2e/mercado.e2e.mjs
 E2E_URL="http://127.0.0.1:$PORTA_WEB" node e2e/acordos.e2e.mjs
+E2E_URL="http://127.0.0.1:$PORTA_WEB" node e2e/ministerio.e2e.mjs

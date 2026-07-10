@@ -82,8 +82,21 @@ class MinistryController extends Controller
             ->orderByDesc('id')
             ->get();
 
+        /*
+         * Os casos do conciliador: os que esperam decisão e os que ele já decidiu.
+         *
+         * Os decididos ficam porque, sem eles, julgar faz o caso **sumir da tela** — o conciliador
+         * não é parte nele, então ele não reaparece em "minhas denúncias". Ele precisa ver o que
+         * decidiu, se foi apelado, e se o bônus do §26.7 ainda está de pé.
+         *
+         * `revertido` também: é a prova do erro que alimenta o contador de reversões, e escondê-la
+         * de quem errou seria esconder a razão da suspensão que virá.
+         */
         $aJulgar = $usuario->conciliador_desde
-            ? Report::where('conciliator_user_id', $usuario->id)->where('status', 'atribuido')->orderBy('deadline_at')->get()
+            ? Report::where('conciliator_user_id', $usuario->id)
+                ->whereIn('status', ['atribuido', 'decidido', 'apelado', 'revertido', 'encerrado'])
+                ->orderByDesc('id')
+                ->get()
             : collect();
 
         return response()->json([

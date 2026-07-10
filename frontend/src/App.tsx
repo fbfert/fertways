@@ -6,6 +6,7 @@ import { Acordos } from './ui/Acordos'
 import { Login } from './ui/Login'
 import { Marca } from './ui/Marca'
 import { Mercado } from './ui/Mercado'
+import { Ministerio } from './ui/Ministerio'
 import { Detalhe, FilaDeObras, Recursos } from './ui/Hud'
 
 /** Sem websocket nesta fase: polling simples, como o plano define. */
@@ -22,6 +23,7 @@ export default function App() {
   const [nome, setNome] = useState('')
   const [mercadoAberto, setMercadoAberto] = useState(false)
   const [acordosAberto, setAcordosAberto] = useState(false)
+  const [ministerioAberto, setMinisterioAberto] = useState(false)
 
   const carregar = useCallback(async () => {
     try {
@@ -56,6 +58,7 @@ export default function App() {
     setAutenticado(false)
     setMercadoAberto(false)
     setAcordosAberto(false)
+    setMinisterioAberto(false)
     setColonia(null)
 
     try {
@@ -156,6 +159,13 @@ export default function App() {
         {colonia && (
           <div className="pointer-events-auto flex items-start gap-3">
             <button
+              onClick={() => setMinisterioAberto(true)}
+              className="painel bg-sand-light text-ink hover:text-rust eyebrow px-5 py-4"
+            >
+              Ministério
+            </button>
+
+            <button
               onClick={() => setAcordosAberto(true)}
               className="painel bg-sand-light text-ink hover:text-rust eyebrow px-5 py-4"
             >
@@ -179,6 +189,16 @@ export default function App() {
           </div>
         )}
       </header>
+
+      {colonia && ministerioAberto && (
+        <Ministerio
+          aoFechar={() => {
+            setMinisterioAberto(false)
+            // Uma condenação pode ter tirado recurso de circulação; o HUD reflete o estado novo.
+            void carregar()
+          }}
+        />
+      )}
 
       {colonia && acordosAberto && (
         <Acordos

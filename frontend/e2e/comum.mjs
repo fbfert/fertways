@@ -129,6 +129,15 @@ export async function entrar(page) {
 
 /** Imprime o veredito e devolve o código de saída do processo. */
 export function relatar(nome) {
+  /*
+   * As falhas também: uma exceção no meio do roteiro entra aqui e em lugar nenhum mais. Sem esta
+   * lista, um teste que estoura no primeiro clique imprime "E2E VERMELHO" e nada que explique.
+   */
+  if (falhas.length) {
+    console.log('\nFalhas:')
+    for (const f of falhas) console.log(`  ✗ ${f}`)
+  }
+
   if (erros.length) {
     console.log('\nErros de runtime no navegador:')
     for (const e of new Set(erros)) console.log(`  ! ${e}`)

@@ -32,7 +32,7 @@ O MVP tem, funcionando e no ar em `https://fertways.tars.art.br`:
   `GET /central/trade/deadline`. Sem escrow: o calote é real e deliberado (D-40). Cumprir é
   entregar fisicamente e vale o líquido que chega (D-41). Prazo mínimo = viagem + 12 h (D-42).
   Confiança Comercial começa em 500, bloqueia abaixo de 200 (D-43).
-- **Ministério das Reputações (§9.1–9.4, §26.6–26.8)** — **backend completo, sem tela.** Denúncia com
+- **Ministério das Reputações (§9.1–9.4, §26.6–26.8)** — backend e tela. Denúncia com
   evidência mínima conferida, triagem (grave → equipe; simples → conciliador sem impedimento),
   48 h para decidir, punição pela **tabela fixa do D-49**, apelação de 48 h, reversão que estorna e
   suspende em 5. `GET /central/ministry/me`, `GET/POST /central/ministry/reports`,
@@ -42,24 +42,33 @@ O MVP tem, funcionando e no ar em `https://fertways.tars.art.br`:
   `artisan fertways:conciliador {nick} --nomear|--demitir|--reintegrar|--listar`.
   Os **quatro** índices do §26.2 agora nascem em 500 (antes, três nasciam em zero). A única punição
   que morde hoje é a **restrição comercial**: fecha toda saída de carga por 7 dias.
-- Frontend: login, HUD, colônia em Phaser, a tela do Mercado e a **tela do Acordo** (dois botões no
-  HUD). A tela do Acordo propõe, aceita, recusa, desiste, mostra a Confiança Comercial contra o
-  limiar e **despacha a entrega pelo bruto**, não pelo prometido: quem embarca 100 entrega 97, e o
-  colono não deve descobrir que caloteou por três unidades de tributo (D-41).
+- Frontend: login, HUD, colônia em Phaser, e **três telas** (três botões no HUD): Mercado, Acordo e
+  Ministério.
+  - A do **Acordo** propõe, aceita, recusa, desiste, mostra a Confiança Comercial contra o limiar e
+    **despacha a entrega pelo bruto**, não pelo prometido: quem embarca 100 entrega 97, e o colono
+    não deve descobrir que caloteou por três unidades de tributo (D-41).
+  - A do **Ministério** mostra os quatro índices, as punições vigentes com prazo, abre denúncia (com
+    a evidência filtrada: só o Acordo quebrado entre os dois serve, §26.8), e dá ao conciliador a
+    fila com o relógio das 48 h. **Ela publica a pena tabelada antes do julgamento** e só lhe oferece
+    "Procedente" e "Improcedente": a pena não é escolha dele (§26.8, D-49).
 
 **165 testes, 1785 asserções, verdes.** O cron do tick está instalado (crontab do usuário
 `fertways`, log em `/home/fertways/logs/fertways-tick.log`) e roda o `artisan` **da cópia de
 deploy** — o mundo avança sozinho. O tick faz: produção, upgrades, proteções, trechos de viagem,
 acordos vencidos, **casos reatribuídos, janelas de apelação fechadas e a folha do Ministério**.
 
-As duas telas têm **teste de ponta a ponta em navegador de verdade**: `npm run e2e` (ou
+As três telas têm **teste de ponta a ponta em navegador de verdade**: `npm run e2e` (ou
 `./tools/e2e.sh`) sobe uma pilha efêmera (SQLite temporário + `artisan serve` + `vite dev`) e dirige
-o Chromium do sistema com `puppeteer-core`. 26 verificações no Mercado, 22 no Acordo. Nunca toca
-produção nem o MariaDB.
+o Chromium do sistema com `puppeteer-core`. 26 verificações no Mercado, 22 no Acordo, 30 no
+Ministério. Nunca toca produção nem o MariaDB.
 
-Os dois arquivos (`e2e/mercado.e2e.mjs`, `e2e/acordos.e2e.mjs`) compartilham o andaime de
+Os três arquivos (`e2e/{mercado,acordos,ministerio}.e2e.mjs`) compartilham o andaime de
 `e2e/comum.mjs` **e o mesmo banco efêmero**, então a ordem em que `e2e.sh` os chama importa: o do
 Mercado deixa dois furgões em rota, e o do Acordo despacha o terceiro.
+
+> **Instabilidade conhecida:** o do Mercado falhou uma vez em quatro com `Protocol error
+> (Runtime.getProperties): Target closed`. Verde nas outras três. Se reprovar assim, rode de novo
+> antes de investigar — mas se virar hábito, é bug de verdade.
 
 **Publicado no GitHub.** `main` e `origin/main` estavam 17 commits apartados; foram empurrados em
 2026-07-09. Confira com `git status -sb` — se voltar a divergir, republique.
@@ -77,14 +86,13 @@ Mercado deixa dois furgões em rota, e o do Acordo despacha o terceiro.
 
 ## Perguntas em aberto — faça estas ao usuário ao retomar
 
-1. **Qual o próximo passo?** Candidatos, sem ordem decidida.
-   - **A tela do Ministério das Reputações.** O backend está pronto e testado (D-50), e nenhum colono
-     alcança o Ministério pela UI. É o único sistema do jogo sem tela — a mesma dívida que o Acordo
-     tinha. Precisa de: os quatro índices, as punições vigentes com prazo, abrir denúncia (escolher
-     violação do catálogo e anexar o Acordo quebrado que serve de evidência), a fila do conciliador
-     com o relógio das 48 h, o botão de decidir e o de apelar. `GET /central/ministry/me` já devolve
-     o catálogo de violações **com a pena tabelada**: a tela deve mostrá-la antes de o conciliador
-     julgar — a pena não é segredo, e ele não a escolhe.
+1. **Qual o próximo passo?** Candidatos, sem ordem decidida. **Todo sistema do jogo tem tela de novo.**
+   - **Publicar o Ministério em produção.** Ele está em `main` e **não foi publicado**: o último
+     deploy é o da tela do Acordo. `sudo ./tools/deploy.sh` (completo — a migration sobe os três
+     índices de zero para 500 nas quatro contas de produção). Confira depois com
+     `artisan fertways:conciliador --listar`, que deve dizer que não há conciliador nenhum.
+   - **Nomear um conciliador em produção**, ou o Ministério fica inerte: sem conciliador, todo caso
+     sobe à equipe, isto é, ao seu terminal.
    - **Serviço logístico público** (§07): o GDD o cita como alternativa ao veículo próprio na
      retirada, e ele não existe. Hoje o comprador precisa de Furgão ou Caminhão. O GDD não publica
      preço nem prazo — precisaria de arbitragem.
