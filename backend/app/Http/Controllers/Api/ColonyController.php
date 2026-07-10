@@ -15,6 +15,11 @@ class ColonyController extends Controller
     {
         $dados = $request->validate([
             'name' => ['required', 'string', 'min:3', 'max:60'],
+            // A célula escolhida pelo colono (D-51). O intervalo −50..50 é o mapa; se é
+            // fundável de fato (founder populável ou periferia) e se está livre, quem decide
+            // é CreateColony, com erro de domínio legível.
+            'x' => ['required', 'integer', 'between:-50,50'],
+            'y' => ['required', 'integer', 'between:-50,50'],
         ]);
 
         $user = $request->user();
@@ -27,7 +32,7 @@ class ColonyController extends Controller
             ], 422);
         }
 
-        $colony = $criar->handle($user, $dados['name']);
+        $colony = $criar->handle($user, $dados['name'], $dados['x'], $dados['y']);
 
         return response()->json([
             'id' => $colony->id,
@@ -138,6 +143,46 @@ class ColonyController extends Controller
             'capital' => ['x' => MapaFertways::CAPITAL_X, 'y' => MapaFertways::CAPITAL_Y],
             'me' => ['id' => $minha->id, 'name' => $minha->name, 'x' => $minha->x, 'y' => $minha->y],
             'colonies' => $colonias,
+        ]);
+    }
+
+    /**
+     * O mapa para o seletor de fundação (D-51).
+     *
+     * A tela de fundação precisa mostrar onde dá para fundar **antes** de o colono ter colônia —
+     * por isso, ao contrário de `index`, este endpoint não exige uma. Devolve a geometria, os 48
+     * slots de founder (marcando reservado e ocupado) e as células já tomadas, para o mapa
+     * clicável oferecer só o que é fundável: slot de founder populável livre ou periferia livre.
+     * A regra de fundabilidade fica em `MapaFertways::podeFundar`, conferida de novo no servidor
+     * quando o `POST /colony` chega; o mapa aqui é só para a UI não oferecer o impossível.
+     *
+     * Expõe apenas as coordenadas ocupadas, sem nome nem dono: o seletor precisa saber o que está
+     * livre, não quem mora onde. (O diretório do D-37, esse sim, mostra nomes — mas só a quem já
+     * fundou.)
+     */
+    public function map(Request $request): JsonResponse
+    {
+        $ocupadas = Colony::query()->get(['x', 'y'])
+            ->map(fn (Colony $c) => ['x' => $c->x, 'y' => $c->y])
+            ->values();
+
+        $chaveOcupada = $ocupadas->mapWithKeys(fn (array $c) => ["{$c['x']}:{$c['y']}" => true]);
+
+        $slots = collect(MapaFertways::slotsFounder())->map(fn (array $s) => [
+            'x' => $s['x'],
+            'y' => $s['y'],
+            'reservado' => $s['reservado'],
+            'ocupado' => $chaveOcupada->has("{$s['x']}:{$s['y']}"),
+        ])->values();
+
+        return response()->json([
+            'side' => MapaFertways::LADO,
+            'raio' => MapaFertways::RAIO,
+            'capital' => ['x' => MapaFertways::CAPITAL_X, 'y' => MapaFertways::CAPITAL_Y],
+            'raio_founder' => MapaFertways::RAIO_FOUNDER,
+            'raio_anel' => MapaFertways::RAIO_ANEL,
+            'founder_slots' => $slots,
+            'colonias' => $ocupadas,
         ]);
     }
 }

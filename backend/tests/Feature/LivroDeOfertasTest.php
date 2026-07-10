@@ -41,8 +41,8 @@ class LivroDeOfertasTest extends TestCase
     private function colonia(string $nick, int $x, int $y): Colony
     {
         $user = User::factory()->create(['email' => "{$nick}@t.test", 'nickname' => $nick]);
-        $colony = app(CreateColony::class)->handle($user, "Colônia {$nick}");
-        $colony->forceFill(['x' => $x, 'y' => $y])->save();
+        // O colono escolhe a célula (D-51). Coords de periferia, fundáveis.
+        $colony = app(CreateColony::class)->handle($user, "Colônia {$nick}", $x, $y);
 
         return $colony->fresh();
     }

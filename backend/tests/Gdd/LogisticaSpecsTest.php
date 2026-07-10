@@ -108,10 +108,13 @@ class LogisticaSpecsTest extends TestCase
     #[Test]
     public function a_capital_fica_no_nucleo_do_mapa(): void
     {
-        // §25.8: "o destino é fixo (o Mercado Central, no núcleo do mapa)".
-        $this->assertSame(intdiv(MapaFertways::LADO, 2), MapaFertways::CAPITAL_X);
-        $this->assertSame(intdiv(MapaFertways::LADO, 2), MapaFertways::CAPITAL_Y);
-        $this->assertTrue(MapaFertways::ehCapital(50, 50));
+        // §25.8: "o destino é fixo (o Mercado Central, no núcleo do mapa)". D-51: o núcleo é a
+        // origem (0,0), e o lado 101 (ímpar) garante que exista uma célula central.
+        $this->assertSame(0, MapaFertways::CAPITAL_X);
+        $this->assertSame(0, MapaFertways::CAPITAL_Y);
+        $this->assertSame(101, MapaFertways::LADO);
+        $this->assertTrue(MapaFertways::ehCapital(0, 0));
+        $this->assertFalse(MapaFertways::ehCapital(50, 50));
     }
 
     #[Test]
@@ -124,7 +127,54 @@ class LogisticaSpecsTest extends TestCase
         $this->assertSame(1, MapaFertways::distancia(0, 0, 1, 1));
         // Meio exato arredonda para cima: √(0,5² …) não ocorre com inteiros, mas 2,5 sim.
         $this->assertSame(3, MapaFertways::distancia(0, 0, 0, 3));
-        // Cantos opostos do mapa.
-        $this->assertSame(140, MapaFertways::distancia(0, 0, 99, 99));
+        // Cantos opostos do mapa, agora (−50,−50) a (50,50): √(100²+100²) = 141,42 -> 141.
+        $this->assertSame(141, MapaFertways::distancia(-50, -50, 50, 50));
+    }
+
+    /**
+     * As faixas concêntricas do D-51 saem da distância euclidiana **exata** ao centro, não da
+     * arredondada do frete. É a distinção que preserva o disco de 48 células — e é aceito que
+     * "distância 4" queira dizer coisas diferentes no mapa e na conta do tributo.
+     */
+    #[Test]
+    public function as_faixas_concentricas_seguem_a_distancia_exata(): void
+    {
+        $this->assertSame('capital', MapaFertways::faixaDe(0, 0));
+        $this->assertSame('founder', MapaFertways::faixaDe(4, 0));   // d = 4, dentro
+        $this->assertSame('anel', MapaFertways::faixaDe(3, 3));      // d = 4,24, fora do disco
+        $this->assertSame('anel', MapaFertways::faixaDe(4, 3));      // d = 5, borda do anel
+        $this->assertSame('periferia', MapaFertways::faixaDe(4, 4)); // d = 5,66, fora do anel
+        $this->assertSame('periferia', MapaFertways::faixaDe(50, 50));
+
+        // A conta do tributo (arredondada) discorda de propósito: floor(4,24+0,5)=4.
+        $this->assertSame(4, MapaFertways::distancia(0, 0, 3, 3));
+    }
+
+    /**
+     * O disco de founders: 48 células, 28 populáveis + 20 reservadas (D-51), em ordem canônica
+     * e determinística — dois ambientes têm de gerar o mesmo mapa.
+     */
+    #[Test]
+    public function o_disco_de_founders_tem_48_celulas_28_populaveis(): void
+    {
+        $slots = MapaFertways::slotsFounder();
+        $reservados = array_filter($slots, fn (array $s) => $s['reservado']);
+
+        $this->assertCount(48, $slots);
+        $this->assertCount(20, $reservados);
+        $this->assertCount(28, array_filter($slots, fn (array $s) => ! $s['reservado']));
+
+        // Toda célula do disco é founder; nenhuma além dele.
+        foreach ($slots as $s) {
+            $this->assertSame('founder', MapaFertways::faixaDe($s['x'], $s['y']));
+        }
+
+        // Fundável = founder populável OU periferia; nunca Capital, anel ou reservado.
+        $this->assertFalse(MapaFertways::podeFundar(0, 0));       // Capital
+        $this->assertFalse(MapaFertways::podeFundar(3, 3));       // anel
+        $this->assertFalse(MapaFertways::podeFundar(1, 0));       // founder reservado (índice 0)
+        $this->assertTrue(MapaFertways::podeFundar(0, 1));        // founder populável (índice 1)
+        $this->assertTrue(MapaFertways::podeFundar(50, 50));      // periferia
+        $this->assertFalse(MapaFertways::podeFundar(51, 0));      // fora do mapa
     }
 }

@@ -39,8 +39,9 @@ class DiretorioDeColoniasTest extends TestCase
     private function colonia(string $nick, int $x, int $y): Colony
     {
         $user = User::factory()->create(['email' => "{$nick}@t.test", 'nickname' => $nick]);
-        $colony = app(CreateColony::class)->handle($user, "Colônia {$nick}");
-        $colony->forceFill(['x' => $x, 'y' => $y])->save();
+        // O colono escolhe a célula (D-51). A ordenação do diretório é por distância entre
+        // colônias, invariante por translação: mudar a Capital de lugar não altera a lista.
+        $colony = app(CreateColony::class)->handle($user, "Colônia {$nick}", $x, $y);
 
         return $colony->fresh();
     }
@@ -81,10 +82,10 @@ class DiretorioDeColoniasTest extends TestCase
     #[Test]
     public function ordena_do_mais_perto_ao_mais_longe(): void
     {
-        $eu = $this->colonia('eu', 50, 50);
-        $this->colonia('longe', 90, 90);
-        $this->colonia('perto', 52, 50);
-        $this->colonia('medio', 60, 50);
+        $eu = $this->colonia('eu', 10, 10);
+        $this->colonia('longe', 40, 40);   // dist 42
+        $this->colonia('perto', 12, 10);   // dist 2
+        $this->colonia('medio', 20, 10);   // dist 10
 
         $this->assertSame(
             ['perto', 'medio', 'longe'],
@@ -99,9 +100,9 @@ class DiretorioDeColoniasTest extends TestCase
     #[Test]
     public function empate_de_distancia_desempata_pelo_id_e_nao_oscila(): void
     {
-        $eu = $this->colonia('eu', 50, 50);
-        $norte = $this->colonia('norte', 50, 40);
-        $sul = $this->colonia('sul', 50, 60);
+        $eu = $this->colonia('eu', 10, 30);
+        $norte = $this->colonia('norte', 10, 20);   // dist 10
+        $sul = $this->colonia('sul', 10, 40);       // dist 10
 
         $this->assertSame(10, $this->listar($eu)[0]['distance']);
         $this->assertSame(10, $this->listar($eu)[1]['distance']);

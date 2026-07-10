@@ -54,8 +54,9 @@ class AcordoDeTrocaTest extends TestCase
     private function colonia(string $email, string $nick, int $x, int $y): Colony
     {
         $user = User::factory()->create(['email' => $email, 'nickname' => $nick]);
-        $colony = app(CreateColony::class)->handle($user, "Colônia {$nick}");
-        $colony->forceFill(['x' => $x, 'y' => $y])->save();
+        // O colono escolhe a célula (D-51). As coords dos testes são de periferia — fundáveis —
+        // e a distância entre colônias, que é o que importa aqui, independe de onde fica a Capital.
+        $colony = app(CreateColony::class)->handle($user, "Colônia {$nick}", $x, $y);
 
         return $colony->fresh();
     }
@@ -329,7 +330,7 @@ class AcordoDeTrocaTest extends TestCase
     public function despacho_apontando_acordo_alheio_e_recusado(): void
     {
         [$a, $b] = $this->duasColonias();
-        $c = $this->colonia('c@t.test', 'gama', 70, 10);
+        $c = $this->colonia('c@t.test', 'gama', 20, 30);
         $this->abastecer($a, ['bioenergia_curativa' => 5_000, 'energia' => 5_000]);
 
         $acordo = $this->acordoGordo($a, $b);

@@ -63,25 +63,27 @@ O MVP tem, funcionando e no ar em `https://fertways.tars.art.br`:
     fila com o relógio das 48 h. **Ela publica a pena tabelada antes do julgamento** e só lhe oferece
     "Procedente" e "Improcedente": a pena não é escolha dele (§26.8, D-49).
 
-**169 testes, 1807 asserções, verdes.** O cron do tick está instalado (crontab do usuário
+**174 testes, 1892 asserções, verdes.** O cron do tick está instalado (crontab do usuário
 `fertways`, log em `/home/fertways/logs/fertways-tick.log`) e roda o `artisan` **da cópia de
 deploy** — o mundo avança sozinho. O tick faz: produção, upgrades, proteções, trechos de viagem,
 acordos vencidos, **casos reatribuídos, janelas de apelação fechadas e a folha do Ministério**.
 
 As telas têm **teste de ponta a ponta em navegador de verdade**: `npm run e2e` (ou
 `./tools/e2e.sh`) sobe uma pilha efêmera (SQLite temporário + `artisan serve` + `vite dev`) e dirige
-o Chromium do sistema com `puppeteer-core`. Mapa e Frota, Mercado, Acordo e Ministério. Nunca toca
-produção nem o MariaDB. A **receita da Oficina não tem e2e**: o painel está atrás de um clique num
-hexágono do Phaser, e acertá-lo por coordenada quebraria ao primeiro ajuste de layout. A API dela é
-coberta em PHP.
+o Chromium do sistema com `puppeteer-core`. Mapa e Frota, Mercado, Acordo, Ministério e a Fundação.
+Nunca toca produção nem o MariaDB. A **receita da Oficina não tem e2e**: o painel está atrás de um
+clique num hexágono do Phaser, e acertá-lo por coordenada quebraria ao primeiro ajuste de layout. A
+API dela é coberta em PHP.
 
-Os quatro arquivos (`e2e/{telas,mercado,acordos,ministerio}.e2e.mjs`) compartilham o andaime de
-`e2e/comum.mjs` **e o mesmo banco efêmero**, então a ordem em que `e2e.sh` os chama importa: o de
-Mapa e Frota vem primeiro, porque espera os três furgões ociosos; o do Mercado deixa dois em rota, e
-o do Acordo despacha o terceiro.
+Os **cinco** arquivos (`e2e/{telas,mercado,acordos,ministerio,fundacao}.e2e.mjs`) compartilham o
+andaime de `e2e/comum.mjs` **e o mesmo banco efêmero**, então a ordem em que `e2e.sh` os chama
+importa: o de Mapa e Frota vem primeiro, porque espera os três furgões ociosos; o do Mercado deixa
+dois em rota; o do Acordo despacha o terceiro; e o da **Fundação vem por último**, porque registra um
+colono e funda uma quinta colônia — rodar antes bagunçaria as contagens das telas anteriores.
 
-> O e2e semeia **quatro** colônias (e2e, vizinha, ré, autora). O mapa, visto pelo colono do e2e,
-> desenha três vizinhas mais ele. Já me enganei uma vez esperando duas.
+> O e2e semeia **quatro** colônias (e2e em (0,3), vizinha em (0,6), ré, autora); o teste da Fundação
+> acrescenta a quinta no fim. O mapa, visto pelo colono do e2e antes disso, desenha três vizinhas
+> mais ele. Já me enganei uma vez esperando duas.
 
 > **Instabilidade conhecida:** o do Mercado falhou uma vez em quatro com `Protocol error
 > (Runtime.getProperties): Target closed`. Verde nas outras três. Se reprovar assim, rode de novo
@@ -111,27 +113,32 @@ o do Acordo despacha o terceiro.
 
 ## O trabalho em curso: mapa concêntrico + zonas neutras + Drone
 
-Decidido em 2026-07-10, **nada escrito ainda**. Leia **D-51** (o mapa) e **D-52** (zonas neutras e
-o Drone) antes de tocar em qualquer coisa. O escopo é grande e são várias sessões:
+Leia **D-51** (o mapa) e **D-52** (zonas neutras e o Drone). O escopo é grande e são várias sessões.
 
-- Grade **101×101**, Capital em **(0,0)**, coordenadas **com sinal** (hoje é 100×100, Capital em
-  (50,50), `tinyint unsigned`). Founders no disco `d ≤ 4` (48 células: 28 populáveis + 20
-  reservados, alternados); anel livre `4 < d ≤ 5`; periferia `d > 5`.
-- O colono **escolhe** a célula. O sorteio do `EscolherPosicao` morre — e com ele a razão que o
-  D-29 dava para sorteá-la. O privilégio do founder é o desenho, não um bug.
+**O mapa (D-51) — Fatia 1 escrita e verde em dev (2026-07-10), produção ainda intocada.** Já está:
+- Grade **101×101**, Capital em **(0,0)**, coordenadas **com sinal** (`tinyint`). Founders no disco
+  `d ≤ 4` (48 células: 28 populáveis + 20 reservados); anel livre `4 < d ≤ 5`; periferia `d > 5`.
+  Tudo em `MapaFertways`, com o `distancia()` **do frete intacto** (half-up); as faixas usam a exata.
+- O colono **escolhe** a célula: `EscolherPosicao` apagado, `POST /colony` recebe `x,y`, `GET /map`
+  serve o seletor, e o novo `Fundacao.tsx` é o seletor visual (disco ampliado + aba de periferia).
+- A migration de coordenada com sinal foi **aplicada em dev** (fertwaysdev, MariaDB, vazio).
+
+**Falta a Fatia 2 (produção) — espera aprovação e reconferência.** Ver D-51. Ainda por fazer:
+- Comando guardado de **realocação** das 4 colônias para slots de founder. Conferido em 2026-07-10
+  que os quatro veículos estavam ociosos — **reconfira antes de mover** (uma viagem em curso apontaria
+  para uma distância que já não existe).
+- `artisan migrate` no `fertwaysbd` e `sudo ./tools/deploy.sh`.
+
+**Zonas neutras + Drone (D-52), depois do mapa:**
+- Base horária da extração **arbitrada em 100/h** (2026-07-10). Restam as outras lacunas do D-52.
 - **120 zonas neutras** em 4 distritos de 30 (6×5) encostados nos cantos. Guerra do §27 incluída.
-- As 4 colônias de produção são **realocadas** para slots de founder. Conferido em 2026-07-10: os
-  quatro veículos estavam ociosos, sem viagem em curso. **Reconfira antes de mover.**
 - O gate do Marco (§05) fica **suspenso**, por decisão do usuário.
 
 ## Perguntas em aberto — faça estas ao usuário ao retomar
 
 1. **As dez lacunas do D-52 precisam de arbitragem, e travam a implementação.** Não invente nenhuma.
-   As quatro que bloqueiam primeiro:
-   - **Base horária da extração** da zona neutra. Âncoras publicadas: 15/h (Mina Local, "produção
-     modesta"), 60/h (bônus de Metal Bruto da Mina Governamental), 100/h (Alumínio governamental,
-     "produção alta"). Numa conversa anterior o usuário inclinou-se para **60/h**, mas a pergunta
-     foi retirada antes de ele confirmar — **pergunte de novo**.
+   A base horária da extração **já foi arbitrada em 2026-07-10: 100/h** (ver D-52, lacuna 1). As três
+   que bloqueiam primeiro agora:
    - **Drone: velocidade, raio de revelação e persistência.** Publicadas: Furgão 4 slots/min,
      Caminhão 1,5, Nave Planetária 10. O Drone não carrega nada e o GDD cala a sua velocidade.
    - **Os três requisitos de ocupação** (§07). Só o primeiro tem âncora: "20 a 150+" robôs.

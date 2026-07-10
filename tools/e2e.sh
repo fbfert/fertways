@@ -60,10 +60,10 @@ $u = App\Models\User::create([
     "email" => "e2e@fertways.test",
     "password" => Illuminate\Support\Facades\Hash::make("segredo-forte-123"),
 ]);
-$c = app(App\Domain\Colony\CreateColony::class)->handle($u, "Colônia e2e");
+// Slot de founder (0,3): perto da Capital (0,0), a 3 slots — o despacho cabe em poucos minutos
+// e em pouca energia. O colono escolhe a célula (D-51); aqui o seeder escolhe por ele.
+$c = app(App\Domain\Colony\CreateColony::class)->handle($u, "Colônia e2e", 0, 3);
 
-// Perto da Capital: o despacho tem de caber em poucos minutos e em pouca energia.
-$c->forceFill(["x" => 48, "y" => 50])->save();
 $c->resources()->where("resource_type", "metal_bruto")->update(["amount" => 1000]);
 $c->resources()->where("resource_type", "energia")->update(["amount" => 1000]);
 
@@ -81,14 +81,13 @@ foreach ([1, 2] as $ignorado) {
     ]);
 }
 
-// Uma vizinha, para o diretório de colônias ter o que listar. A 3 slots de (48,50).
+// Uma vizinha, para o diretório de colônias ter o que listar. Em (0,6): a 3 slots de (0,3).
 $v = App\Models\User::create([
     "name" => "Vizinha", "nickname" => "vizinha",
     "email" => "vizinha@fertways.test",
     "password" => Illuminate\Support\Facades\Hash::make("segredo-forte-123"),
 ]);
-$cv = app(App\Domain\Colony\CreateColony::class)->handle($v, "Colônia vizinha");
-$cv->forceFill(["x" => 45, "y" => 50])->save();
+$cv = app(App\Domain\Colony\CreateColony::class)->handle($v, "Colônia vizinha", 0, 6);
 
 /*
  * Um acordo já proposto **pela vizinha**, para o colono do e2e ter o que aceitar: só a contraparte
@@ -127,8 +126,7 @@ foreach ([["ré", 10, 10], ["autora", 11, 10]] as [$nick, $x, $y]) {
         "email" => "{$nick}@fertways.test",
         "password" => Illuminate\Support\Facades\Hash::make("segredo-forte-123"),
     ]);
-    $colonias[$nick] = app(App\Domain\Colony\CreateColony::class)->handle($usuario, "Colônia {$nick}");
-    $colonias[$nick]->forceFill(["x" => $x, "y" => $y])->save();
+    $colonias[$nick] = app(App\Domain\Colony\CreateColony::class)->handle($usuario, "Colônia {$nick}", $x, $y);
 }
 
 $entreElas = app(App\Domain\Trade\ProporAcordo::class)->handle(
@@ -171,10 +169,13 @@ fi
 echo "==> rodando os testes"
 cd "$RAIZ/frontend"
 
-# Nesta ordem, e não noutra: os quatro compartilham o mesmo banco efêmero. O de Mapa e Frota vem
-# primeiro porque espera os três furgões ociosos, no pátio; o do Mercado deixa dois em rota, e o do
-# Acordo despacha o terceiro.
+# Nesta ordem, e não noutra: compartilham o mesmo banco efêmero. O de Mapa e Frota vem primeiro
+# porque espera os três furgões ociosos, no pátio; o do Mercado deixa dois em rota, e o do Acordo
+# despacha o terceiro. O da Fundação vem por último: funda uma quinta colônia, que mudaria as
+# contagens de colônias das telas anteriores.
 E2E_URL="http://127.0.0.1:$PORTA_WEB" node e2e/telas.e2e.mjs
 E2E_URL="http://127.0.0.1:$PORTA_WEB" node e2e/mercado.e2e.mjs
 E2E_URL="http://127.0.0.1:$PORTA_WEB" node e2e/acordos.e2e.mjs
 E2E_URL="http://127.0.0.1:$PORTA_WEB" node e2e/ministerio.e2e.mjs
+# Por último: funda uma quinta colônia pelo seletor do D-51, o que mexeria nas contagens acima.
+E2E_URL="http://127.0.0.1:$PORTA_WEB" node e2e/fundacao.e2e.mjs

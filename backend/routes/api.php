@@ -23,6 +23,10 @@ Route::middleware('auth:sanctum')->group(function () {
     // é inalcançável pela UI: o jogador não tem como descobrir o `id` de ninguém.
     Route::get('/colonies', [ColonyController::class, 'index']);
 
+    // O mapa para o seletor de fundação (D-51): geometria + slots de founder + células ocupadas.
+    // Não exige colônia — é o que o colono vê para escolher onde fundar.
+    Route::get('/map', [ColonyController::class, 'map']);
+
     Route::get('/buildings', [BuildingController::class, 'specs']);
     Route::post('/buildings/{building}/upgrade', [BuildingController::class, 'upgrade']);
     Route::get('/recipes', [BuildingController::class, 'recipes']);

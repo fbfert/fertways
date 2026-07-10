@@ -41,11 +41,11 @@ try {
   await (await acharPorTexto(page, 'button', /^Mapa$/)).click()
   checar(await esperarTexto(page, /Fertways/), 'o painel do Mapa abre')
 
-  // O seeder põe o colono em (48,50) e a Capital fica em (50,50): 2 slots.
-  checar(await esperarTexto(page, /Grade 100×100/), 'o mapa diz o lado da grade, vindo da API')
-  checar(await esperarTexto(page, /Capital em \(50, 50\)/), 'o mapa diz onde é a Capital')
-  checar(await esperarTexto(page, /Você em \(48, 50\)/), 'o mapa diz onde você está')
-  checar(await esperarTexto(page, /2 slots dela/), 'calcula a distância até a Capital')
+  // O seeder põe o colono no slot de founder (0,3) e a Capital fica em (0,0): 3 slots (D-51).
+  checar(await esperarTexto(page, /Grade 101×101/), 'o mapa diz o lado da grade, vindo da API')
+  checar(await esperarTexto(page, /Capital em \(0, 0\)/), 'o mapa diz onde é a Capital')
+  checar(await esperarTexto(page, /Você em \(0, 3\)/), 'o mapa diz onde você está')
+  checar(await esperarTexto(page, /3 slots dela/), 'calcula a distância até a Capital')
 
   console.log('\nO mapa desenha')
   const svg = await page.$('svg[data-mapa]')
@@ -64,8 +64,8 @@ try {
   await assentar()
 
   const texto = await textoDaPagina(page)
-  checar(/\(45, 50\)/.test(texto), 'clicar mostra a posição da vizinha')
-  // (48,50) até (45,50) são 3 slots exatos.
+  checar(/\(0, 6\)/.test(texto), 'clicar mostra a posição da vizinha')
+  // (0,3) até (0,6) são 3 slots exatos.
   checar(/3 slots/.test(texto), 'clicar mostra a distância até a vizinha')
   checar(/não é o Marco do GDD/.test(texto), 'o porte é rotulado como porte, não como Marco (D-38)')
 
@@ -75,7 +75,7 @@ try {
   console.log('\nFecha o Mapa')
   await (await acharPorTexto(page, 'button', /^×$/)).click()
   await assentar()
-  checar(!(await textoDaPagina(page)).includes('Grade 100×100'), 'o Mapa fecha')
+  checar(!(await textoDaPagina(page)).includes('Grade 101×101'), 'o Mapa fecha')
 
   // ---------------------------------------------------------------- Frota
   console.log('\nAbre a Frota')

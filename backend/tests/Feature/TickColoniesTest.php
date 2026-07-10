@@ -24,10 +24,13 @@ class TickColoniesTest extends TestCase
         $this->seed(\Database\Seeders\BuildingSpecSeeder::class);
     }
 
+    private int $proximoSlot = 0;
+
     private function colono(): User
     {
         $user = User::factory()->create();
-        app(CreateColony::class)->handle($user, 'Nova Aurora');
+        // Célula de periferia, uma por colônia (D-51: o colono escolhe; aqui o teste escolhe por ele).
+        app(CreateColony::class)->handle($user, 'Nova Aurora', 10 + $this->proximoSlot++, 20);
 
         return $user->fresh();
     }
@@ -288,7 +291,7 @@ class TickColoniesTest extends TestCase
     {
         $a = $this->colono();
         $b = User::factory()->create();
-        app(CreateColony::class)->handle($b, 'Segunda');
+        app(CreateColony::class)->handle($b, 'Segunda', 10 + $this->proximoSlot++, 20);
 
         foreach ([$a, $b->fresh()] as $u) {
             $this->erguer($u, 'gerador_de_atmosfera', 1);

@@ -51,8 +51,11 @@ class MinisterioDasReputacoesTest extends TestCase
     private function colonia(string $nick, ?int $x = null, ?int $y = null): Colony
     {
         $user = User::factory()->create(['email' => "{$nick}@t.test", 'nickname' => $nick]);
-        $colony = app(CreateColony::class)->handle($user, "Colônia {$nick}");
-        $colony->forceFill(['x' => $x ?? 10 + 2 * $this->proximoSlot++, 'y' => $y ?? 10])->save();
+        // Um slot de periferia por colônia (D-51: o colono escolhe a célula). Coords ≥ 10 nunca
+        // caem no disco de founders nem no anel, então são sempre fundáveis.
+        $colony = app(CreateColony::class)->handle(
+            $user, "Colônia {$nick}", $x ?? 10 + 2 * $this->proximoSlot++, $y ?? 10,
+        );
 
         return $colony->fresh();
     }

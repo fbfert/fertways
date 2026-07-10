@@ -112,6 +112,28 @@ export type Diretorio = {
   colonies: ColoniaVizinha[]
 }
 
+/** Um dos 48 slots de founder do disco central (D-51). */
+export type SlotFounder = {
+  x: number
+  y: number
+  reservado: boolean
+  ocupado: boolean
+}
+
+/**
+ * O mapa para o seletor de fundação (`GET /map`): geometria, os slots de founder e as células
+ * já ocupadas. Serve o colono que ainda não fundou — por isso não traz `me`.
+ */
+export type MapaFundacao = {
+  side: number
+  raio: number
+  capital: { x: number; y: number }
+  raio_founder: number
+  raio_anel: number
+  founder_slots: SlotFounder[]
+  colonias: { x: number; y: number }[]
+}
+
 export type ItemDaFila = {
   building: string
   target_level: number
@@ -298,8 +320,11 @@ export const api = {
    */
   colonias: () => req<Diretorio>('/colonies'),
 
-  fundarColonia: (name: string) =>
-    req<Colonia>('/colony', { method: 'POST', body: JSON.stringify({ name }) }),
+  /** O mapa para o seletor de fundação (D-51): slots de founder e células ocupadas. */
+  mapaDeFundacao: () => req<MapaFundacao>('/map'),
+
+  fundarColonia: (name: string, x: number, y: number) =>
+    req<Colonia>('/colony', { method: 'POST', body: JSON.stringify({ name, x, y }) }),
 
   construcoes: () => req<Spec[]>('/buildings'),
 

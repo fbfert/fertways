@@ -25,10 +25,13 @@ class ComponentRecipesTest extends TestCase
         $this->seed(\Database\Seeders\BuildingSpecSeeder::class);
     }
 
+    private int $proximoSlot = 0;
+
     private function colono(): User
     {
         $user = User::factory()->create();
-        app(CreateColony::class)->handle($user, 'Nova Aurora');
+        // Periferia, uma célula por colônia (D-51).
+        app(CreateColony::class)->handle($user, 'Nova Aurora', 10 + $this->proximoSlot++, 20);
 
         return $user->fresh();
     }

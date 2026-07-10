@@ -1225,7 +1225,32 @@ não importa; quando o servidor abrir, é o primeiro número a revisitar.
 ---
 
 ## D-51 — O mapa concêntrico: Capital em (0,0), founders, anel livre, periferia e distritos.
-**Data:** 2026-07-10 · **Status:** decidido pelo usuário (fora do GDD) · **Revoga parte do D-29**
+**Data:** 2026-07-10 · **Status:** Fatia 1 (código) **implementada em dev**; Fatia 2 (produção)
+pendente · **Revoga parte do D-29**
+
+> **Implementação (2026-07-10).** A **Fatia 1** está pronta e verde em dev — grade, faixas,
+> fim do sorteio e o seletor visual — **sem tocar produção**. O que foi feito:
+> - `MapaFertways`: `LADO` 101, `CAPITAL` (0,0), `dentroDoMapa` por `|coord| ≤ 50`, `distanciaExata`,
+>   `faixaDe`, `slotsFounder` (48 = 28 populáveis + 20 reservados, ordem canônica determinística) e
+>   `podeFundar`. O `distancia()` **half-up do frete continua intacto** — as faixas usam a exata; é
+>   a distinção que dá ao disco as suas 48 células.
+> - Migration `2026_07_10_160000_mapa_concentrico_coordenadas_com_sinal`: `colonies.x/y` de
+>   `tinyint unsigned` para `tinyint` com sinal, deslocando as linhas existentes −50 (com o
+>   `unique(x,y)` derrubado durante o UPDATE). **Aplicada em dev (MariaDB), banco vazio** — valida a
+>   migration contra o mesmo SGBD da produção.
+> - Fundação por escolha: `EscolherPosicao` **apagado**; `CreateColony` e `POST /colony` recebem
+>   `x,y` e recusam com erro de domínio (`celula_invalida` / `celula_ocupada`) o que não for slot de
+>   founder populável ou periferia livre.
+> - `GET /map`: geometria + os 48 slots (reservado/ocupado) + células ocupadas, para o seletor —
+>   não exige colônia.
+> - Frontend: `Mapa.tsx` remapeado para coords com sinal e Capital no centro; novo `Fundacao.tsx`,
+>   o seletor visual (disco de founders ampliado + aba de periferia com clique→célula).
+> - Testes: **174 PHP verdes** e os **cinco** e2e verdes (incluindo `fundacao.e2e.mjs` novo).
+>
+> Falta a **Fatia 2**, que toca produção e **espera aprovação do usuário**: comando guardado de
+> realocação das 4 colônias para slots de founder (só com veículos ociosos — **reconferir**),
+> `artisan migrate` no `fertwaysbd`, e `sudo ./tools/deploy.sh`.
+
 
 O GDD continua sem definir o mapa — o D-29 já registrava isso. O que muda aqui é que o usuário
 descreveu a geografia que quer, e ela **contradiz o sorteio do D-29**.
@@ -1337,9 +1362,12 @@ zero; quantidade de robôs por zona "20 a 150+" (§16.1); tributo na entrega em 
 
 **Lacunas — o GDD não publica. Não invente; arbitre com o usuário e registre aqui.**
 
-1. **Base horária da extração** na zona neutra. Âncoras publicadas: Mina Local 15/h ("produção
-   modesta"), bônus de Metal Bruto da Mina Governamental 60/h, Alumínio governamental 100/h
-   ("produção alta"). Sem esta base, a zona neutra não rende nada.
+1. ~~**Base horária da extração** na zona neutra.~~ **Arbitrado pelo usuário em 2026-07-10: 100/h**,
+   a âncora do Alumínio governamental ("produção alta"). Numa conversa anterior o usuário inclinara-se
+   para 60/h, mas a pergunta fora retirada antes de confirmar; ao retomar, escolheu 100/h. As âncoras
+   que estavam em jogo: Mina Local 15/h ("produção modesta"), bônus de Metal Bruto da Mina
+   Governamental 60/h, Alumínio governamental 100/h ("produção alta"). É a **base**; a curva por nível
+   é a do §19.1 (`Base × 1,5^(N−1)`).
 2. **O que cada zona tem no solo.** O §24.4 fala em "zonas com depósito mineral", sem dizer qual
    nem como se distribui pelas 120.
 3. **Os três requisitos de ocupação** do §07 — "unidades militares + recursos de instalação +

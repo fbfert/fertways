@@ -4,6 +4,7 @@ import type { Colonia, Fila, Spec } from './api/client'
 import { ColonyCanvas } from './game/ColonyCanvas'
 import { Acordos } from './ui/Acordos'
 import { Frota } from './ui/Frota'
+import { Fundacao } from './ui/Fundacao'
 import { Login } from './ui/Login'
 import { Mapa } from './ui/Mapa'
 import { Marca } from './ui/Marca'
@@ -22,7 +23,6 @@ export default function App() {
   const [selecionada, setSelecionada] = useState<Spec | null>(null)
   const [erro, setErro] = useState<string | null>(null)
   const [semColonia, setSemColonia] = useState(false)
-  const [nome, setNome] = useState('')
   const [mercadoAberto, setMercadoAberto] = useState(false)
   const [acordosAberto, setAcordosAberto] = useState(false)
   const [ministerioAberto, setMinisterioAberto] = useState(false)
@@ -104,49 +104,16 @@ export default function App() {
   if (!autenticado) return <Login aoEntrar={() => setAutenticado(true)} />
 
   if (semColonia) {
+    // O colono escolhe a célula (D-51): o seletor visual substitui o antigo formulário só-de-nome.
     return (
-      <div className="flex min-h-screen items-center justify-center p-6">
-        <div className="painel bg-sand-light w-full max-w-md p-8">
-          <Marca />
-          <h1 className="text-ink mt-8 text-2xl font-black">Funde sua colônia.</h1>
-          <p className="text-ink-soft mt-2 text-sm">
-            Você chega com 50 Fert$ e um Furgão de Comércio.
-          </p>
-          <form
-            className="mt-5 space-y-3"
-            onSubmit={async (e) => {
-              e.preventDefault()
-              setErro(null)
-              try {
-                await api.fundarColonia(nome)
-                await carregar()
-              } catch (err) {
-                setErro(err instanceof ApiError ? err.message : 'Falha ao fundar.')
-              }
-            }}
-          >
-            <input
-              className="border-rust/25 bg-sand w-full border px-3 py-2 outline-none focus:border-rust"
-              placeholder="Nome da colônia"
-              value={nome}
-              onChange={(e) => setNome(e.target.value)}
-              required
-              minLength={3}
-            />
-            {erro && <p className="text-rust text-sm">{erro}</p>}
-            <button className="bg-rust text-sand-light hover:bg-rust-bright w-full py-3 font-bold">
-              Fundar
-            </button>
-          </form>
-
+      <div className="relative min-h-screen">
+        <div className="absolute right-4 top-4 z-10">
           {/* Sem isto, quem entra e ainda não fundou colônia não tem como sair da conta. */}
-          <button
-            onClick={() => void sair()}
-            className="text-ink-soft hover:text-rust mt-5 text-xs"
-          >
+          <button onClick={() => void sair()} className="text-ink-soft hover:text-rust text-xs">
             Sair
           </button>
         </div>
+        <Fundacao aoFundar={carregar} />
       </div>
     )
   }

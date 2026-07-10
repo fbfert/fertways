@@ -22,7 +22,7 @@ use Tests\TestCase;
 /**
  * Conta do colono no Mercado Central (GDD §25.8): depósito, retirada e o tributo de cada um.
  *
- * A colônia fica em (50,20): 30 slots até a Capital, uma célula da tabela do §25.6. Furgão a 4
+ * A colônia fica em (30,0): 30 slots até a Capital (0,0), uma célula da tabela do §25.6. Furgão a 4
  * slots/min → 7,5 min por trecho, 15 min na viagem inteira, 15 kWh de energia.
  */
 class MercadoCentralTest extends TestCase
@@ -41,8 +41,8 @@ class MercadoCentralTest extends TestCase
     private function colonia(): Colony
     {
         $user = User::factory()->create(['email' => 'm@t.test', 'nickname' => 'mercante']);
-        $colony = app(CreateColony::class)->handle($user, 'Colônia mercante');
-        $colony->forceFill(['x' => 50, 'y' => 20])->save();
+        // (30,0): 30 slots exatos até a Capital, agora em (0,0) (D-51). Periferia, fundável.
+        $colony = app(CreateColony::class)->handle($user, 'Colônia mercante', 30, 0);
 
         return $colony->fresh();
     }

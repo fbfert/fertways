@@ -46,8 +46,9 @@ class LogisticaTest extends TestCase
     private function colonia(string $email, string $nick, int $x, int $y): Colony
     {
         $user = User::factory()->create(['email' => $email, 'nickname' => $nick]);
-        $colony = app(CreateColony::class)->handle($user, "Colônia {$nick}");
-        $colony->forceFill(['x' => $x, 'y' => $y])->save();
+        // O colono escolhe a célula (D-51): as coordenadas entram na fundação, não são
+        // sorteadas e depois sobrescritas. As usadas nos testes são de periferia — fundáveis.
+        $colony = app(CreateColony::class)->handle($user, "Colônia {$nick}", $x, $y);
 
         return $colony->fresh();
     }
@@ -188,19 +189,5 @@ class LogisticaTest extends TestCase
         $this->assertSame(1, Ledger::where('type', 'tributo')->count());
 
         Carbon::setTestNow();
-    }
-
-    #[Test]
-    public function toda_colonia_nasce_com_coordenada_unica_fora_da_capital(): void
-    {
-        $c = $this->colonia('c@t.test', 'gama', 7, 7);
-        $this->assertNotNull($c->x);
-        $this->assertNotNull($c->y);
-
-        $novo = User::factory()->create(['email' => 'd@t.test', 'nickname' => 'delta']);
-        $outra = app(CreateColony::class)->handle($novo, 'Colônia delta');
-
-        $this->assertFalse($outra->x === 50 && $outra->y === 50, 'ninguém funda sobre a Capital');
-        $this->assertFalse($outra->x === $c->x && $outra->y === $c->y, 'coordenada colidiu');
     }
 }

@@ -2,7 +2,8 @@
 
 namespace App\Domain\Colony;
 
-use App\Domain\Logistics\EscolherPosicao;
+use App\Domain\Logistics\MapaFertways;
+use App\Exceptions\DomainRuleException;
 use App\Models\Building;
 use App\Models\Colony;
 use App\Models\Ledger;
@@ -31,13 +32,30 @@ use Illuminate\Support\Facades\DB;
  */
 class CreateColony
 {
-    public function __construct(private readonly EscolherPosicao $posicao) {}
-
-    public function handle(User $user, string $nome): Colony
+    /**
+     * @param  int  $x  coluna escolhida pelo colono, com sinal (D-51)
+     * @param  int  $y  linha escolhida pelo colono, com sinal (D-51)
+     */
+    public function handle(User $user, string $nome, int $x, int $y): Colony
     {
-        return DB::transaction(function () use ($user, $nome) {
+        // O sorteio do D-29 morreu (D-51): o colono escolhe a célula, e o privilégio do founder
+        // — ficar perto do Mercado — é o desenho, não um efeito colateral. Aqui só se confere que
+        // a escolha é legítima: slot de founder populável ou periferia, nunca Capital, anel ou
+        // reservado. A colisão com colônia já instalada é a segunda trava; o `unique(x,y)` é a
+        // terceira, contra a corrida de dois colonos pedindo a mesma célula no mesmo instante.
+        if (! MapaFertways::podeFundar($x, $y)) {
+            throw new DomainRuleException(
+                'celula_invalida',
+                'Esta célula não pode ser fundada: escolha um slot de founder livre ou a periferia.',
+            );
+        }
+
+        if (Colony::where('x', $x)->where('y', $y)->exists()) {
+            throw new DomainRuleException('celula_ocupada', 'Já há uma colônia nesta célula.');
+        }
+
+        return DB::transaction(function () use ($user, $nome, $x, $y) {
             $agora = now();
-            [$x, $y] = $this->posicao->handle();
 
             $colony = Colony::create([
                 'user_id' => $user->id,

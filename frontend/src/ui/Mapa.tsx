@@ -31,14 +31,15 @@ export function Mapa({ aoFechar }: { aoFechar: () => void }) {
   }, [])
 
   /*
-   * Da coordenada de jogo para a do SVG. `side` é o número de células; a célula `i` ocupa o
-   * intervalo [i, i+1), então o centro dela é `i + 0,5`. Sem o meio, os marcadores encostam no
-   * canto superior esquerdo da própria célula, e a Capital não fica no centro do desenho.
+   * Da coordenada de jogo para a do SVG. As coordenadas têm sinal e a Capital fica em (0,0) no
+   * centro (D-51); `side` é o número de células (ímpar), então elas vão de −(side−1)/2 a +(side−1)/2.
+   * O `+ metade` recentra o zero no meio do desenho, e o `+ 0,5` põe o marcador no centro da célula,
+   * não no seu canto.
    *
    * O eixo Y é invertido: no SVG ele cresce para baixo, e num mapa cresce para cima.
    */
-  const px = (v: number, side: number) => ((v + 0.5) / side) * LADO_SVG
-  const py = (v: number, side: number) => LADO_SVG - ((v + 0.5) / side) * LADO_SVG
+  const px = (v: number, side: number) => ((v + Math.floor(side / 2) + 0.5) / side) * LADO_SVG
+  const py = (v: number, side: number) => LADO_SVG - ((v + Math.floor(side / 2) + 0.5) / side) * LADO_SVG
 
   return (
     <div className="fixed inset-0 z-20 flex items-center justify-center bg-ink/70 p-4">
@@ -210,7 +211,7 @@ function Legenda() {
   )
 }
 
-/** Dez linhas por eixo, só para dar noção de escala. Não são as células: são 100 delas por linha. */
+/** Dez linhas por eixo, só para dar noção de escala. Não são as células: são ~10 delas por linha. */
 function GradeDeFundo({ lado }: { lado: number }) {
   const passos = Array.from({ length: 9 }, (_, i) => ((i + 1) * lado) / 10)
 

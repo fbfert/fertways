@@ -26,10 +26,13 @@ class BuildQueueTest extends TestCase
     }
 
     /** Colono com tutoria concluída, colônia fundada. */
+    private int $proximoSlot = 0;
+
     private function colono(array $attrs = []): User
     {
         $user = User::factory()->create($attrs + ['tutorial_completed_at' => now()]);
-        app(CreateColony::class)->handle($user, 'Nova Aurora');
+        // Periferia, uma célula por colônia (D-51).
+        app(CreateColony::class)->handle($user, 'Nova Aurora', 10 + $this->proximoSlot++, 20);
 
         return $user->fresh();
     }
