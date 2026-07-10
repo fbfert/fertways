@@ -89,11 +89,12 @@ colono e funda uma quinta colônia — rodar antes bagunçaria as contagens das 
 > (Runtime.getProperties): Target closed`. Verde nas outras três. Se reprovar assim, rode de novo
 > antes de investigar — mas se virar hábito, é bug de verdade.
 
-**Publicado no GitHub e no ar.** Em 2026-07-10 foi empurrado e publicado o **mapa concêntrico do
-D-51** (`2a71a1c`): grade 101×101, Capital em (0,0), fundação por escolha, e a realocação das 4
-colônias. A cópia de deploy ficou nesse commit. Confira com `git log --oneline -1` nas duas árvores
-— se voltar a divergir, republique. (Antes, em 2026-07-10, saíram o `fix` da fila do D-53 e as telas
-do D-54.)
+**Publicado no GitHub e no ar.** Em 2026-07-10 foi empurrada e publicada a **Fatia 1 do D-52 —
+zonas neutras** (`0e0e3dd`): as 120 zonas em 4 distritos, ocupação/extração/retirada, e o `Mapa.tsx`
+com zoom e centralizar. O `NeutralZoneSeeder` foi rodado à mão no `fertwaysbd` (120 zonas, 4
+distritos, conferidas por leitura). A cópia de deploy ficou nesse commit. Confira com
+`git log --oneline -1` nas duas árvores — se voltar a divergir, republique. (Antes, em 2026-07-10,
+saíram o **mapa concêntrico do D-51** (`2a71a1c`), o `fix` da fila do D-53 e as telas do D-54.)
 
 > **Lição registrada (2026-07-10).** Ao conferir o D-53 em produção, enfileirei uma construção de
 > teste na colônia 4 pelo `EnqueueUpgrade`. Funcionou, mas escrever no banco de produção "para ver
@@ -128,21 +129,17 @@ houver que remanejar.
 ## O trabalho em curso: zonas neutras + Drone (D-52)
 
 Leia **D-52**. Sequência decidida: Fatia 1 = o núcleo (ocupar/extrair/retirar); Fatia 2 = a guerra
-(§27); Fatia 3 = o Drone. O mapa (pré-requisito) já está no ar.
+(§27); Fatia 3 = o Drone. O mapa (pré-requisito) e a **Fatia 1 já estão no ar** (2026-07-10).
 
-**Fatia 1 — completa e verde em dev, no GitHub; NÃO no ar ainda. Falta só o deploy.** Arbitragens
-(D-52): mineral por distrito (NE Metal Bruto, SE Água, SO Oxigênio, NO Biomassa), ocupação pesada
-(Posto de Comando 800 MB + 300 F$ + 8h + 20 Robôs Mineradores + 12h), extração 100/h. Feito: backend
-(`ZonasNeutras`, migration que estende `neutral_zones`, `NeutralZoneSeeder`, `OcuparZonaNeutra`,
-`ExtrairZonasNeutras` no tick, `retirarDeZona`, `NeutralZoneController`) e frontend (o `Mapa.tsx`
-desenha as 120 zonas, tem **zoom (+/−) e centralizar na colônia**, e o painel de zona ocupa e
-despacha a retirada). **197 testes PHP + 6 e2e verdes** (novo `zonas.e2e.mjs`).
-
-**O deploy da Fatia 1 (quando o usuário aprovar):** `sudo ./tools/deploy.sh` roda a migração
-(estende `neutral_zones`) sozinho, mas o **`NeutralZoneSeeder` NÃO roda no deploy** — é passo à
-parte, como a realocação do D-51. Rode-o à mão no `fertwaysbd`:
-`sudo -u fertways /usr/bin/php84 /home/fertways/deploy/fertways/backend/artisan db:seed --class=NeutralZoneSeeder --force`.
-Ele é idempotente (pula a célula que já existe).
+**Fatia 1 — no ar (2026-07-10).** Arbitragens (D-52): mineral por distrito (NE Metal Bruto, SE Água,
+SO Oxigênio, NO Biomassa), ocupação pesada (Posto de Comando 800 MB + 300 F$ + 8h + 20 Robôs
+Mineradores + 12h), extração 100/h. Backend (`ZonasNeutras`, migration que estende `neutral_zones`,
+`NeutralZoneSeeder`, `OcuparZonaNeutra`, `ExtrairZonasNeutras` no tick, `retirarDeZona`,
+`NeutralZoneController`) e frontend (o `Mapa.tsx` desenha as 120 zonas, tem **zoom (+/−) e centralizar
+na colônia**, e o painel de zona ocupa e despacha a retirada). **197 testes PHP + 6 e2e verdes** (novo
+`zonas.e2e.mjs`), conferidos antes do deploy. O `deploy.sh` rodou a migração; o `NeutralZoneSeeder`
+foi rodado à parte no `fertwaysbd` (não roda no deploy) — 120 zonas em 4 distritos, conferidas por
+leitura. Ele é idempotente, então repetir é seguro se um dia houver dúvida.
 
 **Fatia 2 e 3, depois:** guerra do §27 (lacunas 4 e 8) e o Drone (lacunas 5, 6, 10). O gate do Marco
 (§05) fica **suspenso**, por decisão do usuário.
