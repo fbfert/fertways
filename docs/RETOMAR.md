@@ -87,8 +87,16 @@ o do Acordo despacha o terceiro.
 > (Runtime.getProperties): Target closed`. Verde nas outras três. Se reprovar assim, rode de novo
 > antes de investigar — mas se virar hábito, é bug de verdade.
 
-**Publicado no GitHub.** `main` e `origin/main` estavam 17 commits apartados; foram empurrados em
-2026-07-09. Confira com `git status -sb` — se voltar a divergir, republique.
+**Publicado no GitHub e no ar.** Em 2026-07-10 foram empurrados e publicados o `fix` da fila
+(D-53) e as telas de Mapa, Frota e receita (D-54). A cópia de deploy está no mesmo commit que
+`main` (`ef45a3e`). Confira com `git status -sb` — se voltar a divergir, republique.
+
+> **Lição registrada (2026-07-10).** Ao conferir o D-53 em produção, enfileirei uma construção de
+> teste na colônia 4 pelo `EnqueueUpgrade`. Funcionou, mas escrever no banco de produção "para ver
+> com os próprios olhos" deixou resíduo: item de fila, marca de upgrade na Oficina e **seis
+> lançamentos no ledger**. Limpei os três, o último com autorização do usuário (apagar ledger de
+> produção é barrado por padrão, e com razão). **Não escreva em produção para verificar** — confie
+> no e2e e nos testes, ou use só leitura. Ver [[fertways-nao-escrever-em-producao-para-testar]].
 
 ## O deploy, depois do D-45
 
