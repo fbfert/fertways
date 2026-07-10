@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { api, ApiError, token } from './api/client'
 import type { Colonia, Fila, Spec } from './api/client'
 import { ColonyCanvas } from './game/ColonyCanvas'
+import { Acordos } from './ui/Acordos'
 import { Login } from './ui/Login'
 import { Marca } from './ui/Marca'
 import { Mercado } from './ui/Mercado'
@@ -20,6 +21,7 @@ export default function App() {
   const [semColonia, setSemColonia] = useState(false)
   const [nome, setNome] = useState('')
   const [mercadoAberto, setMercadoAberto] = useState(false)
+  const [acordosAberto, setAcordosAberto] = useState(false)
 
   const carregar = useCallback(async () => {
     try {
@@ -53,6 +55,7 @@ export default function App() {
     // colono vê três 401 no console ao sair.
     setAutenticado(false)
     setMercadoAberto(false)
+    setAcordosAberto(false)
     setColonia(null)
 
     try {
@@ -153,6 +156,13 @@ export default function App() {
         {colonia && (
           <div className="pointer-events-auto flex items-start gap-3">
             <button
+              onClick={() => setAcordosAberto(true)}
+              className="painel bg-sand-light text-ink hover:text-rust eyebrow px-5 py-4"
+            >
+              Acordos
+            </button>
+
+            <button
               onClick={() => setMercadoAberto(true)}
               className="painel bg-rust text-sand-light hover:bg-rust-bright eyebrow px-5 py-4"
             >
@@ -169,6 +179,16 @@ export default function App() {
           </div>
         )}
       </header>
+
+      {colonia && acordosAberto && (
+        <Acordos
+          aoFechar={() => {
+            setAcordosAberto(false)
+            // Entregar despacha carga: o estoque do HUD acabou de mudar.
+            void carregar()
+          }}
+        />
+      )}
 
       {colonia && mercadoAberto && (
         <Mercado

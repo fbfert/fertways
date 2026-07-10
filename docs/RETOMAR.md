@@ -27,21 +27,28 @@ O MVP tem, funcionando e no ar em `https://fertways.tars.art.br`:
 - **Logout de verdade**: `POST /central/logout` revoga no servidor só o token que fez a chamada.
 - **Diretório de colônias**: `GET /central/colonies`, da mais próxima à mais distante. É o que
   tornou o despacho entre colônias alcançável pela UI. Ver D-37 e D-38.
-- **Acordo de Troca (§26.5)** — **backend completo, sem tela.** `GET/POST /central/trade/agreements`,
+- **Acordo de Troca (§26.5)** — backend e tela. `GET/POST /central/trade/agreements`,
   `POST /central/trade/agreements/{id}/confirm`, `DELETE /central/trade/agreements/{id}`,
   `GET /central/trade/deadline`. Sem escrow: o calote é real e deliberado (D-40). Cumprir é
   entregar fisicamente e vale o líquido que chega (D-41). Prazo mínimo = viagem + 12 h (D-42).
   Confiança Comercial começa em 500, bloqueia abaixo de 200 (D-43).
-- Frontend: login, HUD, colônia em Phaser, e a tela do Mercado (botão no HUD).
+- Frontend: login, HUD, colônia em Phaser, a tela do Mercado e a **tela do Acordo** (dois botões no
+  HUD). A tela do Acordo propõe, aceita, recusa, desiste, mostra a Confiança Comercial contra o
+  limiar e **despacha a entrega pelo bruto**, não pelo prometido: quem embarca 100 entrega 97, e o
+  colono não deve descobrir que caloteou por três unidades de tributo (D-41).
 
 **137 testes, 1705 asserções, verdes.** O cron do tick está instalado (crontab do usuário
 `fertways`, log em `/home/fertways/logs/fertways-tick.log`) e roda o `artisan` **da cópia de
 deploy** — o mundo avança sozinho.
 
-A tela do Mercado tem **teste de ponta a ponta em navegador de verdade**: `npm run e2e` (ou
+As duas telas têm **teste de ponta a ponta em navegador de verdade**: `npm run e2e` (ou
 `./tools/e2e.sh`) sobe uma pilha efêmera (SQLite temporário + `artisan serve` + `vite dev`) e dirige
-o Chromium do sistema com `puppeteer-core`. 26 verificações. Nunca toca produção nem o MariaDB.
-**O Acordo de Troca não tem tela e não está no e2e.**
+o Chromium do sistema com `puppeteer-core`. 26 verificações no Mercado, 22 no Acordo. Nunca toca
+produção nem o MariaDB.
+
+Os dois arquivos (`e2e/mercado.e2e.mjs`, `e2e/acordos.e2e.mjs`) compartilham o andaime de
+`e2e/comum.mjs` **e o mesmo banco efêmero**, então a ordem em que `e2e.sh` os chama importa: o do
+Mercado deixa dois furgões em rota, e o do Acordo despacha o terceiro.
 
 **Publicado no GitHub.** `main` e `origin/main` estavam 17 commits apartados; foram empurrados em
 2026-07-09. Confira com `git status -sb` — se voltar a divergir, republique.
@@ -59,9 +66,7 @@ o Chromium do sistema com `puppeteer-core`. 26 verificações. Nunca toca produ�
 
 ## Perguntas em aberto — faça estas ao usuário ao retomar
 
-1. **Qual o próximo passo?** Candidatos, sem ordem decidida:
-   - **A tela do Acordo de Troca.** O backend está pronto e testado, mas nenhum colono alcança o
-     Acordo pela UI. É o único sistema do jogo sem tela. Provavelmente o mais barato e o mais útil.
+1. **Qual o próximo passo?** Candidatos, sem ordem decidida. **Todo sistema do jogo tem tela agora.**
    - **O Ministério das Reputações (§26.6–26.8)**, decidido em D-44 e **não implementado**. Avisei
      que ele depende de chat, federações, missões, terraformação, cargos e leilões — nada disso
      existe — e o usuário optou por construí-lo assim mesmo. **Antes de começar, resolva os dois

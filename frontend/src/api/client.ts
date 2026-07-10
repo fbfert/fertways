@@ -146,6 +146,46 @@ export type Livro = {
   minhas_ordens: Ordem[]
 }
 
+/**
+ * Um Acordo de Troca (§26.5), pelos olhos de quem pediu — o backend já resolve "eu" e "ele".
+ *
+ * Não há escrow (D-40): nada aqui reserva recurso. `i_still_owe` é o que falta chegar do meu lado,
+ * **líquido**; `gross_needed` é o que preciso embarcar para que aquilo chegue, já somado o tributo
+ * da entrega (D-41). Prometer 100 e despachar 100 é caloteirar por alguns pontos de tributo.
+ */
+export type Acordo = {
+  id: number
+  status: 'proposto' | 'aceito' | 'executado' | 'quebrado' | 'cancelado'
+  proposed_by_me: boolean
+  counterparty_id: number
+  deadline_at: string
+  accepted_at: string | null
+  executed_at: string | null
+  i_promise: Record<string, number>
+  they_promise: Record<string, number>
+  i_delivered: Record<string, number>
+  they_delivered: Record<string, number>
+  i_still_owe: Record<string, number>
+  gross_needed: Record<string, number>
+  value_micro: number
+  /** Abaixo do piso anti-farming do §26.3 o acordo registra histórico, mas não move o índice (D-43). */
+  moves_reputation: boolean
+}
+
+export type Acordos = {
+  /** Confiança Comercial do colono, de 0 a 1000 (§26.2). Abaixo do limiar, o Mercado fecha. */
+  confianca_comercial: number
+  limiar_mercado: number
+  agreements: Acordo[]
+}
+
+/** O prazo mínimo que o backend aceita para um acordo com esta colônia (D-42): viagem + 12 h. */
+export type PrazoMinimo = {
+  distance_slots: number
+  minimum_seconds: number
+  minimum_deadline_at: string
+}
+
 export const api = {
   register: (b: { name: string; nickname: string; email: string; password: string }) =>
     req<Sessao>('/register', { method: 'POST', body: JSON.stringify(b) }),
@@ -190,12 +230,44 @@ export const api = {
   /**
    * Leva carga do estoque ao slot de outro colono — o comércio informal do §25.7, em que os dois
    * combinam a troca por fora e o veículo faz a parte física. O tributo incide na entrega (D-32).
+   *
+   * Com `acordo`, a carga **aponta** um Acordo de Troca e abate a promessa ao chegar. Sem ele, o
+   * mesmo envio entre os mesmos colonos não abate nada: um presente casual não é pagamento, e dois
+   * acordos abertos do mesmo par se canibalizariam (D-41).
    */
-  enviarAColonia: (veiculo: number, destino: number, cargo: Record<string, number>) =>
+  enviarAColonia: (
+    veiculo: number,
+    destino: number,
+    cargo: Record<string, number>,
+    acordo?: number,
+  ) =>
     req<Veiculo>(`/vehicles/${veiculo}/dispatch`, {
       method: 'POST',
-      body: JSON.stringify({ destination_type: 'colonia', destination_id: destino, cargo }),
+      body: JSON.stringify({
+        destination_type: 'colonia',
+        destination_id: destino,
+        cargo,
+        ...(acordo === undefined ? {} : { trade_agreement_id: acordo }),
+      }),
     }),
+
+  acordos: () => req<Acordos>('/trade/agreements'),
+
+  prazoMinimoDoAcordo: (contraparte: number) =>
+    req<PrazoMinimo>(`/trade/deadline?counterparty_id=${contraparte}`),
+
+  proporAcordo: (b: {
+    counterparty_id: number
+    deadline_at: string
+    i_promise: Record<string, number>
+    they_promise: Record<string, number>
+  }) => req<Acordo>('/trade/agreements', { method: 'POST', body: JSON.stringify(b) }),
+
+  /** Só a contraparte fecha o aperto de mão: quem propôs já aderiu ao propor (§26.5). */
+  aceitarAcordo: (id: number) => req<Acordo>(`/trade/agreements/${id}/confirm`, { method: 'POST' }),
+
+  /** Recusa ou desistência, enquanto o acordo não foi aceito. Depois de aceito, não há saída. */
+  cancelarAcordo: (id: number) => req<Acordo>(`/trade/agreements/${id}`, { method: 'DELETE' }),
 
   /** Manda um veículo buscar carga da doca. O saldo é reservado já no despacho (D-32). */
   retirar: (veiculo: number, cargo: Record<string, number>) =>

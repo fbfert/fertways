@@ -62,3 +62,30 @@ export function relogio(segundos: number): string {
   const s = segundos % 60
   return `${m}:${String(s).padStart(2, '0')}`
 }
+
+/**
+ * Prazo de Acordo de Troca, em linguagem grosseira. O `relogio()` não serve: o prazo mínimo é a
+ * viagem mais 12 h (D-42), e "735:12" não diz nada a ninguém.
+ */
+export function prazoHumano(segundos: number): string {
+  if (segundos <= 0) return 'vencido'
+
+  const dias = Math.floor(segundos / 86400)
+  const horas = Math.floor((segundos % 86400) / 3600)
+  const minutos = Math.floor((segundos % 3600) / 60)
+
+  if (dias > 0) return `${dias} d ${horas} h`
+  if (horas > 0) return `${horas} h ${minutos} min`
+  return `${minutos} min`
+}
+
+/** Um instante ISO como `<input type="datetime-local">` o exige: hora local, sem fuso nem segundos. */
+export function paraCampoLocal(iso: string): string {
+  const d = new Date(iso)
+  const p = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`
+}
+
+export function dataHumana(iso: string): string {
+  return new Date(iso).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })
+}

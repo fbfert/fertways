@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Sobe uma pilha efêmera e roda o teste de ponta a ponta da tela do Mercado.
+# Sobe uma pilha efêmera e roda os testes de ponta a ponta das telas (Mercado e Acordo de Troca).
 #
 #   backend  → artisan serve em :8199, contra um SQLite temporário
 #   frontend → vite dev em :5199, que já faz proxy de /central para :8199
@@ -72,12 +72,14 @@ App\Models\MarketAccount::create([
     "colony_id" => $c->id, "resource_type" => "metal_bruto", "amount" => 500,
 ]);
 
-// Um segundo furgão. A colônia nasce com um só, e o teste do despacho à Capital o deixa em rota:
-// sem este aqui, o formulário de envio a outro colono não teria veículo ocioso e nada provaria.
-$c->vehicles()->create([
-    "type" => "furgao_de_comercio", "level" => 1, "status" => "ocioso",
-    "capacity" => App\Models\Vehicle::CAPACIDADE["furgao_de_comercio"],
-]);
+// Mais dois furgões. A colônia nasce com um só; o teste do Mercado deixa dois em rota (Capital e
+// vizinha), e o do Acordo precisa de um terceiro ocioso para despachar a entrega.
+foreach ([1, 2] as $ignorado) {
+    $c->vehicles()->create([
+        "type" => "furgao_de_comercio", "level" => 1, "status" => "ocioso",
+        "capacity" => App\Models\Vehicle::CAPACIDADE["furgao_de_comercio"],
+    ]);
+}
 
 // Uma vizinha, para o diretório de colônias ter o que listar. A 3 slots de (48,50).
 $v = App\Models\User::create([
@@ -85,8 +87,19 @@ $v = App\Models\User::create([
     "email" => "vizinha@fertways.test",
     "password" => Illuminate\Support\Facades\Hash::make("segredo-forte-123"),
 ]);
-app(App\Domain\Colony\CreateColony::class)->handle($v, "Colônia vizinha")
-    ->forceFill(["x" => 45, "y" => 50])->save();
+$cv = app(App\Domain\Colony\CreateColony::class)->handle($v, "Colônia vizinha");
+$cv->forceFill(["x" => 45, "y" => 50])->save();
+
+/*
+ * Um acordo já proposto **pela vizinha**, para o colono do e2e ter o que aceitar: só a contraparte
+ * fecha o aperto de mão (§26.5), então um acordo proposto por ele mesmo não exercitaria o botão.
+ *
+ * Ele deve 100 de Metal Bruto — tributo de 3%, logo 103 embarcados —, e os dois lados somam
+ * 3,95 Fert$: abaixo do piso de 500 do §26.3, o acordo registra mas não move reputação (D-43).
+ */
+app(App\Domain\Trade\ProporAcordo::class)->handle(
+    $cv, $c, ["agua" => 100], ["metal_bruto" => 100], now()->addDays(2),
+);
 
 echo "colono e2e pronto na colônia {$c->id}\n";
 ' | tail -1
@@ -114,6 +127,10 @@ if [ "${api:-}" != "200" ] || [ "${web:-}" != "200" ]; then
   exit 1
 fi
 
-echo "==> rodando o teste"
+echo "==> rodando os testes"
 cd "$RAIZ/frontend"
+
+# Nesta ordem, e não noutra: os dois compartilham o mesmo banco efêmero, e o do Mercado deixa dois
+# furgões em rota. O do Acordo despacha o terceiro.
 E2E_URL="http://127.0.0.1:$PORTA_WEB" node e2e/mercado.e2e.mjs
+E2E_URL="http://127.0.0.1:$PORTA_WEB" node e2e/acordos.e2e.mjs

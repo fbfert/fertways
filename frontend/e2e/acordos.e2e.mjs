@@ -1,0 +1,155 @@
+/**
+ * Teste de ponta a ponta da tela do Acordo de Troca (§26.5), com o Chromium do sistema.
+ *
+ * O backend do Acordo foi ao ar sem tela nenhuma. O que este teste guarda, acima de tudo, é o
+ * número **bruto** do formulário de entrega: quem promete 100 e despacha 100 entrega 97, porque o
+ * tributo come a carga na chegada (D-41). Um colono que caloteia por três unidades de tributo é um
+ * bug de interface, não uma escolha dele.
+ *
+ * Roda depois do teste do Mercado, contra o mesmo banco efêmero: `tools/e2e.sh` semeia um acordo
+ * proposto pela vizinha e um terceiro furgão ocioso.
+ */
+import {
+  acharPorTexto,
+  abrirNavegador,
+  checar,
+  entrar,
+  esperarTexto,
+  falhas,
+  relatar,
+  textoDaPagina,
+  todosPorTexto,
+} from './comum.mjs'
+
+const { navegador, page } = await abrirNavegador()
+
+try {
+  console.log('\nLogin')
+  await entrar(page)
+  checar(await esperarTexto(page, /Fert\$/), 'o HUD carrega e mostra Fert$')
+
+  console.log('\nAbre os Acordos')
+  await (await acharPorTexto(page, 'button', /^Acordos$/)).click()
+  checar(await esperarTexto(page, /O aperto de mão/), 'o painel do Acordo abre')
+
+  console.log('\nConfiança Comercial')
+  checar(await esperarTexto(page, /Confiança Comercial/), 'o índice do §26.2 aparece na tela')
+  checar(await esperarTexto(page, /500\s*\/\s*1000/), 'o colono nasce em 500 de 1000 (D-43)')
+  checar(
+    await esperarTexto(page, /Cumprir um acordo rende 10\. Caloteirar custa 50/),
+    'a tela publica os números arbitrados no D-43',
+  )
+
+  console.log('\nO acordo que a vizinha propôs')
+  checar(await esperarTexto(page, /Proposta de vizinha/), 'o acordo proposto pela vizinha aparece')
+  checar(await esperarTexto(page, /Você promete/), 'a tela separa o que cada lado promete')
+  // Água 100 (0,0062) + Metal Bruto 100 (0,0333) = 3,95 Fert$, abaixo do piso de 500 do §26.3.
+  checar(
+    await esperarTexto(page, /Vale 3,95 Fert\$ somando os dois lados/),
+    'o piso anti-farming do D-43 é dito ao colono, não escondido',
+  )
+
+  console.log('\nAceitar: só a contraparte fecha o aperto de mão')
+  await (await acharPorTexto(page, 'button', /^Aceitar$/)).click()
+  await page.waitForNetworkIdle({ idleTime: 800 })
+  checar(await esperarTexto(page, /Aceito/), 'o acordo passa a aceito')
+
+  console.log('\nEntrega: o bruto, não o prometido')
+  checar(await esperarTexto(page, /Entregar a vizinha/), 'o formulário de entrega aparece ao aceitar')
+
+  const despachar = await acharPorTexto(page, 'button', /^Despachar/)
+  const rotulo = await despachar.evaluate((b) => b.textContent.trim())
+  checar(
+    rotulo === 'Despachar 103',
+    `o botão embarca o bruto de 103, não os 100 prometidos (leu: "${rotulo}")`,
+  )
+  checar(
+    await esperarTexto(page, /o tributo da entrega come a diferença no caminho/),
+    'a tela explica por que são 103 e não 100',
+  )
+  checar(
+    await esperarTexto(page, /Vai o Furgão de Comércio, que leva 6\.000/),
+    'a tela nomeia o veículo que vai partir e sua capacidade',
+  )
+
+  await despachar.click()
+  await page.waitForNetworkIdle({ idleTime: 800 })
+
+  /*
+   * A promessa só é abatida quando a carga **chega** — o acordo não move um grama (D-40). O que se
+   * pode provar aqui é que o veículo partiu: era o último ocioso.
+   */
+  const partiu = await esperarTexto(page, /Nenhum veículo ocioso/)
+  checar(partiu, 'o despacho consome o furgão: não sobra veículo ocioso')
+
+  if (!partiu) {
+    console.log('\n--- texto da tela no momento da falha ---')
+    console.log((await textoDaPagina(page)).slice(0, 1500))
+  }
+
+  console.log('\nPropor um acordo')
+  await (await acharPorTexto(page, 'button', /^Propor$/)).click()
+
+  checar(await esperarTexto(page, /O mínimo é/), 'o prazo mínimo do D-42 vem do backend')
+
+  const prazo = await page.$('input[type=datetime-local]')
+  const valor = await prazo.evaluate((i) => i.value)
+  checar(!!valor, `o campo de prazo nasce preenchido, com folga sobre o mínimo (leu: "${valor}")`)
+
+  /*
+   * Os `select` da aba, em ordem: [0] contraparte, [1] o recurso que eu prometo, [2] o que ela
+   * promete. Os dois lados abrem em Metal Bruto, o primeiro dos negociáveis.
+   */
+  const selects = await page.$$('select')
+  const contrapartes = await selects[0].$$eval('option', (os) => os.map((o) => o.textContent.trim()))
+  checar(
+    contrapartes.includes('vizinha · 3 slots'),
+    `o diretório popula a contraparte com a distância (viu: ${contrapartes.join(' | ')})`,
+  )
+
+  await selects[2].select('agua')
+
+  const qtds = await page.$$('input[inputmode=numeric]')
+  await qtds[0].type('50')
+  await qtds[1].type('80')
+
+  const somar = await todosPorTexto(page, 'button', 'Somar')
+  checar(somar.length === 2, `há um "Somar" por lado da promessa (achou ${somar.length})`)
+  await somar[0].click()
+  await somar[1].click()
+
+  const propor = await acharPorTexto(page, 'button', /^Propor acordo$/)
+  checar(
+    await propor.evaluate((b) => !b.disabled),
+    'o botão de propor habilita quando os dois lados prometem algo',
+  )
+  await propor.click()
+  await page.waitForNetworkIdle({ idleTime: 800 })
+
+  const proposto = await esperarTexto(page, /Você propôs a vizinha/)
+  checar(proposto, 'o acordo proposto aparece em "Em aberto", do lado de quem propôs')
+  checar(
+    await esperarTexto(page, /Esperando vizinha apertar a mão/),
+    'a tela diz que quem propõe não confirma sozinho (§26.5)',
+  )
+
+  if (!proposto) {
+    console.log('\n--- texto da tela no momento da falha ---')
+    console.log((await textoDaPagina(page)).slice(0, 1500))
+  }
+
+  console.log('\nDesistir enquanto ninguém apertou a mão')
+  await (await acharPorTexto(page, 'button', /^Desistir$/)).click()
+  await page.waitForNetworkIdle({ idleTime: 800 })
+  checar(await esperarTexto(page, /Cancelado/), 'a proposta desistida vira Cancelado no histórico')
+} catch (e) {
+  falhas.push(`exceção: ${e.message}`)
+  try {
+    await page.screenshot({ path: '/tmp/e2e-acordos-falha.png' })
+    console.log('\nscreenshot em /tmp/e2e-acordos-falha.png')
+  } catch {}
+} finally {
+  await navegador.close()
+}
+
+process.exit(relatar('Acordo de Troca'))
