@@ -5,7 +5,7 @@
 > e então **faça ao usuário as perguntas da seção "Perguntas em aberto"** antes de escolher
 > o que fazer. Atualize este arquivo ao fim de cada sessão.
 
-**Última atualização:** 2026-07-09 · **Branch:** `main`
+**Última atualização:** 2026-07-10 · **Branch:** `main`
 
 > O commit não é anotado aqui de propósito: ele fica velho a cada sessão e a página passa a
 > mentir. Rode `git log --oneline -1`.
@@ -42,6 +42,10 @@ O MVP tem, funcionando e no ar em `https://fertways.tars.art.br`:
   `artisan fertways:conciliador {nick} --nomear|--demitir|--reintegrar|--listar`.
   Os **quatro** índices do §26.2 agora nascem em 500 (antes, três nasciam em zero). A única punição
   que morde hoje é a **restrição comercial**: fecha toda saída de carga por 7 dias.
+  **`publico` é conciliador desde 2026-07-10.** Foi escolhido por ter senha documentada — sem ela
+  não se entra na tela para julgar, e o caso venceria as 48 h e subiria à equipe de qualquer jeito.
+  Recebeu os primeiros 50 Fert$ no tick seguinte à nomeação; o lançamento `salario_conciliador`
+  está no ledger da colônia 2.
 - Frontend: login, HUD, colônia em Phaser, e **três telas** (três botões no HUD): Mercado, Acordo e
   Ministério.
   - A do **Acordo** propõe, aceita, recusa, desiste, mostra a Confiança Comercial contra o limiar e
@@ -84,28 +88,45 @@ Mercado deixa dois furgões em rota, e o do Acordo despacha o terceiro.
 - **Os bancos agora são dois** (D-46): `fertwaysdev` na árvore de trabalho, `fertwaysbd` só no
   deploy. O D-36 está fechado.
 
+## O trabalho em curso: mapa concêntrico + zonas neutras + Drone
+
+Decidido em 2026-07-10, **nada escrito ainda**. Leia **D-51** (o mapa) e **D-52** (zonas neutras e
+o Drone) antes de tocar em qualquer coisa. O escopo é grande e são várias sessões:
+
+- Grade **101×101**, Capital em **(0,0)**, coordenadas **com sinal** (hoje é 100×100, Capital em
+  (50,50), `tinyint unsigned`). Founders no disco `d ≤ 4` (48 células: 28 populáveis + 20
+  reservados, alternados); anel livre `4 < d ≤ 5`; periferia `d > 5`.
+- O colono **escolhe** a célula. O sorteio do `EscolherPosicao` morre — e com ele a razão que o
+  D-29 dava para sorteá-la. O privilégio do founder é o desenho, não um bug.
+- **120 zonas neutras** em 4 distritos de 30 (6×5) encostados nos cantos. Guerra do §27 incluída.
+- As 4 colônias de produção são **realocadas** para slots de founder. Conferido em 2026-07-10: os
+  quatro veículos estavam ociosos, sem viagem em curso. **Reconfira antes de mover.**
+- O gate do Marco (§05) fica **suspenso**, por decisão do usuário.
+
 ## Perguntas em aberto — faça estas ao usuário ao retomar
 
-1. **Qual o próximo passo?** Candidatos, sem ordem decidida. **Todo sistema do jogo tem tela.**
-   - **Nomear um conciliador em produção.** O Ministério está no ar, e **não há conciliador nenhum**:
-     todo caso sobe à equipe, isto é, ao seu terminal. `artisan fertways:conciliador <nick> --nomear`
-     numa das quatro contas. Repare que o nomeado passa a receber 50 Fert$/dia (§26.7) — e ninguém
-     mais tem renda passiva no jogo.
-   - **Serviço logístico público** (§07): o GDD o cita como alternativa ao veículo próprio na
-     retirada, e ele não existe. Hoje o comprador precisa de Furgão ou Caminhão. O GDD não publica
-     preço nem prazo — precisaria de arbitragem.
-   - **O Marco do GDD** (§03): `colonies.milestone` é uma string congelada em `colonizacao_inicial`
-     desde a fundação, e nada a atualiza. O GDD nomeia os marcos (1 Sobrevivente … 100 Lenda de
-     Fertways) mas **não publica a fórmula**. Precisaria de arbitragem. Ver D-38 — o
-     `building_levels_sum` do diretório é um proxy, e não deve ser renomeado para virar o Marco.
+1. **As dez lacunas do D-52 precisam de arbitragem, e travam a implementação.** Não invente nenhuma.
+   As quatro que bloqueiam primeiro:
+   - **Base horária da extração** da zona neutra. Âncoras publicadas: 15/h (Mina Local, "produção
+     modesta"), 60/h (bônus de Metal Bruto da Mina Governamental), 100/h (Alumínio governamental,
+     "produção alta"). Numa conversa anterior o usuário inclinou-se para **60/h**, mas a pergunta
+     foi retirada antes de ele confirmar — **pergunte de novo**.
+   - **Drone: velocidade, raio de revelação e persistência.** Publicadas: Furgão 4 slots/min,
+     Caminhão 1,5, Nave Planetária 10. O Drone não carrega nada e o GDD cala a sua velocidade.
+   - **Os três requisitos de ocupação** (§07). Só o primeiro tem âncora: "20 a 150+" robôs.
+   - **O que é "estoque protegido"** — o saque de 50% depende disso e o GDD nunca o define.
 
-2. **Ligar o binlog do MariaDB?** O backup é diário, às 03:00, e o binlog está desligado: **até 24 h
-   de perda**. O código já está a salvo no GitHub desde 2026-07-09, mas os dados do jogo não. Com 4
-   colônias de teste isso não dói; no dia em que doer, já será tarde.
+2. **Por onde começar?** O mapa (D-51) é pré-requisito das zonas neutras e não depende de nenhuma
+   arbitragem pendente: dá para escrevê-lo já. Mas ele mexe em produção — migration de coordenada
+   com sinal, realocação das 4 colônias, e o Phaser desenha o mapa.
 
-3. **O Drone de Exploração continua sem função** (D-37): o diretório revela todas as colônias, então
-   restam-lhe as zonas neutras. É consequência assumida, não esquecimento. Vale perguntar se o
-   usuário quer devolver-lhe um papel.
+3. **O Marco do GDD** (§03) continua congelado em `colonizacao_inicial`. O GDD nomeia os marcos
+   (1 Sobrevivente … 100 Lenda de Fertways) e **não publica a fórmula**. Ver D-38 — o
+   `building_levels_sum` do diretório é um proxy e **não** deve virar o Marco.
+
+4. **Serviço logístico público** (§07): o GDD o cita como alternativa ao veículo próprio na
+   retirada, e ele não existe. Hoje o comprador precisa de Furgão ou Caminhão. Sem preço nem prazo
+   publicados — precisaria de arbitragem.
 
 ## Pendências conhecidas, sem bloquear
 
@@ -127,7 +148,10 @@ Mercado deixa dois furgões em rota, e o do Acordo despacha o terceiro.
 - **Depreciação de veículos (§16.4)** — fora do MVP por decisão do usuário. O GDD descreve o
   comportamento mas não publica a curva de desgaste, o limite crítico nem o custo de manutenção.
 - **Zonas neutras como destino de carga** — o despacho aceita `colonia`; zona neutra precisa do
-  Depósito de Zona Neutra.
+  Depósito de Zona Neutra. Entra no escopo do D-52.
+- **O D-37 erra num ponto de fato.** Ele diz que o GDD "nunca publicou raio, persistência nem custo
+  de revelação" do Drone. O **custo está publicado** — em duas tabelas, e o próprio GDD resolve qual
+  vale (§4.3 da v3.4, curva 1,65×). Raio e persistência são lacunas de verdade. Ver D-52.
 - **Frontend** — o bundle passa de 1,5 MB sem code splitting (quase tudo é Phaser). Não incomoda
   ainda. O `vite build` avisa a cada compilação.
 - **`cp` é alias de `cp -i` para o root.** No passo de deploy do frontend ele trava num prompt e
@@ -188,7 +212,7 @@ Essas contas vivem em `fertwaysbd` (produção). O banco de desenvolvimento, `fe
 migrado e semeado em 2026-07-09, **sem nenhuma colônia**: funde a sua própria ao testar.
 
 As quatro têm os quatro índices de reputação em 500, conferido em produção depois do deploy do
-Ministério. Nenhuma é conciliadora.
+Ministério. **`publico` é conciliador desde 2026-07-10**; as outras três, não.
 
 ## ⚠️ Ferramentas destrutivas
 
@@ -203,9 +227,18 @@ verificar o alvo antes de executar**. O `tools/e2e.sh` faz as duas coisas e abor
 efetiva não for o SQLite temporário. O banco separado do D-46 é uma segunda trava, não um
 substituto.
 
-O binlog do MariaDB está **desligado** e o backup é diário, às 03:00 (`/backup-local/mysql/`, dump
-de *todos* os bancos do servidor — extraia só o `fertwaysbd` antes de restaurar). Isso significa
-**até 24 h de perda**. Se algum dado passar a importar, ligar o binlog é o primeiro passo.
+O binlog do MariaDB está **ligado** desde 2026-07-10 (`/etc/my.cnf.d/binlog.cnf`: formato ROW,
+7 dias de retenção, `sync_binlog=1`). O backup continua diário às 03:00 (`/backup-local/mysql/`,
+dump de *todos* os bancos do servidor — extraia só o `fertwaysbd` antes de restaurar), e o
+`/root/backup-diario-vps.sh` agora passa `--master-data=2`, que grava no topo do dump a posição do
+binlog em que ele foi tirado. **Com as duas coisas há point-in-time recovery de verdade**: restaure
+o dump, depois aplique `mysqlbinlog --start-position=<a do dump> --stop-datetime='<T>'`.
+
+Duas ressalvas. O binlog mora em `/var/lib/mysql`, o mesmo disco do banco: ele **não** protege
+contra perda de disco — disso cuida o dump que o `rclone` manda ao Google Drive. E o
+`--master-data=2` **exige** o binlog ligado: se alguém remover o `binlog.cnf`, o backup das 03:00
+passa a falhar. O MariaDB é compartilhado com outros 26 bancos do servidor; ligar o binlog exigiu
+reiniciá-lo.
 
 ## Leia também
 

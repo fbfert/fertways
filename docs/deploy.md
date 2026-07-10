@@ -144,6 +144,34 @@ O banco separado é uma segunda trava, não um substituto: toda ferramenta destr
 precisando exportar `APP_CONFIG_CACHE` para um caminho inexistente **e** conferir a conexão efetiva
 antes de rodar, como fazem `phpunit.xml` e `tools/e2e.sh`. Ver D-27, D-36 e D-46.
 
+### Binlog e restauração a um instante (2026-07-10)
+
+Nada disto está no repositório — mora em `/etc` e em `/root`, e some se o servidor for refeito.
+
+O binlog do MariaDB está **ligado** por `/etc/my.cnf.d/binlog.cnf`: formato `ROW`, `expire_logs_days
+= 7`, `max_binlog_size = 100M`, `sync_binlog = 1`. Ligá-lo exigiu `systemctl restart mariadb` — o
+MariaDB 10.5 não aceita `log_bin` a quente, e o serviço é **compartilhado com outros 26 bancos** do
+servidor (unifacve, desbloqueiacursos, rota12, o webmail). Reiniciar derruba todos por alguns
+segundos.
+
+O backup diário das 03:00 (`/root/backup-diario-vps.sh`, cron do root) passa `--master-data=2`, que
+grava comentada no topo do dump a posição do binlog em que ele foi tirado. **Uma coisa não serve sem
+a outra**: sem a posição, a restauração adivinharia pelo relógio onde retomar o binlog. E o
+`--master-data=2` **exige** o binlog ligado — quem remover o `binlog.cnf` quebra o backup das 03:00,
+que passa a falhar em vez de sair errado.
+
+Restaurar até um instante `T`:
+
+```sh
+zcat /backup-local/mysql/all-databases-<dia>-0300.sql.gz | mysql       # traz a posição no topo
+mysqlbinlog --start-position=<pos do dump> --stop-datetime='<T>' \
+    /var/lib/mysql/mysql-bin.0* | mysql
+```
+
+O binlog fica em `/var/lib/mysql`, no mesmo disco do banco: ele **não** protege contra perda de
+disco. Disso cuida o dump, que o `rclone` envia ao Google Drive. O binlog cobre o outro risco — o
+erro lógico, do tipo que já apagou o jogo uma vez (D-36).
+
 ## Tick de produção (cron)
 
 Sem isto, recursos não acumulam e construções nunca terminam. No crontab do usuário `fertways`:

@@ -1221,3 +1221,138 @@ Três coisas o GDD não fecha, e o usuário arbitrou (2026-07-09):
 **Consequência econômica a vigiar:** 50 Fert$/dia por conciliador é emissão contínua, e o kit inicial
 de um colono é 50 Fert$. Um conciliador ganha um kit inicial por dia sem jogar. Com quatro colônias
 não importa; quando o servidor abrir, é o primeiro número a revisitar.
+
+---
+
+## D-51 — O mapa concêntrico: Capital em (0,0), founders, anel livre, periferia e distritos.
+**Data:** 2026-07-10 · **Status:** decidido pelo usuário (fora do GDD) · **Revoga parte do D-29**
+
+O GDD continua sem definir o mapa — o D-29 já registrava isso. O que muda aqui é que o usuário
+descreveu a geografia que quer, e ela **contradiz o sorteio do D-29**.
+
+**O que o D-29 dizia:** a posição de fundação é sorteada, porque "qualquer regra determinística
+daria vantagem logística sistemática a quem fundasse primeiro".
+
+**O que vale agora:** essa vantagem é o desenho, não um efeito colateral. Quem chega antes escolhe
+um slot de *founder*, perto do Mercado Central, e por isso viaja menos e paga menos frete. O
+usuário confirmou-o explicitamente: "founders têm privilégio de ficar mais perto do mercado
+central, então viajam menos, apenas isso". O sorteio do `EscolherPosicao` morre; o colono
+**escolhe** a célula no mapa, inclusive uma periférica, se quiser.
+
+**A grade.** Lado **101**, coordenadas inteiras de −50 a +50 nos dois eixos, Capital em **(0,0)**.
+O lado deixou de ser 100 por uma razão geométrica: um lado par não tem célula central, e a Capital
+precisa de uma. Com 100 o mapa ficaria torto — 50 células a oeste e 49 a leste —, e a terraformação,
+que o usuário quer irradiando do centro para as bordas, sairia desigual. Coordenadas passam a ser
+inteiros **com sinal**: `tinyint unsigned` não guarda −50.
+
+**As faixas, por desigualdade sobre a distância euclidiana exata** (não a arredondada do frete):
+
+| Faixa | Regra | Células |
+|---|---|---|
+| Capital | d = 0 | 1 |
+| Founders | 0 < d ≤ 4 | 48 |
+| Anel livre | 4 < d ≤ 5 | 32 |
+| Periferia | d > 5 | o resto |
+
+A desigualdade exata foi escolhida em vez do arredondamento `floor(d+0,5)` que o frete usa, porque
+é ela que preserva o disco de raio 4 com as suas 48 células. Pelo arredondamento, "distância 4"
+abrangeria 68 células e o disco deixaria de existir. **Consequência aceita:** "distância 4" quer
+dizer uma coisa no mapa e outra na conta do tributo. O anel livre não é fundável nem ocupável; é
+respiro entre os founders e a periferia.
+
+**Os 48 founders: 28 populáveis + 20 reservados.** O usuário pediu 30 + 20, que dá 50, e o disco
+tem 48. Escolheu preservar os 20 reservados. Eles não têm função ainda — "poderão ser do governo,
+das alianças, convidados, npcs, isso no futuro decidiremos" — e ficam em **posições alternadas**.
+Alternar exige uma ordem: as 48 células são ordenadas por (distância exata, ângulo em [0, 2π)), e
+reservam-se as de índice par entre as 40 primeiras. Sobram 20 reservadas e 28 populáveis. A ordem
+é determinística de propósito: dois ambientes que rodem a semeadura têm de produzir o mesmo mapa.
+
+**Os quatro distritos de zona neutra.** Blocos contíguos, "o mais próximo possível das bordas",
+um por quadrante: Nordeste, Noroeste, Sudeste e Sudoeste. **30 zonas cada, 120 no total.** 30 = 6×5,
+encostado no canto: o distrito Nordeste ocupa x ∈ [45,50], y ∈ [46,50], e os outros três são o seu
+espelho. Nenhuma zona neutra fora dos distritos.
+
+**A Mina Governamental fica fora das 120.** O §24.4 publica "2 slots distantes exclusivos do
+governo". São dois slots à parte, invulneráveis, e **não** duas das 120 zonas disputáveis. A
+posição exata dos dois ainda não foi arbitrada e não bloqueia nada: a Mina Governamental está fora
+do escopo atual.
+
+**A terraformação do centro para as bordas é ambientação.** O usuário foi explícito: nenhum efeito
+mecânico, o slot periférico já pode ser fundado hoje. Só o visual do mapa mudará, mais adiante.
+
+**As quatro colônias de produção são realocadas para slots de founder.** Elas são, de fato, as
+primeiras. Hoje estão em coordenadas sorteadas — `Nova Aurora` a 17 slots da Capital, `publico` a
+50, `mapa2` a 40, `teste` a 49. A realocação foi conferida como segura: os quatro veículos estavam
+**ociosos**, sem viagem em curso, e mover uma colônia com carga em trânsito deixaria a viagem
+apontando para uma distância que já não existe.
+
+---
+
+## D-52 — Zonas neutras e o Drone: o escopo, o gate suspenso e as lacunas que restam.
+**Data:** 2026-07-10 · **Status:** escopo decidido; **valores ainda por arbitrar**
+
+Levantamento do GDD feito em 2026-07-10. O **D-37 erra** num ponto de fato: ele afirma que o GDD
+"nunca publicou raio, persistência nem custo de revelação" do Drone. O custo **está publicado** —
+e em duas versões, resolvidas pelo próprio documento.
+
+**O que o GDD publica sobre o Drone.** §21.4: modo de operação "ida simples ou ida e volta,
+configurável por missão"; recarga "automática — armazenado e recarregado no Quartel"; bateria por
+nível, em horas, **24 36 54 81 122** (curva 1,50×). §16.1: "revela mapa ao redor do slot e zonas
+neutras antes de ocupação", tem placa, é vendável. §16.4: **não deprecia** — só Furgão e Caminhão
+depreciam. §05: desbloqueia no Marco 10.
+
+**O custo do Drone, e por que há duas tabelas.** O §21.4 traz `50 75 112 169 253` (curva 1,50×) e
+o §4.3 do aditivo v3.4 traz `50 83 136 225 371` (curva 1,65×). Não é lacuna nem contradição
+pendente: o bloco `1A` da v3.4 declara que "os custos das seções 20 e 21 são recalculados em
+1,65×". **Vence o §4.3**, pela regra do D-47. Vale para Componentes Eletrônicos `50 83 136 225 371`,
+Compostos Químicos `15 25 41 67 111` e Metal Bruto `4 7 11 18 30`.
+
+**O gate do Marco fica suspenso.** O §05 tranca zonas neutras no Marco 20 e o Drone no Marco 10, e
+`colonies.milestone` está congelado em `colonizacao_inicial` porque o GDD nomeia os marcos e nunca
+publica a fórmula. **Decisão do usuário:** construir sem o gate. Zonas neutras e Drone ficam
+acessíveis a qualquer colônia. Nada de valor foi inventado — apenas uma trava a menos. Quando o
+Marco existir, o gate volta.
+
+**A guerra entra no escopo.** O usuário escolheu zonas neutras completas, com os quatro tipos de
+ataque do §27, e não a fatia pacífica.
+
+**Correção de uma leitura errada, para não virar decisão.** Zonas neutras **não** são fonte de
+recursos raros. O D-17 lista as fontes de raros da Temporada 1 como "eventos, zonas profundas,
+contratos do governo" — zonas *profundas* é o Poço de Perfuração. O §18.4 amarra os oito raros às
+oito luas, que são Temporada 2. Quando o §24.4 diz que a zona neutra é "extraída via Robô Minerador,
+como os recursos raros", o "como" é o **modo** de extração, não o que se extrai. Construir zonas
+neutras não aposenta o kit de raros do D-17.
+
+**A âncora que reduz o trabalho de arbitragem.** O §19.1 publica a curva de tudo — "Produção no
+Nível N = Base × 1,5^(N−1)" — e o custo tem a curva 1,65× da v3.4. Ou seja, para quase toda lacuna
+o GDD **publica a curva e cala apenas a base**. Arbitrar uma base, não uma tabela.
+
+**Já publicado, não arbitre:** proteção de 8 dias (seção 0); saque de 50% do estoque não protegido
+(§10 e a matriz vigente); cerco entrega 30% em 48 h; janela diária de vulnerabilidade de 4 h, com
+alteração válida só após 48 h; cooldown de 48 h do mesmo atacante; decaimento de 5% **por dia**
+após 24 h de inadimplência, abandono em 72 h (a Parte I corrige a Parte II: "não há queda de 5% por
+hora"); Depósito de Zona Neutra, 10 níveis, capacidade `500 … 19.222` (§19.6) e custo em §4.2; Robô
+Minerador, ciclo `4 6 9 14 20` h com recarga de 1 h, custo em §4.3, defesa 25% da Sentinela, ataque
+zero; quantidade de robôs por zona "20 a 150+" (§16.1); tributo na entrega em zona neutra (§25.2).
+
+**Lacunas — o GDD não publica. Não invente; arbitre com o usuário e registre aqui.**
+
+1. **Base horária da extração** na zona neutra. Âncoras publicadas: Mina Local 15/h ("produção
+   modesta"), bônus de Metal Bruto da Mina Governamental 60/h, Alumínio governamental 100/h
+   ("produção alta"). Sem esta base, a zona neutra não rende nada.
+2. **O que cada zona tem no solo.** O §24.4 fala em "zonas com depósito mineral", sem dizer qual
+   nem como se distribui pelas 120.
+3. **Os três requisitos de ocupação** do §07 — "unidades militares + recursos de instalação +
+   tempo de ocupação". Só o primeiro tem âncora (20 a 150+ robôs, por nível da zona).
+4. **"Estoque protegido".** O saque é de 50% do *não protegido*, e o mecanismo que protege parte do
+   estoque nunca é descrito em lugar nenhum.
+5. **Drone: velocidade** (slots/min). Publicadas: Furgão 4, Caminhão 1,5, Nave Planetária 10.
+6. **Drone: raio de revelação** e **persistência** do revelado. A palavra "raio" e a palavra
+   "névoa" não aparecem no documento.
+7. **Custo e tempo** das dez estruturas de zona neutra além do Depósito (Posto de Comando, Abrigo
+   de Robôs, Estrutura de Extração, Muralha, Torre de Vigia, Refinaria de Campo, Central de
+   Comunicação, Plataforma de Pouso, Estacionamento, Cemitério de Robôs).
+8. **Bônus defensivos** de Muralha e Torre de Vigia (o §27.3 os chama de "valores configuráveis").
+9. **Teto de zonas por jogador.** Só o Bastião cita "zonas defendidas simultaneamente 1–3".
+10. **Onde o Drone é fabricado.** O Quartel só o armazena e recarrega. E o §05 fala em "drone nível
+    2" no Marco 10, sem declarar marco para o nível 1.
