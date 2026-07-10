@@ -21,6 +21,7 @@ RAIZ="$(cd "$(dirname "$0")/.." && pwd)"
 DEPLOY=/home/fertways/deploy/fertways
 PUBLICO=/home/fertways/public_html
 PHP=/usr/bin/php84
+FPM=php84-php-fpm.service
 COMO=(sudo -u fertways -H)
 
 so_backend=0
@@ -84,8 +85,38 @@ if [ "$so_frontend" -eq 0 ]; then
   fi
   echo "==> APP_DEBUG conferido: off"
 
+  # Sem isto o deploy não publica nada. `opcache.revalidate_path=0` faz o opcache resolver o
+  # caminho do symlink uma única vez e guardar o destino para sempre: os workers do php-fpm
+  # continuam executando a árvore para onde `public_html/central` apontava quando subiram, mesmo
+  # depois de o symlink mudar. O reload derruba os workers e o cache junto.
+  #
+  # O master do php84 é compartilhado com os outros domínios do servidor; `reload` é gracioso.
+  systemctl reload "$FPM"
+
   trap - ERR
   "${COMO[@]}" "$PHP" artisan up
+
+  # O que o Apache está executando é mesmo esta árvore? A fumaça lá embaixo (200/401) não
+  # responde: ela passa igual servindo a árvore de trabalho. O opcache do pool responde.
+  "${COMO[@]}" curl -s -o /dev/null https://fertways.tars.art.br/central/   # aquece o index.php
+  sonda="$DEPLOY/backend/public/__deploy_opcache_check.php"
+  "${COMO[@]}" tee "$sonda" >/dev/null <<'PHP'
+<?php
+$s = opcache_get_status(true)['scripts'] ?? [];
+$intrusos = preg_grep('#^/home/fertways/apps/#', array_keys($s));
+$idx = '/home/fertways/deploy/fertways/backend/public/index.php';
+echo isset($s[$idx]) ? "index=deploy\n" : "index=AUSENTE\n";
+echo "intrusos=".count($intrusos)."\n";
+foreach (array_slice($intrusos, 0, 5) as $i) echo "  $i\n";
+PHP
+  veredito=$(curl -s https://fertways.tars.art.br/central/__deploy_opcache_check.php || true)
+  rm -f "$sonda"
+  if ! grep -q '^index=deploy$' <<<"$veredito" || ! grep -q '^intrusos=0$' <<<"$veredito"; then
+    echo "ABORTADO: o Apache não está executando a cópia de deploy." >&2
+    echo "$veredito" >&2
+    exit 1
+  fi
+  echo "==> opcache conferido: a produção executa $DEPLOY"
 fi
 
 # ---------------------------------------------------------------- frontend
