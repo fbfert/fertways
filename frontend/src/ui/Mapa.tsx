@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { api, ApiError } from '../api/client'
 import type { ColoniaVizinha, Diretorio, Veiculo, ZonaNeutra } from '../api/client'
 
@@ -8,12 +8,18 @@ import type { ColoniaVizinha, Diretorio, Veiculo, ZonaNeutra } from '../api/clie
  * Toda a geometria — lado da grade e posição da Capital — vem da API (`GET /colonies`), nunca de
  * constante daqui (D-51). Não há névoa de guerra: o diretório e as zonas listam tudo (D-37).
  *
- * As zonas moram nos cantos e são células únicas num mapa 101×101, então o mapa tem **zoom** e um
- * botão para **centralizar na sua colônia** — sem isso não dá para clicar numa zona.
+ * As zonas moram nos cantos e são células únicas num mapa 101×101, então o mapa navega: **arrastar**
+ * para mover, **roda do mouse** e botões +/− para o **zoom**, e um botão para **centralizar na sua
+ * colônia** — sem isso não dá para clicar numa zona.
  */
 
 /** Lado do desenho, em px do sistema de coordenadas do SVG. */
 const LADO_SVG = 1000
+
+/** Limites do zoom. 1 mostra o mapa inteiro; ZOOM_MAX aproxima o bastante para clicar numa zona. */
+const ZOOM_MIN = 1
+const ZOOM_MAX = 12
+const limitarEscala = (s: number) => Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, s))
 
 const MINERAL: Record<string, string> = {
   metal_bruto: 'Metal Bruto',
@@ -43,6 +49,10 @@ export function Mapa({ aoFechar }: { aoFechar: () => void }) {
 
   // Zoom e centro do viewBox, em px do SVG. `scale` 1 mostra o mapa inteiro.
   const [vista, setVista] = useState({ cx: LADO_SVG / 2, cy: LADO_SVG / 2, scale: 1 })
+  const [pegando, setPegando] = useState(false)
+  const svgRef = useRef<SVGSVGElement>(null)
+  // Marca que o último gesto foi um arraste, para o pointerup não virar seleção de zona/colônia.
+  const arrastou = useRef(false)
 
   const recarregar = useCallback(async () => {
     try {
@@ -59,6 +69,34 @@ export function Mapa({ aoFechar }: { aoFechar: () => void }) {
     void recarregar()
   }, [recarregar])
 
+  // Zoom pela roda do mouse, ancorado no cursor. Nativo e não-passivo para segurar o scroll do
+  // modal enquanto se aproxima o mapa; o React registra onWheel como passivo e não deixaria.
+  useEffect(() => {
+    const svg = svgRef.current
+    if (!svg) return
+    const aoRolar = (e: WheelEvent) => {
+      e.preventDefault()
+      const r = svg.getBoundingClientRect()
+      const fx = (e.clientX - r.left) / r.width
+      const fy = (e.clientY - r.top) / r.height
+      const fator = e.deltaY < 0 ? 1.2 : 1 / 1.2
+      setVista((v) => {
+        const escala = limitarEscala(v.scale * fator)
+        if (escala === v.scale) return v
+        const w = LADO_SVG / v.scale
+        const vx = Math.max(0, Math.min(v.cx - w / 2, LADO_SVG - w))
+        const vy = Math.max(0, Math.min(v.cy - w / 2, LADO_SVG - w))
+        // O ponto sob o cursor tem de ficar parado: resolvo o novo centro por ele.
+        const sx = vx + fx * w
+        const sy = vy + fy * w
+        const w2 = LADO_SVG / escala
+        return { cx: sx - fx * w2 + w2 / 2, cy: sy - fy * w2 + w2 / 2, scale: escala }
+      })
+    }
+    svg.addEventListener('wheel', aoRolar, { passive: false })
+    return () => svg.removeEventListener('wheel', aoRolar)
+  }, [dir])
+
   const px = (v: number, side: number) => ((v + Math.floor(side / 2) + 0.5) / side) * LADO_SVG
   const py = (v: number, side: number) => LADO_SVG - ((v + Math.floor(side / 2) + 0.5) / side) * LADO_SVG
 
@@ -70,12 +108,46 @@ export function Mapa({ aoFechar }: { aoFechar: () => void }) {
   // Marcadores em tamanho de tela ~constante: encolhem no SVG conforme o zoom aumenta.
   const k = 1 / vista.scale
 
-  const zoom = (fator: number) =>
-    setVista((v) => ({ ...v, scale: Math.min(8, Math.max(1, v.scale * fator)) }))
+  const zoom = (fator: number) => setVista((v) => ({ ...v, scale: limitarEscala(v.scale * fator) }))
 
   const centrarNaColonia = () => {
     if (!dir) return
     setVista({ cx: px(dir.me.x, dir.side), cy: py(dir.me.y, dir.side), scale: Math.max(vista.scale, 4) })
+  }
+
+  // Arrastar para mover o mapa. Sem setPointerCapture (ele desviaria o `click` da zona para o SVG):
+  // ouço o move/up na janela e desligo no fim. O limiar de 4 px separa clique de arraste.
+  const iniciarArrasto = (e: React.PointerEvent<SVGSVGElement>) => {
+    if (e.button !== 0) return
+    const r = e.currentTarget.getBoundingClientRect()
+    const largura = LADO_SVG / vista.scale
+    const inicio = { cx: vista.cx, cy: vista.cy, clientX: e.clientX, clientY: e.clientY }
+    arrastou.current = false
+    setPegando(true)
+    const mover = (ev: PointerEvent) => {
+      const dx = ((ev.clientX - inicio.clientX) / r.width) * largura
+      const dy = ((ev.clientY - inicio.clientY) / r.height) * largura
+      if (!arrastou.current && Math.hypot(ev.clientX - inicio.clientX, ev.clientY - inicio.clientY) > 4) {
+        arrastou.current = true
+      }
+      setVista((v) => ({ ...v, cx: inicio.cx - dx, cy: inicio.cy - dy }))
+    }
+    const soltar = () => {
+      window.removeEventListener('pointermove', mover)
+      window.removeEventListener('pointerup', soltar)
+      setPegando(false)
+      // Zera só depois que o `click` deste gesto já correu, para o arraste não selecionar nada.
+      setTimeout(() => {
+        arrastou.current = false
+      }, 0)
+    }
+    window.addEventListener('pointermove', mover)
+    window.addEventListener('pointerup', soltar)
+  }
+
+  // Seleciona só se o gesto foi um clique de verdade, não a ponta de um arraste.
+  const selecionar = (fn: () => void) => {
+    if (!arrastou.current) fn()
   }
 
   const focar = (x: number, y: number) => {
@@ -120,7 +192,15 @@ export function Mapa({ aoFechar }: { aoFechar: () => void }) {
                 </BotaoMapa>
               </div>
 
-              <svg data-mapa viewBox={viewBox} className="block h-auto w-full">
+              <svg
+                ref={svgRef}
+                data-mapa
+                viewBox={viewBox}
+                onPointerDown={iniciarArrasto}
+                className={`block h-auto w-full touch-none select-none ${
+                  pegando ? 'cursor-grabbing' : 'cursor-grab'
+                }`}
+              >
                 <GradeDeFundo />
 
                 {/* As zonas neutras: quadradinhos nos cantos, coloridos por dono. */}
@@ -136,7 +216,7 @@ export function Mapa({ aoFechar }: { aoFechar: () => void }) {
                     stroke={selecao?.tipo === 'zona' && selecao.z.id === z.id ? 'var(--color-ink)' : 'none'}
                     strokeWidth={2 * k}
                     className="cursor-pointer"
-                    onClick={() => setSelecao({ tipo: 'zona', z })}
+                    onClick={() => selecionar(() => setSelecao({ tipo: 'zona', z }))}
                   >
                     <title>
                       Zona {DISTRITO[z.district]} ({z.x}, {z.y}) — {MINERAL[z.mineral] ?? z.mineral}
@@ -169,7 +249,7 @@ export function Mapa({ aoFechar }: { aoFechar: () => void }) {
                         : 'var(--color-ink-soft)'
                     }
                     className="cursor-pointer"
-                    onClick={() => setSelecao({ tipo: 'colonia', c })}
+                    onClick={() => selecionar(() => setSelecao({ tipo: 'colonia', c }))}
                   >
                     <title>
                       {c.name} ({c.nickname}) — {c.distance} slots
@@ -222,8 +302,8 @@ export function Mapa({ aoFechar }: { aoFechar: () => void }) {
 
               {!selecao && (
                 <p className="text-ink-soft mt-4 text-sm">
-                  Clique numa colônia ou numa zona neutra. Use o zoom (+ / −) e o ⌖ para achar as
-                  zonas, que ficam nos cantos.
+                  Clique numa colônia ou numa zona neutra. Arraste para mover, role o mouse ou use + /
+                  − para o zoom, e o ⌖ centraliza na sua colônia. As zonas ficam nos cantos.
                 </p>
               )}
 
