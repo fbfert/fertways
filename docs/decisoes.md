@@ -1225,11 +1225,10 @@ não importa; quando o servidor abrir, é o primeiro número a revisitar.
 ---
 
 ## D-51 — O mapa concêntrico: Capital em (0,0), founders, anel livre, periferia e distritos.
-**Data:** 2026-07-10 · **Status:** Fatia 1 (código) **implementada em dev**; Fatia 2 (produção)
-pendente · **Revoga parte do D-29**
+**Data:** 2026-07-10 · **Status:** **implementado e no ar** (Fatias 1 e 2) · **Revoga parte do D-29**
 
-> **Implementação (2026-07-10).** A **Fatia 1** está pronta e verde em dev — grade, faixas,
-> fim do sorteio e o seletor visual — **sem tocar produção**. O que foi feito:
+> **Implementação (2026-07-10).** As duas fatias foram ao ar. A produção está no mapa concêntrico,
+> com as 4 colônias em slots de founder. O que foi feito:
 > - `MapaFertways`: `LADO` 101, `CAPITAL` (0,0), `dentroDoMapa` por `|coord| ≤ 50`, `distanciaExata`,
 >   `faixaDe`, `slotsFounder` (48 = 28 populáveis + 20 reservados, ordem canônica determinística) e
 >   `podeFundar`. O `distancia()` **half-up do frete continua intacto** — as faixas usam a exata; é
@@ -1245,11 +1244,13 @@ pendente · **Revoga parte do D-29**
 >   não exige colônia.
 > - Frontend: `Mapa.tsx` remapeado para coords com sinal e Capital no centro; novo `Fundacao.tsx`,
 >   o seletor visual (disco de founders ampliado + aba de periferia com clique→célula).
-> - Testes: **174 PHP verdes** e os **cinco** e2e verdes (incluindo `fundacao.e2e.mjs` novo).
+> - Testes: **178 PHP verdes** e os **cinco** e2e verdes (incluindo `fundacao.e2e.mjs` novo).
 >
-> Falta a **Fatia 2**, que toca produção e **espera aprovação do usuário**: comando guardado de
-> realocação das 4 colônias para slots de founder (só com veículos ociosos — **reconferir**),
-> `artisan migrate` no `fertwaysbd`, e `sudo ./tools/deploy.sh`.
+> **Fatia 2 (produção), feita em 2026-07-10.** `deploy.sh` migrou o `fertwaysbd` (deslocou as 4
+> colônias −50 e trocou o tipo), e o comando `fertways:realocar-founders --force` — com os quatro
+> veículos conferidos ociosos — as levou aos slots (0,1), (0,-1), (-1,1) e (1,-1). Conferido no ar:
+> `GET /map` devolve `side 101`, Capital `(0,0)`, 48 slots; `GET /colony` do `publico` devolve
+> `(0,-1)`. A migration fora validada antes no `fertwaysdev` (mesmo MariaDB).
 
 
 O GDD continua sem definir o mapa — o D-29 já registrava isso. O que muda aqui é que o usuário

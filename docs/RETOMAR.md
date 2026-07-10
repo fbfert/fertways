@@ -89,9 +89,11 @@ colono e funda uma quinta colônia — rodar antes bagunçaria as contagens das 
 > (Runtime.getProperties): Target closed`. Verde nas outras três. Se reprovar assim, rode de novo
 > antes de investigar — mas se virar hábito, é bug de verdade.
 
-**Publicado no GitHub e no ar.** Em 2026-07-10 foram empurrados e publicados o `fix` da fila
-(D-53) e as telas de Mapa, Frota e receita (D-54). A cópia de deploy está no mesmo commit que
-`main` (`ef45a3e`). Confira com `git status -sb` — se voltar a divergir, republique.
+**Publicado no GitHub e no ar.** Em 2026-07-10 foi empurrado e publicado o **mapa concêntrico do
+D-51** (`2a71a1c`): grade 101×101, Capital em (0,0), fundação por escolha, e a realocação das 4
+colônias. A cópia de deploy ficou nesse commit. Confira com `git log --oneline -1` nas duas árvores
+— se voltar a divergir, republique. (Antes, em 2026-07-10, saíram o `fix` da fila do D-53 e as telas
+do D-54.)
 
 > **Lição registrada (2026-07-10).** Ao conferir o D-53 em produção, enfileirei uma construção de
 > teste na colônia 4 pelo `EnqueueUpgrade`. Funcionou, mas escrever no banco de produção "para ver
@@ -111,27 +113,24 @@ colono e funda uma quinta colônia — rodar antes bagunçaria as contagens das 
 - **Os bancos agora são dois** (D-46): `fertwaysdev` na árvore de trabalho, `fertwaysbd` só no
   deploy. O D-36 está fechado.
 
-## O trabalho em curso: mapa concêntrico + zonas neutras + Drone
+## O mapa concêntrico do D-51 — **no ar** (2026-07-10)
 
-Leia **D-51** (o mapa) e **D-52** (zonas neutras e o Drone). O escopo é grande e são várias sessões.
+O mapa do D-51 está implementado e publicado. A produção usa a grade **101×101**, Capital em
+**(0,0)**, coordenadas **com sinal** (`tinyint`); founders no disco `d ≤ 4` (48 células: 28 populáveis
++ 20 reservados), anel livre `4 < d ≤ 5`, periferia `d > 5`. As faixas usam a distância euclidiana
+**exata**; o **frete/tributo (§25.6) continua na arredondada half-up** — não unifique os dois. Tudo em
+`MapaFertways`. O colono **escolhe** a célula (`EscolherPosicao` morreu): `POST /colony` recebe `x,y`,
+`GET /map` serve o seletor, e `Fundacao.tsx` é o seletor visual (disco ampliado + aba de periferia).
+As **4 colônias de produção foram realocadas** para slots de founder ((0,1),(0,-1),(-1,1),(1,-1)) pelo
+`artisan fertways:realocar-founders` — comando guardado por veículos ociosos, útil de novo se um dia
+houver que remanejar.
 
-**O mapa (D-51) — Fatia 1 escrita e verde em dev (2026-07-10), produção ainda intocada.** Já está:
-- Grade **101×101**, Capital em **(0,0)**, coordenadas **com sinal** (`tinyint`). Founders no disco
-  `d ≤ 4` (48 células: 28 populáveis + 20 reservados); anel livre `4 < d ≤ 5`; periferia `d > 5`.
-  Tudo em `MapaFertways`, com o `distancia()` **do frete intacto** (half-up); as faixas usam a exata.
-- O colono **escolhe** a célula: `EscolherPosicao` apagado, `POST /colony` recebe `x,y`, `GET /map`
-  serve o seletor, e o novo `Fundacao.tsx` é o seletor visual (disco ampliado + aba de periferia).
-- A migration de coordenada com sinal foi **aplicada em dev** (fertwaysdev, MariaDB, vazio).
+## O trabalho em curso: zonas neutras + Drone (D-52)
 
-**Falta a Fatia 2 (produção) — espera aprovação e reconferência.** Ver D-51. Ainda por fazer:
-- Comando guardado de **realocação** das 4 colônias para slots de founder. Conferido em 2026-07-10
-  que os quatro veículos estavam ociosos — **reconfira antes de mover** (uma viagem em curso apontaria
-  para uma distância que já não existe).
-- `artisan migrate` no `fertwaysbd` e `sudo ./tools/deploy.sh`.
-
-**Zonas neutras + Drone (D-52), depois do mapa:**
+Leia **D-52**. O mapa (pré-requisito) já está pronto; agora vêm as zonas neutras e o Drone.
 - Base horária da extração **arbitrada em 100/h** (2026-07-10). Restam as outras lacunas do D-52.
-- **120 zonas neutras** em 4 distritos de 30 (6×5) encostados nos cantos. Guerra do §27 incluída.
+- **120 zonas neutras** em 4 distritos de 30 (6×5) encostados nos cantos (a geometria dos distritos
+  está no D-51, mas as zonas em si são D-52). Guerra do §27 incluída.
 - O gate do Marco (§05) fica **suspenso**, por decisão do usuário.
 
 ## Perguntas em aberto — faça estas ao usuário ao retomar
