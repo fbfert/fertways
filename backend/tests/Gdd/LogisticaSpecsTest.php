@@ -174,7 +174,8 @@ class LogisticaSpecsTest extends TestCase
         $this->assertFalse(MapaFertways::podeFundar(3, 3));       // anel
         $this->assertFalse(MapaFertways::podeFundar(1, 0));       // founder reservado (índice 0)
         $this->assertTrue(MapaFertways::podeFundar(0, 1));        // founder populável (índice 1)
-        $this->assertTrue(MapaFertways::podeFundar(50, 50));      // periferia
+        $this->assertTrue(MapaFertways::podeFundar(0, 10));       // periferia (fora dos distritos)
+        $this->assertFalse(MapaFertways::podeFundar(50, 50));     // periferia, mas é zona neutra (D-52)
         $this->assertFalse(MapaFertways::podeFundar(51, 0));      // fora do mapa
     }
 }

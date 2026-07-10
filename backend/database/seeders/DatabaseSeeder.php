@@ -14,6 +14,9 @@ class DatabaseSeeder extends Seeder
             ResourceTypeSeeder::class,
             ComponentRecipeSeeder::class,
             BuildingSpecSeeder::class,
+            // As 120 zonas neutras nos 4 distritos do D-51 (D-52). Sem FK para os demais, mas
+            // depois deles por clareza: o mineral de cada zona é um código de resource_types.
+            NeutralZoneSeeder::class,
         ]);
     }
 }

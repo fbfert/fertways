@@ -172,13 +172,18 @@ final class MapaFertways
 
     /**
      * Uma célula é **fundável** se está no mapa e é founder populável **ou** periferia (D-51: "o
-     * colono escolhe a célula, inclusive uma periférica, se quiser"). Capital, anel livre e os
-     * slots reservados ficam de fora. A colisão com colônia já instalada é conferida à parte,
-     * contra o banco.
+     * colono escolhe a célula, inclusive uma periférica, se quiser"). Capital, anel livre, os
+     * slots reservados e as **células de zona neutra** (D-52: os 4 distritos dos cantos) ficam de
+     * fora. A colisão com colônia já instalada é conferida à parte, contra o banco.
      */
     public static function podeFundar(int $x, int $y): bool
     {
         if (! self::dentroDoMapa($x, $y)) {
+            return false;
+        }
+
+        // Zona neutra não é chão de colônia: os cantos são disputados, não colonizados (D-52).
+        if (ZonasNeutras::ehZonaNeutra($x, $y)) {
             return false;
         }
 

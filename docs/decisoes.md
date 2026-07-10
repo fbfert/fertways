@@ -1369,22 +1369,52 @@ zero; quantidade de robôs por zona "20 a 150+" (§16.1); tributo na entrega em 
    que estavam em jogo: Mina Local 15/h ("produção modesta"), bônus de Metal Bruto da Mina
    Governamental 60/h, Alumínio governamental 100/h ("produção alta"). É a **base**; a curva por nível
    é a do §19.1 (`Base × 1,5^(N−1)`).
-2. **O que cada zona tem no solo.** O §24.4 fala em "zonas com depósito mineral", sem dizer qual
-   nem como se distribui pelas 120.
-3. **Os três requisitos de ocupação** do §07 — "unidades militares + recursos de instalação +
-   tempo de ocupação". Só o primeiro tem âncora (20 a 150+ robôs, por nível da zona).
+2. ~~**O que cada zona tem no solo.**~~ **Arbitrado em 2026-07-10: especialização por distrito.** Na
+   Temporada 1 o jogador não extrai os 8 minerais eletrônicos (governo) nem os raros (Temporada 2),
+   então a zona só pode render um **primário** ("depósito mineral no solo"). Um por distrito:
+   Nordeste **Metal Bruto**, Sudeste **Água**, Sudoeste **Oxigênio**, Noroeste **Biomassa**.
+3. ~~**Os três requisitos de ocupação** do §07.~~ **Arbitrado em 2026-07-10: ocupação pesada.** Para
+   tomar uma zona: (a) erguer um **Posto de Comando** — custo/tempo *inventados* (lacuna 7, abaixo);
+   (b) guarnecer com **20 Robôs Mineradores** (âncora "20 a 150+"; nível 1 = ponta baixa; custo do
+   robô é publicado, §4.3); (c) esperar o **tempo de ocupação** — *inventado:* **12 h**. Só depois a
+   zona extrai.
 4. **"Estoque protegido".** O saque é de 50% do *não protegido*, e o mecanismo que protege parte do
-   estoque nunca é descrito em lugar nenhum.
+   estoque nunca é descrito em lugar nenhum. (Só morde na Fatia 2, a guerra.)
 5. **Drone: velocidade** (slots/min). Publicadas: Furgão 4, Caminhão 1,5, Nave Planetária 10.
 6. **Drone: raio de revelação** e **persistência** do revelado. A palavra "raio" e a palavra
    "névoa" não aparecem no documento.
 7. **Custo e tempo** das dez estruturas de zona neutra além do Depósito (Posto de Comando, Abrigo
    de Robôs, Estrutura de Extração, Muralha, Torre de Vigia, Refinaria de Campo, Central de
-   Comunicação, Plataforma de Pouso, Estacionamento, Cemitério de Robôs).
+   Comunicação, Plataforma de Pouso, Estacionamento, Cemitério de Robôs). **Parcial (2026-07-10):**
+   só o **Posto de Comando** foi arbitrado, porque a ocupação pesada o exige — nível 1 *inventado* em
+   **800 Metal Bruto + 300 Fert$, 8 h**. As outras nove seguem em aberto.
 8. **Bônus defensivos** de Muralha e Torre de Vigia (o §27.3 os chama de "valores configuráveis").
 9. **Teto de zonas por jogador.** Só o Bastião cita "zonas defendidas simultaneamente 1–3".
 10. **Onde o Drone é fabricado.** O Quartel só o armazena e recarrega. E o §05 fala em "drone nível
     2" no Marco 10, sem declarar marco para o nível 1.
+
+**Sequência decidida em 2026-07-10:** Fatia 1 = o núcleo (zonas existem, ocupação, extração);
+Fatia 2 = a guerra (§27, os 4 ataques — puxa as lacunas 4 e 8); Fatia 3 = o Drone (lacunas 5, 6, 10).
+O mapa (D-51, pré-requisito) já está no ar.
+
+**Fatia 1 — backend pronto e testado em dev (2026-07-10); frontend e deploy pendentes.** O laço
+núcleo fecha no servidor: ocupar → extrair no tick → retirar para casa. Feito: `ZonasNeutras`
+(domínio), migration que estende `neutral_zones` para o mapa do D-51, `NeutralZoneSeeder` (120
+zonas), `OcuparZonaNeutra`, `ExtrairZonasNeutras` (no tick), `retirarDeZona` no `DespacharVeiculo`,
+o `NeutralZoneController` (`GET /zones`, `POST /zones/{z}/occupy`, `POST /zones/{z}/withdraw`), e o
+`podeFundar` que exclui células de zona. **197 testes PHP verdes.** Falta a UI (mapa desenha os
+distritos/zonas, tela de zona, ocupar e retirar) e o deploy (rodar migração + seeder no `fertwaysbd`).
+
+**Fatia 1 — spec (aprovada 2026-07-10):**
+- **120 zonas** nos 4 distritos do D-51 (NE `x∈[45,50] y∈[46,50]` e espelhos, 30 cada), todas no
+  **nível 1**. Upgrade de zona fica para uma fatia posterior.
+- **Mineral por distrito** (lacuna 2): NE Metal Bruto, SE Água, SO Oxigênio, NO Biomassa.
+- **Ocupação** (lacuna 3, pesada): Posto de Comando (800 Metal Bruto + 300 F$, 8 h) + 20 Robôs
+  Mineradores (custo §4.3) + 12 h de ocupação. Só então extrai.
+- **Extração:** 100/h do mineral do distrito enquanto ocupada e o Depósito não cheio (§07: lota →
+  para). Depósito de Zona Neutra publicado (10 níveis, `500…19.222`).
+- **Despacho para casa** reusa a logística, com tributo na entrega (§25.2).
+- As células de zona **não são fundáveis** por colônias (o `podeFundar` do D-51 passa a excluí-las).
 
 ---
 

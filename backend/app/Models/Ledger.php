@@ -38,6 +38,7 @@ class Ledger extends Model
         'escrow_mercado',     // §07: recurso ou Fert$ reservado ao abrir uma ordem no livro
         'salario_conciliador', // §26.7: 50 F$/dia, emitidos pelo Governo (D-50)
         'bonus_conciliador',   // §26.7: +3 F$ por decisão que sobrevive à apelação
+        'custo_ocupacao',      // §07: Posto de Comando + Robôs Mineradores para ocupar zona (D-52)
         'estorno',
     ];
 

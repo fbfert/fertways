@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Domain\Logistics\ConcluirTrechos;
+use App\Domain\Logistics\ExtrairZonasNeutras;
 use App\Domain\Ministry\ExpirarPrazos;
 use App\Domain\Ministry\PagarConciliadores;
 use App\Domain\Production\ColonyTick;
@@ -37,6 +38,7 @@ class TickColonies extends Command
         ExpirarAcordos $acordos,
         ExpirarPrazos $ministerio,
         PagarConciliadores $folha,
+        ExtrairZonasNeutras $zonasNeutras,
     ): int {
         $agora = now();
         $processadas = 0;
@@ -62,6 +64,10 @@ class TickColonies extends Command
 
         $zonas = $this->expirarProtecoes($agora);
 
+        // Extração das zonas neutras ocupadas — fora do laço por colônia, como as entregas: a zona
+        // rende por delta próprio, sem relação com o `last_tick_at` de ninguém (§07, D-52).
+        $extraidas = $zonasNeutras->handle($agora);
+
         /*
          * Fora do laço por colônia: um veículo da colônia A entrega na B, e o relógio da viagem
          * não tem relação com o `last_tick_at` de nenhuma das duas. Rodar por colônia entregaria
@@ -83,7 +89,7 @@ class TickColonies extends Command
         ['reatribuidos' => $reatribuidos, 'encerrados' => $encerrados] = $ministerio->handle();
         $salarios = $folha->handle();
 
-        $this->info("tick: {$processadas} colônias, {$falhas} falhas, {$zonas} proteções expiradas, {$entregas} trechos concluídos, {$vencidos} acordos vencidos, {$reatribuidos} casos reatribuídos, {$encerrados} casos encerrados, {$salarios} salários pagos");
+        $this->info("tick: {$processadas} colônias, {$falhas} falhas, {$zonas} proteções expiradas, {$extraidas} zonas extraídas, {$entregas} trechos concluídos, {$vencidos} acordos vencidos, {$reatribuidos} casos reatribuídos, {$encerrados} casos encerrados, {$salarios} salários pagos");
 
         return $falhas > 0 ? self::FAILURE : self::SUCCESS;
     }

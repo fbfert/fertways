@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\BuildingController;
 use App\Http\Controllers\Api\ColonyController;
 use App\Http\Controllers\Api\MarketController;
 use App\Http\Controllers\Api\MinistryController;
+use App\Http\Controllers\Api\NeutralZoneController;
 use App\Http\Controllers\Api\TradeController;
 use App\Http\Controllers\Api\VehicleController;
 use Illuminate\Support\Facades\Route;
@@ -26,6 +27,11 @@ Route::middleware('auth:sanctum')->group(function () {
     // O mapa para o seletor de fundação (D-51): geometria + slots de founder + células ocupadas.
     // Não exige colônia — é o que o colono vê para escolher onde fundar.
     Route::get('/map', [ColonyController::class, 'map']);
+
+    // Zonas neutras (§07, §24.4; D-52). Listar e ocupar; extração é no tick, retirada é logística.
+    Route::get('/zones', [NeutralZoneController::class, 'index']);
+    Route::post('/zones/{zone}/occupy', [NeutralZoneController::class, 'occupy']);
+    Route::post('/zones/{zone}/withdraw', [NeutralZoneController::class, 'withdraw']);
 
     Route::get('/buildings', [BuildingController::class, 'specs']);
     Route::post('/buildings/{building}/upgrade', [BuildingController::class, 'upgrade']);

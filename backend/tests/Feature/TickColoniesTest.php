@@ -273,11 +273,13 @@ class TickColoniesTest extends TestCase
     public function test_comando_expira_protecao_de_zona_neutra_vencida(): void
     {
         $vencida = NeutralZone::create([
-            'coordinates' => 'K-14', 'status' => 'protegida',
+            'x' => 45, 'y' => 46, 'district' => 'nordeste', 'mineral' => 'metal_bruto',
+            'status' => 'protegida',
             'occupied_at' => now()->subDays(9), 'protected_until' => now()->subDay(),
         ]);
         $vigente = NeutralZone::create([
-            'coordinates' => 'K-15', 'status' => 'protegida',
+            'x' => 45, 'y' => 47, 'district' => 'nordeste', 'mineral' => 'metal_bruto',
+            'status' => 'protegida',
             'occupied_at' => now()->subDay(), 'protected_until' => now()->addDays(7),
         ]);
 

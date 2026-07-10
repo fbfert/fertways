@@ -7,6 +7,7 @@ use App\Exceptions\DomainRuleException;
 use App\Models\Colony;
 use App\Models\Ledger;
 use App\Models\MarketAccount;
+use App\Models\NeutralZone;
 use App\Models\Punishment;
 use App\Models\ResourceType;
 use App\Models\TradeAgreement;
@@ -148,6 +149,64 @@ class DespacharVeiculo
             // chegar na Capital. O veículo viaja vazio na ida; `trip_purpose` diz qual é qual.
             return $this->emRota($veiculo, 'mercado_central', null, 'retirada', $distancia, $pedido, $agora);
         });
+    }
+
+    /**
+     * Retirada de uma zona neutra sua (§07, §24.4; D-52). Igual à retirada do Mercado: o veículo
+     * vai vazio, carrega o mineral extraído no Depósito da zona e volta — o tributo incide quando a
+     * carga chega ao slot, no fim da volta (o `ConcluirTrechos` já trata `retirada` para qualquer
+     * destino). Só o mineral daquela zona sai dela, e a carga é reservada no despacho, como no
+     * Mercado (D-30), para dois veículos não prometerem o mesmo Depósito.
+     */
+    public function retirarDeZona(Colony $origem, Vehicle $veiculo, NeutralZone $zona, array $pedido): Vehicle
+    {
+        $this->validarVeiculo($origem, $veiculo);
+        $this->exigirSemRestricaoComercial($origem);
+
+        if ($zona->owner_colony_id !== $origem->id) {
+            throw new DomainRuleException('zona_nao_e_sua', 'Esta zona neutra não é sua.');
+        }
+
+        $this->validarCarga($veiculo, $pedido);
+
+        foreach ($pedido as $recurso => $qtd) {
+            if ($recurso !== $zona->mineral) {
+                throw new DomainRuleException(
+                    'recurso_nao_e_da_zona',
+                    "Esta zona só rende {$zona->mineral}; não há {$recurso} para retirar.",
+                );
+            }
+        }
+
+        $destino = ['id' => $zona->id, 'x' => $zona->x, 'y' => $zona->y];
+        [$distancia, $energia] = $this->trajeto($origem, $veiculo, $destino);
+
+        return DB::transaction(function () use ($origem, $veiculo, $zona, $pedido, $distancia, $energia) {
+            $agora = now();
+            $ref = $this->partir($origem, $veiculo, $energia, $agora);
+
+            foreach ($pedido as $recurso => $qtd) {
+                $this->debitarDeposito($zona, $qtd, $ref);
+            }
+
+            // `cargo_json` na retirada é a carga reservada; só embarca de fato ao chegar na zona.
+            return $this->emRota($veiculo, 'zona_neutra', $zona->id, 'retirada', $distancia, $pedido, $agora);
+        });
+    }
+
+    /** Reserva do Depósito da zona, com a mesma guarda atômica do estoque. */
+    private function debitarDeposito(NeutralZone $zona, int $qtd, string $ref): void
+    {
+        $afetadas = NeutralZone::whereKey($zona->id)
+            ->where('deposit_amount', '>=', $qtd)
+            ->decrement('deposit_amount', $qtd);
+
+        if ($afetadas === 0) {
+            throw new DomainRuleException(
+                'deposito_insuficiente',
+                "O Depósito da zona não tem {$qtd} de {$zona->mineral}.",
+            );
+        }
     }
 
     private function validarVeiculo(Colony $origem, Vehicle $veiculo): void
