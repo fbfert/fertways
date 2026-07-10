@@ -76,6 +76,9 @@ class VehicleController extends Controller
             'destination_id' => ['nullable', 'integer'],
             'cargo' => ['required', 'array', 'min:1'],
             'cargo.*' => ['integer', 'min:1'],
+            // Opcional: amarra esta carga a um Acordo de Troca (D-41). Sem ele, o despacho é
+            // comércio informal puro, e nada abate promessa nenhuma.
+            'trade_agreement_id' => ['nullable', 'integer'],
         ]);
 
         $veiculo = $despachar->handle(
@@ -84,6 +87,7 @@ class VehicleController extends Controller
             $dados['destination_type'],
             $dados['destination_id'] ?? null,
             $dados['cargo'],
+            $dados['trade_agreement_id'] ?? null,
         );
 
         return response()->json([
@@ -93,6 +97,7 @@ class VehicleController extends Controller
             'distance_slots' => $veiculo->distance_slots,
             'arrives_at' => $veiculo->arrives_at,
             'cargo' => $veiculo->cargo_json,
+            'trade_agreement_id' => $veiculo->trade_agreement_id,
         ], 201);
     }
 

@@ -2,6 +2,7 @@
 
 namespace App\Domain\Market;
 
+use App\Domain\Trade\AcessoAoMercado;
 use App\Exceptions\DomainRuleException;
 use App\Models\Colony;
 use App\Models\Ledger;
@@ -27,6 +28,9 @@ class ColocarOrdem
 {
     public function handle(Colony $colonia, string $lado, string $recurso, int $qtd, int $precoMicro): MarketOrder
     {
+        // §26.2: Confiança Comercial baixa fecha o Mercado Central. Ver D-43.
+        AcessoAoMercado::exigir($colonia);
+
         if (! in_array($lado, ['buy', 'sell'], true)) {
             throw new DomainRuleException('lado_invalido', "Lado desconhecido: {$lado}");
         }

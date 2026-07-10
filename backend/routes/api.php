@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\BuildingController;
 use App\Http\Controllers\Api\ColonyController;
 use App\Http\Controllers\Api\MarketController;
+use App\Http\Controllers\Api\TradeController;
 use App\Http\Controllers\Api\VehicleController;
 use Illuminate\Support\Facades\Route;
 
@@ -36,4 +37,12 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/market/orders', [MarketController::class, 'livro']);
     Route::post('/market/orders', [MarketController::class, 'ordenar']);
     Route::delete('/market/orders/{order}', [MarketController::class, 'cancelar']);
+
+    // Acordo de Troca (§26.5). Sem escrow: registram promessas, não movem recursos. Quem move é
+    // o despacho, que aponta o acordo pelo `trade_agreement_id`. Ver D-40 e D-41.
+    Route::get('/trade/agreements', [TradeController::class, 'index']);
+    Route::get('/trade/deadline', [TradeController::class, 'prazoMinimo']);
+    Route::post('/trade/agreements', [TradeController::class, 'store']);
+    Route::post('/trade/agreements/{agreement}/confirm', [TradeController::class, 'confirm']);
+    Route::delete('/trade/agreements/{agreement}', [TradeController::class, 'destroy']);
 });

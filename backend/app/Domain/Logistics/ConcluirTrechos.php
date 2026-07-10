@@ -2,9 +2,11 @@
 
 namespace App\Domain\Logistics;
 
+use App\Domain\Trade\CreditarEntrega;
 use App\Models\Colony;
 use App\Models\Ledger;
 use App\Models\ResourceType;
+use App\Models\TradeAgreement;
 use App\Models\Vehicle;
 use Illuminate\Support\Facades\DB;
 
@@ -25,6 +27,8 @@ use Illuminate\Support\Facades\DB;
  */
 class ConcluirTrechos
 {
+    public function __construct(private CreditarEntrega $creditarEntrega) {}
+
     /** @return int quantos trechos foram fechados */
     public function handle(): int
     {
@@ -84,8 +88,18 @@ class ConcluirTrechos
         // A colônia de destino pode ter sido apagada durante o trajeto. A carga se perde; o
         // veículo volta. Não há regra no GDD para isso, e evaporar é melhor que travar o veículo.
         if ($destino && $origem) {
+            // D-41: só a carga que aponta um acordo o abate. Um presente casual entre os mesmos
+            // colonos não paga promessa nenhuma.
+            $acordo = $v->trade_agreement_id ? TradeAgreement::find($v->trade_agreement_id) : null;
+
             foreach ($v->cargo_json ?? [] as $recurso => $qtd) {
-                $this->entregar($origem, $destino, $v, $recurso, (int) $qtd, 'entrega');
+                $liquido = $this->entregar($origem, $destino, $v, $recurso, (int) $qtd, 'entrega');
+
+                // `null` significa lote já tributado numa execução anterior do tick: a carga
+                // também já foi creditada, e o acordo também. Creditar de novo pagaria em dobro.
+                if ($acordo && $liquido !== null) {
+                    $this->creditarEntrega->handle($acordo, $origem->id, $destino->id, $recurso, $liquido);
+                }
             }
         }
 
@@ -132,6 +146,7 @@ class ConcluirTrechos
             'departs_at' => null,
             'arrives_at' => null,
             'cargo_json' => null,
+            'trade_agreement_id' => null,
         ])->save();
     }
 
@@ -176,12 +191,16 @@ class ConcluirTrechos
         $this->lancarTributo($origem, $tributo, $recurso, $chave);
     }
 
-    private function entregar(Colony $origem, Colony $destino, Vehicle $v, string $recurso, int $qtd, string $prefixo): void
+    /**
+     * @return int|null quanto entrou de fato no estoque do destino, líquido de tributo; `null`
+     *                  se este lote já fora entregue numa execução anterior do tick
+     */
+    private function entregar(Colony $origem, Colony $destino, Vehicle $v, string $recurso, int $qtd, string $prefixo): ?int
     {
         $tipo = ResourceType::find($recurso);
 
         if (! $tipo) {
-            return;
+            return null;
         }
 
         $chave = $this->chave($prefixo, $v, $recurso);
@@ -192,13 +211,15 @@ class ConcluirTrechos
         $liquido = $qtd - $tributo;
 
         if (! $this->tributar($chave, $origem, $recurso, $qtd, $tipo->tax_bps, $tributo)) {
-            return;
+            return null;
         }
 
         $destino->resources()->where('resource_type', $recurso)->increment('amount', $liquido);
 
         $this->lancar($destino, 'transferencia', $liquido, $recurso, $chave);
         $this->lancarTributo($origem, $tributo, $recurso, $chave);
+
+        return $liquido;
     }
 
     /**

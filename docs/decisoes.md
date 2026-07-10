@@ -910,3 +910,101 @@ avança o mundo por delta de tempo, e o minuto perdido volta no tick seguinte.
 Um `migrate:fresh` ou `db:wipe` na árvore de trabalho ainda apaga o banco do jogo — o D-36
 continua valendo palavra por palavra, e `bootstrap/cache/config.php` continua derrotando `env()`.
 Separar o banco de desenvolvimento do de produção é um segundo trabalho, ainda não feito.
+
+## D-40 — O Acordo de Troca não tem escrow. O calote continua real.
+**Data:** 2026-07-09 · **Status:** implementado · **GDD: §26.5, explícito**
+
+O §26.5 é literal: *"Mecanismo opcional que registra evidência objetiva **sem usar bloqueio
+automático de recursos (escrow)** — o risco do calote continua real, mas agora há prova."*
+
+A migration `..._000011_create_trade_agreements_table.php` dizia, num comentário, o oposto: *"Com
+ele, há garantia."* **O comentário estava errado, não o GDD.** Confirmado pelo usuário em
+2026-07-09: "não há garantia nos acordos, o risco de calote deve ser real". O Acordo não protege
+ninguém — ele **testemunha**. É o que o distingue do Mercado Central (§07), que tem escrow, e é o
+que dá sentido ao índice de Confiança Comercial: sem risco não haveria o que medir.
+
+Corolário: nada é reservado ao propor nem ao aceitar. Quem prometeu pode simplesmente não entregar.
+
+## D-41 — Cumprir é entregar fisicamente, e vale o líquido que chega.
+**Data:** 2026-07-09 · **Status:** implementado · **GDD: silente — arbitrado**
+
+O §26.5 fala em "prazo de cumprimento" e nunca define cumprimento. **Arbitrado pelo usuário:**
+
+- **Cumpre quem entrega.** A carga sai por `DespacharVeiculo` e chega por `ConcluirTrechos`; a
+  chegada abate a promessa. Nada depende de o outro lado confirmar recebimento — declaração não é
+  prova, e o §26.8 diz que "logs do servidor prevalecem" sobre print.
+- **Conta o líquido**, não o bruto. `ConcluirTrechos::entregar()` credita ao destino a carga menos
+  o tributo de transporte (§25.2, D-12). A promessa é do ponto de vista de quem recebe: prometi
+  1.000, você precisa **receber** 1.000. Quem despacha manda mais e arca com o tributo.
+- Para que ninguém descubra que caloteou por três unidades de tributo, o acordo **publica o bruto
+  necessário** de cada termo: `GET /central/trade/agreements` devolve, junto do prometido, quanto
+  é preciso despachar para que o líquido bata.
+- **O vínculo é explícito.** `POST /central/vehicles/{id}/dispatch` aceita `trade_agreement_id`, e
+  só a carga que o aponta abate aquele acordo. Casar por janela de tempo faria um presente casual
+  virar pagamento, e escolheria arbitrariamente entre dois acordos abertos do mesmo par.
+
+**Consequência aceita:** termos em Fert$ ficam de fora. O jogo não move Fert$ entre colônias, só
+recursos por veículo. Um acordo só promete recursos do catálogo. Ver as pendências.
+
+## D-42 — O prazo mínimo deriva da viagem, mais 12 h de folga.
+**Data:** 2026-07-09 · **Status:** implementado · **GDD: silente — arbitrado**
+
+O §26.5 exige prazo e não publica limites. **Arbitrado pelo usuário:** o prazo proposto tem de ser
+pelo menos o tempo de viagem do **veículo mais lento** (Caminhão de Carga, 1,5 slot/min) entre as
+duas colônias, **mais 12 horas de folga**.
+
+Deriva da viagem para que não se possa propor um prazo fisicamente impossível de cumprir — a 140
+slots o Caminhão leva 93 min, e um prazo de 30 min seria calote fabricado pelo proponente. A folga
+de 12 h é generosa de propósito: o colono precisa **entrar no jogo** para despachar, e um calote
+acidental sujaria a Confiança Comercial de gente honesta.
+
+Não há prazo máximo. O GDD não pede um, e o acordo que nunca expira simplesmente nunca vira
+evidência — o custo recai sobre quem o propôs.
+
+## D-43 — Confiança Comercial: começa em 500, bloqueia abaixo de 200, +10 / −50, com piso de 500 F$.
+**Data:** 2026-07-09 · **Status:** implementado · **GDD: nomeia os efeitos, não publica os números**
+
+O §26.2 diz que Confiança Comercial "baixa" bloqueia o Mercado Central, e a coluna nasce em **0**
+numa escala de 0 a 1000. Tomado à letra, ninguém jamais entraria no Mercado — que já está no ar.
+O GDD não publica valor inicial, limiar, nem quanto vale cumprir. **Arbitrado pelo usuário:**
+
+| O quê | Valor |
+|---|---|
+| Valor inicial | **500** (neutro, meio da escala) |
+| Bloqueio do Mercado Central | abaixo de **200** |
+| Acordo cumprido | **+10** |
+| Acordo quebrado | **−50** |
+
+O calote custa cinco vezes o que cumprir rende: confiança leva tempo e se perde depressa. Do valor
+inicial, seis calotes seguidos fecham o Mercado para o colono.
+
+**Piso anti-farming.** O §26.3 exige 500 Fert$ de valor de mercado (somando os dois lados) para que
+uma transação possa ser avaliada. **O usuário estendeu o piso ao Acordo:** um acordo abaixo de 500
+Fert$ registra histórico e status, mas **não move o índice**. Sem isso, dois amigos trocariam 1
+unidade de minério mil vezes. O §26.1 já lista "avaliação de transações triviais" como abuso.
+
+Uma migration sobe os quatro colonos existentes de 0 para 500. É reescrever reputação de conta já
+criada — aceito porque nenhum acordo jamais existiu, então nenhum histórico se perde.
+
+## D-44 — O Ministério das Reputações vai ser construído inteiro, com nomeação manual.
+**Data:** 2026-07-09 · **Status:** decidido, não implementado · **GDD: §26.6–26.8**
+
+Avisei ao usuário que o rito depende de chat, federações, missões, terraformação, cargos e leilões
+— **nada disso existe** — e que construí-lo agora produz um Ministério parcialmente oco. Ele optou
+por construí-lo assim mesmo. Arbitragens que essa escolha exigiu:
+
+- **Conciliador por nomeação manual.** O §26.6 exige "Conduta Social alta + Status Cívico alto", e
+  Conduta Social só se move por chat (§26.2). Enquanto não houver chat, o cargo é ligado por
+  comando de artisan. A elegibilidade do §26.6 entra quando os índices ganharem substrato.
+- **A "equipe" da apelação (§26.7) é o operador do jogo**, fora do jogo. Era a única leitura que
+  funciona com 4 colônias. O bônus de +3 Fert$ só se paga depois que a janela de apelação fecha.
+- **Suspensão automática em 5 reversões** (o §26.7 diz "limite configurável" e não publica o
+  número).
+- **As cinco punições do §9.4 são registradas, mesmo as inertes.** Silêncio temporário precisa de
+  chat e Bloqueio de leilões precisa de leilões; ficam gravados com prazo e passam a morder sozinhos
+  no dia em que esses sistemas existirem. Nenhuma migration futura reescreve histórico.
+
+**Bloqueio conhecido, ainda não arbitrado:** o §9.4 manda deduzir pontos da "reputação geral", que o
+§26.2 **aboliu** e o §26.9 proíbe compensar entre índices. E o §26.8 chama de "tabela fixa de
+punições por tipo de violação confirmada" um mapa que o GDD **nunca publica**. Os dois têm de ser
+arbitrados antes do conciliador julgar qualquer coisa. Não invente.

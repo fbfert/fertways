@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Domain\Logistics\ConcluirTrechos;
 use App\Domain\Production\ColonyTick;
+use App\Domain\Trade\ExpirarAcordos;
 use App\Models\Colony;
 use App\Models\NeutralZone;
 use Illuminate\Console\Command;
@@ -12,7 +13,9 @@ use Throwable;
 /**
  * Motor de tick. Chamado pelo Laravel Scheduler, que o cron do sistema aciona a cada minuto:
  *
- *     * * * * * /bin/php84 /home/fertways/apps/fertways/backend/artisan schedule:run >/dev/null 2>&1
+ *     * * * * * /usr/bin/php84 /home/fertways/deploy/fertways/backend/artisan schedule:run >/dev/null 2>&1
+ *
+ * É o `artisan` da cópia de deploy, não o da árvore de trabalho (D-39).
  *
  * Caminho absoluto do php84 de propósito: o alias `php` do Virtualmin só existe em shell
  * interativo, e o cron rodaria o PHP 8.2 do AppStream.
@@ -26,7 +29,7 @@ class TickColonies extends Command
 
     protected $description = 'Avança produção, conclui upgrades e expira proteções, por delta de tempo';
 
-    public function handle(ColonyTick $tick, ConcluirTrechos $trechos): int
+    public function handle(ColonyTick $tick, ConcluirTrechos $trechos, ExpirarAcordos $acordos): int
     {
         $agora = now();
         $processadas = 0;
@@ -59,7 +62,13 @@ class TickColonies extends Command
          */
         $entregas = $trechos->handle();
 
-        $this->info("tick: {$processadas} colônias, {$falhas} falhas, {$zonas} proteções expiradas, {$entregas} trechos concluídos");
+        /*
+         * Depois das entregas, nunca antes: a carga que chega no último segundo do prazo ainda
+         * cumpre o acordo (§26.5, D-41). Expirar primeiro puniria quem entregou a tempo.
+         */
+        $vencidos = $acordos->handle();
+
+        $this->info("tick: {$processadas} colônias, {$falhas} falhas, {$zonas} proteções expiradas, {$entregas} trechos concluídos, {$vencidos} acordos vencidos");
 
         return $falhas > 0 ? self::FAILURE : self::SUCCESS;
     }

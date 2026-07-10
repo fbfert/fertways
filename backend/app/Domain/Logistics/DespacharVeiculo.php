@@ -2,11 +2,13 @@
 
 namespace App\Domain\Logistics;
 
+use App\Domain\Trade\AcessoAoMercado;
 use App\Exceptions\DomainRuleException;
 use App\Models\Colony;
 use App\Models\Ledger;
 use App\Models\MarketAccount;
 use App\Models\ResourceType;
+use App\Models\TradeAgreement;
 use App\Models\Vehicle;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\DB;
@@ -23,16 +25,24 @@ use Illuminate\Support\Facades\DB;
  */
 class DespacharVeiculo
 {
-    public function handle(Colony $origem, Vehicle $veiculo, string $destinoTipo, ?int $destinoId, array $carga): Vehicle
+    public function handle(Colony $origem, Vehicle $veiculo, string $destinoTipo, ?int $destinoId, array $carga, ?int $acordoId = null): Vehicle
     {
         $this->validarVeiculo($origem, $veiculo);
 
         $destino = $this->resolverDestino($origem, $destinoTipo, $destinoId);
         $this->validarCarga($veiculo, $carga);
 
+        // Depositar na doca é acessar o Mercado Central (§25.8). Quem está bloqueado pelo §26.2
+        // não põe carga lá dentro.
+        if ($destinoTipo === 'mercado_central') {
+            AcessoAoMercado::exigir($origem);
+        }
+
+        $acordo = $this->resolverAcordo($origem, $destinoTipo, $destino['id'], $acordoId);
+
         [$distancia, $energia] = $this->trajeto($origem, $veiculo, $destino);
 
-        return DB::transaction(function () use ($origem, $veiculo, $destinoTipo, $destino, $carga, $distancia, $energia) {
+        return DB::transaction(function () use ($origem, $veiculo, $destinoTipo, $destino, $carga, $distancia, $energia, $acordo) {
             $agora = now();
             $ref = $this->partir($origem, $veiculo, $energia, $agora);
 
@@ -40,8 +50,46 @@ class DespacharVeiculo
                 $this->debitarEstoque($origem, $recurso, $qtd, 'transferencia', $ref);
             }
 
-            return $this->emRota($veiculo, $destinoTipo, $destino['id'], 'entrega', $distancia, $carga, $agora);
+            return $this->emRota($veiculo, $destinoTipo, $destino['id'], 'entrega', $distancia, $carga, $agora, $acordo?->id);
         });
+    }
+
+    /**
+     * D-41: a carga só abate um Acordo de Troca se **apontar** aquele acordo. Sem isto, um presente
+     * casual entre os mesmos colonos viraria pagamento, e dois acordos abertos do mesmo par se
+     * canibalizariam.
+     *
+     * O acordo não reserva nada e não é obrigatório: despachar sem ele continua sendo comércio
+     * informal, com o risco de calote que o §25.7 quer preservar.
+     */
+    private function resolverAcordo(Colony $origem, string $destinoTipo, ?int $destinoId, ?int $acordoId): ?TradeAgreement
+    {
+        if ($acordoId === null) {
+            return null;
+        }
+
+        $acordo = TradeAgreement::find($acordoId);
+
+        if (! $acordo || ! $acordo->envolve($origem->id)) {
+            throw new DomainRuleException('acordo_de_outros', 'Este acordo não é seu.');
+        }
+
+        if (! $acordo->emVigor()) {
+            throw new DomainRuleException('acordo_nao_vigente', "O acordo está {$acordo->status}, não aceito.");
+        }
+
+        if ($acordo->deadline_at->isPast()) {
+            throw new DomainRuleException('prazo_ja_vencido', 'O prazo deste acordo já venceu.');
+        }
+
+        if ($destinoTipo !== 'colonia' || $acordo->contraparte($origem->id) !== $destinoId) {
+            throw new DomainRuleException(
+                'destino_nao_e_a_contraparte',
+                'A carga de um acordo tem de ir para a colônia da contraparte.',
+            );
+        }
+
+        return $acordo;
     }
 
     /**
@@ -56,6 +104,8 @@ class DespacharVeiculo
     public function retirar(Colony $origem, Vehicle $veiculo, array $pedido): Vehicle
     {
         $this->validarVeiculo($origem, $veiculo);
+
+        AcessoAoMercado::exigir($origem);
 
         $destino = $this->resolverDestino($origem, 'mercado_central', null);
         $this->validarCarga($veiculo, $pedido);
@@ -110,7 +160,7 @@ class DespacharVeiculo
         return $ref;
     }
 
-    private function emRota(Vehicle $veiculo, string $destinoTipo, ?int $destinoId, string $proposito, int $distancia, array $carga, CarbonInterface $agora): Vehicle
+    private function emRota(Vehicle $veiculo, string $destinoTipo, ?int $destinoId, string $proposito, int $distancia, array $carga, CarbonInterface $agora, ?int $acordoId = null): Vehicle
     {
         $veiculo->forceFill([
             'status' => 'em_rota',
@@ -124,6 +174,7 @@ class DespacharVeiculo
                 VeiculoSpecs::segundosDoTrecho($veiculo->type, $distancia),
             ),
             'cargo_json' => $carga,
+            'trade_agreement_id' => $acordoId,
         ])->save();
 
         return $veiculo;
