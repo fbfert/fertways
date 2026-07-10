@@ -86,13 +86,11 @@ Mercado deixa dois furgões em rota, e o do Acordo despacha o terceiro.
 
 ## Perguntas em aberto — faça estas ao usuário ao retomar
 
-1. **Qual o próximo passo?** Candidatos, sem ordem decidida. **Todo sistema do jogo tem tela de novo.**
-   - **Publicar o Ministério em produção.** Ele está em `main` e **não foi publicado**: o último
-     deploy é o da tela do Acordo. `sudo ./tools/deploy.sh` (completo — a migration sobe os três
-     índices de zero para 500 nas quatro contas de produção). Confira depois com
-     `artisan fertways:conciliador --listar`, que deve dizer que não há conciliador nenhum.
-   - **Nomear um conciliador em produção**, ou o Ministério fica inerte: sem conciliador, todo caso
-     sobe à equipe, isto é, ao seu terminal.
+1. **Qual o próximo passo?** Candidatos, sem ordem decidida. **Todo sistema do jogo tem tela.**
+   - **Nomear um conciliador em produção.** O Ministério está no ar, e **não há conciliador nenhum**:
+     todo caso sobe à equipe, isto é, ao seu terminal. `artisan fertways:conciliador <nick> --nomear`
+     numa das quatro contas. Repare que o nomeado passa a receber 50 Fert$/dia (§26.7) — e ninguém
+     mais tem renda passiva no jogo.
    - **Serviço logístico público** (§07): o GDD o cita como alternativa ao veículo próprio na
      retirada, e ele não existe. Hoje o comprador precisa de Furgão ou Caminhão. O GDD não publica
      preço nem prazo — precisaria de arbitragem.
@@ -188,6 +186,9 @@ apareceu quando o diretório começou a listar todo mundo. Produção tem **4 co
 
 Essas contas vivem em `fertwaysbd` (produção). O banco de desenvolvimento, `fertwaysdev`, nasceu
 migrado e semeado em 2026-07-09, **sem nenhuma colônia**: funde a sua própria ao testar.
+
+As quatro têm os quatro índices de reputação em 500, conferido em produção depois do deploy do
+Ministério. Nenhuma é conciliadora.
 
 ## ⚠️ Ferramentas destrutivas
 
