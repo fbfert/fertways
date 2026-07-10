@@ -6,9 +6,13 @@ Ambiente atual: AlmaLinux 9.8 com Virtualmin, Apache + PHP-FPM, MariaDB. Domíni
 | O quê | Onde |
 |---|---|
 | Frontend (build estático) | `https://fertways.tars.art.br` → `/home/fertways/public_html` |
-| Backend (API Laravel) | `https://fertways.tars.art.br/central` → symlink para `backend/public` |
-| Código | `/home/fertways/apps/fertways` |
-| Banco | MariaDB, base `fertwaysbd` |
+| Backend (API Laravel) | `https://fertways.tars.art.br/central` → symlink para `deploy/fertways/backend/public` |
+| Código, onde se edita | `/home/fertways/apps/fertways` — **não é servido** |
+| Código, o que está no ar | `/home/fertways/deploy/fertways` — clone; `origin` é o repo local |
+| Banco | MariaDB, base `fertwaysbd` — **um só, compartilhado pelos dois** |
+
+Desde o D-39 o deploy é explícito: **editar código não publica mais nada.** Publicar é
+`sudo ./tools/deploy.sh`, que puxa `main` na cópia de deploy.
 
 ## PHP: use `php84`, não `php`
 
@@ -39,7 +43,7 @@ O typecheck honesto é `npm run build` (que roda `tsc -b`), **não** `tsc --noEm
 ```
 /home/fertways/public_html/            <- DocumentRoot do domínio (build do front)
 ├── index.html, assets/                <- saída de `npm run build`
-└── central -> /home/fertways/apps/fertways/backend/public
+└── central -> /home/fertways/deploy/fertways/backend/public
 ```
 
 O Apache **não canonicaliza o symlink**: serve por `/home/fertways/public_html/central/` e aplica o
@@ -53,40 +57,41 @@ montada em `/central`. Por isso `apiPrefix` é vazio (ver `docs/decisoes.md`, D-
 Como o `.env` e o `vendor/` vivem **acima** de `public/`, não há rota até eles: `/central/.env`
 devolve 404.
 
-## Atenção: editar o código aqui é publicar
+## Editar não publica mais (D-39)
 
-`public_html/central` é um symlink para `backend/public`, e não há build intermediário no PHP.
-Qualquer arquivo salvo em `backend/` **entra no ar no próximo request**. Não existe janela entre
-"escrevi" e "publiquei".
+Até 2026-07-09, `public_html/central` apontava para a **árvore de trabalho**, e qualquer arquivo
+salvo em `backend/` entrava no ar no próximo request. Já quebrou a fundação de colônia: a logística
+introduziu `colonies.x`/`y`, e fundar devolveu 500 até a migration rodar.
 
-A consequência prática: **rode a migration antes de salvar o código que depende dela.** Salvar
-primeiro deixa a produção quebrada no intervalo. Já aconteceu — a logística introduziu
-`colonies.x`/`y`, e fundar colônia devolveu 500 até a migration rodar.
+Hoje o symlink aponta para `/home/fertways/deploy/fertways`, um clone à parte. Edite à vontade em
+`apps/fertways`: ninguém serve dali.
 
-Se isso incomodar, a solução estrutural é separar o diretório de deploy do diretório de trabalho
-(clonar o repo em outro lugar e apontar o symlink para lá), fazendo o deploy ser um `git pull`
-explícito. Hoje não é assim.
+**Mas publicar continua sendo instantâneo _dentro_ da cópia de deploy** — o Apache serve o PHP
+direto, sem build. Um `git pull` cru na cópia publicaria o código antes da migration, e a janela de
+500 voltaria. Por isso **use `tools/deploy.sh`**, que fecha a porta com `artisan down` antes do pull
+e só a reabre depois do `migrate`.
 
 ## Passos de um deploy
 
 ```sh
 cd /home/fertways/apps/fertways
-git pull
-
-# backend
-cd backend
-sudo -u fertways composer install --no-dev --optimize-autoloader
-sudo -u fertways /usr/bin/php84 artisan migrate --force
-sudo -u fertways /usr/bin/php84 artisan config:cache
-sudo -u fertways /usr/bin/php84 artisan tinker --execute='echo config("app.debug") ? "DEBUG LIGADO" : "ok";'
-
-# frontend
-cd ../frontend
-export PATH="/usr/local/lib/nodejs/node-v22.12.0-linux-x64/bin:$PATH"
-npm ci && npm run build
-/bin/cp -rf dist/. /home/fertways/public_html/   # `cp` é alias de `cp -i` no root: sem -f ele trava num prompt e não copia nada
-chown -R fertways:fertways /home/fertways/public_html
+git commit ...          # o deploy publica o que está commitado em `main`, não o que está salvo
+sudo ./tools/deploy.sh            # backend + frontend
+sudo ./tools/deploy.sh --so-backend
+sudo ./tools/deploy.sh --so-frontend
 ```
+
+O script aborta se: o symlink não apontar para a cópia de deploy, a cópia tiver alteração local,
+`APP_DEBUG` estiver ligado, o bundle no ar não for o recém-compilado, ou a fumaça final
+(front 200, `/central/colony` 401) falhar. Se algo estourar no meio do backend, ele tira a
+aplicação da manutenção antes de sair.
+
+**Reverter a separação**, se precisar: os backups estão em `/home/fertways/deploy/.symlink-anterior`
+e `/home/fertways/deploy/.crontab-anterior`. São uma linha cada — o symlink com `ln -sfn`, o cron
+com `crontab -u fertways -`.
+
+O tick é pulado enquanto a aplicação está em manutenção. É inofensivo: ele avança o mundo por delta
+de tempo, então o minuto perdido volta no tick seguinte.
 
 **Não rode `php artisan route:cache`.** Ele quebra a raiz da API quando a aplicação está montada num
 subcaminho: `/central/` devolve 405 e `/central` devolve 404, enquanto as sub-rotas funcionam — o que
@@ -103,18 +108,36 @@ APP_URL=https://fertways.tars.art.br/central
 `APP_DEBUG=true` em produção publica a página de erro do Laravel com o `.env` inteiro, incluindo
 `DB_PASSWORD`, numa máquina que também serve mail e Virtualmin. Confira depois de todo `config:cache`.
 
+O `.env` **não** é versionado. Um clone novo não o tem: copie-o da árvore de trabalho, modo 600,
+dono `fertways`. E `storage/logs` também não vem no clone — crie-o, ou o Laravel morre no primeiro
+log.
+
+### O banco é o mesmo dos dois lados
+
+`apps/fertways/backend/.env` e `deploy/fertways/backend/.env` apontam ambos para o MariaDB
+`fertwaysbd`. **A separação do D-39 isolou o código, não os dados.** `migrate:fresh`, `db:wipe` ou
+`truncate` na árvore de trabalho continuam apagando o banco do jogo, e com
+`bootstrap/cache/config.php` presente o Laravel ignora `env()` — exportar `DB_CONNECTION=sqlite`
+não redireciona nada. Ver D-27 e D-36. Toda ferramenta destrutiva precisa exportar
+`APP_CONFIG_CACHE` para um caminho inexistente **e** conferir a conexão efetiva antes de rodar,
+como fazem `phpunit.xml` e `tools/e2e.sh`.
+
 ## Tick de produção (cron)
 
 Sem isto, recursos não acumulam e construções nunca terminam. No crontab do usuário `fertways`:
 
 ```cron
-* * * * * /usr/bin/php84 /home/fertways/apps/fertways/backend/artisan schedule:run >> /home/fertways/logs/fertways-tick.log 2>&1
+* * * * * /usr/bin/php84 /home/fertways/deploy/fertways/backend/artisan schedule:run >> /home/fertways/logs/fertways-tick.log 2>&1
 ```
+
+**É o `artisan` da cópia de deploy, não o da árvore de trabalho.** Se apontar para `apps/`, o mundo
+passa a ser avançado por código não-commitado, mesmo com o Apache servindo a cópia. Foi repontado
+junto com o symlink no D-39.
 
 O `routes/console.php` já agenda `fertways:tick` a cada minuto. Para avançar o mundo à mão:
 
 ```sh
-sudo -u fertways /usr/bin/php84 artisan fertways:tick
+sudo -u fertways /usr/bin/php84 /home/fertways/deploy/fertways/backend/artisan fertways:tick
 ```
 
 ## Rodar a suíte no servidor

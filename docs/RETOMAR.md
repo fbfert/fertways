@@ -51,13 +51,18 @@ a ponta em navegador de verdade**: `npm run e2e` (ou `./tools/e2e.sh`) sobe uma 
 > bundle servido com o `diff` da "Verificação rápida" antes de supor que o que está no ar é o que
 > está em `main`.
 
+**Deploy separado desde 2026-07-09 (D-39).** `apps/fertways` é onde se edita e **não é servido**;
+`/home/fertways/deploy/fertways` é o clone que o Apache serve e que o cron do tick executa.
+Publicar é `sudo ./tools/deploy.sh`. **O banco continua sendo um só** — ver D-36, ainda vivo.
+
 ## Perguntas em aberto — faça estas ao usuário ao retomar
 
-1. **Qual o próximo passo?** O despacho entre colônias, escolhido em 2026-07-09, está **fechado**
-   (D-37, D-38). Restam:
-   - **Acordo de Troca** (§26.5): hoje o envio a outro colono é carga de mão única — quem manda
-     confia. O Acordo é o contrato que falta ao redor disso: sem escrow, com o risco de calote
-     deliberadamente real. Faz par com o Mercado e está no MVP social. **É o sucessor natural.**
+1. **Qual o próximo passo?** O usuário escolheu, em 2026-07-09, o **Acordo de Troca** (§26.5) —
+   **ainda não começado**. Hoje o envio a outro colono é carga de mão única: quem manda confia. O
+   Acordo é o contrato que falta ao redor disso: sem escrow, com o risco de calote deliberadamente
+   real. Faz par com o Mercado e está no MVP social. Comece por ler o §26.5 no GDD e levantar o que
+   ele **não** decide (prazo do acordo, o que acontece no calote, se há registro de reputação) —
+   essas viram perguntas ao usuário, não invenções. Restam depois:
    - **Serviço logístico público** (§07): o GDD o cita como alternativa ao veículo próprio na
      retirada, e ele não existe. Hoje o comprador precisa de Furgão ou Caminhão. O GDD não
      publica preço nem prazo do serviço — precisaria de arbitragem.
@@ -68,16 +73,21 @@ a ponta em navegador de verdade**: `npm run e2e` (ou `./tools/e2e.sh`) sobe uma 
    - **O Drone de Exploração ficou sem função** (D-37): o diretório revela todas as colônias, então
      restam-lhe as zonas neutras. É consequência assumida, não esquecimento.
 
-2. **Separar o diretório de deploy do diretório de trabalho?** Hoje `public_html/central` é um
-   symlink para `backend/public`, então **editar código aqui é publicar**. Já quebrei a fundação
-   de colônia por alguns minutos ao salvar código que dependia de uma migration ainda não
-   aplicada. Perguntado em 2026-07-09; o usuário respondeu "agora não". Vale repreguntar quando
-   o ritmo de mudança no backend cair.
+2. ~~**Separar o diretório de deploy do diretório de trabalho?**~~ **Feito em 2026-07-09 (D-39).**
+   O symlink e o cron agora apontam para `/home/fertways/deploy/fertways`, um clone à parte.
+   Editar em `apps/fertways` não publica mais nada; publicar é `sudo ./tools/deploy.sh`.
 
-   Enquanto não houver separação: **aplique a migration antes de salvar o código que depende
-   dela.** Foi o que se fez na fatia do Mercado, e não houve janela quebrada.
+   **O banco continua sendo um só.** A separação isolou o código, não os dados: `migrate:fresh` na
+   árvore de trabalho ainda apaga a produção. O D-36 vale palavra por palavra. Separar o banco de
+   desenvolvimento do de produção é o trabalho que ficou por fazer — vale perguntar ao usuário.
 
-3. ~~**Zerar as colônias de teste?**~~ **Decidido em 2026-07-09: deixar como está.** `publico` tem
+3. **Publicar os commits no GitHub?** `main` está **15 commits à frente do `origin/main`** (o
+   GitHub parou em `9a6f046`). Todo o Mercado Central e o diretório de colônias existem só neste
+   disco, e o backup é diário: até 24 h de perda levariam o trabalho junto. Perguntado em
+   2026-07-09 só de raspão, ao escolher a origem do clone de deploy; o usuário optou por manter o
+   deploy puxando do repo local, o que **não** era uma recusa a publicar. Repergunte.
+
+4. ~~**Zerar as colônias de teste?**~~ **Decidido em 2026-07-09: deixar como está.** `publico` tem
    54,85 Fert$ e 770 na doca; `mapa2` tem 45 Fert$ e 100 na doca — estado artificial (abastecimento
    à mão mais um negócio real no livro), mas serve de cenário pronto para testar o Mercado. Não
    atrapalha ninguém. Só repergunte se o jogo abrir para gente de fora.
@@ -100,7 +110,8 @@ a ponta em navegador de verdade**: `npm run e2e` (ou `./tools/e2e.sh`) sobe uma 
   ainda. O `vite build` avisa a cada compilação.
 - **`cp` é alias de `cp -i` para o root.** No passo de deploy do frontend ele trava num prompt e
   copia nada, em silêncio, com saída que *parece* sucesso. Use `/bin/cp -rf dist/. …`. Confira o
-  hash do bundle servido contra o de `dist/assets/` antes de dizer que publicou.
+  hash do bundle servido contra o de `dist/assets/` antes de dizer que publicou. O
+  `tools/deploy.sh` já faz as duas coisas e aborta se o bundle no ar não for o recém-compilado.
 
 ## Verificação rápida (rode antes de confiar nesta página)
 
@@ -113,9 +124,16 @@ curl -s -o /dev/null -w '%{http_code}\n' https://fertways.tars.art.br/          
 curl -s https://fertways.tars.art.br/central/                                    # índice JSON da API
 curl -s -o /dev/null -w '%{http_code}\n' https://fertways.tars.art.br/central/colony  # 401
 
-# O cron do tick existe, e está mesmo rodando?
+# O cron do tick existe, aponta para o DEPLOY (não para apps/), e está mesmo rodando?
 crontab -u fertways -l
 tail -3 /home/fertways/logs/fertways-tick.log
+
+# O symlink aponta para a cópia de deploy? (tem que dar deploy/fertways/backend/public)
+readlink -f /home/fertways/public_html/central
+
+# O que está no ar é o mesmo commit que `main`? (o deploy é explícito; podem divergir)
+git -C /home/fertways/apps/fertways   log --oneline -1
+git -C /home/fertways/deploy/fertways log --oneline -1
 
 # Frontend: o typecheck honesto é `npm run build`, não `tsc --noEmit`.
 export PATH="/usr/local/lib/nodejs/node-v22.12.0-linux-x64/bin:$PATH"

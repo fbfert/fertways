@@ -877,3 +877,36 @@ tick), será um **campo à parte**, não a renomeação deste.
 privados" sem enumerar o que é público, e escolher destino não é espionar. As coordenadas entram
 por decisão do usuário — o §24.2 já torna o slot alheio clicável no mapa, e uma tela de mapa
 precisará delas.
+
+## D-39 — O diretório de deploy é separado do diretório de trabalho.
+**Data:** 2026-07-09 · **Status:** implementado · **GDD: não se aplica**
+
+Até aqui `public_html/central` era symlink para `apps/fertways/backend/public`: **salvar um arquivo
+era publicá-lo**, no próximo request, sem intervalo. A logística já quebrou a fundação de colônia
+por alguns minutos assim — o código novo pedia `colonies.x`/`y` antes de a migration rodar.
+
+**Decidido pelo usuário (2026-07-09), depois de recusar a mesma proposta na sessão anterior:**
+
+```
+trabalho → /home/fertways/apps/fertways      (onde se edita; ninguém serve)
+deploy   → /home/fertways/deploy/fertways     (clone; é o que o Apache serve)
+```
+
+O `origin` do clone é o **repo local**, não o GitHub — escolha do usuário: publicar não passa a
+depender de rede nem de credencial. `git -C /home/fertways/deploy/fertways pull` é o deploy.
+
+**O cron foi repontado junto.** Ele chamava o `artisan` da árvore de trabalho; se só o symlink
+mudasse, o Apache serviria a cópia e o tick continuaria rodando código não-commitado. Backup do
+crontab antigo em `/home/fertways/deploy/.crontab-anterior`, e do alvo antigo do symlink em
+`.symlink-anterior` — reverter é uma linha de cada.
+
+**Publicar ainda é instantâneo dentro da cópia de deploy**, porque o Apache serve o PHP direto, sem
+build. A separação não elimina a janela entre `git pull` e `migrate`: ela dá **um lugar onde fechar
+a porta antes**. Por isso `tools/deploy.sh` envolve pull + composer + migrate em `artisan down` /
+`artisan up`, e só então tira a manutenção. O tick pulado durante a manutenção é inofensivo: ele
+avança o mundo por delta de tempo, e o minuto perdido volta no tick seguinte.
+
+**O que esta decisão não resolve.** Os dois `.env` apontam para o **mesmo** MariaDB `fertwaysbd`.
+Um `migrate:fresh` ou `db:wipe` na árvore de trabalho ainda apaga o banco do jogo — o D-36
+continua valendo palavra por palavra, e `bootstrap/cache/config.php` continua derrotando `env()`.
+Separar o banco de desenvolvimento do de produção é um segundo trabalho, ainda não feito.
