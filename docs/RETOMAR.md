@@ -32,14 +32,25 @@ O MVP tem, funcionando e no ar em `https://fertways.tars.art.br`:
   `GET /central/trade/deadline`. Sem escrow: o calote é real e deliberado (D-40). Cumprir é
   entregar fisicamente e vale o líquido que chega (D-41). Prazo mínimo = viagem + 12 h (D-42).
   Confiança Comercial começa em 500, bloqueia abaixo de 200 (D-43).
+- **Ministério das Reputações (§9.1–9.4, §26.6–26.8)** — **backend completo, sem tela.** Denúncia com
+  evidência mínima conferida, triagem (grave → equipe; simples → conciliador sem impedimento),
+  48 h para decidir, punição pela **tabela fixa do D-49**, apelação de 48 h, reversão que estorna e
+  suspende em 5. `GET /central/ministry/me`, `GET/POST /central/ministry/reports`,
+  `POST /central/ministry/reports/{id}/decide`, `POST /central/ministry/reports/{id}/appeal`.
+  A **equipe** do §9.2 é o operador e não tem rota: `artisan fertways:equipe --fila`,
+  `fertways:equipe {id} --procedente|--improcedente|--manter|--reverter`, e
+  `artisan fertways:conciliador {nick} --nomear|--demitir|--reintegrar|--listar`.
+  Os **quatro** índices do §26.2 agora nascem em 500 (antes, três nasciam em zero). A única punição
+  que morde hoje é a **restrição comercial**: fecha toda saída de carga por 7 dias.
 - Frontend: login, HUD, colônia em Phaser, a tela do Mercado e a **tela do Acordo** (dois botões no
   HUD). A tela do Acordo propõe, aceita, recusa, desiste, mostra a Confiança Comercial contra o
   limiar e **despacha a entrega pelo bruto**, não pelo prometido: quem embarca 100 entrega 97, e o
   colono não deve descobrir que caloteou por três unidades de tributo (D-41).
 
-**137 testes, 1705 asserções, verdes.** O cron do tick está instalado (crontab do usuário
+**165 testes, 1785 asserções, verdes.** O cron do tick está instalado (crontab do usuário
 `fertways`, log em `/home/fertways/logs/fertways-tick.log`) e roda o `artisan` **da cópia de
-deploy** — o mundo avança sozinho.
+deploy** — o mundo avança sozinho. O tick faz: produção, upgrades, proteções, trechos de viagem,
+acordos vencidos, **casos reatribuídos, janelas de apelação fechadas e a folha do Ministério**.
 
 As duas telas têm **teste de ponta a ponta em navegador de verdade**: `npm run e2e` (ou
 `./tools/e2e.sh`) sobe uma pilha efêmera (SQLite temporário + `artisan serve` + `vite dev`) e dirige
@@ -66,14 +77,14 @@ Mercado deixa dois furgões em rota, e o do Acordo despacha o terceiro.
 
 ## Perguntas em aberto — faça estas ao usuário ao retomar
 
-1. **Qual o próximo passo?** Candidatos, sem ordem decidida. **Todo sistema do jogo tem tela agora.**
-   - **O Ministério das Reputações (§26.6–26.8)**, decidido em D-44 e **não implementado — mas
-     desbloqueado**. Os dois bloqueios do D-44 caíram em 2026-07-09: não existe "reputação geral"
-     (D-48, decidido pelo próprio GDD) e a tabela fixa de punições do §26.8 foi arbitrada inteira
-     (D-49). **Comece lendo D-47, D-48 e D-49** — a tabela, as durações e o Persona Non Grata já
-     têm número. Ele ainda depende de chat, federações, missões, terraformação, cargos e leilões,
-     que não existem: o usuário optou por construí-lo assim mesmo, com as punições inertes gravadas.
-     Falta criar os **outros três índices** de reputação — hoje só existe `confianca_comercial`.
+1. **Qual o próximo passo?** Candidatos, sem ordem decidida.
+   - **A tela do Ministério das Reputações.** O backend está pronto e testado (D-50), e nenhum colono
+     alcança o Ministério pela UI. É o único sistema do jogo sem tela — a mesma dívida que o Acordo
+     tinha. Precisa de: os quatro índices, as punições vigentes com prazo, abrir denúncia (escolher
+     violação do catálogo e anexar o Acordo quebrado que serve de evidência), a fila do conciliador
+     com o relógio das 48 h, o botão de decidir e o de apelar. `GET /central/ministry/me` já devolve
+     o catálogo de violações **com a pena tabelada**: a tela deve mostrá-la antes de o conciliador
+     julgar — a pena não é segredo, e ele não a escolhe.
    - **Serviço logístico público** (§07): o GDD o cita como alternativa ao veículo próprio na
      retirada, e ele não existe. Hoje o comprador precisa de Furgão ou Caminhão. O GDD não publica
      preço nem prazo — precisaria de arbitragem.
@@ -100,6 +111,13 @@ Mercado deixa dois furgões em rota, e o do Acordo despacha o terceiro.
 - **Ida e volta ao Mercado sem vender custa tributo duas vezes** (D-32). É o §25.9 aplicado à
   letra: uma incidência por entrega física, e são duas entregas. Fixado em teste. Se o usuário
   achar punitivo demais, é decisão de balanceamento, não bug.
+- **O salário do conciliador é emissão contínua** (D-50): 50 Fert$/dia, e o kit inicial de um colono
+  é 50 Fert$. Um conciliador ganha um kit inicial por dia sem jogar. Com quatro colônias não importa;
+  quando o jogo abrir, é o primeiro número a revisitar. Está no ledger (`salario_conciliador`), então
+  dá para medir.
+- **Metade do Ministério está inerte, por decisão** (D-44, D-49): silêncio precisa de chat, bloqueio
+  de leilões precisa de leilões, e o impedimento por federação precisa de federações. Tudo grava com
+  índice e prazo, e passa a morder sozinho no dia em que esses sistemas existirem.
 - **Depreciação de veículos (§16.4)** — fora do MVP por decisão do usuário. O GDD descreve o
   comportamento mas não publica a curva de desgaste, o limite crítico nem o custo de manutenção.
 - **Zonas neutras como destino de carga** — o despacho aceita `colonia`; zona neutra precisa do

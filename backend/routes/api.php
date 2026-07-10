@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\BuildingController;
 use App\Http\Controllers\Api\ColonyController;
 use App\Http\Controllers\Api\MarketController;
+use App\Http\Controllers\Api\MinistryController;
 use App\Http\Controllers\Api\TradeController;
 use App\Http\Controllers\Api\VehicleController;
 use Illuminate\Support\Facades\Route;
@@ -45,4 +46,12 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/trade/agreements', [TradeController::class, 'store']);
     Route::post('/trade/agreements/{agreement}/confirm', [TradeController::class, 'confirm']);
     Route::delete('/trade/agreements/{agreement}', [TradeController::class, 'destroy']);
+
+    // Ministério das Reputações (§9.1-9.4, §26.6-26.8). A "equipe" do §9.2 não tem rota: ela é o
+    // operador do jogo e julga por `artisan fertways:equipe` (D-44).
+    Route::get('/ministry/me', [MinistryController::class, 'eu']);
+    Route::get('/ministry/reports', [MinistryController::class, 'index']);
+    Route::post('/ministry/reports', [MinistryController::class, 'store']);
+    Route::post('/ministry/reports/{report}/decide', [MinistryController::class, 'decidir']);
+    Route::post('/ministry/reports/{report}/appeal', [MinistryController::class, 'apelar']);
 });

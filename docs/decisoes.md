@@ -1103,8 +1103,10 @@ pontos tem de nomear qual índice ela atinge**, e o §26.2 já diz qual, pela co
 | 🏛️ Status Cívico | tributos, missões da administração, terraformação |
 | ⚔️ Honra Militar/Diplomática | guerras, ataques a aliados, tratados |
 
-São **quatro**, não três. Hoje `users` só tem a coluna `confianca_comercial` (D-43). Os outros três
-nascem com o Ministério, na mesma escala de 0 a 1000 e no mesmo valor inicial de 500.
+São **quatro**, não três. As quatro colunas já existiam em `users` desde a primeira migration — mas
+só `confianca_comercial` nascia em 500 (D-43); **as outras três nasciam em zero**, que na escala do
+§26.2 é o pior colono possível, não um colono novo. Ninguém percebeu porque nada as movia. A
+migration do Ministério as sobe a 500 (D-50).
 
 ## D-49 — A tabela fixa de punições do §26.8, que o GDD nunca publicou.
 **Data:** 2026-07-09 · **Status:** decidido pelo usuário · **Fecha o 2º bloqueio do D-44**
@@ -1161,3 +1163,61 @@ leilão.
 **Inertes por ora**, como o D-44 já decidiu para as punições: chat, tratados, alianças e leilões não
 existem. Os tipos ficam gravados com índice e prazo, e passam a morder sozinhos no dia em que esses
 sistemas existirem. Nenhuma migration futura reescreve histórico.
+
+## D-50 — O Ministério das Reputações, e as três lacunas que construí-lo abriu.
+**Data:** 2026-07-09 · **Status:** implementado · **GDD: §9.1–9.4, §26.6–26.8**
+
+Denúncia, triagem, conciliador, decisão pela tabela fixa do D-49, punição, apelação e reversão. O
+que o §26.8 chama de "regras formais de processo" agora existe em código, com o tick fazendo o que
+corre sozinho: reatribuir caso vencido, fechar janela de apelação e pagar a folha.
+
+**§9.3 contradiz o §26.7 sobre a remuneração, e o D-47 resolve.** O §9.3 diz "remunerado em Fert$
+**por caso resolvido**"; o §26.7 diz "salário fixo diário — 50 Fert$, **independente do volume de
+casos**". Mesma parte do documento, número maior: vale o §26.7. E é o que o próprio §26.7 defende no
+título — "Remuneração por Qualidade, não Volume". Pagar por caso resolvido premiaria o conciliador
+que despacha depressa, incentivo que o §26.1 lista entre os abusos que a seção 26 veio corrigir.
+
+Três coisas o GDD não fecha, e o usuário arbitrou (2026-07-09):
+
+1. **A janela de apelação é de 48 h.** O §26.7 condiciona o bônus de +3 Fert$ à decisão "não
+   revertida em apelação" e nunca diz até quando se apela. Espelhamos o único prazo que o §26.8
+   publica: quem julga tem 48 h, quem apela tem 48 h. O bônus cai no primeiro tick depois disso.
+2. **"Caso grave" é o que a tabela do D-49 pune com −250.** O §9.2 manda a triagem separar caso
+   simples de caso grave e nunca define grave. São `fraude_de_avaliacao` e `sonegacao` — e a §26.4 já
+   exigia "revisão manual" para conta vinculada. Conciliador jogador nunca aplica −250.
+3. **O salário é emitido pelo Governo**, pelo mesmo caminho do subsídio do §24.7. Vai ao ledger como
+   `salario_conciliador` e `bonus_conciliador`, então a inflação que o cargo cria é auditável — o
+   §06 exige integridade monetária e um ledger que a comprove. O GDD não modela caixa público; um
+   salário pago "dos tributos" teria de inventá-lo.
+
+**Decisões menores, todas forçadas pelo texto:**
+
+- **A evidência mínima do §26.8 é conferida de verdade.** Um acordo qualquer não serve: tem de ser
+  entre as duas partes e estar `quebrado`. `print_de_chat` fica gravável no schema e **recusado** até
+  haver chat — aceitá-lo seria abrir a porta à denúncia sem prova, que é o que a regra fecha.
+  "Log de transação" exige o mesmo anexo: o despacho avulso lança no ledger da origem, sem o destino,
+  e não prova relação entre dois colonos. O Acordo é o único registro par-a-par que o servidor tem.
+- **O impedimento do §26.8 morde pela metade.** "Membros da própria federação" fica inerte —
+  federações não existem. "Transação comercial nos últimos 30 dias" usa o Acordo de Troca, pelo mesmo
+  motivo acima. Julgar o próprio caso não é impedimento do §26.8; é absurdo anterior a ele.
+- **Prazo vencido não conta reversão.** O §26.7 conta reversão de decisão; deixar as 48 h passarem
+  não é decisão. O caso vai a outro conciliador — nunca ao mesmo que já não respondeu — e sobe à
+  equipe se não houver outro (§9.3).
+- **Decidir depois das 48 h é recusado**, mesmo antes de o tick reatribuir. Entre o vencimento e o
+  varrimento há até um minuto, e nele o conciliador lento apagaria o próprio atraso.
+- **Reverter estorna, nunca apaga.** A punição fica com `revoked_at`. O §26.8 quer processo
+  auditável, e apagar a punição apagaria a prova do erro que alimenta o contador de reversões.
+- **A restrição comercial é a única punição de prazo que morde hoje**: ela fecha toda saída de carga
+  por 7 dias, para a doca ou para outro colono (§9.4). Silêncio precisa de chat; bloqueio de leilões
+  precisa de leilões. Ficam gravados com prazo e passam a morder sozinhos (D-44).
+- **A "equipe" não tem rota.** Ela é o operador, por `artisan fertways:equipe` e
+  `artisan fertways:conciliador` (D-44). Expor isso na API daria a um colono o poder de suspender
+  conciliadores. Ser conciliador **é** ser Neutro Registrado — a seção 0 diz que o status é
+  exclusivo do cargo, então não há segunda coluna.
+- **Os quatro índices nascem em 500.** Os três que o MVP não movia estavam em zero, que na escala do
+  §26.2 é o pior colono possível, não um colono novo. A migration os sobe a 500. Reescrever índice de
+  conta criada só foi aceitável porque nada jamais os moveu: nenhum histórico se perdeu.
+
+**Consequência econômica a vigiar:** 50 Fert$/dia por conciliador é emissão contínua, e o kit inicial
+de um colono é 50 Fert$. Um conciliador ganha um kit inicial por dia sem jogar. Com quatro colônias
+não importa; quando o servidor abrir, é o primeiro número a revisitar.

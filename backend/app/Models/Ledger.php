@@ -36,6 +36,8 @@ class Ledger extends Model
         'deposito_mercado',   // §25.8: carga entregue entra na conta do colono no Mercado
         'retirada_mercado',   // §25.8: saldo reservado no Mercado para um veículo vir buscar
         'escrow_mercado',     // §07: recurso ou Fert$ reservado ao abrir uma ordem no livro
+        'salario_conciliador', // §26.7: 50 F$/dia, emitidos pelo Governo (D-50)
+        'bonus_conciliador',   // §26.7: +3 F$ por decisão que sobrevive à apelação
         'estorno',
     ];
 

@@ -3,6 +3,8 @@
 namespace App\Console\Commands;
 
 use App\Domain\Logistics\ConcluirTrechos;
+use App\Domain\Ministry\ExpirarPrazos;
+use App\Domain\Ministry\PagarConciliadores;
 use App\Domain\Production\ColonyTick;
 use App\Domain\Trade\ExpirarAcordos;
 use App\Models\Colony;
@@ -29,8 +31,13 @@ class TickColonies extends Command
 
     protected $description = 'Avança produção, conclui upgrades e expira proteções, por delta de tempo';
 
-    public function handle(ColonyTick $tick, ConcluirTrechos $trechos, ExpirarAcordos $acordos): int
-    {
+    public function handle(
+        ColonyTick $tick,
+        ConcluirTrechos $trechos,
+        ExpirarAcordos $acordos,
+        ExpirarPrazos $ministerio,
+        PagarConciliadores $folha,
+    ): int {
         $agora = now();
         $processadas = 0;
         $falhas = 0;
@@ -68,7 +75,15 @@ class TickColonies extends Command
          */
         $vencidos = $acordos->handle();
 
-        $this->info("tick: {$processadas} colônias, {$falhas} falhas, {$zonas} proteções expiradas, {$entregas} trechos concluídos, {$vencidos} acordos vencidos");
+        /*
+         * Depois dos acordos, nunca antes: um acordo que vence **neste** tick já pode ser a
+         * evidência de uma denúncia (§26.8), e um caso cujo prazo de análise venceu no mesmo minuto
+         * deve ser reatribuído com o mundo já atualizado.
+         */
+        ['reatribuidos' => $reatribuidos, 'encerrados' => $encerrados] = $ministerio->handle();
+        $salarios = $folha->handle();
+
+        $this->info("tick: {$processadas} colônias, {$falhas} falhas, {$zonas} proteções expiradas, {$entregas} trechos concluídos, {$vencidos} acordos vencidos, {$reatribuidos} casos reatribuídos, {$encerrados} casos encerrados, {$salarios} salários pagos");
 
         return $falhas > 0 ? self::FAILURE : self::SUCCESS;
     }

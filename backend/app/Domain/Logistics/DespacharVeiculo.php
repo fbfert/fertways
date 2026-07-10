@@ -7,6 +7,7 @@ use App\Exceptions\DomainRuleException;
 use App\Models\Colony;
 use App\Models\Ledger;
 use App\Models\MarketAccount;
+use App\Models\Punishment;
 use App\Models\ResourceType;
 use App\Models\TradeAgreement;
 use App\Models\Vehicle;
@@ -32,6 +33,16 @@ class DespacharVeiculo
         $destino = $this->resolverDestino($origem, $destinoTipo, $destinoId);
         $this->validarCarga($veiculo, $carga);
 
+        /*
+         * §9.4: "Restrição comercial — jogador não pode enviar recursos por X dias." É a punição do
+         * Ministério que morde toda saída de carga, para a doca ou para outro colono. Sete dias,
+         * pelo D-49.
+         *
+         * Vem antes do Mercado: quem está sob restrição não deposita nem que a Confiança Comercial
+         * esteja intacta, e a mensagem certa é a da punição, não a do índice.
+         */
+        $this->exigirSemRestricaoComercial($origem);
+
         // Depositar na doca é acessar o Mercado Central (§25.8). Quem está bloqueado pelo §26.2
         // não põe carga lá dentro.
         if ($destinoTipo === 'mercado_central') {
@@ -52,6 +63,19 @@ class DespacharVeiculo
 
             return $this->emRota($veiculo, $destinoTipo, $destino['id'], 'entrega', $distancia, $carga, $agora, $acordo?->id);
         });
+    }
+
+    /** §9.4, restrição comercial: uma condenação no Ministério fecha a saída de carga por 7 dias. */
+    private function exigirSemRestricaoComercial(Colony $origem): void
+    {
+        $usuario = $origem->user;
+
+        if ($usuario && Punishment::restricaoComercialAtiva($usuario->id)) {
+            throw new DomainRuleException(
+                'restricao_comercial',
+                'O Ministério das Reputações proibiu você de enviar recursos. Aguarde o fim da restrição.',
+            );
+        }
     }
 
     /**
