@@ -22,75 +22,67 @@ O MVP tem, funcionando e no ar em `https://fertways.tars.art.br`:
 - Fabricação de Componentes Eletrônicos pelas três receitas do §24.5
 - **Logística física**: mapa 100×100, despacho de carga entre colônias, tempo e energia por
   distância, tributo na entrega, viagem de ida e volta
-- **Mercado Central** (última fatia): conta na doca com depósito e retirada físicos (§25.8, D-32)
-  e **livro de ofertas com escrow** (§07, D-35). `GET/POST /central/market/orders`,
-  `DELETE /central/market/orders/{id}`, `GET /central/market/account`,
-  `POST /central/vehicles/{id}/withdraw`. O Mercado casa ordens; não compra nem vende.
-- **Logout de verdade**: `POST /central/logout` revoga no servidor o token que fez a chamada — só
-  ele, para não derrubar outra sessão do mesmo colono. Token do Sanctum não expira, então apagar o
-  `localStorage` sozinho deixava credencial válida circulando para sempre.
-- **Diretório de colônias**: `GET /central/colonies` lista as demais colônias, da mais próxima à
-  mais distante, com `nickname`, `x`, `y`, `distance` e `building_levels_sum`. É o que tornou o
-  despacho entre colônias alcançável pela UI — `dispatch` sempre pediu a PK do destino, e não havia
-  como descobrir o `id` de ninguém. Ver D-37 e D-38.
-- Frontend: login, HUD, colônia em Phaser, e a **tela do Mercado** (botão no HUD): doca, frota com
-  contagem regressiva, despacho e retirada, livro de ofertas com escrow, **envio de carga ao slot
-  de outro colono**, e veículos em rota que **nomeiam** o colono de destino em vez de mostrar o `id`
+- **Mercado Central**: conta na doca com depósito e retirada físicos (§25.8, D-32) e **livro de
+  ofertas com escrow** (§07, D-35). O Mercado casa ordens; não compra nem vende.
+- **Logout de verdade**: `POST /central/logout` revoga no servidor só o token que fez a chamada.
+- **Diretório de colônias**: `GET /central/colonies`, da mais próxima à mais distante. É o que
+  tornou o despacho entre colônias alcançável pela UI. Ver D-37 e D-38.
+- **Acordo de Troca (§26.5)** — **backend completo, sem tela.** `GET/POST /central/trade/agreements`,
+  `POST /central/trade/agreements/{id}/confirm`, `DELETE /central/trade/agreements/{id}`,
+  `GET /central/trade/deadline`. Sem escrow: o calote é real e deliberado (D-40). Cumprir é
+  entregar fisicamente e vale o líquido que chega (D-41). Prazo mínimo = viagem + 12 h (D-42).
+  Confiança Comercial começa em 500, bloqueia abaixo de 200 (D-43).
+- Frontend: login, HUD, colônia em Phaser, e a tela do Mercado (botão no HUD).
 
-**120 testes, 1621 asserções, verdes.** O **cron do tick está instalado** (crontab do usuário
-`fertways`, log em `/home/fertways/logs/fertways-tick.log`) — o mundo avança sozinho.
+**137 testes, 1705 asserções, verdes.** O cron do tick está instalado (crontab do usuário
+`fertways`, log em `/home/fertways/logs/fertways-tick.log`) e roda o `artisan` **da cópia de
+deploy** — o mundo avança sozinho.
 
-O item 5 do MVP (Mercado Central) está **fechado, backend e tela**, e a tela tem **teste de ponta
-a ponta em navegador de verdade**: `npm run e2e` (ou `./tools/e2e.sh`) sobe uma pilha efêmera
-(SQLite temporário + `artisan serve` + `vite dev`) e dirige o Chromium do sistema com
-`puppeteer-core`. 26 verificações. Nunca toca produção nem o MariaDB.
+A tela do Mercado tem **teste de ponta a ponta em navegador de verdade**: `npm run e2e` (ou
+`./tools/e2e.sh`) sobe uma pilha efêmera (SQLite temporário + `artisan serve` + `vite dev`) e dirige
+o Chromium do sistema com `puppeteer-core`. 26 verificações. Nunca toca produção nem o MariaDB.
+**O Acordo de Troca não tem tela e não está no e2e.**
 
-> **Tudo publicado e verificado contra produção em 2026-07-09**: o logout (login → `/colony` 200 →
-> `/logout` 200 → `/colony` 401) e o diretório (401 sem token; com token, lista ordenada por
-> distância). O deploy **não** é automático e exige autorização explícita: confira sempre o hash do
-> bundle servido com o `diff` da "Verificação rápida" antes de supor que o que está no ar é o que
-> está em `main`.
+**Publicado no GitHub.** `main` e `origin/main` estavam 17 commits apartados; foram empurrados em
+2026-07-09. Confira com `git status -sb` — se voltar a divergir, republique.
 
-**Deploy separado desde 2026-07-09 (D-39).** `apps/fertways` é onde se edita e **não é servido**;
-`/home/fertways/deploy/fertways` é o clone que o Apache serve e que o cron do tick executa.
-Publicar é `sudo ./tools/deploy.sh`. **O banco continua sendo um só** — ver D-36, ainda vivo.
+## O deploy, depois do D-45
+
+- Edita-se em `apps/fertways`. **Não é servido.**
+- O Apache serve `/home/fertways/deploy/fertways`, e o cron do tick executa o `artisan` de lá.
+- Publicar é `sudo ./tools/deploy.sh` — e **só ele publica**, porque agora ele recarrega o php-fpm.
+  Sem o reload, o opcache mantém os workers presos na árvore para onde o symlink apontava quando
+  eles subiram, e o deploy não tem efeito nenhum (D-45). A fumaça de `200`/`401` não detecta isso:
+  o script pergunta ao opcache qual árvore está no ar e aborta se achar `/home/fertways/apps/`.
+- **Os bancos agora são dois** (D-46): `fertwaysdev` na árvore de trabalho, `fertwaysbd` só no
+  deploy. O D-36 está fechado.
 
 ## Perguntas em aberto — faça estas ao usuário ao retomar
 
-1. **Qual o próximo passo?** O usuário escolheu, em 2026-07-09, o **Acordo de Troca** (§26.5) —
-   **ainda não começado**. Hoje o envio a outro colono é carga de mão única: quem manda confia. O
-   Acordo é o contrato que falta ao redor disso: sem escrow, com o risco de calote deliberadamente
-   real. Faz par com o Mercado e está no MVP social. Comece por ler o §26.5 no GDD e levantar o que
-   ele **não** decide (prazo do acordo, o que acontece no calote, se há registro de reputação) —
-   essas viram perguntas ao usuário, não invenções. Restam depois:
+1. **Qual o próximo passo?** Candidatos, sem ordem decidida:
+   - **A tela do Acordo de Troca.** O backend está pronto e testado, mas nenhum colono alcança o
+     Acordo pela UI. É o único sistema do jogo sem tela. Provavelmente o mais barato e o mais útil.
+   - **O Ministério das Reputações (§26.6–26.8)**, decidido em D-44 e **não implementado**. Avisei
+     que ele depende de chat, federações, missões, terraformação, cargos e leilões — nada disso
+     existe — e o usuário optou por construí-lo assim mesmo. **Antes de começar, resolva os dois
+     bloqueios registrados no fim do D-44**: o §9.4 manda deduzir pontos de uma "reputação geral"
+     que o §26.2 aboliu, e a "tabela fixa de punições" do §26.8 nunca é publicada pelo GDD. Os dois
+     precisam de arbitragem do usuário. **Não invente.**
    - **Serviço logístico público** (§07): o GDD o cita como alternativa ao veículo próprio na
-     retirada, e ele não existe. Hoje o comprador precisa de Furgão ou Caminhão. O GDD não
-     publica preço nem prazo do serviço — precisaria de arbitragem.
+     retirada, e ele não existe. Hoje o comprador precisa de Furgão ou Caminhão. O GDD não publica
+     preço nem prazo — precisaria de arbitragem.
    - **O Marco do GDD** (§03): `colonies.milestone` é uma string congelada em `colonizacao_inicial`
      desde a fundação, e nada a atualiza. O GDD nomeia os marcos (1 Sobrevivente … 100 Lenda de
      Fertways) mas **não publica a fórmula**. Precisaria de arbitragem. Ver D-38 — o
      `building_levels_sum` do diretório é um proxy, e não deve ser renomeado para virar o Marco.
-   - **O Drone de Exploração ficou sem função** (D-37): o diretório revela todas as colônias, então
-     restam-lhe as zonas neutras. É consequência assumida, não esquecimento.
 
-2. ~~**Separar o diretório de deploy do diretório de trabalho?**~~ **Feito em 2026-07-09 (D-39).**
-   O symlink e o cron agora apontam para `/home/fertways/deploy/fertways`, um clone à parte.
-   Editar em `apps/fertways` não publica mais nada; publicar é `sudo ./tools/deploy.sh`.
+2. **Ligar o binlog do MariaDB?** O backup é diário, às 03:00, e o binlog está desligado: **até 24 h
+   de perda**. O código já está a salvo no GitHub desde 2026-07-09, mas os dados do jogo não. Com 4
+   colônias de teste isso não dói; no dia em que doer, já será tarde.
 
-   **O banco continua sendo um só.** A separação isolou o código, não os dados: `migrate:fresh` na
-   árvore de trabalho ainda apaga a produção. O D-36 vale palavra por palavra. Separar o banco de
-   desenvolvimento do de produção é o trabalho que ficou por fazer — vale perguntar ao usuário.
-
-3. **Publicar os commits no GitHub?** `main` está **15 commits à frente do `origin/main`** (o
-   GitHub parou em `9a6f046`). Todo o Mercado Central e o diretório de colônias existem só neste
-   disco, e o backup é diário: até 24 h de perda levariam o trabalho junto. Perguntado em
-   2026-07-09 só de raspão, ao escolher a origem do clone de deploy; o usuário optou por manter o
-   deploy puxando do repo local, o que **não** era uma recusa a publicar. Repergunte.
-
-4. ~~**Zerar as colônias de teste?**~~ **Decidido em 2026-07-09: deixar como está.** `publico` tem
-   54,85 Fert$ e 770 na doca; `mapa2` tem 45 Fert$ e 100 na doca — estado artificial (abastecimento
-   à mão mais um negócio real no livro), mas serve de cenário pronto para testar o Mercado. Não
-   atrapalha ninguém. Só repergunte se o jogo abrir para gente de fora.
+3. **O Drone de Exploração continua sem função** (D-37): o diretório revela todas as colônias, então
+   restam-lhe as zonas neutras. É consequência assumida, não esquecimento. Vale perguntar se o
+   usuário quer devolver-lhe um papel.
 
 ## Pendências conhecidas, sem bloquear
 
@@ -109,15 +101,17 @@ Publicar é `sudo ./tools/deploy.sh`. **O banco continua sendo um só** — ver 
 - **Frontend** — o bundle passa de 1,5 MB sem code splitting (quase tudo é Phaser). Não incomoda
   ainda. O `vite build` avisa a cada compilação.
 - **`cp` é alias de `cp -i` para o root.** No passo de deploy do frontend ele trava num prompt e
-  copia nada, em silêncio, com saída que *parece* sucesso. Use `/bin/cp -rf dist/. …`. Confira o
-  hash do bundle servido contra o de `dist/assets/` antes de dizer que publicou. O
-  `tools/deploy.sh` já faz as duas coisas e aborta se o bundle no ar não for o recém-compilado.
+  copia nada, em silêncio, com saída que *parece* sucesso. Use `/bin/cp -rf dist/. …`. O
+  `tools/deploy.sh` já cuida disso e aborta se o bundle no ar não for o recém-compilado.
 
 ## Verificação rápida (rode antes de confiar nesta página)
 
 ```sh
 # Backend: use php84. O `php` do PATH é 8.2 e o composer.lock exige >= 8.4.1.
 cd /home/fertways/apps/fertways/backend && /usr/bin/php84 artisan test
+
+# A árvore de trabalho aponta para o banco de DEV? (tem que dar fertwaysdev)
+/usr/bin/php84 artisan db:show | grep Database
 
 # O site está no ar?
 curl -s -o /dev/null -w '%{http_code}\n' https://fertways.tars.art.br/          # 200 (front)
@@ -131,9 +125,13 @@ tail -3 /home/fertways/logs/fertways-tick.log
 # O symlink aponta para a cópia de deploy? (tem que dar deploy/fertways/backend/public)
 readlink -f /home/fertways/public_html/central
 
-# O que está no ar é o mesmo commit que `main`? (o deploy é explícito; podem divergir)
+# O que está no ar é o mesmo commit que `main`? E o GitHub, está em dia?
 git -C /home/fertways/apps/fertways   log --oneline -1
 git -C /home/fertways/deploy/fertways log --oneline -1
+git -C /home/fertways/apps/fertways   status -sb | head -1
+
+# ⚠️ O symlink NÃO prova o que está no ar: o opcache pode estar preso na árvore antiga (D-45).
+# Só o `deploy.sh` confere isso de verdade. Na dúvida, `sudo systemctl reload php84-php-fpm`.
 
 # Frontend: o typecheck honesto é `npm run build`, não `tsc --noEmit`.
 export PATH="/usr/local/lib/nodejs/node-v22.12.0-linux-x64/bin:$PATH"
@@ -156,16 +154,21 @@ Recriadas em 2026-07-09 depois do incidente do D-36; nascem zeradas, sem nada na
 Há ainda uma quarta colônia em produção, `teste` (nickname `Teste`), de origem não documentada —
 apareceu quando o diretório começou a listar todo mundo. Produção tem **4 colônias**.
 
-## ⚠️ Ferramentas destrutivas neste deploy
+Essas contas vivem em `fertwaysbd` (produção). O banco de desenvolvimento, `fertwaysdev`, nasceu
+migrado e semeado em 2026-07-09, **sem nenhuma colônia**: funde a sua própria ao testar.
 
-Existe `backend/bootstrap/cache/config.php`. **Com a config cacheada, o Laravel não lê `env()`**:
-exportar `DB_CONNECTION=sqlite` não redireciona nada, e `migrate:fresh` cai no MariaDB de produção.
-Foi assim que o banco do jogo foi apagado uma vez (D-36).
+## ⚠️ Ferramentas destrutivas
+
+**Com a config cacheada, o Laravel não lê `env()`**: exportar `DB_CONNECTION=sqlite` não redireciona
+nada, e `migrate:fresh` cai no banco apontado pelo cache. Foi assim que o jogo foi apagado uma vez
+(D-36). Por isso a árvore de trabalho **não tem** `bootstrap/cache/config.php` e **não deve rodar
+`config:cache`** (D-46). A cópia de deploy tem, e é o `deploy.sh` que a gera.
 
 Toda ferramenta que rode `migrate:fresh`, `db:wipe` ou `truncate` precisa **exportar também
 `APP_CONFIG_CACHE`** para um caminho inexistente (como o `phpunit.xml` faz desde o D-27) **e
 verificar o alvo antes de executar**. O `tools/e2e.sh` faz as duas coisas e aborta se a conexão
-efetiva não for o SQLite temporário.
+efetiva não for o SQLite temporário. O banco separado do D-46 é uma segunda trava, não um
+substituto.
 
 O binlog do MariaDB está **desligado** e o backup é diário, às 03:00 (`/backup-local/mysql/`, dump
 de *todos* os bancos do servidor — extraia só o `fertwaysbd` antes de restaurar). Isso significa
@@ -173,6 +176,6 @@ de *todos* os bancos do servidor — extraia só o `fertwaysbd` antes de restaur
 
 ## Leia também
 
-- `docs/decisoes.md` — 37 decisões, com as divergências e lacunas do GDD. **A regra de ouro é
+- `docs/decisoes.md` — as decisões, com as divergências e lacunas do GDD. **A regra de ouro é
   não inventar valores.** Quando o GDD não decide, pergunte ao usuário e registre ali.
 - `docs/deploy.md` — php84, Node, o symlink `/central`, e por que `route:cache` está proibido.

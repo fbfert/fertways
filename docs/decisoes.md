@@ -1008,3 +1008,44 @@ por construí-lo assim mesmo. Arbitragens que essa escolha exigiu:
 §26.2 **aboliu** e o §26.9 proíbe compensar entre índices. E o §26.8 chama de "tabela fixa de
 punições por tipo de violação confirmada" um mapa que o GDD **nunca publica**. Os dois têm de ser
 arbitrados antes do conciliador julgar qualquer coisa. Não invente.
+
+## D-45 — O deploy separado só passa a valer depois de recarregar o php-fpm.
+**Data:** 2026-07-09 · **Status:** implementado · **Corrige o D-39**
+
+O D-39 trocou `public_html/central` para apontar da árvore de trabalho para a cópia de deploy, e
+não teve efeito nenhum. Com `opcache.revalidate_path=0` — o padrão — o opcache resolve o caminho
+que o Apache lhe entrega (`/home/fertways/public_html/central/index.php`, o symlink) uma única vez
+e guarda o destino. Os workers do php-fpm, no ar desde antes da troca, seguiram executando a árvore
+de trabalho. É a armadilha clássica do deploy por symlink.
+
+O resultado era o oposto do que o D-39 queria: **editar continuava publicando na hora, agora em
+silêncio**. O Acordo de Troca entrou em produção no instante em que foi commitado, sem passar pelo
+`deploy.sh` — e sem a migration, que só rodou hoje. Chamada autenticada ao Acordo dava 500.
+
+Pior: o **cron do tick roda pelo CLI**, que não tem esse cache, e portanto executava a cópia de
+deploy. Web no código novo, tick no código velho, **um banco só**. Na prática o `ExpirarAcordos`
+nunca rodava.
+
+Nada disso aparecia na fumaça do `deploy.sh` (`200` no front, `401` em `/colony`): as duas árvores
+respondem igual. Agora o script recarrega o pool e **pergunta ao opcache** qual árvore ele está
+executando, abortando se encontrar qualquer script compilado sob `/home/fertways/apps/`.
+
+O reload é gracioso, mas o master do php84 é compartilhado com os outros domínios do servidor.
+
+## D-46 — O banco de desenvolvimento é separado do de produção.
+**Data:** 2026-07-09 · **Status:** implementado · **Fecha o D-36**
+
+`fertwaysdev` é o banco da árvore de trabalho; `fertwaysbd` continua sendo o de produção, e só a
+cópia de deploy aponta para ele. Um `migrate:fresh` em `apps/fertways` já não apaga o jogo.
+
+Junto, apagamos o `backend/bootstrap/cache/config.php` da árvore de trabalho. Era ele o mecanismo
+do D-36: **com a config cacheada o Laravel não lê `env()`**, então mudar o `.env` (ou exportar
+`DB_CONNECTION=sqlite`) não redirecionava nada. A árvore de trabalho não é servida por ninguém e
+não tem por que ter config cacheada. **Não rode `config:cache` em `apps/fertways`.**
+
+As proteções do D-27 continuam necessárias e valem para as ferramentas destrutivas: `phpunit.xml` e
+`tools/e2e.sh` exportam `APP_CONFIG_CACHE` para um caminho inexistente e conferem o alvo antes de
+migrar. O banco separado é uma segunda trava, não um substituto.
+
+O backup diário de 03:00 continua sendo o único recurso contra perda: o binlog do MariaDB segue
+desligado.

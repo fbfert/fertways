@@ -71,6 +71,23 @@ direto, sem build. Um `git pull` cru na cópia publicaria o código antes da mig
 500 voltaria. Por isso **use `tools/deploy.sh`**, que fecha a porta com `artisan down` antes do pull
 e só a reabre depois do `migrate`.
 
+### O symlink não basta: recarregue o php-fpm (D-45)
+
+Trocar o symlink **não muda o que está no ar**. Com `opcache.revalidate_path=0` — o padrão — o
+opcache resolve o caminho que o Apache lhe entrega (`public_html/central/index.php`) uma única vez e
+guarda o destino para sempre. Os workers do php-fpm continuam executando a árvore para onde o
+symlink apontava **quando eles subiram**.
+
+Entre 2026-07-09 21:18 e o D-45, isso deixou a produção rodando a árvore de trabalho — editar
+publicava na hora, em silêncio — enquanto o cron do tick, que roda pelo CLI e não tem esse cache,
+executava a cópia de deploy. Web e tick em commits diferentes, contra um banco só.
+
+`tools/deploy.sh` agora roda `systemctl reload php84-php-fpm` e, depois, **pergunta ao opcache do
+pool qual árvore ele está executando**, abortando se encontrar qualquer script sob
+`/home/fertways/apps/`. A fumaça de `200`/`401` não serve para isso: passa igual nas duas árvores.
+
+O master do php84 é compartilhado com os outros domínios do servidor. O reload é gracioso.
+
 ## Passos de um deploy
 
 ```sh
@@ -112,15 +129,20 @@ O `.env` **não** é versionado. Um clone novo não o tem: copie-o da árvore de
 dono `fertways`. E `storage/logs` também não vem no clone — crie-o, ou o Laravel morre no primeiro
 log.
 
-### O banco é o mesmo dos dois lados
+### Os bancos são dois (D-46)
 
-`apps/fertways/backend/.env` e `deploy/fertways/backend/.env` apontam ambos para o MariaDB
-`fertwaysbd`. **A separação do D-39 isolou o código, não os dados.** `migrate:fresh`, `db:wipe` ou
-`truncate` na árvore de trabalho continuam apagando o banco do jogo, e com
-`bootstrap/cache/config.php` presente o Laravel ignora `env()` — exportar `DB_CONNECTION=sqlite`
-não redireciona nada. Ver D-27 e D-36. Toda ferramenta destrutiva precisa exportar
-`APP_CONFIG_CACHE` para um caminho inexistente **e** conferir a conexão efetiva antes de rodar,
-como fazem `phpunit.xml` e `tools/e2e.sh`.
+`deploy/fertways/backend/.env` aponta para o MariaDB `fertwaysbd`, o banco do jogo.
+`apps/fertways/backend/.env` aponta para `fertwaysdev`. Um `migrate:fresh` na árvore de trabalho já
+não apaga a produção — o que aconteceu uma vez, no D-36.
+
+A árvore de trabalho **não tem** `bootstrap/cache/config.php` e **não deve rodar `config:cache`**:
+com a config cacheada o Laravel ignora `env()`, e exportar `DB_CONNECTION=sqlite` não redireciona
+nada. Foi esse o mecanismo do D-36. Só a cópia de deploy tem config cacheada, gerada pelo
+`deploy.sh`.
+
+O banco separado é uma segunda trava, não um substituto: toda ferramenta destrutiva continua
+precisando exportar `APP_CONFIG_CACHE` para um caminho inexistente **e** conferir a conexão efetiva
+antes de rodar, como fazem `phpunit.xml` e `tools/e2e.sh`. Ver D-27, D-36 e D-46.
 
 ## Tick de produção (cron)
 
