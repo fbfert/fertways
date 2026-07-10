@@ -134,6 +134,24 @@ export type MapaFundacao = {
   colonias: { x: number; y: number }[]
 }
 
+/** Uma zona neutra, como `GET /zones` a publica (D-52). */
+export type ZonaNeutra = {
+  id: number
+  x: number
+  y: number
+  district: string
+  mineral: string
+  level: number
+  status: string
+  owner: { id: number; name: string } | null
+  mine: boolean
+  deposit_amount: number
+  deposit_cap: number
+  extraction_per_hour: number
+  productive_at: string | null
+  garrison: number
+}
+
 export type ItemDaFila = {
   building: string
   target_level: number
@@ -322,6 +340,20 @@ export const api = {
 
   /** O mapa para o seletor de fundação (D-51): slots de founder e células ocupadas. */
   mapaDeFundacao: () => req<MapaFundacao>('/map'),
+
+  /** As 120 zonas neutras (D-52). */
+  zonas: () => req<{ zones: ZonaNeutra[] }>('/zones'),
+
+  /** Ocupa uma zona livre: Posto de Comando + 20 Robôs Mineradores + tempo de ocupação (§07). */
+  ocuparZona: (id: number) =>
+    req<ZonaNeutra>(`/zones/${id}/occupy`, { method: 'POST' }),
+
+  /** Despacha um veículo para retirar o mineral extraído no Depósito da zona. */
+  retirarDeZona: (id: number, vehicleId: number, cargo: Record<string, number>) =>
+    req<{ id: number; status: string; arrives_at: string | null }>(
+      `/zones/${id}/withdraw`,
+      { method: 'POST', body: JSON.stringify({ vehicle_id: vehicleId, cargo }) },
+    ),
 
   fundarColonia: (name: string, x: number, y: number) =>
     req<Colonia>('/colony', { method: 'POST', body: JSON.stringify({ name, x, y }) }),

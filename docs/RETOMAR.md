@@ -127,25 +127,37 @@ houver que remanejar.
 
 ## O trabalho em curso: zonas neutras + Drone (D-52)
 
-Leia **D-52**. O mapa (pré-requisito) já está pronto; agora vêm as zonas neutras e o Drone.
-- Base horária da extração **arbitrada em 100/h** (2026-07-10). Restam as outras lacunas do D-52.
-- **120 zonas neutras** em 4 distritos de 30 (6×5) encostados nos cantos (a geometria dos distritos
-  está no D-51, mas as zonas em si são D-52). Guerra do §27 incluída.
-- O gate do Marco (§05) fica **suspenso**, por decisão do usuário.
+Leia **D-52**. Sequência decidida: Fatia 1 = o núcleo (ocupar/extrair/retirar); Fatia 2 = a guerra
+(§27); Fatia 3 = o Drone. O mapa (pré-requisito) já está no ar.
+
+**Fatia 1 — completa e verde em dev, no GitHub; NÃO no ar ainda. Falta só o deploy.** Arbitragens
+(D-52): mineral por distrito (NE Metal Bruto, SE Água, SO Oxigênio, NO Biomassa), ocupação pesada
+(Posto de Comando 800 MB + 300 F$ + 8h + 20 Robôs Mineradores + 12h), extração 100/h. Feito: backend
+(`ZonasNeutras`, migration que estende `neutral_zones`, `NeutralZoneSeeder`, `OcuparZonaNeutra`,
+`ExtrairZonasNeutras` no tick, `retirarDeZona`, `NeutralZoneController`) e frontend (o `Mapa.tsx`
+desenha as 120 zonas, tem **zoom (+/−) e centralizar na colônia**, e o painel de zona ocupa e
+despacha a retirada). **197 testes PHP + 6 e2e verdes** (novo `zonas.e2e.mjs`).
+
+**O deploy da Fatia 1 (quando o usuário aprovar):** `sudo ./tools/deploy.sh` roda a migração
+(estende `neutral_zones`) sozinho, mas o **`NeutralZoneSeeder` NÃO roda no deploy** — é passo à
+parte, como a realocação do D-51. Rode-o à mão no `fertwaysbd`:
+`sudo -u fertways /usr/bin/php84 /home/fertways/deploy/fertways/backend/artisan db:seed --class=NeutralZoneSeeder --force`.
+Ele é idempotente (pula a célula que já existe).
+
+**Fatia 2 e 3, depois:** guerra do §27 (lacunas 4 e 8) e o Drone (lacunas 5, 6, 10). O gate do Marco
+(§05) fica **suspenso**, por decisão do usuário.
 
 ## Perguntas em aberto — faça estas ao usuário ao retomar
 
-1. **As dez lacunas do D-52 precisam de arbitragem, e travam a implementação.** Não invente nenhuma.
-   A base horária da extração **já foi arbitrada em 2026-07-10: 100/h** (ver D-52, lacuna 1). As três
-   que bloqueiam primeiro agora:
-   - **Drone: velocidade, raio de revelação e persistência.** Publicadas: Furgão 4 slots/min,
-     Caminhão 1,5, Nave Planetária 10. O Drone não carrega nada e o GDD cala a sua velocidade.
-   - **Os três requisitos de ocupação** (§07). Só o primeiro tem âncora: "20 a 150+" robôs.
-   - **O que é "estoque protegido"** — o saque de 50% depende disso e o GDD nunca o define.
-
-2. **Por onde começar?** O mapa (D-51) é pré-requisito das zonas neutras e não depende de nenhuma
-   arbitragem pendente: dá para escrevê-lo já. Mas ele mexe em produção — migration de coordenada
-   com sinal, realocação das 4 colônias, e o Phaser desenha o mapa.
+1. **As lacunas do D-52 que ainda travam — só as das próximas fatias.** Não invente nenhuma. Já
+   arbitradas (Fatia 1): base de extração 100/h, mineral por distrito, requisitos de ocupação. Ainda
+   abertas, por fatia:
+   - **Fatia 2 (guerra):** o que é **"estoque protegido"** (o saque de 50% depende disso) e os
+     **bônus defensivos** de Muralha e Torre de Vigia (§27.3).
+   - **Fatia 3 (Drone):** **velocidade** (Furgão 4 slots/min, Caminhão 1,5, Nave 10 são as âncoras),
+     **raio de revelação** e **persistência**, e **onde é fabricado**.
+   - Em qualquer fatia: **custo/tempo das 9 estruturas** de zona restantes (só o Posto de Comando foi
+     arbitrado), **teto de zonas por jogador** e **upgrade de zona** (a Fatia 1 fixou nível 1).
 
 3. **O Marco do GDD** (§03) continua congelado em `colonizacao_inicial`. O GDD nomeia os marcos
    (1 Sobrevivente … 100 Lenda de Fertways) e **não publica a fórmula**. Ver D-38 — o

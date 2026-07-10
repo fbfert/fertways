@@ -1397,13 +1397,16 @@ zero; quantidade de robôs por zona "20 a 150+" (§16.1); tributo na entrega em 
 Fatia 2 = a guerra (§27, os 4 ataques — puxa as lacunas 4 e 8); Fatia 3 = o Drone (lacunas 5, 6, 10).
 O mapa (D-51, pré-requisito) já está no ar.
 
-**Fatia 1 — backend pronto e testado em dev (2026-07-10); frontend e deploy pendentes.** O laço
-núcleo fecha no servidor: ocupar → extrair no tick → retirar para casa. Feito: `ZonasNeutras`
-(domínio), migration que estende `neutral_zones` para o mapa do D-51, `NeutralZoneSeeder` (120
-zonas), `OcuparZonaNeutra`, `ExtrairZonasNeutras` (no tick), `retirarDeZona` no `DespacharVeiculo`,
-o `NeutralZoneController` (`GET /zones`, `POST /zones/{z}/occupy`, `POST /zones/{z}/withdraw`), e o
-`podeFundar` que exclui células de zona. **197 testes PHP verdes.** Falta a UI (mapa desenha os
-distritos/zonas, tela de zona, ocupar e retirar) e o deploy (rodar migração + seeder no `fertwaysbd`).
+**Fatia 1 — completa e verde em dev (2026-07-10); só falta o deploy.** O laço núcleo fecha: ocupar →
+extrair no tick → retirar para casa, com UI. Feito no backend: `ZonasNeutras` (domínio), migration
+que estende `neutral_zones` para o mapa do D-51, `NeutralZoneSeeder` (120 zonas), `OcuparZonaNeutra`,
+`ExtrairZonasNeutras` (no tick), `retirarDeZona` no `DespacharVeiculo`, o `NeutralZoneController`
+(`GET /zones`, `POST /zones/{z}/occupy`, `.../withdraw`), e o `podeFundar` que exclui células de
+zona. No frontend: o `Mapa.tsx` desenha as 120 zonas (coloridas por dono), ganhou **zoom (+/−) e
+"centralizar na colônia"** (pedido do usuário; necessário porque as zonas são células nos cantos), e
+um painel de zona que ocupa e despacha a retirada. **197 testes PHP + 6 e2e verdes** (novo
+`zonas.e2e.mjs`). **Falta só o deploy:** rodar a migração e o `NeutralZoneSeeder` no `fertwaysbd` (o
+seeder é passo à parte, como a realocação do D-51), e publicar.
 
 **Fatia 1 — spec (aprovada 2026-07-10):**
 - **120 zonas** nos 4 distritos do D-51 (NE `x∈[45,50] y∈[46,50]` e espelhos, 30 cada), todas no

@@ -64,8 +64,12 @@ $u = App\Models\User::create([
 // e em pouca energia. O colono escolhe a célula (D-51); aqui o seeder escolhe por ele.
 $c = app(App\Domain\Colony\CreateColony::class)->handle($u, "Colônia e2e", 0, 3);
 
-$c->resources()->where("resource_type", "metal_bruto")->update(["amount" => 1000]);
+$c->resources()->where("resource_type", "metal_bruto")->update(["amount" => 3000]);
 $c->resources()->where("resource_type", "energia")->update(["amount" => 1000]);
+// O bastante para o teste de zonas ocupar uma (Posto + 20 Robôs Mineradores, §07/D-52).
+$c->resources()->where("resource_type", "ligas_metalicas")->update(["amount" => 2000]);
+$c->resources()->where("resource_type", "componentes_eletronicos")->update(["amount" => 1000]);
+$c->update(["fert_micro" => 1000 * 1000000]);
 
 // Carga já na doca: sem ela não há o que vender, e esperar uma viagem real levaria minutos.
 App\Models\MarketAccount::create([
@@ -177,5 +181,8 @@ E2E_URL="http://127.0.0.1:$PORTA_WEB" node e2e/telas.e2e.mjs
 E2E_URL="http://127.0.0.1:$PORTA_WEB" node e2e/mercado.e2e.mjs
 E2E_URL="http://127.0.0.1:$PORTA_WEB" node e2e/acordos.e2e.mjs
 E2E_URL="http://127.0.0.1:$PORTA_WEB" node e2e/ministerio.e2e.mjs
+# Zonas neutras: ocupa uma zona (só gasta recursos), depois das telas que dependem do estado da
+# colônia do e2e e antes da Fundação.
+E2E_URL="http://127.0.0.1:$PORTA_WEB" node e2e/zonas.e2e.mjs
 # Por último: funda uma quinta colônia pelo seletor do D-51, o que mexeria nas contagens acima.
 E2E_URL="http://127.0.0.1:$PORTA_WEB" node e2e/fundacao.e2e.mjs
