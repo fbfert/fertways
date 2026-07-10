@@ -128,6 +128,16 @@ class ColonyController extends Controller
 
         // Recursos, saldo e frota alheios ficam de fora: o §13 fala em "relatórios privados" sem
         // enumerar o que é público, e o diretório existe para escolher destino, não para espionar.
-        return response()->json(['colonies' => $colonias]);
+        //
+        // `side`, `capital` e `me` são o que a tela do mapa precisa para desenhar. Vêm daqui, e
+        // não de constantes no frontend, porque a geometria vai mudar (D-51: lado 101, Capital em
+        // (0,0), coordenadas com sinal) e um número copiado no React sobreviveria à mudança
+        // mentindo. Campos aditivos: quem já lia `colonies` não quebra.
+        return response()->json([
+            'side' => MapaFertways::LADO,
+            'capital' => ['x' => MapaFertways::CAPITAL_X, 'y' => MapaFertways::CAPITAL_Y],
+            'me' => ['id' => $minha->id, 'name' => $minha->name, 'x' => $minha->x, 'y' => $minha->y],
+            'colonies' => $colonias,
+        ]);
     }
 }

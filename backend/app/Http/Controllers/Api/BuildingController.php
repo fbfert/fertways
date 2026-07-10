@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Domain\Building\BuildingSpecs;
 use App\Domain\Building\EnqueueUpgrade;
+use App\Domain\Production\ColonyTick;
 use App\Exceptions\DomainRuleException;
 use App\Http\Controllers\Controller;
 use App\Models\Building;
@@ -44,6 +45,26 @@ class BuildingController extends Controller
      * Escolhe a receita de Componentes Eletrônicos da Oficina (§24.5). As três produzem o
      * mesmo recurso `componentes_eletronicos`, com insumos distintos. Ver D-23.
      */
+    /**
+     * As três receitas do §24.5, para a UI oferecer a escolha.
+     *
+     * Sem esta rota o `PATCH /buildings/{id}/recipe` era inalcançável: o frontend não tinha de
+     * onde tirar os códigos válidos, e digitá-los à mão no React seria copiar o GDD para fora do
+     * banco. Leitura pura; não depende de colônia.
+     */
+    public function recipes(): JsonResponse
+    {
+        return response()->json(
+            DB::table('component_recipes')->orderBy('id')->get()->map(fn ($r) => [
+                'code' => $r->code,
+                'nome' => $r->nome,
+                'contexto' => $r->contexto,
+                'insumos_por_unidade' => json_decode($r->insumos_json, true),
+                'padrao' => $r->code === ColonyTick::RECEITA_PADRAO,
+            ])->values(),
+        );
+    }
+
     public function recipe(Request $request, Building $building): JsonResponse
     {
         $colony = $request->user()->colony;
@@ -135,6 +156,9 @@ class BuildingController extends Controller
                     'cost' => $spec['custo'],
                     'build_time_seconds' => $spec['tempo_segundos'],
                     'subsidized' => $b->ehEssencial() && $alvo <= 3 && $user->tutoriaConcluida(),
+                    // Só a Oficina escolhe receita (§24.5). Sem este campo a UI não teria como
+                    // mostrar qual das três está ativa, e o `PATCH .../recipe` ficava órfão.
+                    'recipe' => $b->type === 'oficina' ? ($b->recipe ?? ColonyTick::RECEITA_PADRAO) : null,
                 ];
             })->values(),
         );

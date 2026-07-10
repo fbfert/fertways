@@ -1,4 +1,6 @@
-import type { Colonia, Fila, Spec } from '../api/client'
+import { useEffect, useState } from 'react'
+import { api, ApiError } from '../api/client'
+import type { Colonia, Fila, Receita, Spec } from '../api/client'
 import { rotulo } from '../game/ColonyScene'
 import { nomeRecurso } from './recursos'
 
@@ -79,13 +81,90 @@ export function FilaDeObras({ fila }: { fila: Fila }) {
   )
 }
 
+/**
+ * As três receitas de Componentes Eletrônicos (§24.5). Só a Oficina as tem.
+ *
+ * O `PATCH /buildings/{id}/recipe` existia desde a fatia de fabricação e **nenhuma tela o
+ * chamava**: o jogador ficava preso na Básica, que é só o padrão do D-23, sem saber que havia
+ * escolha. A lista vem da API, não daqui — os insumos são do GDD e moram no banco.
+ */
+function ReceitaDaOficina({ spec, aoAtualizar }: { spec: Spec; aoAtualizar: () => void }) {
+  const [receitas, setReceitas] = useState<Receita[]>([])
+  const [erro, setErro] = useState<string | null>(null)
+  const [salvando, setSalvando] = useState(false)
+
+  useEffect(() => {
+    api
+      .receitas()
+      .then(setReceitas)
+      .catch((e: unknown) => setErro(e instanceof ApiError ? e.message : 'Falha ao ler as receitas.'))
+  }, [])
+
+  async function escolher(code: string) {
+    if (code === spec.recipe || salvando) return
+    setErro(null)
+    setSalvando(true)
+    try {
+      await api.escolherReceita(spec.id, code)
+      aoAtualizar()
+    } catch (e) {
+      setErro(e instanceof ApiError ? e.message : 'Falha ao trocar a receita.')
+    } finally {
+      setSalvando(false)
+    }
+  }
+
+  const ativa = receitas.find((r) => r.code === spec.recipe)
+
+  return (
+    <>
+      <div className="border-rust/30 my-3 border-t" />
+      <div className="text-ink-soft eyebrow">Receita de Componentes</div>
+
+      <div className="mt-2 space-y-1">
+        {receitas.map((r) => (
+          <button
+            key={r.code}
+            onClick={() => void escolher(r.code)}
+            disabled={salvando}
+            className={`block w-full px-2 py-1.5 text-left text-sm ${
+              r.code === spec.recipe
+                ? 'bg-rust text-sand-light'
+                : 'text-ink-soft hover:bg-sand disabled:opacity-50'
+            }`}
+          >
+            {r.nome}
+            {r.padrao && r.code !== spec.recipe && <span className="text-xs"> · padrão</span>}
+          </button>
+        ))}
+      </div>
+
+      {ativa && (
+        <>
+          <p className="text-ink-soft/70 mt-2 text-xs">{ativa.contexto}</p>
+          <div className="mt-2">
+            {Object.entries(ativa.insumos_por_unidade).map(([c, v]) => (
+              <Linha key={c} codigo={c} valor={v} />
+            ))}
+          </div>
+          <p className="text-ink-soft/70 mt-1 text-xs">Insumos por unidade produzida.</p>
+        </>
+      )}
+
+      {erro && <p className="text-rust mt-2 text-sm">{erro}</p>}
+    </>
+  )
+}
+
 export function Detalhe({
   spec,
   aoConstruir,
+  aoAtualizar,
   erro,
 }: {
   spec: Spec | null
   aoConstruir: (s: Spec) => void
+  aoAtualizar: () => void
   erro: string | null
 }) {
   if (!spec) {
@@ -145,6 +224,11 @@ export function Detalhe({
             {spec.level === 0 ? 'Construir' : 'Evoluir'}
           </button>
         </>
+      )}
+
+      {/* Oficina no nível 0 não fabrica nada; oferecer receita ali seria oferecer o vazio. */}
+      {spec.type === 'oficina' && spec.level > 0 && (
+        <ReceitaDaOficina spec={spec} aoAtualizar={aoAtualizar} />
       )}
     </div>
   )

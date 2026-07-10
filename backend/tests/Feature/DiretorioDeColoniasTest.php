@@ -201,4 +201,24 @@ class DiretorioDeColoniasTest extends TestCase
     {
         $this->assertSame([], $this->listar($this->colonia('eu', 10, 10)));
     }
+
+    /**
+     * A tela do mapa precisa saber onde é a Capital e qual o lado da grade. Esses números vêm da
+     * API e não de constantes no frontend, porque a geometria vai mudar (D-51) e um número copiado
+     * no React sobreviveria à mudança mentindo.
+     */
+    #[Test]
+    public function o_diretorio_publica_a_geometria_do_mapa_e_a_propria_colonia(): void
+    {
+        $eu = $this->colonia('eu', 10, 10);
+
+        $r = $this->actingAs($eu->user)->getJson('/colonies')->assertOk();
+
+        $r->assertJsonPath('side', \App\Domain\Logistics\MapaFertways::LADO)
+            ->assertJsonPath('capital.x', \App\Domain\Logistics\MapaFertways::CAPITAL_X)
+            ->assertJsonPath('capital.y', \App\Domain\Logistics\MapaFertways::CAPITAL_Y)
+            ->assertJsonPath('me.id', $eu->id)
+            ->assertJsonPath('me.x', 10)
+            ->assertJsonPath('me.y', 10);
+    }
 }

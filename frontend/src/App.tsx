@@ -3,7 +3,9 @@ import { api, ApiError, token } from './api/client'
 import type { Colonia, Fila, Spec } from './api/client'
 import { ColonyCanvas } from './game/ColonyCanvas'
 import { Acordos } from './ui/Acordos'
+import { Frota } from './ui/Frota'
 import { Login } from './ui/Login'
+import { Mapa } from './ui/Mapa'
 import { Marca } from './ui/Marca'
 import { Mercado } from './ui/Mercado'
 import { Ministerio } from './ui/Ministerio'
@@ -24,6 +26,8 @@ export default function App() {
   const [mercadoAberto, setMercadoAberto] = useState(false)
   const [acordosAberto, setAcordosAberto] = useState(false)
   const [ministerioAberto, setMinisterioAberto] = useState(false)
+  const [mapaAberto, setMapaAberto] = useState(false)
+  const [frotaAberta, setFrotaAberta] = useState(false)
 
   const carregar = useCallback(async () => {
     try {
@@ -59,6 +63,8 @@ export default function App() {
     setMercadoAberto(false)
     setAcordosAberto(false)
     setMinisterioAberto(false)
+    setMapaAberto(false)
+    setFrotaAberta(false)
     setColonia(null)
 
     try {
@@ -159,6 +165,20 @@ export default function App() {
         {colonia && (
           <div className="pointer-events-auto flex items-start gap-3">
             <button
+              onClick={() => setMapaAberto(true)}
+              className="painel bg-sand-light text-ink hover:text-rust eyebrow px-5 py-4"
+            >
+              Mapa
+            </button>
+
+            <button
+              onClick={() => setFrotaAberta(true)}
+              className="painel bg-sand-light text-ink hover:text-rust eyebrow px-5 py-4"
+            >
+              Frota
+            </button>
+
+            <button
               onClick={() => setMinisterioAberto(true)}
               className="painel bg-sand-light text-ink hover:text-rust eyebrow px-5 py-4"
             >
@@ -189,6 +209,11 @@ export default function App() {
           </div>
         )}
       </header>
+
+      {/* O mapa e a frota só leem: fechar não muda estoque nem saldo, e não precisa recarregar. */}
+      {colonia && mapaAberto && <Mapa aoFechar={() => setMapaAberto(false)} />}
+
+      {colonia && frotaAberta && <Frota aoFechar={() => setFrotaAberta(false)} />}
 
       {colonia && ministerioAberto && (
         <Ministerio
@@ -228,7 +253,12 @@ export default function App() {
       )}
 
       <div className="absolute top-24 right-5 space-y-4">
-        <Detalhe spec={selecionada} aoConstruir={construir} erro={erro} />
+        <Detalhe
+          spec={selecionada}
+          aoConstruir={construir}
+          aoAtualizar={() => void carregar()}
+          erro={erro}
+        />
         {fila && <FilaDeObras fila={fila} />}
       </div>
 

@@ -86,6 +86,30 @@ export type Spec = {
   build_time_seconds?: number
   subsidized?: boolean
   blocked?: string
+  /** Só a Oficina tem receita (§24.5). Nas demais vem `null`. */
+  recipe?: string | null
+}
+
+/** Uma das três receitas de Componentes Eletrônicos do §24.5. */
+export type Receita = {
+  code: string
+  nome: string
+  contexto: string
+  insumos_por_unidade: Record<string, number>
+  padrao: boolean
+}
+
+/**
+ * O diretório, mais a geometria do mapa.
+ *
+ * `side` e `capital` vêm do servidor de propósito: a grade vai mudar (D-51 — lado 101, Capital em
+ * (0,0), coordenadas com sinal), e um número copiado para cá sobreviveria à mudança mentindo.
+ */
+export type Diretorio = {
+  side: number
+  capital: { x: number; y: number }
+  me: { id: number; name: string; x: number; y: number }
+  colonies: ColoniaVizinha[]
 }
 
 export type ItemDaFila = {
@@ -272,7 +296,7 @@ export const api = {
    * É o que torna o despacho entre colônias alcançável: `dispatch` pede a PK do destino, e sem
    * isto o jogador não teria como descobrir o `id` de ninguém.
    */
-  colonias: () => req<{ colonies: ColoniaVizinha[] }>('/colonies'),
+  colonias: () => req<Diretorio>('/colonies'),
 
   fundarColonia: (name: string) =>
     req<Colonia>('/colony', { method: 'POST', body: JSON.stringify({ name }) }),
@@ -282,6 +306,15 @@ export const api = {
   enfileirar: (id: number) => req<ItemDaFila>(`/buildings/${id}/upgrade`, { method: 'POST' }),
 
   fila: () => req<Fila>('/queue'),
+
+  /** As três receitas do §24.5. Sem esta lista, escolher receita seria digitar códigos à mão. */
+  receitas: () => req<Receita[]>('/recipes'),
+
+  escolherReceita: (building: number, recipe: string) =>
+    req<Receita>(`/buildings/${building}/recipe`, {
+      method: 'PATCH',
+      body: JSON.stringify({ recipe }),
+    }),
 
   frota: () => req<Frota>('/vehicles'),
 

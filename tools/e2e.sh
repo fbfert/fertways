@@ -171,8 +171,10 @@ fi
 echo "==> rodando os testes"
 cd "$RAIZ/frontend"
 
-# Nesta ordem, e não noutra: os dois compartilham o mesmo banco efêmero, e o do Mercado deixa dois
-# furgões em rota. O do Acordo despacha o terceiro.
+# Nesta ordem, e não noutra: os quatro compartilham o mesmo banco efêmero. O de Mapa e Frota vem
+# primeiro porque espera os três furgões ociosos, no pátio; o do Mercado deixa dois em rota, e o do
+# Acordo despacha o terceiro.
+E2E_URL="http://127.0.0.1:$PORTA_WEB" node e2e/telas.e2e.mjs
 E2E_URL="http://127.0.0.1:$PORTA_WEB" node e2e/mercado.e2e.mjs
 E2E_URL="http://127.0.0.1:$PORTA_WEB" node e2e/acordos.e2e.mjs
 E2E_URL="http://127.0.0.1:$PORTA_WEB" node e2e/ministerio.e2e.mjs

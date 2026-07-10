@@ -183,4 +183,32 @@ class ComponentRecipesTest extends TestCase
         $this->actingAs($user)->patchJson("/buildings/{$fazenda->id}/recipe", ['recipe' => 'basica'])
             ->assertStatus(422)->assertJsonPath('code', 'sem_receita');
     }
+
+    // ---- A API expõe as receitas (sem isto, o PATCH .../recipe é inalcançável) ----
+
+    #[\PHPUnit\Framework\Attributes\Test]
+    public function lista_as_tres_receitas_e_marca_a_padrao(): void
+    {
+        $r = $this->actingAs($this->colono())->getJson('/recipes')->assertOk();
+
+        $this->assertCount(3, $r->json());
+
+        $padrao = collect($r->json())->firstWhere('padrao', true);
+        $this->assertSame(ColonyTick::RECEITA_PADRAO, $padrao['code']);
+        $this->assertNotEmpty($padrao['insumos_por_unidade']);
+    }
+
+    #[\PHPUnit\Framework\Attributes\Test]
+    public function o_catalogo_diz_qual_receita_a_oficina_usa_e_so_para_a_oficina(): void
+    {
+        $user = $this->colono();
+
+        $specs = collect($this->actingAs($user)->getJson('/buildings')->assertOk()->json());
+
+        // Sem escolha feita, a Oficina reporta a Básica — o mesmo padrão que o tick aplica.
+        $this->assertSame(ColonyTick::RECEITA_PADRAO, $specs->firstWhere('type', 'oficina')['recipe']);
+
+        // Nenhuma outra construção tem receita.
+        $this->assertNull($specs->firstWhere('type', 'reator_de_energia')['recipe']);
+    }
 }

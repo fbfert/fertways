@@ -46,8 +46,15 @@ O MVP tem, funcionando e no ar em `https://fertways.tars.art.br`:
   não se entra na tela para julgar, e o caso venceria as 48 h e subiria à equipe de qualquer jeito.
   Recebeu os primeiros 50 Fert$ no tick seguinte à nomeação; o lançamento `salario_conciliador`
   está no ledger da colônia 2.
-- Frontend: login, HUD, colônia em Phaser, e **três telas** (três botões no HUD): Mercado, Acordo e
-  Ministério.
+- **Mapa e Frota (D-54)** — duas telas novas, dois botões novos no HUD. O mapa desenha em SVG a
+  Capital, a sua colônia e as vizinhas, com a distância que o frete cobra; a geometria (`side`,
+  `capital`, `me`) vem da API, **não** de constante no React, porque o D-51 vai mudá-la. A Frota
+  mostra estado, destino, carga e chegada de cada veículo; despachar continua no Mercado e no
+  Acordo.
+- **Receita da Oficina (D-54)** — `PATCH /buildings/{id}/recipe` existia e nenhuma tela o chamava.
+  Agora o painel de detalhe da Oficina oferece as três receitas do §24.5. Criado o `GET /recipes`.
+- Frontend: login, HUD, colônia em Phaser, e **cinco telas** (cinco botões no HUD): Mapa, Frota,
+  Mercado, Acordo e Ministério.
   - A do **Acordo** propõe, aceita, recusa, desiste, mostra a Confiança Comercial contra o limiar e
     **despacha a entrega pelo bruto**, não pelo prometido: quem embarca 100 entrega 97, e o colono
     não deve descobrir que caloteou por três unidades de tributo (D-41).
@@ -56,19 +63,25 @@ O MVP tem, funcionando e no ar em `https://fertways.tars.art.br`:
     fila com o relógio das 48 h. **Ela publica a pena tabelada antes do julgamento** e só lhe oferece
     "Procedente" e "Improcedente": a pena não é escolha dele (§26.8, D-49).
 
-**165 testes, 1785 asserções, verdes.** O cron do tick está instalado (crontab do usuário
+**169 testes, 1807 asserções, verdes.** O cron do tick está instalado (crontab do usuário
 `fertways`, log em `/home/fertways/logs/fertways-tick.log`) e roda o `artisan` **da cópia de
 deploy** — o mundo avança sozinho. O tick faz: produção, upgrades, proteções, trechos de viagem,
 acordos vencidos, **casos reatribuídos, janelas de apelação fechadas e a folha do Ministério**.
 
-As três telas têm **teste de ponta a ponta em navegador de verdade**: `npm run e2e` (ou
+As telas têm **teste de ponta a ponta em navegador de verdade**: `npm run e2e` (ou
 `./tools/e2e.sh`) sobe uma pilha efêmera (SQLite temporário + `artisan serve` + `vite dev`) e dirige
-o Chromium do sistema com `puppeteer-core`. 26 verificações no Mercado, 22 no Acordo, 30 no
-Ministério. Nunca toca produção nem o MariaDB.
+o Chromium do sistema com `puppeteer-core`. Mapa e Frota, Mercado, Acordo e Ministério. Nunca toca
+produção nem o MariaDB. A **receita da Oficina não tem e2e**: o painel está atrás de um clique num
+hexágono do Phaser, e acertá-lo por coordenada quebraria ao primeiro ajuste de layout. A API dela é
+coberta em PHP.
 
-Os três arquivos (`e2e/{mercado,acordos,ministerio}.e2e.mjs`) compartilham o andaime de
-`e2e/comum.mjs` **e o mesmo banco efêmero**, então a ordem em que `e2e.sh` os chama importa: o do
-Mercado deixa dois furgões em rota, e o do Acordo despacha o terceiro.
+Os quatro arquivos (`e2e/{telas,mercado,acordos,ministerio}.e2e.mjs`) compartilham o andaime de
+`e2e/comum.mjs` **e o mesmo banco efêmero**, então a ordem em que `e2e.sh` os chama importa: o de
+Mapa e Frota vem primeiro, porque espera os três furgões ociosos; o do Mercado deixa dois em rota, e
+o do Acordo despacha o terceiro.
+
+> O e2e semeia **quatro** colônias (e2e, vizinha, ré, autora). O mapa, visto pelo colono do e2e,
+> desenha três vizinhas mais ele. Já me enganei uma vez esperando duas.
 
 > **Instabilidade conhecida:** o do Mercado falhou uma vez em quatro com `Protocol error
 > (Runtime.getProperties): Target closed`. Verde nas outras três. Se reprovar assim, rode de novo

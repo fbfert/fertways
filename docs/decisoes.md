@@ -1356,3 +1356,74 @@ zero; quantidade de robôs por zona "20 a 150+" (§16.1); tributo na entrega em 
 9. **Teto de zonas por jogador.** Só o Bastião cita "zonas defendidas simultaneamente 1–3".
 10. **Onde o Drone é fabricado.** O Quartel só o armazena e recarrega. E o §05 fala em "drone nível
     2" no Marco 10, sem declarar marco para o nível 1.
+
+---
+
+## D-53 — A fila de obras travava para sempre depois da primeira conclusão.
+**Data:** 2026-07-10 · **Status:** corrigido · **Bug, não decisão de design**
+
+Relatado pelo usuário como "Evoluir dá Server Error". A mensagem do subsídio do §24.7 aparecia
+logo antes, o que sugeria culpa dela. Não era: o subsídio não tem nada com isto, e o nível 3
+tampouco.
+
+`build_queue` tem `unique(colony_id, position)` **sobre a tabela inteira**. O `EnqueueUpgrade`
+calculava a próxima posição como o máximo **entre os ativos** (`queued` e `building`) mais um.
+Concluir um item não apaga a linha: o tick a marca `done` e ela continua guardando a sua posição.
+Logo que a fila esvaziava, o máximo entre os ativos voltava a ser nulo, a próxima posição era 1
+outra vez, e o insert colidia com o item já concluído na posição 1.
+
+**Toda colônia que já tivesse concluído uma construção respondia HTTP 500 ao enfileirar a seguinte,
+para sempre.** Em produção a colônia 4 acumulou 40 falhas antes de o usuário reportar. Os 165
+testes não pegaram: nenhum enfileirava depois de deixar o tick concluir.
+
+**Por que não somar sobre a tabela inteira.** `position` é `tinyint`: estouraria em 255 construções.
+E a posição não significa nada depois que o item sai da fila.
+
+**A correção.** Item `done` ou `cancelled` passa a ter `position = NULL`. NULL não colide em índice
+único, nem no MariaDB nem no SQLite, e o índice continua garantindo o que importa: dois itens ativos
+da mesma colônia nunca dividem uma posição. A cronologia do que foi construído não se perde — está
+em `enqueued_at` e `finishes_at`.
+
+O `cancelled` do enum nunca foi usado por nenhum código. A migration o trata mesmo assim: se um dia
+existir cancelamento, ele já nasce com a posição liberada.
+
+---
+
+## D-54 — As três funções que o backend tinha e nenhuma tela alcançava.
+**Data:** 2026-07-10 · **Status:** implementado
+
+Auditoria pedida pelo usuário: "não estou vendo botão para acessar o mapa, assim como outras
+funções". Cruzando as rotas da API com as chamadas do frontend, três funções estavam órfãs.
+
+**1. O mapa.** `GET /colonies` existia desde o D-37 e só era usado por dentro do Ministério, para
+escolher quem denunciar. Não havia mapa. Agora há tela — botão **Mapa** no HUD —, em SVG: a Capital
+em losango, a sua colônia, as vizinhas, e a reta até a que você clicar, com a distância que o frete
+cobra (§25.6).
+
+A geometria — `side` e `capital` — passou a vir da API (campos aditivos em `GET /colonies`, junto
+com `me`). **Não é detalhe.** A grade vai mudar no D-51 (lado 101, Capital em (0,0), coordenadas com
+sinal), e um `100` copiado para dentro do React sobreviveria à mudança desenhando um mapa errado sem
+reclamar de nada.
+
+**2. A frota.** `GET /vehicles` existia; despachar só era alcançável de dentro do Mercado e do
+Acordo. Um Furgão despachado sumia da vista até voltar. Agora há tela — botão **Frota** —, com
+estado, destino nomeado (não a chave primária), trecho de ida ou de volta, carga e contagem
+regressiva até a chegada.
+
+A tela só mostra. Despachar continua no Mercado e no Acordo, porque destino, carga e propósito só
+fazem sentido dentro daquelas negociações; um "despachar" solto pediria as três coisas no vazio.
+
+**3. A receita da Oficina.** `PATCH /buildings/{id}/recipe` estava no `routes/api.php` desde a fatia
+de fabricação e **nenhuma linha do frontend o chamava**. O jogador ficava preso na Básica — que é só
+o padrão arbitrado no D-23 — sem saber que o §24.5 lhe dava três receitas.
+
+Faltava também de onde tirar a lista: os códigos válidos moram em `component_recipes`, e digitá-los
+no React seria copiar o GDD para fora do banco. Criado o `GET /recipes`, e o catálogo `GET /buildings`
+passou a dizer qual receita a Oficina usa (`recipe`, nulo nas demais construções). A escolha aparece
+no painel de detalhe da Oficina, com os insumos por unidade de cada receita.
+
+**Cobertura.** Mapa e Frota têm e2e em navegador de verdade (`e2e/telas.e2e.mjs`, que **roda
+primeiro** porque espera os três furgões ociosos — o do Mercado deixa dois em rota). A receita não
+tem e2e: o painel vive atrás de um clique num hexágono do Phaser, cuja posição depende da ordem dos
+anéis, e acertá-lo por coordenada seria um teste que quebra ao primeiro ajuste de layout. A API dela
+é coberta em PHP (`ComponentRecipesTest`).
