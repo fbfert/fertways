@@ -67,12 +67,13 @@ Mercado deixa dois furgões em rota, e o do Acordo despacha o terceiro.
 ## Perguntas em aberto — faça estas ao usuário ao retomar
 
 1. **Qual o próximo passo?** Candidatos, sem ordem decidida. **Todo sistema do jogo tem tela agora.**
-   - **O Ministério das Reputações (§26.6–26.8)**, decidido em D-44 e **não implementado**. Avisei
-     que ele depende de chat, federações, missões, terraformação, cargos e leilões — nada disso
-     existe — e o usuário optou por construí-lo assim mesmo. **Antes de começar, resolva os dois
-     bloqueios registrados no fim do D-44**: o §9.4 manda deduzir pontos de uma "reputação geral"
-     que o §26.2 aboliu, e a "tabela fixa de punições" do §26.8 nunca é publicada pelo GDD. Os dois
-     precisam de arbitragem do usuário. **Não invente.**
+   - **O Ministério das Reputações (§26.6–26.8)**, decidido em D-44 e **não implementado — mas
+     desbloqueado**. Os dois bloqueios do D-44 caíram em 2026-07-09: não existe "reputação geral"
+     (D-48, decidido pelo próprio GDD) e a tabela fixa de punições do §26.8 foi arbitrada inteira
+     (D-49). **Comece lendo D-47, D-48 e D-49** — a tabela, as durações e o Persona Non Grata já
+     têm número. Ele ainda depende de chat, federações, missões, terraformação, cargos e leilões,
+     que não existem: o usuário optou por construí-lo assim mesmo, com as punições inertes gravadas.
+     Falta criar os **outros três índices** de reputação — hoje só existe `confianca_comercial`.
    - **Serviço logístico público** (§07): o GDD o cita como alternativa ao veículo próprio na
      retirada, e ele não existe. Hoje o comprador precisa de Furgão ou Caminhão. O GDD não publica
      preço nem prazo — precisaria de arbitragem.
@@ -182,5 +183,8 @@ de *todos* os bancos do servidor — extraia só o `fertwaysbd` antes de restaur
 ## Leia também
 
 - `docs/decisoes.md` — as decisões, com as divergências e lacunas do GDD. **A regra de ouro é
-  não inventar valores.** Quando o GDD não decide, pergunte ao usuário e registre ali.
+  não inventar valores.** Quando o GDD não decide, pergunte ao usuário e registre ali. Quando ele
+  **se contradiz**, o D-47 diz como ler: a tabela de precedência da seção 0 primeiro; depois, o
+  parágrafo de número maior *dentro da mesma parte*. Contradição e lacuna são coisas diferentes — o
+  D-47 resolve a primeira e não toca na segunda.
 - `docs/deploy.md` — php84, Node, o symlink `/central`, e por que `route:cache` está proibido.

@@ -1009,6 +1009,11 @@ por construí-lo assim mesmo. Arbitragens que essa escolha exigiu:
 punições por tipo de violação confirmada" um mapa que o GDD **nunca publica**. Os dois têm de ser
 arbitrados antes do conciliador julgar qualquer coisa. Não invente.
 
+> **Os dois foram resolvidos em 2026-07-09, antes de uma linha de código.** O primeiro pelo próprio
+> GDD, na tabela de precedência da seção 0 — ver **D-48**. O segundo pelo usuário, que arbitrou a
+> tabela inteira — ver **D-49**. A regra de leitura que ambos usam está no **D-47**. O Ministério
+> está desbloqueado; segue não implementado.
+
 ## D-45 — O deploy separado só passa a valer depois de recarregar o php-fpm.
 **Data:** 2026-07-09 · **Status:** implementado · **Corrige o D-39**
 
@@ -1049,3 +1054,110 @@ migrar. O banco separado é uma segunda trava, não um substituto.
 
 O backup diário de 03:00 continua sendo o único recurso contra perda: o binlog do MariaDB segue
 desligado.
+
+## D-47 — Como ler o GDD quando ele se contradiz: a regra de precedência.
+**Data:** 2026-07-09 · **Status:** decidido pelo usuário
+
+Ordem, do mais forte ao mais fraco:
+
+1. **A tabela de precedência da seção 0.** Ela resolve doze divergências expressamente, e a coluna
+   "decisão vigente" é "o único valor que pode ser implementado". Foi ela que decidiu o D-28.
+2. **O parágrafo de número maior, dentro da mesma parte.** Regra do usuário: o mais recente vence.
+3. Na ausência das duas, o usuário arbitra e a decisão vem para cá.
+
+**Por que o item 2 precisa da ressalva "dentro da mesma parte".** A premissa "número maior = mais
+recente" só vale dentro da Parte II. Ali as seções §24–§28 são complementos reintegrados depois, e
+se anunciam assim: "Preços Atualizados" (§24.8), "Regra Definitiva" (§28.5), "Problema
+Identificado" (§26.1). Já **entre** as partes a numeração recomeça: a Parte I (v3.2, sanitizada) é
+mais nova que a Parte II (v3.0), apesar de ter números menores.
+
+Sem a ressalva, a regra devolveria os caminhões grátis do §28.5 e revogaria o D-28 — que a seção 0
+decidiu no sentido oposto. Com ela, o D-28 fica de pé.
+
+**A regra não vira nenhuma decisão antiga do avesso.** Conferido uma a uma: §25.2 vence §8.3
+(D-11), §24.8 vence §22.2 (D-24), §25.8/§25.9 vencem o §07 (D-32), §24.8 vence o §07 (D-33, D-34).
+Em todas, o parágrafo de número maior já havia ganhado. O único caso em sentido contrário é o
+D-28, e ele é regido pelo item 1.
+
+**A regra não preenche lacuna.** Ela decide entre dois textos que se contradizem. Onde o GDD
+simplesmente não publica um número, continua valendo a regra de ouro: **pergunte, não invente.**
+O §26.8 é o exemplo — ver D-49.
+
+## D-48 — Não existe "reputação geral". São quatro índices isolados.
+**Data:** 2026-07-09 · **Status:** decidido pelo próprio GDD · **Fecha o 1º bloqueio do D-44**
+
+O §9.4 manda deduzir "pontos da reputação geral" e o §9.5 afirma que "a reputação em Fertways é
+única". O §26.2 divide a reputação em quatro índices e o §26.9 proíbe compensar entre eles.
+
+Não foi preciso desempatar por número (D-47, item 2): **a tabela da seção 0 resolve o tema
+expressamente**, na linha "Reputação" — formulação preservada da v3.0: "índice único e efeitos
+compensáveis"; decisão vigente: "**quatro índices isolados, sem compensação cruzada**".
+
+Consequência: a "reputação geral" do §9.4 e todo o §9.5 são texto morto. **Toda punição que deduz
+pontos tem de nomear qual índice ela atinge**, e o §26.2 já diz qual, pela coluna "o que mede":
+
+| Índice | Move-se por |
+|---|---|
+| 💰 Confiança Comercial | Acordos de Troca, avaliações de comércio |
+| 💬 Conduta Social | chat, denúncias de chat confirmadas |
+| 🏛️ Status Cívico | tributos, missões da administração, terraformação |
+| ⚔️ Honra Militar/Diplomática | guerras, ataques a aliados, tratados |
+
+São **quatro**, não três. Hoje `users` só tem a coluna `confianca_comercial` (D-43). Os outros três
+nascem com o Ministério, na mesma escala de 0 a 1000 e no mesmo valor inicial de 500.
+
+## D-49 — A tabela fixa de punições do §26.8, que o GDD nunca publicou.
+**Data:** 2026-07-09 · **Status:** decidido pelo usuário · **Fecha o 2º bloqueio do D-44**
+
+O §26.8 exige "tabela fixa de punições por tipo de violação confirmada — elimina decisão totalmente
+subjetiva" e remete ao §9.4. O §9.4 publica **os cinco nomes das punições e nada mais**: "Pontos
+deduzidos da reputação geral. **Configurável**", silêncio "por **X horas/dias**", restrição
+comercial "por **X dias**". O painel do Ministério lista "**Configurar** pontos de reputação
+perdidos por tipo de punição". O GDD nunca publica os tipos de violação, nem o mapa, nem um número.
+
+Seguir o §26.8 é **construir** essa tabela. Ela não existia para ser seguida. Tudo abaixo é
+arbitragem do usuário (2026-07-09), exceto os tipos de violação — cada um vem de um parágrafo.
+
+**Gravidades.** Escala 0–1000 do §26.2. Referência: cumprir um Acordo rende +10, caloteirar custa
+−50, e o Mercado fecha abaixo de 200 (D-43).
+
+| Punição | Pontos |
+|---|---|
+| Advertência | 0 — só registro, como o §9.4 diz |
+| Redução — leve | −25 |
+| Redução — grave | −100 |
+| Redução — gravíssima | −250 |
+
+Uma condenação leve custa menos que um calote; uma gravíssima leva um colono de 500 a 250 num só
+caso. O calote automático segue sendo a punição mais barata, e o julgamento humano, a mais cara.
+
+**O mapa.** Gravidade fixa por tipo, sem margem ao conciliador: ele decide se a violação ocorreu, e
+a punição sai da tabela. É o que o §26.8 quer dizer com "elimina decisão totalmente subjetiva".
+
+| Violação | Fonte | Índice | Punição | Pontos |
+|---|---|---|---|---|
+| Calote de Acordo de Troca | §26.5 | Confiança Comercial | automática, sem juízo | −50 |
+| Avaliação de 1 estrela injusta | §8.4 | Confiança Comercial | Advertência | 0 |
+| Fraude de avaliação / conta vinculada | §26.4 | Confiança Comercial | Redução + histórico mútuo zerado | −250 |
+| Sonegar tributo, burlar sistema | §9.5 | Status Cívico | Redução | −250 |
+| Abuso em chat confirmado | §26.2 | Conduta Social | Silêncio 24 h + Redução | −25 |
+| Reincidência em chat | §26.2 | Conduta Social | Silêncio 24 h + Redução | −100 |
+| Atacar aliado registrado | §9.5 | Honra Militar/Diplomática | Redução | −100 |
+| Quebra de tratado | §26.2 | Honra Militar/Diplomática | Redução | −100 |
+| Calote deliberado reincidente | §26.5 + §9.4 | Confiança Comercial | Restrição comercial 7 d + Redução | −100 |
+
+O §9.5 é texto morto quanto ao índice único (D-48), mas continua sendo a **única** fonte que nomeia
+"sonegar tributos" e "atacar aliado registrado" como faltas. É dele que esses dois tipos vêm.
+
+**Durações.** Silêncio temporário: **24 h**. Restrição comercial: **7 dias** — e o 7 não é
+arbitrário: o §14.3 exige "não ter tido restrição comercial nos últimos 7 dias" para se candidatar
+a cargo, logo 7 dias é a janela que o próprio GDD trata como memória de uma restrição.
+
+**Persona Non Grata.** O §9.4 diz que "reputação negativa bloqueia acesso a leilões", e a escala do
+§26.2 não tem negativo. Persona Non Grata passa a ser **Confiança Comercial < 200** — o mesmo
+limiar que já fecha o Mercado Central (D-43). Um número, um conceito: quem perdeu a doca perdeu o
+leilão.
+
+**Inertes por ora**, como o D-44 já decidiu para as punições: chat, tratados, alianças e leilões não
+existem. Os tipos ficam gravados com índice e prazo, e passam a morder sozinhos no dia em que esses
+sistemas existirem. Nenhuma migration futura reescreve histórico.
