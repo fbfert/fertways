@@ -81,6 +81,9 @@ class EnqueueUpgrade
                 'colony_id' => $colony->id,
                 'building_id' => $building->id,
                 'target_level' => $alvo,
+                // Máximo entre os ativos, e não sobre a tabela: item concluído tem `position`
+                // NULL (D-53), e somar sobre a tabela inteira estouraria o tinyint em 255
+                // construções.
                 'position' => ($naFila->max('position') ?? 0) + 1,
                 'quoted_cost_json' => $spec['custo'],
                 'subsidized' => $subsidiado,

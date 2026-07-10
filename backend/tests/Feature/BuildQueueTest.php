@@ -282,4 +282,35 @@ class BuildQueueTest extends TestCase
         $this->assertSame(0, Ledger::where('type', 'custo_construcao')->count());
         $this->assertSame(0, BuildQueue::count());
     }
+
+    // ---- A fila esvaziada volta a aceitar itens (regressão) ----
+
+    /**
+     * Concluir um item deixava a linha na tabela com a sua `position`, e o índice único
+     * `(colony_id, position)` vale para a tabela inteira. Como a próxima posição era o máximo
+     * **entre os ativos**, a fila vazia recomeçava em 1 e colidia com o item já concluído.
+     * Resultado: toda colônia que já tivesse construído algo travava com 500 ao enfileirar de novo.
+     */
+    public function test_enfileira_de_novo_depois_que_a_fila_esvazia(): void
+    {
+        $user = $this->colono();
+        $gerador = $this->predio($user, 'gerador_de_atmosfera');
+
+        $this->actingAs($user)->postJson("/buildings/{$gerador->id}/upgrade")->assertCreated();
+
+        // O tick conclui o item: a linha vira `done` e a fila esvazia.
+        $colony = $user->colony()->first();
+        $colony->update(['last_tick_at' => now()]);
+        app(\App\Domain\Production\ColonyTick::class)->handle($colony, now()->addDay());
+
+        $this->assertSame('done', BuildQueue::first()->status);
+        $this->assertSame(0, BuildQueue::ativos()->count());
+
+        // Enfileirar o nível 2 do mesmo prédio não pode colidir com o nível 1 concluído.
+        $this->actingAs($user)->postJson("/buildings/{$gerador->id}/upgrade")
+            ->assertCreated()
+            ->assertJsonPath('target_level', 2);
+
+        $this->assertSame(2, BuildQueue::count());
+    }
 }

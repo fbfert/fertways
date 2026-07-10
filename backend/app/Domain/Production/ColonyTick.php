@@ -94,7 +94,9 @@ class ColonyTick
             'upgrade_finish_at' => null,
         ]);
 
-        $item->update(['status' => 'done']);
+        // `position` só vale entre os ativos: liberá-la aqui é o que permite à próxima construção
+        // ocupar a posição 1 de novo, sem colidir no índice único. Ver D-53.
+        $item->update(['status' => 'done', 'position' => null]);
 
         // §24.7: "o ledger registra subsídio de 100% no momento de concluir".
         // Quem foi subsidiado não pagou nada no enfileiramento (D-15); o lançamento aqui é
