@@ -3,6 +3,7 @@ import { api, ApiError, token } from './api/client'
 import type { Colonia, Fila, Spec } from './api/client'
 import { ColonyCanvas } from './game/ColonyCanvas'
 import { Acordos } from './ui/Acordos'
+import { Capital } from './ui/Capital'
 import { Frota } from './ui/Frota'
 import { Fundacao } from './ui/Fundacao'
 import { Login } from './ui/Login'
@@ -28,6 +29,7 @@ export default function App() {
   const [ministerioAberto, setMinisterioAberto] = useState(false)
   const [mapaAberto, setMapaAberto] = useState(false)
   const [frotaAberta, setFrotaAberta] = useState(false)
+  const [capitalAberta, setCapitalAberta] = useState(false)
 
   const carregar = useCallback(async () => {
     try {
@@ -65,6 +67,7 @@ export default function App() {
     setMinisterioAberto(false)
     setMapaAberto(false)
     setFrotaAberta(false)
+    setCapitalAberta(false)
     setColonia(null)
 
     try {
@@ -146,6 +149,13 @@ export default function App() {
             </button>
 
             <button
+              onClick={() => setCapitalAberta(true)}
+              className="painel bg-sand-light text-ink hover:text-rust eyebrow px-5 py-4"
+            >
+              Capital
+            </button>
+
+            <button
               onClick={() => setMinisterioAberto(true)}
               className="painel bg-sand-light text-ink hover:text-rust eyebrow px-5 py-4"
             >
@@ -178,9 +188,27 @@ export default function App() {
       </header>
 
       {/* O mapa e a frota só leem: fechar não muda estoque nem saldo, e não precisa recarregar. */}
-      {colonia && mapaAberto && <Mapa aoFechar={() => setMapaAberto(false)} />}
+      {colonia && mapaAberto && (
+        <Mapa
+          aoFechar={() => setMapaAberto(false)}
+          aoAbrirCapital={() => {
+            setMapaAberto(false)
+            setCapitalAberta(true)
+          }}
+        />
+      )}
 
       {colonia && frotaAberta && <Frota aoFechar={() => setFrotaAberta(false)} />}
+
+      {/* A Capital só lê: abrir/fechar não muda estoque nem saldo. Mercado e Ministério (slots 6 e 7)
+          reusam as telas de topo — a Capital as abre fechando a si mesma. */}
+      {colonia && capitalAberta && (
+        <Capital
+          aoFechar={() => setCapitalAberta(false)}
+          aoAbrirMercado={() => setMercadoAberto(true)}
+          aoAbrirMinisterio={() => setMinisterioAberto(true)}
+        />
+      )}
 
       {colonia && ministerioAberto && (
         <Ministerio

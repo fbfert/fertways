@@ -144,6 +144,12 @@ app(App\Domain\Ministry\AbrirDenuncia::class)->handle(
     "acordo_expirado", $entreElas->id,
 );
 
+// Um comunicado no mural da Central de Notícias (slot 3), para o e2e da Capital ter o que ler.
+App\Models\News::create([
+    "title" => "Servidor aberto", "body" => "Bem-vindos a Fertways, colonos.",
+    "kind" => "comunicado", "author" => "Administração Pública", "published_at" => now(),
+]);
+
 echo "colono e2e pronto na colônia {$c->id}\n";
 ' | tail -1
 
@@ -181,6 +187,9 @@ E2E_URL="http://127.0.0.1:$PORTA_WEB" node e2e/telas.e2e.mjs
 E2E_URL="http://127.0.0.1:$PORTA_WEB" node e2e/mercado.e2e.mjs
 E2E_URL="http://127.0.0.1:$PORTA_WEB" node e2e/acordos.e2e.mjs
 E2E_URL="http://127.0.0.1:$PORTA_WEB" node e2e/ministerio.e2e.mjs
+# Capital: só leitura (hub + Tesouro/Finanças/Notícias). Não mexe em frota, estoque nem colônias,
+# então cabe entre o Ministério e as Zonas sem perturbar as contagens.
+E2E_URL="http://127.0.0.1:$PORTA_WEB" node e2e/capital.e2e.mjs
 # Zonas neutras: ocupa uma zona (só gasta recursos), depois das telas que dependem do estado da
 # colônia do e2e e antes da Fundação.
 E2E_URL="http://127.0.0.1:$PORTA_WEB" node e2e/zonas.e2e.mjs

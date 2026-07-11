@@ -1489,3 +1489,55 @@ primeiro** porque espera os três furgões ociosos — o do Mercado deixa dois e
 tem e2e: o painel vive atrás de um clique num hexágono do Phaser, cuja posição depende da ordem dos
 anéis, e acertá-lo por coordenada seria um teste que quebra ao primeiro ajuste de layout. A API dela
 é coberta em PHP (`ComponentRecipesTest`).
+
+---
+
+## D-55 — A Capital: o hub das instituições, e as três construídas antes da Guerra.
+**Data:** 2026-07-10 · **Status:** decidido
+
+O §02 (e o §2.1 da Parte II) descrevem a Capital como 20 slots institucionais **operados pela
+equipe** — "'Governo' e 'Administração' são sistemas operados pela equipe, não eleição de jogadores".
+Antes da Guerra (slot 5, a Fatia 2 do D-52), o usuário pediu construir a Capital: o **hub** (um
+diretório dos slots, botão "Capital" no HUD e clique no losango do mapa) mais **três instituições**
+com mecânica real. O hub não substitui os botões do HUD — os slots 6 (Mercado) e 7 (Ministério das
+Reputações) reusam as telas de topo; o slot 1 (Administração) é rotulado "operada pela equipe" (são
+os comandos `fertways:equipe`/`conciliador`). Quatro arbitragens fecharam o escopo:
+
+**1. Central de Tributos / Tesouro (slot 2): acumula e exibe, não gasta.** O §8.3 publica as
+alíquotas (primários 3%, secundários 2%, raros 1%) e diz que o tributo "vai para o Tesouro". Mas o
+**D-50 registra que o GDD não modela caixa público** — salários e subsídios são emissão do Governo,
+não saem de tributo. Então o Tesouro **contabiliza e mostra**, não financia nada. Como todo tributo
+já é gravado em `tax_events` (transporte em unidades, `kind=transporte_entrega`; mercado em Fert$,
+`kind=mercado_venda`), o saldo é uma **agregação dessa tabela** — retroativo, e sem tocar no caminho
+do tributo. Zero migração para o Tesouro.
+
+**2. Secretaria de Finanças (slot 4): painel + intervenção declarada pelo operador, com prazo.** O
+§06 descreve a intervenção ("a Secretaria só altera teto/piso mediante registro público de motivo,
+período e impacto", com "prazo de expiração e métrica de saída") mas **nunca publica a largura da
+faixa** — por isso o MVP era sem teto/piso (**D-35**). Decisão: **nada de faixa fixa no código**. O
+operador (governo/equipe) declara cada intervenção por `artisan fertways:intervencao` — recurso,
+teto e/ou piso em Fert$, motivo, prazo. Enquanto vigente (tabela `price_interventions`), o
+`ColocarOrdem` rejeita ordens fora da faixa (`preco_fora_da_faixa`). Os números vêm do operador a
+cada caso: nada arbitrado no código. Sem intervenção, o Mercado segue livre (D-35). O painel também
+mostra os preços-base do §06 (com o `*` dos derivados, D-34) e indicadores **mensuráveis** (Fert$ em
+circulação, saldo do Tesouro, nº de colônias). **Sem PIB** — a fórmula é lacuna.
+
+**3. Central de Pesquisas e Notícias (slot 3): mural com boletim manual.** O Telescópio Gagarin
+(auto-boletins, §12.1) só ativa com 50 jogadores ou 45 dias, e o **formato do boletim é lacuna**.
+Decisão: o mural (`news`) traz comunicados publicados à mão pela equipe (`artisan fertways:noticia`),
+como manda a regra "operado pela equipe", e a tela mostra **honestamente** que o Gagarin está inativo
+(nº de jogadores vs. 50). Sem inventar conteúdo automático.
+
+**4. Cargos cívicos novos fora de escopo.** Dos cinco cargos do §14.2, só o Conciliador tem salário
+publicado (50 Fert$/dia, D-50); Repórter, Auxiliar de Tesouro, Fiscal de Mercado e Atendente do
+Espaçoporto têm "salário fixo/dia" **sem número** — lacuna. As instituições funcionam sem quadro de
+pessoal; os cargos ficam para quando o usuário arbitrar os salários.
+
+**Cobertura.** `CapitalTest` (11 casos): o Tesouro soma `tax_events`; a intervenção recusa fora da
+faixa e passa dentro; expirada não vale; sem intervenção o mercado é livre; os comandos de operador.
+O hub e as três telas têm e2e em navegador (`e2e/capital.e2e.mjs`, entre o Ministério e as Zonas —
+é só leitura). A intervenção **não** entra no e2e de propósito: semear uma faixa vigente poderia
+recusar ordens do `mercado.e2e.mjs`, que negocia recursos; a enforcement é coberta em PHP.
+
+**Fora de escopo, explícito:** gastar o Tesouro; PIB; faixa de preço automática; auto-boletins do
+Gagarin; os quatro cargos novos; slots 8–20. A Guerra (slot 5) é a Fatia 2 do D-52.

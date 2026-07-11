@@ -40,7 +40,7 @@ type Selecao =
   | { tipo: 'zona'; z: ZonaNeutra }
   | null
 
-export function Mapa({ aoFechar }: { aoFechar: () => void }) {
+export function Mapa({ aoFechar, aoAbrirCapital }: { aoFechar: () => void; aoAbrirCapital?: () => void }) {
   const [dir, setDir] = useState<Diretorio | null>(null)
   const [zonas, setZonas] = useState<ZonaNeutra[]>([])
   const [frota, setFrota] = useState<Veiculo[]>([])
@@ -233,8 +233,10 @@ export function Mapa({ aoFechar }: { aoFechar: () => void }) {
                   height={18 * k}
                   transform={`rotate(45 ${px(dir.capital.x, dir.side)} ${py(dir.capital.y, dir.side)})`}
                   fill="var(--color-rust)"
+                  className={aoAbrirCapital ? 'cursor-pointer' : undefined}
+                  onClick={aoAbrirCapital ? () => selecionar(aoAbrirCapital) : undefined}
                 >
-                  <title>Capital — Mercado Central</title>
+                  <title>Capital — Governo de Fertways{aoAbrirCapital ? ' (abrir)' : ''}</title>
                 </rect>
 
                 {dir.colonies.map((c) => (

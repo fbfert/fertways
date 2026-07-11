@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\BuildingController;
+use App\Http\Controllers\Api\CapitalController;
 use App\Http\Controllers\Api\ColonyController;
 use App\Http\Controllers\Api\MarketController;
 use App\Http\Controllers\Api\MinistryController;
@@ -57,6 +58,12 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/trade/agreements', [TradeController::class, 'store']);
     Route::post('/trade/agreements/{agreement}/confirm', [TradeController::class, 'confirm']);
     Route::delete('/trade/agreements/{agreement}', [TradeController::class, 'destroy']);
+
+    // Capital — instituições do governo (§02). Só leitura: os atos do governo (intervenção de preço,
+    // publicar comunicado) são artisan, não rota, porque o Governo é "operado pela equipe" (D-44).
+    Route::get('/treasury', [CapitalController::class, 'treasury']); // Central de Tributos / Tesouro (2)
+    Route::get('/finance', [CapitalController::class, 'finance']);   // Secretaria de Finanças (4)
+    Route::get('/news', [CapitalController::class, 'news']);         // Pesquisas e Notícias (3)
 
     // Ministério das Reputações (§9.1-9.4, §26.6-26.8). A "equipe" do §9.2 não tem rota: ela é o
     // operador do jogo e julga por `artisan fertways:equipe` (D-44).

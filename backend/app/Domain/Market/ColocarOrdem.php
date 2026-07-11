@@ -8,6 +8,7 @@ use App\Models\Colony;
 use App\Models\Ledger;
 use App\Models\MarketAccount;
 use App\Models\MarketOrder;
+use App\Models\PriceIntervention;
 use App\Models\ResourceType;
 use Illuminate\Support\Facades\DB;
 
@@ -48,6 +49,10 @@ class ColocarOrdem
             throw new DomainRuleException('recurso_desconhecido', "Recurso inexistente: {$recurso}");
         }
 
+        // §06: enquanto a Secretaria de Finanças mantém uma intervenção vigente, o preço fica preso
+        // à faixa declarada. Fora dela, a ordem é recusada. Sem intervenção, o mercado é livre (D-35).
+        $this->exigirFaixa($recurso, $precoMicro);
+
         return DB::transaction(function () use ($colonia, $lado, $recurso, $qtd, $precoMicro) {
             $ordem = $this->abrirComEscrow($colonia, $lado, $recurso, $qtd, $precoMicro);
 
@@ -55,6 +60,35 @@ class ColocarOrdem
 
             return $ordem->fresh();
         });
+    }
+
+    /** Recusa a ordem se houver intervenção vigente e o preço cair fora do teto/piso (§06). */
+    private function exigirFaixa(string $recurso, int $precoMicro): void
+    {
+        $intervencao = PriceIntervention::vigenteDe($recurso);
+
+        if (! $intervencao) {
+            return;
+        }
+
+        if ($intervencao->floor_micro !== null && $precoMicro < $intervencao->floor_micro) {
+            throw new DomainRuleException(
+                'preco_fora_da_faixa',
+                'A Secretaria de Finanças fixou piso de '.$this->fert($intervencao->floor_micro).' Fert$ para este recurso.',
+            );
+        }
+
+        if ($intervencao->ceil_micro !== null && $precoMicro > $intervencao->ceil_micro) {
+            throw new DomainRuleException(
+                'preco_fora_da_faixa',
+                'A Secretaria de Finanças fixou teto de '.$this->fert($intervencao->ceil_micro).' Fert$ para este recurso.',
+            );
+        }
+    }
+
+    private function fert(int $micro): string
+    {
+        return number_format($micro / Colony::MICRO_POR_FERT, 4, ',', '.');
     }
 
     /** Reserva o que a ordem promete, antes de ela existir para os outros. */

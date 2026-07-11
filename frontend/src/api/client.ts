@@ -315,6 +315,58 @@ export type Denuncia = {
   punicao_tabelada: { indice: keyof Reputacao; pontos: number; punicoes: string[] }
 }
 
+// ── Capital: instituições do governo (§02) ──────────────────────────────────
+
+export type Tesouro = {
+  fert_micro: number
+  recursos: { code: string; nome: string; tax_class: string; total: number }[]
+  aliquotas: { tax_class: string; rotulo: string; bps: number }[]
+  recentes: {
+    kind: string
+    resource_type: string | null
+    tax_amount: number
+    colonia: string | null
+    created_at: string
+  }[]
+}
+
+export type Financas = {
+  precos: {
+    code: string
+    nome: string
+    tax_class: string
+    tax_bps: number
+    preco_base_micro: number | null
+    derivado: boolean
+  }[]
+  intervencoes: {
+    id: number
+    resource_type: string
+    nome: string
+    floor_micro: number | null
+    ceil_micro: number | null
+    reason: string
+    expires_at: string
+  }[]
+  indicadores: {
+    fert_em_circulacao_micro: number
+    tesouro_fert_micro: number
+    colonias: number
+  }
+}
+
+export type Noticias = {
+  noticias: {
+    id: number
+    title: string
+    body: string
+    kind: string
+    author: string
+    published_at: string
+  }[]
+  gagarin: { ativo: boolean; jogadores: number; limiar_jogadores: number; regra: string }
+}
+
 export const api = {
   register: (b: { name: string; nickname: string; email: string; password: string }) =>
     req<Sessao>('/register', { method: 'POST', body: JSON.stringify(b) }),
@@ -343,6 +395,11 @@ export const api = {
 
   /** As 120 zonas neutras (D-52). */
   zonas: () => req<{ zones: ZonaNeutra[] }>('/zones'),
+
+  /** Capital — instituições do governo (§02), só leitura. */
+  tesouro: () => req<Tesouro>('/treasury'),
+  financas: () => req<Financas>('/finance'),
+  noticias: () => req<Noticias>('/news'),
 
   /** Ocupa uma zona livre: Posto de Comando + 20 Robôs Mineradores + tempo de ocupação (§07). */
   ocuparZona: (id: number) =>
