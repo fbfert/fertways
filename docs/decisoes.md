@@ -1592,3 +1592,49 @@ intervenção, publicar/remover comunicado, disparar tick, realocar founders (gu
 **Fora de escopo:** papéis/permissões finas entre admins (todo admin é pleno); log de auditoria das
 ações; 2FA. **Nota de segurança:** convém setar `SESSION_SECURE_COOKIE=true` no `.env` de produção
 (o painel carrega credencial por cookie; o site é HTTPS). A Guerra (slot 5) segue sendo a Fatia 2.
+
+---
+
+## D-57 — O Ministério do Tesouro: um caixa real, gastável, e o kit fixo de recursos.
+**Data:** 2026-07-11 · **Status:** decidido
+
+O usuário pediu uma reserva do governo com 10 mil de cada recurso, um painel para o admin enviar
+parte a jogadores, visível aos colonos na Capital; e um kit fixo de recursos para toda colônia. Os
+números **não vêm do GDD** — são decisões de balanceamento do usuário (o kit do GDD é 50 Fert$ +
+Furgão + raros). Registrados aqui.
+
+**Unifica o Tesouro do D-55.** O D-55 fez o Tesouro (slot 2) ser só-leitura, derivado de `tax_events`,
+que **não gastava** — porque o D-50 dizia que o GDD "não modela caixa público". O usuário agora cria
+esse caixa, e isso fica *mais* fiel ao GDD: o §2.1 diz que a Central de Tributos faz "coleta e
+**redistribuição** de impostos". Então o Tesouro virou um **caixa real** (`treasury_holdings`): uma
+linha por recurso (unidades) + uma de Fert$ (`__fert__`, micro). O tributo cobrado no comércio, que
+antes sumia (sink em `ConcluirTrechos` e `ColocarOrdem`), agora **entra** no caixa
+(`Tesouro::creditarRecurso/creditarFert`). A vista do colono (`GET /central/treasury`) passou a ler o
+saldo do caixa, não mais a agregação de `tax_events` (que segue só como log de auditoria das cobranças).
+
+**Dotação inicial (decisão do usuário):** 10.000 de cada recurso (26) + **1.000.000 Fert$**, no
+`TreasurySeeder` (idempotente, `firstOrCreate` — não zera o que o tributo já acumulou). Em produção
+roda-se à mão após o deploy, como o `NeutralZoneSeeder`; está também no `DatabaseSeeder` para dev/e2e.
+
+**Distribuição (só o admin move):** `Tesouro::distribuir(colônia, recurso, qtd)` baixa do caixa com
+guarda de saldo (`where amount >= qtd`, à prova de corrida), credita o estoque/Fert$ da colônia e
+lança `transferencia_tesouro` no ledger. Exposto no painel de admin (seção "Ministério do Tesouro":
+saldo + form colônia/recurso/quantidade). Os colonos **só veem** o saldo, na Capital.
+
+**Kit fixo de recursos (decisão do usuário):** 1000 metal bruto, 1000 ligas metálicas, 500 compostos
+químicos, 300 biocombustível, 500 componentes eletrônicos — por colônia, **emissão do governo** (não
+sai da reserva; lançado como `kit_recursos` no ledger). Idempotente (marca por ledger-ref). Vale para
+as colônias existentes (backfill `fertways:kit-recursos --aplicar`) e para toda nova.
+
+**Por que o kit vive na fronteira de fundação (`ColonyController::store`), não no `CreateColony`.**
+Pôr o kit na primitiva de domínio muda o estoque-base de toda colônia e quebrou 17 testes que assumem
+colônia limpa (produção, mercado, logística). O kit é concedido no endpoint de onboarding — a
+primitiva `CreateColony` segue nascendo com estoque limpo, e os testes de domínio ficam intactos. O
+único caminho de fundação em produção é esse endpoint.
+
+**Cobertura.** `TesouroTest` (9 casos): dotação e idempotência, crédito pelo tributo, distribuição
+(recurso e Fert$) com a guarda de saldo, e o kit. `CapitalTest`: a venda de mercado credita o caixa.
+`AdminPainelTest`: a distribuição pelo painel. `ColonyCreationTest`: a fundação concede o kit.
+
+**Nota:** o kit inflaciona bastante o onboarding perto do GDD (50 Fert$). É decisão de balanceamento
+do usuário; se um dia parecer demais, é o primeiro número a revisitar. A Guerra segue como Fatia 2.

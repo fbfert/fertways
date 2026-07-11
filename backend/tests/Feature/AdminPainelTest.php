@@ -176,6 +176,19 @@ class AdminPainelTest extends TestCase
             ->assertRedirect(route('admin.dashboard'))->assertSessionHas('ok');
     }
 
+    #[Test]
+    public function o_painel_distribui_do_tesouro(): void
+    {
+        $this->seed(\Database\Seeders\TreasurySeeder::class);
+        $c = $this->colonia('destino');
+
+        $this->actingAs($this->admin(), 'admin')
+            ->post(route('admin.tesouro.distribuir'), ['colony_id' => $c->id, 'recurso' => 'metal_bruto', 'quantidade' => '500'])
+            ->assertSessionHas('ok');
+
+        $this->assertSame(9_500, (int) \App\Models\TreasuryHolding::whereKey('metal_bruto')->value('amount'));
+    }
+
     // ── Comando de bootstrap ─────────────────────────────────────────────────
 
     #[Test]

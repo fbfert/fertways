@@ -18,26 +18,25 @@ use Illuminate\Support\Facades\DB;
 class CapitalController extends Controller
 {
     /**
-     * Central de Tributos / Tesouro Público (slot 2).
+     * Central de Tributos / Ministério do Tesouro (slot 2), na vista do colono — só leitura.
      *
-     * "3% do volume enviado vai para o Tesouro" (§8.3). O tributo é retido na entrega e na venda; o
-     * Tesouro **acumula e exibe**, não gasta (D-50: o GDD não modela caixa público). Como todo
-     * tributo já é registrado em `tax_events`, o saldo é uma agregação dela — retroativo e sem tocar
-     * no caminho do tributo.
+     * O Tesouro é um caixa real (D-57): dotação inicial + o tributo que entra (§8.3, §2.1) − as
+     * distribuições do admin. Aqui o colono vê o saldo de cada recurso e de Fert$; quem move é o
+     * admin, no painel. As "últimas transferências tributadas" ainda vêm de `tax_events` (o log de
+     * auditoria de cada cobrança).
      */
     public function treasury(): JsonResponse
     {
-        // Recursos retidos no transporte (unidades), por tipo.
-        $recursos = DB::table('tax_events')
-            ->join('resource_types', 'tax_events.resource_type', '=', 'resource_types.code')
-            ->where('kind', 'transporte_entrega')
-            ->groupBy('tax_events.resource_type', 'resource_types.nome', 'resource_types.tax_class')
-            ->orderByDesc(DB::raw('SUM(tax_amount)'))
+        // O saldo do caixa real do Ministério do Tesouro (D-57): dotação + tributo − distribuições.
+        $recursos = DB::table('treasury_holdings')
+            ->join('resource_types', 'treasury_holdings.resource_type', '=', 'resource_types.code')
+            ->orderBy('resource_types.tax_class')
+            ->orderByDesc('treasury_holdings.amount')
             ->get([
-                'tax_events.resource_type as code',
+                'treasury_holdings.resource_type as code',
                 'resource_types.nome',
                 'resource_types.tax_class',
-                DB::raw('SUM(tax_amount) as total'),
+                'treasury_holdings.amount as total',
             ])
             ->map(fn ($r) => [
                 'code' => $r->code,
@@ -46,8 +45,7 @@ class CapitalController extends Controller
                 'total' => (int) $r->total,
             ]);
 
-        // Fert$ retido na venda de mercado (micro-Fert$).
-        $fertMicro = (int) DB::table('tax_events')->where('kind', 'mercado_venda')->sum('tax_amount');
+        $fertMicro = app(\App\Domain\Treasury\Tesouro::class)->saldoFertMicro();
 
         $recentes = DB::table('tax_events')
             ->leftJoin('colonies', 'tax_events.colony_id', '=', 'colonies.id')
@@ -120,7 +118,7 @@ class CapitalController extends Controller
                 'expires_at' => $i->expires_at,
             ]);
 
-        $tesouroFert = (int) DB::table('tax_events')->where('kind', 'mercado_venda')->sum('tax_amount');
+        $tesouroFert = app(\App\Domain\Treasury\Tesouro::class)->saldoFertMicro();
 
         return response()->json([
             'precos' => $precos,

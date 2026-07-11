@@ -59,13 +59,21 @@ class ColonyCreationTest extends TestCase
         $this->assertCount(count(Building::MVP), $colony->buildings);
         $this->assertTrue($colony->buildings->every(fn ($b) => $b->level === 0));
 
-        // Uma linha por recurso do catálogo. Não-raros zerados: o colono compra o primeiro
-        // lote de Ligas no Mercado Central com os 50 Fert$ (§24.7).
+        // Uma linha por recurso do catálogo.
         $this->assertCount(count(Resource::daColonia()), $colony->resources);
 
+        // Kit fixo de recursos (D-57), concedido na fundação pelo endpoint (emissão do governo).
+        $kit = \App\Domain\Colony\KitInicialDeRecursos::KIT;
+        foreach ($kit as $recurso => $qtd) {
+            $this->assertSame($qtd, $colony->resources->firstWhere('resource_type', $recurso)->amount, $recurso);
+        }
+
+        // O que não é raro nem entra no kit segue zerado.
         $raros = \App\Models\ResourceType::where('tax_class', 'raro')->pluck('code');
-        $naoRaros = $colony->resources->whereNotIn('resource_type', $raros);
-        $this->assertTrue($naoRaros->every(fn ($r) => $r->amount === 0));
+        $semConcessao = $colony->resources
+            ->whereNotIn('resource_type', $raros)
+            ->whereNotIn('resource_type', array_keys($kit));
+        $this->assertTrue($semConcessao->every(fn ($r) => $r->amount === 0));
 
         // Kit de raros (D-17): exatamente a soma dos custos de nível 1 das 16 construções.
         $esperado = ['ferro_vermelho' => 1, 'gelo_de_metano' => 3, 'niobio_alienigena' => 5,

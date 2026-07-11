@@ -31,6 +31,8 @@ Route::prefix('admin')->group(function () {
         // Notícias
         Route::post('/noticias', [AcoesController::class, 'noticiaPublicar'])->name('admin.noticia');
         Route::post('/noticias/{news}/remover', [AcoesController::class, 'noticiaRemover'])->name('admin.noticia.remover');
+        // Ministério do Tesouro (D-57)
+        Route::post('/tesouro/distribuir', [AcoesController::class, 'distribuir'])->name('admin.tesouro.distribuir');
         // Operação
         Route::post('/tick', [AcoesController::class, 'tick'])->name('admin.tick');
         Route::post('/realocar', [AcoesController::class, 'realocar'])->name('admin.realocar');

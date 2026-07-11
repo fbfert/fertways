@@ -39,6 +39,8 @@ class Ledger extends Model
         'salario_conciliador', // §26.7: 50 F$/dia, emitidos pelo Governo (D-50)
         'bonus_conciliador',   // §26.7: +3 F$ por decisão que sobrevive à apelação
         'custo_ocupacao',      // §07: Posto de Comando + Robôs Mineradores para ocupar zona (D-52)
+        'transferencia_tesouro', // Ministério do Tesouro: distribuição do governo ao colono (D-57)
+        'kit_recursos',        // kit fixo de recursos por colônia, emissão do governo (D-57)
         'estorno',
     ];
 

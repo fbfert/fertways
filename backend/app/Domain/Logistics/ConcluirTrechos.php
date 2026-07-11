@@ -271,6 +271,9 @@ class ConcluirTrechos
     {
         if ($tributo > 0) {
             $this->lancar($origem, 'tributo', -$tributo, $recurso, $ref);
+            // O tributo não some mais: entra no Ministério do Tesouro (§2.1, D-57). Só aqui, depois de
+            // `tributar()` ter aprovado o `tax_event` — a idempotência do tick já está garantida.
+            app(\App\Domain\Treasury\Tesouro::class)->creditarRecurso($recurso, $tributo);
         }
     }
 }

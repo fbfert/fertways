@@ -34,6 +34,11 @@ class ColonyController extends Controller
 
         $colony = $criar->handle($user, $dados['name'], $dados['x'], $dados['y']);
 
+        // Kit fixo de recursos (D-57), na fronteira de onboarding — emissão do governo, idempotente.
+        // Fica aqui, e não no CreateColony, para a primitiva de domínio nascer com estoque limpo.
+        app(\App\Domain\Colony\KitInicialDeRecursos::class)->conceder($colony);
+        $colony->load('resources');
+
         return response()->json([
             'id' => $colony->id,
             'name' => $colony->name,

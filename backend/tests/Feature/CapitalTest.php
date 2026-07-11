@@ -15,7 +15,6 @@ use Database\Seeders\BuildingSpecSeeder;
 use Database\Seeders\ComponentRecipeSeeder;
 use Database\Seeders\ResourceTypeSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\DB;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -67,21 +66,14 @@ class CapitalTest extends TestCase
     }
 
     #[Test]
-    public function o_saldo_do_tesouro_e_a_soma_dos_tax_events(): void
+    public function o_tributo_de_recurso_credita_o_caixa_do_tesouro(): void
     {
-        // Insere tributos de transporte (unidades) direto: é o que `ConcluirTrechos` grava na entrega.
-        DB::table('tax_events')->insert([
-            ['economic_event_key' => 'e1', 'kind' => 'transporte_entrega', 'colony_id' => $this->colonia('c1', 10, 10)->id,
-                'resource_type' => 'agua', 'base_amount' => 1_000, 'tax_bps' => 300, 'tax_amount' => 30, 'created_at' => now()],
-            ['economic_event_key' => 'e2', 'kind' => 'transporte_entrega', 'colony_id' => $this->colonia('c2', 20, 20)->id,
-                'resource_type' => 'agua', 'base_amount' => 500, 'tax_bps' => 300, 'tax_amount' => 15, 'created_at' => now()],
-        ]);
+        // É o que `ConcluirTrechos` faz na entrega: o recurso retido entra no Tesouro (D-57).
+        app(\App\Domain\Treasury\Tesouro::class)->creditarRecurso('agua', 30);
+        app(\App\Domain\Treasury\Tesouro::class)->creditarRecurso('agua', 15);
 
-        $recursos = collect($this->treasury()['recursos']);
-        $agua = $recursos->firstWhere('code', 'agua');
-
+        $agua = collect($this->treasury()['recursos'])->firstWhere('code', 'agua');
         $this->assertSame(45, $agua['total'], '30 + 15 unidades de Água no Tesouro');
-        $this->assertSame(0, $this->treasury()['fert_micro'], 'nenhuma venda de mercado ainda');
     }
 
     // ── Finanças: intervenção de preço (§06) ─────────────────────────────────

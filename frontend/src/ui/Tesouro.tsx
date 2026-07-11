@@ -4,11 +4,10 @@ import type { Tesouro as TesouroDto } from '../api/client'
 import { dataHumana, fert, nomeRecurso } from './recursos'
 
 /**
- * Central de Tributos / Tesouro Público (slot 2). Só leitura.
+ * Central de Tributos / Ministério do Tesouro (slot 2). Só leitura para o colono.
  *
- * "3% do volume enviado vai para o Tesouro" (§8.3). O tributo é retido na entrega (recursos) e na
- * venda de mercado (Fert$); aqui ele é **contabilizado e exibido**, não gasto (D-50). O saldo é a
- * soma de tudo que já foi tributado — vem agregado de `tax_events` no servidor.
+ * O caixa real do governo (D-57): dotação inicial + o tributo que entra (§8.3, §2.1) − o que o admin
+ * redistribui. Aqui o colono vê o saldo de cada recurso e de Fert$; quem move é a administração.
  */
 export function Tesouro() {
   const [dados, setDados] = useState<TesouroDto | null>(null)
@@ -32,8 +31,8 @@ export function Tesouro() {
   return (
     <div className="mt-5 space-y-6">
       <p className="text-ink-soft text-sm">
-        Todo tributo cobrado no comércio vai para o Tesouro Público (§8.3). O saldo acumula; a Capital
-        não o gasta com salários ou subsídios — esses são emissão do Governo.
+        A reserva do Ministério do Tesouro. Todo tributo do comércio (§8.3) entra aqui, e o governo
+        redistribui parte aos colonos (§2.1). Você vê o saldo; quem move é a administração.
       </p>
 
       {/* Saldo: Fert$ das vendas + recursos retidos no transporte. */}

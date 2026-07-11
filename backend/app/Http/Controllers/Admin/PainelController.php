@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Domain\Ministry\PunicaoSpecs;
+use App\Domain\Treasury\Tesouro;
 use App\Http\Controllers\Controller;
 use App\Models\BuildQueue;
 use App\Models\Colony;
@@ -40,6 +41,13 @@ class PainelController extends Controller
             'zonas' => NeutralZone::with('owner:id,name')->whereNotNull('owner_colony_id')->orderBy('id')->get(),
             'obras' => BuildQueue::query()->ativos()->with('colony:id,name')->orderBy('finishes_at')->get(),
             'especs' => PunicaoSpecs::class,
+            // Ministério do Tesouro (D-57): saldo do caixa (recursos com nome, e o Fert$).
+            'tesouro' => DB::table('treasury_holdings')
+                ->join('resource_types', 'treasury_holdings.resource_type', '=', 'resource_types.code')
+                ->orderBy('resource_types.tax_class')->orderBy('resource_types.nome')
+                ->get(['treasury_holdings.resource_type as code', 'resource_types.nome', 'treasury_holdings.amount']),
+            'tesouroFert' => app(Tesouro::class)->saldoFertMicro(),
+            'FERT' => Tesouro::FERT,
         ]);
     }
 

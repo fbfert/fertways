@@ -134,6 +134,37 @@
         </form>
     </div>
 
+    {{-- ── Ministério do Tesouro ── --}}
+    <h2 class="secao">Ministério do Tesouro</h2>
+    <div class="cartao">
+        <p class="mut pequeno">A reserva do governo — o tributo do comércio entra aqui. Envie parte a um colono.</p>
+        <div style="max-height:220px;overflow:auto;margin-top:8px">
+            <table>
+                <tr><th>Recurso</th><th class="num">Saldo</th></tr>
+                <tr><td><b>Fert$</b></td><td class="num" data-tesouro-fert>{{ $fert($tesouroFert) }}</td></tr>
+                @foreach ($tesouro as $h)
+                    <tr><td>{{ $h->nome }}</td><td class="num">{{ number_format($h->amount, 0, ',', '.') }}</td></tr>
+                @endforeach
+            </table>
+        </div>
+        <form method="POST" action="{{ route('admin.tesouro.distribuir') }}" class="linha-form">
+            @csrf
+            <div><label>Colônia</label>
+                <select name="colony_id">
+                    @foreach ($colonias as $c)<option value="{{ $c->id }}">{{ $c->name }}</option>@endforeach
+                </select>
+            </div>
+            <div><label>Recurso</label>
+                <select name="recurso">
+                    <option value="{{ $FERT }}">Fert$</option>
+                    @foreach ($recursos as $r)<option value="{{ $r->code }}">{{ $r->nome }}</option>@endforeach
+                </select>
+            </div>
+            <div style="flex:0"><label>Quantidade</label><input type="number" step="0.0001" min="0.0001" name="quantidade" required></div>
+            <div style="flex:0"><button>Enviar</button></div>
+        </form>
+    </div>
+
     {{-- ── Notícias ── --}}
     <h2 class="secao">Central de Notícias</h2>
     <div class="cartao">

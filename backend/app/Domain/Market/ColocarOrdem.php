@@ -218,6 +218,8 @@ class ColocarOrdem
 
         if ($taxa > 0) {
             $this->lancar($venda->colony_id, 'tributo', -$taxa, null, $chave);
+            // A taxa não some mais: entra no Ministério do Tesouro (§2.1, D-57).
+            app(\App\Domain\Treasury\Tesouro::class)->creditarFert($taxa);
         }
 
         /*

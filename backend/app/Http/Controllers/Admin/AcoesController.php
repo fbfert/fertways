@@ -8,6 +8,7 @@ use App\Domain\Ministry\Apelacao;
 use App\Domain\Ministry\DecidirCaso;
 use App\Domain\Ministry\GerirConciliador;
 use App\Domain\News\PublicarNoticia;
+use App\Domain\Treasury\Tesouro;
 use App\Exceptions\DomainRuleException;
 use App\Http\Controllers\Controller;
 use App\Models\Colony;
@@ -138,6 +139,29 @@ class AcoesController extends Controller
         $publicar->remover($id);
 
         return $this->ok("Notícia #{$id} removida.");
+    }
+
+    // ── Ministério do Tesouro (D-57) ─────────────────────────────────────────
+
+    public function distribuir(Request $request, Tesouro $tesouro): RedirectResponse
+    {
+        $dados = $request->validate([
+            'colony_id' => ['required', 'integer', 'exists:colonies,id'],
+            'recurso' => ['required', 'string'],
+            'quantidade' => ['required', 'numeric', 'min:0.0001'],
+        ]);
+
+        $destino = Colony::findOrFail($dados['colony_id']);
+        $ehFert = $dados['recurso'] === Tesouro::FERT;
+        $qtd = $ehFert
+            ? (int) round(((float) $dados['quantidade']) * Colony::MICRO_POR_FERT)
+            : (int) $dados['quantidade'];
+
+        return $this->tentar(function () use ($tesouro, $destino, $dados, $qtd, $ehFert) {
+            $tesouro->distribuir($destino, $dados['recurso'], $qtd);
+
+            return 'Tesouro enviou '.($ehFert ? 'Fert$' : $dados['recurso'])." a {$destino->name}.";
+        });
     }
 
     // ── Operação (orquestração, via Artisan em processo) ─────────────────────
