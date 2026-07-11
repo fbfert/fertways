@@ -173,12 +173,35 @@ colono e funda uma quinta colônia — rodar antes bagunçaria as contagens das 
 > (Runtime.getProperties): Target closed`. Verde nas outras três. Se reprovar assim, rode de novo
 > antes de investigar — mas se virar hábito, é bug de verdade.
 
-**Publicado no GitHub e no ar.** O último deploy é de **2026-07-12**, no commit `4c51831` — **os 21
-slots da colônia (D-59)**, mais o `fix` da migration que derrubou a primeira tentativa (leia a lição
-acima antes da próxima migration; a curta é: **exercite-a no `fertwaysdev`, que é MariaDB — o
-`artisan test` é SQLite e não vale como evidência sobre DDL**).
+**Publicado no GitHub e no ar.** O último deploy é de **2026-07-12**, no commit `cee3cee` — **o
+Ministério dos Transportes, Fatia 1 (D-60)**. A migration `ministerio_dos_transportes` rodou sozinha
+no `deploy.sh` — **desta vez sem quebrar**, porque foi exercitada no `fertwaysdev` (MariaDB) nos dois
+sentidos antes de publicar. É a lição do D-59, aplicada.
 
-Houve **um passo à mão** no `fertwaysbd`, como no D-57: `artisan fertways:slots --aplicar`. Conferido
+**Um passo à mão** no `fertwaysbd`: `artisan fertways:placas --aplicar` — 5 furgões, um por colônia,
+placas `FW-00006-F` a `FW-00010-F`.
+
+> **Elas não começaram em `FW-00001`, e isso não é bug.** Entre o deploy e o backfill, o **cron do
+> tick rodou** e o Ministério já tinha fabricado os seus 5 primeiros caminhões, que levaram as placas
+> `FW-00001-C` a `FW-00005-C`. O sequencial é global e por ordem de emissão (§16.3), não por tipo. Se
+> você for conferir isto e estranhar, é esta a explicação.
+
+Conferido por leitura depois do deploy: migration registrada, `colony_id` nulável (a frota do governo
+do §16.2), `plate` única, o enum de `status` com `fabricando` e `estoque`, as rotas no ar
+(`GET /transport`, `POST /transport/buy` — 401, não 404), o bundle no ar igual ao compilado, e a
+**contabilidade do Tesouro fechando nos três recursos**: 5 caminhões × (90 Ligas, 25 Componentes, 16
+Metal Bruto). As Ligas parecem 500 a menos do que a conta pede — **não é erro**: o Tesouro distribuiu
+500 Ligas à colônia 4 em 2026-07-11 19:03, pelo painel de admin. `10.000 − 500 − 450 = 9.050`.
+
+> **O que muda para quem joga, hoje:** o teto de frota passou a valer, e **nenhuma das 5 colônias de
+> produção tem Central de Transportes** — logo, teto 1 para todas. Ninguém perde veículo (o teto só
+> barra **comprar**), mas **ninguém compra caminhão** antes de erguer uma Central ao **nível 2**. A
+> colônia 4 tem uma, mas no nível 1 — ainda não basta. É o desenho que o usuário escolheu: caminhão
+> exige infraestrutura.
+
+Antes dele, `4c51831` — **os 21 slots da colônia (D-59)**, mais o `fix` da migration que derrubou a
+primeira tentativa (leia a lição acima antes da próxima migration). Houve **um passo à mão** no
+`fertwaysbd`, como no D-57: `artisan fertways:slots --aplicar`. Conferido
 por leitura depois: a migration registrada, o `unique(colony_id, slot)` no lugar do
 `unique(colony_id, type)`, a FK `buildings_colony_id_foreign` intacta, as rotas novas no ar
 (`GET /buildings/catalogo`, `POST /buildings`, `DELETE /buildings/{id}` — 401, não 404), e as **5
@@ -300,7 +323,30 @@ As **4 colônias de produção foram realocadas** para slots de founder ((0,1),(
 `artisan fertways:realocar-founders` — comando guardado por veículos ociosos, útil de novo se um dia
 houver que remanejar.
 
-## O trabalho em curso: zonas neutras + Drone (D-52)
+## O trabalho em curso: o Ministério dos Transportes (D-60), fatias 2 e 3
+
+**A Fatia 1 está no ar** (2026-07-12). As outras duas **já estão inteiramente decididas no D-60** —
+não há pergunta em aberto, é só construir:
+
+- **Fatia 2 — a frota envelhece.** Depreciação de **0,5% por hora de uso ativo** (só Furgão e
+  Caminhão, §16.4); **desempenho = conservação**, com **piso de 25%** e **sem bloqueio** (contradição
+  deliberada ao §16.4, que manda travar — o "limite crítico" do painel virou o piso); **manutenção na
+  Central de Transportes do colono**, em recursos = **10% do custo do veículo** (Caminhão: 9 Ligas, 3
+  Componentes, 2 Metal Bruto), que restaura até o **teto**, e o teto **cai 5 pontos a cada
+  manutenção**; **sucata só por vontade do dono**, sem devolução.
+  - A viagem de **entrega de fábrica** (`trip_purpose = 'entrega_de_fabrica'`) **não conta como uso
+    ativo** — o caminhão chega com 100%. O campo já está lá esperando a Fatia 2.
+  - Os parâmetros (curva, piso, custo de manutenção) são **do painel do operador**, semeados — o
+    padrão do D-35. Nada chumbado no código.
+- **Fatia 3 — o mercado de usados e os relatórios.** O veículo vendido **dirige-se sozinho até o
+  comprador**. **Teto de revenda = 300 × o teto de conservação** (arbitragem do assistente: o preço de
+  fábrica é a única âncora que o GDD deixa). Mais os relatórios de volume (registrados, vendidos,
+  sucateados por período) — a sexta atribuição do painel do §16.
+
+**Fora de escopo, de propósito:** o **Cargueiro Interplanetário** e o seu aluguel (quinta atribuição
+do painel). Dependem do Espaçoporto e dos 5 planetas NPC, que não existem.
+
+## Depois: zonas neutras + Drone (D-52)
 
 Leia **D-52**. Sequência decidida: Fatia 1 = o núcleo (ocupar/extrair/retirar); Fatia 2 = a guerra
 (§27); Fatia 3 = o Drone. O mapa (pré-requisito) e a **Fatia 1 já estão no ar** (2026-07-10).
@@ -358,8 +404,19 @@ leitura. Ele é idempotente, então repetir é seguro se um dia houver dúvida.
 - **Metade do Ministério está inerte, por decisão** (D-44, D-49): silêncio precisa de chat, bloqueio
   de leilões precisa de leilões, e o impedimento por federação precisa de federações. Tudo grava com
   índice e prazo, e passa a morder sozinho no dia em que esses sistemas existirem.
-- **Depreciação de veículos (§16.4)** — fora do MVP por decisão do usuário. O GDD descreve o
-  comportamento mas não publica a curva de desgaste, o limite crítico nem o custo de manutenção.
+- **Depreciação de veículos (§16.4)** — **saiu da geladeira no D-60** e é a **Fatia 2**. O GDD nunca
+  publica a curva, o limite crítico nem o custo de manutenção — e o painel do §16 existe justamente
+  para o **operador declará-los**. Foi isso que destravou o assunto.
+- **O Ministério dos Transportes contradiz o §17.2 e o §21.3 de propósito** (D-60). Os dois dizem que
+  o Caminhão é "produzido pela Central de Transportes"; desde o D-60 a fábrica é do Ministério, e a
+  Central só dá vaga. **Não "conserte" sem perguntar** — é o mesmo caso do tributo (D-32).
+- **O caminhão só tem nível 1** (D-60). O GDD publica custo de veículo até o nível 5, mas **nunca diz
+  o que o nível muda** (capacidade e velocidade são fixas por tipo). E as **duas tabelas de custo do
+  Caminhão divergem a partir do nível 2** (§21.3 na curva 1,50×; §20 na 1,65×) — a armadilha do D-37.
+  O nível 1 é idêntico nas duas, então hoje não nos toca. Se os níveis 2+ entrarem, **reabra o D-37
+  antes de copiar qualquer tabela.**
+- **Ninguém em produção pode comprar caminhão ainda** (2026-07-12): o teto de frota é máximo(1, nível
+  da Central), e nenhuma das 5 colônias tem Central acima do nível 1. É o desenho, não um bug.
 - **Zonas neutras como destino de carga** — o despacho aceita `colonia`; zona neutra precisa do
   Depósito de Zona Neutra. Entra no escopo do D-52.
 - **Frontend** — o bundle passa de 1,5 MB sem code splitting (quase tudo é Phaser). Não incomoda
