@@ -190,6 +190,28 @@ concêntrico do D-51** (`2a71a1c`), o `fix` da fila do D-53 e as telas do D-54.)
 > O `.env` de trabalho **não** recebe a linha: o `artisan serve` é HTTP e um cookie `Secure` não
 > voltaria. O `.env.example` documenta isso, comentado.
 
+> **Lição registrada (2026-07-12) — a suíte roda em SQLite; a produção é MariaDB. Migration não
+> testada é migration não escrita.** O primeiro deploy do D-59 **quebrou em produção**, na migration,
+> com o app já fora da manutenção: `1553 Cannot drop index 'buildings_colony_id_type_unique': needed
+> in a foreign key constraint`. O InnoDB exige que toda FK seja coberta por um índice que *comece*
+> pela coluna dela, e o `unique(colony_id, type)` que a migration vinha matar era o único que cobria
+> a FK `buildings_colony_id_foreign`. **A cura é criar o índice novo antes de matar o velho** — o
+> `unique(colony_id, slot)` também começa por `colony_id` e cobre a FK. O `down()` tinha a mesma
+> armadilha ao contrário.
+>
+> **Os 266 testes passavam.** Eles correm em SQLite, que não tem a regra do índice de FK: lá as três
+> operações passam em qualquer ordem. E o `phpunit` usa `migrate` num banco novo, então **nem o
+> caminho normal da migration tocava o MariaDB alguma vez**. A falha só podia aparecer em produção,
+> e apareceu.
+>
+> A migration ficou **idempotente** porque a tentativa falha deixou produção pela metade (coluna
+> `slot` criada, índice velho vivo, migration **não registrada** — o `migrate` seguinte tentaria
+> recriar a coluna). Ela agora confere cada passo antes de agir e termina o serviço de onde parou.
+>
+> **A regra, daqui em diante:** antes de publicar, rode a migration no `fertwaysdev`, que é MariaDB
+> de verdade — `artisan migrate` e `artisan migrate:rollback`, os dois. Está na Verificação rápida.
+> O verde do `artisan test` **não é evidência** sobre DDL.
+
 > **Lição registrada (2026-07-10).** Ao conferir o D-53 em produção, enfileirei uma construção de
 > teste na colônia 4 pelo `EnqueueUpgrade`. Funcionou, mas escrever no banco de produção "para ver
 > com os próprios olhos" deixou resíduo: item de fila, marca de upgrade na Oficina e **seis
@@ -320,6 +342,11 @@ cd /home/fertways/apps/fertways/backend && /usr/bin/php84 artisan test
 
 # A árvore de trabalho aponta para o banco de DEV? (tem que dar fertwaysdev)
 /usr/bin/php84 artisan db:show | grep Database
+
+# ⚠️ Migration nova? EXERCITE-A NO MariaDB antes de publicar — o `artisan test` é SQLite e não
+# vale como evidência sobre DDL (foi assim que o D-59 quebrou a produção). Os dois sentidos:
+/usr/bin/php84 artisan migrate --force && /usr/bin/php84 artisan migrate:rollback --step=1 --force \
+  && /usr/bin/php84 artisan migrate --force
 
 # O site está no ar?
 curl -s -o /dev/null -w '%{http_code}\n' https://fertways.tars.art.br/          # 200 (front)
