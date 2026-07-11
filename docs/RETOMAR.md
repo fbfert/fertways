@@ -153,8 +153,22 @@ colono e funda uma quinta colônia — rodar antes bagunçaria as contagens das 
 > (Runtime.getProperties): Target closed`. Verde nas outras três. Se reprovar assim, rode de novo
 > antes de investigar — mas se virar hábito, é bug de verdade.
 
-**Publicado no GitHub e no ar.** O último deploy é de 2026-07-11, no commit `2fe39fa` — **o Mercado
-novo (D-58): vitrine, teto no depósito e mural entre colonos**. A migration
+**Publicado no GitHub e no ar.** O último deploy é de **2026-07-12**, no commit `4c51831` — **os 21
+slots da colônia (D-59)**, mais o `fix` da migration que derrubou a primeira tentativa (leia a lição
+acima antes da próxima migration; a curta é: **exercite-a no `fertwaysdev`, que é MariaDB — o
+`artisan test` é SQLite e não vale como evidência sobre DDL**).
+
+Houve **um passo à mão** no `fertwaysbd`, como no D-57: `artisan fertways:slots --aplicar`. Conferido
+por leitura depois: a migration registrada, o `unique(colony_id, slot)` no lugar do
+`unique(colony_id, type)`, a FK `buildings_colony_id_foreign` intacta, as rotas novas no ar
+(`GET /buildings/catalogo`, `POST /buildings`, `DELETE /buildings/{id}` — 401, não 404), e as **5
+colônias com slot em todas as construções, nenhuma nula**. O backfill promoveu as essenciais das
+colônias 1, 2 e 3 (que estavam no nível 0) ao nível 1, com o subsídio no ledger, e **preservou a
+Plataforma de Pouso da colônia 4, que estava em obra** no nível 0 — o resto das linhas de nível 0
+virou slot vazio, como o D-59 manda. A idempotência do backfill é coberta por teste
+(`test_o_backfill_e_idempotente`); **não a reconfira rodando `--aplicar` de novo em produção.**
+
+Antes dele, `2fe39fa` — **o Mercado novo (D-58): vitrine, teto no depósito e mural entre colonos**. A migration
 `oferta_aberta_entre_colonos` (`colony_b_id` nulável) rodou sozinha no `deploy.sh`, lote 11, e
 **não houve passo à mão** — ao contrário do D-56 e do D-57. Conferido por leitura depois do deploy:
 as duas árvores em `2fe39fa`, o opcache executando a cópia de deploy, as rotas novas no ar
@@ -387,7 +401,9 @@ Recriadas em 2026-07-09 depois do incidente do D-36; nascem zeradas, sem nada na
 `f@t.test` ("Nova Aurora", nickname `fb`) veio do backup e sua senha não está documentada.
 
 Há ainda uma quarta colônia em produção, `teste` (nickname `Teste`), de origem não documentada —
-apareceu quando o diretório começou a listar todo mundo. Produção tem **4 colônias**.
+apareceu quando o diretório começou a listar todo mundo. E uma quinta, `Agua Preta muito Longe`,
+igualmente não documentada. Produção tem **5 colônias** — esta página dizia 4 até 2026-07-12, e
+estava errada; o D-57 já falava em cinco.
 
 Essas contas vivem em `fertwaysbd` (produção). O banco de desenvolvimento, `fertwaysdev`, nasceu
 migrado e semeado em 2026-07-09, **sem nenhuma colônia**: funde a sua própria ao testar.
