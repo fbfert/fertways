@@ -220,3 +220,20 @@ de novo.
 `SESSION_SECURE_COOKIE=true` no `.env` de produção (e rodar `config:cache` de novo, que o `deploy.sh`
 faz). O guard, o provider e a tabela são separados dos de colono; um token de colono não abre o painel
 e uma sessão de admin não fala com a API de jogo.
+
+## Ministério do Tesouro e kit de recursos (D-57)
+
+O `deploy.sh` roda a migration `treasury_holdings` sozinho, mas **dois passos são à mão** em produção
+(como o `NeutralZoneSeeder` do D-52), no `fertwaysbd`:
+
+```sh
+DEPLOY=/home/fertways/deploy/fertways/backend
+# 1. Dota o caixa do Tesouro: 10 mil de cada recurso + 1.000.000 Fert$. Idempotente (firstOrCreate,
+#    não zera o que o tributo já acumulou). Rode ANTES de o tributo começar a creditar.
+sudo -u fertways /usr/bin/php84 $DEPLOY/artisan db:seed --class=TreasurySeeder --force
+# 2. Concede o kit fixo às colônias que já existem (as novas recebem na fundação). Idempotente.
+sudo -u fertways /usr/bin/php84 $DEPLOY/artisan fertways:kit-recursos --aplicar
+```
+
+Depois disso, o tributo do comércio passa a entrar no caixa (não some mais), e o admin redistribui
+pela seção "Ministério do Tesouro" do painel. `fertways:kit-recursos` sem `--aplicar` só simula.

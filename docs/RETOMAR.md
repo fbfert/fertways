@@ -65,9 +65,10 @@ O MVP tem, funcionando e no ar em `https://fertways.tars.art.br`:
 - **A Capital (D-55)** — o hub das instituições do governo (§02), botão novo no HUD e clique no
   losango do mapa. Diretório dos 7 slots; os slots 6 (Mercado) e 7 (Ministério) reusam as telas de
   topo, o 1 é "operada pela equipe", o 5 (Guerra) é "em breve". Três instituições novas:
-  - **Central de Tributos / Tesouro (2)** — o tributo (3/2/1%, §8.3) que antes sumia agora é
-    contabilizado e exibido: saldo, painel de taxas, últimas transferências. **Sem tabela nova** —
-    agrega `tax_events`, retroativo, e o Tesouro não gasta (D-50).
+  - **Central de Tributos / Ministério do Tesouro (2)** — desde o **D-57** é um **caixa real**
+    (`treasury_holdings`), não mais a view derivada do D-55: dotação de 10 mil de cada recurso +
+    1.000.000 Fert$; o tributo do comércio (3/2/1%) que antes sumia agora **entra** no caixa; o admin
+    **redistribui** a partir dele (§2.1); o colono só vê o saldo. Ver o painel de admin.
   - **Secretaria de Finanças (4)** — preços de referência (§06), indicadores mensuráveis e
     **intervenção de preço** declarada pelo operador (`artisan fertways:intervencao`, com prazo).
     Enquanto vigente, o `ColocarOrdem` rejeita ordens fora da faixa. Sem faixa fixa no código (D-35).
@@ -82,9 +83,15 @@ O MVP tem, funcionando e no ar em `https://fertways.tars.art.br`:
   o domínio (extraídos `GerirConciliador`, `DeclararIntervencao`, `PublicarNoticia`; tick/realocar via
   `Artisan::call`). O `bootstrap/app.php` deixa o `/admin` fora do comportamento API-only; o resto da
   API segue JSON e o índice `/central/` não lista as rotas do painel. **Primeiro admin em produção
-  criado à mão** (2026-07-11): `by_nvs@outlook.com`.
+  criado à mão** (2026-07-11): `by_nvs@outlook.com`. O painel tem a seção **Ministério do Tesouro**
+  (D-57): saldo do caixa + envio de recurso/Fert$ a uma colônia.
+- **Ministério do Tesouro e kit de recursos (D-57)** — o Tesouro virou caixa gastável (ver slot 2
+  acima). E toda colônia recebe um **kit fixo**: 1000 metal bruto, 1000 ligas, 500 compostos, 300
+  biocombustível, 500 componentes — **emissão do governo**, concedido na fundação
+  (`ColonyController::store`) e por backfill (`artisan fertways:kit-recursos --aplicar`). Números
+  decididos pelo usuário, **não do GDD**.
 
-**221 testes PHP (2272 asserções) + 7 e2e, verdes.** O cron do tick está instalado (crontab do usuário
+**230 testes PHP (2300 asserções) + 7 e2e, verdes.** O cron do tick está instalado (crontab do usuário
 `fertways`, log em `/home/fertways/logs/fertways-tick.log`) e roda o `artisan` **da cópia de
 deploy** — o mundo avança sozinho. O tick faz: produção, upgrades, proteções, trechos de viagem,
 acordos vencidos, **casos reatribuídos, janelas de apelação fechadas e a folha do Ministério**.
@@ -110,15 +117,15 @@ colono e funda uma quinta colônia — rodar antes bagunçaria as contagens das 
 > (Runtime.getProperties): Target closed`. Verde nas outras três. Se reprovar assim, rode de novo
 > antes de investigar — mas se virar hábito, é bug de verdade.
 
-**Publicado no GitHub e no ar.** Em 2026-07-11 foi empurrado e publicado **o painel de administração
-da equipe** (`3896b77`, D-56). A migration `admins` rodou sozinha no `fertwaysbd` no deploy (conferida
-por `migrate:status`); o **primeiro admin foi criado à mão** (`fertways:admin --criar`, e-mail
-`by_nvs@outlook.com`). O painel foi conferido em produção por leitura (convidado→login, sem escrever).
-A cópia de deploy ficou nesse commit. Confira com `git log --oneline -1` nas duas árvores — se voltar
-a divergir, republique. (Antes: **a Capital** (`a6d37d4`, D-55, migrations `price_interventions`/`news`
-sozinhas), a **Fatia 1 do D-52 — zonas neutras** (`0e0e3dd`, com o `NeutralZoneSeeder` à mão), o
-arraste/zoom do mapa (`525b8c3`), o **mapa concêntrico do D-51** (`2a71a1c`), o `fix` da fila do D-53
-e as telas do D-54.)
+**Publicado no GitHub e no ar.** Em 2026-07-11 foi empurrado e publicado **o Ministério do Tesouro —
+caixa real + kit por colônia** (`32e3ed2`, D-57). A migration `treasury_holdings` rodou sozinha no
+deploy; **dois passos à mão** no `fertwaysbd` (conferidos por leitura): `db:seed --class=TreasurySeeder`
+(dotou o caixa: 10k de cada + 1M Fert$) e `fertways:kit-recursos --aplicar` (kit às 5 colônias
+existentes). A cópia de deploy ficou nesse commit. Confira com `git log --oneline -1` nas duas árvores
+— se voltar a divergir, republique. (Antes: **o painel de administração** (`3896b77`, D-56, migration
+`admins` sozinha, primeiro admin `by_nvs@outlook.com` à mão), **a Capital** (`a6d37d4`, D-55), a
+**Fatia 1 do D-52 — zonas neutras** (`0e0e3dd`), o arraste/zoom do mapa (`525b8c3`), o **mapa
+concêntrico do D-51** (`2a71a1c`), o `fix` da fila do D-53 e as telas do D-54.)
 
 > **Nota de segurança (D-56):** convém setar `SESSION_SECURE_COOKIE=true` no `.env` de produção — o
 > painel carrega credencial por cookie e o site é HTTPS. Ainda não foi setado.
