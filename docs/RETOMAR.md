@@ -127,8 +127,26 @@ existentes). A cópia de deploy ficou nesse commit. Confira com `git log --oneli
 **Fatia 1 do D-52 — zonas neutras** (`0e0e3dd`), o arraste/zoom do mapa (`525b8c3`), o **mapa
 concêntrico do D-51** (`2a71a1c`), o `fix` da fila do D-53 e as telas do D-54.)
 
-> **Nota de segurança (D-56):** convém setar `SESSION_SECURE_COOKIE=true` no `.env` de produção — o
-> painel carrega credencial por cookie e o site é HTTPS. Ainda não foi setado.
+> **Nota de segurança (D-56) — corrigida em 2026-07-11.** A versão anterior desta nota dava a
+> entender que o cookie do painel de admin estava saindo inseguro. **Não estava.** Conferido no
+> `Set-Cookie` real de produção: `laravel_session` e `XSRF-TOKEN` já vêm com `; secure`. O
+> `config/session.php` faz `env('SESSION_SECURE_COOKIE')` **sem default**, o valor vira `null`, e aí
+> o Symfony aplica o *secure default* que herda de a requisição ser HTTPS.
+>
+> O que resta é endurecimento, não correção: a flag é **inferida**, não declarada. Se um dia uma
+> requisição chegar por HTTP simples, ou a detecção de proxy mudar, o cookie sai sem `Secure` e nada
+> avisa. **Pendente, a aplicar no próximo `deploy.sh`** (decisão do usuário em 2026-07-11: não
+> recarregar o php-fpm em produção só por isto — o master do php84 é compartilhado com os outros
+> domínios do servidor):
+>
+> 1. Acrescentar `SESSION_SECURE_COOKIE=true` ao bloco `SESSION_` de
+>    `/home/fertways/deploy/fertways/backend/.env` — **antes** de rodar o script.
+> 2. Rodar `sudo ./tools/deploy.sh` normalmente: o `config:cache` e o `reload` do php-fpm que a linha
+>    exige para valer já são passos dele. **Editar o `.env` sem os dois não tem efeito nenhum**, pela
+>    mesma razão do D-45: a config de produção é cacheada.
+>
+> O `.env` de trabalho **não** recebe a linha: o `artisan serve` é HTTP e um cookie `Secure` não
+> voltaria. O `.env.example` já documenta isso, comentado.
 
 > **Lição registrada (2026-07-10).** Ao conferir o D-53 em produção, enfileirei uma construção de
 > teste na colônia 4 pelo `EnqueueUpgrade`. Funcionou, mas escrever no banco de produção "para ver
@@ -186,7 +204,10 @@ leitura. Ele é idempotente, então repetir é seguro se um dia houver dúvida.
    - **Fatia 2 (guerra):** o que é **"estoque protegido"** (o saque de 50% depende disso) e os
      **bônus defensivos** de Muralha e Torre de Vigia (§27.3).
    - **Fatia 3 (Drone):** **velocidade** (Furgão 4 slots/min, Caminhão 1,5, Nave 10 são as âncoras),
-     **raio de revelação** e **persistência**, e **onde é fabricado**.
+     **raio de revelação** e **persistência**, e **onde é fabricado**. **Não pergunte o custo:** ele
+     está publicado, e a errata do D-37 (2026-07-11) fixou qual das duas tabelas vale — a curva
+     **1,65×** do §4.3 do v3.4, `50 83 136 225 371`. Bateria, recarga e depreciação também estão no
+     GDD (D-52). As lacunas do Drone são **quatro**, não cinco.
    - Em qualquer fatia: **custo/tempo das 9 estruturas** de zona restantes (só o Posto de Comando foi
      arbitrado), **teto de zonas por jogador** e **upgrade de zona** (a Fatia 1 fixou nível 1).
 
@@ -219,9 +240,6 @@ leitura. Ele é idempotente, então repetir é seguro se um dia houver dúvida.
   comportamento mas não publica a curva de desgaste, o limite crítico nem o custo de manutenção.
 - **Zonas neutras como destino de carga** — o despacho aceita `colonia`; zona neutra precisa do
   Depósito de Zona Neutra. Entra no escopo do D-52.
-- **O D-37 erra num ponto de fato.** Ele diz que o GDD "nunca publicou raio, persistência nem custo
-  de revelação" do Drone. O **custo está publicado** — em duas tabelas, e o próprio GDD resolve qual
-  vale (§4.3 da v3.4, curva 1,65×). Raio e persistência são lacunas de verdade. Ver D-52.
 - **Frontend** — o bundle passa de 1,5 MB sem code splitting (quase tudo é Phaser). Não incomoda
   ainda. O `vite build` avisa a cada compilação.
 - **`cp` é alias de `cp -i` para o root.** No passo de deploy do frontend ele trava num prompt e

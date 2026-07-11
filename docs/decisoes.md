@@ -835,7 +835,7 @@ apontando `APP_CONFIG_CACHE` para um arquivo inexistente. O script novo não rep
 ---
 
 ## D-37 — O diretório de colônias lista todas, sem névoa de guerra.
-**Data:** 2026-07-09 · **Status:** implementado · **GDD: omisso**
+**Data:** 2026-07-09 · **Status:** implementado · **GDD: omisso** · **Fato CORRIGIDO em 2026-07-11**
 
 `POST /vehicles/{id}/dispatch` aceita `destination_type = colonia` desde a fatia de logística, e
 exige a **chave primária** da colônia de destino. Não havia endpoint que revelasse o `id` de
@@ -850,9 +850,16 @@ há lista, busca, nem regra de descoberta. O D-29 já registrava que o GDD seque
 
 **Consequência assumida:** o **Drone de Exploração** (§05, §21) existe no GDD para "revelar mapa ao
 redor do slot e zonas neutras". Com o diretório aberto, não lhe restam colônias a revelar — só as
-zonas neutras. O GDD nunca publicou raio, persistência nem custo de revelação, então honrar a
-névoa exigiria inventar as três coisas. Preferiu-se a decisão explícita à mecânica inventada.
+zonas neutras. O GDD nunca publicou **raio nem persistência** de revelação, então honrar a névoa
+exigiria inventar as duas coisas. Preferiu-se a decisão explícita à mecânica inventada.
 **Não "conserte" isto achando que é esquecimento.** Se um dia a névoa entrar, este é o ponto.
+
+> **Errata (2026-07-11).** Esta decisão dizia "raio, persistência nem **custo** de revelação". O
+> custo é o único dos três que **está publicado**: §21.4 traz `50 75 112 169 253` e o §4.3 do
+> aditivo v3.4 traz `50 83 136 225 371`, e o próprio GDD resolve qual vale — a curva **1,65×** do
+> v3.4. Não era lacuna. O levantamento está no **D-52**, que apontou o erro; aqui fica a correção,
+> para quem ler o D-37 sozinho. As lacunas de verdade do Drone continuam **duas** (raio e
+> persistência), e a elas o D-52 acrescenta velocidade e onde é fabricado.
 
 ## D-38 — `building_levels_sum` é um sinal de porte arbitrado, e **não** é o Marco do GDD.
 **Data:** 2026-07-09 · **Status:** implementado · **GDD: define o conceito, não a fórmula**
