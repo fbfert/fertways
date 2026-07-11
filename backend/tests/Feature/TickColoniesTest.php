@@ -35,9 +35,13 @@ class TickColoniesTest extends TestCase
         return $user->fresh();
     }
 
+    /**
+     * Desde o D-59 a construção de progressão não existe até ser erguida num slot, e as cinco
+     * essenciais já nascem no nível 1. O helper do TestCase cria ou promove, conforme o caso.
+     */
     private function erguer(User $user, string $tipo, int $nivel): void
     {
-        $user->colony->buildings()->where('type', $tipo)->update(['level' => $nivel]);
+        $this->erguerPredio($user->colony, $tipo, $nivel);
     }
 
     private function estoque(User $user, string $recurso): int
@@ -52,20 +56,30 @@ class TickColoniesTest extends TestCase
 
     // ---- Produção por delta ----
 
+    /**
+     * A colônia recém-fundada já tem as cinco essenciais no nível 1 (D-59), então esta é a
+     * produção de uma hora de uma colônia recém-nascida — sem erguer nada.
+     *
+     * O saldo de energia é a confirmação mais bonita do desenho: 150 produzidos pelo Reator menos
+     * o consumo das outras quatro dá **88 kW/h**, que é exatamente o número que o §19.8 publica —
+     * "o Reator (150 kW/h) cobre com folga o consumo das construções essenciais (~88 kW/h de saldo
+     * positivo), permitindo que o jogador construa 2-3 estruturas adicionais antes de precisar do
+     * primeiro upgrade". O miolo erguido do D-59 reproduz o balanço que o GDD sempre descreveu.
+     */
     public function test_produz_pela_taxa_do_gdd_em_uma_hora(): void
     {
         $user = $this->colono();
-        $this->erguer($user, 'gerador_de_atmosfera', 1);   // 100 oxigênio/h, consome 25 energia/h
-        $this->erguer($user, 'reator_de_energia', 1);      // 150 energia/h
 
         $colony = $user->colony;
         $colony->update(['last_tick_at' => now()->subHour()]);
 
         $this->tick($user, now());
 
-        $this->assertSame(100, $this->estoque($user, 'oxigenio'));
-        // Energia líquida: 150 produzidos − 25 consumidos pelo Gerador.
-        $this->assertSame(125, $this->estoque($user, 'energia'));
+        // As taxas do §19.2, no nível 1.
+        $this->assertSame(100, $this->estoque($user, 'oxigenio'));   // Gerador
+        $this->assertSame(80, $this->estoque($user, 'agua'));        // Captação
+        $this->assertSame(60, $this->estoque($user, 'biomassa'));    // Fazenda
+        $this->assertSame(88, $this->estoque($user, 'energia'));     // §19.8, verbatim
     }
 
     /**
@@ -92,7 +106,8 @@ class TickColoniesTest extends TestCase
     public function test_energia_nunca_fica_negativa(): void
     {
         $user = $this->colono();
-        // Consome energia e não produz nenhuma.
+        // Sem o miolo não há Reator, e portanto nenhuma fonte de energia: é o que este teste quer.
+        $this->zerarMiolo($user->colony);
         $this->erguer($user, 'gerador_de_atmosfera', 1);   // -25/h
         $this->erguer($user, 'laboratorio', 1);            // -20/h
 
@@ -136,6 +151,7 @@ class TickColoniesTest extends TestCase
     public function test_destilaria_converte_na_receita_do_gdd(): void
     {
         $user = $this->colono();
+        $this->zerarMiolo($user->colony);        // a Fazenda do miolo produziria biomassa por fora
         $this->erguer($user, 'destilaria', 1);   // 20 biocombustível/h
         $user->colony->resources()->whereIn('resource_type', ['biomassa', 'energia'])
             ->update(['amount' => 1000]);
@@ -151,6 +167,7 @@ class TickColoniesTest extends TestCase
     public function test_destilaria_para_quando_falta_insumo(): void
     {
         $user = $this->colono();
+        $this->zerarMiolo($user->colony);        // senão a Fazenda repõe a biomassa que deve faltar
         $this->erguer($user, 'destilaria', 1);
         $user->colony->resources()->where('resource_type', 'biomassa')->update(['amount' => 10]);
         $user->colony->resources()->where('resource_type', 'energia')->update(['amount' => 1000]);
@@ -170,19 +187,24 @@ class TickColoniesTest extends TestCase
         $user = $this->colono();
         $gerador = $user->colony->buildings->firstWhere('type', 'gerador_de_atmosfera');
 
+        // A fundação já lançou o subsídio do nível 1, porque o miolo nasce erguido (D-59). O que
+        // se testa aqui é o lançamento da CONCLUSÃO — o do nível 2.
+        $this->assertSame(4, Ledger::where('ref', 'build:gerador_de_atmosfera:n1')->count());
+
         $this->actingAs($user)->postJson("/buildings/{$gerador->id}/upgrade")->assertCreated();
 
-        // Gerador n1 leva 4 min (GDD). Avança 5.
-        $this->tick($user, now()->addMinutes(5));
+        // Gerador n2 leva 5 min (GDD). Avança 6.
+        $this->tick($user, now()->addMinutes(6));
 
-        $this->assertSame(1, $gerador->fresh()->level);
+        $this->assertSame(2, $gerador->fresh()->level);
         $this->assertNull($gerador->fresh()->upgrade_finish_at);
         $this->assertSame('done', BuildQueue::first()->status);
 
         // §24.7: subsídio registrado no momento de concluir, um lançamento por recurso.
-        $subsidio = Ledger::where('type', 'subsidio_governo')->get();
+        $subsidio = Ledger::where('type', 'subsidio_governo')
+            ->where('ref', 'build:gerador_de_atmosfera:n2')->get();
         $this->assertCount(4, $subsidio);   // água, biomassa, energia, oxigênio
-        $this->assertSame(50, $subsidio->firstWhere('resource_type', 'agua')->amount);
+        $this->assertSame(83, $subsidio->firstWhere('resource_type', 'agua')->amount);
     }
 
     /**
@@ -232,26 +254,29 @@ class TickColoniesTest extends TestCase
 
         $this->assertSame('queued', BuildQueue::where('building_id', $f->id)->value('status'));
 
-        $this->tick($user, now()->addMinutes(5));   // conclui o Gerador (4 min)
+        $this->tick($user, now()->addMinutes(6));   // conclui o Gerador (n2 leva 5 min)
 
         $fila = BuildQueue::where('building_id', $f->id)->first();
         $this->assertSame('building', $fila->status);
         $this->assertNotNull($fila->finishes_at);
-        // Fazenda n1 leva 4 min a partir da conclusão do Gerador, não do enfileiramento.
-        $this->assertSame(0, $f->fresh()->level);
+        // A Fazenda só COMEÇA a subir agora: continua no nível 1, que é o de fundação (D-59).
+        $this->assertSame(1, $f->fresh()->level);
     }
 
     public function test_upgrade_nao_subsidiado_nao_lanca_subsidio(): void
     {
         $user = $this->colono();
         $user->colony->resources()->update(['amount' => 5000]);
-        $mina = $user->colony->buildings->firstWhere('type', 'mina_local');
+        // A Mina é de progressão: não existe até o colono escolher o slot dela (D-59).
+        $mina = $this->predioDe($user->colony, 'mina_local');
 
         $this->actingAs($user)->postJson("/buildings/{$mina->id}/upgrade")->assertCreated();
         $this->tick($user, now()->addMinutes(20));
 
         $this->assertSame(1, $mina->fresh()->level);
-        $this->assertSame(0, Ledger::where('type', 'subsidio_governo')->count());
+        // Nenhum subsídio PARA A MINA. Os do miolo, lançados na fundação, não contam aqui.
+        $this->assertSame(0, Ledger::where('ref', 'like', 'build:mina_local%')
+            ->where('type', 'subsidio_governo')->count());
     }
 
     // ---- Idempotência e comando ----

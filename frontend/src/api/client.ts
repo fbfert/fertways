@@ -76,18 +76,71 @@ export type ColoniaVizinha = {
   building_levels_sum: number
 }
 
+/**
+ * O que uma construção FAZ (D-59).
+ *
+ * `frase` e `fonte` são o que o GDD promete, verbatim. `nota` é o que o jogo entrega quando isso
+ * é menos do que a promessa — e sete construções ainda não entregam nada. A tela mostra as duas:
+ * anunciar só a promessa faria o colono gastar 90 Ligas num prédio inerte.
+ */
+export type Funcao = {
+  frase: string
+  fonte: string
+  /** produz | converte | porta (abre uma tela) | nenhum */
+  efeito: string
+  nota: string | null
+}
+
+/** O que a construção produz e consome por hora, num dado nível (§19.2–19.4). */
+export type Efeito = {
+  producao_hora: Record<string, number> | null
+  energia_hora: number
+}
+
 export type Spec = {
   id: number
   type: string
   level: number
+  /** Onde ela está na colmeia de 21 (D-59). */
+  slot: number
   max_level: number
   next_level?: number
   cost?: Record<string, number>
   build_time_seconds?: number
   subsidized?: boolean
   blocked?: string
+  essencial: boolean
+  demolivel: boolean
+  repetivel: boolean
+  funcao: Funcao
+  efeito_atual: Efeito | null
+  efeito_proximo: Efeito | null
   /** Só a Oficina tem receita (§24.5). Nas demais vem `null`. */
   recipe?: string | null
+}
+
+/** Uma construção que o colono pode erguer num slot vazio (D-59). */
+export type Erguivel = {
+  type: string
+  funcao: Funcao
+  cost: Record<string, number>
+  build_time_seconds: number
+  max_level: number
+  repetivel: boolean
+  quantas: number
+  disponivel: boolean
+}
+
+/**
+ * O catálogo do slot vazio, mais a geometria da colmeia.
+ *
+ * `linhas` vem do servidor pelo mesmo motivo que a grade do mapa vem (D-54): o layout é decisão de
+ * domínio (`Domain/Colony/Slots`), e copiá-lo para o React o faria mentir no dia em que mudasse.
+ */
+export type Catalogo = {
+  slots: { linhas: number[]; total: number }
+  ocupados: number[]
+  buildings: Erguivel[]
 }
 
 /** Uma das três receitas de Componentes Eletrônicos do §24.5. */
@@ -472,6 +525,19 @@ export const api = {
   construcoes: () => req<Spec[]>('/buildings'),
 
   enfileirar: (id: number) => req<ItemDaFila>(`/buildings/${id}/upgrade`, { method: 'POST' }),
+
+  /** O que se pode erguer, e a colmeia de 21 slots (D-59). */
+  catalogo: () => req<Catalogo>('/buildings/catalogo'),
+
+  /** Ergue uma construção no slot escolhido: cria a linha e enfileira o nível 1 (D-59). */
+  construir: (type: string, slot: number) =>
+    req<{ building: string; slot: number }>('/buildings', {
+      method: 'POST',
+      body: JSON.stringify({ type, slot }),
+    }),
+
+  /** Demole e libera o slot. O investido não volta (D-59). */
+  demolir: (id: number) => req<{ demolida: boolean }>(`/buildings/${id}`, { method: 'DELETE' }),
 
   fila: () => req<Fila>('/queue'),
 

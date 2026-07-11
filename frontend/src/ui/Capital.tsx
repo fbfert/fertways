@@ -15,7 +15,7 @@ type Sub = 'tesouro' | 'financas' | 'noticias'
 
 type Acao =
   | { tipo: 'sub'; sub: Sub }
-  | { tipo: 'externa'; abrir: () => void }
+  | { tipo: 'externa'; chave: string; abrir: () => void }
   | { tipo: 'equipe' }
   | { tipo: 'embreve' }
   | { tipo: 'travado' }
@@ -39,8 +39,8 @@ export function Capital({
     { n: '3', nome: 'Central de Pesquisas e Notícias', funcao: 'Descobertas, Gagarin e boletins oficiais.', acao: { tipo: 'sub', sub: 'noticias' } },
     { n: '4', nome: 'Secretaria de Finanças e Tesouro', funcao: 'Indicadores, preços de referência e intervenções.', acao: { tipo: 'sub', sub: 'financas' } },
     { n: '5', nome: 'Ministério da Segurança e Guerra', funcao: 'Conflitos, tratados e janelas de vulnerabilidade.', acao: { tipo: 'embreve' } },
-    { n: '6', nome: 'Pátio Logístico Público', funcao: 'Docas públicas e Mercado Central.', acao: { tipo: 'externa', abrir: aoAbrirMercado } },
-    { n: '7', nome: 'Ministério das Reputações', funcao: 'Denúncias, conciliação, recursos e histórico.', acao: { tipo: 'externa', abrir: aoAbrirMinisterio } },
+    { n: '6', nome: 'Pátio Logístico Público', funcao: 'Docas públicas e Mercado Central.', acao: { tipo: 'externa', chave: 'mercado', abrir: aoAbrirMercado } },
+    { n: '7', nome: 'Ministério das Reputações', funcao: 'Denúncias, conciliação, recursos e histórico.', acao: { tipo: 'externa', chave: 'ministerio', abrir: aoAbrirMinisterio } },
   ]
 
   const TITULO: Record<Sub, string> = {
@@ -131,6 +131,10 @@ function SlotCard({
             aoFecharHub()
             acao.abrir()
           }}
+          // Os sete botões da Capital dizem todos "Abrir": sem uma chave, nem o e2e nem um leitor
+          // de tela distinguem o Mercado Central do Ministério.
+          data-abrir={acao.chave}
+          aria-label={`Abrir ${slot.nome}`}
           className="border-rust/30 text-ink-soft hover:text-rust shrink-0 border px-4 py-2 text-sm font-bold"
         >
           Abrir

@@ -37,9 +37,13 @@ class BuildQueueTest extends TestCase
         return $user->fresh();
     }
 
+    /**
+     * Desde o D-59 a construção de progressão não existe até o colono escolher o slot dela, e a
+     * essencial já nasce no nível 1. O helper do TestCase dá conta dos dois casos.
+     */
     private function predio(User $user, string $tipo)
     {
-        return $user->colony->buildings->firstWhere('type', $tipo);
+        return $this->predioDe($user->colony, $tipo);
     }
 
     private function darRecursos(Colony $colony, int $qtd = 10_000): void
@@ -54,14 +58,19 @@ class BuildQueueTest extends TestCase
         $user = $this->colono();
         $gerador = $this->predio($user, 'gerador_de_atmosfera');
 
+        // Desde o D-59 a essencial NASCE no nível 1, no miolo: o primeiro upgrade que o colono
+        // pede é o 1 -> 2, e o subsídio do §24.7 continua valendo (vai até o 3).
+        $this->assertSame(1, $gerador->level);
+
         $r = $this->actingAs($user)->postJson("/buildings/{$gerador->id}/upgrade");
 
         $r->assertCreated()
+            ->assertJsonPath('target_level', 2)
             ->assertJsonPath('subsidized', true)
             ->assertJsonPath('subsidy_message', 'Esta construção será custeada pelo Governo Central até o nível 3')
             // "o custo aparece normalmente na interface": custo do GDD, mesmo subsidiado.
-            ->assertJsonPath('cost.agua', 50)
-            ->assertJsonPath('cost.biomassa', 30);
+            ->assertJsonPath('cost.agua', 83)
+            ->assertJsonPath('cost.biomassa', 50);
 
         // Nenhum recurso é debitado: o Gerador n1 custa água/biomassa/energia/oxigênio,
         // e o colono continua com 0 de todos eles (o kit inicial só traz raros).
@@ -309,10 +318,11 @@ class BuildQueueTest extends TestCase
         $this->assertSame('done', BuildQueue::first()->status);
         $this->assertSame(0, BuildQueue::ativos()->count());
 
-        // Enfileirar o nível 2 do mesmo prédio não pode colidir com o nível 1 concluído.
+        // Enfileirar o próximo nível do mesmo prédio não pode colidir com o já concluído. O
+        // Gerador nasce no 1 (D-59), sobe ao 2 acima e vai ao 3 aqui.
         $this->actingAs($user)->postJson("/buildings/{$gerador->id}/upgrade")
             ->assertCreated()
-            ->assertJsonPath('target_level', 2);
+            ->assertJsonPath('target_level', 3);
 
         $this->assertSame(2, BuildQueue::count());
     }

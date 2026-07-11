@@ -14,15 +14,17 @@
  * (`ComponentRecipesTest`).
  */
 import {
-  acharPorTexto,
   abrirNavegador,
+  acharPorTexto,
   assentar,
   checar,
+  clicarNaConstrucao,
   entrar,
   esperarTexto,
   falhas,
   relatar,
   textoDaPagina,
+  todosPorTexto,
 } from './comum.mjs'
 
 const { navegador, page } = await abrirNavegador()
@@ -34,7 +36,11 @@ try {
 
   console.log('\nOs botões que faltavam existem no HUD')
   checar(!!(await acharPorTexto(page, 'button', /^Mapa$/)), 'há botão para o Mapa')
-  checar(!!(await acharPorTexto(page, 'button', /^Frota$/)), 'há botão para a Frota')
+  checar(!!(await acharPorTexto(page, 'button', /^Mapa$/)), 'há botão para o Mapa, ao lado da marca')
+  checar(
+    !(await todosPorTexto(page, 'button', 'Frota')).length,
+    'o HUD não tem mais botão de Frota: ela mudou para dentro da Central de Transportes (D-59)',
+  )
 
   // ---------------------------------------------------------------- Mapa
   console.log('\nAbre o Mapa')
@@ -79,7 +85,11 @@ try {
 
   // ---------------------------------------------------------------- Frota
   console.log('\nAbre a Frota')
-  await (await acharPorTexto(page, 'button', /^Frota$/)).click()
+  // D-59: a Frota vive dentro da Central de Transportes, a construção que o GDD diz gerir os
+  // veículos (§17.2, §28.5).
+  await clicarNaConstrucao(page, 'Central de Transportes')
+  checar(await esperarTexto(page, /Produção e gestão de Caminhões/), 'o painel diz o que a construção faz')
+  await (await acharPorTexto(page, 'button', /Ver a Frota/)).click()
   checar(await esperarTexto(page, /Sua frota/), 'o painel da Frota abre')
 
   // O seeder dá um furgão no kit e cria mais dois.

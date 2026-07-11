@@ -118,8 +118,9 @@ class DiretorioDeColoniasTest extends TestCase
      * O porte é a soma dos níveis das construções — arbitrado (D-38), e explicitamente **não** o
      * "Marco" do GDD, que não tem fórmula publicada.
      *
-     * A colônia nasce com as 16 construções do MVP em **nível 0** (`CreateColony`), então a soma
-     * começa em zero para todo mundo. É o valor honesto: ninguém construiu nada ainda.
+     * Desde o D-59 a colônia nasce com as **cinco essenciais no nível 1** (o miolo), e mais nada.
+     * O porte de quem acabou de fundar é, portanto, 5 — não zero. É o valor honesto: o miolo está
+     * de pé, e é a única coisa que está.
      */
     #[Test]
     public function o_porte_e_a_soma_dos_niveis_das_construcoes(): void
@@ -127,14 +128,15 @@ class DiretorioDeColoniasTest extends TestCase
         $eu = $this->colonia('eu', 10, 10);
         $vizinho = $this->colonia('vizinho', 20, 20);
 
-        $this->assertSame(0, (int) $vizinho->buildings()->sum('level'));
-        $this->assertSame(0, $this->listar($eu)[0]['building_levels_sum']);
+        // O miolo: cinco essenciais, nível 1 cada.
+        $this->assertSame(5, (int) $vizinho->buildings()->sum('level'));
+        $this->assertSame(5, $this->listar($eu)[0]['building_levels_sum']);
 
         // Subir construções move o porte, e move exatamente o número de degraus subidos.
         $vizinho->buildings()->first()->increment('level', 3);
         $vizinho->buildings()->skip(1)->first()->increment('level', 2);
 
-        $this->assertSame(5, $this->listar($eu)[0]['building_levels_sum']);
+        $this->assertSame(10, $this->listar($eu)[0]['building_levels_sum']);
     }
 
     /** Escolher destino não é espionar. Saldo, recursos e frota do vizinho não saem daqui. */

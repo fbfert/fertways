@@ -64,8 +64,8 @@ class ComponentRecipesTest extends TestCase
     public function test_oficina_fabrica_componentes_consumindo_a_receita_basica(): void
     {
         $user = $this->colono();
-        $user->colony->buildings()->where('type', 'oficina')->update(['level' => 1]);   // 15 componentes/h
-        $user->colony->buildings()->where('type', 'reator_de_energia')->update(['level' => 5]);
+        $this->erguerPredio($user->colony, 'oficina', 1);   // 15 componentes/h
+        $this->erguerPredio($user->colony, 'reator_de_energia', 5);
 
         $user->colony->resources()
             ->whereIn('resource_type', ['estanho', 'cobre', 'silicio', 'aluminio', 'agua'])
@@ -86,8 +86,8 @@ class ComponentRecipesTest extends TestCase
     public function test_sem_minerais_a_oficina_nao_fabrica(): void
     {
         $user = $this->colono();
-        $user->colony->buildings()->where('type', 'oficina')->update(['level' => 1]);
-        $user->colony->buildings()->where('type', 'reator_de_energia')->update(['level' => 5]);
+        $this->erguerPredio($user->colony, 'oficina', 1);
+        $this->erguerPredio($user->colony, 'reator_de_energia', 5);
 
         $user->colony->update(['last_tick_at' => now()->subHour()]);
         $this->tick($user, now());
@@ -100,8 +100,8 @@ class ComponentRecipesTest extends TestCase
     public function test_producao_limitada_pelo_insumo_mais_escasso(): void
     {
         $user = $this->colono();
-        $user->colony->buildings()->where('type', 'oficina')->update(['level' => 1]);
-        $user->colony->buildings()->where('type', 'reator_de_energia')->update(['level' => 5]);
+        $this->erguerPredio($user->colony, 'oficina', 1);
+        $this->erguerPredio($user->colony, 'reator_de_energia', 5);
 
         $user->colony->resources()
             ->whereIn('resource_type', ['cobre', 'silicio', 'aluminio', 'agua'])
@@ -120,9 +120,9 @@ class ComponentRecipesTest extends TestCase
     public function test_receita_avancada_consome_biocombustivel_e_ouro(): void
     {
         $user = $this->colono();
-        $oficina = $user->colony->buildings()->where('type', 'oficina')->first();
+        $oficina = $this->predioDe($user->colony, 'oficina');
         $oficina->update(['level' => 1, 'recipe' => 'avancada']);
-        $user->colony->buildings()->where('type', 'reator_de_energia')->update(['level' => 5]);
+        $this->erguerPredio($user->colony, 'reator_de_energia', 5);
 
         $user->colony->resources()
             ->whereIn('resource_type', ['estanho', 'cobre', 'silicio', 'litio', 'tungstenio', 'tantalo', 'ouro', 'biocombustivel'])
@@ -145,9 +145,9 @@ class ComponentRecipesTest extends TestCase
     public function test_ligas_e_compostos_continuam_bloqueados(): void
     {
         $user = $this->colono();
-        $user->colony->buildings()->where('type', 'oficina')->update(['level' => 1]);
-        $user->colony->buildings()->where('type', 'refinaria_quimica')->update(['level' => 1]);
-        $user->colony->buildings()->where('type', 'reator_de_energia')->update(['level' => 5]);
+        $this->erguerPredio($user->colony, 'oficina', 1);
+        $this->erguerPredio($user->colony, 'refinaria_quimica', 1);
+        $this->erguerPredio($user->colony, 'reator_de_energia', 5);
         $user->colony->resources()
             ->whereIn('resource_type', ['estanho', 'cobre', 'silicio', 'aluminio', 'agua'])
             ->update(['amount' => 10_000]);
@@ -164,7 +164,7 @@ class ComponentRecipesTest extends TestCase
     public function test_endpoint_troca_a_receita_da_oficina(): void
     {
         $user = $this->colono();
-        $oficina = $user->colony->buildings->firstWhere('type', 'oficina');
+        $oficina = $this->predioDe($user->colony, 'oficina');
 
         $this->actingAs($user)->patchJson("/buildings/{$oficina->id}/recipe", ['recipe' => 'intermediaria'])
             ->assertOk()
@@ -177,7 +177,7 @@ class ComponentRecipesTest extends TestCase
     public function test_endpoint_recusa_receita_inexistente_e_predio_errado(): void
     {
         $user = $this->colono();
-        $oficina = $user->colony->buildings->firstWhere('type', 'oficina');
+        $oficina = $this->predioDe($user->colony, 'oficina');
         $fazenda = $user->colony->buildings->firstWhere('type', 'fazenda');
 
         $this->actingAs($user)->patchJson("/buildings/{$oficina->id}/recipe", ['recipe' => 'lendaria'])
@@ -205,6 +205,8 @@ class ComponentRecipesTest extends TestCase
     public function o_catalogo_diz_qual_receita_a_oficina_usa_e_so_para_a_oficina(): void
     {
         $user = $this->colono();
+        // A Oficina é de progressão: só aparece no detalhe depois de erguida num slot (D-59).
+        $this->erguerPredio($user->colony, 'oficina', 1);
 
         $specs = collect($this->actingAs($user)->getJson('/buildings')->assertOk()->json());
 

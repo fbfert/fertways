@@ -9,6 +9,7 @@
  * O `tools/e2e.sh` semeia um comunicado ("Servidor aberto") para o mural ter o que mostrar.
  */
 import {
+  abrirCapital,
   abrirNavegador,
   acharPorTexto,
   checar,
@@ -27,7 +28,8 @@ try {
   checar(await esperarTexto(page, /Fert\$/), 'o HUD carrega e mostra Fert$')
 
   console.log('\nAbre a Capital')
-  await (await acharPorTexto(page, 'button', /^Capital$/)).click()
+  // D-59: o botão do HUD morreu. A Capital é o losango do mapa.
+  await abrirCapital(page)
   checar(await esperarTexto(page, /Governo de Fertways/), 'o hub da Capital abre')
 
   console.log('\nO diretório lista as instituições')

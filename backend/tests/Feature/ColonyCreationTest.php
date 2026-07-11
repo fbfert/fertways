@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Domain\Colony\CreateColony;
+use App\Domain\Colony\Slots;
 use App\Models\Building;
 use App\Models\Colony;
 use App\Models\Ledger;
@@ -55,9 +56,14 @@ class ColonyCreationTest extends TestCase
         $this->assertSame(Colony::SALDO_INICIAL_MICRO, $colony->fert_micro);
         $this->assertSame(50.0, (float) $resposta->json('fert'));
 
-        // 16 construções do MVP, todas no nível 0 (não concedidas prontas).
-        $this->assertCount(count(Building::MVP), $colony->buildings);
-        $this->assertTrue($colony->buildings->every(fn ($b) => $b->level === 0));
+        // D-59: só as CINCO essenciais existem, e já erguidas no nível 1, cada uma no seu slot do
+        // miolo. As de progressão não têm linha nenhuma — construção não erguida não ocupa slot.
+        $this->assertCount(count(Building::ESSENCIAIS), $colony->buildings);
+        $this->assertTrue($colony->buildings->every(fn ($b) => $b->level === 1));
+
+        foreach (Slots::MIOLO as $tipo => $slot) {
+            $this->assertSame($slot, $colony->buildings->firstWhere('type', $tipo)->slot, $tipo);
+        }
 
         // Uma linha por recurso do catálogo.
         $this->assertCount(count(Resource::daColonia()), $colony->resources);

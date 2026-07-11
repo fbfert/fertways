@@ -10,9 +10,10 @@
  * proposto pela vizinha e um terceiro furgão ocioso.
  */
 import {
-  acharPorTexto,
   abrirNavegador,
+  acharPorTexto,
   checar,
+  clicarNaConstrucao,
   entrar,
   esperarTexto,
   falhas,
@@ -33,7 +34,10 @@ try {
    * Mercado —, e o botão "Acordos" saiu do HUD.
    */
   console.log('\nAbre o Mercado e vai à aba de ofertar entre colonos')
-  await (await acharPorTexto(page, 'button', /^Mercado$/)).click()
+  // D-59: os Acordos entre colonos vivem dentro do Mercado Local — "comércio direto com
+  // vizinhos" (§17.2). Clica-se na construção, e ela abre a tela já na aba certa.
+  await clicarNaConstrucao(page, 'Mercado Local')
+  await (await acharPorTexto(page, 'button', /Abrir os Acordos/)).click()
   checar(await esperarTexto(page, /Mercado Central/), 'o painel do Mercado abre')
 
   await (await acharPorTexto(page, 'button', /Ofertar entre colonos/)).click()

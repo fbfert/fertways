@@ -1,0 +1,82 @@
+<?php
+
+namespace App\Domain\Colony;
+
+use App\Exceptions\DomainRuleException;
+
+/**
+ * Os 21 slots de construção da colônia (D-59).
+ *
+ * **O GDD não tem isto.** Procurou-se `slot`, `terreno`, `lote`, `grade`: no GDD, "slot" é a
+ * colônia do jogador vista do mapa do planeta (ou um dos 20 slots institucionais da Capital,
+ * §2.1), nunca um espaço de construção. O documento não põe teto espacial nenhum — os limites
+ * que ele conhece são o **energético** (§19.8: o Reator nível 1 sustenta as essenciais com folga
+ * "permitindo que o jogador construa 2-3 estruturas adicionais") e o da **fila de obras**. Os 21
+ * são arbitragem do usuário (2026-07-11), e é por isso que vivem aqui, e não no catálogo semeado
+ * do GDD.
+ *
+ * A forma é uma colmeia de linhas 4/4/5/4/4, simétrica nos dois eixos:
+ *
+ *      ⬡ ⬡ ⬡ ⬡          0  1  2  3
+ *     ⬡ ⬡ ⬡ ⬡           4  5  6  7
+ *    ⬡ ⬡ ⬢ ⬡ ⬡          8  9 10 11 12
+ *     ⬡ ⬡ ⬡ ⬡          13 14 15 16
+ *      ⬡ ⬡ ⬡ ⬡         17 18 19 20
+ *
+ * 21 não é número de anel hexagonal fechado (os anéis fecham em 1, 7 e 19), então a colmeia não
+ * é feita de anéis: são linhas alternadas, e o centro é uma célula única (o 10).
+ */
+class Slots
+{
+    /** Quantas células tem cada linha, de cima para baixo. A cena do front desenha a partir daqui. */
+    public const LINHAS = [4, 4, 5, 4, 4];
+
+    public const TOTAL = 21;
+
+    /**
+     * O miolo: as 5 essenciais nascem no nível 1 na fundação (D-59), em posição fixa.
+     *
+     * O trio que o usuário nomeou ocupa o centro da linha do meio — o Reator no centro exato
+     * (10), o Gerador e a Estrutura ladeando-o. Fazenda e Captação de Água ficam nas duas
+     * células adjacentes ao centro, uma acima e outra abaixo, simétricas em relação a ele.
+     *
+     * Isto vai **além** do §24.7, que subsidia o custo das 5 essenciais até o nível 3 mas não as
+     * constrói ("o custo aparece normalmente na interface"). Nascer pronto é decisão do usuário.
+     */
+    public const MIOLO = [
+        'gerador_de_atmosfera' => 9,
+        'reator_de_energia' => 10,
+        'estrutura_de_sobrevivencia' => 11,
+        'fazenda' => 5,
+        'captacao_de_agua' => 15,
+    ];
+
+    /** Os slots que o colono pode escolher: todos menos o miolo. */
+    public static function livres(): array
+    {
+        return array_values(array_diff(range(0, self::TOTAL - 1), array_values(self::MIOLO)));
+    }
+
+    public static function doMiolo(int $slot): bool
+    {
+        return in_array($slot, array_values(self::MIOLO), true);
+    }
+
+    /** Recusa slot fora da colmeia e slot do miolo, que não é do colono. */
+    public static function exigirEscolhivel(int $slot): void
+    {
+        if ($slot < 0 || $slot >= self::TOTAL) {
+            throw new DomainRuleException(
+                'slot_inexistente',
+                'A colônia tem ' . self::TOTAL . ' slots, numerados de 0 a ' . (self::TOTAL - 1) . '.',
+            );
+        }
+
+        if (self::doMiolo($slot)) {
+            throw new DomainRuleException(
+                'slot_do_miolo',
+                'Este slot é do miolo da colônia: nele já nasceu uma das cinco construções essenciais.',
+            );
+        }
+    }
+}

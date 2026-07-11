@@ -235,6 +235,11 @@ export function Mapa({ aoFechar, aoAbrirCapital }: { aoFechar: () => void; aoAbr
                   fill="var(--color-rust)"
                   className={aoAbrirCapital ? 'cursor-pointer' : undefined}
                   onClick={aoAbrirCapital ? () => selecionar(aoAbrirCapital) : undefined}
+                  // Desde o D-59 o losango é o ÚNICO caminho para a Capital — e, por dentro dela,
+                  // para o Ministério e o Mercado Central. Um alvo de clique que só existe como
+                  // desenho não tem nome para quem usa leitor de tela nem para o e2e; este tem.
+                  role={aoAbrirCapital ? 'button' : undefined}
+                  aria-label={aoAbrirCapital ? 'Capital' : undefined}
                 >
                   <title>Capital — Governo de Fertways{aoAbrirCapital ? ' (abrir)' : ''}</title>
                 </rect>

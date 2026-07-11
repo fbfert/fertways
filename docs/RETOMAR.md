@@ -108,8 +108,26 @@ O MVP tem, funcionando e no ar em `https://fertways.tars.art.br`:
   biocombustível, 500 componentes — **emissão do governo**, concedido na fundação
   (`ColonyController::store`) e por backfill (`artisan fertways:kit-recursos --aplicar`). Números
   decididos pelo usuário, **não do GDD**.
+- **Os 21 slots da colônia (D-59)** — a colônia deixou de ser uma lista e virou um lugar. Colmeia de
+  4/4/5/4/4; a construção tem **posição**, e **construção não erguida não ocupa slot** (a linha de
+  `buildings` só nasce quando o colono aponta o buraco — antes, as 16 nasciam todas no nível 0).
+  - As **5 essenciais nascem prontas no nível 1**, no miolo fixo — **revisa o D-13**, e o nível 1
+    entra no ledger como `subsidio_governo`. O subsídio do §24.7 segue valendo do nível 2 ao 3.
+  - **Mina, Oficina, Refinaria e Destilaria podem ser repetidas**, cada cópia com o seu nível: morre
+    o `unique(colony_id, type)`, entra `unique(colony_id, slot)`. O freio de quantas cabem é o
+    **Reator** (§19.8) — o único teto que o GDD publica.
+  - **Demolição** (`DELETE /buildings/{id}`): o investido **não volta**, as essenciais são
+    indemolíveis, e não se demole o que está em obra. Nada disso está no GDD.
+  - **Cada construção agora diz o que faz** (`Domain/Building/Funcoes`), em duas camadas que não se
+    confundem: o que o GDD **promete** (verbatim, com o §) e o que o jogo **entrega hoje**. Sete
+    construções são promessa pura — dizê-lo evita que o colono gaste 90 Ligas num prédio inerte.
+  - O **Tanque de Combustível** entrou no MVP (o GDD sempre listou 12 de progressão): **17
+    construções**, 16 slots livres.
+  - **Backfill:** `artisan fertways:slots` simula, `--aplicar` migra. Idempotente. **Construir e
+    demolir não têm e2e** — o painel está atrás de um clique num hexágono do Phaser, mesma razão da
+    receita da Oficina (D-54). Cobertos em PHP.
 
-**245 testes PHP (2351 asserções) + 7 e2e, verdes.** O cron do tick está instalado (crontab do usuário
+**266 testes PHP (2478 asserções) + 7 e2e, verdes.** O cron do tick está instalado (crontab do usuário
 `fertways`, log em `/home/fertways/logs/fertways-tick.log`) e roda o `artisan` **da cópia de
 deploy** — o mundo avança sozinho. O tick faz: produção, upgrades, proteções, trechos de viagem,
 acordos vencidos, **casos reatribuídos, janelas de apelação fechadas e a folha do Ministério**.
@@ -135,10 +153,17 @@ colono e funda uma quinta colônia — rodar antes bagunçaria as contagens das 
 > (Runtime.getProperties): Target closed`. Verde nas outras três. Se reprovar assim, rode de novo
 > antes de investigar — mas se virar hábito, é bug de verdade.
 
-**Publicado no GitHub e no ar.** O último deploy é de 2026-07-11, no commit `4843c11` — de conteúdo
-só documental (a errata do D-37), mas ele **carregou a mudança de `.env`** do cookie seguro, que é o
-que exigia o `config:cache` e o reload do php-fpm. As duas árvores ficaram nesse commit. Antes dele,
-no mesmo dia, **o Ministério do Tesouro — caixa real + kit por colônia** (`32e3ed2`, D-57): a migration
+**Publicado no GitHub e no ar.** O último deploy é de 2026-07-11, no commit `2fe39fa` — **o Mercado
+novo (D-58): vitrine, teto no depósito e mural entre colonos**. A migration
+`oferta_aberta_entre_colonos` (`colony_b_id` nulável) rodou sozinha no `deploy.sh`, lote 11, e
+**não houve passo à mão** — ao contrário do D-56 e do D-57. Conferido por leitura depois do deploy:
+as duas árvores em `2fe39fa`, o opcache executando a cópia de deploy, as rotas novas no ar
+(`POST /market/orders/{id}/execute`, `GET /trade/board`, `POST /trade/agreements/{id}/accept`), e as
+**5 ordens de compra que já existiam continuam abertas** — viraram ofertas da vitrine, como o D-58
+previa. Nenhum acordo de contraparte nula ainda (o mural nasce vazio). Antes dele, no mesmo dia,
+`4843c11` — de conteúdo só documental (a errata do D-37), mas que **carregou a mudança de `.env`** do
+cookie seguro, que é o que exigia o `config:cache` e o reload do php-fpm; e **o Ministério do Tesouro
+— caixa real + kit por colônia** (`32e3ed2`, D-57): a migration
 `treasury_holdings` rodou sozinha no deploy, e houve **dois passos à mão** no `fertwaysbd` (conferidos
 por leitura): `db:seed --class=TreasurySeeder` (dotou o caixa: 10k de cada + 1M Fert$) e
 `fertways:kit-recursos --aplicar` (kit às 5 colônias existentes). Confira com `git log --oneline -1`

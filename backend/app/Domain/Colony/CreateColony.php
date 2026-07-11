@@ -16,19 +16,26 @@ use Illuminate\Support\Facades\DB;
 /**
  * Fundação de uma colônia no slot principal.
  *
- * Tudo numa transação: cria a colônia, as 16 construções do MVP no nível 0, as linhas de
- * recurso zeradas, o Furgão do kit inicial e o lançamento dos 50 Fert$. Se qualquer passo
- * falhar, nada persiste — senão um jogador poderia ficar com colônia sem recursos ou sem
- * veículo, estados que nenhuma parte do jogo sabe consertar.
+ * Tudo numa transação: cria a colônia, as **cinco essenciais já erguidas no nível 1** no miolo
+ * dos 21 slots, as linhas de recurso zeradas, o Furgão do kit inicial e o lançamento dos 50
+ * Fert$. Se qualquer passo falhar, nada persiste — senão um jogador poderia ficar com colônia
+ * sem recursos ou sem veículo, estados que nenhuma parte do jogo sabe consertar.
  *
  * Regras do GDD aplicadas aqui:
  *  - Saldo inicial de 50 Fert$ ("Todo colono recebe 50 Fert$ ao chegar em Fertways").
  *  - Furgão de Comércio no kit inicial ("todo colono começa com um").
- *  - Construções começam no nível 0. A subvenção de §24.7 cobre "a construção e os
- *    upgrades" das cinco essenciais até o nível 3, o que pressupõe que o nível 1 ainda
- *    seja construído — não concedido. Ver docs/decisoes.md D-13.
  *  - Recursos começam em 0. O colono usa os 50 Fert$ para comprar o primeiro lote de
  *    Ligas Metálicas no Mercado Central (§24.7).
+ *
+ * **Onde isto vai além do GDD (D-59, revisa o D-13).** O §24.7 subsidia o CUSTO das cinco
+ * essenciais até o nível 3 — "o custo aparece normalmente na interface, mas junto com a mensagem
+ * 'Esta construção será custeada pelo Governo Central até o nível 3'" —, o que pressupõe que o
+ * nível 1 ainda seja *construído*. Era exatamente o que o D-13 fazia: nasciam no nível 0. Por
+ * decisão do usuário (2026-07-11), elas agora **nascem prontas no nível 1**, no miolo fixo dos 21
+ * slots. Subsídio continua valendo do nível 2 ao 3.
+ *
+ * Nenhuma outra linha de `buildings` é criada: **construção não erguida não ocupa slot**. A linha
+ * passa a existir quando o colono escolhe onde pôr a construção (`ConstruirEmSlot`).
  */
 class CreateColony
 {
@@ -68,8 +75,14 @@ class CreateColony
                 'last_tick_at' => $agora,
             ]);
 
+            // As cinco essenciais, já no nível 1, cada uma no seu slot do miolo (D-59). Só elas:
+            // o resto dos 21 slots nasce vazio, e uma construção só ganha linha quando o colono
+            // escolhe o slot dela.
             $colony->buildings()->createMany(
-                array_map(fn (string $tipo) => ['type' => $tipo, 'level' => 0], Building::MVP),
+                array_map(
+                    fn (string $tipo) => ['type' => $tipo, 'level' => 1, 'slot' => Slots::MIOLO[$tipo]],
+                    Building::ESSENCIAIS,
+                ),
             );
 
             $colony->resources()->createMany(
@@ -99,6 +112,7 @@ class CreateColony
                 'created_at' => $agora,
             ]);
 
+            $this->registrarMioloSubsidiado($colony, $agora);
             $this->concederRarosDoKit($colony, $agora);
 
             // Stub: as cinco missões de tutoria ("cinco missões nos três primeiros dias")
@@ -112,14 +126,47 @@ class CreateColony
     }
 
     /**
-     * Concede os recursos raros necessários para erguer cada construção do MVP uma vez, no
-     * nível 1. A quantidade NÃO é digitada: é somada de `building_specs`, que vem do GDD.
-     * Assim o kit acompanha o documento em vez de virar constante mágica.
+     * As cinco essenciais nascem prontas, mas não nascem de graça no papel: quem as pagou foi o
+     * Governo Central, e o ledger é a fonte auditável do jogo. Lança o custo do nível 1 de cada
+     * uma como `subsidio_governo`, exatamente como `ColonyTick::concluir()` faz quando um upgrade
+     * subsidiado termina. Sem isto, a emissão do miolo seria invisível na contabilidade.
+     */
+    private function registrarMioloSubsidiado(Colony $colony, $agora): void
+    {
+        $especificacoes = DB::table('building_specs')
+            ->where('level', 1)
+            ->whereIn('building_type', Building::ESSENCIAIS)
+            ->get(['building_type', 'cost_json']);
+
+        foreach ($especificacoes as $spec) {
+            foreach (json_decode($spec->cost_json, true) as $recurso => $qtd) {
+                Ledger::create([
+                    'colony_id' => $colony->id,
+                    'type' => 'subsidio_governo',
+                    'amount' => $qtd,
+                    'resource_type' => $recurso,
+                    'ref' => "build:{$spec->building_type}:n1",
+                    'created_at' => $agora,
+                ]);
+            }
+        }
+    }
+
+    /**
+     * Concede os recursos raros necessários para erguer uma vez, no nível 1, cada construção que
+     * o colono AINDA precisa erguer — ou seja, as de progressão. A quantidade NÃO é digitada: é
+     * somada de `building_specs`, que vem do GDD. Assim o kit acompanha o documento em vez de
+     * virar constante mágica.
      *
-     * Por que existe: 8 das 16 construções exigem raros no nível 1, e as fontes de raros da
+     * Por que existe: várias construções exigem raros no nível 1, e as fontes de raros da
      * Temporada 1 (eventos, zonas profundas, contratos do governo) estão fora do MVP. Sem o
      * kit, o jogador para logo depois das cinco essenciais. É decisão de design, não do GDD.
      * Ver docs/decisoes.md D-17.
+     *
+     * Desde o D-59 a soma é sobre `PROGRESSAO`, não sobre `MVP`: as essenciais já nascem erguidas,
+     * então os raros do nível 1 delas deixaram de ser necessários — dá-los seria dar duas vezes.
+     * Uma cópia extra de uma repetível (segunda Mina) não é coberta: o kit ergue cada construção
+     * **uma** vez, como sempre.
      */
     private function concederRarosDoKit(Colony $colony, $agora): void
     {
@@ -130,7 +177,7 @@ class CreateColony
 
         $especificacoes = DB::table('building_specs')
             ->where('level', 1)
-            ->whereIn('building_type', Building::MVP)
+            ->whereIn('building_type', Building::PROGRESSAO)
             ->pluck('cost_json');
 
         $total = [];

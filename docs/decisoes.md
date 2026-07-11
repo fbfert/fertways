@@ -1706,3 +1706,105 @@ futuro vai tropeçar nelas:
 O `market_orders` **não é migrado nem apagado**: as 5 ordens de compra de produção continuam válidas,
 viram ofertas da vitrine e podem ser executadas. Nenhum depósito de produção passa do teto (todos
 estão em zero), então o teto não precisa de backfill.
+
+---
+
+## D-59 — Os 21 slots da colônia: construção posicionada, cópias repetíveis e demolição.
+**Data:** 2026-07-11 · **Status:** decidido pelo usuário · **GDD: omisso — não tem slot de
+construção, não tem demolição**
+
+> **Nota de procedência (2026-07-12).** Esta entrada foi **reconstruída a partir do código**, na
+> sessão seguinte: a de 2026-07-11 implementou o D-59 inteiro e o deixou verde, mas nunca o
+> registrou aqui. As decisões abaixo estão todas documentadas nos cabeçalhos das classes
+> (`Domain/Colony/Slots`, `Domain/Building/{ConstruirEmSlot,Demolir,Funcoes}`) e a numeração dos
+> itens 5 e 6 é a que o próprio código cita. **Se algum item não disser o que você decidiu, este
+> arquivo é que está errado — corrija-o, não o código.**
+
+**A palavra "slot" no GDD não quer dizer isto.** Procurou-se `slot`, `terreno`, `lote`, `grade`: no
+documento, "slot" é a **colônia do jogador vista do mapa do planeta** (ou um dos 20 slots
+institucionais da Capital, §2.1), nunca um espaço de construção dentro da colônia. O GDD **não põe
+teto espacial nenhum**. Os únicos limites que ele conhece são o **energético** (§19.8: o Reator
+nível 1 sustenta as essenciais "permitindo que o jogador construa 2-3 estruturas adicionais") e o da
+**fila de obras**. Tudo o que segue é arbitragem do usuário.
+
+Até aqui, a colônia nascia com as **16 construções do MVP já existentes no nível 0**, e "construir"
+era só o primeiro upgrade de uma linha que já estava lá. Não havia posição, não havia escolha, e o
+`unique(colony_id, type)` proibia a segunda Mina. A colônia era uma lista, não um lugar.
+
+### As decisões do usuário (2026-07-11)
+
+1. **21 slots, numa colmeia de linhas 4/4/5/4/4**, simétrica nos dois eixos. 21 não fecha anel
+   hexagonal (os anéis fecham em 1, 7 e 19), então a colmeia é feita de **linhas alternadas** e o
+   centro é a célula única — o slot 10. A construção passa a ter **posição**: `buildings` ganha a
+   coluna `slot`, e **construção não erguida não ocupa slot** — a linha só nasce quando o colono
+   aponta o buraco.
+2. **As cinco essenciais nascem prontas, no nível 1, no miolo.** Reator no centro exato (10),
+   Gerador e Estrutura ladeando-o (9 e 11), Fazenda e Captação de Água simétricas acima e abaixo
+   (5 e 15). **Isto revisa o D-13.** O §24.7 subsidia o *custo* das essenciais até o nível 3 ("o
+   custo aparece normalmente na interface"), o que pressupõe que o nível 1 ainda seja *construído* —
+   e era o que o D-13 fazia. Nascer pronto vai além do GDD. O subsídio segue valendo do nível 2 ao
+   3, e o nível 1 do miolo **é lançado no ledger como `subsidio_governo`**: emissão do Governo não
+   pode ser invisível na contabilidade.
+3. **Quatro construções podem ser repetidas**, cada cópia com o seu nível: **Mina Local, Oficina,
+   Refinaria Química e Destilaria**. Morre o `unique(colony_id, type)`; entra `unique(colony_id,
+   slot)` — dois prédios no mesmo buraco, nunca. São as **produtoras**: repetir é especializar a
+   colônia (em metal, em química), e produção e consumo de energia somam linearmente entre as
+   cópias. O freio é o Reator — que é exatamente o limite que o GDD usa (§19.8).
+   - As **essenciais ficam únicas** de propósito: fossem repetíveis, o subsídio do §24.7 viraria
+     torneira aberta e a enésima Fazenda sairia de graça.
+   - As de **função única** (Antena, Laboratório, Quartel, Plataforma, Mercado Local, Torre, Central
+     de Transportes, Tanque) também: duas Antenas não querem dizer nada, e o §28.5 amarra o teto de
+     caminhões ao **nível** da Central de Transportes, não à contagem delas.
+4. **Demolição** (`DELETE /buildings/{id}`) — o GDD não fala nela, nem na palavra nem no conceito.
+   - **O investido não volta.** Demolir é perda: nada é estornado. Por isso não há crédito no
+     ledger — o `custo_construcao` lançado na obra continua lá, registro honesto de um gasto que
+     virou pó.
+   - **As cinco essenciais são indemolíveis.** Derrubar o Gerador de Atmosfera exigiria decidir o
+     que acontece a uma colônia sem atmosfera, e o GDD não tem resposta. Não se inventa uma.
+   - **Não se demole o que está em obra.** Cancele a obra antes. Assim não nasce a questão do
+     estorno de uma obra interrompida no meio.
+5. **Cada construção diz o que faz.** Até aqui a tela de detalhe só sabia dizer custo e tempo: o
+   colono via o preço da Oficina sem nunca saber para que ela serve. Nasce `Domain/Building/Funcoes`
+   com **duas camadas que não podem ser confundidas** — `frase`/`fonte`, o que o GDD **promete**,
+   transcrito verbatim com o §; e `nota`, o que o jogo **entrega hoje**, quando é menos que a
+   promessa. A segunda existe porque a primeira, sozinha, mentiria: uma tela que dissesse só
+   "Laboratório: pesquisa tecnológica" faria o colono gastar 90 Ligas num prédio inerte. **Sete
+   construções o GDD descreve e nunca quantifica; duas têm número publicado e mesmo assim não mordem
+   no código.** Enquanto o efeito não existir, ele é anunciado como o que é: uma promessa. Os
+   **números por nível não entram ali** — saem de `building_specs`, semeada do GDD (D-02).
+6. **O prédio é a porta da tela.** A Central de Transportes é por onde se vê a Frota; o Mercado
+   Local, por onde se abrem os Acordos de Troca — que é exatamente o que a frase do §17.2 descreve
+   ("comércio direto com vizinhos"). O Mercado *Central* é outra coisa: instituição da Capital
+   (§2.1), alcançada pelo mapa.
+
+### O Tanque de Combustível entra no MVP
+
+O GDD sempre listou **doze** construções de progressão (§04 e §28.6, listas idênticas), e o **Tanque
+de Combustível** (§21.9) era a única fora do MVP — **sem motivo registrado**. Entra agora que há slot
+para ela. Custo e tempo já estavam semeados em `building_specs`. **O MVP passa de 16 para 17
+construções**: 5 essenciais + 12 de progressão, para **16 slots livres**.
+
+### O backfill, e por que ele promove níveis
+
+`artisan fertways:slots` (simula) / `--aplicar` (migra). Passo à parte do deploy, como o
+`fertways:kit-recursos` do D-57. Em cada colônia, nesta ordem:
+
+1. **Põe as cinco essenciais no miolo**; quem estiver no nível 0 é **promovida ao nível 1**, com o
+   custo lançado como `subsidio_governo` — o miolo nasce erguido, e quem já existia não pode ficar
+   num estado que a fundação não produz mais.
+2. **Apaga as construções de nível 0** que ninguém está erguendo: elas eram o desenho antigo (16
+   linhas na fundação) e hoje significam "slot vazio". **A que está na fila é preservada** e ganha
+   slot — cancelar a obra de alguém seria roubo.
+3. **Distribui o que está erguido** pelos slots de fora, preservando o nível.
+
+Idempotente (o subsídio entra por `firstOrCreate` no ledger) e de ordem estável, para que rodar duas
+vezes não embaralhe o mapa da colônia de um jogador. A simulação **corre a mesma rotina** e desfaz
+tudo com um rollback — não é uma segunda implementação que pode divergir da real.
+
+### O que fica de fora, de propósito
+
+- **Construir e demolir não têm e2e.** O painel está atrás de um clique num hexágono do Phaser, e
+  mirá-lo por coordenada quebraria ao primeiro ajuste de layout — a mesma razão pela qual a receita
+  da Oficina (D-54) não tem. As rotas são cobertas em PHP.
+- **Não há teto de cópias** além dos 16 slots livres e do que o Reator sustenta. É deliberado: o
+  limite energético é o único que o GDD publica (§19.8), e ele já morde.

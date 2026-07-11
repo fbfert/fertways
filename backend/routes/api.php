@@ -35,6 +35,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/zones/{zone}/withdraw', [NeutralZoneController::class, 'withdraw']);
 
     Route::get('/buildings', [BuildingController::class, 'specs']);
+    // O catálogo do slot vazio vem antes da rota de recurso: `/buildings/catalogo` casaria com
+    // `/buildings/{building}` e o Laravel tentaria achar uma construção de id "catalogo".
+    Route::get('/buildings/catalogo', [BuildingController::class, 'catalogo']);
+    Route::post('/buildings', [BuildingController::class, 'construir']);
+    Route::delete('/buildings/{building}', [BuildingController::class, 'demolir']);
     Route::post('/buildings/{building}/upgrade', [BuildingController::class, 'upgrade']);
     Route::get('/recipes', [BuildingController::class, 'recipes']);
     Route::patch('/buildings/{building}/recipe', [BuildingController::class, 'recipe']);

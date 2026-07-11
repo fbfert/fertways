@@ -10,8 +10,9 @@
  * distantes para ele julgar.
  */
 import {
-  acharPorTexto,
+  abrirCapital,
   abrirNavegador,
+  acharPorTexto,
   checar,
   entrar,
   esperarTexto,
@@ -28,7 +29,9 @@ try {
   checar(await esperarTexto(page, /Fert\$/), 'o HUD carrega e mostra Fert$')
 
   console.log('\nAbre o Ministério')
-  await (await acharPorTexto(page, 'button', /^Ministério$/)).click()
+  // D-59: o Ministério é instituição do governo (§2.1) e se alcança pela Capital, não pelo HUD.
+  await abrirCapital(page)
+  await page.click('[data-abrir="ministerio"]')
   checar(await esperarTexto(page, /Slot 7 da Capital/), 'o painel do Ministério abre (§9.1)')
 
   console.log('\nMinha reputação: os quatro índices do §26.2')

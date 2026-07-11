@@ -13,8 +13,9 @@
  * Nunca contra produção: ele põe ofertas na vitrine e mexe em saldo.
  */
 import {
-  acharPorTexto,
+  abrirCapital,
   abrirNavegador,
+  acharPorTexto,
   assentar,
   checar,
   entrar,
@@ -33,7 +34,9 @@ try {
   checar(await esperarTexto(page, /Fert\$/), 'o HUD carrega e mostra Fert$')
 
   console.log('\nAbre o Mercado')
-  await (await acharPorTexto(page, 'button', /^Mercado$/)).click()
+  // D-59: o Mercado Central é o Pátio Logístico da Capital (slot 6), alcançado pelo mapa.
+  await abrirCapital(page)
+  await page.click('[data-abrir="mercado"]')
   checar(await esperarTexto(page, /Mercado Central/), 'o painel do Mercado abre')
   checar(await esperarTexto(page, /Doca e frota/), 'a aba da doca aparece')
 

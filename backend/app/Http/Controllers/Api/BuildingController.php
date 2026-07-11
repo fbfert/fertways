@@ -3,7 +3,11 @@
 namespace App\Http\Controllers\Api;
 
 use App\Domain\Building\BuildingSpecs;
+use App\Domain\Building\ConstruirEmSlot;
+use App\Domain\Building\Demolir;
 use App\Domain\Building\EnqueueUpgrade;
+use App\Domain\Building\Funcoes;
+use App\Domain\Colony\Slots;
 use App\Domain\Production\ColonyTick;
 use App\Exceptions\DomainRuleException;
 use App\Http\Controllers\Controller;
@@ -39,6 +43,99 @@ class BuildingController extends Controller
                 : null,
             'finishes_at' => $item->finishes_at,
         ], 201);
+    }
+
+    /**
+     * Ergue uma construção nova num slot escolhido pelo colono (D-59).
+     *
+     * `POST /buildings` com `{type, slot}`. Antes do D-59 esta rota não existia: as 16 construções
+     * já vinham da fundação no nível 0 e "construir" era só o primeiro upgrade. Agora a linha de
+     * `buildings` nasce aqui.
+     */
+    public function construir(Request $request, ConstruirEmSlot $construir): JsonResponse
+    {
+        $colony = $request->user()->colony;
+
+        if (! $colony) {
+            throw new DomainRuleException('sem_colonia', 'Funde uma colônia primeiro.');
+        }
+
+        $dados = $request->validate([
+            'type' => ['required', 'string'],
+            'slot' => ['required', 'integer', 'min:0', 'max:' . (Slots::TOTAL - 1)],
+        ]);
+
+        $item = $construir->handle($colony, $dados['type'], $dados['slot']);
+
+        return response()->json([
+            'building' => $item->building->type,
+            'slot' => $item->building->slot,
+            'target_level' => $item->target_level,
+            'status' => $item->status,
+            'cost' => $item->quoted_cost_json,
+            'finishes_at' => $item->finishes_at,
+        ], 201);
+    }
+
+    /**
+     * Demole e libera o slot (D-59). O investido não volta; essencial não cai; em obra não se
+     * demole. As três regras são arbitragem do usuário — o GDD não fala em demolição.
+     */
+    public function demolir(Request $request, Building $building, Demolir $demolir): JsonResponse
+    {
+        $colony = $request->user()->colony;
+
+        if (! $colony) {
+            throw new DomainRuleException('sem_colonia', 'Funde uma colônia primeiro.');
+        }
+
+        $demolir->handle($colony, $building);
+
+        return response()->json(['demolida' => true]);
+    }
+
+    /**
+     * O que o colono PODE erguer, e onde (D-59).
+     *
+     * Serve o painel do slot vazio. Devolve as 12 de progressão — as 5 essenciais nascem no miolo
+     * e não se erguem de novo —, cada uma com o que faz, o custo do nível 1 e se já existe na
+     * colônia (as não-repetíveis somem da lista depois de erguidas).
+     */
+    public function catalogo(Request $request, BuildingSpecs $specs): JsonResponse
+    {
+        $colony = $request->user()->colony;
+
+        if (! $colony) {
+            throw new DomainRuleException('sem_colonia', 'Funde uma colônia primeiro.');
+        }
+
+        $erguidas = $colony->buildings->groupBy('type');
+        $ocupados = $colony->buildings->pluck('slot')->filter(fn ($s) => $s !== null)->values();
+
+        $itens = collect(Building::PROGRESSAO)->map(function (string $tipo) use ($specs, $erguidas) {
+            $spec = $specs->para($tipo, 1);
+            $quantas = $erguidas->get($tipo)?->count() ?? 0;
+            $repetivel = in_array($tipo, Building::REPETIVEIS, true);
+
+            return [
+                'type' => $tipo,
+                'funcao' => Funcoes::de($tipo),
+                'cost' => $spec['custo'],
+                'build_time_seconds' => $spec['tempo_segundos'],
+                'max_level' => $specs->nivelMaximo($tipo),
+                'repetivel' => $repetivel,
+                'quantas' => $quantas,
+                // Uma construção única já erguida não pode ser erguida de novo; uma repetível,
+                // sempre pode — o limite dela é o slot vago e a energia (§19.8).
+                'disponivel' => $repetivel || $quantas === 0,
+            ];
+        })->values();
+
+        return response()->json([
+            'slots' => ['linhas' => Slots::LINHAS, 'total' => Slots::TOTAL],
+            'ocupados' => $ocupados,
+            'buildings' => $itens,
+        ]);
     }
 
     /**
@@ -120,7 +217,14 @@ class BuildingController extends Controller
         ]);
     }
 
-    /** Catálogo do GDD para a UI: o custo do próximo nível, subsidiado ou não. */
+    /**
+     * O detalhe de cada construção erguida: o que ela FAZ, e só depois o que custa evoluir.
+     *
+     * A ordem importa (D-59, item 5): a tela abre no efeito — a frase do GDD, o que a construção
+     * produz agora e o que passaria a produzir no nível seguinte — e o custo/tempo só aparece
+     * atrás do botão "Evoluir". O jogador precisa saber para que serve o prédio antes de saber
+     * o preço dele.
+     */
     public function specs(Request $request, BuildingSpecs $specs): JsonResponse
     {
         $user = $request->user();
@@ -130,35 +234,63 @@ class BuildingController extends Controller
             throw new DomainRuleException('sem_colonia', 'Funde uma colônia primeiro.');
         }
 
+        // Uma consulta só para todas as construções da colônia: com repetição (D-59) uma colônia
+        // pode ter quatro Minas, e uma consulta por linha viraria N+1 de verdade.
+        $catalogo = DB::table('building_specs')
+            ->whereIn('building_type', $colony->buildings->pluck('type')->unique())
+            ->get(['building_type', 'level', 'producao_hora_json', 'energia_consumo_hora'])
+            ->keyBy(fn ($s) => "{$s->building_type}:{$s->level}");
+
+        $efeito = fn (string $tipo, int $nivel) => ($s = $catalogo->get("{$tipo}:{$nivel}")) ? [
+            'producao_hora' => json_decode($s->producao_hora_json ?? 'null', true),
+            'energia_hora' => (int) $s->energia_consumo_hora,
+        ] : null;
+
         return response()->json(
-            $colony->buildings->map(function (Building $b) use ($specs, $user) {
+            $colony->buildings->map(function (Building $b) use ($specs, $user, $efeito) {
                 $alvo = $b->level + 1;
                 $max = $specs->nivelMaximo($b->type);
 
+                $base = [
+                    'id' => $b->id,
+                    'type' => $b->type,
+                    'level' => $b->level,
+                    'slot' => $b->slot,
+                    'max_level' => $max,
+                    'essencial' => $b->ehEssencial(),
+                    // Indemolível = essencial (D-59). A tela esconde o botão em vez de oferecer
+                    // um clique que o backend vai recusar.
+                    'demolivel' => ! $b->ehEssencial(),
+                    'repetivel' => $b->podeRepetir(),
+                    // O que ela FAZ: a frase do GDD, a fonte, e a nota honesta de quando o efeito
+                    // ainda não morde no jogo.
+                    'funcao' => Funcoes::de($b->type),
+                    'efeito_atual' => $efeito($b->type, $b->level),
+                    'efeito_proximo' => $efeito($b->type, $alvo),
+                    // Só a Oficina escolhe receita (§24.5). Sem este campo a UI não teria como
+                    // mostrar qual das três está ativa, e o `PATCH .../recipe` ficava órfão.
+                    'recipe' => $b->type === 'oficina' ? ($b->recipe ?? ColonyTick::RECEITA_PADRAO) : null,
+                ];
+
                 if ($alvo > $max) {
-                    return ['id' => $b->id, 'type' => $b->type, 'level' => $b->level, 'max_level' => $max];
+                    return $base;
                 }
 
                 try {
                     $spec = $specs->para($b->type, $alvo);
                 } catch (DomainRuleException $e) {
                     // tempo_indefinido: o GDD não cronometra esta construção (D-10).
-                    return ['id' => $b->id, 'type' => $b->type, 'level' => $b->level,
-                        'max_level' => $max, 'blocked' => $e->codigo];
+                    return [...$base, 'blocked' => $e->codigo];
                 }
 
                 return [
-                    'id' => $b->id,
-                    'type' => $b->type,
-                    'level' => $b->level,
-                    'max_level' => $max,
+                    ...$base,
                     'next_level' => $alvo,
+                    // §24.7: "o custo aparece normalmente na interface, mas junto com a mensagem
+                    // 'Esta construção será custeada pelo Governo Central até o nível 3'".
                     'cost' => $spec['custo'],
                     'build_time_seconds' => $spec['tempo_segundos'],
                     'subsidized' => $b->ehEssencial() && $alvo <= 3 && $user->tutoriaConcluida(),
-                    // Só a Oficina escolhe receita (§24.5). Sem este campo a UI não teria como
-                    // mostrar qual das três está ativa, e o `PATCH .../recipe` ficava órfão.
-                    'recipe' => $b->type === 'oficina' ? ($b->recipe ?? ColonyTick::RECEITA_PADRAO) : null,
                 ];
             })->values(),
         );

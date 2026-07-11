@@ -71,6 +71,16 @@ $c->resources()->where("resource_type", "ligas_metalicas")->update(["amount" => 
 $c->resources()->where("resource_type", "componentes_eletronicos")->update(["amount" => 1000]);
 $c->update(["fert_micro" => 1000 * 1000000]);
 
+/*
+ * D-59: as duas PORTAS. A colônia nasce só com o miolo (as 5 essenciais), e desde o D-59 a Frota
+ * vive dentro da Central de Transportes e os Acordos dentro do Mercado Local. Sem estas duas
+ * erguidas, as duas telas não teriam por onde ser abertas — e os testes delas não teriam como
+ * clicar em lugar nenhum. Slots 0 e 1: os dois primeiros de fora do miolo (que ocupa 5, 9, 10,
+ * 11 e 15). O e2e clica neles por posição; ver `clicarNoSlot` em e2e/comum.mjs.
+ */
+$c->buildings()->create(["type" => "central_de_transportes", "level" => 1, "slot" => 0]);
+$c->buildings()->create(["type" => "mercado_local", "level" => 1, "slot" => 1]);
+
 // Carga já na doca: sem ela não há o que vender, e esperar uma viagem real levaria minutos.
 App\Models\MarketAccount::create([
     "colony_id" => $c->id, "resource_type" => "metal_bruto", "amount" => 500,

@@ -1,16 +1,76 @@
 /** Nomes e formatação de recursos e de Fert$. Compartilhado pelo HUD e pela tela do Mercado. */
 
 export const NOME_RECURSO: Record<string, string> = {
+  // Primários (§8.3, `tax_class` = primario). Metal Bruto é PRIMÁRIO no GDD — a tela antiga o
+  // listava entre os industriais, e estava errada.
   oxigenio: 'Oxigênio',
   agua: 'Água',
   biomassa: 'Biomassa',
   energia: 'Energia',
   metal_bruto: 'Metal Bruto',
+
+  // Industriais: os 4 secundários do §18.2 mais os 8 minerais do §18.3 (D-58).
   ligas_metalicas: 'Ligas Metálicas',
   compostos_quimicos: 'Compostos Químicos',
   biocombustivel: 'Biocombustível',
   componentes_eletronicos: 'Componentes',
+  aluminio: 'Alumínio',
+  cobre: 'Cobre',
+  estanho: 'Estanho',
+  litio: 'Lítio',
+  ouro: 'Ouro',
+  silicio: 'Silício',
+  tantalo: 'Tântalo',
+  tungstenio: 'Tungstênio',
+
+  // Raros. Não há fonte deles no MVP fora do kit inicial (D-17): as fontes da Temporada 1
+  // (eventos, zonas profundas, contratos do governo) ainda não existem.
+  bioenergia_curativa: 'Bioenergia Curativa',
+  cristal_de_helio_3: 'Cristal de Hélio-3',
+  ferro_vermelho: 'Ferro Vermelho',
+  fungo_bioluminescente: 'Fungo Bioluminescente',
+  gelo_de_metano: 'Gelo de Metano',
+  niobio_alienigena: 'Nióbio Alienígena',
+  plasma_fossilizado: 'Plasma Fossilizado',
+  quartzo_piezoeletrico: 'Quartzo Piezoelétrico',
+  resina_organica: 'Resina Orgânica',
 }
+
+/**
+ * As três classes do GDD (§8.3), na ordem em que o painel as mostra. São os 26 recursos do
+ * documento — a tela antiga mostrava 9.
+ *
+ * A classe não é decoração: é o `tax_class` que já governa o tributo (3/2/1%) e, desde o D-58, o
+ * teto do depósito da Capital (10.000 / 2.500 / 100).
+ */
+export const PRIMARIOS = ['oxigenio', 'agua', 'biomassa', 'energia', 'metal_bruto']
+
+export const INDUSTRIAIS = [
+  'ligas_metalicas',
+  'compostos_quimicos',
+  'biocombustivel',
+  'componentes_eletronicos',
+  'aluminio',
+  'cobre',
+  'estanho',
+  'litio',
+  'ouro',
+  'silicio',
+  'tantalo',
+  'tungstenio',
+]
+
+export const RAROS = [
+  'bioenergia_curativa',
+  'cristal_de_helio_3',
+  'ferro_vermelho',
+  'fungo_bioluminescente',
+  'gelo_de_metano',
+  'niobio_alienigena',
+  'plasma_fossilizado',
+  'quartzo_piezoeletrico',
+  'resina_organica',
+]
 
 export const nomeRecurso = (codigo: string) => NOME_RECURSO[codigo] ?? codigo
 

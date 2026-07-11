@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { api, ApiError, token } from './api/client'
-import type { Colonia, Fila, Spec } from './api/client'
+import type { Catalogo, Colonia, Fila, Spec } from './api/client'
 import { ColonyCanvas } from './game/ColonyCanvas'
 import { Capital } from './ui/Capital'
 import { Frota } from './ui/Frota'
@@ -10,20 +10,37 @@ import { Mapa } from './ui/Mapa'
 import { Marca } from './ui/Marca'
 import { Mercado } from './ui/Mercado'
 import { Ministerio } from './ui/Ministerio'
-import { Detalhe, FilaDeObras, Recursos } from './ui/Hud'
+import { Detalhe, FilaDeObras, Recursos, SlotVazio } from './ui/Hud'
 
 /** Sem websocket nesta fase: polling simples, como o plano define. */
 const INTERVALO_MS = 5000
 
+/**
+ * A colônia, e a navegação que sai dela (D-59, item 6).
+ *
+ * Os cinco botões do topo morreram. O que os substituiu:
+ *
+ *  - **Mapa** — único botão do topo, ao lado da marca. É de onde se sai da colônia.
+ *  - **Capital** — clicando no losango dela no mapa. E é lá dentro que vivem o **Ministério** e o
+ *    **Mercado Central**, que são instituições do governo (§2.1), não construções do colono.
+ *  - **Frota** — dentro da Central de Transportes, a construção que o GDD diz gerir os veículos.
+ *  - **Acordos** — dentro do Mercado Local, que o GDD define como "comércio direto com vizinhos".
+ *
+ * O efeito colateral é o ponto: para chegar a qualquer lugar, o colono passa por uma construção —
+ * e é isso que dá peso à pergunta "o que esta construção faz?", que o item 5 finalmente responde.
+ */
 export default function App() {
   const [autenticado, setAutenticado] = useState(!!token.get())
   const [colonia, setColonia] = useState<Colonia | null>(null)
   const [specs, setSpecs] = useState<Spec[]>([])
+  const [catalogo, setCatalogo] = useState<Catalogo | null>(null)
   const [fila, setFila] = useState<Fila | null>(null)
   const [selecionada, setSelecionada] = useState<Spec | null>(null)
+  const [slotVazio, setSlotVazio] = useState<number | null>(null)
   const [erro, setErro] = useState<string | null>(null)
   const [semColonia, setSemColonia] = useState(false)
   const [mercadoAberto, setMercadoAberto] = useState(false)
+  const [abaDoMercado, setAbaDoMercado] = useState<'doca' | 'ofertar_colono'>('doca')
   const [ministerioAberto, setMinisterioAberto] = useState(false)
   const [mapaAberto, setMapaAberto] = useState(false)
   const [frotaAberta, setFrotaAberta] = useState(false)
@@ -31,12 +48,19 @@ export default function App() {
 
   const carregar = useCallback(async () => {
     try {
-      const [c, s, f] = await Promise.all([api.colonia(), api.construcoes(), api.fila()])
+      const [c, s, f, cat] = await Promise.all([
+        api.colonia(),
+        api.construcoes(),
+        api.fila(),
+        api.catalogo(),
+      ])
       setColonia(c)
       setSpecs(s)
       setFila(f)
+      setCatalogo(cat)
       setSemColonia(false)
-      // Mantém o painel de detalhe em sincronia com o nível recém-concluído.
+      // Mantém o painel de detalhe em sincronia com o nível recém-concluído. Se a construção foi
+      // demolida, o painel se fecha sozinho em vez de mostrar um prédio que não existe mais.
       setSelecionada((atual) => (atual ? (s.find((x) => x.id === atual.id) ?? null) : null))
     } catch (e) {
       if (e instanceof ApiError && (e.status === 404 || e.code === 'sem_colonia')) {
@@ -91,13 +115,48 @@ export default function App() {
     return () => clearInterval(t)
   }, [])
 
-  async function construir(spec: Spec) {
+  async function evoluir(spec: Spec) {
     setErro(null)
     try {
       await api.enfileirar(spec.id)
       await carregar()
     } catch (e) {
       setErro(e instanceof ApiError ? e.message : 'Falha ao enfileirar.')
+    }
+  }
+
+  async function erguer(tipo: string, slot: number) {
+    setErro(null)
+    try {
+      await api.construir(tipo, slot)
+      setSlotVazio(null)
+      await carregar()
+    } catch (e) {
+      setErro(e instanceof ApiError ? e.message : 'Falha ao construir.')
+    }
+  }
+
+  async function demolir(spec: Spec) {
+    setErro(null)
+    try {
+      await api.demolir(spec.id)
+      setSelecionada(null)
+      await carregar()
+    } catch (e) {
+      setErro(e instanceof ApiError ? e.message : 'Falha ao demolir.')
+    }
+  }
+
+  /** A porta de uma construção: a Central de Transportes leva à Frota, o Mercado Local aos Acordos. */
+  function abrirPorta(tipo: string) {
+    if (tipo === 'central_de_transportes') {
+      setFrotaAberta(true)
+      return
+    }
+
+    if (tipo === 'mercado_local') {
+      setAbaDoMercado('ofertar_colono')
+      setMercadoAberto(true)
     }
   }
 
@@ -121,57 +180,43 @@ export default function App() {
   return (
     <div className="relative h-screen w-screen overflow-hidden">
       <div className="absolute inset-0">
-        <ColonyCanvas specs={specs} onSelecionar={setSelecionada} />
+        <ColonyCanvas
+          specs={specs}
+          linhas={catalogo?.slots.linhas ?? []}
+          onSelecionar={(s) => {
+            setSlotVazio(null)
+            setSelecionada(s)
+          }}
+          onSlotVazio={(slot) => {
+            setSelecionada(null)
+            setSlotVazio(slot)
+          }}
+        />
       </div>
 
       <header className="pointer-events-none absolute inset-x-0 top-0 flex items-start justify-between p-5">
-        <div className="painel bg-sand-light pointer-events-auto px-4 py-3">
-          <Marca compacto />
-        </div>
+        {/* A marca e o Mapa, juntos: sair da colônia é ir ao mapa, e é o único caminho para fora. */}
+        <div className="pointer-events-auto flex items-stretch gap-3">
+          <div className="painel bg-sand-light flex items-center px-4 py-3">
+            <Marca compacto />
+          </div>
 
-        {colonia && (
-          <div className="pointer-events-auto flex items-start gap-3">
+          {colonia && (
             <button
               onClick={() => setMapaAberto(true)}
-              className="painel bg-sand-light text-ink hover:text-rust eyebrow px-5 py-4"
+              className="painel bg-rust text-sand-light hover:bg-rust-bright eyebrow px-5"
             >
               Mapa
             </button>
+          )}
+        </div>
 
-            <button
-              onClick={() => setFrotaAberta(true)}
-              className="painel bg-sand-light text-ink hover:text-rust eyebrow px-5 py-4"
-            >
-              Frota
-            </button>
-
-            <button
-              onClick={() => setCapitalAberta(true)}
-              className="painel bg-sand-light text-ink hover:text-rust eyebrow px-5 py-4"
-            >
-              Capital
-            </button>
-
-            <button
-              onClick={() => setMinisterioAberto(true)}
-              className="painel bg-sand-light text-ink hover:text-rust eyebrow px-5 py-4"
-            >
-              Ministério
-            </button>
-
-            <button
-              onClick={() => setMercadoAberto(true)}
-              className="painel bg-rust text-sand-light hover:bg-rust-bright eyebrow px-5 py-4"
-            >
-              Mercado
-            </button>
-
-            <div className="painel bg-sand-light px-5 py-3 text-right">
-              <div className="text-rust eyebrow">{colonia.name}</div>
-              <div className="text-ink text-xl font-black tabular-nums">
-                {colonia.fert.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}{' '}
-                <span className="text-rust text-sm">Fert$</span>
-              </div>
+        {colonia && (
+          <div className="painel bg-sand-light pointer-events-auto px-5 py-3 text-right">
+            <div className="text-rust eyebrow">{colonia.name}</div>
+            <div className="text-ink text-xl font-black tabular-nums">
+              {colonia.fert.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}{' '}
+              <span className="text-rust text-sm">Fert$</span>
             </div>
           </div>
         )}
@@ -190,12 +235,15 @@ export default function App() {
 
       {colonia && frotaAberta && <Frota aoFechar={() => setFrotaAberta(false)} />}
 
-      {/* A Capital só lê: abrir/fechar não muda estoque nem saldo. Mercado e Ministério (slots 6 e 7)
-          reusam as telas de topo — a Capital as abre fechando a si mesma. */}
+      {/* A Capital só lê: abrir/fechar não muda estoque nem saldo. Mercado Central e Ministério
+          (slots 6 e 7) são instituições do governo e se alcançam por aqui — não por construção. */}
       {colonia && capitalAberta && (
         <Capital
           aoFechar={() => setCapitalAberta(false)}
-          aoAbrirMercado={() => setMercadoAberto(true)}
+          aoAbrirMercado={() => {
+            setAbaDoMercado('doca')
+            setMercadoAberto(true)
+          }}
           aoAbrirMinisterio={() => setMinisterioAberto(true)}
         />
       )}
@@ -213,6 +261,7 @@ export default function App() {
       {colonia && mercadoAberto && (
         <Mercado
           colonia={colonia}
+          abaInicial={abaDoMercado}
           aoFechar={() => {
             setMercadoAberto(false)
             // O depósito tira recurso do estoque na hora: o HUD tem de refletir isso já.
@@ -228,12 +277,24 @@ export default function App() {
       )}
 
       <div className="absolute top-24 right-5 space-y-4">
-        <Detalhe
-          spec={selecionada}
-          aoConstruir={construir}
-          aoAtualizar={() => void carregar()}
-          erro={erro}
-        />
+        {slotVazio !== null ? (
+          <SlotVazio
+            slot={slotVazio}
+            catalogo={catalogo}
+            aoErguer={(tipo, slot) => void erguer(tipo, slot)}
+            aoFechar={() => setSlotVazio(null)}
+            erro={erro}
+          />
+        ) : (
+          <Detalhe
+            spec={selecionada}
+            aoConstruir={(s) => void evoluir(s)}
+            aoAtualizar={() => void carregar()}
+            aoDemolir={(s) => void demolir(s)}
+            aoAbrirPorta={abrirPorta}
+            erro={erro}
+          />
+        )}
         {fila && <FilaDeObras fila={fila} />}
       </div>
 

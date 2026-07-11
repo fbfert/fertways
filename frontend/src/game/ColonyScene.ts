@@ -12,8 +12,33 @@ export const CORES = {
   inkSoft: 0x372f27,
 }
 
-export const EVENTOS = {
-  selecionou: 'construcao:selecionada',
+/**
+ * O raio e o centro de cada slot da colmeia, em pixels do canvas.
+ *
+ * **Fonte única da geometria**, usada por dois consumidores: a cena, que desenha os hexágonos, e a
+ * camada de botões do `ColonyCanvas`, que os torna clicáveis. Fossem duas contas, elas divergiriam
+ * — e o colono clicaria num buraco para acertar o vizinho.
+ */
+export function colmeia(linhas: number[], largura: number, altura: number) {
+  const folga = 1.14
+  const r = Math.min(largura / 13.5, altura / 10.5)
+  const passoX = Math.sqrt(3) * r * folga
+  const passoY = 1.5 * r * folga
+  const meioY = ((linhas.length - 1) * passoY) / 2
+
+  const centros: [number, number][] = []
+
+  linhas.forEach((quantas, linha) => {
+    // Cada linha é centrada em si mesma: as de 4 ficam meio passo para dentro das de 5, e é isso
+    // que encaixa a colmeia.
+    const inicio = -((quantas - 1) * passoX) / 2
+
+    for (let i = 0; i < quantas; i++) {
+      centros.push([largura / 2 + inicio + i * passoX, altura / 2 + linha * passoY - meioY])
+    }
+  })
+
+  return { r, centros }
 }
 
 const NOMES: Record<string, string> = {
@@ -33,6 +58,7 @@ const NOMES: Record<string, string> = {
   central_de_transportes: 'Central de Transportes',
   mina_local: 'Mina Local',
   destilaria: 'Destilaria',
+  tanque_de_combustivel: 'Tanque de Combustível',
 }
 
 export function rotulo(tipo: string): string {
@@ -40,20 +66,31 @@ export function rotulo(tipo: string): string {
 }
 
 /**
- * Slot principal do colono. O GDD não define uma grade de posições (D-05), então a cena
- * não desenha "slots" numerados: cada construção é um hexágono, disposto em anéis.
- * Uma construção no nível 0 aparece como contorno vazado; erguida, preenchida.
+ * O slot principal do colono: a colmeia de 21 posições (D-59).
+ *
+ * Antes, a cena desenhava uma construção por hexágono, em anéis, e as 16 estavam sempre lá — as
+ * não erguidas apareciam vazadas. Agora o buraco vem primeiro: **os 21 slots são desenhados
+ * sempre**, e cada um pode estar vazio ou ter uma construção dentro.
+ *
+ * **A cena não escuta cliques.** Os alvos são botões de DOM, sobrepostos ao canvas pelo
+ * `ColonyCanvas` — e não é detalhe de implementação, é a diferença entre a colônia ser navegável
+ * ou não. Desde o D-59 (item 6) todo caminho do jogo passa por uma construção: a Frota vive na
+ * Central de Transportes, os Acordos no Mercado Local. Se o único alvo de clique fosse um pixel de
+ * canvas, o jogo inteiro ficaria fora do alcance de quem usa teclado ou leitor de tela — e fora do
+ * alcance do e2e, que também não consegue clicar num canvas. A cena pinta; o DOM recebe o clique.
+ *
+ * As `linhas` (4/4/5/4/4) vêm da API, não daqui: o layout é decisão de domínio
+ * (`Domain/Colony/Slots`), e um número copiado para o React sobreviveria mentindo a uma mudança.
+ * É a lição do D-54, aplicada de novo.
  */
 export class ColonyScene extends Phaser.Scene {
   private specs: Spec[] = []
+  private linhas: number[] = []
+  private realcado: number | null = null
   private raiz!: Phaser.GameObjects.Container
 
-  private readonly aoSelecionar?: (spec: Spec) => void
-
-  /** `this.events` só existe depois do boot da cena, então o ouvinte é registrado no `create()`. */
-  constructor(aoSelecionar?: (spec: Spec) => void) {
+  constructor() {
     super('colonia')
-    this.aoSelecionar = aoSelecionar
   }
 
   create() {
@@ -62,12 +99,18 @@ export class ColonyScene extends Phaser.Scene {
     this.desenharTerreno()
     this.desenhar()
     this.scale.on('resize', () => this.desenhar())
-
-    if (this.aoSelecionar) this.events.on(EVENTOS.selecionou, this.aoSelecionar)
   }
 
-  atualizar(specs: Spec[]) {
+  atualizar(specs: Spec[], linhas: number[]) {
     this.specs = specs
+    this.linhas = linhas
+    if (this.raiz) this.desenhar()
+  }
+
+  /** O hexágono sob o cursor, apontado pelo botão de DOM que está por cima dele. */
+  realcar(slot: number | null) {
+    if (this.realcado === slot) return
+    this.realcado = slot
     if (this.raiz) this.desenhar()
   }
 
@@ -90,93 +133,65 @@ export class ColonyScene extends Phaser.Scene {
     })
   }
 
-  /**
-   * Coordenadas axiais dos anéis de uma grade hexagonal, do centro para fora.
-   * Anel 0 é o centro; o anel `k` tem `6k` células. Três anéis cobrem 19 posições, folgado
-   * para as 16 construções do MVP.
-   */
-  private static anelAxial(k: number): [number, number][] {
-    if (k === 0) return [[0, 0]]
-    /*
-     * A ordem das direções tem que casar com o canto de partida: começando em `[-k, k]`, que é
-     * `k` passos na direção de índice 4, o percurso segue as seis direções a partir do índice 0.
-     * Uma ordem rotacionada gera células a distâncias 0 a 4 do centro em vez de todas a `k` —
-     * inclusive a própria origem, o que empilha construções no mesmo pixel.
-     */
-    const dir: [number, number][] = [
-      [1, 0],
-      [1, -1],
-      [0, -1],
-      [-1, 0],
-      [-1, 1],
-      [0, 1],
-    ]
-    const saida: [number, number][] = []
-    let [q, r] = [-k, k]
-    for (const [dq, dr] of dir) {
-      for (let i = 0; i < k; i++) {
-        saida.push([q, r])
-        q += dq
-        r += dr
-      }
-    }
-    return saida
-  }
-
   private desenhar() {
     this.raiz.removeAll(true)
-    if (!this.specs.length) return
+    if (!this.linhas.length) return
 
     const { width, height } = this.scale
+    const { r, centros } = colmeia(this.linhas, width, height)
+    const porSlot = new Map(this.specs.map((s) => [s.slot, s]))
 
-    /*
-     * Numa grade de hexágonos pontudos em cima, com circunraio `r`, o passo horizontal entre
-     * centros é `√3·r` e o vertical é `1,5·r`.
-     *
-     * A versão anterior usava anéis circulares com o eixo Y comprimido em 0,72, o que punha o
-     * primeiro anel a 1,37·r do centro — menos que os 2·r de dois hexágonos encostados. Eles se
-     * sobrepunham.
-     */
-    const folga = 1.14
-    const SQRT3 = Math.sqrt(3)
-    /*
-     * Com três anéis, a coluna axial vai de -2 a +2 e a linha também. Em largura isso ocupa
-     * `4·passoX` entre os centros extremos mais a largura de um hexágono (`√3·r`); em altura,
-     * `4·passoY` mais a altura de um (`2·r`). Os divisores abaixo são esses totais com uma
-     * margem, para nada encostar na borda nem nos painéis do HUD.
-     *
-     * `folga` afasta os centros o suficiente para os hexágonos não se tocarem. Como o rótulo
-     * agora vive dentro do hexágono, ela pode ser pequena e a colmeia fica justa.
-     */
-    const r = Math.min(width / 12.5, height / 9.6)
-    const passoX = SQRT3 * r * folga
-    const passoY = 1.5 * r * folga
+    centros.forEach(([x, y], slot) => {
+      const spec = porSlot.get(slot)
+      const realce = this.realcado === slot
 
-    const posicoes = [0, 1, 2].flatMap((k) => ColonyScene.anelAxial(k)).slice(0, this.specs.length)
-
-    // Axial -> pixel, com o deslocamento de meia coluna que dá o encaixe da colmeia.
-    const aPixel = ([q, linha]: [number, number]) => [passoX * (q + linha / 2), passoY * linha]
-
-    /*
-     * O último anel quase nunca fecha — são 16 construções para 19 células —, então centralizar
-     * na origem axial deixaria a colmeia visivelmente torta. Centralizamos na caixa que os
-     * hexágonos de fato ocupam.
-     */
-    const xs = posicoes.map((p) => aPixel(p)[0])
-    const ys = posicoes.map((p) => aPixel(p)[1])
-    const meioX = (Math.min(...xs) + Math.max(...xs)) / 2
-    const meioY = (Math.min(...ys) + Math.max(...ys)) / 2
-
-    this.specs.forEach((spec, i) => {
-      const [dx, dy] = aPixel(posicoes[i])
       this.raiz.add(
-        this.desenharConstrucao(spec, width / 2 + dx - meioX, height / 2 + dy - meioY, r),
+        spec
+          ? this.desenharConstrucao(spec, x, y, r, realce)
+          : this.desenharVazio(x, y, r, realce),
       )
     })
   }
 
-  private desenharConstrucao(spec: Spec, x: number, y: number, r: number) {
+  /**
+   * O slot vazio. Não é decoração: é o convite. Um traço interrompido e um "+" — nada de rótulo,
+   * porque um buraco não tem nome ainda.
+   */
+  private desenharVazio(x: number, y: number, r: number, realce: boolean) {
     const c = this.add.container(x, y)
+    const pontos = this.hexPontos(0, 0, r)
+
+    const g = this.add.graphics()
+    if (realce) {
+      g.fillStyle(CORES.ember, 0.35)
+      g.fillPoints(pontos, true, true)
+      g.lineStyle(2.5, CORES.rustBright, 1)
+    } else {
+      g.fillStyle(CORES.sandLight, 0.55)
+      g.fillPoints(pontos, true, true)
+      g.lineStyle(1.5, CORES.rust, 0.28)
+    }
+    g.strokePoints(pontos, true)
+    c.add(g)
+
+    c.add(
+      this.add
+        .text(0, 0, '+', {
+          fontFamily: 'Archivo, Inter, sans-serif',
+          fontSize: `${Math.round(r * 0.5)}px`,
+          fontStyle: 'bold',
+          color: '#b4450b',
+        })
+        .setOrigin(0.5)
+        .setAlpha(realce ? 1 : 0.45),
+    )
+
+    return c
+  }
+
+  private desenharConstrucao(spec: Spec, x: number, y: number, r: number, realce: boolean) {
+    const c = this.add.container(x, y)
+    // Nível 0 = está em obra: a linha já existe e ocupa o slot, mas a construção não subiu.
     const erguida = spec.level > 0
     const pontos = this.hexPontos(0, 0, r)
 
@@ -190,59 +205,42 @@ export class ColonyScene extends Phaser.Scene {
     if (erguida) {
       g.fillStyle(CORES.rust, 1)
       g.fillPoints(pontos, true, true)
-      g.lineStyle(2, CORES.ember, 1)
+      g.lineStyle(realce ? 3 : 2, realce ? CORES.rustBright : CORES.ember, 1)
     } else {
-      g.fillStyle(CORES.sandLight, 1)
+      g.fillStyle(CORES.ember, 0.5)
       g.fillPoints(pontos, true, true)
-      g.lineStyle(2, CORES.rust, 0.45)
+      g.lineStyle(realce ? 3 : 2, CORES.rust, realce ? 1 : 0.8)
     }
     g.strokePoints(pontos, true)
     c.add(g)
 
-    const nivel = this.add
-      .text(0, -r * 0.3, erguida ? String(spec.level) : '—', {
-        fontFamily: 'Archivo, Inter, sans-serif',
-        fontSize: `${Math.round(r * 0.5)}px`,
-        fontStyle: 'bold',
-        color: erguida ? '#fdf0e2' : '#b4450b',
-      })
-      .setOrigin(0.5)
-    c.add(nivel)
+    c.add(
+      this.add
+        .text(0, -r * 0.3, erguida ? String(spec.level) : '⏳', {
+          fontFamily: 'Archivo, Inter, sans-serif',
+          fontSize: `${Math.round(r * 0.5)}px`,
+          fontStyle: 'bold',
+          color: erguida ? '#fdf0e2' : '#b4450b',
+        })
+        .setOrigin(0.5),
+    )
 
     /*
-     * O nome vai DENTRO do hexágono. Numa colmeia de hexágonos pontudos as linhas distam
-     * `1,5·r`, então não sobra faixa livre abaixo de um hexágono: o da linha seguinte é
-     * desenhado depois e pinta por cima do rótulo. Não era truncamento de texto, era oclusão.
-     *
-     * Dentro, a largura útil na altura do texto é confortável (a largura do hexágono é `√3·r`),
-     * e nada de fora encosta.
+     * O nome vai DENTRO do hexágono. Numa colmeia de hexágonos pontudos as linhas distam `1,5·r`,
+     * então não sobra faixa livre abaixo de um hexágono: o da linha seguinte é desenhado depois e
+     * pinta por cima do rótulo. Não era truncamento de texto, era oclusão.
      */
-    const nome = this.add
-      .text(0, r * 0.12, rotulo(spec.type), {
-        fontFamily: 'Archivo, Inter, sans-serif',
-        fontSize: `${Math.max(9, Math.round(r * 0.14))}px`,
-        color: erguida ? '#fdf0e2' : '#372f27',
-        align: 'center',
-        wordWrap: { width: r * 1.15, useAdvancedWrap: true },
-      })
-      .setOrigin(0.5, 0)
-    c.add(nome)
-
-    // O hexágono inteiro é o alvo de clique, não a caixa do container.
-    const hit = new Phaser.Geom.Polygon(pontos)
-    c.setSize(r * 2, r * 2)
-    c.setInteractive(hit, Phaser.Geom.Polygon.Contains)
-
-    c.on('pointerover', () => {
-      g.lineStyle(3, CORES.rustBright, 1)
-      g.strokePoints(pontos, true)
-      this.input.setDefaultCursor('pointer')
-    })
-    c.on('pointerout', () => {
-      this.input.setDefaultCursor('default')
-      this.desenhar()
-    })
-    c.on('pointerdown', () => this.events.emit(EVENTOS.selecionou, spec))
+    c.add(
+      this.add
+        .text(0, r * 0.12, rotulo(spec.type), {
+          fontFamily: 'Archivo, Inter, sans-serif',
+          fontSize: `${Math.max(9, Math.round(r * 0.14))}px`,
+          color: erguida ? '#fdf0e2' : '#372f27',
+          align: 'center',
+          wordWrap: { width: r * 1.15, useAdvancedWrap: true },
+        })
+        .setOrigin(0.5, 0),
+    )
 
     return c
   }

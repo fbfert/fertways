@@ -127,6 +127,44 @@ export async function entrar(page) {
   await Promise.all([page.click('button[type=submit]'), page.waitForNetworkIdle({ idleTime: 800 })])
 }
 
+/**
+ * Clica numa construção da colônia, pelo nome.
+ *
+ * Os hexágonos são pintados pelo Phaser, mas **os alvos de clique são botões de DOM** sobrepostos
+ * a eles (ver `ColonyCanvas`), cada um com o seu `aria-label`. É por isso que este helper procura
+ * por rótulo, como todo o resto da suíte, em vez de calcular pixels — e é por isso que o e2e
+ * consegue tocar a colônia, coisa que num canvas puro ele não conseguiria.
+ */
+export async function clicarNaConstrucao(page, nome) {
+  const botao = await page.$(`button[aria-label^="${nome},"]`)
+
+  if (!botao) throw new Error(`não achei a construção "${nome}" na colônia`)
+
+  await botao.click()
+  await assentar()
+}
+
+/** Clica num slot vazio, por número. */
+export async function clicarNoSlotVazio(page, slot) {
+  const botao = await page.$(`button[aria-label^="Slot ${slot},"]`)
+
+  if (!botao) throw new Error(`o slot ${slot} não está vazio (ou não existe)`)
+
+  await botao.click()
+  await assentar()
+}
+
+/**
+ * A Capital, que desde o D-59 só se alcança pelo mapa — e é lá dentro que ficam o Ministério e o
+ * Mercado Central, instituições do governo (§2.1) e não construções do colono.
+ */
+export async function abrirCapital(page) {
+  await (await acharPorTexto(page, 'button', /^Mapa$/)).click()
+  await esperarTexto(page, /Capital em/)
+  await page.click('[aria-label="Capital"]')
+  await assentar()
+}
+
 /** Imprime o veredito e devolve o código de saída do processo. */
 export function relatar(nome) {
   /*

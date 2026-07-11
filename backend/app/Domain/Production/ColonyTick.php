@@ -143,15 +143,21 @@ class ColonyTick
             return;
         }
 
-        $especificacoes = $this->specsDaColonia($colony);
+        $erguidas = $this->erguidasComSpec($colony);
 
-        // Taxas por hora, somadas entre construções.
+        // Taxas por hora, somadas entre construções. Desde o D-59 a soma é por LINHA, não por
+        // tipo: Mina Local, Oficina, Refinaria e Destilaria podem ocupar mais de um slot, e duas
+        // Minas nível 1 produzem 15+15. Antes isto era indexado por tipo e a segunda cópia
+        // simplesmente sumia da conta.
         $taxas = [];
         $consumoEnergia = 0;
         $taxaDestilaria = 0;
-        $taxaComponentes = 0;
+        // Componentes por receita: cada Oficina escolhe a sua (§24.5), e duas Oficinas com
+        // receitas diferentes consomem insumos diferentes. Somar as taxas antes de saber a
+        // receita misturaria as duas contas.
+        $taxaComponentes = [];
 
-        foreach ($especificacoes as $tipo => $spec) {
+        foreach ($erguidas as ['tipo' => $tipo, 'spec' => $spec, 'recipe' => $recipe]) {
             $consumoEnergia += $spec->energia_consumo_hora;
 
             if (! $spec->producao_hora_json) {
@@ -161,13 +167,14 @@ class ColonyTick
             $producao = json_decode($spec->producao_hora_json, true);
 
             if ($tipo === 'destilaria') {
-                $taxaDestilaria = $producao['biocombustivel'];
+                $taxaDestilaria += $producao['biocombustivel'];
                 continue;
             }
 
             if ($tipo === 'oficina') {
                 // Ligas ficam de fora (sem receita); Componentes entram via §24.5.
-                $taxaComponentes = $producao['componentes_eletronicos'] ?? 0;
+                $taxa = $producao['componentes_eletronicos'] ?? 0;
+                $taxaComponentes[$recipe] = ($taxaComponentes[$recipe] ?? 0) + $taxa;
                 continue;
             }
 
@@ -197,9 +204,18 @@ class ColonyTick
             $this->converter($estoque, $taxaDestilaria * $segundos, self::RECEITA_DESTILARIA, 'biocombustivel');
         }
 
-        if ($taxaComponentes > 0) {
-            $receita = $this->receitaDaOficina($colony);
-            $this->converter($estoque, $taxaComponentes * $segundos, $receita, 'componentes_eletronicos');
+        // Uma conversão por receita em uso. Duas Oficinas na mesma receita entram somadas; em
+        // receitas distintas, cada uma consome os seus insumos. `ksort` só para a ordem não
+        // depender de qual Oficina foi lida primeiro: quando os insumos escasseiam, quem converte
+        // antes leva — e isso não pode variar a cada tick.
+        ksort($taxaComponentes);
+
+        foreach ($taxaComponentes as $codigo => $taxa) {
+            if ($taxa <= 0) {
+                continue;
+            }
+
+            $this->converter($estoque, $taxa * $segundos, $this->receita($codigo), 'componentes_eletronicos');
         }
 
         foreach ($estoque as $linha) {
@@ -263,33 +279,42 @@ class ColonyTick
      *
      * @return array<string,int>
      */
-    private function receitaDaOficina(Colony $colony): array
+    private function receita(string $codigo): array
     {
-        $escolhida = $colony->buildings()->where('type', 'oficina')->value('recipe')
-            ?? self::RECEITA_PADRAO;
+        $insumos = DB::table('component_recipes')->where('code', $codigo)->value('insumos_json');
 
-        $receita = DB::table('component_recipes')->where('code', $escolhida)->value('insumos_json');
-
-        return json_decode($receita ?? '{}', true);
+        return json_decode($insumos ?? '{}', true);
     }
 
-    /** @return array<string, object> spec vigente de cada construção erguida */
-    private function specsDaColonia(Colony $colony): array
+    /**
+     * Uma entrada por construção ERGUIDA — não por tipo (D-59).
+     *
+     * A versão anterior devolvia um mapa `tipo => spec`, o que era exato enquanto valia o
+     * `unique(colony_id, type)`. Com a repetição, esse mapa engoliria a segunda Mina em silêncio:
+     * a produção sairia pela metade e ninguém veria erro nenhum. É lista, e é lista de propósito.
+     *
+     * @return list<array{tipo: string, spec: object, recipe: string}>
+     */
+    private function erguidasComSpec(Colony $colony): array
     {
-        $erguidas = $colony->buildings()->where('level', '>', 0)->get(['type', 'level']);
+        $erguidas = $colony->buildings()->where('level', '>', 0)->get(['type', 'level', 'recipe']);
 
         if ($erguidas->isEmpty()) {
             return [];
         }
 
         $specs = DB::table('building_specs')
-            ->whereIn('building_type', $erguidas->pluck('type'))
+            ->whereIn('building_type', $erguidas->pluck('type')->unique())
             ->get()->keyBy(fn ($s) => "{$s->building_type}:{$s->level}");
 
         $saida = [];
         foreach ($erguidas as $b) {
             if ($spec = $specs->get("{$b->type}:{$b->level}")) {
-                $saida[$b->type] = $spec;
+                $saida[] = [
+                    'tipo' => $b->type,
+                    'spec' => $spec,
+                    'recipe' => $b->recipe ?? self::RECEITA_PADRAO,
+                ];
             }
         }
 

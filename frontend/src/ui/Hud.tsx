@@ -1,12 +1,8 @@
 import { useEffect, useState } from 'react'
 import { api, ApiError } from '../api/client'
-import type { Colonia, Fila, Receita, Spec } from '../api/client'
+import type { Catalogo, Colonia, Efeito, Erguivel, Fila, Funcao, Receita, Spec } from '../api/client'
 import { rotulo } from '../game/ColonyScene'
-import { nomeRecurso } from './recursos'
-
-/** Ordem do slide 07: primários, depois industriais. Só o que a colônia realmente move. */
-const PRIMARIOS = ['oxigenio', 'agua', 'biomassa', 'energia']
-const INDUSTRIAIS = ['metal_bruto', 'ligas_metalicas', 'compostos_quimicos', 'biocombustivel', 'componentes_eletronicos']
+import { INDUSTRIAIS, nomeRecurso, PRIMARIOS, RAROS } from './recursos'
 
 function Linha({ codigo, valor }: { codigo: string; valor: number }) {
   return (
@@ -17,22 +13,62 @@ function Linha({ codigo, valor }: { codigo: string; valor: number }) {
   )
 }
 
+/**
+ * Um bloco do painel. Os raros nascem recolhidos: são nove, o colono quase nunca os move, e
+ * abertos empurrariam os industriais para fora da tela.
+ */
+function Bloco({
+  titulo,
+  codigos,
+  colonia,
+  recolhivel = false,
+}: {
+  titulo: string
+  codigos: string[]
+  colonia: Colonia
+  recolhivel?: boolean
+}) {
+  const [aberto, setAberto] = useState(!recolhivel)
+  const total = codigos.reduce((s, c) => s + (colonia.resources[c] ?? 0), 0)
+
+  return (
+    <>
+      <button
+        onClick={() => recolhivel && setAberto((a) => !a)}
+        disabled={!recolhivel}
+        className="text-rust eyebrow mt-5 flex w-full items-center justify-between first:mt-0"
+      >
+        <span>{titulo}</span>
+        {recolhivel && (
+          <span className="text-ink-soft text-xs tabular-nums">
+            {total.toLocaleString('pt-BR')} {aberto ? '▾' : '▸'}
+          </span>
+        )}
+      </button>
+
+      {aberto && (
+        <div className="mt-2">
+          {codigos.map((c) => (
+            <Linha key={c} codigo={c} valor={colonia.resources[c] ?? 0} />
+          ))}
+        </div>
+      )}
+    </>
+  )
+}
+
+/**
+ * Os 26 recursos do GDD, nas três classes do §8.3 (D-59, item 4).
+ *
+ * A tela antiga mostrava 9 e chamava Metal Bruto de industrial. Ele é **primário** no GDD, e é daí
+ * que sai a alíquota do tributo e o teto do depósito — a classe não é rótulo, é regra.
+ */
 export function Recursos({ colonia }: { colonia: Colonia }) {
   return (
-    <div className="painel bg-sand-light w-64 p-4">
-      <div className="text-rust eyebrow">Recursos primários</div>
-      <div className="mt-2">
-        {PRIMARIOS.map((c) => (
-          <Linha key={c} codigo={c} valor={colonia.resources[c] ?? 0} />
-        ))}
-      </div>
-
-      <div className="text-rust eyebrow mt-5">Recursos industriais</div>
-      <div className="mt-2">
-        {INDUSTRIAIS.map((c) => (
-          <Linha key={c} codigo={c} valor={colonia.resources[c] ?? 0} />
-        ))}
-      </div>
+    <div className="painel bg-sand-light max-h-[calc(100vh-13rem)] w-64 overflow-y-auto p-4">
+      <Bloco titulo="Recursos primários" codigos={PRIMARIOS} colonia={colonia} />
+      <Bloco titulo="Recursos industriais" codigos={INDUSTRIAIS} colonia={colonia} />
+      <Bloco titulo="Recursos raros" codigos={RAROS} colonia={colonia} recolhivel />
     </div>
   )
 }
@@ -156,36 +192,125 @@ function ReceitaDaOficina({ spec, aoAtualizar }: { spec: Spec; aoAtualizar: () =
   )
 }
 
+/**
+ * O que a construção FAZ — a primeira coisa que o painel diz (D-59, item 5).
+ *
+ * Duas camadas, e a distinção entre elas é o ponto: a **frase** é o que o GDD promete, com o § de
+ * onde saiu; a **nota** é o que o jogo entrega, quando entrega menos. Sete construções ainda não
+ * fazem nada, e a tela diz isso em vez de deixar o colono gastar 90 Ligas para descobrir sozinho.
+ */
+function OQueFaz({ funcao, atual, proximo }: { funcao: Funcao; atual: Efeito | null; proximo: Efeito | null }) {
+  const producao = atual?.producao_hora ?? null
+  const proxima = proximo?.producao_hora ?? null
+
+  return (
+    <>
+      <p className="text-ink mt-3 text-sm leading-snug">{funcao.frase}</p>
+      <p className="text-ink-soft/60 mt-0.5 text-xs">GDD {funcao.fonte}</p>
+
+      {producao && (
+        <div className="mt-3">
+          <div className="text-ink-soft eyebrow">Produz por hora</div>
+          <div className="mt-1">
+            {Object.entries(producao).map(([c, v]) => (
+              <div
+                key={c}
+                className="border-rust/10 flex items-center justify-between border-b py-1.5 last:border-0"
+              >
+                <span className="text-ink-soft text-sm">{nomeRecurso(c)}</span>
+                <span className="text-ink font-bold tabular-nums">
+                  {v.toLocaleString('pt-BR')}
+                  {proxima?.[c] !== undefined && proxima[c] !== v && (
+                    <span className="text-rust text-xs"> → {proxima[c].toLocaleString('pt-BR')}</span>
+                  )}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {atual && atual.energia_hora > 0 && (
+        <p className="text-ink-soft mt-2 text-xs">
+          Consome {atual.energia_hora} kW/h de energia
+          {proximo && proximo.energia_hora !== atual.energia_hora && (
+            <span className="text-rust"> → {proximo.energia_hora}</span>
+          )}
+        </p>
+      )}
+
+      {/* A honestidade do D-59: a promessa do GDD e a entrega do jogo não são a mesma coisa. */}
+      {funcao.nota && (
+        <p className="border-rust/40 text-ink-soft mt-3 border-l-2 pl-2 text-xs leading-snug">
+          {funcao.nota}
+        </p>
+      )}
+    </>
+  )
+}
+
 export function Detalhe({
   spec,
   aoConstruir,
   aoAtualizar,
+  aoDemolir,
+  aoAbrirPorta,
   erro,
 }: {
   spec: Spec | null
   aoConstruir: (s: Spec) => void
   aoAtualizar: () => void
+  aoDemolir: (s: Spec) => void
+  aoAbrirPorta: (tipo: string) => void
   erro: string | null
 }) {
+  // O custo só aparece depois de o colono pedir para evoluir (D-59, item 5): a tela abre no que a
+  // construção faz, não no que ela cobra.
+  const [evoluindo, setEvoluindo] = useState(false)
+  const [confirmandoDemolicao, setConfirmandoDemolicao] = useState(false)
+
+  // Trocar de construção fecha os dois painéis: o custo da Oficina não pode ficar aberto quando o
+  // colono clica na Mina.
+  useEffect(() => {
+    setEvoluindo(false)
+    setConfirmandoDemolicao(false)
+  }, [spec?.id])
+
   if (!spec) {
     return (
       <div className="painel bg-sand-light w-72 p-4">
         <div className="text-rust eyebrow">Construção</div>
-        <p className="text-ink-soft mt-3 text-sm">Clique num hexágono da colônia.</p>
+        <p className="text-ink-soft mt-3 text-sm">
+          Clique numa construção para ver o que ela faz, ou num slot vazio para erguer algo.
+        </p>
       </div>
     )
   }
 
   const noMaximo = spec.next_level === undefined
   const min = spec.build_time_seconds ? Math.round(spec.build_time_seconds / 60) : null
+  const emObra = spec.level === 0
 
   return (
-    <div className="painel bg-sand-light w-72 p-4">
+    <div className="painel bg-sand-light max-h-[calc(100vh-13rem)] w-72 overflow-y-auto p-4">
       <div className="text-rust eyebrow">Construção</div>
       <h2 className="text-ink mt-1 text-lg leading-tight font-black">{rotulo(spec.type)}</h2>
       <div className="text-ink-soft text-xs">
-        nível {spec.level} de {spec.max_level}
+        {emObra ? 'em obra' : `nível ${spec.level} de ${spec.max_level}`}
+        {spec.essencial && <span className="text-rust"> · essencial</span>}
       </div>
+
+      <OQueFaz funcao={spec.funcao} atual={spec.efeito_atual} proximo={spec.efeito_proximo} />
+
+      {/* A porta: a Central de Transportes abre a Frota, o Mercado Local abre os Acordos (item 6). */}
+      {spec.funcao.efeito === 'porta' && !emObra && (
+        <button
+          onClick={() => aoAbrirPorta(spec.type)}
+          className="bg-rust text-sand-light hover:bg-rust-bright mt-4 w-full py-2.5 font-bold"
+        >
+          {spec.type === 'central_de_transportes' ? 'Ver a Frota' : 'Abrir os Acordos'}
+        </button>
+      )}
 
       {spec.blocked === 'tempo_indefinido' && (
         <p className="text-rust mt-3 text-sm">
@@ -197,38 +322,205 @@ export function Detalhe({
         <p className="text-ink-soft mt-3 text-sm">Nível máximo atingido.</p>
       )}
 
-      {spec.cost && (
+      {spec.cost && !emObra && (
         <>
           <div className="border-rust/30 my-3 border-t" />
-          <div className="text-ink-soft eyebrow">Custo do nível {spec.next_level}</div>
-          <div className="mt-1">
-            {Object.entries(spec.cost).map(([c, v]) => (
-              <Linha key={c} codigo={c} valor={v} />
-            ))}
-          </div>
-          {min !== null && <div className="text-ink-soft mt-2 text-xs">Tempo: {min} min</div>}
 
-          {/* §24.7, verbatim: a mensagem acompanha o custo, que continua exibido. */}
-          {spec.subsidized && (
-            <p className="text-rust mt-3 text-sm font-bold">
-              Esta construção será custeada pelo Governo Central até o nível 3
-            </p>
+          {!evoluindo ? (
+            <button
+              onClick={() => setEvoluindo(true)}
+              className="border-rust text-rust hover:bg-rust hover:text-sand-light w-full border py-2 font-bold"
+            >
+              Evoluir para o nível {spec.next_level}
+            </button>
+          ) : (
+            <>
+              <div className="text-ink-soft eyebrow">Custo do nível {spec.next_level}</div>
+              <div className="mt-1">
+                {Object.entries(spec.cost).map(([c, v]) => (
+                  <Linha key={c} codigo={c} valor={v} />
+                ))}
+              </div>
+              {min !== null && <div className="text-ink-soft mt-2 text-xs">Tempo: {min} min</div>}
+
+              {/* §24.7, verbatim: a mensagem acompanha o custo, que continua exibido. */}
+              {spec.subsidized && (
+                <p className="text-rust mt-3 text-sm font-bold">
+                  Esta construção será custeada pelo Governo Central até o nível 3
+                </p>
+              )}
+
+              {erro && <p className="text-rust mt-3 text-sm">{erro}</p>}
+
+              <button
+                onClick={() => aoConstruir(spec)}
+                className="bg-rust text-sand-light hover:bg-rust-bright mt-3 w-full py-2.5 font-bold"
+              >
+                Confirmar
+              </button>
+              <button
+                onClick={() => setEvoluindo(false)}
+                className="text-ink-soft hover:text-rust mt-1 w-full py-1 text-xs"
+              >
+                cancelar
+              </button>
+            </>
           )}
-
-          {erro && <p className="text-rust mt-3 text-sm">{erro}</p>}
-
-          <button
-            onClick={() => aoConstruir(spec)}
-            className="bg-rust text-sand-light hover:bg-rust-bright mt-4 w-full py-2.5 font-bold"
-          >
-            {spec.level === 0 ? 'Construir' : 'Evoluir'}
-          </button>
         </>
       )}
 
       {/* Oficina no nível 0 não fabrica nada; oferecer receita ali seria oferecer o vazio. */}
       {spec.type === 'oficina' && spec.level > 0 && (
         <ReceitaDaOficina spec={spec} aoAtualizar={aoAtualizar} />
+      )}
+
+      {/* Demolir: nunca uma essencial, nunca em obra. O investido não volta, e a tela avisa. */}
+      {spec.demolivel && !emObra && (
+        <>
+          <div className="border-rust/30 my-3 border-t" />
+          {!confirmandoDemolicao ? (
+            <button
+              onClick={() => setConfirmandoDemolicao(true)}
+              className="text-ink-soft hover:text-rust w-full py-1 text-xs"
+            >
+              Demolir
+            </button>
+          ) : (
+            <>
+              <p className="text-ink-soft text-xs leading-snug">
+                Demolir libera o slot. <span className="text-rust font-bold">Nada é devolvido</span> —
+                os recursos investidos nos {spec.level} níveis se perdem.
+              </p>
+              <button
+                onClick={() => aoDemolir(spec)}
+                className="border-rust text-rust hover:bg-rust hover:text-sand-light mt-2 w-full border py-2 text-sm font-bold"
+              >
+                Demolir mesmo assim
+              </button>
+              <button
+                onClick={() => setConfirmandoDemolicao(false)}
+                className="text-ink-soft hover:text-rust mt-1 w-full py-1 text-xs"
+              >
+                cancelar
+              </button>
+            </>
+          )}
+        </>
+      )}
+    </div>
+  )
+}
+
+/**
+ * O painel do slot vazio (D-59, item 2): o colono escolhe **o que** vai ali.
+ *
+ * A lista abre no que cada construção faz, não no preço — a mesma ordem do painel de detalhe. O
+ * custo aparece quando ele escolhe uma. As já erguidas somem da lista, exceto as repetíveis (Mina,
+ * Oficina, Refinaria, Destilaria), que podem ocupar quantos slots couberem.
+ */
+export function SlotVazio({
+  slot,
+  catalogo,
+  aoErguer,
+  aoFechar,
+  erro,
+}: {
+  slot: number
+  catalogo: Catalogo | null
+  aoErguer: (tipo: string, slot: number) => void
+  aoFechar: () => void
+  erro: string | null
+}) {
+  const [escolhida, setEscolhida] = useState<Erguivel | null>(null)
+
+  // Trocar de slot desfaz a escolha: o custo da Mina não pode ficar aberto num slot que não é o dela.
+  useEffect(() => setEscolhida(null), [slot])
+
+  if (!catalogo) {
+    return (
+      <div className="painel bg-sand-light w-72 p-4">
+        <div className="text-rust eyebrow">Slot vazio</div>
+        <p className="text-ink-soft mt-3 text-sm">Carregando o catálogo…</p>
+      </div>
+    )
+  }
+
+  const disponiveis = catalogo.buildings.filter((b) => b.disponivel)
+
+  return (
+    <div className="painel bg-sand-light max-h-[calc(100vh-13rem)] w-72 overflow-y-auto p-4">
+      <div className="flex items-baseline justify-between">
+        <div className="text-rust eyebrow">Slot vazio</div>
+        <button onClick={aoFechar} className="text-ink-soft hover:text-rust text-xs">
+          fechar
+        </button>
+      </div>
+
+      {!escolhida ? (
+        <>
+          <p className="text-ink-soft mt-2 text-sm">O que erguer aqui?</p>
+
+          <div className="mt-3 space-y-1">
+            {disponiveis.map((b) => (
+              <button
+                key={b.type}
+                onClick={() => setEscolhida(b)}
+                className="hover:bg-sand block w-full border border-transparent px-2 py-1.5 text-left"
+              >
+                <div className="text-ink text-sm font-bold">
+                  {rotulo(b.type)}
+                  {b.quantas > 0 && (
+                    <span className="text-ink-soft text-xs font-normal"> · você tem {b.quantas}</span>
+                  )}
+                </div>
+                <div className="text-ink-soft/80 text-xs leading-snug">{b.funcao.frase}</div>
+                {/* A construção inerte é anunciada como inerte, aqui também — e não só depois de paga. */}
+                {b.funcao.efeito === 'nenhum' && (
+                  <div className="text-rust/70 text-xs">efeito ainda não implementado</div>
+                )}
+              </button>
+            ))}
+          </div>
+
+          {disponiveis.length === 0 && (
+            <p className="text-ink-soft mt-3 text-sm">
+              Você já ergueu tudo o que existe. Os slots restantes esperam as construções das
+              próximas fatias.
+            </p>
+          )}
+        </>
+      ) : (
+        <>
+          <h2 className="text-ink mt-1 text-lg leading-tight font-black">{rotulo(escolhida.type)}</h2>
+
+          <OQueFaz funcao={escolhida.funcao} atual={null} proximo={null} />
+
+          <div className="border-rust/30 my-3 border-t" />
+          <div className="text-ink-soft eyebrow">Custo do nível 1</div>
+          <div className="mt-1">
+            {Object.entries(escolhida.cost).map(([c, v]) => (
+              <Linha key={c} codigo={c} valor={v} />
+            ))}
+          </div>
+          <div className="text-ink-soft mt-2 text-xs">
+            Tempo: {Math.round(escolhida.build_time_seconds / 60)} min
+          </div>
+
+          {erro && <p className="text-rust mt-3 text-sm">{erro}</p>}
+
+          <button
+            onClick={() => aoErguer(escolhida.type, slot)}
+            className="bg-rust text-sand-light hover:bg-rust-bright mt-4 w-full py-2.5 font-bold"
+          >
+            Construir aqui
+          </button>
+          <button
+            onClick={() => setEscolhida(null)}
+            className="text-ink-soft hover:text-rust mt-1 w-full py-1 text-xs"
+          >
+            escolher outra
+          </button>
+        </>
       )}
     </div>
   )

@@ -36,8 +36,22 @@ const ABAS: { chave: Aba; rotulo: string }[] = [
  * A "doca" das abas é esse depósito: um saldo por colônia e por recurso, fora do estoque, com teto
  * por classe (10 mil / 2.500 / 100).
  */
-export function Mercado({ colonia, aoFechar }: { colonia: Colonia; aoFechar: () => void }) {
-  const [aba, setAba] = useState<Aba>('doca')
+export function Mercado({
+  colonia,
+  aoFechar,
+  abaInicial = 'doca',
+}: {
+  colonia: Colonia
+  aoFechar: () => void
+  /**
+   * Por onde a tela abre (D-59, item 6). São duas portas para o mesmo salão, e a aba diz de qual
+   * delas o colono entrou: pela **Capital** (o Mercado Central, instituição do governo) ele cai na
+   * doca; pelo **Mercado Local** da sua colônia — "comércio direto com vizinhos", §17.2 — ele cai
+   * nos Acordos entre colonos.
+   */
+  abaInicial?: Aba
+}) {
+  const [aba, setAba] = useState<Aba>(abaInicial)
   const [frota, setFrota] = useState<Frota | null>(null)
   const [conta, setConta] = useState<ContaDoMercado | null>(null)
   const [vitrine, setVitrine] = useState<Vitrine | null>(null)
