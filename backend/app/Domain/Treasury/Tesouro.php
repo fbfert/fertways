@@ -80,6 +80,55 @@ class Tesouro
         });
     }
 
+    /**
+     * O governo gasta o próprio caixa (D-60): o Ministério dos Transportes consome recursos do
+     * Tesouro para fabricar um caminhão.
+     *
+     * Diferente de `distribuir`, aqui não há colono de destino e não há lançamento no ledger de
+     * ninguém — o recurso não vai para uma colônia, vira máquina. Quem registra o fato é o veículo
+     * que nasce, com a sua placa.
+     *
+     * @param  array<string,int>  $custo  recurso => quantidade
+     * @return bool false se o Tesouro não tinha tudo — e então **nada** foi debitado
+     */
+    public function gastar(array $custo): bool
+    {
+        try {
+            DB::transaction(function () use ($custo) {
+                foreach ($custo as $recurso => $qtd) {
+                    if ($qtd <= 0) {
+                        continue;
+                    }
+
+                    // `where amount >= qtd` no UPDATE: o saldo nunca fica negativo, nem em corrida.
+                    $baixou = TreasuryHolding::whereKey($recurso)->where('amount', '>=', $qtd)->decrement('amount', $qtd);
+
+                    if ($baixou === 0) {
+                        // O throw é o rollback: um caminhão não sai pela metade. Ou o Tesouro tinha
+                        // os três recursos, ou não gastou nenhum.
+                        throw new TesouroSemSaldo;
+                    }
+                }
+            });
+
+            return true;
+        } catch (TesouroSemSaldo) {
+            return false;
+        }
+    }
+
+    /** Tem saldo para este custo? Leitura pura — quem decide de verdade é o `gastar`, sob lock. */
+    public function comporta(array $custo): bool
+    {
+        foreach ($custo as $recurso => $qtd) {
+            if ((int) (TreasuryHolding::whereKey($recurso)->value('amount') ?? 0) < $qtd) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
     /** Cria a linha se faltar e soma o delta. */
     private function ajustar(string $chave, int $delta): void
     {
@@ -99,3 +148,6 @@ class Tesouro
         ]);
     }
 }
+
+/** Aborta a transação do `gastar` sem virar erro de verdade: o caixa não tinha o saldo. */
+class TesouroSemSaldo extends \RuntimeException {}

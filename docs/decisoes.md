@@ -1808,3 +1808,116 @@ tudo com um rollback — não é uma segunda implementação que pode divergir d
   da Oficina (D-54) não tem. As rotas são cobertas em PHP.
 - **Não há teto de cópias** além dos 16 slots livres e do que o Reator sustenta. É deliberado: o
   limite energético é o único que o GDD publica (§19.8), e ele já morde.
+
+---
+
+## D-60 — O Ministério dos Transportes: fábrica única de caminhões, cartório de placas e oficina.
+**Data:** 2026-07-12 · **Status:** decidido pelo usuário · **GDD: publica muito, e o usuário
+contraria dois pontos de propósito**
+
+### Primeiro, a premissa que estava errada
+
+O usuário abriu o assunto dizendo que "o GDD fala que a Central de Transportes de cada colono pode
+fabricar um caminhão por nível". **Não fala** — ou melhor, é o que diz o §28.5 ("Regra Definitiva":
+"os caminhões correspondentes ao nível atual já estão incluídos no upgrade da Central — sem custo
+adicional"), e a **tabela de precedência da seção 0 já o revogou**: *"Libera vagas de frota; veículo
+é fabricado ou adquirido separadamente."* Isso é o **D-28**, de 2026-07-09, e o **D-47** cita este
+caso pelo nome como o exemplo que justifica a ressalva "dentro da mesma parte".
+
+**Então este D-60 não contraria o GDD nesta matéria — ele o completa.** O D-28 disse que o caminhão
+é "fabricado ou adquirido separadamente" e nunca construímos o *separadamente*: até hoje **o
+Caminhão de Carga é inalcançável no jogo**. Nenhuma parte do código o fabrica, e nenhum colono pode
+ter um. O D-60 decide quem o fabrica.
+
+### O que o GDD já publica (e que não se inventa aqui)
+
+A §16 chama-se "Frota e Ministério dos Transportes". O painel dele vem com **seis atribuições
+escritas**: registro de placas; curva de depreciação; limite crítico; perda de vida útil e teto de
+revenda; frota de Cargueiros Interplanetários; relatórios de volume. O §16.3 publica o **formato da
+placa** (`FW-07429-F`) e os campos do registro. O §16.4 descreve a depreciação — **sem publicar um
+número sequer**. O §19.5 publica as vagas da Central (1 a 10, uma por nível). O §21.3 publica o custo
+do Caminhão.
+
+### As decisões do usuário (2026-07-12)
+
+1. **Fabricar caminhão é privativo do Ministério.** A Central de Transportes do colono não fabrica
+   nada. É a mudança que o usuário pediu, e ela cai sobre um GDD que dizia que a Central *produz*
+   Caminhões (§17.2, §21.3: "Construída na Central de Transportes") — **contradição deliberada**,
+   registrada aqui.
+2. **A Central vira a vaga, e a vaga passa a morder.** Teto de veículos simultâneos =
+   **máximo(1, nível da Central)**. Hoje esse limite não vale no jogo; passa a valer.
+   - O `máximo(1, …)` resolve um problema que o D-59 criou: construção não erguida não existe, então
+     **toda colônia nova tem zero Central** — e o kit inicial dá um Furgão. Sem o piso de 1, o
+     Furgão do kit nasceria fora da lei.
+   - Ele **preserva as duas tabelas do GDD**: a Central dá 1..10 (§19.5) e o Terminal de Cargas, que
+     "acrescenta duas vagas em cada nível", dá 3..12 — que é exatamente o que o §17.3 publica.
+   - Efeito colateral aceito: erguer a Central no **nível 1 não dá vaga nova**.
+3. **O Ministério ocupa o slot 8 da Capital.** O §2.1 reserva os slots **8 e 9** para Quartel de
+   Alianças e Embaixada Interplanetária, ambos fora do MVP — então isto é **arbitragem do usuário
+   contra o §2.1**, escolhida sobre a alternativa de dividir o slot 6 (Pátio Logístico Público) com o
+   Mercado. A Capital passa a ter **8 slots** na tela.
+4. **Preço: 300 Fert$** pelo Caminhão **nível 1**. Os recursos dele valem ~33,60 Fert$ a preço de
+   referência, então é ~9× — margem gorda e deliberada: é o dreno de Fert$ que dá serventia ao caixa
+   do Tesouro (D-57). **Não é do GDD.**
+5. **Só o nível 1 é vendido, e o nível do veículo fica dormente.** O GDD nunca diz o que o nível de
+   um veículo muda (a capacidade é fixa por tipo: 6 m³ / 30 m³). Vender só o nível 1 não inventa
+   nada e não fecha porta nenhuma.
+   > **Nota de errata evitada.** O GDD tem **duas tabelas de custo diferentes** para o Caminhão: a
+   > §21.3 dá Ligas `90 135 202 304 456` (curva 1,50×) e a §20 dá `90 149 245 404 667` (curva
+   > 1,65×) — a mesma armadilha do D-37. **O nível 1 é idêntico nas duas** (90 Ligas, 25
+   > Componentes, 16 Metal Bruto), e como só ele é vendido, a divergência **não nos toca**. Fica
+   > registrada, não resolvida. Se um dia os níveis 2+ entrarem, é aqui que a briga começa.
+6. **O Ministério paga a fabricação com o caixa do Tesouro.** Cada caminhão consome 90 Ligas, 25
+   Componentes e 16 Metal Bruto **do Tesouro** (D-57); os 300 Fert$ do colono **entram no Tesouro**.
+   Se o Tesouro não tiver os recursos, **não há caminhão** — a redistribuição do §2.1 vira uma
+   decisão de governo com consequência.
+7. **Fabricação leva 1 hora, e o governo mantém 5 prontos na prateleira**, repondo sozinho no tick.
+   Quem compra da prateleira leva na hora; quem a esvaziou, espera.
+8. **A entrega é física: o caminhão dirige-se sozinho da Capital até a colônia.** Simétrico ao
+   usado. **A viagem de entrega não conta como uso ativo** — o veículo chega com 100%.
+9. **O Furgão não é vendido.** Continua vindo só no kit inicial. Quem vender o seu no mercado de
+   usados fica sem — e só um usado o traz de volta.
+10. **Placas (§16.3): `FW` + 5 dígitos sequenciais + a inicial do tipo** (`F` Furgão, `C` Caminhão).
+    É a leitura do único exemplo publicado. Todo veículo civil é registrado ao nascer ou ao mudar de
+    dono. Os veículos que **já existem** ganham placa por backfill, na ordem de criação.
+11. **Depreciação: 0,5% de conservação por hora de uso ativo**, só para Furgão e Caminhão (o §16.4
+    é explícito: "apenas Furgão e Caminhão possuem depreciação ativa"). Uma viagem longa de ida e
+    volta (~3 h) custa ~1,5%.
+12. **Manutenção: na Central de Transportes do colono, em recursos = 10% do custo do veículo.** Para
+    o Caminhão: 9 Ligas, 3 Componentes, 2 Metal Bruto. É uma **fração da tabela publicada**, não uma
+    constante nova — acompanha o GDD em vez de apodrecer. Restaura a conservação **até o teto**; e o
+    **teto cai 5 pontos a cada manutenção**, então o veículo envelhece de verdade (~14 manutenções).
+13. **Sucata: só por vontade do dono, a qualquer momento.** Nada some da frota sem o jogador mandar.
+    Sem devolução de recursos.
+
+### A contradição que o usuário escolheu, de olhos abertos
+
+**O veículo desgastado nunca trava.** O §16.4 nomeia um "**Bloqueio operacional** — abaixo de um
+limite crítico, o veículo não pode iniciar nova missão sem manutenção", e o painel do §16 manda
+"configurar limite crítico de desempenho **que bloqueia novas missões**". O usuário decidiu o
+contrário: **velocidade e capacidade caem na proporção do estado, mas o veículo sempre anda.**
+
+O **limite crítico sobrevive com outro sentido**: passa a ser o **piso de desempenho**. Semeado em
+**25%** — um caminhão a 5% de conservação ainda anda a 25% da velocidade e carrega 25% da carga.
+Assim nenhuma das seis atribuições publicadas do painel se perde, e o colono nunca vê um patrimônio
+de 300 Fert$ parado esperando peças. É o mesmo tipo de contradição consciente do **D-32** (o tributo):
+**não a "conserte" sem perguntar.**
+
+### As consequências que o assistente arbitrou, e por quê
+
+Não são valores novos — são desdobramentos das regras acima, e ficam registradas porque um leitor
+futuro vai tropeçar nelas:
+
+- **Comprar exige vaga livre.** Se o teto da Central já está cheio, a compra é recusada antes de o
+  Fert$ sair. Senão o teto viraria decoração — mesma lógica do teto do depósito no D-58.
+- **O teto de revenda em Fert$ = 300 × o teto de conservação do veículo.** O §16.4 diz que cada
+  manutenção "reduz o teto de valor de revenda" e que o estado "afeta diretamente o preço de venda",
+  mas nunca diz em relação a quê. O preço de fábrica é a única âncora que existe.
+- **O limite crítico (o piso, 25%) é parâmetro do operador**, semeado — como a curva de depreciação
+  e o custo de manutenção. Nada de número chumbado no código: é o padrão do D-35.
+
+### O que fica de fora, de propósito
+
+**O Cargueiro Interplanetário e o seu aluguel** — quinta atribuição do painel — **não entram**.
+Dependem do Espaçoporto e dos 5 planetas NPC, que não existem. O GDD é explícito: "não recebe tabela
+de fabricação; permanece serviço/aluguel governamental". Entra quando o Espaçoporto entrar.

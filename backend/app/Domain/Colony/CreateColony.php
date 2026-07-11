@@ -3,6 +3,7 @@
 namespace App\Domain\Colony;
 
 use App\Domain\Logistics\MapaFertways;
+use App\Domain\Transport\Placas;
 use App\Exceptions\DomainRuleException;
 use App\Models\Building;
 use App\Models\Colony;
@@ -94,12 +95,17 @@ class CreateColony
                 ], Resource::daColonia()),
             );
 
-            $colony->vehicles()->create([
+            $furgao = $colony->vehicles()->create([
                 'type' => 'furgao_de_comercio',
                 'level' => 1,
                 'status' => 'ocioso',
                 'capacity' => Vehicle::CAPACIDADE['furgao_de_comercio'],
             ]);
+
+            // §16.3: "todo veículo civil recebe registro obrigatório no Ministério dos Transportes
+            // ao ser construído ou adquirido". O Furgão do kit não é exceção — ele é o primeiro
+            // veículo do colono e o primeiro registro dele no Ministério (D-60).
+            app(Placas::class)->registrar($furgao);
 
             // O saldo entra como lançamento, não como número mudo na coluna: o ledger é a
             // fonte auditável, e `colonies.fert_micro` é só a projeção do saldo corrente.

@@ -78,7 +78,12 @@ $c->update(["fert_micro" => 1000 * 1000000]);
  * clicar em lugar nenhum. Slots 0 e 1: os dois primeiros de fora do miolo (que ocupa 5, 9, 10,
  * 11 e 15). O e2e clica neles por posição; ver `clicarNoSlot` em e2e/comum.mjs.
  */
-$c->buildings()->create(["type" => "central_de_transportes", "level" => 1, "slot" => 0]);
+/*
+ * A Central vem no nível 5, e não no 1, por causa do D-60: o nível dela virou o TETO de veículos
+ * do colono (máximo(1, nível)). Este colono tem três furgões — no nível 1 ele estaria acima do
+ * teto e não poderia comprar caminhão nenhum, e o e2e da compra não teria como existir.
+ */
+$c->buildings()->create(["type" => "central_de_transportes", "level" => 5, "slot" => 0]);
 $c->buildings()->create(["type" => "mercado_local", "level" => 1, "slot" => 1]);
 
 // Carga já na doca: sem ela não há o que vender, e esperar uma viagem real levaria minutos.
@@ -89,10 +94,27 @@ App\Models\MarketAccount::create([
 // Mais dois furgões. A colônia nasce com um só; o teste do Mercado deixa dois em rota (Capital e
 // vizinha), e o do Acordo precisa de um terceiro ocioso para despachar a entrega.
 foreach ([1, 2] as $ignorado) {
-    $c->vehicles()->create([
+    $furgao = $c->vehicles()->create([
         "type" => "furgao_de_comercio", "level" => 1, "status" => "ocioso",
         "capacity" => App\Models\Vehicle::CAPACIDADE["furgao_de_comercio"],
     ]);
+    // §16.3: todo veículo civil é registrado. Estes nascem fora do domínio, então a placa vem à
+    // mão — senão a tela do Ministério os mostraria sem registro, que é um estado que o jogo real
+    // não produz.
+    app(App\Domain\Transport\Placas::class)->registrar($furgao);
+}
+
+/*
+ * D-60: a prateleira do Ministério dos Transportes. Quem a repõe é o tick, e o e2e não roda tick —
+ * então o governo já entra com dois caminhões prontos. É o estado que um colono encontra ao chegar
+ * à Capital num servidor que anda.
+ */
+foreach ([1, 2] as $ignorado) {
+    $caminhao = App\Models\Vehicle::create([
+        "colony_id" => null, "type" => "caminhao_de_carga", "level" => 1, "status" => "estoque",
+        "capacity" => App\Models\Vehicle::CAPACIDADE["caminhao_de_carga"],
+    ]);
+    app(App\Domain\Transport\Placas::class)->registrar($caminhao);
 }
 
 // Uma vizinha, para o diretório de colônias ter o que listar. Em (0,6): a 3 slots de (0,3).

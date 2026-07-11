@@ -42,6 +42,7 @@ class Ledger extends Model
         'transferencia_tesouro', // Ministério do Tesouro: distribuição do governo ao colono (D-57)
         'kit_recursos',        // kit fixo de recursos por colônia, emissão do governo (D-57)
         'devolucao_deposito',  // carga que não coube no teto do depósito e voltou no veículo (D-58)
+        'compra_veiculo',      // §16: Caminhão comprado do Ministério dos Transportes, em Fert$ (D-60)
         'estorno',
     ];
 

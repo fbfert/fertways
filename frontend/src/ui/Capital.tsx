@@ -2,16 +2,20 @@ import { useState } from 'react'
 import { Financas } from './Financas'
 import { Noticias } from './Noticias'
 import { Tesouro } from './Tesouro'
+import { Transportes } from './Transportes'
 
 /**
  * A Capital — o hub das instituições do governo (§02, §2.1). Não substitui os botões do HUD:
  * é o diretório dos slots. Os slots ativos abrem sua tela; o Mercado (6) e o Ministério (7) reusam
  * as telas de topo do HUD (via callbacks), e as instituições novas (Tesouro 2, Notícias 3,
- * Finanças 4) abrem como sub-telas aqui dentro. Reservados (8–9) e expansão (10–20) ficam travados.
+ * Finanças 4, Transportes 8) abrem como sub-telas aqui dentro.
  *
  * O Ministério da Segurança e Guerra (5) é a Fatia 2 do D-52 — aparece marcado "em breve".
+ *
+ * **O slot 8 é uma arbitragem contra o GDD.** O §2.1 o reserva para o Quartel de Alianças, fora do
+ * MVP; o usuário pôs ali o Ministério dos Transportes (D-60). São oito slots agora, não sete.
  */
-type Sub = 'tesouro' | 'financas' | 'noticias'
+type Sub = 'tesouro' | 'financas' | 'noticias' | 'transportes'
 
 type Acao =
   | { tipo: 'sub'; sub: Sub }
@@ -41,12 +45,14 @@ export function Capital({
     { n: '5', nome: 'Ministério da Segurança e Guerra', funcao: 'Conflitos, tratados e janelas de vulnerabilidade.', acao: { tipo: 'embreve' } },
     { n: '6', nome: 'Pátio Logístico Público', funcao: 'Docas públicas e Mercado Central.', acao: { tipo: 'externa', chave: 'mercado', abrir: aoAbrirMercado } },
     { n: '7', nome: 'Ministério das Reputações', funcao: 'Denúncias, conciliação, recursos e histórico.', acao: { tipo: 'externa', chave: 'ministerio', abrir: aoAbrirMinisterio } },
+    { n: '8', nome: 'Ministério dos Transportes', funcao: 'Fábrica de Caminhões, registro de placas e frota.', acao: { tipo: 'sub', sub: 'transportes' } },
   ]
 
   const TITULO: Record<Sub, string> = {
     tesouro: 'Central de Tributos',
     financas: 'Secretaria de Finanças',
     noticias: 'Central de Pesquisas e Notícias',
+    transportes: 'Ministério dos Transportes',
   }
 
   return (
@@ -77,6 +83,7 @@ export function Capital({
             {sub === 'tesouro' && <Tesouro />}
             {sub === 'financas' && <Financas />}
             {sub === 'noticias' && <Noticias />}
+            {sub === 'transportes' && <Transportes />}
           </>
         ) : (
           <>
@@ -86,8 +93,8 @@ export function Capital({
               ))}
             </ul>
             <p className="text-ink-soft/60 mt-4 text-xs">
-              Slots 8–9 (Quartel de Alianças, Embaixada) e 10–20 são reservados — fora do MVP por
-              decisão do GDD.
+              O slot 9 (Embaixada) e os 10–20 são reservados. O 8 era o Quartel de Alianças no §2.1;
+              o Ministério dos Transportes o ocupa por decisão do usuário (D-60).
             </p>
           </>
         )}

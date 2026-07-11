@@ -424,6 +424,40 @@ export type Denuncia = {
 
 // ── Capital: instituições do governo (§02) ──────────────────────────────────
 
+/**
+ * Ministério dos Transportes (§16, slot 8 — D-60).
+ *
+ * `em_estoque` é a prateleira de pronta entrega; `em_fabricacao`, a linha de montagem. O governo
+ * repõe sozinho até 5, consumindo o Tesouro — se o caixa secar, os dois zeram e ninguém compra.
+ */
+export type Transportes = {
+  caminhao: {
+    tipo: string
+    preco_fert: number
+    capacidade: number
+    em_estoque: number
+    em_fabricacao: number
+    minutos_fabricacao: number
+  }
+  frota: { teto: number; ocupadas: number; livres: number; regra: string }
+  veiculos: {
+    id: number
+    placa: string | null
+    tipo: string
+    status: string
+    chega_em: string | null
+  }[]
+}
+
+export type CaminhaoComprado = {
+  id: number
+  placa: string | null
+  tipo: string
+  /** A entrega é física: ele vem dirigindo da Capital (D-60). */
+  a_caminho: boolean
+  chega_em: string | null
+}
+
 export type Tesouro = {
   fert_micro: number
   recursos: { code: string; nome: string; tax_class: string; total: number }[]
@@ -507,6 +541,13 @@ export const api = {
   tesouro: () => req<Tesouro>('/treasury'),
   financas: () => req<Financas>('/finance'),
   noticias: () => req<Noticias>('/news'),
+
+  /**
+   * Ministério dos Transportes (§16, slot 8): a vitrine do Caminhão, a prateleira do governo e a
+   * frota do colono com as placas. Desde o D-60, é o único lugar do planeta que fabrica caminhão.
+   */
+  transportes: () => req<Transportes>('/transport'),
+  comprarCaminhao: () => req<{ comprado: CaminhaoComprado }>('/transport/buy', { method: 'POST' }),
 
   /** Ocupa uma zona livre: Posto de Comando + 20 Robôs Mineradores + tempo de ocupação (§07). */
   ocuparZona: (id: number) =>

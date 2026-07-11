@@ -8,9 +8,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class Vehicle extends Model
 {
     protected $fillable = [
-        'colony_id', 'type', 'level', 'status', 'capacity',
+        'colony_id', 'type', 'plate', 'level', 'status', 'capacity',
         'origin_id', 'destination_type', 'destination_id', 'leg', 'trip_purpose', 'distance_slots',
-        'departs_at', 'arrives_at', 'cargo_json',
+        'departs_at', 'arrives_at', 'ready_at', 'cargo_json',
     ];
 
     protected $casts = [
@@ -19,6 +19,8 @@ class Vehicle extends Model
         'distance_slots' => 'integer',
         'departs_at' => 'datetime',
         'arrives_at' => 'datetime',
+        // Só a frota do governo o usa: quando o caminhão sai da linha de montagem (D-60).
+        'ready_at' => 'datetime',
         'cargo_json' => 'array',
     ];
 

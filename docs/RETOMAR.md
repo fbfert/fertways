@@ -127,7 +127,27 @@ O MVP tem, funcionando e no ar em `https://fertways.tars.art.br`:
     demolir não têm e2e** — o painel está atrás de um clique num hexágono do Phaser, mesma razão da
     receita da Oficina (D-54). Cobertos em PHP.
 
-**266 testes PHP (2478 asserções) + 7 e2e, verdes.** O cron do tick está instalado (crontab do usuário
+- **Ministério dos Transportes — Fatia 1 (D-60)** — **slot 8 da Capital**, contra o §2.1, que o
+  reservava ao Quartel de Alianças. Arbitragem do usuário; a Capital tem **8 slots** agora.
+  - **Fabricar caminhão é privativo dele.** A Central de Transportes do colono **não fabrica nada** —
+    e o GDD (§17.2, §21.3) diz que fabrica. Contradição deliberada, registrada. Antes do D-60 o
+    Caminhão de Carga era **inalcançável**: nada no jogo o produzia.
+  - **A Central virou a vaga, e a vaga passa a morder**: teto = **máximo(1, nível)**. O piso de 1
+    existe porque o D-59 fez colônia nova nascer *sem* Central, e o Furgão do kit precisava caber.
+    A fórmula preserva as duas tabelas do GDD (§19.5 dá 1..10; o Terminal de Cargas, +2, dá 3..12).
+  - **300 Fert$**, só o nível 1, pagos ao Tesouro. O Ministério **consome o caixa do Tesouro**
+    (90 Ligas, 25 Componentes, 16 Metal Bruto por caminhão): **se o Tesouro secar, não há caminhão.**
+  - Fabricação de **1 h**; o governo mantém **5 prontos** na prateleira, repondo sozinho no tick.
+  - **A entrega é física:** o caminhão **dirige-se sozinho da Capital** até a colônia. Reusa o trecho
+    de "volta" do `ConcluirTrechos` — **zero linha nova** na máquina de viagem.
+  - **Placas (§16.3):** `FW-00001-C`. Todo veículo civil é registrado. Backfill: `artisan
+    fertways:placas --aplicar`.
+  - **O caminhão do governo é um veículo sem dono** (`colony_id` nulo) — é a "Frota Governamental"
+    do §16.2. Vender **não cria veículo**: dá dono a um que já existia, e a placa atravessa intacta.
+  - **Fatias 2 e 3, ainda por fazer:** depreciação + manutenção + sucata; e o mercado de usados +
+    relatórios de volume. Tudo já decidido no D-60 — é só construir.
+
+**286 testes PHP (2533 asserções) + 7 e2e, verdes.** O cron do tick está instalado (crontab do usuário
 `fertways`, log em `/home/fertways/logs/fertways-tick.log`) e roda o `artisan` **da cópia de
 deploy** — o mundo avança sozinho. O tick faz: produção, upgrades, proteções, trechos de viagem,
 acordos vencidos, **casos reatribuídos, janelas de apelação fechadas e a folha do Ministério**.

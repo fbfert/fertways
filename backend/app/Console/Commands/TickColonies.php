@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Domain\Logistics\ConcluirTrechos;
 use App\Domain\Logistics\ExtrairZonasNeutras;
+use App\Domain\Transport\FabricarCaminhoes;
 use App\Domain\Ministry\ExpirarPrazos;
 use App\Domain\Ministry\PagarConciliadores;
 use App\Domain\Production\ColonyTick;
@@ -39,6 +40,7 @@ class TickColonies extends Command
         ExpirarPrazos $ministerio,
         PagarConciliadores $folha,
         ExtrairZonasNeutras $zonasNeutras,
+        FabricarCaminhoes $fabrica,
     ): int {
         $agora = now();
         $processadas = 0;
@@ -89,7 +91,16 @@ class TickColonies extends Command
         ['reatribuidos' => $reatribuidos, 'encerrados' => $encerrados] = $ministerio->handle();
         $salarios = $folha->handle();
 
-        $this->info("tick: {$processadas} colônias, {$falhas} falhas, {$zonas} proteções expiradas, {$extraidas} zonas extraídas, {$entregas} trechos concluídos, {$vencidos} acordos vencidos, {$reatribuidos} casos reatribuídos, {$encerrados} casos encerrados, {$salarios} salários pagos");
+        /*
+         * A linha de montagem do Ministério dos Transportes (D-60): fecha o que ficou pronto e
+         * repõe a prateleira até 5, consumindo o Tesouro. Vem **depois** das entregas de propósito:
+         * um caminhão comprado neste mesmo tick já saiu da prateleira, e a reposição tem de contar
+         * a prateleira como ela ficou, não como estava. Se o Tesouro estiver seco, não repõe — e
+         * isso não é falha do tick.
+         */
+        ['prontos' => $prontos, 'encomendados' => $encomendados] = $fabrica->handle();
+
+        $this->info("tick: {$processadas} colônias, {$falhas} falhas, {$zonas} proteções expiradas, {$extraidas} zonas extraídas, {$entregas} trechos concluídos, {$vencidos} acordos vencidos, {$reatribuidos} casos reatribuídos, {$encerrados} casos encerrados, {$salarios} salários pagos, {$prontos} caminhões prontos, {$encomendados} encomendados");
 
         return $falhas > 0 ? self::FAILURE : self::SUCCESS;
     }

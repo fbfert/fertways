@@ -39,6 +39,7 @@ try {
     'Central de Pesquisas e Notícias',
     'Ministério das Reputações',
     'Ministério da Segurança e Guerra',
+    'Ministério dos Transportes',
   ]) {
     checar(await esperarTexto(page, new RegExp(nome)), `o slot "${nome}" aparece`)
   }
@@ -67,6 +68,45 @@ try {
   checar(await esperarTexto(page, /Telescópio Gagarin/), 'a tela de Notícias abre')
   checar(await esperarTexto(page, /inativo/), 'o Gagarin aparece honestamente inativo (§12.1)')
   checar(await esperarTexto(page, /Servidor aberto/), 'o comunicado semeado aparece no mural')
+
+  console.log('\nVolta e abre o Ministério dos Transportes (slot 8)')
+  await page.click('[data-voltar-capital]')
+  await page.waitForSelector('[data-abrir="transportes"]')
+  await page.click('[data-abrir="transportes"]')
+  await page.waitForSelector('[data-tela="transportes"]')
+  checar(await esperarTexto(page, /Caminhão de Carga/), 'a fábrica do governo abre')
+  checar(await esperarTexto(page, /300 F\$/), 'o preço do D-60 aparece')
+  checar(
+    await esperarTexto(page, /privativo deste Ministério/),
+    'a tela diz que a Central de Transportes não fabrica mais — o GDD (§17.2) diz que sim, e o jogador precisa saber onde a fábrica foi parar',
+  )
+
+  console.log('\nO registro de placas (§16.3)')
+  checar(await esperarTexto(page, /Registro de Placas/), 'o registro abre')
+  checar(await esperarTexto(page, /FW-\d{5}-F/), 'os Furgões do colono têm placa')
+
+  const prateleira = await page.$eval('[data-estoque]', (el) => el.getAttribute('data-estoque'))
+  checar(prateleira === '2', `o governo tem 2 caminhões prontos (veio ${prateleira})`)
+
+  console.log('\nCompra um Caminhão de Carga')
+  const vagasAntes = await page.$eval('[data-vagas]', (el) => el.getAttribute('data-vagas'))
+  await page.click('[data-comprar-caminhao]')
+
+  checar(
+    await esperarTexto(page, /vem dirigindo da Capital/),
+    'a entrega é física: o caminhão dirige-se da Capital até a colônia (D-60)',
+  )
+  checar(await esperarTexto(page, /FW-\d{5}-C/), 'o Caminhão comprado traz a sua placa, com o C do tipo')
+
+  // A prateleira do governo baixou e a vaga do colono foi ocupada: a venda mexeu nos dois lados.
+  const depois = await page.$eval('[data-estoque]', (el) => el.getAttribute('data-estoque'))
+  checar(depois === '1', `a prateleira do governo baixou de 2 para 1 (veio ${depois})`)
+
+  const vagasDepois = await page.$eval('[data-vagas]', (el) => el.getAttribute('data-vagas'))
+  checar(
+    Number(vagasDepois) === Number(vagasAntes) - 1,
+    `a compra ocupou uma vaga da frota (${vagasAntes} → ${vagasDepois})`,
+  )
 } catch (e) {
   falhas.push(`exceção: ${e.message}`)
   try {

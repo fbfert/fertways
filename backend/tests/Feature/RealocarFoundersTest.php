@@ -66,8 +66,16 @@ class RealocarFoundersTest extends TestCase
     public function test_recusa_se_algum_veiculo_nao_esta_ocioso(): void
     {
         $a = $this->colonia('alfa', 20, 20);
-        // O Furgão do kit inicial em rota: realocar agora quebraria a viagem (§25.5).
-        $a->vehicles()->first()->forceFill(['status' => 'ida'])->save();
+
+        /*
+         * O Furgão do kit inicial em rota: realocar agora quebraria a viagem (§25.5).
+         *
+         * Este teste dizia `'status' => 'ida'` — que nunca foi um estado válido de veículo ('ida' é
+         * valor de `leg`, não de `status`). Passava porque o SQLite não fazia cumprir o enum. A
+         * migration do D-60 reconstruiu a coluna e agora ele cumpre, como o MariaDB sempre cumpriu,
+         * e a mentira apareceu. O estado que o teste sempre quis dizer é este.
+         */
+        $a->vehicles()->first()->forceFill(['status' => 'em_rota'])->save();
 
         $this->artisan('fertways:realocar-founders --force')->assertFailed();
 
