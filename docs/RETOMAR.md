@@ -5,7 +5,7 @@
 > e então **faça ao usuário as perguntas da seção "Perguntas em aberto"** antes de escolher
 > o que fazer. Atualize este arquivo ao fim de cada sessão.
 
-**Última atualização:** 2026-07-10 · **Branch:** `main`
+**Última atualização:** 2026-07-11 · **Branch:** `main`
 
 > O commit não é anotado aqui de propósito: ele fica velho a cada sessão e a página passa a
 > mentir. Rode `git log --oneline -1`.
@@ -117,36 +117,35 @@ colono e funda uma quinta colônia — rodar antes bagunçaria as contagens das 
 > (Runtime.getProperties): Target closed`. Verde nas outras três. Se reprovar assim, rode de novo
 > antes de investigar — mas se virar hábito, é bug de verdade.
 
-**Publicado no GitHub e no ar.** Em 2026-07-11 foi empurrado e publicado **o Ministério do Tesouro —
-caixa real + kit por colônia** (`32e3ed2`, D-57). A migration `treasury_holdings` rodou sozinha no
-deploy; **dois passos à mão** no `fertwaysbd` (conferidos por leitura): `db:seed --class=TreasurySeeder`
-(dotou o caixa: 10k de cada + 1M Fert$) e `fertways:kit-recursos --aplicar` (kit às 5 colônias
-existentes). A cópia de deploy ficou nesse commit. Confira com `git log --oneline -1` nas duas árvores
-— se voltar a divergir, republique. (Antes: **o painel de administração** (`3896b77`, D-56, migration
+**Publicado no GitHub e no ar.** O último deploy é de 2026-07-11, no commit `4843c11` — de conteúdo
+só documental (a errata do D-37), mas ele **carregou a mudança de `.env`** do cookie seguro, que é o
+que exigia o `config:cache` e o reload do php-fpm. As duas árvores ficaram nesse commit. Antes dele,
+no mesmo dia, **o Ministério do Tesouro — caixa real + kit por colônia** (`32e3ed2`, D-57): a migration
+`treasury_holdings` rodou sozinha no deploy, e houve **dois passos à mão** no `fertwaysbd` (conferidos
+por leitura): `db:seed --class=TreasurySeeder` (dotou o caixa: 10k de cada + 1M Fert$) e
+`fertways:kit-recursos --aplicar` (kit às 5 colônias existentes). Confira com `git log --oneline -1`
+nas duas árvores — se voltar a divergir, republique. (Antes: **o painel de administração** (`3896b77`, D-56, migration
 `admins` sozinha, primeiro admin `by_nvs@outlook.com` à mão), **a Capital** (`a6d37d4`, D-55), a
 **Fatia 1 do D-52 — zonas neutras** (`0e0e3dd`), o arraste/zoom do mapa (`525b8c3`), o **mapa
 concêntrico do D-51** (`2a71a1c`), o `fix` da fila do D-53 e as telas do D-54.)
 
-> **Nota de segurança (D-56) — corrigida em 2026-07-11.** A versão anterior desta nota dava a
-> entender que o cookie do painel de admin estava saindo inseguro. **Não estava.** Conferido no
-> `Set-Cookie` real de produção: `laravel_session` e `XSRF-TOKEN` já vêm com `; secure`. O
-> `config/session.php` faz `env('SESSION_SECURE_COOKIE')` **sem default**, o valor vira `null`, e aí
-> o Symfony aplica o *secure default* que herda de a requisição ser HTTPS.
+> **Nota de segurança (D-56) — RESOLVIDA em 2026-07-11.** `SESSION_SECURE_COOKIE=true` está no `.env`
+> de produção e **em vigor** (conferido na config cacheada, que é a que vale: `config("session.secure")`
+> dá `true`). Backup do `.env` anterior em `/home/fertways/deploy/.env-producao.bak-20260711` — **fora**
+> da árvore de deploy, de propósito; ver a lição abaixo.
 >
-> O que resta é endurecimento, não correção: a flag é **inferida**, não declarada. Se um dia uma
-> requisição chegar por HTTP simples, ou a detecção de proxy mudar, o cookie sai sem `Secure` e nada
-> avisa. **Pendente, a aplicar no próximo `deploy.sh`** (decisão do usuário em 2026-07-11: não
-> recarregar o php-fpm em produção só por isto — o master do php84 é compartilhado com os outros
-> domínios do servidor):
+> Duas coisas que a versão antiga desta nota errava, e que vale saber se o assunto voltar:
 >
-> 1. Acrescentar `SESSION_SECURE_COOKIE=true` ao bloco `SESSION_` de
->    `/home/fertways/deploy/fertways/backend/.env` — **antes** de rodar o script.
-> 2. Rodar `sudo ./tools/deploy.sh` normalmente: o `config:cache` e o `reload` do php-fpm que a linha
->    exige para valer já são passos dele. **Editar o `.env` sem os dois não tem efeito nenhum**, pela
->    mesma razão do D-45: a config de produção é cacheada.
+> - **O cookie nunca esteve inseguro.** O `config/session.php` faz `env('SESSION_SECURE_COOKIE')`
+>   **sem default**, o valor virava `null`, e nesse caso o Symfony aplica o *secure default* herdado de
+>   a requisição ser HTTPS — então o `Set-Cookie` já vinha com `; secure`. O que se ganhou aqui foi
+>   trocar uma flag **inferida** por uma **declarada**: agora ela não depende de a detecção de esquema
+>   (ou de proxy) continuar acertando.
+> - **Mexer no `.env` sem `config:cache` + reload não faz nada.** É o D-45 outra vez: a config de
+>   produção é cacheada. Foi por isso que a linha entrou junto de um `deploy.sh`, que já faz os dois.
 >
 > O `.env` de trabalho **não** recebe a linha: o `artisan serve` é HTTP e um cookie `Secure` não
-> voltaria. O `.env.example` já documenta isso, comentado.
+> voltaria. O `.env.example` documenta isso, comentado.
 
 > **Lição registrada (2026-07-10).** Ao conferir o D-53 em produção, enfileirei uma construção de
 > teste na colônia 4 pelo `EnqueueUpgrade`. Funcionou, mas escrever no banco de produção "para ver
@@ -154,6 +153,30 @@ concêntrico do D-51** (`2a71a1c`), o `fix` da fila do D-53 e as telas do D-54.)
 > lançamentos no ledger**. Limpei os três, o último com autorização do usuário (apagar ledger de
 > produção é barrado por padrão, e com razão). **Não escreva em produção para verificar** — confie
 > no e2e e nos testes, ou use só leitura. Ver [[fertways-nao-escrever-em-producao-para-testar]].
+
+> **Lição registrada (2026-07-11) — o Claude roda como root, e isso apodrece a árvore.** Toda edição
+> feita por aqui grava o arquivo com dono `root`. O `git commit` como `fertways` então falha com
+> *"insufficient permission for adding an object"*, e o remendo óbvio — comitar como root — piora o
+> problema, porque deixa objetos e refs do `.git` com dono root. Quando eu fui olhar, **102 arquivos**
+> da árvore de trabalho estavam assim, acumulados de sessões anteriores (código, e2e, docs e o
+> `.git/refs/heads/main`). Corrigido com `chown -R fertways:fertways /home/fertways/apps/fertways`.
+>
+> O nó é que **o push exige root e o commit exige `fertways`**: a credencial do GitHub é o token do
+> `gh` do root (`/root/.gitconfig` manda o helper para `gh auth git-credential`), e o `fertways` não
+> tem nenhuma. A receita que funciona, nesta ordem:
+>
+> 1. `sudo -u fertways -H git add … && sudo -u fertways -H git commit …`
+> 2. `git push origin main` **como root** (é o único que tem credencial)
+> 3. `chown -R fertways:fertways .git` — o push acabou de escrever `refs/remotes/origin/main` como root
+>
+> E, depois de qualquer sessão que tenha editado arquivos: `chown -R fertways:fertways` na árvore.
+> A árvore de **deploy** não sofre disso — o `deploy.sh` puxa tudo como `fertways`.
+
+> **Lição registrada (2026-07-11) — não deixe arquivo novo na árvore de deploy.** Fiz o backup do
+> `.env` de produção como `backend/.env.bak-…`, *dentro* da cópia de deploy, e o `deploy.sh` abortou:
+> ele exige que a árvore seja descartável e viu um arquivo não rastreado. O `.env` é ignorado pelo
+> git; um `.env.bak` **não é**. A guarda está certa e não deve ser afrouxada — **guarde o backup fora
+> da árvore** (foi para `/home/fertways/deploy/.env-producao.bak-20260711`).
 
 ## O deploy, depois do D-45
 
