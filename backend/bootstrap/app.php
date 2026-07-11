@@ -20,12 +20,15 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware) {
         /*
-         * Não existe tela de login no servidor: isto é uma API. Sem devolver null aqui, o
-         * middleware `Authenticate` tenta redirecionar o convidado para a rota nomeada
-         * `login` — que não existe — e o erro vira 500 antes de qualquer renderizador de
-         * exceção. Com null, ele lança AuthenticationException e sai um 401 limpo.
+         * Isto é uma API por token — menos o painel da equipe em `/admin`, que é Blade por sessão.
+         *
+         * Para a API, devolver null: sem isso, o `Authenticate` tenta redirecionar o convidado à
+         * rota nomeada `login` (inexistente) e o erro vira 500 antes de qualquer renderizador de
+         * exceção; com null, sai um 401 limpo. Para o painel, o convidado é levado ao login do admin.
          */
-        $middleware->redirectGuestsTo(fn () => null);
+        $middleware->redirectGuestsTo(
+            fn (Request $request) => $request->is('admin', 'admin/*') ? route('admin.login') : null,
+        );
     })
     ->withExceptions(function (Exceptions $exceptions) {
         /*
@@ -34,9 +37,9 @@ return Application::configure(basePath: dirname(__DIR__))
          * 500 em vez de 401. O front sempre manda o header, mas curl, monitores de uptime e
          * o navegador na barra de endereços não mandam.
          *
-         * Tudo é JSON menos `/` e `/up`, as duas únicas rotas que respondem HTML.
+         * Tudo é JSON menos `/`, `/up` e o painel `/admin` (Blade), que respondem HTML.
          */
         $exceptions->shouldRenderJsonWhen(
-            fn (Request $request) => $request->expectsJson() || ! $request->is('/', 'up'),
+            fn (Request $request) => $request->expectsJson() || ! $request->is('/', 'up', 'admin', 'admin/*'),
         );
     })->create();

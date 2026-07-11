@@ -2,6 +2,8 @@
 
 namespace App\Console\Commands;
 
+use App\Domain\Finance\DeclararIntervencao;
+use App\Exceptions\DomainRuleException;
 use App\Models\Colony;
 use App\Models\PriceIntervention;
 use App\Models\ResourceType;
@@ -64,38 +66,13 @@ class Intervencao extends Command
         $motivo = (string) $this->option('motivo');
         $dias = (int) $this->option('dias');
 
-        if ($teto === null && $piso === null) {
-            $this->error('Informe ao menos --teto ou --piso.');
+        try {
+            $intervencao = app(DeclararIntervencao::class)->declarar($recurso, $teto, $piso, $motivo, $dias);
+        } catch (DomainRuleException $e) {
+            $this->error($e->getMessage());
 
             return self::FAILURE;
         }
-
-        if ($motivo === '') {
-            $this->error('O --motivo é obrigatório (registro público, §06).');
-
-            return self::FAILURE;
-        }
-
-        if ($teto !== null && $piso !== null && $piso > $teto) {
-            $this->error('O piso não pode ser maior que o teto.');
-
-            return self::FAILURE;
-        }
-
-        if ($dias < 1) {
-            $this->error('O prazo (--dias) tem de ser ao menos 1.');
-
-            return self::FAILURE;
-        }
-
-        $intervencao = PriceIntervention::create([
-            'resource_type' => $recurso,
-            'floor_micro' => $piso,
-            'ceil_micro' => $teto,
-            'reason' => $motivo,
-            'starts_at' => now(),
-            'expires_at' => now()->addDays($dias),
-        ]);
 
         $this->info("Intervenção #{$intervencao->id} em {$recurso}: "
             .'piso '.$this->emFert($piso).', teto '.$this->emFert($teto)
@@ -106,8 +83,7 @@ class Intervencao extends Command
 
     private function revogar(string $recurso): int
     {
-        $n = PriceIntervention::query()->vigentes()->where('resource_type', $recurso)
-            ->update(['expires_at' => now()]);
+        $n = app(DeclararIntervencao::class)->revogar($recurso);
 
         $this->info($n > 0
             ? "Revogadas {$n} intervenção(ões) vigente(s) de {$recurso}."

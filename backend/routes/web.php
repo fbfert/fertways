@@ -1,7 +1,41 @@
 <?php
 
+use App\Http\Controllers\Admin\AcoesController;
+use App\Http\Controllers\Admin\AuthController as AdminAuth;
+use App\Http\Controllers\Admin\PainelController;
 use Illuminate\Routing\Route as Rota;
 use Illuminate\Support\Facades\Route;
+
+/*
+ * Painel de administração da equipe (§14.4, §28.3; D-56). Blade por sessão, no guard `admin`,
+ * isolado da API de colono. Em produção vive em https://fertways.tars.art.br/central/admin.
+ * As rotas ficam fora do índice JSON da API (o filtro `$interna` abaixo as exclui).
+ */
+Route::prefix('admin')->group(function () {
+    Route::get('/login', [AdminAuth::class, 'showLogin'])->name('admin.login');
+    Route::post('/login', [AdminAuth::class, 'login']);
+
+    Route::middleware('auth:admin')->group(function () {
+        Route::get('/', [PainelController::class, 'dashboard'])->name('admin.dashboard');
+        Route::post('/logout', [AdminAuth::class, 'logout'])->name('admin.logout');
+
+        // Ministério
+        Route::post('/reports/{report}/julgar', [AcoesController::class, 'julgar'])->name('admin.julgar');
+        Route::post('/reports/{report}/apelacao', [AcoesController::class, 'apelacao'])->name('admin.apelacao');
+        // Conciliadores
+        Route::post('/conciliadores/nomear', [AcoesController::class, 'conciliadorNomear'])->name('admin.conciliador.nomear');
+        Route::post('/conciliadores/{user}/gerir', [AcoesController::class, 'conciliadorGerir'])->name('admin.conciliador.gerir');
+        // Finanças
+        Route::post('/intervencoes', [AcoesController::class, 'intervencao'])->name('admin.intervencao');
+        Route::post('/intervencoes/revogar', [AcoesController::class, 'intervencaoRevogar'])->name('admin.intervencao.revogar');
+        // Notícias
+        Route::post('/noticias', [AcoesController::class, 'noticiaPublicar'])->name('admin.noticia');
+        Route::post('/noticias/{news}/remover', [AcoesController::class, 'noticiaRemover'])->name('admin.noticia.remover');
+        // Operação
+        Route::post('/tick', [AcoesController::class, 'tick'])->name('admin.tick');
+        Route::post('/realocar', [AcoesController::class, 'realocar'])->name('admin.realocar');
+    });
+});
 
 /*
  * Raiz da API. Em produção este ponto é https://fertways.tars.art.br/central/.
@@ -21,6 +55,8 @@ Route::get('/', function () {
     // `storage/{path}` é a rota do symlink de arquivos do Laravel, não da API do jogo.
     $interna = fn (string $uri) => $uri === '/'
         || $uri === 'up'
+        || $uri === 'admin'
+        || str_starts_with($uri, 'admin/')
         || str_starts_with($uri, '_')
         || str_starts_with($uri, 'sanctum/')
         || str_starts_with($uri, 'storage/');

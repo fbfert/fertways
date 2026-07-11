@@ -1541,3 +1541,54 @@ recusar ordens do `mercado.e2e.mjs`, que negocia recursos; a enforcement é cobe
 
 **Fora de escopo, explícito:** gastar o Tesouro; PIB; faixa de preço automática; auto-boletins do
 Gagarin; os quatro cargos novos; slots 8–20. A Guerra (slot 5) é a Fatia 2 do D-52.
+
+---
+
+## D-56 — Painel de administração da equipe, com credencial separada.
+**Data:** 2026-07-11 · **Status:** decidido
+
+Antes da Guerra, o usuário pediu um backend para administrar tudo. Até aqui a administração eram 6
+comandos `artisan` soltos e não havia conceito de equipe no sistema. O GDD prevê um "painel
+administrativo" operado pela equipe (§14.4, §28.3). Três decisões do usuário: **painel web**,
+**ver + agir**, **credencial separada** das contas de colono.
+
+**Onde e como.** Painel **Blade** servido pelo Laravel que já existe, em
+`https://fertways.tars.art.br/central/admin` (a app está montada em `/central` por symlink). **Zero
+infra nova** de Apache/DNS/TLS. Estilo em CSS self-contained (o Vite do backend não é buildado no
+deploy — `@vite` quebraria; e evita depender de CDN). O painel **não substitui** os comandos artisan:
+eles continuam, agora compartilhando o mesmo domínio.
+
+**Auth isolada (credencial separada).** Tabela `admins` + model `App\Models\Admin` (Authenticatable,
+**sem** `HasApiTokens`) + provider `admins` + guard `admin` (driver `session`) em `config/auth.php`.
+Login por `Auth::guard('admin')->attempt()`. A infra de sessão (driver `database` + tabela
+`sessions`) já existia, sem uso, porque o colono autentica por **token**, não sessão. Nenhuma linha
+toca a auth de colono. O painel só se cria por CLI: `artisan fertways:admin --criar` (sem
+auto-registro — seria uma porta para qualquer um virar admin; à mão em produção, como o primeiro
+conciliador do D-44 e o `NeutralZoneSeeder` do D-52).
+
+**O `bootstrap/app.php` era API-only.** Dois comportamentos assumiam "não há tela de login":
+`redirectGuestsTo(fn () => null)` (401 limpo em vez de redirecionar) e `shouldRenderJsonWhen(... ! is
+'/','up')` (tudo JSON). Ambos passaram a **excluir o path `/admin*`**: o convidado do painel é levado
+ao login e as páginas rendem HTML; o resto da API segue JSON puro. O `IndiceDaApiTest` continua verde,
+e o índice `/central/` **não lista** as rotas do painel (o filtro `$interna` do `web.php` as exclui).
+
+**Reuso, não shell-out.** O Ministério (julgar/apelar) chama o domínio direto
+(`DecidirCaso::pelaEquipe`, `Apelacao::manter/reverter`). A lógica de conciliador, intervenção e
+notícia vivia embutida nos Commands → foi **extraída** para `App\Domain\Ministry\GerirConciliador`,
+`App\Domain\Finance\DeclararIntervencao` e `App\Domain\News\PublicarNoticia`, que Command e painel
+compartilham. Tick e realocação de founders (orquestração com guardas) são invocados **em processo**
+por `Artisan::call` — mesmo container, não shell.
+
+**O que o painel faz.** Dashboard: panorama (colônias, Fert$ em circulação, Tesouro, casos na equipe,
+ordens, frota, zonas), filas do Ministério (com prazos), conciliadores, intervenções vigentes, mural,
+colônias, jogadores (4 índices), fila de obras e zonas ocupadas. Ações: julgar casos da equipe,
+manter/reverter apelações, nomear/demitir/reintegrar/suspender conciliador, declarar/revogar
+intervenção, publicar/remover comunicado, disparar tick, realocar founders (guardado por confirmação).
+
+**Cobertura.** `AdminPainelTest` (13 casos): a fronteira de auth (convidado redirecionado, colono não
+é admin, login certo/errado, logout) e cada ação por rota HTTP com `actingAs($admin,'admin')`. O painel
+é server-side (Blade), fora do SPA, então **não** entra no `e2e.sh` do frontend — a cobertura é PHP.
+
+**Fora de escopo:** papéis/permissões finas entre admins (todo admin é pleno); log de auditoria das
+ações; 2FA. **Nota de segurança:** convém setar `SESSION_SECURE_COOKIE=true` no `.env` de produção
+(o painel carrega credencial por cookie; o site é HTTPS). A Guerra (slot 5) segue sendo a Fatia 2.

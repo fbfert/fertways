@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Domain\Ministry\GerirConciliador;
 use App\Models\User;
 use Illuminate\Console\Command;
 
@@ -57,19 +58,11 @@ class Conciliador extends Command
 
     private function nomear(User $colono): int
     {
-        if ($colono->conciliador_desde) {
+        if (! app(GerirConciliador::class)->nomear($colono)) {
             $this->warn("{$colono->nickname} já é conciliador desde {$colono->conciliador_desde}.");
 
             return self::SUCCESS;
         }
-
-        $colono->forceFill([
-            'conciliador_desde' => now(),
-            'conciliador_suspenso_em' => null,
-            'reversoes' => 0,
-            // Nasce sem salário pago: recebe os 50 F$ do §26.7 já no próximo tick.
-            'salario_pago_em' => null,
-        ])->save();
 
         $this->info("{$colono->nickname} é conciliador. Neutro Registrado, 50 Fert$/dia (§26.7).");
 
@@ -78,12 +71,7 @@ class Conciliador extends Command
 
     private function demitir(User $colono): int
     {
-        /*
-         * Demitir não zera as reversões. Se ele voltar ao cargo pela nomeação, ela zera — é uma
-         * decisão da equipe, e fica registrada. Um demitido que reentra com cinco reversões
-         * penduradas seria suspenso no primeiro erro.
-         */
-        $colono->forceFill(['conciliador_desde' => null, 'conciliador_suspenso_em' => null])->save();
+        app(GerirConciliador::class)->demitir($colono);
 
         $this->info("{$colono->nickname} não é mais conciliador. Reversões acumuladas: {$colono->reversoes}.");
 
@@ -92,7 +80,7 @@ class Conciliador extends Command
 
     private function reintegrar(User $colono): int
     {
-        $colono->forceFill(['conciliador_suspenso_em' => null, 'reversoes' => 0])->save();
+        app(GerirConciliador::class)->reintegrar($colono);
 
         $this->info("{$colono->nickname} volta ao cargo, com o contador de reversões zerado.");
 

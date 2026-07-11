@@ -2,6 +2,8 @@
 
 namespace App\Console\Commands;
 
+use App\Domain\News\PublicarNoticia;
+use App\Exceptions\DomainRuleException;
 use App\Models\News;
 use Illuminate\Console\Command;
 
@@ -51,33 +53,28 @@ class Noticia extends Command
 
     private function publicar(): int
     {
-        $titulo = trim((string) $this->option('titulo'));
-        $corpo = trim((string) $this->option('corpo'));
-
-        if ($titulo === '' || $corpo === '') {
-            $this->error('--titulo e --corpo são obrigatórios.');
+        try {
+            $noticia = app(PublicarNoticia::class)->publicar(
+                (string) $this->option('titulo'),
+                (string) $this->option('corpo'),
+                (string) $this->option('autor'),
+            );
+        } catch (DomainRuleException $e) {
+            $this->error($e->getMessage());
 
             return self::FAILURE;
         }
 
-        $noticia = News::create([
-            'title' => $titulo,
-            'body' => $corpo,
-            'kind' => 'comunicado',
-            'author' => (string) $this->option('autor'),
-            'published_at' => now(),
-        ]);
-
-        $this->info("Comunicado #{$noticia->id} publicado: {$titulo}");
+        $this->info("Comunicado #{$noticia->id} publicado: {$noticia->title}");
 
         return self::SUCCESS;
     }
 
     private function remover(int $id): int
     {
-        $n = News::whereKey($id)->delete();
+        $removeu = app(PublicarNoticia::class)->remover($id);
 
-        $this->info($n > 0 ? "Notícia #{$id} removida." : "Notícia #{$id} não encontrada.");
+        $this->info($removeu ? "Notícia #{$id} removida." : "Notícia #{$id} não encontrada.");
 
         return self::SUCCESS;
     }
