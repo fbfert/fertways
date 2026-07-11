@@ -1,6 +1,14 @@
 import { useCallback, useEffect, useState } from 'react'
 import { api, ApiError } from '../api/client'
-import type { Acordo, Acordos as Carteira, ColoniaVizinha, Frota, Veiculo } from '../api/client'
+import type {
+  Acordo,
+  Acordos as Carteira,
+  Colonia,
+  ColoniaVizinha,
+  Frota,
+  OfertaDeColono,
+  Veiculo,
+} from '../api/client'
 import {
   NEGOCIAVEIS,
   dataHumana,
@@ -16,6 +24,15 @@ const INTERVALO_MS = 3000
 
 /** Uma hora de folga sobre o mínimo do backend. Ver `Propor`. */
 const FOLGA_MS = 3600 * 1000
+
+/**
+ * Prazo que a tela sugere numa oferta **aberta**: três dias.
+ *
+ * O backend só exige o piso teórico (12 h) ao anunciar, porque sem contraparte não há distância a
+ * calcular. Mas quem aceita precisa caber no D-42 — e um prazo de 12 h só seria aceitável por um
+ * vizinho de porta. Três dias deixam a oferta ao alcance de qualquer colônia do mapa.
+ */
+const PRAZO_SUGERIDO_ABERTO_MS = 3 * 24 * 3600 * 1000
 
 const ROTULO_STATUS: Record<Acordo['status'], string> = {
   proposto: 'Proposto',
@@ -38,8 +55,17 @@ const ABERTO = (a: Acordo) => a.status === 'proposto' || a.status === 'aceito'
  * Cumprir é **entregar fisicamente** (D-41): o acordo não move um grama. Quem move é o veículo, e
  * só a carga que aponta este acordo abate a promessa.
  */
-export function Acordos({ aoFechar }: { aoFechar: () => void }) {
-  const [aba, setAba] = useState<'meus' | 'propor'>('meus')
+/**
+ * "Ofertar entre colonos": o Acordo de Troca (§26.5), agora como aba do Mercado (D-58).
+ *
+ * Este é o canal do **estoque da colônia**: promessa registrada, entrega física por veículo, e
+ * **sem escrow** — o calote é real e deliberado (D-40), e é ele que alimenta o Ministério.
+ *
+ * Desde o D-58 a oferta pode ir ao **mural**, sem destinatário: quem aceitar primeiro vira a
+ * contraparte. Ver `VerOfertasDeColonos`.
+ */
+export function OfertarEntreColonos({ colonia }: { colonia: Colonia }) {
+  const [aba, setAba] = useState<'meus' | 'propor'>('propor')
   const [carteira, setCarteira] = useState<Carteira | null>(null)
   const [frota, setFrota] = useState<Frota | null>(null)
   const [vizinhas, setVizinhas] = useState<ColoniaVizinha[]>([])
@@ -93,88 +119,165 @@ export function Acordos({ aoFechar }: { aoFechar: () => void }) {
   const encerrados = carteira?.agreements.filter((a) => !ABERTO(a)) ?? []
 
   return (
-    <div className="fixed inset-0 z-20 flex items-center justify-center bg-ink/70 p-4">
-      <div className="painel bg-sand-light max-h-[90vh] w-full max-w-3xl overflow-y-auto p-6">
-        <header className="flex items-start justify-between">
-          <div>
-            <div className="text-rust eyebrow">Acordo de Troca</div>
-            <h2 className="text-ink text-2xl font-black">O aperto de mão</h2>
-            <p className="text-ink-soft mt-1 text-sm">
-              Nada fica reservado. A promessa é registro, não garantia — quem não entrega, calotea, e
-              fica escrito.
-            </p>
-          </div>
-          <button onClick={aoFechar} className="text-ink-soft hover:text-rust text-2xl leading-none">
-            ×
+    <div className="mt-5">
+      <p className="text-ink-soft text-sm">
+        Aqui se negocia o que está <strong className="text-ink">na sua colônia</strong>. Nada fica
+        reservado: a promessa é registro, não garantia — quem não entrega, calotea, e fica escrito.
+      </p>
+
+      {carteira && <Confianca carteira={carteira} />}
+
+      <nav className="border-rust/20 mt-4 flex gap-1 border-b">
+        {(['propor', 'meus'] as const).map((a) => (
+          <button
+            key={a}
+            onClick={() => setAba(a)}
+            className={`eyebrow px-4 py-2 ${
+              aba === a ? 'bg-rust text-sand-light' : 'text-ink-soft hover:text-rust'
+            }`}
+          >
+            {a === 'meus' ? 'Meus acordos' : 'Nova oferta'}
           </button>
-        </header>
+        ))}
+      </nav>
 
-        {carteira && <Confianca carteira={carteira} />}
+      {erro && <p className="text-rust mt-4 text-sm font-bold">{erro}</p>}
 
-        <nav className="border-rust/20 mt-5 flex gap-1 border-b">
-          {(['meus', 'propor'] as const).map((a) => (
-            <button
-              key={a}
-              onClick={() => setAba(a)}
-              className={`eyebrow px-4 py-2 ${
-                aba === a ? 'bg-rust text-sand-light' : 'text-ink-soft hover:text-rust'
-              }`}
-            >
-              {a === 'meus' ? 'Meus acordos' : 'Propor'}
-            </button>
-          ))}
-        </nav>
+      {aba === 'meus' ? (
+        <div className="mt-5 space-y-6">
+          <section>
+            <div className="text-rust eyebrow">Em aberto</div>
+            {abertos.length === 0 ? (
+              <p className="text-ink-soft mt-2 text-sm">
+                Nenhum acordo em aberto. Faça uma oferta na outra aba.
+              </p>
+            ) : (
+              <div className="mt-2 space-y-3">
+                {abertos.map((a) => (
+                  <Cartao key={a.id} acordo={a} vizinhas={vizinhas} ociosos={ociosos} agir={agir} />
+                ))}
+              </div>
+            )}
+          </section>
 
-        {erro && <p className="text-rust mt-4 text-sm font-bold">{erro}</p>}
-
-        {aba === 'meus' ? (
-          <div className="mt-5 space-y-6">
-            <section>
-              <div className="text-rust eyebrow">Em aberto</div>
-              {abertos.length === 0 ? (
-                <p className="text-ink-soft mt-2 text-sm">
-                  Nenhum acordo em aberto. Proponha um na outra aba.
-                </p>
-              ) : (
-                <div className="mt-2 space-y-3">
-                  {abertos.map((a) => (
-                    <Cartao
-                      key={a.id}
-                      acordo={a}
-                      vizinhas={vizinhas}
-                      ociosos={ociosos}
-                      agir={agir}
-                    />
-                  ))}
-                </div>
-              )}
-            </section>
-
-            <section>
-              <div className="text-rust eyebrow">Histórico</div>
-              {encerrados.length === 0 ? (
-                <p className="text-ink-soft mt-2 text-sm">Nenhum acordo encerrado ainda.</p>
-              ) : (
-                <div className="mt-2 space-y-3">
-                  {encerrados.map((a) => (
-                    <Cartao
-                      key={a.id}
-                      acordo={a}
-                      vizinhas={vizinhas}
-                      ociosos={ociosos}
-                      agir={agir}
-                    />
-                  ))}
-                </div>
-              )}
-            </section>
-          </div>
-        ) : (
-          <Propor vizinhas={vizinhas} agir={agir} aoPropor={() => setAba('meus')} />
-        )}
-      </div>
+          <section>
+            <div className="text-rust eyebrow">Histórico</div>
+            {encerrados.length === 0 ? (
+              <p className="text-ink-soft mt-2 text-sm">Nenhum acordo encerrado ainda.</p>
+            ) : (
+              <div className="mt-2 space-y-3">
+                {encerrados.map((a) => (
+                  <Cartao key={a.id} acordo={a} vizinhas={vizinhas} ociosos={ociosos} agir={agir} />
+                ))}
+              </div>
+            )}
+          </section>
+        </div>
+      ) : (
+        <Propor
+          colonia={colonia}
+          vizinhas={vizinhas}
+          agir={agir}
+          aoPropor={() => setAba('meus')}
+        />
+      )}
     </div>
   )
+}
+
+/**
+ * "Ver ofertas de colonos": o mural do D-58.
+ *
+ * As ofertas abertas de todos, sem contraparte definida. Quem aceitar primeiro vira a contraparte —
+ * e o prazo do D-42 é cobrado **aqui**, não no anúncio: quem mora longe demais para cumprir o prazo
+ * simplesmente não consegue aceitar, e é melhor assim do que herdar um calote já fabricado.
+ */
+export function VerOfertasDeColonos() {
+  const [ofertas, setOfertas] = useState<OfertaDeColono[]>([])
+  const [erro, setErro] = useState<string | null>(null)
+
+  const carregar = useCallback(async () => {
+    try {
+      setOfertas((await api.mural()).ofertas)
+    } catch (e) {
+      if (e instanceof ApiError) setErro(e.message)
+    }
+  }, [])
+
+  useEffect(() => {
+    void carregar()
+    const t = setInterval(() => void carregar(), INTERVALO_MS)
+    return () => clearInterval(t)
+  }, [carregar])
+
+  async function aceitar(id: number) {
+    setErro(null)
+    try {
+      await api.aceitarOfertaDoMural(id)
+      await carregar()
+    } catch (e) {
+      setErro(e instanceof ApiError ? e.message : 'Falha ao aceitar.')
+    }
+  }
+
+  return (
+    <div className="mt-5">
+      <p className="text-ink-soft text-sm">
+        Ofertas abertas a quem quiser. Aceitar vira um acordo com prazo, e cumprir é{' '}
+        <strong className="text-ink">entregar de verdade</strong>, por veículo, do estoque da sua
+        colônia.
+      </p>
+
+      {erro && <p className="text-rust mt-4 text-sm font-bold">{erro}</p>}
+
+      {ofertas.length === 0 ? (
+        <p className="text-ink-soft mt-4 text-sm">
+          Nenhuma oferta no mural. Anuncie a sua na aba "Ofertar entre colonos".
+        </p>
+      ) : (
+        <div className="mt-4 space-y-3">
+          {ofertas.map((o) => (
+            <div key={o.id} className="border-rust/15 border p-3">
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <div className="text-sm">
+                  <div className="text-ink font-bold">
+                    {o.minha ? 'Sua oferta' : (o.colonia ?? `colônia #${o.colony_id}`)}
+                  </div>
+                  <div className="text-ink-soft mt-1">
+                    <span className="text-ink font-bold">dá</span> {listar(o.oferece)}
+                  </div>
+                  <div className="text-ink-soft">
+                    <span className="text-ink font-bold">quer</span> {listar(o.quer)}
+                  </div>
+                  <div className="text-ink-soft mt-1 text-xs">
+                    prazo até {dataHumana(o.deadline_at)}
+                  </div>
+                </div>
+
+                {!o.minha && (
+                  <button
+                    onClick={() => void aceitar(o.id)}
+                    className="bg-rust text-sand-light hover:bg-rust-bright px-4 py-1.5 text-sm font-bold"
+                  >
+                    Aceitar
+                  </button>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+/** "100 de Metal Bruto, 200 de Água" — a promessa em linguagem de gente. */
+function listar(itens: Record<string, number>): string {
+  const partes = Object.entries(itens).map(
+    ([c, q]) => `${q.toLocaleString('pt-BR')} de ${nomeRecurso(c)}`,
+  )
+
+  return partes.length === 0 ? '—' : partes.join(', ')
 }
 
 /**
@@ -469,29 +572,43 @@ function Entrega({
 }
 
 function Propor({
+  colonia,
   vizinhas,
   agir,
   aoPropor,
 }: {
+  colonia: Colonia
   vizinhas: ColoniaVizinha[]
   agir: (a: () => Promise<unknown>) => Promise<void>
   aoPropor: () => void
 }) {
+  const [aberta, setAberta] = useState(false)
   const [contraparte, setContraparte] = useState<number | null>(null)
   const [minimo, setMinimo] = useState<string | null>(null)
   const [prazo, setPrazo] = useState('')
   const [euPrometo, setEuPrometo] = useState<Record<string, number>>({})
   const [elePromete, setElePromete] = useState<Record<string, number>>({})
 
-  const outra = vizinhas.find((c) => c.id === contraparte) ?? vizinhas[0]
+  const outra = aberta ? undefined : (vizinhas.find((c) => c.id === contraparte) ?? vizinhas[0])
 
   /*
    * O prazo mínimo é a viagem do veículo mais lento entre as duas colônias, mais 12 h (D-42), e só
    * o backend sabe calculá-lo. Buscá-lo a cada troca de contraparte, e preencher o campo com uma
    * hora de folga: preenchê-lo com o mínimo exato faria a proposta ser recusada por um segundo de
    * relógio entre carregar a tela e apertar o botão.
+   *
+   * Numa oferta **aberta** não há contraparte, logo não há distância: o backend só exige o piso
+   * teórico (as 12 h de folga), e cobra o D-42 de verdade de quem aceitar. Aqui o campo nasce com
+   * folga larga, porque um prazo apertado só poderia ser aceito por quem morasse ao lado.
    */
   useEffect(() => {
+    if (aberta) {
+      setMinimo(null)
+      setPrazo(paraCampoLocal(new Date(Date.now() + PRAZO_SUGERIDO_ABERTO_MS).toISOString()))
+
+      return
+    }
+
     if (!outra) return
     let vivo = true
 
@@ -509,37 +626,64 @@ function Propor({
     return () => {
       vivo = false
     }
-  }, [outra])
+  }, [outra, aberta])
 
   const valido =
-    !!outra &&
+    (aberta || !!outra) &&
     !!prazo &&
     Object.keys(euPrometo).length > 0 &&
     Object.keys(elePromete).length > 0
 
-  if (vizinhas.length === 0) {
+  if (vizinhas.length === 0 && !aberta) {
     return <p className="text-ink-soft mt-5 text-sm">Nenhuma outra colônia no servidor.</p>
   }
 
   return (
     <div className="mt-5 space-y-4">
       <div>
-        <label className="text-rust eyebrow" htmlFor="contraparte">
-          Com quem
-        </label>
-        <select
-          id="contraparte"
-          className="border-rust/25 bg-sand focus:border-rust mt-1 w-full border px-2 py-1.5 text-sm outline-none"
-          value={outra?.id ?? ''}
-          onChange={(e) => setContraparte(Number(e.target.value))}
-        >
-          {vizinhas.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.nickname} · {c.distance} slots
-            </option>
+        <div className="text-rust eyebrow">Para quem</div>
+        <div className="mt-1 flex gap-1">
+          {[
+            { valor: false, rotulo: 'Um colono específico' },
+            { valor: true, rotulo: 'Aberta no mural' },
+          ].map((o) => (
+            <button
+              key={String(o.valor)}
+              onClick={() => setAberta(o.valor)}
+              className={`flex-1 py-1.5 text-sm font-bold ${
+                aberta === o.valor ? 'bg-rust text-sand-light' : 'border-rust/25 text-ink-soft border'
+              }`}
+            >
+              {o.rotulo}
+            </button>
           ))}
-        </select>
+        </div>
+        <p className="text-ink-soft mt-1 text-xs">
+          {aberta
+            ? 'A oferta vai ao mural, sem destinatário. O primeiro colono que aceitar vira a contraparte — e só consegue aceitar quem morar perto o bastante para cumprir o prazo.'
+            : 'A proposta vai só para esta colônia, e só ela pode confirmar.'}
+        </p>
       </div>
+
+      {!aberta && (
+        <div>
+          <label className="text-rust eyebrow" htmlFor="contraparte">
+            Com quem
+          </label>
+          <select
+            id="contraparte"
+            className="border-rust/25 bg-sand focus:border-rust mt-1 w-full border px-2 py-1.5 text-sm outline-none"
+            value={outra?.id ?? ''}
+            onChange={(e) => setContraparte(Number(e.target.value))}
+          >
+            {vizinhas.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.nickname} · {c.distance} slots
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
 
       <div>
         <label className="text-rust eyebrow" htmlFor="prazo">
@@ -565,17 +709,27 @@ function Propor({
        * o que ainda vai ser minerado. Quem promete o que não tem, calotea — e fica escrito.
        */}
       <div className="grid gap-4 md:grid-cols-2">
-        <Lado titulo="Você promete" itens={euPrometo} aoMudar={setEuPrometo} />
-        <Lado titulo={`${outra?.nickname ?? 'A contraparte'} promete`} itens={elePromete} aoMudar={setElePromete} />
+        <Lado
+          titulo="Você promete"
+          itens={euPrometo}
+          aoMudar={setEuPrometo}
+          estoque={colonia.resources}
+        />
+        <Lado
+          titulo={aberta ? 'Em troca de' : `${outra?.nickname ?? 'A contraparte'} promete`}
+          itens={elePromete}
+          aoMudar={setElePromete}
+        />
       </div>
 
       <button
         disabled={!valido}
         onClick={() => {
-          if (!outra) return
+          if (!aberta && !outra) return
           void agir(() =>
             api.proporAcordo({
-              counterparty_id: outra.id,
+              // Sem contraparte, a oferta vai ao mural (D-58).
+              counterparty_id: aberta ? null : outra!.id,
               // O campo é hora local; o backend quer um instante sem ambiguidade de fuso.
               deadline_at: new Date(prazo).toISOString(),
               i_promise: euPrometo,
@@ -589,31 +743,41 @@ function Propor({
         }}
         className="bg-rust text-sand-light hover:bg-rust-bright w-full py-3 font-bold disabled:cursor-not-allowed disabled:opacity-40"
       >
-        Propor acordo
+        {aberta ? 'Anunciar no mural' : 'Propor acordo'}
       </button>
 
       <p className="text-ink-soft text-xs">
-        Nada sai do seu estoque ao propor. O acordo só vira evidência quando a contraparte confirmar.
+        Nada sai do seu estoque ao propor — a promessa é registro, não garantia. Só se cumpre
+        entregando de verdade, por veículo, o que está na sua colônia.
       </p>
     </div>
   )
 }
 
-/** Um lado da promessa: recursos e quantidades, somados livremente. */
+/**
+ * Um lado da promessa: recursos e quantidades, somados livremente.
+ *
+ * Com `estoque`, mostra ao lado do recurso escolhido **quanto há na colônia** — é o estoque que
+ * este canal negocia (D-58). Nada é conferido contra ele: o §26.5 deixa prometer o que ainda vai
+ * ser minerado, e quem promete o que não tem, calotea. Mas ninguém deve caloteirar por *engano*.
+ */
 function Lado({
   titulo,
   itens,
   aoMudar,
+  estoque,
 }: {
   titulo: string
   itens: Record<string, number>
   aoMudar: (i: Record<string, number>) => void
+  estoque?: Record<string, number>
 }) {
   const [codigo, setCodigo] = useState(NEGOCIAVEIS[0])
   const [qtd, setQtd] = useState('')
 
   const quantidade = Number(qtd)
   const pode = Number.isInteger(quantidade) && quantidade > 0
+  const naColonia = estoque?.[codigo] ?? 0
 
   return (
     <div className="border-rust/20 border p-3">
@@ -632,6 +796,13 @@ function Lado({
             </option>
           ))}
         </select>
+
+        {estoque && (
+          <p className={`text-xs ${quantidade > naColonia ? 'text-rust font-bold' : 'text-ink-soft'}`}>
+            Na sua colônia: {naColonia.toLocaleString('pt-BR')}
+            {quantidade > naColonia && ' — você está prometendo mais do que tem.'}
+          </p>
+        )}
 
         <div className="flex gap-2">
           <input

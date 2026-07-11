@@ -1,36 +1,60 @@
 import { useCallback, useEffect, useState } from 'react'
 import { api, ApiError } from '../api/client'
-import type { Colonia, ColoniaVizinha, ContaDoMercado, Frota, Livro, Veiculo } from '../api/client'
-import { NEGOCIAVEIS, fert, nomeRecurso, nomeVeiculo, paraMicro, relogio, segundosRestantes } from './recursos'
+import type {
+  Colonia,
+  ColoniaVizinha,
+  ContaDoMercado,
+  Frota,
+  OfertaGlobal,
+  SaldoDoRecurso,
+  Veiculo,
+  Vitrine,
+} from '../api/client'
+import { OfertarEntreColonos, VerOfertasDeColonos } from './Acordos'
+import { fert, nomeRecurso, nomeVeiculo, paraMicro, relogio, segundosRestantes } from './recursos'
 
 const INTERVALO_MS = 3000
 
+type Aba = 'doca' | 'ofertar_colono' | 'ver_colonos' | 'ofertar_central' | 'globais'
+
+const ABAS: { chave: Aba; rotulo: string }[] = [
+  { chave: 'doca', rotulo: 'Doca e frota' },
+  { chave: 'ofertar_colono', rotulo: 'Ofertar entre colonos' },
+  { chave: 'ver_colonos', rotulo: 'Ver ofertas de colonos' },
+  { chave: 'ofertar_central', rotulo: 'Ofertar no Mercado Central' },
+  { chave: 'globais', rotulo: 'Ofertas globais' },
+]
+
 /**
- * Mercado Central: a doca (§25.8) e o livro de ofertas (§07).
+ * Mercado Central: o depósito da Capital (§25.8) e os dois canais de negócio (D-58).
  *
- * A doca não é o estoque da colônia. Recurso só chega lá por veículo, e só volta por veículo —
- * é o que o GDD chama de "movimentação física". O livro casa ordens entre colonos; o Mercado
- * não compra nem vende, e o preço-base é referência, não teto nem piso.
+ * **A regra que separa tudo:** o que está **na colônia** se negocia entre colonos — promessa,
+ * entrega física por veículo, calote possível (§26.5, D-40). O que está **no depósito da Capital**
+ * se oferta no Mercado Central — escrow, e a execução move recurso de um depósito ao outro sem
+ * veículo nenhum.
+ *
+ * A "doca" das abas é esse depósito: um saldo por colônia e por recurso, fora do estoque, com teto
+ * por classe (10 mil / 2.500 / 100).
  */
 export function Mercado({ colonia, aoFechar }: { colonia: Colonia; aoFechar: () => void }) {
-  const [aba, setAba] = useState<'doca' | 'livro'>('doca')
+  const [aba, setAba] = useState<Aba>('doca')
   const [frota, setFrota] = useState<Frota | null>(null)
   const [conta, setConta] = useState<ContaDoMercado | null>(null)
-  const [livro, setLivro] = useState<Livro | null>(null)
+  const [vitrine, setVitrine] = useState<Vitrine | null>(null)
   const [vizinhas, setVizinhas] = useState<ColoniaVizinha[]>([])
-  const [recurso, setRecurso] = useState('metal_bruto')
   const [erro, setErro] = useState<string | null>(null)
 
   const carregar = useCallback(async () => {
     try {
-      const [f, c, l] = await Promise.all([api.frota(), api.conta(), api.livro(recurso)])
+      // A vitrine vem inteira, sem filtro de recurso: é o que faz as ofertas dos outros aparecerem.
+      const [f, c, v] = await Promise.all([api.frota(), api.conta(), api.vitrine()])
       setFrota(f)
       setConta(c)
-      setLivro(l)
+      setVitrine(v)
     } catch (e) {
       if (e instanceof ApiError) setErro(e.message)
     }
-  }, [recurso])
+  }, [])
 
   useEffect(() => {
     void carregar()
@@ -88,23 +112,23 @@ export function Mercado({ colonia, aoFechar }: { colonia: Colonia; aoFechar: () 
           </button>
         </header>
 
-        <nav className="border-rust/20 mt-5 flex gap-1 border-b">
-          {(['doca', 'livro'] as const).map((a) => (
+        <nav className="border-rust/20 mt-5 flex flex-wrap gap-1 border-b">
+          {ABAS.map((a) => (
             <button
-              key={a}
-              onClick={() => setAba(a)}
-              className={`eyebrow px-4 py-2 ${
-                aba === a ? 'bg-rust text-sand-light' : 'text-ink-soft hover:text-rust'
+              key={a.chave}
+              onClick={() => setAba(a.chave)}
+              className={`eyebrow px-3 py-2 text-xs ${
+                aba === a.chave ? 'bg-rust text-sand-light' : 'text-ink-soft hover:text-rust'
               }`}
             >
-              {a === 'doca' ? 'Doca e frota' : 'Livro de ofertas'}
+              {a.rotulo}
             </button>
           ))}
         </nav>
 
         {erro && <p className="text-rust mt-4 text-sm font-bold">{erro}</p>}
 
-        {aba === 'doca' ? (
+        {aba === 'doca' && (
           <Doca
             colonia={colonia}
             conta={conta}
@@ -113,14 +137,17 @@ export function Mercado({ colonia, aoFechar }: { colonia: Colonia; aoFechar: () 
             vizinhas={vizinhas}
             agir={agir}
           />
-        ) : (
-          <LivroDeOfertas
-            livro={livro}
-            recurso={recurso}
-            aoTrocarRecurso={setRecurso}
-            agir={agir}
-          />
         )}
+
+        {/* Entre colonos: sai do ESTOQUE da colônia, por veículo, e sem escrow (D-40). */}
+        {aba === 'ofertar_colono' && <OfertarEntreColonos colonia={colonia} />}
+        {aba === 'ver_colonos' && <VerOfertasDeColonos />}
+
+        {/* No Mercado Central: sai do DEPÓSITO da Capital, com escrow, e sem veículo. */}
+        {aba === 'ofertar_central' && (
+          <OfertarNoMercadoCentral vitrine={vitrine} conta={conta} agir={agir} />
+        )}
+        {aba === 'globais' && <OfertasGlobais vitrine={vitrine} conta={conta} agir={agir} />}
       </div>
     </div>
   )
@@ -168,7 +195,7 @@ function Doca({
           ))}
         </div>
 
-        <div className="text-rust eyebrow mt-6">Na doca</div>
+        <div className="text-rust eyebrow mt-6">No seu depósito na Capital</div>
         {naDoca.length === 0 ? (
           <p className="text-ink-soft mt-2 text-sm">
             Nada seu no Mercado. Leve carga até lá para poder vendê-la.
@@ -192,7 +219,7 @@ function Doca({
 
       <section className="space-y-6">
         <FormularioDeCarga
-          titulo="Levar à doca"
+          titulo="Levar ao seu depósito na Capital"
           ajuda="A carga sai do estoque agora. O tributo incide quando ela chega."
           veiculos={ociosos}
           opcoes={doEstoque}
@@ -225,7 +252,7 @@ function Doca({
         />
 
         <FormularioDeCarga
-          titulo="Buscar na doca"
+          titulo="Buscar no seu depósito na Capital"
           ajuda="O saldo é reservado já no despacho. O tributo incide na chegada ao seu slot."
           veiculos={ociosos}
           opcoes={[...naDoca]
@@ -410,63 +437,93 @@ function FormularioDeCarga({
   )
 }
 
-function LivroDeOfertas({
-  livro,
-  recurso,
-  aoTrocarRecurso,
+
+/**
+ * O par de números que o colono pediu para ver ao lado do recurso: o que ele tem **na colônia** e o
+ * que tem **no depósito da Capital**. Sem isto a regra dos dois estoques é invisível, e o colono
+ * descobre que não pode vender só quando o botão recusa.
+ */
+function DoisEstoques({ saldo }: { saldo: SaldoDoRecurso | undefined }) {
+  if (!saldo) return null
+
+  const cheio = saldo.livre === 0
+
+  return (
+    <div className="text-ink-soft mt-2 grid grid-cols-2 gap-2 text-xs">
+      <div className="border-rust/15 border p-2">
+        <div className="eyebrow">Na colônia</div>
+        <div className="text-ink text-base font-bold tabular-nums">
+          {saldo.na_colonia.toLocaleString('pt-BR')}
+        </div>
+        <div>negociável entre colonos</div>
+      </div>
+      <div className="border-rust/15 border p-2">
+        <div className="eyebrow">No depósito da Capital</div>
+        <div className="text-ink text-base font-bold tabular-nums">
+          {saldo.no_deposito.toLocaleString('pt-BR')}
+        </div>
+        <div>
+          ofertável no Mercado
+          {saldo.em_ofertas > 0 && ` · ${saldo.em_ofertas.toLocaleString('pt-BR')} preso em ofertas`}
+        </div>
+        <div className={cheio ? 'text-rust font-bold' : ''}>
+          teto {saldo.teto.toLocaleString('pt-BR')} · cabem mais{' '}
+          {saldo.livre.toLocaleString('pt-BR')}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/** Anunciar uma oferta global. Só se oferta o que já está no depósito da Capital (D-58, regra 3). */
+function OfertarNoMercadoCentral({
+  vitrine,
+  conta,
   agir,
 }: {
-  livro: Livro | null
-  recurso: string
-  aoTrocarRecurso: (r: string) => void
+  vitrine: Vitrine | null
+  conta: ContaDoMercado | null
   agir: (a: () => Promise<unknown>) => Promise<void>
 }) {
-  const [lado, setLado] = useState<'buy' | 'sell'>('buy')
+  const [lado, setLado] = useState<'buy' | 'sell'>('sell')
+  const [recurso, setRecurso] = useState('metal_bruto')
   const [qtd, setQtd] = useState('')
   const [preco, setPreco] = useState('')
 
+  const saldo = conta?.deposito.find((d) => d.resource_type === recurso)
+  const tipo = vitrine?.catalogo.find((c) => c.code === recurso)
   const quantidade = Number(qtd)
   const precoMicro = paraMicro(preco)
-  const valido = Number.isInteger(quantidade) && quantidade > 0 && precoMicro > 0
+
+  const minhas = (vitrine?.ofertas ?? []).filter((o) => o.minha)
+
+  /*
+   * O impedimento é dito ANTES do clique, e com o número: vender exige o lote já no depósito, e
+   * comprar exige espaço para recebê-lo. Descobrir isso pelo erro do servidor é descobrir tarde.
+   */
+  const impedimento =
+    !Number.isInteger(quantidade) || quantidade <= 0 || precoMicro <= 0
+      ? null
+      : lado === 'sell' && saldo && quantidade > saldo.no_deposito
+        ? `Seu depósito na Capital tem ${saldo.no_deposito.toLocaleString('pt-BR')}. Leve carga até lá primeiro.`
+        : lado === 'buy' && saldo && quantidade > saldo.livre
+          ? `Seu depósito comporta mais ${saldo.livre.toLocaleString('pt-BR')}: a compra reserva o espaço que vai receber.`
+          : null
+
+  const valido =
+    Number.isInteger(quantidade) && quantidade > 0 && precoMicro > 0 && !impedimento
 
   return (
     <div className="mt-5">
-      <div className="flex items-center justify-between gap-4">
-        <select
-          className="border-rust/25 bg-sand border px-2 py-1.5 text-sm outline-none focus:border-rust"
-          value={recurso}
-          onChange={(e) => aoTrocarRecurso(e.target.value)}
-        >
-          {NEGOCIAVEIS.map((c) => (
-            <option key={c} value={c}>
-              {nomeRecurso(c)}
-            </option>
-          ))}
-        </select>
+      <p className="text-ink-soft text-sm">
+        Aqui só se oferta o que <strong className="text-ink">já está no depósito da Capital</strong>.
+        A oferta fica parada até alguém executá-la — e a execução não usa veículo: o recurso passa do
+        depósito de um ao do outro.
+      </p>
 
-        {livro && (
-          <div className="text-ink-soft text-right text-xs">
-            <div>
-              referência{' '}
-              <span className="text-ink font-bold tabular-nums">
-                {fert(livro.preco_base_micro)} Fert$
-              </span>
-            </div>
-            <div>taxa de venda {(livro.taxa_bps / 100).toFixed(0)}%, paga por quem vende</div>
-          </div>
-        )}
-      </div>
-
-      <div className="mt-4 grid gap-4 md:grid-cols-2">
-        <Coluna titulo="Compras" vazio="Ninguém comprando." linhas={livro?.bids ?? []} />
-        <Coluna titulo="Vendas" vazio="Ninguém vendendo." linhas={livro?.asks ?? []} />
-      </div>
-
-      <div className="border-rust/20 mt-6 border p-3">
-        <div className="text-rust eyebrow">Nova ordem</div>
-
-        <div className="mt-2 flex gap-1">
-          {(['buy', 'sell'] as const).map((l) => (
+      <div className="border-rust/20 mt-4 border p-3">
+        <div className="mt-0 flex gap-1">
+          {(['sell', 'buy'] as const).map((l) => (
             <button
               key={l}
               onClick={() => setLado(l)}
@@ -474,27 +531,37 @@ function LivroDeOfertas({
                 lado === l ? 'bg-rust text-sand-light' : 'border-rust/25 text-ink-soft border'
               }`}
             >
-              {l === 'buy' ? 'Comprar' : 'Vender'}
+              {l === 'sell' ? 'Vender' : 'Comprar'}
             </button>
           ))}
         </div>
 
-        <p className="text-ink-soft mt-2 text-xs">
-          {lado === 'sell'
-            ? 'Vender exige a carga já na doca. O preço-base é referência: negocie o que quiser.'
-            : 'O Fert$ é reservado no ato. O recurso comprado chega na doca, e você manda um veículo buscá-lo.'}
-        </p>
+        <select
+          aria-label="Recurso"
+          className="border-rust/25 bg-sand focus:border-rust mt-3 w-full border px-2 py-1.5 text-sm outline-none"
+          value={recurso}
+          onChange={(e) => setRecurso(e.target.value)}
+        >
+          {/* Os 26 do catálogo, não os 8 que a tela antiga escolhia a dedo. */}
+          {(vitrine?.catalogo ?? []).map((c) => (
+            <option key={c.code} value={c.code}>
+              {c.nome}
+            </option>
+          ))}
+        </select>
+
+        <DoisEstoques saldo={saldo} />
 
         <div className="mt-3 grid gap-2 md:grid-cols-2">
           <input
-            className="border-rust/25 bg-sand border px-2 py-1.5 text-sm outline-none focus:border-rust"
+            className="border-rust/25 bg-sand focus:border-rust border px-2 py-1.5 text-sm outline-none"
             placeholder="Quantidade"
             inputMode="numeric"
             value={qtd}
             onChange={(e) => setQtd(e.target.value.replace(/\D/g, ''))}
           />
           <input
-            className="border-rust/25 bg-sand border px-2 py-1.5 text-sm outline-none focus:border-rust"
+            className="border-rust/25 bg-sand focus:border-rust border px-2 py-1.5 text-sm outline-none"
             placeholder="Preço por unidade, em Fert$"
             inputMode="decimal"
             value={preco}
@@ -502,9 +569,22 @@ function LivroDeOfertas({
           />
         </div>
 
+        {tipo && (
+          <p className="text-ink-soft mt-2 text-xs">
+            Referência{' '}
+            <span className="text-ink font-bold tabular-nums">
+              {fert(tipo.preco_base_micro)} Fert$
+            </span>{' '}
+            · taxa de {(tipo.taxa_bps / 100).toFixed(0)}%, paga por quem vende
+          </p>
+        )}
+
+        {impedimento && <p className="text-rust mt-2 text-xs font-bold">{impedimento}</p>}
+
         {valido && (
           <p className="text-ink-soft mt-2 text-xs">
-            Total: <span className="text-ink font-bold">{fert(quantidade * precoMicro, 2)} Fert$</span>
+            Total:{' '}
+            <span className="text-ink font-bold">{fert(quantidade * precoMicro, 2)} Fert$</span>
           </p>
         )}
 
@@ -512,7 +592,12 @@ function LivroDeOfertas({
           disabled={!valido}
           onClick={() => {
             void agir(() =>
-              api.ordenar({ side: lado, resource_type: recurso, qty: quantidade, price_micro: precoMicro }),
+              api.ordenar({
+                side: lado,
+                resource_type: recurso,
+                qty: quantidade,
+                price_micro: precoMicro,
+              }),
             ).then(() => {
               setQtd('')
               setPreco('')
@@ -520,65 +605,181 @@ function LivroDeOfertas({
           }}
           className="bg-rust text-sand-light hover:bg-rust-bright mt-3 w-full py-2 text-sm font-bold disabled:cursor-not-allowed disabled:opacity-40"
         >
-          {lado === 'buy' ? 'Colocar ordem de compra' : 'Colocar ordem de venda'}
+          {lado === 'sell' ? 'Anunciar venda' : 'Anunciar compra'}
         </button>
       </div>
 
-      <div className="text-rust eyebrow mt-6">Suas ordens abertas</div>
-      {livro?.minhas_ordens.length === 0 && (
-        <p className="text-ink-soft mt-2 text-sm">Nenhuma ordem sua neste recurso.</p>
-      )}
-      <div className="mt-2 space-y-2">
-        {livro?.minhas_ordens.map((o) => (
-          <div key={o.id} className="border-rust/15 flex items-center justify-between border p-2">
-            <div className="text-sm">
-              <span className="text-ink font-bold">{o.side === 'buy' ? 'Compra' : 'Venda'}</span>
-              <span className="text-ink-soft">
-                {' '}
-                de {o.qty.toLocaleString('pt-BR')} a {fert(o.price_micro)} Fert$
-                {o.status === 'parcial' && ' · parcialmente executada'}
-              </span>
-            </div>
-            <button
-              onClick={() => void agir(() => api.cancelar(o.id))}
-              className="text-ink-soft hover:text-rust text-xs font-bold"
-            >
-              Cancelar
-            </button>
-          </div>
-        ))}
-      </div>
-    </div>
-  )
-}
-
-function Coluna({
-  titulo,
-  vazio,
-  linhas,
-}: {
-  titulo: string
-  vazio: string
-  linhas: { price_micro: number; qty: number }[]
-}) {
-  return (
-    <div>
-      <div className="text-ink-soft eyebrow">{titulo}</div>
-      {linhas.length === 0 ? (
-        <p className="text-ink-soft mt-2 text-sm">{vazio}</p>
+      <div className="text-rust eyebrow mt-6">Suas ofertas na vitrine</div>
+      {minhas.length === 0 ? (
+        <p className="text-ink-soft mt-2 text-sm">Nenhuma oferta sua.</p>
       ) : (
-        <div className="mt-1">
-          {linhas.map((l, i) => (
-            <div
-              key={i}
-              className="border-rust/10 flex justify-between border-b py-1 text-sm last:border-0"
-            >
-              <span className="text-ink font-bold tabular-nums">{fert(l.price_micro)}</span>
-              <span className="text-ink-soft tabular-nums">{l.qty.toLocaleString('pt-BR')}</span>
+        <div className="mt-2 space-y-2">
+          {minhas.map((o) => (
+            <div key={o.id} className="border-rust/15 flex items-center justify-between border p-2">
+              <div className="text-sm">
+                <span className="text-ink font-bold">{o.side === 'buy' ? 'Compra' : 'Venda'}</span>
+                <span className="text-ink-soft">
+                  {' '}
+                  de {o.qty.toLocaleString('pt-BR')} de {nomeRecurso(o.resource_type)} a{' '}
+                  {fert(o.price_micro)} Fert$
+                </span>
+              </div>
+              <button
+                onClick={() => void agir(() => api.cancelar(o.id))}
+                className="text-ink-soft hover:text-rust text-xs font-bold"
+              >
+                Cancelar
+              </button>
             </div>
           ))}
         </div>
       )}
+
+    </div>
+  )
+}
+
+/**
+ * A vitrine. Toda oferta aberta, de todos os recursos, com o nome de quem a anunciou.
+ *
+ * É a tela que resolve a queixa que originou o D-58: o livro antigo casava as ordens no ato, então
+ * uma oferta que cruzava era executada antes de qualquer um a ver, e o que sobrava aparecia sem
+ * dono, misturado às próprias.
+ */
+function OfertasGlobais({
+  vitrine,
+  conta,
+  agir,
+}: {
+  vitrine: Vitrine | null
+  conta: ContaDoMercado | null
+  agir: (a: () => Promise<unknown>) => Promise<void>
+}) {
+  const [filtro, setFiltro] = useState('')
+
+  const ofertas = (vitrine?.ofertas ?? []).filter((o) => !filtro || o.resource_type === filtro)
+
+  return (
+    <div className="mt-5">
+      <div className="flex items-center justify-between gap-4">
+        <select
+          aria-label="Filtrar por recurso"
+          className="border-rust/25 bg-sand focus:border-rust border px-2 py-1.5 text-sm outline-none"
+          value={filtro}
+          onChange={(e) => setFiltro(e.target.value)}
+        >
+          <option value="">Todos os recursos</option>
+          {(vitrine?.catalogo ?? []).map((c) => (
+            <option key={c.code} value={c.code}>
+              {c.nome}
+            </option>
+          ))}
+        </select>
+        <p className="text-ink-soft text-xs">
+          A oferta fica aqui até alguém executá-la. Nada é enviado: o recurso troca de depósito.
+        </p>
+      </div>
+
+      {ofertas.length === 0 ? (
+        <p className="text-ink-soft mt-4 text-sm">
+          Nenhuma oferta na vitrine{filtro ? ' neste recurso' : ''}. Anuncie a sua na aba ao lado.
+        </p>
+      ) : (
+        <div className="mt-4 space-y-2">
+          {ofertas.map((o) => (
+            <LinhaDaVitrine
+              key={o.id}
+              oferta={o}
+              saldo={conta?.deposito.find((d) => d.resource_type === o.resource_type)}
+              agir={agir}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function LinhaDaVitrine({
+  oferta,
+  saldo,
+  agir,
+}: {
+  oferta: OfertaGlobal
+  saldo: SaldoDoRecurso | undefined
+  agir: (a: () => Promise<unknown>) => Promise<void>
+}) {
+  const [qtd, setQtd] = useState('')
+  const quantidade = Number(qtd) || oferta.qty
+
+  /*
+   * Executar uma VENDA alheia é comprar: preciso de espaço no depósito para receber.
+   * Executar uma COMPRA alheia é vender: preciso do lote já no depósito.
+   */
+  const impedimento =
+    oferta.minha || !saldo
+      ? null
+      : oferta.side === 'sell'
+        ? quantidade > saldo.livre
+          ? `Seu depósito comporta mais ${saldo.livre.toLocaleString('pt-BR')}.`
+          : null
+        : quantidade > saldo.no_deposito
+          ? `Seu depósito na Capital tem ${saldo.no_deposito.toLocaleString('pt-BR')}.`
+          : null
+
+  const vende = oferta.side === 'sell'
+
+  return (
+    <div className="border-rust/15 border p-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="text-sm">
+          <span className={`font-bold ${vende ? 'text-ink' : 'text-rust'}`}>
+            {vende ? 'VENDE' : 'COMPRA'}
+          </span>{' '}
+          <span className="text-ink font-bold">{nomeRecurso(oferta.resource_type)}</span>
+          <span className="text-ink-soft">
+            {' · '}
+            {oferta.qty.toLocaleString('pt-BR')} un a{' '}
+            <span className="text-ink font-bold tabular-nums">{fert(oferta.price_micro)}</span> Fert$
+          </span>
+          <div className="text-ink-soft text-xs">
+            {oferta.minha ? 'sua oferta' : (oferta.colonia ?? `colônia #${oferta.colony_id}`)}
+            {' · total '}
+            {fert(oferta.qty * oferta.price_micro, 2)} Fert$
+          </div>
+        </div>
+
+        {oferta.minha ? (
+          <button
+            onClick={() => void agir(() => api.cancelar(oferta.id))}
+            className="text-ink-soft hover:text-rust text-xs font-bold"
+          >
+            Cancelar
+          </button>
+        ) : (
+          <div className="flex items-center gap-2">
+            <input
+              aria-label="Quantidade a executar"
+              className="border-rust/25 bg-sand focus:border-rust w-24 border px-2 py-1.5 text-sm outline-none"
+              placeholder={String(oferta.qty)}
+              inputMode="numeric"
+              value={qtd}
+              onChange={(e) => setQtd(e.target.value.replace(/\D/g, ''))}
+            />
+            <button
+              disabled={!!impedimento || quantidade <= 0 || quantidade > oferta.qty}
+              onClick={() => {
+                void agir(() => api.executarOferta(oferta.id, quantidade)).then(() => setQtd(''))
+              }}
+              className="bg-rust text-sand-light hover:bg-rust-bright px-4 py-1.5 text-sm font-bold disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              {vende ? 'Comprar' : 'Vender'}
+            </button>
+          </div>
+        )}
+      </div>
+
+      {impedimento && <p className="text-rust mt-1 text-xs font-bold">{impedimento}</p>}
     </div>
   )
 }

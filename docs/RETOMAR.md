@@ -22,8 +22,26 @@ O MVP tem, funcionando e no ar em `https://fertways.tars.art.br`:
 - Fabricação de Componentes Eletrônicos pelas três receitas do §24.5
 - **Logística física**: mapa 100×100, despacho de carga entre colônias, tempo e energia por
   distância, tributo na entrega, viagem de ida e volta
-- **Mercado Central**: conta na doca com depósito e retirada físicos (§25.8, D-32) e **livro de
-  ofertas com escrow** (§07, D-35). O Mercado casa ordens; não compra nem vende.
+- **Mercado Central, reorganizado no D-58 (2026-07-11)** — cinco abas, e **dois canais que a regra
+  agora separa**: o que está **na colônia** se negocia entre colonos (promessa, entrega física por
+  veículo, calote possível); o que está **no depósito da Capital** se oferta no Mercado Central
+  (escrow, e a execução move recurso de um depósito ao outro, sem veículo).
+  - **A vitrine matou o casamento automático.** A oferta **repousa** e fica visível até alguém
+    executá-la (`POST /market/orders/{id}/execute`, parcial permitida). Era o casamento no ato que
+    fazia o livro parecer deserto — a oferta que cruzava era consumida antes de qualquer um a ver.
+    `GET /market/orders` agora dispensa `resource_type` (traz **todos**) e **diz de quem é** cada
+    oferta. As duas faltas somadas eram a queixa "não vejo as ofertas dos outros".
+  - **Teto no depósito da Capital**: 10.000 por primário, 2.500 por secundário, 100 por raro.
+    **Arbitragem do usuário, não do GDD** — vivem em `Domain/Market/Deposito`, não no catálogo, que é
+    gerado do GDD. Ocupa espaço o saldo **mais** o que está preso em ofertas (de venda **e** de
+    compra). O despacho barra o que não cabe; se o depósito encher durante a viagem, entra o que
+    couber e **o excedente volta na carroceria, sem tributo** — não foi entregue.
+  - **Mural entre colonos**: o Acordo de Troca pode ir **sem contraparte** (`colony_b_id` nulo), e
+    quem aceitar primeiro leva (`GET /trade/board`, `POST /trade/agreements/{id}/accept`). O prazo do
+    D-42 é cobrado **na aceitação**, quando enfim existe um par e uma distância.
+  - A taxa de fechamento (3/2/1% em Fert$, ao Tesouro) **continua no vendedor** — confirmada de
+    propósito, para não ser apagada por omissão.
+  - **O botão "Acordos" saiu do HUD**: virou aba do Mercado. São **cinco** botões agora.
 - **Logout de verdade**: `POST /central/logout` revoga no servidor só o token que fez a chamada.
 - **Diretório de colônias**: `GET /central/colonies`, da mais próxima à mais distante. É o que
   tornou o despacho entre colônias alcançável pela UI. Ver D-37 e D-38.
@@ -53,11 +71,11 @@ O MVP tem, funcionando e no ar em `https://fertways.tars.art.br`:
   Acordo.
 - **Receita da Oficina (D-54)** — `PATCH /buildings/{id}/recipe` existia e nenhuma tela o chamava.
   Agora o painel de detalhe da Oficina oferece as três receitas do §24.5. Criado o `GET /recipes`.
-- Frontend: login, HUD, colônia em Phaser, e **seis botões no HUD**: Mapa, Frota, Capital, Ministério,
-  Acordo e Mercado.
-  - A do **Acordo** propõe, aceita, recusa, desiste, mostra a Confiança Comercial contra o limiar e
-    **despacha a entrega pelo bruto**, não pelo prometido: quem embarca 100 entrega 97, e o colono
-    não deve descobrir que caloteou por três unidades de tributo (D-41).
+- Frontend: login, HUD, colônia em Phaser, e **cinco botões no HUD**: Mapa, Frota, Capital, Ministério
+  e Mercado. O do **Acordo** saiu no D-58: negócio virou assunto do Mercado, e ele é aba de lá.
+  - A aba do **Acordo** (dentro do Mercado) propõe, aceita, recusa, desiste, mostra a Confiança
+    Comercial contra o limiar e **despacha a entrega pelo bruto**, não pelo prometido: quem embarca
+    100 entrega 97, e o colono não deve descobrir que caloteou por três unidades de tributo (D-41).
   - A do **Ministério** mostra os quatro índices, as punições vigentes com prazo, abre denúncia (com
     a evidência filtrada: só o Acordo quebrado entre os dois serve, §26.8), e dá ao conciliador a
     fila com o relógio das 48 h. **Ela publica a pena tabelada antes do julgamento** e só lhe oferece
@@ -91,7 +109,7 @@ O MVP tem, funcionando e no ar em `https://fertways.tars.art.br`:
   (`ColonyController::store`) e por backfill (`artisan fertways:kit-recursos --aplicar`). Números
   decididos pelo usuário, **não do GDD**.
 
-**230 testes PHP (2300 asserções) + 7 e2e, verdes.** O cron do tick está instalado (crontab do usuário
+**245 testes PHP (2351 asserções) + 7 e2e, verdes.** O cron do tick está instalado (crontab do usuário
 `fertways`, log em `/home/fertways/logs/fertways-tick.log`) e roda o `artisan` **da cópia de
 deploy** — o mundo avança sozinho. O tick faz: produção, upgrades, proteções, trechos de viagem,
 acordos vencidos, **casos reatribuídos, janelas de apelação fechadas e a folha do Ministério**.

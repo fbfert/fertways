@@ -2,6 +2,7 @@
 
 namespace App\Domain\Logistics;
 
+use App\Domain\Market\Deposito;
 use App\Domain\Trade\CreditarEntrega;
 use App\Models\Colony;
 use App\Models\Ledger;
@@ -72,13 +73,21 @@ class ConcluirTrechos
         }
 
         if ($v->destination_type === 'mercado_central') {
+            $sobra = [];
+
             if ($origem) {
                 foreach ($v->cargo_json ?? [] as $recurso => $qtd) {
-                    $this->depositarNoMercado($origem, $v, $recurso, (int) $qtd);
+                    $excedente = $this->depositarNoMercado($origem, $v, $recurso, (int) $qtd);
+
+                    // D-58: o que não coube no teto não foi entregue. Volta na carroceria, e o
+                    // tributo já foi calculado só sobre o que entrou.
+                    if ($excedente > 0) {
+                        $sobra[$recurso] = $excedente;
+                    }
                 }
             }
 
-            $this->iniciarVolta($v, manterCarga: false);
+            $this->iniciarVolta($v, manterCarga: false, carga: $sobra ?: null);
 
             return;
         }
@@ -106,11 +115,11 @@ class ConcluirTrechos
         $this->iniciarVolta($v, manterCarga: false);
     }
 
-    private function iniciarVolta(Vehicle $v, bool $manterCarga): void
+    private function iniciarVolta(Vehicle $v, bool $manterCarga, ?array $carga = null): void
     {
         $v->forceFill([
             'leg' => 'volta',
-            'cargo_json' => $manterCarga ? $v->cargo_json : null,
+            'cargo_json' => $manterCarga ? $v->cargo_json : $carga,
             // A volta parte de quando a ida terminou, não de `now()`: se o cron atrasar, o
             // atraso não pode encurtar nem alongar o trecho de volta.
             'arrives_at' => $v->arrives_at->copy()->addSeconds(
@@ -134,6 +143,22 @@ class ConcluirTrechos
                     $this->entregar($colonia, $colonia, $v, $recurso, (int) $qtd, 'retirada');
                 }
             }
+        } elseif ($v->cargo_json) {
+            /*
+             * D-58: carga que sobrou de um depósito no Mercado, por não caber no teto. Ela volta
+             * ao estoque **sem tributo**: o tributo incide na entrega física (§25.8), e esta carga
+             * não foi entregue a lugar nenhum — cobrá-la aqui faturaria uma entrega que não houve.
+             * Não precisa de `tax_event`: a idempotência vem do `lockForUpdate` e do estado do
+             * veículo, que sai de `em_rota` dentro da mesma transação.
+             */
+            $colonia = Colony::find($v->colony_id);
+
+            if ($colonia) {
+                foreach ($v->cargo_json as $recurso => $qtd) {
+                    $colonia->resources()->where('resource_type', $recurso)->increment('amount', (int) $qtd);
+                    $this->lancar($colonia, 'devolucao_deposito', (int) $qtd, $recurso, "sobra:{$v->id}:{$v->departs_at->getTimestamp()}:{$recurso}");
+                }
+            }
         }
 
         $v->forceFill([
@@ -155,20 +180,33 @@ class ConcluirTrechos
      * qualquer outra: "Tributo de transporte cobrado na entrega, exatamente como qualquer
      * outro destino". Quem credita é a conta, não o estoque da colônia.
      */
-    private function depositarNoMercado(Colony $origem, Vehicle $v, string $recurso, int $qtd): void
+    private function depositarNoMercado(Colony $origem, Vehicle $v, string $recurso, int $qtd): int
     {
         $tipo = ResourceType::find($recurso);
 
         if (! $tipo) {
-            return;
+            return 0;
+        }
+
+        /*
+         * D-58: o depósito tem teto. O despacho já recusa o que não cabe, mas a viagem demora — e
+         * outra entrega, ou uma compra executada, pode ter enchido o depósito no meio do caminho.
+         * Quem cabe é o **líquido**, e é o **bruto** que decide o tributo: por isso o cálculo é
+         * inverso, em `Deposito::brutoQueCabe()`.
+         */
+        $bruto = Deposito::brutoQueCabe($qtd, (int) $tipo->tax_bps, Deposito::livre($origem->id, $recurso));
+        $excedente = $qtd - $bruto;
+
+        if ($bruto === 0) {
+            return $excedente;
         }
 
         $chave = $this->chave('deposito', $v, $recurso);
-        $tributo = intdiv($qtd * $tipo->tax_bps, 10_000);
-        $liquido = $qtd - $tributo;
+        $tributo = intdiv($bruto * $tipo->tax_bps, 10_000);
+        $liquido = $bruto - $tributo;
 
-        if (! $this->tributar($chave, $origem, $recurso, $qtd, $tipo->tax_bps, $tributo)) {
-            return;
+        if (! $this->tributar($chave, $origem, $recurso, $bruto, $tipo->tax_bps, $tributo)) {
+            return 0;
         }
 
         // A conta pode não existir ainda: este é o primeiro depósito deste recurso. O
@@ -189,6 +227,8 @@ class ConcluirTrechos
 
         $this->lancar($origem, 'deposito_mercado', $liquido, $recurso, $chave);
         $this->lancarTributo($origem, $tributo, $recurso, $chave);
+
+        return $excedente;
     }
 
     /**

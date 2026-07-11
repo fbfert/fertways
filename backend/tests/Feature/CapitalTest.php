@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Domain\Colony\CreateColony;
 use App\Domain\Market\ColocarOrdem;
+use App\Domain\Market\ExecutarOrdem;
 use App\Exceptions\DomainRuleException;
 use App\Http\Controllers\Api\CapitalController;
 use App\Models\Colony;
@@ -59,8 +60,9 @@ class CapitalTest extends TestCase
         MarketAccount::create(['colony_id' => $a->id, 'resource_type' => 'metal_bruto', 'amount' => 1_000]);
 
         // Venda de 100 a 50.000 micro = 5 Fert$. Taxa de 3% (primário) = 150.000 micro.
-        app(ColocarOrdem::class)->handle($a, 'sell', 'metal_bruto', 100, 50_000);
-        app(ColocarOrdem::class)->handle($b, 'buy', 'metal_bruto', 100, 60_000);
+        // D-58: a oferta repousa e o comprador a executa; não há mais casamento automático.
+        $venda = app(ColocarOrdem::class)->handle($a, 'sell', 'metal_bruto', 100, 50_000);
+        app(ExecutarOrdem::class)->handle($b, $venda->id, 100);
 
         $this->assertSame(150_000, $this->treasury()['fert_micro']);
     }

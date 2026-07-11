@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Domain\Trade\ProporAcordo;
+
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
@@ -56,22 +58,30 @@ class TradeAgreement extends Model
         return $this->colony_a_id === $colonyId || $this->colony_b_id === $colonyId;
     }
 
-    /** A outra ponta do acordo, vista de `$colonyId`. */
-    public function contraparte(int $colonyId): int
+    /**
+     * A outra ponta do acordo, vista de `$colonyId`. `null` numa **oferta aberta** do mural, que
+     * ainda não tem contraparte (D-58).
+     */
+    public function contraparte(int $colonyId): ?int
     {
         return $this->colony_a_id === $colonyId ? $this->colony_b_id : $this->colony_a_id;
     }
 
-    /** @return array<string,int> o que `$colonyId` prometeu */
-    public function prometido(int $colonyId): array
+    /**
+     * O que `$colonyId` prometeu. `null` lê o **lado ainda sem dono** de uma oferta aberta, que
+     * mora na chave `0` até alguém aceitar.
+     *
+     * @return array<string,int>
+     */
+    public function prometido(?int $colonyId): array
     {
-        return $this->terms_json[(string) $colonyId] ?? [];
+        return $this->terms_json[(string) ($colonyId ?? ProporAcordo::LADO_ABERTO)] ?? [];
     }
 
     /** @return array<string,int> o que `$colonyId` já entregou, líquido */
-    public function entregue(int $colonyId): array
+    public function entregue(?int $colonyId): array
     {
-        return $this->delivered_json[(string) $colonyId] ?? [];
+        return $this->delivered_json[(string) ($colonyId ?? ProporAcordo::LADO_ABERTO)] ?? [];
     }
 
     /** Um lado cumpriu quando cada recurso prometido chegou inteiro à contraparte. */

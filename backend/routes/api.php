@@ -47,8 +47,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/market/account', [MarketController::class, 'conta']);
     Route::post('/vehicles/{vehicle}/withdraw', [MarketController::class, 'retirar']);
 
+    // Ofertas Globais: vitrine, não livro de casamento (D-58). A oferta repousa até que alguém a
+    // execute — e é a execução que move recurso e Fert$, de depósito a depósito, sem veículo.
     Route::get('/market/orders', [MarketController::class, 'livro']);
     Route::post('/market/orders', [MarketController::class, 'ordenar']);
+    Route::post('/market/orders/{order}/execute', [MarketController::class, 'executar']);
     Route::delete('/market/orders/{order}', [MarketController::class, 'cancelar']);
 
     // Acordo de Troca (§26.5). Sem escrow: registram promessas, não movem recursos. Quem move é
@@ -58,6 +61,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/trade/agreements', [TradeController::class, 'store']);
     Route::post('/trade/agreements/{agreement}/confirm', [TradeController::class, 'confirm']);
     Route::delete('/trade/agreements/{agreement}', [TradeController::class, 'destroy']);
+
+    // O mural do D-58: ofertas sem contraparte, abertas a quem quiser. Quem aceita primeiro leva —
+    // e o D-42 (prazo × distância) só pode ser cobrado aí, quando enfim existe um par de verdade.
+    Route::get('/trade/board', [TradeController::class, 'mural']);
+    Route::post('/trade/agreements/{agreement}/accept', [TradeController::class, 'aceitar']);
 
     // Capital — instituições do governo (§02). Só leitura: os atos do governo (intervenção de preço,
     // publicar comunicado) são artisan, não rota, porque o Governo é "operado pela equipe" (D-44).

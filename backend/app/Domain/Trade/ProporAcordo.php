@@ -21,18 +21,22 @@ use Illuminate\Support\Facades\DB;
  */
 class ProporAcordo
 {
+    /** A chave do lado ainda sem dono, numa oferta aberta. Nenhuma colônia tem id 0. */
+    public const LADO_ABERTO = 0;
+
     /**
+     * @param  Colony|null  $contraparte  nulo = oferta aberta no mural (D-58)
      * @param  array<string,int>  $prometidoPeloProponente
      * @param  array<string,int>  $prometidoPelaContraparte
      */
     public function handle(
         Colony $proponente,
-        Colony $contraparte,
+        ?Colony $contraparte,
         array $prometidoPeloProponente,
         array $prometidoPelaContraparte,
         CarbonInterface $prazo,
     ): TradeAgreement {
-        if ($proponente->id === $contraparte->id) {
+        if ($contraparte && $proponente->id === $contraparte->id) {
             throw new DomainRuleException('acordo_consigo_mesmo', 'Não se faz acordo com a própria colônia.');
         }
 
@@ -43,17 +47,25 @@ class ProporAcordo
 
         $this->validarPrazo($proponente, $contraparte, $prazo);
 
+        /*
+         * D-58, oferta aberta: sem contraparte, o outro lado dos termos ainda não tem dono. A chave
+         * `0` o guarda — nenhuma colônia tem id 0 —, e `AceitarOferta` a substitui pelo id de quem
+         * aceitar. Assim `terms_json` continua indexado por colônia, e nada mais no domínio
+         * (entrega, inadimplência, reputação) precisa saber que existe oferta aberta.
+         */
+        $chaveDoOutro = (string) ($contraparte->id ?? self::LADO_ABERTO);
+
         $termos = [
             (string) $proponente->id => $prometidoPeloProponente,
-            (string) $contraparte->id => $prometidoPelaContraparte,
+            $chaveDoOutro => $prometidoPelaContraparte,
         ];
 
         return DB::transaction(fn () => TradeAgreement::create([
             'colony_a_id' => $proponente->id,
-            'colony_b_id' => $contraparte->id,
+            'colony_b_id' => $contraparte?->id,
             'proposer_colony_id' => $proponente->id,
             'terms_json' => $termos,
-            'delivered_json' => [(string) $proponente->id => [], (string) $contraparte->id => []],
+            'delivered_json' => [(string) $proponente->id => [], $chaveDoOutro => []],
             'status' => 'proposto',
             'deadline_at' => $prazo,
             'value_micro' => $this->valorDeMercado($termos),
@@ -84,10 +96,18 @@ class ProporAcordo
     /**
      * D-42: o prazo tem de caber na viagem. O piso é o trecho do veículo mais lento entre as duas
      * colônias, mais 12 h de folga — sem isso, quem propõe fabricaria o calote do outro.
+     *
+     * Numa **oferta aberta** não há contraparte, logo não há distância: aqui só se exige o piso
+     * teórico (distância zero, a folga sozinha). A regra do D-42 não afrouxa — ela é cobrada de
+     * novo, para o par de verdade, na hora em que alguém aceita (`AceitarOferta`). Quem mora longe
+     * demais para o prazo anunciado simplesmente não consegue aceitar.
      */
-    private function validarPrazo(Colony $proponente, Colony $contraparte, CarbonInterface $prazo): void
+    private function validarPrazo(Colony $proponente, ?Colony $contraparte, CarbonInterface $prazo): void
     {
-        $distancia = MapaFertways::distancia($proponente->x, $proponente->y, $contraparte->x, $contraparte->y);
+        $distancia = $contraparte
+            ? MapaFertways::distancia($proponente->x, $proponente->y, $contraparte->x, $contraparte->y)
+            : 0;
+
         $minimo = now()->addSeconds(AcordoSpecs::prazoMinimoSegundos($distancia));
 
         if ($prazo->lessThan($minimo)) {

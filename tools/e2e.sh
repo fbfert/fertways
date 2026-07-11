@@ -94,6 +94,24 @@ $v = App\Models\User::create([
 $cv = app(App\Domain\Colony\CreateColony::class)->handle($v, "Colônia vizinha", 0, 6);
 
 /*
+ * D-58. Uma oferta da **vizinha** na vitrine das Ofertas Globais, e outra no mural entre colonos.
+ * São elas que provam o que o D-58 veio consertar: sem uma oferta alheia, o e2e só veria as suas
+ * próprias, e a queixa original ("não vejo as ofertas dos outros") continuaria sem teste.
+ *
+ * Vender exige o lote já no depósito da Capital — daí a conta dela nascer com Água.
+ */
+App\Models\MarketAccount::create([
+    "colony_id" => $cv->id, "resource_type" => "agua", "amount" => 300,
+]);
+app(App\Domain\Market\ColocarOrdem::class)->handle($cv, "sell", "agua", 300, 10000);
+
+// Oferta aberta, sem contraparte: o primeiro que aceitar leva. Prazo largo, para caber na viagem
+// de qualquer colônia (o D-42 é cobrado de quem aceita, não de quem anuncia).
+app(App\Domain\Trade\ProporAcordo::class)->handle(
+    $cv, null, ["biomassa" => 50], ["metal_bruto" => 50], now()->addDays(3),
+);
+
+/*
  * Um acordo já proposto **pela vizinha**, para o colono do e2e ter o que aceitar: só a contraparte
  * fecha o aperto de mão (§26.5), então um acordo proposto por ele mesmo não exercitaria o botão.
  *

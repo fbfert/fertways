@@ -28,9 +28,37 @@ try {
   await entrar(page)
   checar(await esperarTexto(page, /Fert\$/), 'o HUD carrega e mostra Fert$')
 
-  console.log('\nAbre os Acordos')
-  await (await acharPorTexto(page, 'button', /^Acordos$/)).click()
-  checar(await esperarTexto(page, /O aperto de mão/), 'o painel do Acordo abre')
+  /*
+   * D-58: o Acordo deixou de ser tela de topo. Ele virou aba do Mercado — negócio é assunto do
+   * Mercado —, e o botão "Acordos" saiu do HUD.
+   */
+  console.log('\nAbre o Mercado e vai à aba de ofertar entre colonos')
+  await (await acharPorTexto(page, 'button', /^Mercado$/)).click()
+  checar(await esperarTexto(page, /Mercado Central/), 'o painel do Mercado abre')
+
+  await (await acharPorTexto(page, 'button', /Ofertar entre colonos/)).click()
+  checar(
+    await esperarTexto(page, /Aqui se negocia o que está na sua colônia/),
+    'a aba diz de que estoque este canal vive',
+  )
+
+  console.log('\nO mural: a oferta aberta da vizinha, sem contraparte')
+  await (await acharPorTexto(page, 'button', /Ver ofertas de colonos/)).click()
+  checar(await esperarTexto(page, /Colônia vizinha/), 'a oferta aberta da vizinha aparece no mural')
+  checar(await esperarTexto(page, /50 de Biomassa/), 'o mural diz o que ela dá')
+  checar(await esperarTexto(page, /50 de Metal Bruto/), 'e o que ela quer em troca')
+
+  const aceitar = await acharPorTexto(page, 'button', /^Aceitar$/)
+  await aceitar.click()
+  await page.waitForNetworkIdle({ idleTime: 1000 })
+  checar(
+    !(await esperarTexto(page, /Colônia vizinha/, 1500)),
+    'aceita, a oferta sai do mural: quem chega primeiro leva',
+  )
+
+  console.log('\nMeus acordos')
+  await (await acharPorTexto(page, 'button', /Ofertar entre colonos/)).click()
+  await (await acharPorTexto(page, 'button', /Meus acordos/)).click()
 
   console.log('\nConfiança Comercial')
   checar(await esperarTexto(page, /Confiança Comercial/), 'o índice do §26.2 aparece na tela')
@@ -87,8 +115,15 @@ try {
     console.log((await textoDaPagina(page)).slice(0, 1500))
   }
 
-  console.log('\nPropor um acordo')
-  await (await acharPorTexto(page, 'button', /^Propor$/)).click()
+  console.log('\nPropor um acordo dirigido')
+  await (await acharPorTexto(page, 'button', /^Nova oferta$/)).click()
+
+  // D-58: as duas modalidades convivem. A dirigida é a que já existia; a aberta vai ao mural.
+  checar(
+    await esperarTexto(page, /Um colono específico/),
+    'a tela deixa escolher entre oferta dirigida e oferta aberta',
+  )
+  checar(await esperarTexto(page, /Aberta no mural/), 'e a aberta é a outra opção')
 
   checar(await esperarTexto(page, /O mínimo é/), 'o prazo mínimo do D-42 vem do backend')
 
@@ -106,6 +141,10 @@ try {
     contrapartes.includes('vizinha · 3 slots'),
     `o diretório popula a contraparte com a distância (viu: ${contrapartes.join(' | ')})`,
   )
+
+  // O item 1 do pedido: ao lado do recurso escolhido, quanto há na colônia. Ninguém deve prometer
+  // o que não tem por engano — prometer o que não se tem continua permitido, e é o calote.
+  checar(await esperarTexto(page, /Na sua colônia:/), 'o lado "Você promete" mostra o estoque')
 
   await selects[2].select('agua')
 

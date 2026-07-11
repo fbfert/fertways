@@ -6,6 +6,8 @@ use App\Domain\Logistics\DespacharVeiculo;
 use App\Domain\Logistics\MapaFertways;
 use App\Domain\Market\CancelarOrdem;
 use App\Domain\Market\ColocarOrdem;
+use App\Domain\Market\Deposito;
+use App\Domain\Market\ExecutarOrdem;
 use App\Exceptions\DomainRuleException;
 use App\Http\Controllers\Controller;
 use App\Models\Colony;
@@ -24,41 +26,76 @@ use Illuminate\Http\Request;
  */
 class MarketController extends Controller
 {
-    /** O livro de um recurso: melhores compras e vendas, mais as ordens do próprio colono. */
+    /**
+     * A vitrine das Ofertas Globais (D-58).
+     *
+     * `resource_type` virou **opcional**: sem ele, a vitrine mostra todos os recursos. Era essa a
+     * causa principal de o colono não ver oferta nenhuma — a lista pedia um recurso por vez, abria
+     * em `metal_bruto`, e a UI só oferecia 8 dos 26. Cada linha agora diz **de quem é**: sem isso,
+     * as ofertas dos outros ficavam indistinguíveis das próprias.
+     */
     public function livro(Request $request): JsonResponse
     {
-        $dados = $request->validate(['resource_type' => ['required', 'string']]);
-        $recurso = $dados['resource_type'];
+        $dados = $request->validate(['resource_type' => ['sometimes', 'nullable', 'string']]);
+        $recurso = $dados['resource_type'] ?? null;
         $colony = $this->colonia($request);
 
-        $tipo = ResourceType::find($recurso);
-
-        if (! $tipo) {
+        if ($recurso !== null && ! ResourceType::find($recurso)) {
             throw new DomainRuleException('recurso_desconhecido', "Recurso inexistente: {$recurso}");
         }
 
-        $lado = fn (string $side, string $dir) => MarketOrder::where('resource_type', $recurso)
-            ->where('side', $side)
+        $ofertas = MarketOrder::query()
+            ->when($recurso, fn ($q) => $q->where('resource_type', $recurso))
             ->whereIn('status', ['aberta', 'parcial'])
-            ->orderBy('price_micro', $dir)
+            ->with('colony:id,name')
+            ->orderBy('resource_type')
+            ->orderBy('side')
+            ->orderBy('price_micro')
             ->orderBy('id')
-            ->limit(20)
-            ->get(['price_micro', 'qty'])
-            ->map(fn (MarketOrder $o) => ['price_micro' => $o->price_micro, 'qty' => $o->qty])
+            ->get()
+            ->map(fn (MarketOrder $o) => [
+                'id' => $o->id,
+                'resource_type' => $o->resource_type,
+                'side' => $o->side,
+                'price_micro' => (int) $o->price_micro,
+                'qty' => (int) $o->qty,
+                'colony_id' => $o->colony_id,
+                'colonia' => $o->colony?->name,
+                // A UI usa isto para trocar "Comprar" por "Cancelar": a própria oferta não se executa
+                // (§26.4 trata conta-alternativa como fraude).
+                'minha' => $o->colony_id === $colony->id,
+            ])
             ->values();
+
+        // Referência, não teto nem piso: o §06 é explícito quanto a isso.
+        $catalogo = ResourceType::orderBy('code')->get(['code', 'nome', 'tax_class', 'tax_bps', 'preco_base_micro'])
+            ->map(fn (ResourceType $t) => [
+                'code' => $t->code,
+                'nome' => $t->nome,
+                'tax_class' => $t->tax_class,
+                'taxa_bps' => (int) $t->tax_bps,
+                'preco_base_micro' => (int) $t->preco_base_micro,
+                'teto_deposito' => Deposito::teto($t->code),
+            ]);
 
         return response()->json([
             'resource_type' => $recurso,
-            // Referência, não teto nem piso: o §06 é explícito quanto a isso.
-            'preco_base_micro' => (int) $tipo->preco_base_micro,
-            'taxa_bps' => (int) $tipo->tax_bps,
-            'bids' => $lado('buy', 'desc'),
-            'asks' => $lado('sell', 'asc'),
-            'minhas_ordens' => MarketOrder::where('colony_id', $colony->id)
-                ->where('resource_type', $recurso)
-                ->whereIn('status', ['aberta', 'parcial'])
-                ->orderBy('id')
-                ->get(['id', 'side', 'price_micro', 'qty', 'status']),
+            'ofertas' => $ofertas,
+            'catalogo' => $catalogo,
+        ]);
+    }
+
+    /** Fecha uma oferta da vitrine. O preço é o dela; parcial é permitido (D-58). */
+    public function executar(Request $request, int $order, ExecutarOrdem $executar): JsonResponse
+    {
+        $dados = $request->validate(['qty' => ['required', 'integer', 'min:1']]);
+
+        $ordem = $executar->handle($this->colonia($request), $order, $dados['qty']);
+
+        return response()->json([
+            'id' => $ordem->id,
+            'qty' => (int) $ordem->qty,
+            'status' => $ordem->status,
         ]);
     }
 
@@ -108,6 +145,29 @@ class MarketController extends Controller
             ->orderBy('resource_type')
             ->get(['resource_type', 'amount']);
 
+        $estoque = $colony->resources()->pluck('amount', 'resource_type');
+
+        /*
+         * D-58: a tela mostra os dois estoques lado a lado, porque a regra do jogo agora depende de
+         * distingui-los — o que está na colônia se negocia entre colonos; o que está no depósito da
+         * Capital se oferta no Mercado Central. `ocupado` inclui o que está preso em ofertas: é o
+         * número que decide se cabe mais carga, e não o saldo livre.
+         */
+        $deposito = ResourceType::orderBy('code')->pluck('code')->map(function (string $code) use ($colony, $estoque) {
+            $ocupado = Deposito::ocupado($colony->id, $code);
+            $saldo = (int) MarketAccount::where('colony_id', $colony->id)
+                ->where('resource_type', $code)->value('amount');
+
+            return [
+                'resource_type' => $code,
+                'na_colonia' => (int) ($estoque[$code] ?? 0),
+                'no_deposito' => $saldo,
+                'em_ofertas' => $ocupado - $saldo,
+                'teto' => Deposito::teto($code),
+                'livre' => Deposito::livre($colony->id, $code),
+            ];
+        })->values();
+
         return response()->json([
             'capital' => ['x' => MapaFertways::CAPITAL_X, 'y' => MapaFertways::CAPITAL_Y],
             'distance_slots' => MapaFertways::ateCapital($colony->x, $colony->y),
@@ -115,6 +175,7 @@ class MarketController extends Controller
                 'resource_type' => $c->resource_type,
                 'amount' => $c->amount,
             ])->values(),
+            'deposito' => $deposito,
         ]);
     }
 

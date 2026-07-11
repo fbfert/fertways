@@ -5,8 +5,12 @@
  * e de import, mas não pegam painel que não renderiza, `select` que não popula, nem campo de
  * preço que rejeita vírgula. Este teste abre a tela de verdade.
  *
+ * Desde o D-58 ele cobre o que originou a mudança: **a oferta de outro colono tem de aparecer**.
+ * O livro antigo casava as ordens no ato, então uma oferta que cruzava era executada antes de
+ * qualquer um a ver — e a vitrine parecia deserta. Aqui a oferta da vizinha é vista e executada.
+ *
  * Roda contra a pilha efêmera que `tools/e2e.sh` levanta (SQLite + artisan serve + vite dev).
- * Nunca contra produção: ele põe ordens no livro e mexe em saldo.
+ * Nunca contra produção: ele põe ofertas na vitrine e mexe em saldo.
  */
 import {
   acharPorTexto,
@@ -29,28 +33,66 @@ try {
   checar(await esperarTexto(page, /Fert\$/), 'o HUD carrega e mostra Fert$')
 
   console.log('\nAbre o Mercado')
-  const botao = await acharPorTexto(page, 'button', /^Mercado$/)
-  await botao.click()
+  await (await acharPorTexto(page, 'button', /^Mercado$/)).click()
   checar(await esperarTexto(page, /Mercado Central/), 'o painel do Mercado abre')
   checar(await esperarTexto(page, /Doca e frota/), 'a aba da doca aparece')
+
+  console.log('\nAs cinco abas do D-58')
+  for (const rotulo of [
+    /Ofertar entre colonos/,
+    /Ver ofertas de colonos/,
+    /Ofertar no Mercado Central/,
+    /Ofertas globais/,
+  ]) {
+    checar(await esperarTexto(page, rotulo), `a aba "${rotulo.source}" existe`)
+  }
 
   console.log('\nDoca e frota')
   checar(await esperarTexto(page, /Furgão de Comércio/), 'o veículo aparece com nome legível')
   checar(await esperarTexto(page, /ocioso/), 'o veículo está ocioso')
-  // O seeder do e2e põe 500 de Metal Bruto na doca.
-  checar(await esperarTexto(page, /Metal Bruto/), 'a doca lista o Metal Bruto')
-  checar(await esperarTexto(page, /500/), 'a doca mostra o saldo de 500')
+  checar(
+    await esperarTexto(page, /No seu depósito na Capital/),
+    'a "doca" passou a se chamar depósito na Capital',
+  )
+  checar(await esperarTexto(page, /500/), 'o depósito mostra o saldo de 500 de Metal Bruto')
 
-  console.log('\nLivro de ofertas')
-  const abaLivro = await acharPorTexto(page, 'button', /Livro de ofertas/)
-  await abaLivro.click()
-  checar(await esperarTexto(page, /refer[êe]ncia/i), 'a referência de preço aparece')
-  checar(await esperarTexto(page, /0,0333/), 'a referência é 0,0333 Fert$ (§24.8 derivado)')
-  checar(await esperarTexto(page, /taxa de venda 3%/), 'a taxa da categoria aparece')
+  /*
+   * O CORAÇÃO DO D-58: a oferta da vizinha (300 de Água) tem de estar visível, com o nome dela e
+   * sem eu filtrar nada. Antes, era preciso adivinhar o recurso no seletor — e, mesmo acertando,
+   * a linha vinha sem dono, indistinguível das próprias.
+   */
+  console.log('\nOfertas globais: a vitrine mostra a oferta de OUTRO colono')
+  await (await acharPorTexto(page, 'button', /Ofertas globais/)).click()
+  checar(await esperarTexto(page, /VENDE/), 'a vitrine mostra uma oferta de venda')
+  checar(await esperarTexto(page, /Colônia vizinha/), 'a oferta traz o nome de quem a anunciou')
+  checar(await esperarTexto(page, /Água/), 'a oferta da vizinha aparece sem eu ter filtrado nada')
 
-  console.log('\nOrdem de venda com preço decimal em vírgula')
-  const vender = await acharPorTexto(page, 'button', /^Vender$/)
-  await vender.click()
+  console.log('\nExecutar a oferta alheia move recurso e Fert$ sem veículo nenhum')
+  const comprar = await acharPorTexto(page, 'button', /^Comprar$/)
+  checar(await comprar.evaluate((b) => !b.disabled), 'o botão de comprar habilita')
+  await comprar.click()
+  await page.waitForNetworkIdle({ idleTime: 1000 })
+
+  const aindaLa = await esperarTexto(page, /Colônia vizinha/, 1500)
+  checar(!aindaLa, 'a oferta executada sai da vitrine')
+
+  await (await acharPorTexto(page, 'button', /Doca e frota/)).click()
+  const aguaNoDeposito = await esperarTexto(page, /Água/)
+  checar(aguaNoDeposito, 'a Água comprada entrou no MEU depósito, sem viagem nenhuma')
+
+  if (!aguaNoDeposito) {
+    console.log('\n--- texto da tela no momento da falha ---')
+    console.log((await textoDaPagina(page)).slice(0, 1500))
+  }
+
+  console.log('\nAnunciar no Mercado Central, com preço decimal em vírgula')
+  await (await acharPorTexto(page, 'button', /Ofertar no Mercado Central/)).click()
+  checar(await esperarTexto(page, /Na colônia/), 'o painel mostra o estoque da colônia')
+  checar(
+    await esperarTexto(page, /No depósito da Capital/),
+    'e o do depósito, lado a lado — a regra dos dois estoques',
+  )
+  checar(await esperarTexto(page, /teto 10\.000/), 'o teto do recurso primário aparece')
 
   const [campoQtd, campoPreco] = await page.$$('input[inputmode]')
   await campoQtd.type('100')
@@ -58,33 +100,31 @@ try {
 
   checar(await esperarTexto(page, /Total: 5,00 Fert\$/), 'o total sai de "0,05" com vírgula')
 
-  const colocar = await acharPorTexto(page, 'button', /Colocar ordem de venda/)
-  checar(
-    await colocar.evaluate((b) => !b.disabled),
-    'o botão de ordem habilita com quantidade e preço válidos',
-  )
-  await colocar.click()
+  const anunciar = await acharPorTexto(page, 'button', /Anunciar venda/)
+  checar(await anunciar.evaluate((b) => !b.disabled), 'o botão habilita com quantidade e preço')
+  await anunciar.click()
   await page.waitForNetworkIdle({ idleTime: 800 })
 
-  checar(await esperarTexto(page, /Suas ordens abertas/), 'a seção das ordens do colono existe')
-  checar(await esperarTexto(page, /Venda de 100 a 0,0500 Fert\$/), 'a ordem aparece como sua')
-  // Vender reserva o recurso em escrow: a doca cai de 500 para 400.
-  const abaDoca = await acharPorTexto(page, 'button', /Doca e frota/)
-  await abaDoca.click()
-  checar(await esperarTexto(page, /400/), 'o escrow saiu da doca no ato')
+  checar(await esperarTexto(page, /Suas ofertas na vitrine/), 'a seção das ofertas do colono existe')
+  checar(
+    await esperarTexto(page, /Venda de 100 de Metal Bruto a 0,0500 Fert\$/),
+    'a oferta aparece como sua',
+  )
 
-  console.log('\nCancelamento devolve o escrow')
-  await (await acharPorTexto(page, 'button', /Livro de ofertas/)).click()
+  console.log('\nA oferta repousa, e o escrow sai do saldo do depósito')
+  await (await acharPorTexto(page, 'button', /Doca e frota/)).click()
+  checar(await esperarTexto(page, /400/), 'o escrow saiu do saldo no ato')
+
+  console.log('\nCancelar devolve o escrow ao depósito')
+  await (await acharPorTexto(page, 'button', /Ofertar no Mercado Central/)).click()
   await (await acharPorTexto(page, 'button', /^Cancelar$/)).click()
   await page.waitForNetworkIdle({ idleTime: 800 })
-  checar(
-    await esperarTexto(page, /Nenhuma ordem sua neste recurso/),
-    'a ordem sai do livro ao cancelar',
-  )
-  await (await acharPorTexto(page, 'button', /Doca e frota/)).click()
-  checar(await esperarTexto(page, /500/), 'o recurso volta à doca, não ao estoque')
+  checar(await esperarTexto(page, /Nenhuma oferta sua/), 'a oferta some ao cancelar')
 
-  console.log('\nDespacho: levar carga à doca')
+  await (await acharPorTexto(page, 'button', /Doca e frota/)).click()
+  checar(await esperarTexto(page, /500/), 'o recurso volta ao depósito, não ao estoque')
+
+  console.log('\nDespacho: levar carga ao depósito da Capital')
   /*
    * O kit inicial traz raros, e as opções saem na ordem de `Object.entries`: o primeiro é um
    * raro do qual o colono tem punhados, não o Metal Bruto. Escolher o recurso, como o colono
@@ -114,11 +154,8 @@ try {
 
   console.log('\nDiretório: enviar carga a outro colono')
   /*
-   * O despacho aceita `destino = colonia` desde a fatia de logística, mas até o diretório existir
-   * não havia como o jogador descobrir o `id` de ninguém, e a tela só oferecia a Capital.
-   *
-   * Os `select` da aba, em ordem: [0] recurso de "Levar à doca", [1] destino e [2] recurso de
-   * "Enviar a outro colono", [3] recurso de "Buscar na doca".
+   * Os `select` da aba, em ordem: [0] recurso de "Levar ao depósito", [1] destino e [2] recurso
+   * de "Enviar a outro colono", [3] recurso de "Buscar no depósito".
    */
   const selects = await page.$$('select')
   const rotulos = await selects[1].$$eval('option', (os) => os.map((o) => o.textContent.trim()))

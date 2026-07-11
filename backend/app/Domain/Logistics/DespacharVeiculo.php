@@ -2,6 +2,7 @@
 
 namespace App\Domain\Logistics;
 
+use App\Domain\Market\Deposito;
 use App\Domain\Trade\AcessoAoMercado;
 use App\Exceptions\DomainRuleException;
 use App\Models\Colony;
@@ -48,6 +49,18 @@ class DespacharVeiculo
         // não põe carga lá dentro.
         if ($destinoTipo === 'mercado_central') {
             AcessoAoMercado::exigir($origem);
+
+            /*
+             * D-58: o depósito tem teto, e o colono não deve descobri-lo depois de perder uma
+             * viagem inteira. Barra-se aqui, pelo **líquido** — que é o que de fato vai entrar,
+             * já descontado o tributo da entrega.
+             */
+            foreach ($carga as $recurso => $qtd) {
+                $bps = (int) (ResourceType::find($recurso)?->tax_bps ?? 0);
+                $liquido = (int) $qtd - intdiv((int) $qtd * $bps, 10_000);
+
+                Deposito::exigirEspaco($origem->id, $recurso, $liquido);
+            }
         }
 
         $acordo = $this->resolverAcordo($origem, $destinoTipo, $destino['id'], $acordoId);

@@ -1645,3 +1645,64 @@ primitiva `CreateColony` segue nascendo com estoque limpo, e os testes de domín
 
 **Nota:** o kit inflaciona bastante o onboarding perto do GDD (50 Fert$). É decisão de balanceamento
 do usuário; se um dia parecer demais, é o primeiro número a revisitar. A Guerra segue como Fatia 2.
+
+---
+
+## D-58 — O Mercado Central em quatro abas: vitrine global, mural entre colonos e teto no depósito.
+**Data:** 2026-07-11 · **Status:** decidido pelo usuário · **GDD: omisso nos tetos**
+
+O usuário pediu quatro abas no Mercado. Ao levantar o que existia, dois dos quatro pedidos **já
+estavam construídos com outros nomes** — e o registro disto importa mais do que o código novo:
+
+- O **"Livro de Ofertas"** já era o Mercado Central que o usuário descreve na aba "Ofertas Globais":
+  vende do depósito da Capital, dispensa aceitação e envio, transfere recurso de depósito a depósito
+  e move os Fert$. O que ele **não** fazia era **aparecer**.
+- O **Acordo de Troca (§26.5, D-40)** já era o "entre colonos": estoque da colônia, entrega física,
+  sem escrow, calote possível. Faltava-lhe só ser **público**.
+
+**A queixa "não vejo as ofertas dos outros" não era bug de filtro.** O `GET /market/orders` nunca
+filtrou por colônia. Eram quatro causas somadas, e a primeira é a que manda: **o livro casava as
+ordens no ato**, então uma oferta que cruzava era executada e nunca repousava para ser vista. Em
+produção havia 5 ordens abertas, **todas de compra**, e **todos os depósitos zerados** — como vender
+exige ter o recurso já depositado, a coluna "Vendas" estava vazia porque ninguém *podia* vender.
+Somavam-se: o livro pedia **um recurso por vez** (abria em `metal_bruto`), a UI expunha **8 dos 26**
+recursos, e as linhas **não diziam de quem eram**.
+
+### As decisões do usuário (2026-07-11)
+
+1. **Vitrine, não casamento automático.** A oferta **repousa** e fica visível até alguém a executar
+   ou o dono cancelar. `ColocarOrdem` perde o `casar()`; a execução vira ato explícito
+   (`ExecutarOrdem`), parcial permitida. O preço deixa de se descobrir sozinho: quem anuncia caro
+   espera. Foi escolha consciente — a visibilidade valeu mais que a descoberta de preço.
+2. **Teto no depósito da Capital, por classe:** **10.000** por recurso primário, **2.500** por
+   secundário, **100** por raro. Os números são **arbitragem do usuário — não são do GDD**. Encaixam
+   exatamente no `tax_class` que a tabela `resource_types` já tem (§8.3), então **nenhuma classe nova
+   foi criada**: "industrial" = os 4 secundários do §18.2 **mais** os 8 minerais do §18.3.
+3. **A regra dos dois estoques**, que o código já seguia e agora é explícita: **o que está na colônia
+   se negocia entre colonos; o que está no depósito da Capital se oferta no Mercado Central.**
+4. **Ofertas entre colonos: públicas E dirigidas.** O mural aceita oferta aberta (o primeiro que
+   aceitar vira contraparte) sem tirar a proposta dirigida de hoje.
+5. **Sem reserva de estoque na oferta entre colonos.** O D-40 fica de pé: a oferta é promessa, o
+   calote é real e é ele que alimenta o Ministério.
+6. **A taxa de fechamento continua no vendedor** (3/2/1% em Fert$, ao Tesouro). O usuário não a
+   mencionara; foi confirmada de propósito, para não a apagar por omissão.
+
+### As duas consequências que o assistente arbitrou, e por quê
+
+Não são valores novos — são desdobramentos das regras acima. Ficam registradas porque um leitor
+futuro vai tropeçar nelas:
+
+- **A oferta de compra também reserva espaço no teto.** O usuário decidiu que a oferta de venda
+  ocupa espaço ("senão o teto vira decoração"). Pela mesma lógica, a de compra vai *receber*
+  mercadoria: se não reservasse espaço, a execução falharia na cara do vendedor por culpa do
+  comprador. Logo o ocupado é **saldo + escrow de vendas + quantidade das compras abertas**.
+- **O excedente que não coube volta no veículo e não paga tributo.** O tributo incide na entrega
+  física (§25.8, D-32). O que não entrou no depósito não foi entregue: tributa-se só o que entrou, e
+  o resto volta à colônia sem ser tributado de novo na chegada — cobrar seria faturar uma entrega que
+  não houve.
+
+### O que fica de fora, de propósito
+
+O `market_orders` **não é migrado nem apagado**: as 5 ordens de compra de produção continuam válidas,
+viram ofertas da vitrine e podem ser executadas. Nenhum depósito de produção passa do teto (todos
+estão em zero), então o teto não precisa de backfill.

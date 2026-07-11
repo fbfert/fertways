@@ -186,10 +186,28 @@ export type Frota = {
 }
 
 /** O saldo do colono na doca do Mercado (§25.8). Não é estoque da colônia. */
+/**
+ * Os dois estoques do colono, lado a lado (D-58) — a distinção de que a regra do jogo depende:
+ * o que está **na colônia** se negocia entre colonos; o que está **no depósito da Capital** se
+ * oferta no Mercado Central.
+ *
+ * `em_ofertas` é o que já saiu do saldo mas continua ocupando o teto: uma oferta anunciada não
+ * libera espaço, senão bastaria anunciar tudo a preço absurdo para o teto virar decoração.
+ */
+export type SaldoDoRecurso = {
+  resource_type: string
+  na_colonia: number
+  no_deposito: number
+  em_ofertas: number
+  teto: number
+  livre: number
+}
+
 export type ContaDoMercado = {
   capital: { x: number; y: number }
   distance_slots: number
   balances: { resource_type: string; amount: number }[]
+  deposito: SaldoDoRecurso[]
 }
 
 export type Ordem = {
@@ -200,14 +218,49 @@ export type Ordem = {
   status: 'aberta' | 'parcial' | 'executada' | 'cancelada'
 }
 
-export type Livro = {
+/** Uma oferta parada na vitrine das Ofertas Globais. Ela só sai dali se alguém a executar. */
+export type OfertaGlobal = {
+  id: number
   resource_type: string
+  side: 'buy' | 'sell'
+  price_micro: number
+  qty: number
+  colony_id: number
+  colonia: string | null
+  /** A própria oferta não se executa (§26.4): a UI troca "Comprar" por "Cancelar". */
+  minha: boolean
+}
+
+export type RecursoDoCatalogo = {
+  code: string
+  nome: string
+  tax_class: 'primario' | 'secundario' | 'raro'
+  taxa_bps: number
   /** Referência exibida, não teto nem piso (§06, D-35). */
   preco_base_micro: number
-  taxa_bps: number
-  bids: { price_micro: number; qty: number }[]
-  asks: { price_micro: number; qty: number }[]
-  minhas_ordens: Ordem[]
+  teto_deposito: number
+}
+
+/**
+ * A vitrine. Sem `resource_type`, mostra **todos** os recursos — era a falta disso que fazia o
+ * colono não ver oferta nenhuma: a lista pedia um recurso por vez e abria em Metal Bruto.
+ */
+export type Vitrine = {
+  resource_type: string | null
+  ofertas: OfertaGlobal[]
+  catalogo: RecursoDoCatalogo[]
+}
+
+/** Uma oferta aberta no mural entre colonos: sem contraparte, o primeiro que aceitar leva (D-58). */
+export type OfertaDeColono = {
+  id: number
+  colony_id: number
+  colonia: string | null
+  minha: boolean
+  oferece: Record<string, number>
+  quer: Record<string, number>
+  deadline_at: string
+  value_micro: number
 }
 
 /**
@@ -221,7 +274,8 @@ export type Acordo = {
   id: number
   status: 'proposto' | 'aceito' | 'executado' | 'quebrado' | 'cancelado'
   proposed_by_me: boolean
-  counterparty_id: number
+  /** `null` enquanto a oferta está aberta no mural, sem contraparte (D-58). */
+  counterparty_id: number | null
   deadline_at: string
   accepted_at: string | null
   executed_at: string | null
@@ -468,8 +522,9 @@ export const api = {
   prazoMinimoDoAcordo: (contraparte: number) =>
     req<PrazoMinimo>(`/trade/deadline?counterparty_id=${contraparte}`),
 
+  /** Sem `counterparty_id`, a oferta vai ao mural, aberta a quem quiser (D-58). */
   proporAcordo: (b: {
-    counterparty_id: number
+    counterparty_id?: number | null
     deadline_at: string
     i_promise: Record<string, number>
     they_promise: Record<string, number>
@@ -517,12 +572,32 @@ export const api = {
 
   conta: () => req<ContaDoMercado>('/market/account'),
 
-  livro: (recurso: string) =>
-    req<Livro>(`/market/orders?resource_type=${encodeURIComponent(recurso)}`),
+  /** Sem `recurso`, a vitrine traz todos: é assim que se enxerga o que os outros anunciaram. */
+  vitrine: (recurso?: string) =>
+    req<Vitrine>(
+      recurso ? `/market/orders?resource_type=${encodeURIComponent(recurso)}` : '/market/orders',
+    ),
 
   ordenar: (b: { side: 'buy' | 'sell'; resource_type: string; qty: number; price_micro: number }) =>
     req<Ordem>('/market/orders', { method: 'POST', body: JSON.stringify(b) }),
 
+  /**
+   * Fecha uma oferta da vitrine, pelo preço dela (D-58). Não há veículo: as duas pontas já estão na
+   * Capital, e o recurso passa de um depósito ao outro. Retirá-lo é outra viagem, e outro tributo.
+   */
+  executarOferta: (ordem: number, qty: number) =>
+    req<{ id: number; qty: number; status: string }>(`/market/orders/${ordem}/execute`, {
+      method: 'POST',
+      body: JSON.stringify({ qty }),
+    }),
+
   cancelar: (ordem: number) =>
     req<{ id: number; status: string }>(`/market/orders/${ordem}`, { method: 'DELETE' }),
+
+  /** O mural: as ofertas abertas de todos os colonos, sem contraparte definida (D-58). */
+  mural: () => req<{ ofertas: OfertaDeColono[] }>('/trade/board'),
+
+  /** Aceita uma oferta do mural e vira a contraparte dela. Quem chega primeiro leva. */
+  aceitarOfertaDoMural: (id: number) =>
+    req<Acordo>(`/trade/agreements/${id}/accept`, { method: 'POST' }),
 }

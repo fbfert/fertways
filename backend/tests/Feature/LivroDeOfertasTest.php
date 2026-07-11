@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Domain\Colony\CreateColony;
 use App\Domain\Market\CancelarOrdem;
 use App\Domain\Market\ColocarOrdem;
+use App\Domain\Market\ExecutarOrdem;
 use App\Models\Colony;
 use App\Models\Ledger;
 use App\Models\MarketAccount;
@@ -113,25 +114,40 @@ class LivroDeOfertasTest extends TestCase
         app(ColocarOrdem::class)->handle($b, 'buy', 'metal_bruto', 1_000, 60_000);
     }
 
+    /**
+     * O coração do D-58. Antes, esta oferta seria consumida no ato de nascer e ninguém a veria —
+     * era essa a razão de a vitrine parecer deserta.
+     */
     #[Test]
-    public function a_compra_cruza_a_venda_ao_preco_de_quem_ja_estava_no_livro(): void
+    public function precos_que_se_cruzam_nao_casam_mais_sozinhos_a_oferta_repousa(): void
     {
         [$a, $b] = $this->vendedorEComprador();
 
-        app(ColocarOrdem::class)->handle($a, 'sell', 'metal_bruto', 100, 50_000);
+        $venda = app(ColocarOrdem::class)->handle($a, 'sell', 'metal_bruto', 100, 50_000);
+        // O comprador oferece MAIS do que o vendedor pede. No livro antigo, isto executava sozinho.
         $compra = app(ColocarOrdem::class)->handle($b, 'buy', 'metal_bruto', 100, 60_000);
 
-        $this->assertSame('executada', $compra->status);
-        $this->assertSame(0, $compra->qty);
+        $this->assertSame('aberta', $venda->fresh()->status);
+        $this->assertSame('aberta', $compra->status);
+        $this->assertSame(0, DB::table('tax_events')->count(), 'nada foi negociado');
+        $this->assertSame(0, $this->naDoca($b));
+        $this->assertSame(2, MarketOrder::where('status', 'aberta')->count(), 'as duas ficam na vitrine');
+    }
 
-        // Executa a 50.000 (preço da ordem em repouso), não a 60.000. Valor = 5 Fert$.
-        // Taxa de 3% sobre o valor = 150.000 micro. Vendedor recebe 4.850.000.
+    #[Test]
+    public function executar_uma_oferta_de_venda_paga_o_preco_dela_e_entrega_no_deposito(): void
+    {
+        [$a, $b] = $this->vendedorEComprador();
+
+        $venda = app(ColocarOrdem::class)->handle($a, 'sell', 'metal_bruto', 100, 50_000);
+        app(ExecutarOrdem::class)->handle($b, $venda->id, 100);
+
+        // Valor = 100 × 50.000 = 5 Fert$. Taxa de 3% (primário) = 150.000. O vendedor recebe 4.850.000.
         $this->assertSame(50_000_000 + 4_850_000, $this->fert($a));
-
-        // O comprador escrowou 6 Fert$ e o negócio custou 5: 1 Fert$ volta.
+        // O tomador paga o preço da oferta, e só ele: não há escrow dele nem devolução.
         $this->assertSame(50_000_000 - 5_000_000, $this->fert($b));
 
-        // §25.8: o recurso comprado entra na conta do comprador no Mercado, não no estoque.
+        // §25.8: o recurso comprado entra no depósito do comprador, não no estoque.
         $this->assertSame(100, $this->naDoca($b));
         $this->assertSame(0, (int) $b->resources()->where('resource_type', 'metal_bruto')->value('amount'));
 
@@ -143,47 +159,63 @@ class LivroDeOfertasTest extends TestCase
     }
 
     #[Test]
-    public function a_venda_que_cruza_uma_compra_em_repouso_executa_ao_preco_da_compra(): void
+    public function executar_uma_oferta_de_compra_entrega_do_deposito_e_paga_do_escrow_dela(): void
     {
         [$a, $b] = $this->vendedorEComprador();
 
-        // Agora o comprador chega primeiro, e a 60.000. Quem cruza é o vendedor, pedindo 50.000.
-        app(ColocarOrdem::class)->handle($b, 'buy', 'metal_bruto', 100, 60_000);
-        app(ColocarOrdem::class)->handle($a, 'sell', 'metal_bruto', 100, 50_000);
+        // Quem anuncia é o comprador; quem executa é o vendedor, entregando do seu depósito.
+        $compra = app(ColocarOrdem::class)->handle($b, 'buy', 'metal_bruto', 100, 60_000);
+        app(ExecutarOrdem::class)->handle($a, $compra->id, 100);
 
-        // Executa a 60.000: valor 6 Fert$, taxa 180.000, líquido 5.820.000 ao vendedor.
-        $this->assertSame(50_000_000 + 5_820_000, $this->fert($a), 'quem cruza aceita o preço do livro');
-        $this->assertSame(50_000_000 - 6_000_000, $this->fert($b), 'sem devolução: pagou o próprio preço');
+        // Valor = 6 Fert$; taxa de 3% = 180.000; o vendedor recebe 5.820.000.
+        $this->assertSame(50_000_000 + 5_820_000, $this->fert($a));
+        // O comprador já pagara ao anunciar, no escrow: nada sai do bolso dele agora.
+        $this->assertSame(50_000_000 - 6_000_000, $this->fert($b));
+        $this->assertSame(900, $this->naDoca($a), 'saiu do depósito de quem executou');
         $this->assertSame(100, $this->naDoca($b));
     }
 
     #[Test]
-    public function precos_que_nao_se_cruzam_apenas_ficam_no_livro(): void
+    public function ninguem_executa_a_propria_oferta(): void
     {
-        [$a, $b] = $this->vendedorEComprador();
+        [$a] = $this->vendedorEComprador();
+        $venda = app(ColocarOrdem::class)->handle($a, 'sell', 'metal_bruto', 100, 50_000);
 
-        app(ColocarOrdem::class)->handle($a, 'sell', 'metal_bruto', 100, 90_000);
-        $compra = app(ColocarOrdem::class)->handle($b, 'buy', 'metal_bruto', 100, 60_000);
-
-        $this->assertSame('aberta', $compra->status);
-        $this->assertSame(100, $compra->qty);
-        $this->assertSame(0, DB::table('tax_events')->count());
-        $this->assertSame(0, $this->naDoca($b));
+        // §26.4 trata conta-alternativa como fraude; fechar consigo mesmo é a versão trivial disso.
+        $this->expectExceptionMessage('não pode executar a sua própria oferta');
+        app(ExecutarOrdem::class)->handle($a, $venda->id, 100);
     }
 
     #[Test]
-    public function execucao_parcial_deixa_a_ordem_maior_aberta_com_o_resto(): void
+    public function nao_se_executa_mais_do_que_a_oferta_tem(): void
+    {
+        [$a, $b] = $this->vendedorEComprador();
+        $venda = app(ColocarOrdem::class)->handle($a, 'sell', 'metal_bruto', 100, 50_000);
+
+        $this->expectExceptionMessage('só 100 unidade(s) restante(s)');
+        app(ExecutarOrdem::class)->handle($b, $venda->id, 101);
+    }
+
+    #[Test]
+    public function execucao_parcial_deixa_a_oferta_aberta_com_o_resto(): void
     {
         [$a, $b] = $this->vendedorEComprador();
 
         $venda = app(ColocarOrdem::class)->handle($a, 'sell', 'metal_bruto', 100, 50_000);
-        app(ColocarOrdem::class)->handle($b, 'buy', 'metal_bruto', 40, 50_000);
+        app(ExecutarOrdem::class)->handle($b, $venda->id, 40);
 
         $venda = $venda->fresh();
         $this->assertSame('parcial', $venda->status);
         $this->assertSame(60, $venda->qty, 'qty é o que resta, não o original');
         $this->assertSame(60, $venda->escrow_resource_qty);
         $this->assertSame(40, $this->naDoca($b));
+
+        // E o resto continua executável: a vitrine não perde o saldo.
+        app(ExecutarOrdem::class)->handle($b, $venda->id, 60);
+        $this->assertSame('executada', $venda->fresh()->status);
+        $this->assertSame(100, $this->naDoca($b));
+        $this->assertSame(2, DB::table('tax_events')->where('kind', 'mercado_venda')->count(),
+            'duas execuções, dois fatos econômicos — a chave deriva do qty de antes de cada uma');
     }
 
     #[Test]
@@ -192,7 +224,7 @@ class LivroDeOfertasTest extends TestCase
         [$a, $b] = $this->vendedorEComprador();
 
         $venda = app(ColocarOrdem::class)->handle($a, 'sell', 'metal_bruto', 100, 50_000);
-        app(ColocarOrdem::class)->handle($b, 'buy', 'metal_bruto', 40, 50_000);
+        app(ExecutarOrdem::class)->handle($b, $venda->id, 40);
 
         $cancelada = app(CancelarOrdem::class)->handle($a, $venda->fresh());
 
@@ -239,20 +271,6 @@ class LivroDeOfertasTest extends TestCase
     }
 
     #[Test]
-    public function a_colonia_nao_casa_com_a_propria_ordem(): void
-    {
-        [$a] = $this->vendedorEComprador();
-
-        app(ColocarOrdem::class)->handle($a, 'sell', 'metal_bruto', 100, 50_000);
-        $compra = app(ColocarOrdem::class)->handle($a, 'buy', 'metal_bruto', 100, 60_000);
-
-        // §26.4 trata conta vinculada como fraude; casar consigo mesmo é a versão trivial disso.
-        $this->assertSame('aberta', $compra->status);
-        $this->assertSame(0, DB::table('tax_events')->count());
-        $this->assertSame(2, MarketOrder::whereIn('status', ['aberta'])->count());
-    }
-
-    #[Test]
     public function a_taxa_de_venda_usa_a_aliquota_da_categoria_do_recurso(): void
     {
         $a = $this->colonia('vendedor', 10, 10);
@@ -261,8 +279,8 @@ class LivroDeOfertasTest extends TestCase
         // Nióbio Alienígena é raro: 1% (§8.3), contra os 3% do Metal Bruto primário.
         MarketAccount::create(['colony_id' => $a->id, 'resource_type' => 'niobio_alienigena', 'amount' => 100]);
 
-        app(ColocarOrdem::class)->handle($a, 'sell', 'niobio_alienigena', 100, 50_000);
-        app(ColocarOrdem::class)->handle($b, 'buy', 'niobio_alienigena', 100, 50_000);
+        $venda = app(ColocarOrdem::class)->handle($a, 'sell', 'niobio_alienigena', 100, 50_000);
+        app(ExecutarOrdem::class)->handle($b, $venda->id, 100);
 
         $taxa = DB::table('tax_events')->where('kind', 'mercado_venda')->first();
         $this->assertSame(100, (int) $taxa->tax_bps, 'raro: 1%');
@@ -275,8 +293,8 @@ class LivroDeOfertasTest extends TestCase
     {
         [$a, $b] = $this->vendedorEComprador();
 
-        app(ColocarOrdem::class)->handle($a, 'sell', 'metal_bruto', 100, 50_000);
-        app(ColocarOrdem::class)->handle($b, 'buy', 'metal_bruto', 100, 50_000);
+        $venda = app(ColocarOrdem::class)->handle($a, 'sell', 'metal_bruto', 100, 50_000);
+        app(ExecutarOrdem::class)->handle($b, $venda->id, 100);
 
         /*
          * §25.8: "Uma vez o recurso depositado na conta do Mercado, a venda por Fert$ não gera

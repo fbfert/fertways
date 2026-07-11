@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Domain\Logistics\MapaFertways;
+use App\Domain\Trade\AceitarOferta;
 use App\Domain\Trade\AcordoSpecs;
 use App\Domain\Trade\ConfirmarAcordo;
 use App\Domain\Trade\ProporAcordo;
@@ -65,10 +66,48 @@ class TradeController extends Controller
         ]);
     }
 
+    /**
+     * O mural: as ofertas abertas de todos os colonos (D-58).
+     *
+     * Não é o `index`, que só mostra o que é seu. Aqui está o que os outros estão propondo a quem
+     * quiser — sem contraparte definida, primeiro a aceitar leva.
+     */
+    public function mural(Request $request): JsonResponse
+    {
+        $colonia = $this->colonia($request);
+
+        $ofertas = TradeAgreement::whereNull('colony_b_id')
+            ->where('status', 'proposto')
+            ->where('deadline_at', '>', now())
+            ->with('colonyA:id,name')
+            ->orderByDesc('id')
+            ->get();
+
+        $aberto = (string) ProporAcordo::LADO_ABERTO;
+
+        return response()->json([
+            'ofertas' => $ofertas->map(fn (TradeAgreement $o) => [
+                'id' => $o->id,
+                'colony_id' => $o->colony_a_id,
+                'colonia' => $o->colonyA?->name,
+                'minha' => $o->colony_a_id === $colonia->id,
+                // "Ele dá" e "ele quer", da perspectiva de quem lê o mural.
+                'oferece' => $o->terms_json[(string) $o->colony_a_id] ?? [],
+                'quer' => $o->terms_json[$aberto] ?? [],
+                'deadline_at' => $o->deadline_at,
+                'value_micro' => (int) $o->value_micro,
+            ])->values(),
+        ]);
+    }
+
+    /**
+     * Propõe um acordo. `counterparty_id` é **opcional** desde o D-58: sem ele, a oferta vai ao
+     * mural, aberta a quem quiser.
+     */
     public function store(Request $request, ProporAcordo $propor): JsonResponse
     {
         $dados = $request->validate([
-            'counterparty_id' => ['required', 'integer'],
+            'counterparty_id' => ['sometimes', 'nullable', 'integer'],
             'deadline_at' => ['required', 'date'],
             'i_promise' => ['required', 'array', 'min:1'],
             'i_promise.*' => ['integer', 'min:1'],
@@ -77,10 +116,14 @@ class TradeController extends Controller
         ]);
 
         $colonia = $this->colonia($request);
-        $outra = Colony::find($dados['counterparty_id']);
+        $outra = null;
 
-        if (! $outra) {
-            throw new DomainRuleException('contraparte_invalida', 'Colônia de contraparte inexistente.');
+        if (! empty($dados['counterparty_id'])) {
+            $outra = Colony::find($dados['counterparty_id']);
+
+            if (! $outra) {
+                throw new DomainRuleException('contraparte_invalida', 'Colônia de contraparte inexistente.');
+            }
         }
 
         $acordo = $propor->handle(
@@ -92,6 +135,14 @@ class TradeController extends Controller
         );
 
         return response()->json($this->exibir($acordo, $colonia->id), 201);
+    }
+
+    /** Aceita uma oferta do mural: quem chega primeiro vira a contraparte (D-58). */
+    public function aceitar(Request $request, TradeAgreement $agreement, AceitarOferta $aceitar): JsonResponse
+    {
+        $colonia = $this->colonia($request);
+
+        return response()->json($this->exibir($aceitar->handle($colonia, $agreement), $colonia->id));
     }
 
     public function confirm(Request $request, TradeAgreement $agreement, ConfirmarAcordo $confirmar): JsonResponse

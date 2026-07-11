@@ -2,7 +2,6 @@ import { useCallback, useEffect, useState } from 'react'
 import { api, ApiError, token } from './api/client'
 import type { Colonia, Fila, Spec } from './api/client'
 import { ColonyCanvas } from './game/ColonyCanvas'
-import { Acordos } from './ui/Acordos'
 import { Capital } from './ui/Capital'
 import { Frota } from './ui/Frota'
 import { Fundacao } from './ui/Fundacao'
@@ -25,7 +24,6 @@ export default function App() {
   const [erro, setErro] = useState<string | null>(null)
   const [semColonia, setSemColonia] = useState(false)
   const [mercadoAberto, setMercadoAberto] = useState(false)
-  const [acordosAberto, setAcordosAberto] = useState(false)
   const [ministerioAberto, setMinisterioAberto] = useState(false)
   const [mapaAberto, setMapaAberto] = useState(false)
   const [frotaAberta, setFrotaAberta] = useState(false)
@@ -63,7 +61,6 @@ export default function App() {
     // colono vê três 401 no console ao sair.
     setAutenticado(false)
     setMercadoAberto(false)
-    setAcordosAberto(false)
     setMinisterioAberto(false)
     setMapaAberto(false)
     setFrotaAberta(false)
@@ -163,13 +160,6 @@ export default function App() {
             </button>
 
             <button
-              onClick={() => setAcordosAberto(true)}
-              className="painel bg-sand-light text-ink hover:text-rust eyebrow px-5 py-4"
-            >
-              Acordos
-            </button>
-
-            <button
               onClick={() => setMercadoAberto(true)}
               className="painel bg-rust text-sand-light hover:bg-rust-bright eyebrow px-5 py-4"
             >
@@ -215,16 +205,6 @@ export default function App() {
           aoFechar={() => {
             setMinisterioAberto(false)
             // Uma condenação pode ter tirado recurso de circulação; o HUD reflete o estado novo.
-            void carregar()
-          }}
-        />
-      )}
-
-      {colonia && acordosAberto && (
-        <Acordos
-          aoFechar={() => {
-            setAcordosAberto(false)
-            // Entregar despacha carga: o estoque do HUD acabou de mudar.
             void carregar()
           }}
         />
