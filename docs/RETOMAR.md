@@ -53,8 +53,8 @@ O MVP tem, funcionando e no ar em `https://fertways.tars.art.br`:
   Acordo.
 - **Receita da Oficina (D-54)** — `PATCH /buildings/{id}/recipe` existia e nenhuma tela o chamava.
   Agora o painel de detalhe da Oficina oferece as três receitas do §24.5. Criado o `GET /recipes`.
-- Frontend: login, HUD, colônia em Phaser, e **cinco telas** (cinco botões no HUD): Mapa, Frota,
-  Mercado, Acordo e Ministério.
+- Frontend: login, HUD, colônia em Phaser, e **seis botões no HUD**: Mapa, Frota, Capital, Ministério,
+  Acordo e Mercado.
   - A do **Acordo** propõe, aceita, recusa, desiste, mostra a Confiança Comercial contra o limiar e
     **despacha a entrega pelo bruto**, não pelo prometido: quem embarca 100 entrega 97, e o colono
     não deve descobrir que caloteou por três unidades de tributo (D-41).
@@ -62,8 +62,19 @@ O MVP tem, funcionando e no ar em `https://fertways.tars.art.br`:
     a evidência filtrada: só o Acordo quebrado entre os dois serve, §26.8), e dá ao conciliador a
     fila com o relógio das 48 h. **Ela publica a pena tabelada antes do julgamento** e só lhe oferece
     "Procedente" e "Improcedente": a pena não é escolha dele (§26.8, D-49).
+- **A Capital (D-55)** — o hub das instituições do governo (§02), botão novo no HUD e clique no
+  losango do mapa. Diretório dos 7 slots; os slots 6 (Mercado) e 7 (Ministério) reusam as telas de
+  topo, o 1 é "operada pela equipe", o 5 (Guerra) é "em breve". Três instituições novas:
+  - **Central de Tributos / Tesouro (2)** — o tributo (3/2/1%, §8.3) que antes sumia agora é
+    contabilizado e exibido: saldo, painel de taxas, últimas transferências. **Sem tabela nova** —
+    agrega `tax_events`, retroativo, e o Tesouro não gasta (D-50).
+  - **Secretaria de Finanças (4)** — preços de referência (§06), indicadores mensuráveis e
+    **intervenção de preço** declarada pelo operador (`artisan fertways:intervencao`, com prazo).
+    Enquanto vigente, o `ColocarOrdem` rejeita ordens fora da faixa. Sem faixa fixa no código (D-35).
+  - **Central de Pesquisas e Notícias (3)** — mural de comunicados (`artisan fertways:noticia`) e o
+    estado honesto do Gagarin (inativo até 50 jogadores / 45 dias).
 
-**174 testes, 1892 asserções, verdes.** O cron do tick está instalado (crontab do usuário
+**208 testes PHP (2235 asserções) + 7 e2e, verdes.** O cron do tick está instalado (crontab do usuário
 `fertways`, log em `/home/fertways/logs/fertways-tick.log`) e roda o `artisan` **da cópia de
 deploy** — o mundo avança sozinho. O tick faz: produção, upgrades, proteções, trechos de viagem,
 acordos vencidos, **casos reatribuídos, janelas de apelação fechadas e a folha do Ministério**.
@@ -89,12 +100,14 @@ colono e funda uma quinta colônia — rodar antes bagunçaria as contagens das 
 > (Runtime.getProperties): Target closed`. Verde nas outras três. Se reprovar assim, rode de novo
 > antes de investigar — mas se virar hábito, é bug de verdade.
 
-**Publicado no GitHub e no ar.** Em 2026-07-10 foi empurrada e publicada a **Fatia 1 do D-52 —
-zonas neutras** (`0e0e3dd`): as 120 zonas em 4 distritos, ocupação/extração/retirada, e o `Mapa.tsx`
-com zoom e centralizar. O `NeutralZoneSeeder` foi rodado à mão no `fertwaysbd` (120 zonas, 4
-distritos, conferidas por leitura). A cópia de deploy ficou nesse commit. Confira com
-`git log --oneline -1` nas duas árvores — se voltar a divergir, republique. (Antes, em 2026-07-10,
-saíram o **mapa concêntrico do D-51** (`2a71a1c`), o `fix` da fila do D-53 e as telas do D-54.)
+**Publicado no GitHub e no ar.** Em 2026-07-10 foi empurrada e publicada **a Capital — hub +
+Tesouro, Finanças e Notícias** (`a6d37d4`, D-55). As migrations `price_interventions` e `news`
+rodaram sozinhas no `fertwaysbd` no deploy (conferido por `migrate:status`); não há seed a rodar à
+mão. Os três endpoints foram conferidos em produção por leitura (login+logout, sem escrever). A cópia
+de deploy ficou nesse commit. Confira com `git log --oneline -1` nas duas árvores — se voltar a
+divergir, republique. (Antes, em 2026-07-10, saíram a **Fatia 1 do D-52 — zonas neutras** (`0e0e3dd`,
+com o `NeutralZoneSeeder` rodado à mão), o arraste/zoom do mapa (`525b8c3`), o **mapa concêntrico do
+D-51** (`2a71a1c`), o `fix` da fila do D-53 e as telas do D-54.)
 
 > **Lição registrada (2026-07-10).** Ao conferir o D-53 em produção, enfileirei uma construção de
 > teste na colônia 4 pelo `EnqueueUpgrade`. Funcionou, mas escrever no banco de produção "para ver
