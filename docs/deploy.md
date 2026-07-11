@@ -198,3 +198,25 @@ detalhe cosmético — sem ele, `RefreshDatabase` mira o banco de produção. Ve
 ```sh
 cd /home/fertways/apps/fertways/backend && /usr/bin/php84 artisan test
 ```
+
+## Painel de administração da equipe (D-56)
+
+O painel Blade vive em **`https://fertways.tars.art.br/central/admin`** (o Laravel está montado em
+`/central`; nenhuma config de Apache é necessária). Auth por **sessão**, guard `admin`, tabela
+`admins` — isolado da auth de colono (que é token). O `deploy.sh` roda a migration `admins` e o
+`config:cache` reconstrói o guard novo automaticamente.
+
+**Bootstrap do primeiro admin** (não há auto-registro; passo à parte, como o `NeutralZoneSeeder`):
+
+```sh
+sudo -u fertways /usr/bin/php84 /home/fertways/deploy/fertways/backend/artisan \
+  fertways:admin --criar --email=voce@exemplo.com --nome="Equipe" --senha='troque-isto'
+```
+
+`fertways:admin --listar` mostra as contas; `--remover=<email>` apaga. Trocar senha = remover e criar
+de novo.
+
+**Segurança:** o painel carrega credencial por cookie e o site é HTTPS — convém pôr
+`SESSION_SECURE_COOKIE=true` no `.env` de produção (e rodar `config:cache` de novo, que o `deploy.sh`
+faz). O guard, o provider e a tabela são separados dos de colono; um token de colono não abre o painel
+e uma sessão de admin não fala com a API de jogo.

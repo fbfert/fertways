@@ -73,8 +73,18 @@ O MVP tem, funcionando e no ar em `https://fertways.tars.art.br`:
     Enquanto vigente, o `ColocarOrdem` rejeita ordens fora da faixa. Sem faixa fixa no código (D-35).
   - **Central de Pesquisas e Notícias (3)** — mural de comunicados (`artisan fertways:noticia`) e o
     estado honesto do Gagarin (inativo até 50 jogadores / 45 dias).
+- **Painel de administração da equipe (D-56)** — um painel **Blade por sessão** em
+  **`https://fertways.tars.art.br/central/admin`**, com **credencial separada** (tabela `admins`,
+  guard `admin`, isolado da auth de colono que é token). Contas se criam por `artisan fertways:admin
+  --criar` (não há auto-registro). **Ver:** dashboard do estado (colônias, Fert$, Tesouro, filas do
+  Ministério, conciliadores, intervenções, mural, jogadores, obras, zonas). **Agir:** julgar casos da
+  equipe, apelações, conciliadores, intervenções, notícias, tick e realocar founders. As ações reusam
+  o domínio (extraídos `GerirConciliador`, `DeclararIntervencao`, `PublicarNoticia`; tick/realocar via
+  `Artisan::call`). O `bootstrap/app.php` deixa o `/admin` fora do comportamento API-only; o resto da
+  API segue JSON e o índice `/central/` não lista as rotas do painel. **Primeiro admin em produção
+  criado à mão** (2026-07-11): `by_nvs@outlook.com`.
 
-**208 testes PHP (2235 asserções) + 7 e2e, verdes.** O cron do tick está instalado (crontab do usuário
+**221 testes PHP (2272 asserções) + 7 e2e, verdes.** O cron do tick está instalado (crontab do usuário
 `fertways`, log em `/home/fertways/logs/fertways-tick.log`) e roda o `artisan` **da cópia de
 deploy** — o mundo avança sozinho. O tick faz: produção, upgrades, proteções, trechos de viagem,
 acordos vencidos, **casos reatribuídos, janelas de apelação fechadas e a folha do Ministério**.
@@ -100,14 +110,18 @@ colono e funda uma quinta colônia — rodar antes bagunçaria as contagens das 
 > (Runtime.getProperties): Target closed`. Verde nas outras três. Se reprovar assim, rode de novo
 > antes de investigar — mas se virar hábito, é bug de verdade.
 
-**Publicado no GitHub e no ar.** Em 2026-07-10 foi empurrada e publicada **a Capital — hub +
-Tesouro, Finanças e Notícias** (`a6d37d4`, D-55). As migrations `price_interventions` e `news`
-rodaram sozinhas no `fertwaysbd` no deploy (conferido por `migrate:status`); não há seed a rodar à
-mão. Os três endpoints foram conferidos em produção por leitura (login+logout, sem escrever). A cópia
-de deploy ficou nesse commit. Confira com `git log --oneline -1` nas duas árvores — se voltar a
-divergir, republique. (Antes, em 2026-07-10, saíram a **Fatia 1 do D-52 — zonas neutras** (`0e0e3dd`,
-com o `NeutralZoneSeeder` rodado à mão), o arraste/zoom do mapa (`525b8c3`), o **mapa concêntrico do
-D-51** (`2a71a1c`), o `fix` da fila do D-53 e as telas do D-54.)
+**Publicado no GitHub e no ar.** Em 2026-07-11 foi empurrado e publicado **o painel de administração
+da equipe** (`3896b77`, D-56). A migration `admins` rodou sozinha no `fertwaysbd` no deploy (conferida
+por `migrate:status`); o **primeiro admin foi criado à mão** (`fertways:admin --criar`, e-mail
+`by_nvs@outlook.com`). O painel foi conferido em produção por leitura (convidado→login, sem escrever).
+A cópia de deploy ficou nesse commit. Confira com `git log --oneline -1` nas duas árvores — se voltar
+a divergir, republique. (Antes: **a Capital** (`a6d37d4`, D-55, migrations `price_interventions`/`news`
+sozinhas), a **Fatia 1 do D-52 — zonas neutras** (`0e0e3dd`, com o `NeutralZoneSeeder` à mão), o
+arraste/zoom do mapa (`525b8c3`), o **mapa concêntrico do D-51** (`2a71a1c`), o `fix` da fila do D-53
+e as telas do D-54.)
+
+> **Nota de segurança (D-56):** convém setar `SESSION_SECURE_COOKIE=true` no `.env` de produção — o
+> painel carrega credencial por cookie e o site é HTTPS. Ainda não foi setado.
 
 > **Lição registrada (2026-07-10).** Ao conferir o D-53 em produção, enfileirei uma construção de
 > teste na colônia 4 pelo `EnqueueUpgrade`. Funcionou, mas escrever no banco de produção "para ver
