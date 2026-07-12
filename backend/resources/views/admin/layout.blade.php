@@ -68,6 +68,19 @@
         }
         nav.abas a:hover { color: var(--ember); }
         nav.abas a.ativa { background: var(--sand); color: var(--rust); }
+
+        /* A paginação (ver resources/views/admin/paginacao.blade.php). */
+        .paginacao { display: flex; align-items: center; gap: 12px; }
+        .paginacao .pg {
+            padding: 4px 10px;
+            border: 1px solid rgba(180, 69, 11, .25);
+            text-decoration: none;
+            color: var(--rust);
+            font-weight: 700;
+            font-size: 13px;
+        }
+        .paginacao a.pg:hover { background: var(--sand); }
+        .paginacao .pg.mut { color: #aaa; border-color: #e5e5e5; font-weight: 400; }
         header.topo .busca { display: flex; gap: 6px; align-items: center; }
         header.topo .busca input {
             width: 220px; background: rgba(255,255,255,.1); border-color: rgba(255,255,255,.25);
@@ -105,11 +118,20 @@
     @auth('admin')
         @php
             // O CRUD de admins é só do dono (D-61) — e o menu não oferece o que a rota vai recusar.
+            /*
+             * "Ministério" sozinho ficara ambíguo: há TRÊS no jogo — o das Reputações (§9), o do
+             * Tesouro (dentro de Economia) e o dos Transportes (aba própria). A aba passa a chamar-se
+             * **Reputações**, que é o nome que o GDD lhe dá (§9.1–9.4) e o mesmo que o colono vê na
+             * tela dele: painel e jogo passam a chamar a mesma coisa pelo mesmo nome.
+             *
+             * Não é "Justiça": esse ministério não existe em Fertways.
+             */
             $abas = [
                 'admin.dashboard' => 'Visão geral',
                 'admin.jogadores' => 'Jogadores',
-                'admin.ministerio' => 'Ministério',
+                'admin.ministerio' => 'Reputações',
                 'admin.economia' => 'Economia',
+                'admin.noticias' => 'Notícias',
                 'admin.transportes' => 'Transportes',
                 'admin.auditoria' => 'Auditoria',
                 'admin.operacao' => 'Operação',

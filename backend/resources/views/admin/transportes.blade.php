@@ -70,4 +70,68 @@
         </p>
     </div>
 
+    {{-- ── A frota do planeta, com PLACA ──
+         O painel dizia quantos veículos havia e nunca QUAIS. E a placa (§16.3) é o único identificador
+         de um veículo que aparece na tela de outro jogador — logo é por ela que uma reclamação chega
+         ao operador ("o FW-00007-F entregou a menos"), e era justamente por ela que não se podia
+         procurar.
+
+         Inclui os SUCATEADOS. A sucata arquiva e não apaga, de propósito: se apagasse, a placa do
+         morto seria reciclada pelo próximo veículo do planeta. Um veículo fora desta lista é um
+         veículo que ninguém mais consegue rastrear. --}}
+    <h2 class="secao">Frota do planeta</h2>
+    <div class="cartao">
+        <form method="GET" action="{{ route("admin.transportes") }}" class="linha-form">
+            <div><label>Buscar placa</label>
+                <input type="text" name="placa" value="{{ $placa }}" placeholder="FW-00007-F">
+            </div>
+            <div style="flex:0"><label>&nbsp;</label><button>Buscar</button></div>
+            @if ($placa !== "")
+                <div style="flex:0"><label>&nbsp;</label><a class="leve" href="{{ route("admin.transportes") }}">Limpar</a></div>
+            @endif
+        </form>
+
+        <table style="margin-top:8px">
+            <tr>
+                <th>Placa</th><th>Tipo</th><th>Dono</th><th>Situação</th>
+                <th class="num">Conservação</th><th class="num">Teto</th>
+                <th class="num">Manut.</th><th class="num">Uso</th>
+            </tr>
+            @forelse ($veiculos as $v)
+                <tr @if ($v->trashed()) style="opacity:.5" @endif>
+                    <td><b>{{ $v->plate ?? "— sem placa —" }}</b></td>
+                    <td>{{ str_replace("_", " ", $v->type) }} n{{ $v->level }}</td>
+                    <td>
+                        {{-- Sem dono é a Frota Governamental do §16.2: o caminhão que o Ministério
+                             fabricou e ainda não vendeu. --}}
+                        {{ $v->colony?->name ?? "Frota Governamental" }}
+                    </td>
+                    <td>
+                        @if ($v->trashed())
+                            <span class="mut">sucateado {{ $v->deleted_at?->format("d/m/y") }}</span>
+                        @else
+                            {{ $v->status }}{{ $v->local === "capital" ? " (no Pátio)" : "" }}
+                        @endif
+                    </td>
+                    <td class="num">{{ number_format($v->conservacao_bps / 100, 1, ",", ".") }}%</td>
+                    <td class="num">{{ number_format($v->teto_conservacao_bps / 100, 1, ",", ".") }}%</td>
+                    <td class="num">{{ $v->manutencoes }}</td>
+                    <td class="num">{{ number_format($v->uso_ativo_seg / 3600, 1, ",", ".") }} h</td>
+                </tr>
+            @empty
+                <tr><td colspan="8" class="mut pequeno">
+                    @if ($placa !== "") Nenhum veículo com placa «{{ $placa }}». @else Nenhum veículo no planeta. @endif
+                </td></tr>
+            @endforelse
+        </table>
+
+        <p class="mut pequeno" style="margin-top:6px">
+            A <b>conservação</b> é o que o veículo vale hoje: velocidade e capacidade encolhem junto com
+            ela, e o piso é {{ $transporte->piso_desempenho_bps / 100 }}% — nada trava. O <b>teto</b> é o
+            máximo que a manutenção ainda consegue devolver, e ele cai a cada serviço.
+        </p>
+
+        <div style="margin-top:10px">{{ $veiculos->links() }}</div>
+    </div>
+
 @endsection

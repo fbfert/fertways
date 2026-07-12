@@ -44,20 +44,32 @@
         </form>
     </div>
 
-    {{-- ── Ministério do Tesouro ── --}}
+    {{-- ── Ministério do Tesouro: o CAIXA ── --}}
     <h2 class="secao">Ministério do Tesouro</h2>
     <div class="cartao">
-        <p class="mut pequeno">A reserva do governo — o tributo do comércio entra aqui. Envie parte a um colono.</p>
+        <p class="mut pequeno">A reserva do governo — o tributo do comércio entra aqui, e é daqui que sai o Nióbio que o Quartel exige.</p>
         <div style="max-height:220px;overflow:auto;margin-top:8px">
             <table>
                 <tr><th>Recurso</th><th class="num">Saldo</th></tr>
                 <tr><td><b>Fert$</b></td><td class="num" data-tesouro-fert>{{ $fert($tesouroFert) }}</td></tr>
                 @foreach ($tesouro as $h)
-                    <tr><td>{{ $h->nome }}</td><td class="num">{{ number_format($h->amount, 0, ',', '.') }}</td></tr>
+                    <tr><td>{{ $h->nome }}</td><td class="num">{{ number_format($h->amount, 0, ",", ".") }}</td></tr>
                 @endforeach
             </table>
         </div>
-        <form method="POST" action="{{ route('admin.tesouro.distribuir') }}" class="linha-form">
+    </div>
+
+    {{-- ── Enviar recursos: card PRÓPRIO ──
+         Era um formulário solto no rodapé do caixa, sem título. Quem chegava à tela via uma tabela de
+         saldos e, embaixo, três selects sem explicação nenhuma do que aconteceria ao clicar em
+         "Enviar". É um ato que CRIA valor na colônia do outro, saindo do caixa: merece nome. --}}
+    <h2 class="secao">Enviar recursos</h2>
+    <div class="cartao">
+        <p class="mut pequeno">
+            Tira do caixa do Tesouro e entrega a uma colônia (§2.1). Não passa por veículo e não paga
+            tributo — é emissão do governo, e fica no extrato do colono.
+        </p>
+        <form method="POST" action="{{ route("admin.tesouro.distribuir") }}" class="linha-form" style="margin-top:8px">
             @csrf
             <div><label>Colônia</label>
                 <select name="colony_id">
@@ -71,33 +83,7 @@
                 </select>
             </div>
             <div style="flex:0"><label>Quantidade</label><input type="number" step="0.0001" min="0.0001" name="quantidade" required></div>
-            <div style="flex:0"><button>Enviar</button></div>
+            <div style="flex:0"><label>&nbsp;</label><button>Enviar</button></div>
         </form>
     </div>
-
-    {{-- ── Notícias ── --}}
-    <h2 class="secao">Central de Notícias</h2>
-    <div class="cartao">
-        @forelse ($noticias as $n)
-            <div style="border-bottom:1px solid rgba(180,69,11,.12);padding:6px 0">
-                <b>{{ $n->title }}</b> <span class="mut pequeno">— {{ $n->author }} · {{ $quando($n->published_at) }}</span>
-                <form method="POST" action="{{ route('admin.noticia.remover', $n) }}" class="inline"
-                      onsubmit="return confirm('Remover este comunicado?')">
-                    @csrf<button class="leve">Remover</button>
-                </form>
-            </div>
-        @empty
-            <p class="mut pequeno">Mural vazio.</p>
-        @endforelse
-        <form method="POST" action="{{ route('admin.noticia') }}" style="margin-top:10px">
-            @csrf
-            <div class="linha-form">
-                <div><label>Título</label><input type="text" name="titulo" maxlength="140" required></div>
-                <div style="flex:0"><label>Autor</label><input type="text" name="autor" placeholder="Administração Pública"></div>
-            </div>
-            <div style="margin-top:8px"><label class="pequeno mut">Corpo</label><textarea name="corpo" rows="3" required></textarea></div>
-            <div style="margin-top:8px"><button>Publicar comunicado</button></div>
-        </form>
-    </div>
-
 @endsection

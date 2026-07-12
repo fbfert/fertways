@@ -75,11 +75,52 @@
                 <tr><td colspan="4" class="mut pequeno">Nenhum conciliador. Todo caso sobe à equipe.</td></tr>
             @endforelse
         </table>
-        <form method="POST" action="{{ route('admin.conciliador.nomear') }}" class="linha-form">
-            @csrf
-            <div><label>Nomear (nickname)</label><input type="text" name="nickname" required></div>
-            <div style="flex:0"><button>Nomear</button></div>
+    </div>
+
+    {{-- ── Nomear: BUSCA, não um nickname digitado às cegas ──
+         Era um campo de texto livre. Se você errasse uma letra do nickname, levava um erro; e para
+         acertar era preciso já saber o nickname exato de cor. O operador não conhece o nickname de
+         quem acabou de falar com ele — conhece o nome, ou o e-mail, ou a colônia. --}}
+    <h2 class="secao">Nomear conciliador</h2>
+    <div class="cartao">
+        <p class="mut pequeno">
+            Procure por nome, nickname, e-mail ou colônia. Só aparecem colonos que <b>ainda não são</b>
+            conciliadores.
+        </p>
+
+        <form method="GET" action="{{ route('admin.ministerio') }}" class="linha-form" style="margin-top:8px">
+            <div><label>Buscar jogador</label>
+                <input type="text" name="qc" value="{{ $qc }}" placeholder="nome, nickname, e-mail ou colônia">
+            </div>
+            <div style="flex:0"><label>&nbsp;</label><button>Buscar</button></div>
+            @if ($qc !== '')
+                <div style="flex:0"><label>&nbsp;</label><a class="leve" href="{{ route('admin.ministerio') }}">Limpar</a></div>
+            @endif
         </form>
+
+        @if ($qc !== '')
+            <table style="margin-top:8px">
+                <tr><th>Colono</th><th>Nickname</th><th>Colônia</th><th></th></tr>
+                @forelse ($candidatos as $u)
+                    <tr>
+                        <td>{{ $u->name }}</td>
+                        <td>{{ $u->nickname }}</td>
+                        <td>{{ $u->colony?->name ?? '— sem colônia —' }}</td>
+                        <td>
+                            <form method="POST" action="{{ route('admin.conciliador.nomear') }}" class="inline"
+                                  onsubmit="return confirm('Nomear {{ $u->nickname }} conciliador? Ele passa a julgar denúncias e a receber salário diário do Tesouro.')">
+                                @csrf
+                                <input type="hidden" name="nickname" value="{{ $u->nickname }}">
+                                <button>Nomear</button>
+                            </form>
+                        </td>
+                    </tr>
+                @empty
+                    <tr><td colspan="4" class="mut pequeno">Ninguém com «{{ $qc }}» — ou já é conciliador.</td></tr>
+                @endforelse
+            </table>
+            <p class="mut pequeno" style="margin-top:6px">Mostra no máximo 20. Refine a busca se não achar.</p>
+        @endif
     </div>
 
 @endsection

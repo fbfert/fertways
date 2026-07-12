@@ -24,6 +24,8 @@ Route::prefix('admin')->group(function () {
         Route::get('/jogadores/{user}', [PainelController::class, 'jogador'])->name('admin.jogador');
         Route::get('/ministerio', [PainelController::class, 'ministerio'])->name('admin.ministerio');
         Route::get('/economia', [PainelController::class, 'economia'])->name('admin.economia');
+        // As notícias saíram de Economia e viraram aba própria (2026-07-13): elas não são economia.
+        Route::get('/noticias', [PainelController::class, 'noticias'])->name('admin.noticias');
         Route::get('/transportes', [PainelController::class, 'transportes'])->name('admin.transportes');
         Route::get('/auditoria', [PainelController::class, 'auditoria'])->name('admin.auditoria');
         Route::get('/operacao', [PainelController::class, 'operacao'])->name('admin.operacao');
@@ -40,6 +42,11 @@ Route::prefix('admin')->group(function () {
         // Notícias
         Route::post('/noticias', [AcoesController::class, 'noticiaPublicar'])->name('admin.noticia');
         Route::post('/noticias/{news}/remover', [AcoesController::class, 'noticiaRemover'])->name('admin.noticia.remover');
+        // Editar reescreve; OCULTAR é reversível e administrativo; INATIVAR é fim de vida. Os três
+        // vão ao `audit_log`, como tudo o que o painel faz.
+        Route::post('/noticias/{news}/editar', [AcoesController::class, 'noticiaEditar'])->name('admin.noticia.editar');
+        Route::post('/noticias/{news}/ocultar', [AcoesController::class, 'noticiaOcultar'])->name('admin.noticia.ocultar');
+        Route::post('/noticias/{news}/inativar', [AcoesController::class, 'noticiaInativar'])->name('admin.noticia.inativar');
         // Ministério do Tesouro (D-57)
         Route::post('/tesouro/distribuir', [AcoesController::class, 'distribuir'])->name('admin.tesouro.distribuir');
 
@@ -56,7 +63,6 @@ Route::prefix('admin')->group(function () {
 
         // Operação
         Route::post('/tick', [AcoesController::class, 'tick'])->name('admin.tick');
-        Route::post('/realocar-founders', [AcoesController::class, 'realocar'])->name('admin.realocar');
 
         /*
          * ── Só o dono (D-61) ──
@@ -76,6 +82,18 @@ Route::prefix('admin')->group(function () {
             Route::post('/admins/{admin}/reativar', [AcoesController::class, 'adminReativar'])->name('admin.admin.reativar');
 
             Route::post('/jogadores/{user}/realocar', [AcoesController::class, 'realocarColonia'])->name('admin.jogador.realocar');
+
+            /*
+             * ⚠️ **A realocação em massa passou a ser do dono em 2026-07-13, e antes NÃO era.**
+             *
+             * Realocar UMA colônia sempre exigiu ser dono — "muda a distância, o eixo de toda a
+             * logística, e afeta o mundo de outros jogadores", diz a regra acima. Mas o botão
+             * "Realocar founders", que move **todas as colônias do jogo de uma vez**, estava na área
+             * comum: qualquer operador podia clicá-lo. A restrição menor guardava o ato menor, e o
+             * ato maior estava aberto. Era um descuido, não um desenho.
+             */
+            Route::post('/realocar-founders', [AcoesController::class, 'realocar'])->name('admin.realocar');
+            Route::post('/realocar-manual', [AcoesController::class, 'realocarManual'])->name('admin.realocar.manual');
         });
     });
 });

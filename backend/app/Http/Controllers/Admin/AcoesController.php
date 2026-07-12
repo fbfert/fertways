@@ -157,6 +157,81 @@ class AcoesController extends Controller
         return $this->ok('noticia.remover', "Notícia #{$id} removida. {$titulo}", "news:{$id}");
     }
 
+    /**
+     * Reescreve uma notícia já publicada (2026-07-13).
+     *
+     * A auditoria guarda o **antes e o depois** — e aqui isso não é zelo burocrático: um comunicado
+     * público que muda de texto depois de lido é exatamente o tipo de coisa que alguém vai querer
+     * conferir, e a única defesa do operador contra a acusação de ter reescrito a história é o
+     * registro de que reescreveu, e do quê para o quê.
+     */
+    public function noticiaEditar(Request $request, News $news): RedirectResponse
+    {
+        $dados = $request->validate([
+            'titulo' => ['required', 'string', 'max:140'],
+            'corpo' => ['required', 'string'],
+            'autor' => ['nullable', 'string', 'max:60'],
+        ]);
+
+        $antes = "«{$news->title}» / {$news->author}";
+
+        $news->forceFill([
+            'title' => $dados['titulo'],
+            'body' => $dados['corpo'],
+            'author' => $dados['autor'] ?? $news->author,
+            'updated_at' => now(),
+        ])->save();
+
+        return $this->ok(
+            'noticia.editar',
+            "Notícia #{$news->id} reescrita. Antes: {$antes}. Agora: «{$news->title}» / {$news->author}",
+            "news:{$news->id}",
+        );
+    }
+
+    /**
+     * OCULTAR — administrativo e **reversível**. Sai do mural agora e volta a qualquer momento.
+     *
+     * É o botão para o erro de redação e para a notícia publicada cedo demais. O colono deixa de
+     * vê-la (o `noMural()` do endpoint dele barra); o painel continua a mostrá-la.
+     */
+    public function noticiaOcultar(News $news): RedirectResponse
+    {
+        $voltando = $news->oculta();
+
+        $news->forceFill(['hidden_at' => $voltando ? null : now()])->save();
+
+        return $this->ok(
+            $voltando ? 'noticia.reexibir' : 'noticia.ocultar',
+            $voltando
+                ? "Notícia #{$news->id} de volta ao mural. «{$news->title}»"
+                : "Notícia #{$news->id} oculta do mural. «{$news->title}»",
+            "news:{$news->id}",
+        );
+    }
+
+    /**
+     * INATIVAR — **fim de vida**. A notícia deixou de ser verdadeira.
+     *
+     * Sai do mural e fica arquivada, marcada. É o que preserva o histórico em vez de destruí-lo: uma
+     * notícia inativa continua provando que a coisa foi dita, e quando. Reversível também — mas o
+     * nome diz outra coisa, e é essa a diferença para o ocultar.
+     */
+    public function noticiaInativar(News $news): RedirectResponse
+    {
+        $reativando = $news->inativa();
+
+        $news->forceFill(['inactive_at' => $reativando ? null : now()])->save();
+
+        return $this->ok(
+            $reativando ? 'noticia.reativar' : 'noticia.inativar',
+            $reativando
+                ? "Notícia #{$news->id} reativada. «{$news->title}»"
+                : "Notícia #{$news->id} inativada (envelheceu). «{$news->title}»",
+            "news:{$news->id}",
+        );
+    }
+
     // ── Ministério do Tesouro (D-57) ─────────────────────────────────────────
 
     public function distribuir(Request $request, Tesouro $tesouro): RedirectResponse
@@ -423,8 +498,25 @@ class AcoesController extends Controller
         return $this->ok('operacao.tick', 'Tick disparado. O mundo avançou.');
     }
 
-    public function realocar(): RedirectResponse
+    /**
+     * O plano automático de founders — agora atrás da palavra REALOCAR (2026-07-13).
+     *
+     * Move **todas** as colônias do jogo de uma vez. Um clique acidental é caro, e a demolição e a
+     * realocação individual já exigiam a palavra escrita; esta, que faz mais estrago que as duas,
+     * exigia só um `confirm()` do navegador — que qualquer um clica sem ler.
+     *
+     * A tela mostra o plano antes, e os veículos que o impedem. A guarda de verdade continua sendo a
+     * do comando, que reconfere no momento de aplicar: entre a página carregar e o botão ser clicado,
+     * um veículo pode ter saído do pátio.
+     */
+    public function realocar(Request $request): RedirectResponse
     {
+        if ($request->input('confirmacao') !== 'REALOCAR') {
+            return $this->erro(
+                'Para realocar TODAS as colônias, escreva REALOCAR. Confira o plano acima antes.',
+            );
+        }
+
         // A própria realocação aborta se algum veículo não estiver ocioso (guarda do comando).
         $codigo = Artisan::call('fertways:realocar-founders', ['--force' => true]);
         $saida = trim(Artisan::output());
@@ -432,6 +524,39 @@ class AcoesController extends Controller
         return $codigo === 0
             ? $this->ok('operacao.realocar_founders', 'Realocação aplicada. '.$saida)
             : $this->erro('Realocação abortada. '.$saida);
+    }
+
+    /**
+     * Realocação **manual**: esta colônia, para este `x,y` (2026-07-13).
+     *
+     * O plano automático é determinístico (D-51: a mais antiga leva o primeiro slot) e não serve
+     * quando se quer mover *uma* colônia para *um* lugar — que é, na prática, o que o operador acaba
+     * querendo. Reusa o mesmo `RealocarColonia` da ficha do jogador (D-61), com os mesmos avisos: a
+     * energia já gasta não é acertada, e os Acordos abertos ficam com o prazo da distância antiga.
+     */
+    public function realocarManual(Request $request, RealocarColonia $realocar): RedirectResponse
+    {
+        $dados = $request->validate([
+            'colony_id' => ['required', 'integer', 'exists:colonies,id'],
+            'x' => ['required', 'integer'],
+            'y' => ['required', 'integer'],
+            'motivo' => ['required', 'string', 'max:255'],
+            'confirmacao' => ['required', 'string'],
+        ]);
+
+        if ($dados['confirmacao'] !== 'REALOCAR') {
+            return $this->erro('Para realocar, escreva REALOCAR. A viagem de todo veículo em rota será refeita.');
+        }
+
+        $colonia = Colony::findOrFail($dados['colony_id']);
+
+        // `tentarJaAuditado`: o `RealocarColonia` audita por dentro, com o antes e o depois. Auditar
+        // aqui de novo duplicaria a linha.
+        return $this->tentarJaAuditado(function () use ($realocar, $colonia, $dados) {
+            $realocar->handle($colonia, (int) $dados['x'], (int) $dados['y'], $dados['motivo']);
+
+            return "{$colonia->name} realocada para ({$dados['x']}, {$dados['y']}).";
+        }, 'admin.operacao');
     }
 
     // ── Helpers ──────────────────────────────────────────────────────────────

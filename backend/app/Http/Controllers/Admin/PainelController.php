@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Domain\Admin\CorrigirEstado;
+use App\Domain\Admin\PlanoFounders;
 use App\Domain\Admin\RealocarColonia;
 use App\Domain\Admin\Suspender;
 use App\Domain\Building\Funcoes;
@@ -78,7 +79,9 @@ class PainelController extends Controller
                 );
             })
             ->orderBy('id')
-            ->paginate(30)
+            // 50 por página (decisão do usuário, 2026-07-13). Eram 30, e a página não mostrava os
+            // controles de paginação — a lista simplesmente terminava, e ninguém via os do meio.
+            ->paginate(50)
             ->withQueryString();
 
         return view('admin.jogadores', ['jogadores' => $jogadores, 'q' => $q]);
@@ -139,11 +142,35 @@ class PainelController extends Controller
 
     // ─────────────────────────────────────────────────────────── Seções do jogo
 
-    public function ministerio(): View
+    public function ministerio(Request $request): View
     {
+        /*
+         * A nomeação de conciliador era um `<select>` com **todos** os jogadores do servidor. Funciona
+         * com cinco; com quinhentos, é uma lista impossível de percorrer — e o operador não procura um
+         * jogador rolando uma lista, ele procura pelo nome de quem acabou de falar com ele.
+         *
+         * Vira busca (decisão do usuário, 2026-07-13). A lista só aparece quando se procura algo, e o
+         * teto de 20 existe para uma busca vaga ("a") não despejar o servidor inteiro na tela.
+         */
+        $qc = trim((string) $request->query('qc'));
+
+        $candidatos = $qc === ''
+            ? collect()
+            : User::whereNull('conciliador_desde')
+                ->where(fn ($w) => $w
+                    ->where('name', 'like', "%{$qc}%")
+                    ->orWhere('nickname', 'like', "%{$qc}%")
+                    ->orWhere('email', 'like', "%{$qc}%")
+                    ->orWhereHas('colony', fn ($c) => $c->where('name', 'like', "%{$qc}%")))
+                ->with('colony:id,user_id,name')
+                ->orderBy('id')
+                ->limit(20)
+                ->get();
+
         return view('admin.ministerio', [
             'conciliadores' => User::whereNotNull('conciliador_desde')->orderBy('id')->get(),
-            'jogadores' => User::orderBy('id')->get(),
+            'candidatos' => $candidatos,
+            'qc' => $qc,
             'filaEquipe' => Report::with(['reporter:id,name', 'accused:id,name'])
                 ->whereIn('status', ['na_equipe', 'apelado'])->orderBy('id')->get(),
             'atribuidos' => Report::with(['reporter:id,name', 'accused:id,name', 'conciliator:id,nickname'])
@@ -165,13 +192,72 @@ class PainelController extends Controller
                 ->get(['treasury_holdings.resource_type as code', 'resource_types.nome', 'treasury_holdings.amount']),
             'tesouroFert' => app(Tesouro::class)->saldoFertMicro(),
             'FERT' => Tesouro::FERT,
-            'noticias' => News::orderByDesc('published_at')->orderByDesc('id')->limit(10)->get(),
+            // As notícias saíram daqui: viraram aba própria (2026-07-13). Elas não são economia, e
+            // estavam ali só porque a Central de Notícias é vizinha do Tesouro na Capital.
         ]);
     }
 
-    public function transportes(): View
+    /**
+     * O mural, com os quatro filtros que o usuário pediu (2026-07-13).
+     *
+     * Antes as notícias eram um pedaço de Economia: dez últimas, e um botão de apagar. Não havia como
+     * corrigir uma redação, escondê-la um instante, nem dizer "isto envelheceu" — só destruir, que é
+     * justamente o que um mural público não pode fazer com o registro do que foi dito.
+     */
+    public function noticias(Request $request): View
+    {
+        $q = trim((string) $request->query('q'));
+        $estado = (string) $request->query('estado', '');
+        $kind = (string) $request->query('kind', '');
+        $de = (string) $request->query('de', '');
+        $ate = (string) $request->query('ate', '');
+
+        $noticias = News::query()
+            ->when($q !== '', fn ($w) => $w->where(fn ($s) => $s
+                ->where('title', 'like', "%{$q}%")
+                ->orWhere('body', 'like', "%{$q}%")))
+            ->when($estado === 'mural', fn ($w) => $w->noMural())
+            ->when($estado === 'oculta', fn ($w) => $w->whereNotNull('hidden_at')->whereNull('inactive_at'))
+            ->when($estado === 'inativa', fn ($w) => $w->whereNotNull('inactive_at'))
+            ->when($estado === 'agendada', fn ($w) => $w
+                ->whereNull('hidden_at')->whereNull('inactive_at')->where('published_at', '>', now()))
+            ->when($kind !== '', fn ($w) => $w->where('kind', $kind))
+            ->when($de !== '', fn ($w) => $w->whereDate('published_at', '>=', $de))
+            ->when($ate !== '', fn ($w) => $w->whereDate('published_at', '<=', $ate))
+            ->orderByDesc('published_at')
+            ->orderByDesc('id')
+            ->paginate(25)
+            ->withQueryString();
+
+        return view('admin.noticias', [
+            'noticias' => $noticias,
+            'filtros' => compact('q', 'estado', 'kind', 'de', 'ate'),
+            // Os tipos que existem de fato. Hoje só há `comunicado`; o seletor não inventa outros.
+            'kinds' => News::query()->distinct()->orderBy('kind')->pluck('kind'),
+        ]);
+    }
+
+    public function transportes(Request $request): View
     {
         return view('admin.transportes', [
+            /*
+             * A frota inteira do planeta, com placa (2026-07-13). O painel dizia quantos veículos
+             * havia e nunca **quais** — e a placa é o único identificador de um veículo que aparece
+             * na tela de outro jogador (§16.3), logo é por ela que uma reclamação chega ao operador.
+             *
+             * Inclui os SUCATEADOS (`withTrashed`): a sucata arquiva e não apaga, justamente para a
+             * placa não ser reciclada — e um veículo que sumiu da lista é um veículo que ninguém mais
+             * consegue rastrear.
+             */
+            'veiculos' => Vehicle::withTrashed()
+                ->with('colony:id,name')
+                ->when($request->query('placa'), fn ($w, $p) => $w->where('plate', 'like', "%{$p}%"))
+                ->orderByRaw('plate is null')   // sem placa por último: elas são a coluna que se lê
+                ->orderBy('plate')
+                ->paginate(50)
+                ->withQueryString(),
+            'placa' => (string) $request->query('placa', ''),
+            'conservacao' => app(Conservacao::class),
             'transporte' => TransportSetting::singleton(),
             'frotaGoverno' => [
                 'estoque' => Vehicle::whereNull('colony_id')->where('status', 'estoque')->count(),
@@ -191,10 +277,28 @@ class PainelController extends Controller
         ]);
     }
 
-    public function operacao(): View
+    /**
+     * A Operação, e a realocação que deixou de ser um clique no escuro (2026-07-13).
+     *
+     * O botão "Realocar founders" aplicava direto: ou movia **todas** as colônias do jogo, ou levava
+     * um "abortado" que não dizia por quê. Agora a tela mostra o **plano** (quem vai de onde para
+     * onde), **quais veículos** impedem — com placa e hora de chegada, para se saber quanto esperar —,
+     * e exige a palavra **REALOCAR**, como a demolição e a realocação individual já exigiam.
+     *
+     * E ganha a realocação **manual**: escolher a colônia e o destino `x,y`. O plano automático é
+     * determinístico (D-51: a mais antiga leva o primeiro slot) e não serve quando se quer mover *uma*
+     * colônia para *um* lugar — que era, na prática, o que o operador sempre acabava querendo.
+     */
+    public function operacao(PlanoFounders $planos): View
     {
+        $bloqueios = $planos->bloqueios();
+
         return view('admin.operacao', [
             'resumo' => $this->resumo(),
+            'plano' => $bloqueios->isEmpty() ? $planos->plano() : collect(),
+            'bloqueios' => $bloqueios,
+            'semSlot' => $planos->semSlot(),
+            'colonias' => Colony::orderBy('id')->get(['id', 'name', 'x', 'y']),
         ]);
     }
 

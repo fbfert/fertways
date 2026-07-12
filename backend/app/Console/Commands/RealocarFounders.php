@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Domain\Admin\PlanoFounders;
 use App\Domain\Logistics\MapaFertways;
 use App\Models\Colony;
 use Illuminate\Console\Command;
@@ -29,46 +30,41 @@ class RealocarFounders extends Command
 
     protected $description = 'Realoca as colônias para slots de founder do disco central (D-51)';
 
-    public function handle(): int
+    public function handle(PlanoFounders $planos): int
     {
-        $colonias = Colony::with('vehicles')->orderBy('id')->get();
-
-        if ($colonias->isEmpty()) {
+        if (Colony::count() === 0) {
             $this->info('Nenhuma colônia para realocar.');
 
             return self::SUCCESS;
         }
 
+        /*
+         * A regra vive em `Domain\Admin\PlanoFounders`, e não aqui, desde 2026-07-13: o painel passou
+         * a **mostrar o plano antes de aplicar**, e duas cópias da mesma regra fariam a simulação da
+         * tela mentir em relação ao que este comando faz.
+         */
+
         // Guarda dos veículos ociosos. Um veículo em rota torna o remanejamento inseguro (§25.5).
-        $emRota = $colonias->flatMap(fn (Colony $c) => $c->vehicles
-            ->filter(fn ($v) => $v->status !== 'ocioso')
-            ->map(fn ($v) => "colônia {$c->id} ({$c->name}): veículo {$v->id} está '{$v->status}'"));
+        $bloqueios = $planos->bloqueios();
 
-        if ($emRota->isNotEmpty()) {
+        if ($bloqueios->isNotEmpty()) {
             $this->error('ABORTADO: há veículo fora do pátio. Realocar agora quebraria a viagem.');
-            $emRota->each(fn ($l) => $this->line("  {$l}"));
+            $bloqueios->each(fn ($b) => $this->line(
+                "  colônia {$b['colony_id']} ({$b['colonia']}): veículo {$b['veiculo']} "
+                ."[{$b['placa']}] está '{$b['status']}'"
+                .($b['chega_at'] ? ", chega {$b['chega_at']}" : ''),
+            ));
 
             return self::FAILURE;
         }
 
-        // Só os slots populáveis, na ordem canônica: a mais antiga fica com o primeiro.
-        $populaveis = collect(MapaFertways::slotsFounder())->reject(fn ($s) => $s['reservado'])->values();
-
-        if ($colonias->count() > $populaveis->count()) {
-            $this->error("ABORTADO: {$colonias->count()} colônias para {$populaveis->count()} slots populáveis.");
+        if (($fora = $planos->semSlot()) > 0) {
+            $this->error("ABORTADO: {$fora} colônia(s) não cabem nos slots populáveis do disco.");
 
             return self::FAILURE;
         }
 
-        // O plano: de onde, para onde. Pula quem já está no slot certo (idempotente).
-        $plano = [];
-        foreach ($colonias as $i => $c) {
-            $alvo = $populaveis[$i];
-            if ($c->x === $alvo['x'] && $c->y === $alvo['y']) {
-                continue;
-            }
-            $plano[] = ['colony' => $c, 'x' => $alvo['x'], 'y' => $alvo['y']];
-        }
+        $plano = $planos->plano()->all();
 
         if (empty($plano)) {
             $this->info('Todas as colônias já estão no seu slot de founder. Nada a fazer.');

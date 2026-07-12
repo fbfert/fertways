@@ -138,7 +138,13 @@ class CapitalController extends Controller
      */
     public function news(): JsonResponse
     {
-        $noticias = News::orderByDesc('published_at')->orderByDesc('id')->limit(30)->get()
+        /*
+         * `noMural()` é o que faz OCULTAR valer alguma coisa. Sem ele, o botão do painel esconderia a
+         * notícia do operador e o colono continuaria a vê-la — um "ocultar" que não oculta. Ele
+         * também barra a notícia AGENDADA (publicada com data futura), que antes vazava para o mural
+         * no instante em que era escrita.
+         */
+        $noticias = News::noMural()->orderByDesc('published_at')->orderByDesc('id')->limit(30)->get()
             ->map(fn (News $n) => [
                 'id' => $n->id,
                 'title' => $n->title,
