@@ -239,13 +239,22 @@ compartilham o andaime de `e2e/comum.mjs` **e o mesmo banco efêmero**, então *
 > (Runtime.getProperties): Target closed`. Verde nas outras três. Se reprovar assim, rode de novo
 > antes de investigar — mas se virar hábito, é bug de verdade.
 
-**Publicado no GitHub e no ar.** O último deploy é de **2026-07-12**, no commit `0efd041` — **o D-60
-fechado: a frota envelhece e há mercado de usados (fatias 2 e 3)**. A migration
-`frota_envelhece_e_usados` rodou sozinha no `deploy.sh`, exercitada antes no `fertwaysdev` nos dois
-sentidos.
+**Publicado no GitHub e no ar.** O último deploy é de **2026-07-12**, no commit `bfd334f` — **o painel
+de administração com auditoria, CRUD e papéis (D-61)**, mais o **GDD v36** (D-62, que é só documento).
+A migration `auditoria_papeis_e_suspensao` rodou sozinha, exercitada antes no `fertwaysdev` nos dois
+sentidos. **Nenhum passo à mão desta vez.**
 
-**Um passo à mão** no `fertwaysbd`: `artisan db:seed --class=TransportSettingSeeder --force`. **Sem
-ele a depreciação nasce inerte** — os quatro parâmetros são do operador, e a tabela vinha vazia.
+Conferido por leitura depois: `audit_log` criada, os campos de suspensão em `users`, e — o que mais
+importava — **o admin `by_nvs@outlook.com` virou `dono` sozinho**, pela migration. Se ele tivesse
+nascido `operador`, o painel ficaria **sem ninguém que pudesse gerir admins** e a única saída seria o
+`artisan`. As **8 seções** respondem 302 (pedem login), não 404.
+
+> **O `audit_log` nasce vazio, e isso é o certo.** Ele só grava atos do **painel** — o cron do tick
+> não é ninguém. A primeira linha aparece no seu próximo login; a segunda, se alguém errar a senha.
+
+Antes dele, `0efd041` — **o D-60 fechado: a frota envelhece e há mercado de usados (fatias 2 e 3)**.
+Houve **um passo à mão** no `fertwaysbd`: `artisan db:seed --class=TransportSettingSeeder --force`.
+**Sem ele a depreciação nasce inerte** — os quatro parâmetros são do operador, e a tabela vinha vazia.
 Conferido depois: desgaste 0,5%/h, piso 25%, manutenção 10%, perda de teto 5 pontos.
 
 Conferido por leitura: as colunas de conservação e o `deleted_at` (a sucata **arquiva**), as tabelas
@@ -528,6 +537,13 @@ leitura. Ele é idempotente, então repetir é seguro se um dia houver dúvida.
   olhos abertos: **um Furgão sucateado pode ser anunciado por 5.000 Fert$**, e duas contas do mesmo
   jogador podem lavar Fert$ de uma para a outra por aí, sem tributo. O Caminhão é imune (tem teto).
   **Se o multi-conta virar problema, é aqui que ele aparece primeiro.**
+- **A realocação pelo painel não acerta a energia já gasta** (D-61). O veículo pagou, no despacho, a
+  energia da viagem inteira pela distância **antiga**. Se a colônia se mudar para longe, a viagem
+  refeita é mais cara do que o que ele pagou; para perto, mais barata. **O governo come a
+  diferença** — cobrar do colono uma energia que ele não escolheu gastar seria puni-lo por um ato do
+  operador. E os **Acordos abertos ficam com o prazo da distância antiga**: o painel avisa antes.
+- **Um único dono em produção** (D-61). O painel impede desativar o último, mas se a senha se perder,
+  só o `artisan fertways:admin --criar` recupera o acesso. **Crie um segundo dono.**
 - **Zonas neutras como destino de carga** — o despacho aceita `colonia`; zona neutra precisa do
   Depósito de Zona Neutra. Entra no escopo do D-52.
 - **Frontend** — o bundle passa de 1,5 MB sem code splitting (quase tudo é Phaser). Não incomoda
@@ -605,6 +621,20 @@ migrado e semeado em 2026-07-09, **sem nenhuma colônia**: funde a sua própria 
 
 As quatro têm os quatro índices de reputação em 500, conferido em produção depois do deploy do
 Ministério. **`publico` é conciliador desde 2026-07-10**; as outras três, não.
+
+### Contas de administração (D-61)
+
+Vivem na tabela **`admins`**, separadas das de colono. Em produção há **uma**:
+**`by_nvs@outlook.com`**, papel **`dono`** — promovido automaticamente pela migration do D-61.
+
+> ⚠️ **É o único dono.** O painel **impede** que ele seja desativado ou rebaixado (senão ninguém mais
+> poderia gerir admins e a única saída seria o `artisan`), mas **um único dono é um único ponto de
+> falha**: se a senha se perder, só o `artisan fertways:admin --criar` recupera o acesso. Vale criar
+> um segundo dono pelo painel.
+
+**Papéis:** `dono` faz tudo, inclusive gerir admins e **realocar colônias**. `operador` julga casos,
+publica notícias, distribui o Tesouro, e nos jogadores **vê, suspende e corrige estado** — não gere
+admins e não realoca.
 
 ## ⚠️ Ferramentas destrutivas
 
