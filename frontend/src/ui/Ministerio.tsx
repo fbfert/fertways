@@ -115,8 +115,8 @@ export function Ministerio({ aoFechar }: { aoFechar: () => void }) {
   const pendentes = aJulgar.filter((d) => d.status === 'atribuido').length
 
   return (
-    <div className="fixed inset-0 z-20 flex items-center justify-center bg-ink/70 p-4">
-      <div className="painel bg-sand-light max-h-[90vh] w-full max-w-3xl overflow-y-auto p-6">
+    <div className="bg-sand fixed inset-0 z-20 overflow-y-auto">
+      <div className="bg-sand-light mx-auto min-h-screen w-full max-w-3xl p-6">
         <header className="flex items-start justify-between">
           <div>
             <div className="text-rust eyebrow">Ministério das Reputações</div>

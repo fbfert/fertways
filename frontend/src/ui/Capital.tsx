@@ -71,8 +71,9 @@ export function Capital({
 
   function clicarSlot(slot: SlotDaCapital) {
     // O Ministério das Reputações reusa a tela de topo do HUD, como antes do D-63.
+    // ⚠️ Sem `aoFechar()` — ver a nota em `clicarArea`: com rotas, navegar JÁ é fechar, e as duas
+    // navegações juntas levavam o colono para o mapa em vez do Ministério.
     if (slot.abre === 'ministerio') {
-      aoFechar()
       aoAbrirMinisterio()
 
       return
@@ -82,9 +83,15 @@ export function Capital({
   }
 
   function clicarArea(area: AreaId) {
-    // O Leste é o slot 6: Mercado Central + Pátio Logístico. Clicar nele abre o Mercado.
+    /*
+     * O Leste é o slot 6: Mercado Central + Pátio Logístico. Clicar nele abre o Mercado.
+     *
+     * ⚠️ **Não chame `aoFechar()` aqui.** Enquanto isto era popup, fechar-a-Capital-e-abrir-o-Mercado
+     * eram dois atos, e faziam sentido. Com as telas em rotas (D-67) são **duas navegações no mesmo
+     * instante** — o `voltar()` do `aoFechar` e o `navegar('/mercado/central')` do `aoAbrirMercado` —
+     * e o primeiro vence: o colono acabava no mapa. **Navegar já é fechar.**
+     */
     if (area === 'leste') {
-      aoFechar()
       aoAbrirMercado()
 
       return
@@ -95,8 +102,8 @@ export function Capital({
   }
 
   return (
-    <div className="bg-ink/70 fixed inset-0 z-20 flex items-center justify-center p-4">
-      <div className="painel bg-sand-light flex max-h-[92vh] w-full max-w-4xl flex-col overflow-hidden p-6">
+    <div className="bg-sand fixed inset-0 z-20 overflow-y-auto">
+      <div className="bg-sand-light mx-auto flex min-h-screen w-full max-w-4xl flex-col p-6">
         <header className="flex shrink-0 items-start justify-between">
           <div>
             <div className="text-rust eyebrow">Capital</div>

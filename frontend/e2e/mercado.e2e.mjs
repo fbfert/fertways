@@ -28,6 +28,7 @@ import {
   clicarNaConstrucao,
   entrar,
   esperarTexto,
+  irParaColonia,
   falhas,
   janela,
   relatar,
@@ -158,9 +159,13 @@ try {
   checar(await esperarTexto(page, /500/), 'o recurso volta ao depósito, não ao estoque')
 
   // ═══════════════════════════════════════════════════════ o Mercado Local, na colônia
-  console.log('\nFecha a Capital e abre o Mercado Local, pela construção')
-  await (await acharPorTexto(page, 'button', /^×$/)).click()
-  await assentar()
+  console.log('\nVolta à colônia e abre o Mercado Local, pela construção')
+  /*
+   * `irParaColonia` e não um clique no ×: desde o D-67 fechar uma tela devolve à ANTERIOR (aqui, a
+   * Capital), e não à colônia. É o comportamento certo — voltou-se de onde se veio —, e é por isso
+   * que a volta à colônia passou a ser um endereço, e não uma sequência de fechamentos.
+   */
+  await irParaColonia(page)
   await abrirMercadoLocal(page)
 
   checar(await esperarTexto(page, /A sua colônia/), 'o Mercado Local é uma tela própria (D-65)')

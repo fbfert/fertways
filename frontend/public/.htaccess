@@ -1,0 +1,34 @@
+# SPA fallback (D-67).
+#
+# Desde que as telas ganharam URL própria (`/mapa`, `/capital`, `/zona/12`), o Apache passa a receber
+# pedidos de caminhos que **não existem no disco**. Sem esta regra ele responde 404, e recarregar a
+# página — ou abrir um link que alguém mandou — quebraria. Conferido antes de escrever: `/mapa` dava
+# 404 em produção.
+#
+# ⚠️ **A exclusão de `/central` é o que impede isto de derrubar a API inteira.**
+#
+# `/central` é o symlink para o `public/` do Laravel. Um pedido a `/central/war` não corresponde a
+# nenhum arquivo em disco, então as duas condições `!-f` e `!-d` abaixo seriam verdadeiras e a regra
+# o mandaria para o `index.html` do React — **toda a API responderia HTML**. As regras de reescrita
+# de um diretório-pai correm antes das do filho, e o `.htaccess` do Laravel não teria chance de
+# defender-se.
+#
+# Este arquivo mora em `frontend/public/`, então o Vite o copia para o `dist/` e o `deploy.sh` o leva
+# junto com o bundle. Não o mova para fora daí: ele não sobrevive ao deploy.
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteBase /
+
+    # A API do Laravel. Nunca reescrever — ver acima.
+    RewriteCond %{REQUEST_URI} ^/central
+    RewriteRule ^ - [L]
+
+    # Arquivo ou diretório que existe de verdade (o bundle, os ícones, o favicon): serve como está.
+    RewriteCond %{REQUEST_FILENAME} -f [OR]
+    RewriteCond %{REQUEST_FILENAME} -d
+    RewriteRule ^ - [L]
+
+    # Qualquer outra coisa é uma rota do React.
+    RewriteRule ^ index.html [L]
+</IfModule>

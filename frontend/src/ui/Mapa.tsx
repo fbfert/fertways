@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { api, ApiError } from '../api/client'
 import type {
   ColoniaVizinha,
@@ -230,8 +231,8 @@ export function Mapa({ aoFechar, aoAbrirCapital }: { aoFechar: () => void; aoAbr
   }
 
   return (
-    <div className="fixed inset-0 z-20 flex items-center justify-center bg-ink/70 p-4">
-      <div className="painel bg-sand-light max-h-[92vh] w-full max-w-5xl overflow-y-auto p-6">
+    <div className="bg-sand fixed inset-0 z-20 overflow-y-auto">
+      <div className="bg-sand-light mx-auto min-h-screen w-full max-w-5xl p-6">
         <header className="flex items-start justify-between">
           <div>
             <div className="text-rust eyebrow">Mapa</div>
@@ -679,6 +680,17 @@ function PainelZona({
 
       {/* De outro colono: atacar (§27, §28.10; D-66). É daqui que a guerra parte. */}
       {z.owner && !z.mine && <Atacar zona={z} aoFeito={aoAgir} />}
+
+      {/* Sua: a zona é um LUGAR desde o D-67 — entra-se nela como se entra na colônia. */}
+      {z.mine && (
+        <Link
+          to={`/zona/${z.id}`}
+          data-abrir-zona={z.id}
+          className="bg-rust text-sand-light hover:bg-rust-bright mt-3 block w-full py-2 text-center text-sm font-bold"
+        >
+          Abrir a zona
+        </Link>
+      )}
 
       {/* Sua: estabelecendo, ou produzindo e pronta para retirar. */}
       {z.mine && !produtiva && (

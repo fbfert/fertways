@@ -158,6 +158,33 @@ export async function clicarNoSlotVazio(page, slot) {
  * A Capital, que desde o D-59 só se alcança pelo mapa — e é lá dentro que ficam o Ministério e o
  * Mercado Central, instituições do governo (§2.1) e não construções do colono.
  */
+/**
+ * Vai a uma tela pela URL (D-67).
+ *
+ * **Isto só é possível porque as telas têm endereço.** Enquanto eram popups, a única forma de chegar
+ * a uma tela era clicar o caminho inteiro até ela, e a única forma de sair era fechar na ordem
+ * inversa. Agora um endereço basta — e usar isto no e2e **prova o link direto**, que é metade do
+ * motivo de o D-67 existir: recarregar a página não pode largar o colono na colônia.
+ *
+ * Recarrega a aplicação de verdade (o token vive no `localStorage` e sobrevive), então serve também
+ * de teste do `.htaccess`: se o servidor não devolvesse o `index.html` em `/zona/12`, isto quebraria.
+ */
+export async function irPara(page, rota) {
+  /*
+   * `domcontentloaded`, e **não** `networkidle2`. O `entrar()` usa `networkidle2` e funciona porque
+   * a tela de login não fala com o servidor depois de carregar. Aqui o colono já está dentro, e o
+   * App faz *polling* de `/colony`, `/buildings`, `/queue` e `/catalogo` **de 5 em 5 segundos**: a
+   * rede nunca fica ociosa, e a espera estoura os 30 s sem que nada esteja errado.
+   *
+   * Custou uma rodada inteira de e2e descobrir isso.
+   */
+  await page.goto(`${BASE}${rota}`, { waitUntil: 'domcontentloaded' })
+  await assentar()
+}
+
+/** Volta à colônia — a rota `/`. Fechar uma tela devolve à ANTERIOR, que nem sempre é a colônia. */
+export const irParaColonia = (page) => irPara(page, '/')
+
 export async function abrirCapital(page) {
   await (await acharPorTexto(page, 'button', /^Mapa$/)).click()
 

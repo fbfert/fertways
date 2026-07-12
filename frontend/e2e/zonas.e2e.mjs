@@ -10,10 +10,12 @@
 import {
   abrirNavegador,
   acharPorTexto,
+  assentar,
   checar,
   entrar,
   esperarTexto,
   falhas,
+  irPara,
   relatar,
 } from './comum.mjs'
 
@@ -54,6 +56,95 @@ try {
   // Ocupada: a lista lateral passa a contar uma zona sua, e o painel diz que está estabelecendo.
   checar(await esperarTexto(page, /Zonas \(1 suas\)/), 'a zona passa a ser sua')
   checar(await esperarTexto(page, /Estabelecendo/), 'a zona recém-ocupada está estabelecendo')
+
+  // ═══════════════════════════════════════════════════ a zona é um LUGAR (D-67)
+  console.log('\nA zona ocupada abre como tela própria, com planta')
+
+  /*
+   * Isto só é testável porque a planta da zona é **SVG**, e não Phaser (D-67).
+   *
+   * As cenas de canvas da colônia e da Capital não têm DOM: o e2e não as vê, não as clica, e não lê
+   * o que está escrito nelas. Foi por isso que a receita da Oficina (D-54) e a demolição (D-59)
+   * ficaram sem cobertura, e foi por isso que os sete ministérios da Capital saíram PÁLIDOS na tela
+   * com os sete e2e verdes (D-63). Um SVG é DOM. Este teste é a prova de que a escolha se paga.
+   */
+  const abrir = await page.$('[data-abrir-zona]')
+  checar(!!abrir, 'a zona sua oferece a porta de entrada')
+  await abrir.click()
+  await assentar()
+
+  checar(await esperarTexto(page, /Zona Neutra/), 'a zona abre como tela própria')
+  checar(!!(await page.$('[data-tela="zona"]')), 'e é uma TELA, não um popup por cima do jogo')
+
+  // A planta: as áreas existem e são clicáveis.
+  for (const area of ['muralha_de_perimetro', 'torre_de_vigia', 'deposito_de_zona_neutra']) {
+    checar(!!(await page.$(`[data-area="${area}"]`)), `a planta tem a área "${area}"`)
+  }
+
+  // O canteiro nasce vazio: o material das obras chega de VEÍCULO, não do estoque de casa.
+  checar(
+    await esperarTexto(page, /Despache um veículo com material/),
+    'o canteiro nasce vazio, e a tela diz que o material chega de veículo',
+  )
+
+  // Clicar na Muralha abre o painel dela, com o que o GDD promete e o que o jogo entrega.
+  await page.click('[data-area="muralha_de_perimetro"]')
+  await assentar()
+  checar(
+    await esperarTexto(page, /Muralha de Perímetro/),
+    'clicar no perímetro abre o painel da Muralha',
+  )
+  checar(
+    await esperarTexto(page, /Dificulta a Invasão Direta/),
+    'e ele diz o que o GDD promete, verbatim',
+  )
+
+  // ⚠️ O buraco que o D-66 abriu e o D-67 fechou: até aqui, NADA no jogo erguia isto.
+  checar(!!(await page.$('[data-construir="muralha_de_perimetro"]')), 'e oferece o botão de construir')
+
+  /*
+   * Sem material no canteiro, o botão está DESABILITADO — e não é detalhe de UX.
+   *
+   * A primeira versão clicava e esperava o erro do servidor. Funcionava, e o andaime do e2e
+   * reprovou com razão: ele vigia erros de rede, e aquilo era um 422 de verdade. O erro era do
+   * DESENHO — eu oferecia um botão que a própria tela já sabia que ia falhar. A guarda do domínio
+   * continua lá (é ela que vale contra requisição forjada); a tela só deixou de prometer o que não
+   * pode cumprir.
+   */
+  const construir = await page.$('[data-construir="muralha_de_perimetro"]')
+  checar(
+    await page.evaluate((b) => b.disabled, construir),
+    'sem material no canteiro, o botão de construir nem se oferece',
+  )
+  checar(
+    await esperarTexto(page, /Falta material no canteiro/),
+    'e a tela diz por quê, em vez de deixar o colono adivinhar',
+  )
+
+  // O Cemitério é declarado INERTE pelo próprio GDD, e a tela tem de dizê-lo.
+  await page.click('[data-area="cemiterio_de_robos"]')
+  await assentar()
+  checar(
+    await esperarTexto(page, /apenas visual|não faz nada/),
+    'o Cemitério de Robôs diz que não faz nada — o próprio GDD o declara decorativo',
+  )
+
+  // E o que o GDD lista e o jogo não tem aparece como buraco marcado, com o porquê.
+  checar(
+    await esperarTexto(page, /Central de Comunicação/),
+    'a tela admite o que o §17.4 promete e o jogo não entrega',
+  )
+
+  // ═══════════════════════════════════════════════════ o LINK DIRETO (D-67)
+  console.log('\nA URL da zona funciona sozinha — é metade do motivo do D-67')
+  const url = page.url()
+  checar(/\/zona\/\d+$/.test(url), `a zona tem URL própria (${url})`)
+
+  await irPara(page, new URL(url).pathname)
+  checar(
+    await esperarTexto(page, /Zona Neutra/),
+    'recarregar a página na URL da zona devolve a ZONA, e não a colônia',
+  )
 } catch (e) {
   falhas.push(`exceção: ${e.message}`)
   try {

@@ -8,9 +8,10 @@ import { Fundacao } from './ui/Fundacao'
 import { Login } from './ui/Login'
 import { Mapa } from './ui/Mapa'
 import { Marca } from './ui/Marca'
+import { Route, Routes, useNavigate, useParams } from 'react-router-dom'
 import { Mercado } from './ui/Mercado'
 import { Quartel } from './ui/Quartel'
-import type { ContextoDoMercado } from './ui/Mercado'
+import { Zona } from './ui/Zona'
 import { Ministerio } from './ui/Ministerio'
 import { Detalhe, FilaDeObras, Recursos, SlotVazio } from './ui/Hud'
 
@@ -32,6 +33,13 @@ const INTERVALO_MS = 5000
  * e é isso que dá peso à pergunta "o que esta construção faz?", que o item 5 finalmente responde.
  */
 export default function App() {
+  /**
+   * As telas têm URL própria (D-67). Antes eram booleanos de estado — `mapaAberto`, `capitalAberta`
+   * —, e por isso eram *popups*: sem endereço, sem histórico, e recarregar a página largava o colono
+   * na colônia. Agora quem decide o que se vê é a URL.
+   */
+  const navegar = useNavigate()
+
   const [autenticado, setAutenticado] = useState(!!token.get())
   const [colonia, setColonia] = useState<Colonia | null>(null)
   const [specs, setSpecs] = useState<Spec[]>([])
@@ -41,17 +49,6 @@ export default function App() {
   const [slotVazio, setSlotVazio] = useState<number | null>(null)
   const [erro, setErro] = useState<string | null>(null)
   const [semColonia, setSemColonia] = useState(false)
-  const [mercadoAberto, setMercadoAberto] = useState(false)
-  // O Quartel é a porta da guerra (D-66): fabrica as unidades e mostra as batalhas em curso —
-  // inclusive as em que se está DEFENDENDO, que é o que o §27.5 exige para o defensor poder socorrer.
-  const [quartelAberto, setQuartelAberto] = useState(false)
-  // De qual mercado o colono entrou (D-65). O Mercado Local é a construção da colônia; o Mercado
-  // Central é a Capital. São duas telas, e não mais duas portas para o mesmo salão.
-  const [mercado, setMercado] = useState<ContextoDoMercado>('local')
-  const [ministerioAberto, setMinisterioAberto] = useState(false)
-  const [mapaAberto, setMapaAberto] = useState(false)
-  const [frotaAberta, setFrotaAberta] = useState(false)
-  const [capitalAberta, setCapitalAberta] = useState(false)
 
   const carregar = useCallback(async () => {
     try {
@@ -91,12 +88,9 @@ export default function App() {
     // `/colony`, `/buildings` e `/queue` com um token que o servidor acabou de invalidar, e o
     // colono vê três 401 no console ao sair.
     setAutenticado(false)
-    setMercadoAberto(false)
-    setMinisterioAberto(false)
-    setMapaAberto(false)
-    setFrotaAberta(false)
-    setCapitalAberta(false)
     setColonia(null)
+    // A URL volta à raiz: sair de dentro do Mercado não pode deixar `/mercado/local` no endereço.
+    navegar('/')
 
     try {
       await api.logout()
@@ -159,20 +153,9 @@ export default function App() {
    * o Quartel à guerra.
    */
   function abrirPorta(tipo: string) {
-    if (tipo === 'central_de_transportes') {
-      setFrotaAberta(true)
-      return
-    }
-
-    if (tipo === 'quartel') {
-      setQuartelAberto(true)
-      return
-    }
-
-    if (tipo === 'mercado_local') {
-      setMercado('local')
-      setMercadoAberto(true)
-    }
+    if (tipo === 'central_de_transportes') return navegar('/frota')
+    if (tipo === 'quartel') return navegar('/quartel')
+    if (tipo === 'mercado_local') return navegar('/mercado/local')
   }
 
   if (!autenticado) return <Login aoEntrar={() => setAutenticado(true)} />
@@ -192,7 +175,11 @@ export default function App() {
     )
   }
 
-  return (
+  /**
+   * A colônia — a rota `/`. Deixou de ser "o app" e passou a ser **uma tela entre outras**
+   * (D-67). Antes, tudo o mais era popup por cima dela.
+   */
+  const jogo = (
     <div className="relative h-screen w-screen overflow-hidden">
       <div className="absolute inset-0">
         <ColonyCanvas
@@ -218,7 +205,7 @@ export default function App() {
 
           {colonia && (
             <button
-              onClick={() => setMapaAberto(true)}
+              onClick={() => navegar('/mapa')}
               className="painel bg-rust text-sand-light hover:bg-rust-bright eyebrow px-5"
             >
               Mapa
@@ -237,55 +224,6 @@ export default function App() {
         )}
       </header>
 
-      {/* O mapa e a frota só leem: fechar não muda estoque nem saldo, e não precisa recarregar. */}
-      {colonia && mapaAberto && (
-        <Mapa
-          aoFechar={() => setMapaAberto(false)}
-          aoAbrirCapital={() => {
-            setMapaAberto(false)
-            setCapitalAberta(true)
-          }}
-        />
-      )}
-
-      {colonia && frotaAberta && <Frota aoFechar={() => setFrotaAberta(false)} />}
-
-      {colonia && quartelAberto && <Quartel aoFechar={() => setQuartelAberto(false)} />}
-
-      {/* A Capital só lê: abrir/fechar não muda estoque nem saldo. Mercado Central e Ministério
-          (slots 6 e 7) são instituições do governo e se alcançam por aqui — não por construção. */}
-      {colonia && capitalAberta && (
-        <Capital
-          aoFechar={() => setCapitalAberta(false)}
-          aoAbrirMercado={() => {
-            setMercado('central')
-            setMercadoAberto(true)
-          }}
-          aoAbrirMinisterio={() => setMinisterioAberto(true)}
-        />
-      )}
-
-      {colonia && ministerioAberto && (
-        <Ministerio
-          aoFechar={() => {
-            setMinisterioAberto(false)
-            // Uma condenação pode ter tirado recurso de circulação; o HUD reflete o estado novo.
-            void carregar()
-          }}
-        />
-      )}
-
-      {colonia && mercadoAberto && (
-        <Mercado
-          colonia={colonia}
-          contexto={mercado}
-          aoFechar={() => {
-            setMercadoAberto(false)
-            // O depósito tira recurso do estoque na hora: o HUD tem de refletir isso já.
-            void carregar()
-          }}
-        />
-      )}
 
       {colonia && (
         <div className="absolute top-24 left-5">
@@ -322,5 +260,99 @@ export default function App() {
         Sair
       </button>
     </div>
+  )
+
+  /*
+   * As telas têm URL própria (D-67). O botão Voltar do navegador funciona, recarregar a página não
+   * larga o colono na colônia, e um link pode ser mandado a alguém.
+   *
+   * `voltar()` usa o histórico quando há para onde voltar, e cai na colônia quando não há — quem
+   * abre `/zona/12` direto pelo endereço não tem histórico nenhum, e um Voltar que saísse do site
+   * seria pior que nenhum.
+   */
+  const voltar = () => (window.history.length > 1 ? navegar(-1) : navegar('/'))
+
+  return (
+    <Routes>
+      <Route path="/" element={jogo} />
+
+      <Route
+        path="/mapa"
+        element={<Mapa aoFechar={voltar} aoAbrirCapital={() => navegar('/capital')} />}
+      />
+
+      <Route path="/frota" element={<Frota aoFechar={voltar} />} />
+      <Route path="/quartel" element={<Quartel aoFechar={voltar} />} />
+
+      {/* A zona neutra ocupada é um LUGAR, como a colônia e a Capital (D-67). */}
+      <Route path="/zona/:id" element={<Zona aoFechar={voltar} />} />
+
+      <Route
+        path="/capital"
+        element={
+          <Capital
+            aoFechar={voltar}
+            aoAbrirMercado={() => navegar('/mercado/central')}
+            aoAbrirMinisterio={() => navegar('/ministerio')}
+          />
+        }
+      />
+
+      <Route
+        path="/ministerio"
+        element={
+          <Ministerio
+            aoFechar={() => {
+              // Uma condenação pode ter tirado recurso de circulação; o HUD reflete o estado novo.
+              void carregar()
+              voltar()
+            }}
+          />
+        }
+      />
+
+      {/* O contexto do Mercado está na URL desde o D-67: o Local é a construção do colono, o Central
+          é a instituição do governo. São duas telas, e agora são dois endereços. */}
+      <Route
+        path="/mercado/:contexto"
+        element={
+          <MercadoRota
+            colonia={colonia}
+            aoFechar={() => {
+              // O depósito tira recurso do estoque na hora: o HUD tem de refletir isso já.
+              void carregar()
+              voltar()
+            }}
+          />
+        }
+      />
+
+      {/* Endereço que não existe: volta à colônia, em vez de deixar a tela branca. */}
+      <Route path="*" element={jogo} />
+    </Routes>
+  )
+}
+
+/**
+ * O Mercado, pela URL. O `contexto` vem do endereço (`/mercado/local` ou `/mercado/central`) e não
+ * de um estado que se perde ao recarregar.
+ */
+function MercadoRota({
+  colonia,
+  aoFechar,
+}: {
+  colonia: Colonia | null
+  aoFechar: () => void
+}) {
+  const { contexto } = useParams()
+
+  if (!colonia) return null
+
+  return (
+    <Mercado
+      colonia={colonia}
+      contexto={contexto === 'central' ? 'central' : 'local'}
+      aoFechar={aoFechar}
+    />
   )
 }

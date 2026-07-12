@@ -696,6 +696,23 @@ export const api = {
       body: JSON.stringify({ zone_id: zoneId, tipo, unit_ids: unitIds, alvo: alvo ?? null }),
     }),
 
+  /** A ficha da zona: estruturas, canteiro, depósito, guarnição (D-67). Só o dono a vê. */
+  zona: (id: number) => req<ZonaDetalhe>(`/zones/${id}`),
+
+  /** Ergue ou evolui uma estrutura da zona. O material sai do CANTEIRO, não do estoque da colônia. */
+  construirNaZona: (id: number, structure: string) =>
+    req<{ obra: unknown }>(`/zones/${id}/build`, {
+      method: 'POST',
+      body: JSON.stringify({ structure }),
+    }),
+
+  /** Despacha um veículo com material de obra até o canteiro da zona. A entrega é FÍSICA (D-67). */
+  entregarMaterial: (id: number, vehicleId: number, cargo: Record<string, number>) =>
+    req<{ id: number; status: string; arrives_at: string | null }>(`/zones/${id}/material`, {
+      method: 'POST',
+      body: JSON.stringify({ vehicle_id: vehicleId, cargo }),
+    }),
+
   fundarColonia: (name: string, x: number, y: number) =>
     req<Colonia>('/colony', { method: 'POST', body: JSON.stringify({ name, x, y }) }),
 
@@ -854,4 +871,54 @@ export const api = {
   /** Aceita uma oferta do mural e vira a contraparte dela. Quem chega primeiro leva. */
   aceitarOfertaDoMural: (id: number) =>
     req<Acordo>(`/trade/agreements/${id}/accept`, { method: 'POST' }),
+}
+
+// ── a zona como LUGAR (§17.4, D-67) ───────────────────────────────────────────────────────────────
+
+export type EstruturaDaZona = {
+  type: string
+  nome: string
+  level: number
+  /** O que o GDD PROMETE. */
+  gdd: string
+  /** O que o jogo ENTREGA hoje. As duas coisas não se confundem (padrão do D-59). */
+  hoje: string
+  /** O Cemitério é declarado "apenas visual" pelo próprio GDD. */
+  inerte: boolean
+  construivel: boolean
+  /** Desligada por uma sabotagem ou uma apreensão (§28.10). */
+  offline: boolean
+  proximo: { level: number; custo: Record<string, number>; segundos: number } | null
+}
+
+export type ZonaDetalhe = {
+  id: number
+  x: number
+  y: number
+  district: string
+  mineral: string
+  status: string
+  cercada: boolean
+  productive_at: string | null
+  protected_until: string | null
+  deposito: {
+    bruto: number
+    /** O que a Refinaria de Campo já converteu. Ocupa o mesmo Depósito. */
+    refinado: number
+    refinado_recurso: string | null
+    capacidade: number
+    /** O que cabe no Depósito está a salvo do saque; o que transborda é butim (D-66). */
+    protegido: number
+    exposto: number
+  }
+  extracao_hora: number
+  refino_hora: number
+  guarnicao: { robos: number; sentinelas: number; defesa: number }
+  estruturas: EstruturaDaZona[]
+  /** O canteiro de obras: material entregue de veículo, à espera de virar construção. */
+  canteiro: { resource_type: string; amount: number }[]
+  obra: { structure: string; nome: string; target_level: number; finishes_at: string } | null
+  /** O que o §17.4 lista e o jogo NÃO tem, com o porquê. */
+  ausentes: Record<string, { nome: string; porque: string }>
+  modules_offline: string[]
 }
