@@ -239,10 +239,16 @@ compartilham o andaime de `e2e/comum.mjs` **e o mesmo banco efêmero**, então *
 > (Runtime.getProperties): Target closed`. Verde nas outras três. Se reprovar assim, rode de novo
 > antes de investigar — mas se virar hábito, é bug de verdade.
 
-**Publicado no GitHub e no ar.** O último deploy é de **2026-07-12**, no commit `bfd334f` — **o painel
-de administração com auditoria, CRUD e papéis (D-61)**, mais o **GDD v36** (D-62, que é só documento).
-A migration `auditoria_papeis_e_suspensao` rodou sozinha, exercitada antes no `fertwaysdev` nos dois
-sentidos. **Nenhum passo à mão desta vez.**
+**Publicado no GitHub e no ar.** O último deploy é de **2026-07-12**, no commit `d29b981` — **a Capital
+virou lugar e as cenas ganharam zoom (D-63)**. **Só frontend: sem migration e sem passo à mão.**
+
+> Conferido: o bundle no ar é **byte-a-byte** o mesmo que as 7 suítes e2e exercitaram. Não se fez
+> login em produção para "olhar" — isso deixaria um token de teste no banco, e a regra é não escrever
+> em produção para verificar (ver a lição de 2026-07-10).
+
+Antes dele, `bfd334f` — **o painel de administração com auditoria, CRUD e papéis (D-61)**, mais o
+**GDD v36** (D-62, que é só documento). A migration `auditoria_papeis_e_suspensao` rodou sozinha,
+exercitada antes no `fertwaysdev` nos dois sentidos. **Nenhum passo à mão.**
 
 Conferido por leitura depois: `audit_log` criada, os campos de suspensão em `users`, e — o que mais
 importava — **o admin `by_nvs@outlook.com` virou `dono` sozinho**, pela migration. Se ele tivesse
@@ -336,6 +342,20 @@ concêntrico do D-51** (`2a71a1c`), o `fix` da fila do D-53 e as telas do D-54.)
 >
 > O `.env` de trabalho **não** recebe a linha: o `artisan serve` é HTTP e um cookie `Secure` não
 > voltaria. O `.env.example` documenta isso, comentado.
+
+> **Lição registrada (2026-07-12) — o e2e prova que CLICA, não que está CERTO na tela. Olhe.**
+> Ao construir a Capital (D-63), os sete ministérios apareciam **pálidos, iguais aos slots vagos**: a
+> cena do Phaser nunca era informada de quais slots existiam (o efeito que a atualiza não rodava de
+> novo depois de o jogo ser criado), e desenhava tudo como "vago". **Os 7 e2e passavam** — e passavam
+> com razão, porque os **cliques funcionavam**: os alvos são botões de DOM, e eles liam a lista certa.
+> Só o **desenho** mentia.
+>
+> Nenhum teste de clique acharia isso, e nenhum teste de texto também: o canvas não tem DOM. **Foi
+> preciso tirar um screenshot e olhar.** Quando mexer em cena de Phaser — cor, posição, rótulo,
+> estado —, **fotografe e olhe**; o verde do e2e não é evidência sobre pixels.
+>
+> (Os outros dois defeitos do D-63 o e2e pegou: o `div` da cena colapsando a zero, e o seletor de zoom
+> ambíguo com dois canvases no DOM. Ele é bom no que é bom.)
 
 > **Lição registrada (2026-07-12) — a suíte roda em SQLite; a produção é MariaDB. Migration não
 > testada é migration não escrita.** O primeiro deploy do D-59 **quebrou em produção**, na migration,
