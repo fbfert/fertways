@@ -103,6 +103,30 @@ O MVP tem, funcionando e no ar em `https://fertways.tars.art.br`:
   API segue JSON e o índice `/central/` não lista as rotas do painel. **Primeiro admin em produção
   criado à mão** (2026-07-11): `by_nvs@outlook.com`. O painel tem a seção **Ministério do Tesouro**
   (D-57): saldo do caixa + envio de recurso/Fert$ a uma colônia.
+- **O painel cresceu, e agora deixa rastro (D-61)** — era uma página só, e **não auditava nada**.
+  - **Auditoria `audit_log`, append-only**: quem, quando, o quê, sobre quem, os **valores antes e
+    depois**, o IP e o navegador — mais os **logins que falharam**. O modelo recusa *update* e
+    *delete*, e a tabela não tem `updated_at`. **Auditar deixou de ser opcional:** o `ok()` do
+    `AcoesController` **exige o nome da ação**, então não dá para acrescentar um botão e esquecer.
+  - **Oito seções navegáveis** e **busca global** (nome, nickname, e-mail, colônia ou **placa** — a
+    placa é o único identificador de outro jogador que aparece na tela de um colono).
+  - **CRUD de jogadores**: ficha completa, **suspensão**, **correção de estado** e **realocação**.
+    **Não se apaga jogador** — a cascata levaria o ledger, os acordos e as denúncias em que ele é
+    parte, quebrando o histórico de **outros**.
+  - **A suspensão** barra o login, **revoga os tokens** e congela **só o comércio** (reusa a restrição
+    do §9.4). **A colônia continua produzindo:** o mundo não para, e nada se perde.
+  - **Corrigir estado lança `ajuste_admin` no ledger, sempre**, com motivo escrito. A auditoria guarda
+    o antes/depois; o ledger guarda o delta. É a única coisa no jogo que cria valor sem origem
+    econômica, e por isso é **obrigada** a ter história.
+  - **Dois papéis**: **dono** (tudo, inclusive gerir admins e realocar) e **operador**. Duas travas:
+    **ninguém se desativa**, e **não se desativa o último dono** — o painel ficaria inacessível para
+    sempre. A guarda é no **servidor** (middleware `dono`), não só no menu.
+  - **Realocar FORÇA e refaz as viagens** em curso a partir da posição nova, exigindo a palavra
+    **REALOCAR**. ⚠️ **A energia já gasta não é acertada**: o governo come a diferença. E os Acordos
+    abertos ficam com o prazo da **distância antiga** — o painel avisa antes.
+  - **Demolir exige a palavra `DEMOLIR` — na tela E NA API.** Só na tela seria cosmético.
+  - **Sem e2e**, os dois: a demolição está atrás de um clique num hexágono do Phaser (mesma razão da
+    receita da Oficina), e o painel é Blade, coberto por **34 testes PHP**.
 - **Ministério do Tesouro e kit de recursos (D-57)** — o Tesouro virou caixa gastável (ver slot 2
   acima). E toda colônia recebe um **kit fixo**: 1000 metal bruto, 1000 ligas, 500 compostos, 300
   biocombustível, 500 componentes — **emissão do governo**, concedido na fundação
@@ -177,7 +201,7 @@ O MVP tem, funcionando e no ar em `https://fertways.tars.art.br`:
   - **Fora de escopo, de propósito:** o **Cargueiro Interplanetário** e o seu aluguel. Dependem do
     Espaçoporto e dos planetas NPC, que não existem.
 
-**314 testes PHP (2622 asserções) + 7 e2e, verdes.** O cron do tick está instalado (crontab do usuário
+**334 testes PHP (2678 asserções) + 7 e2e, verdes.** O cron do tick está instalado (crontab do usuário
 `fertways`, log em `/home/fertways/logs/fertways-tick.log`) e roda o `artisan` **da cópia de
 deploy** — o mundo avança sozinho. O tick faz: produção, upgrades, proteções, trechos de viagem,
 acordos vencidos, **casos reatribuídos, janelas de apelação fechadas e a folha do Ministério**.
@@ -394,6 +418,34 @@ do painel do §16) dependem do Espaçoporto e dos 5 planetas NPC, que não exist
   objetivo de médio prazo e um dreno de Fert$; se ninguém comprar, é o primeiro número a revisitar.
 - **Os quatro parâmetros da depreciação** estão no painel de admin e mudam sem deploy. É lá que se
   balanceia o envelhecimento da frota — não no código.
+
+## O GDD v36 — **existe** (2026-07-12) <span>D-62</span>
+
+**`/home/fertways/FERTWAYS_GDD_v36_CONSOLIDADO.html`.** Substitui o v35, que fica **intocado** como
+registro histórico. Resolve as contradições **no texto** — não há mais tabela de precedência, porque
+não há mais duas redações concorrentes —, marca as **lacunas abertas** sem inventar número nenhum, e
+separa o que o jogo **entrega** do que ele **promete**.
+
+> **É um GERADOR, não um arquivo escrito à mão:** `tools/gdd-v36.php`. As tabelas numéricas são
+> lidas de `building_specs` e `resource_types` — **as mesmas de onde o jogo lê** —, e essas tabelas
+> têm testes que provam que batem com o GDD (`tests/Gdd/`). **O documento não pode divergir do jogo.**
+> Foi essa a doença do v35: ele era estático, o jogo mudou 59 vezes e o texto não.
+>
+> Regere-o depois de mudar qualquer número:
+> ```sh
+> cd /home/fertways/apps/fertways
+> /usr/bin/php84 tools/gdd-v36.php > /home/fertways/FERTWAYS_GDD_v36_CONSOLIDADO.html
+> ```
+> Ele **falha alto** (código 1) se uma construção nova não tiver nome próprio no mapa — senão o GDD
+> sairia com o nome do prédio escrito errado, sem acento, e ninguém perceberia.
+
+Hoje: **31 tabelas · 28 implementado · 17 promessa · 6 lacuna aberta · 13 arbitrado**.
+
+**A seção 10 é a mais útil:** a lista de tudo o que ainda falta decidir (guerra, Drone, árvore de
+pesquisa, receita das Ligas, população, Marco, serviço logístico, teto de estoque, níveis de veículo,
+Espaçoporto). **Nenhum número ali foi inventado, e nenhum será até que você o decida.**
+
+**Quando o v36 estiver assentado, o D-47 vira história:** não há mais precedência a aplicar.
 
 ## O trabalho em curso: zonas neutras + Drone (D-52)
 
