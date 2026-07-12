@@ -201,7 +201,7 @@ O MVP tem, funcionando e no ar em `https://fertways.tars.art.br`:
   - **Fora de escopo, de propósito:** o **Cargueiro Interplanetário** e o seu aluguel. Dependem do
     Espaçoporto e dos planetas NPC, que não existem.
 
-**344 testes PHP (2723 asserções) + 7 e2e, verdes.** O cron do tick está instalado (crontab do usuário
+**388 testes PHP (3134 asserções) + 7 e2e, verdes.** O cron do tick está instalado (crontab do usuário
 `fertways`, log em `/home/fertways/logs/fertways-tick.log`) e roda o `artisan` **da cópia de
 deploy** — o mundo avança sozinho. O tick faz: produção, upgrades, proteções, trechos de viagem,
 acordos vencidos, **casos reatribuídos, janelas de apelação fechadas e a folha do Ministério**.
@@ -239,7 +239,12 @@ compartilham o andaime de `e2e/comum.mjs` **e o mesmo banco efêmero**, então *
 > (Runtime.getProperties): Target closed`. Verde nas outras três. Se reprovar assim, rode de novo
 > antes de investigar — mas se virar hábito, é bug de verdade.
 
-**Publicado no GitHub e no ar.** O último deploy é de **2026-07-12**, no commit `b43586c` — **os dois
+**Publicado no GitHub e no ar.** O último deploy é de **2026-07-13**, no commit `5aa850e` — **a GUERRA
+(D-66, a Fatia 2 do D-52)** e a **segunda leva do painel de admin** (Reputações, Notícias com estado,
+frota com placa, realocação pontual). Duas migrations, ambas ensaiadas no MariaDB com dados; **nenhum
+passo à mão**. Ver as duas seções abaixo.
+
+Antes dele, `b43586c` — **os dois
 mercados, a carroceria com vários recursos e o Pátio da Capital (D-65)**, e ele **levou junto o D-64**
 (a grade do mapa), que estava comitado havia um dia e nunca fora publicado. A migration
 `patio_da_capital` (quatro colunas em `vehicles`) rodou sozinha. **Nenhum passo à mão** — a tarifa do
@@ -550,18 +555,30 @@ Espaçoporto). **Nenhum número ali foi inventado, e nenhum será até que você
 
 **Quando o v36 estiver assentado, o D-47 vira história:** não há mais precedência a aplicar.
 
-## A GUERRA (D-66) — completa, verde, **ainda não publicada**
+## A GUERRA (D-66) — **no ar** (2026-07-13)
 
-**Estado em 2026-07-12.** A Fatia 2 do D-52 está **construída de ponta a ponta** e **verde**. As
-arbitragens estão todas fechadas (**D-66** em `docs/decisoes.md` — leia-o antes de tocar em qualquer
-coisa; são **oito**, e três delas nasceram de bugs do próprio GDD).
+**A Fatia 2 do D-52 está publicada.** As arbitragens estão todas fechadas (**D-66** em
+`docs/decisoes.md` — leia-o antes de tocar em qualquer coisa; são **oito**, e três delas nasceram de
+bugs do próprio GDD). Deploy no commit `5aa850e`, **sem passo à mão**.
 
-**Ainda não publicada.** As duas árvores divergem **de propósito**: não é o commit esquecido no
-vestiário — é uma fatia que só faz sentido publicar inteira, e falta a decisão do usuário. **Quando
-for, o `deploy.sh` roda a migration sozinho e não há passo à mão** (os parâmetros da guerra têm
-default no banco, justamente para não dependerem de seeder).
+> ⚠️ **A migration da guerra foi a primeira em muito tempo a mexer em DADOS**, e não só em esquema: ela
+> converte o `garrison` (um inteiro) em linhas de `units`. Quando foi escrita, produção tinha **zero**
+> zonas ocupadas e o backfill seria vazio; na hora de publicar, já havia **uma**, com 20 robôs. O
+> backfill **nunca fora exercitado com dados em lugar nenhum** — nem no dev (que não tem zonas), nem
+> nos testes (que migram um banco vazio). Foi ensaiado antes, no MariaDB, com dados no formato da
+> produção: ida (20 unidades), volta (o `garrison` retorna em 20) e ida de novo (continuam 20, não 40).
+>
+> **Conferido em produção depois:** a zona 1 tem 20 unidades, todas nível 1 e inteiras; nenhuma órfã.
+>
+> **A lição:** `migrate:status` dizendo "Ran" não diz que o backfill foi *exercitado*. Um backfill que
+> nunca encontrou um registro nunca foi testado.
 
-**O que existe (371 testes PHP + 7 e2e verdes):**
+> ⚠️ **O `fertwaysdev` tinha PERDIDO a coluna `vehicles.deleted_at`** — a migration constava como
+> "Ran" e a coluna não existia (rollback interrompido em alguma sessão anterior). Ou seja: **o banco de
+> dev não era espelho fiel da produção, e ensaiar nele não provava nada.** Corrigido. Se for exercitar
+> uma migration lá, **compare os esquemas primeiro** (`Schema::getColumnListing` nos dois bancos).
+
+**O que existe (388 testes PHP + 7 e2e verdes):**
 - **Catálogo (+5, agora 30 tabelas):** Muralha de Perímetro, Torre de Vigia, Bastião, Abrigo de Robôs
   (bases arbitradas) e a **Sentinela** (custo publicado no §27.1).
 - **`units` — unidades com HP.** O `garrison` int **morreu**: o §27.6 exige HP individual, e um
