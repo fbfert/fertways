@@ -20,6 +20,7 @@ class DatabaseSeeder extends Seeder
             // A dotação do Ministério do Tesouro (D-57): 10 mil de cada recurso + 1M Fert$.
             // Depende de resource_types. Em produção (banco já migrado) rode-o à mão após o deploy.
             TreasurySeeder::class,
+            TransportSettingSeeder::class,
         ]);
     }
 }

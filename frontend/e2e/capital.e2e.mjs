@@ -107,6 +107,33 @@ try {
     Number(vagasDepois) === Number(vagasAntes) - 1,
     `a compra ocupou uma vaga da frota (${vagasAntes} → ${vagasDepois})`,
   )
+
+  console.log('\nA frota envelhece (§16.4) — a manutenção')
+  // O seeder gastou um dos furgões de propósito: sem desgaste não há o que reparar.
+  const gasto = await page.$('[data-reparar]')
+  checar(gasto !== null, 'o veículo gasto oferece o botão de manutenção')
+
+  const antes = await page.$eval('[data-conservacao]', (el) => Number(el.getAttribute('data-conservacao')))
+  checar(antes < 100, `o furgão do seeder está desgastado (${antes}%)`)
+  checar(
+    await esperarTexto(page, /Anda a \d+% e carrega/),
+    'a tela diz o que o desgaste FAZ — velocidade e capacidade, não só um número',
+  )
+
+  await page.click('[data-reparar]')
+  checar(await esperarTexto(page, /reparado — voltou a/), 'a manutenção acontece')
+  checar(
+    await esperarTexto(page, /o teto caiu para 95%/),
+    'e ela corrói a vida útil: o teto cai 5 pontos (§16.4)',
+  )
+
+  console.log('\nA sucata só acontece se o dono mandar')
+  const sucatearBtn = await acharPorTexto(page, 'button', /^Sucatear$/)
+  await sucatearBtn.click()
+  checar(
+    await esperarTexto(page, /Não volta, e nada é devolvido/),
+    'ela pede confirmação e avisa que não há devolução (D-60)',
+  )
 } catch (e) {
   falhas.push(`exceção: ${e.message}`)
   try {

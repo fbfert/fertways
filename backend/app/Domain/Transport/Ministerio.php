@@ -37,12 +37,16 @@ final class Ministerio
      * Sai do caixa do Tesouro (D-57) a cada caminhão fabricado: o governo constrói com o que
      * arrecadou. Se o Tesouro não tiver isto, não há caminhão — e a redistribuição do §2.1 passa a
      * ter consequência.
+     *
+     * A tabela mora em `VeiculoCustos`, não aqui: a **manutenção** (D-60) custa uma fração dela, e
+     * duas cópias do mesmo número do GDD acabariam divergindo.
+     *
+     * @return array<string,int>
      */
-    public const CUSTO_FABRICACAO = [
-        'ligas_metalicas' => 90,
-        'componentes_eletronicos' => 25,
-        'metal_bruto' => 16,
-    ];
+    public static function custoFabricacao(): array
+    {
+        return VeiculoCustos::nivel1(self::TIPO);
+    }
 
     /**
      * 300 Fert$ — **arbitragem do usuário**, não do GDD.

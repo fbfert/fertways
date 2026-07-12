@@ -65,6 +65,18 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/transport', [TransportController::class, 'index']);
     Route::post('/transport/buy', [TransportController::class, 'comprar']);
 
+    // A frota envelhece (§16.4, D-60 fatia 2): manutenção na Central de Transportes do colono, e
+    // sucata só por vontade do dono — nada some da frota sem ele mandar.
+    Route::post('/transport/vehicles/{vehicle}/maintain', [TransportController::class, 'reparar']);
+    Route::delete('/transport/vehicles/{vehicle}', [TransportController::class, 'sucatear']);
+
+    // Mercado de usados (D-60 fatia 3), com escrow do Ministério: o comprador paga, o veículo
+    // dirige-se até ele, e o vendedor só recebe na chegada.
+    Route::get('/transport/listings', [TransportController::class, 'anuncios']);
+    Route::post('/transport/listings', [TransportController::class, 'anunciar']);
+    Route::post('/transport/listings/{listing}/buy', [TransportController::class, 'comprarUsado']);
+    Route::delete('/transport/listings/{listing}', [TransportController::class, 'cancelarAnuncio']);
+
     // Acordo de Troca (§26.5). Sem escrow: registram promessas, não movem recursos. Quem move é
     // o despacho, que aponta o acordo pelo `trade_agreement_id`. Ver D-40 e D-41.
     Route::get('/trade/agreements', [TradeController::class, 'index']);

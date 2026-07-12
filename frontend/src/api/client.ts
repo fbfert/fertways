@@ -430,6 +430,41 @@ export type Denuncia = {
  * `em_estoque` é a prateleira de pronta entrega; `em_fabricacao`, a linha de montagem. O governo
  * repõe sozinho até 5, consumindo o Tesouro — se o caixa secar, os dois zeram e ninguém compra.
  */
+/**
+ * O Registro de Veículo do §16.3, com os campos que o GDD desenha — placa, tipo, horas de uso ativo
+ * e estado de conservação — mais o que o desgaste FAZ (§16.4): velocidade e capacidade encolhem.
+ *
+ * `conservacao` e `desempenho` divergem abaixo do piso de 25%: uma carcaça a 5% ainda **anda** a
+ * 25%, porque o D-60 decidiu que o veículo nunca trava.
+ */
+export type RegistroVeiculo = {
+  id: number
+  placa: string | null
+  tipo: string
+  status: string
+  chega_em: string | null
+  horas_de_uso: number
+  conservacao: number
+  teto_conservacao: number
+  manutencoes: number
+  desempenho: number
+  capacidade_efetiva: number
+  deprecia: boolean
+  custo_manutencao: Record<string, number> | null
+  pode_reparar: boolean
+  /** Só o Caminhão tem teto — o Furgão não tem preço de fábrica (D-60, aditivo 14). */
+  teto_de_revenda_fert: number | null
+  anunciado: boolean
+}
+
+export type AnuncioUsado = {
+  id: number
+  preco_fert: number
+  meu: boolean
+  vendedor: string | null
+  veiculo: RegistroVeiculo
+}
+
 export type Transportes = {
   caminhao: {
     tipo: string
@@ -440,13 +475,9 @@ export type Transportes = {
     minutos_fabricacao: number
   }
   frota: { teto: number; ocupadas: number; livres: number; regra: string }
-  veiculos: {
-    id: number
-    placa: string | null
-    tipo: string
-    status: string
-    chega_em: string | null
-  }[]
+  veiculos: RegistroVeiculo[]
+  /** A 6ª atribuição do painel do §16, na porção que vai ao colono. */
+  planeta: { veiculos_registrados: number; vendidos: number; sucateados: number }
 }
 
 export type CaminhaoComprado = {
@@ -548,6 +579,23 @@ export const api = {
    */
   transportes: () => req<Transportes>('/transport'),
   comprarCaminhao: () => req<{ comprado: CaminhaoComprado }>('/transport/buy', { method: 'POST' }),
+
+  /** §16.4: restaura o desempenho, mas corrói a vida útil e o teto de revenda. Custa recursos. */
+  repararVeiculo: (id: number) =>
+    req<{ veiculo: RegistroVeiculo }>(`/transport/vehicles/${id}/maintain`, { method: 'POST' }),
+
+  /** Sucatear. Sem devolução (D-60), e o veículo fica arquivado no registro do Ministério. */
+  sucatearVeiculo: (id: number) =>
+    req<{ sucateado: boolean }>(`/transport/vehicles/${id}`, { method: 'DELETE' }),
+
+  /** Mercado de usados, com escrow: o vendedor só recebe quando o veículo chega ao comprador. */
+  usados: () => req<{ anuncios: AnuncioUsado[] }>('/transport/listings'),
+  anunciarUsado: (b: { vehicle_id: number; preco_fert: number }) =>
+    req<{ anuncio: { id: number } }>('/transport/listings', { method: 'POST', body: JSON.stringify(b) }),
+  comprarUsado: (id: number) =>
+    req<{ comprado: CaminhaoComprado }>(`/transport/listings/${id}/buy`, { method: 'POST' }),
+  cancelarAnuncio: (id: number) =>
+    req<{ cancelado: boolean }>(`/transport/listings/${id}`, { method: 'DELETE' }),
 
   /** Ocupa uma zona livre: Posto de Comando + 20 Robôs Mineradores + tempo de ocupação (§07). */
   ocuparZona: (id: number) =>

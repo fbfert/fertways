@@ -187,6 +187,47 @@ try {
     console.log((await textoDaPagina(page)).slice(0, 1200))
   }
 
+  // ─────────────────────────────────────────────────────────────────────────
+  // A 6ª aba: veículos usados (D-60, fatia 3). É a única mercadoria do Mercado com escrow do
+  // MINISTÉRIO — ele é o cartório da placa, e por isso aqui não há calote, ao contrário do que
+  // vale para recursos entre colonos (D-58). A tela tem de dizer isso.
+  console.log('\nVeículos usados — a 6ª aba, com escrow do Ministério')
+  await (await acharPorTexto(page, 'button', /Veículos usados/)).click()
+  await page.waitForSelector('[data-aba="usados"]')
+
+  checar(
+    await esperarTexto(page, /vendedor só recebe na chegada/),
+    'a tela explica o escrow: sem calote, ao contrário do resto do Mercado',
+  )
+  checar(await esperarTexto(page, /À venda no planeta/), 'a vitrine de usados abre')
+
+  // O vendedor anuncia um furgão do pátio.
+  const seletor = await page.$('[data-usado-veiculo]')
+  checar(seletor !== null, 'há veículo no pátio para anunciar')
+
+  const opcoes = await page.$$eval('[data-usado-veiculo] option', (os) =>
+    os.map((o) => o.value).filter(Boolean),
+  )
+  checar(opcoes.length > 0, `o seletor lista os veículos do pátio (${opcoes.length})`)
+
+  await page.select('[data-usado-veiculo]', opcoes[0])
+  checar(
+    await esperarTexto(page, /Furgão não tem teto de revenda/),
+    'e explica por que o Furgão não tem teto: ele não tem preço de fábrica (D-60, aditivo 14)',
+  )
+
+  await page.type('[data-usado-preco]', '80')
+  await page.click('[data-anunciar-usado]')
+  checar(
+    await esperarTexto(page, /Ele continua seu e no pátio até alguém comprar/),
+    'o anúncio entra, e o veículo continua do vendedor até a venda',
+  )
+  checar(await esperarTexto(page, /80 F\$/), 'o anúncio aparece na vitrine com o preço pedido')
+
+  // E o dono pode desistir enquanto ninguém comprou.
+  await page.click('[data-cancelar-anuncio]')
+  checar(await esperarTexto(page, /Anúncio retirado/), 'o vendedor pode retirar o anúncio')
+
   console.log('\nLogout')
   const guardado = await page.evaluate(() => localStorage.getItem('fertways.token'))
   checar(!!guardado, 'o token está no localStorage enquanto a sessão vive')

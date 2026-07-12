@@ -11,11 +11,12 @@ import type {
   Vitrine,
 } from '../api/client'
 import { OfertarEntreColonos, VerOfertasDeColonos } from './Acordos'
+import { Usados } from './Usados'
 import { fert, nomeRecurso, nomeVeiculo, paraMicro, relogio, segundosRestantes } from './recursos'
 
 const INTERVALO_MS = 3000
 
-type Aba = 'doca' | 'ofertar_colono' | 'ver_colonos' | 'ofertar_central' | 'globais'
+type Aba = 'doca' | 'ofertar_colono' | 'ver_colonos' | 'ofertar_central' | 'globais' | 'usados'
 
 const ABAS: { chave: Aba; rotulo: string }[] = [
   { chave: 'doca', rotulo: 'Doca e frota' },
@@ -23,6 +24,10 @@ const ABAS: { chave: Aba; rotulo: string }[] = [
   { chave: 'ver_colonos', rotulo: 'Ver ofertas de colonos' },
   { chave: 'ofertar_central', rotulo: 'Ofertar no Mercado Central' },
   { chave: 'globais', rotulo: 'Ofertas globais' },
+  // D-60, fatia 3. Veículo é a única mercadoria com escrow do MINISTÉRIO, e não do Mercado — ele é
+  // o cartório da placa (§16.3). Mora aqui porque, para o jogador, "comprar coisas de outro colono"
+  // é um lugar só.
+  { chave: 'usados', rotulo: 'Veículos usados' },
 ]
 
 /**
@@ -162,6 +167,7 @@ export function Mercado({
           <OfertarNoMercadoCentral vitrine={vitrine} conta={conta} agir={agir} />
         )}
         {aba === 'globais' && <OfertasGlobais vitrine={vitrine} conta={conta} agir={agir} />}
+        {aba === 'usados' && <Usados />}
       </div>
     </div>
   )

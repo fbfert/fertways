@@ -5,6 +5,7 @@ namespace App\Domain\Logistics;
 use App\Domain\Market\Deposito;
 use App\Domain\Trade\AcessoAoMercado;
 use App\Exceptions\DomainRuleException;
+use App\Domain\Transport\Conservacao;
 use App\Models\Colony;
 use App\Models\Ledger;
 use App\Models\MarketAccount;
@@ -13,6 +14,7 @@ use App\Models\Punishment;
 use App\Models\ResourceType;
 use App\Models\TradeAgreement;
 use App\Models\Vehicle;
+use App\Models\VehicleListing;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\DB;
 
@@ -28,6 +30,10 @@ use Illuminate\Support\Facades\DB;
  */
 class DespacharVeiculo
 {
+    // A conservação entra no despacho desde o D-60: ela decide a capacidade efetiva e a velocidade
+    // do veículo, que o §16.4 manda encolherem com o desgaste.
+    public function __construct(private readonly Conservacao $conservacao) {}
+
     public function handle(Colony $origem, Vehicle $veiculo, string $destinoTipo, ?int $destinoId, array $carga, ?int $acordoId = null): Vehicle
     {
         $this->validarVeiculo($origem, $veiculo);
@@ -232,6 +238,21 @@ class DespacharVeiculo
         if (! $veiculo->disponivel()) {
             throw new DomainRuleException('veiculo_ocupado', 'O veículo está em rota.');
         }
+
+        /*
+         * D-60: veículo anunciado no mercado de usados não sai em viagem.
+         *
+         * Sem esta guarda, o vendedor podia anunciar e despachar em seguida — e o comprador que
+         * clicasse em "comprar" levaria um erro na cara **por culpa do vendedor**, porque a compra
+         * exige o veículo no pátio. O anúncio é um compromisso: ou você o está vendendo, ou o está
+         * usando. Retire o anúncio para voltar a rodar com ele.
+         */
+        if (VehicleListing::where('vehicle_id', $veiculo->id)->where('status', 'aberto')->exists()) {
+            throw new DomainRuleException(
+                'veiculo_anunciado',
+                'Este veículo está anunciado no mercado de usados. Retire o anúncio antes de despachá-lo.',
+            );
+        }
     }
 
     /** @return array{0: int, 1: int} distância em slots e energia da viagem inteira */
@@ -266,8 +287,10 @@ class DespacharVeiculo
             'destination_id' => $destinoId,
             'distance_slots' => $distancia,
             'departs_at' => $agora,
+            // Pela Conservacao, não pelo VeiculoSpecs cru: o veículo desgastado é mais lento
+            // (§16.4, D-60). A carroça de 30% não pode chegar junto com a nova.
             'arrives_at' => $agora->copy()->addSeconds(
-                VeiculoSpecs::segundosDoTrecho($veiculo->type, $distancia),
+                $this->conservacao->segundosDoTrecho($veiculo, $distancia),
             ),
             'cargo_json' => $carga,
             'trade_agreement_id' => $acordoId,
@@ -321,10 +344,14 @@ class DespacharVeiculo
         // §25.4: a capacidade é em unidades de recurso, somando toda a carga.
         $total = array_sum($carga);
 
-        if ($total > $veiculo->capacity) {
+        // Desde o D-60 é a capacidade EFETIVA que manda: o §16.4 diz que o veículo desgastado
+        // "carrega menos progressivamente". Um Caminhão a 50% leva 15.000, não 30.000.
+        $capacidade = $this->conservacao->capacidadeEfetiva($veiculo);
+
+        if ($total > $capacidade) {
             throw new DomainRuleException(
                 'carga_excede_capacidade',
-                "Carga de {$total} excede a capacidade de {$veiculo->capacity}.",
+                "Carga de {$total} excede a capacidade de {$capacidade}.",
             );
         }
     }

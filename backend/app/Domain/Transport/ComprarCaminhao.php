@@ -39,6 +39,7 @@ class ComprarCaminhao
     public function __construct(
         private readonly Vagas $vagas,
         private readonly Tesouro $tesouro,
+        private readonly Conservacao $conservacao,
     ) {}
 
     public function handle(Colony $colony): Vehicle
@@ -115,7 +116,7 @@ class ComprarCaminhao
             'destination_id' => $colony->id,
             'distance_slots' => $distancia,
             'departs_at' => $agora,
-            'arrives_at' => $agora->copy()->addSeconds(VeiculoSpecs::segundosDoTrecho($caminhao->type, $distancia)),
+            'arrives_at' => $agora->copy()->addSeconds($this->conservacao->segundosDoTrecho($caminhao, $distancia)),
             'cargo_json' => null,
             'ready_at' => null,
         ])->save();

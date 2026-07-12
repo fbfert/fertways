@@ -144,10 +144,40 @@ O MVP tem, funcionando e no ar em `https://fertways.tars.art.br`:
     fertways:placas --aplicar`.
   - **O caminhão do governo é um veículo sem dono** (`colony_id` nulo) — é a "Frota Governamental"
     do §16.2. Vender **não cria veículo**: dá dono a um que já existia, e a placa atravessa intacta.
-  - **Fatias 2 e 3, ainda por fazer:** depreciação + manutenção + sucata; e o mercado de usados +
-    relatórios de volume. Tudo já decidido no D-60 — é só construir.
+- **A frota envelhece, e há mercado de usados (D-60, fatias 2 e 3)**
+  - **Depreciação (§16.4):** **0,5% por hora de uso ativo**, só Furgão e Caminhão. Veículo parado
+    **não** envelhece. As duas viagens de **entrega** (caminhão novo da fábrica, e usado vendido)
+    **não contam como uso** — quem comprou não recebe o veículo mais gasto do que o anúncio dizia.
+  - **O desgaste encolhe velocidade E capacidade**, com o mesmo multiplicador. Por isso **toda a
+    máquina de viagem passa pela `Conservacao`**, e não pelo `VeiculoSpecs` cru — inclusive a cotação
+    da Frota.
+  - **Nada trava. Nunca.** Contradição deliberada ao §16.4, que nomeia um "bloqueio operacional". O
+    "limite crítico" do painel virou o **piso de desempenho** (25%): uma carcaça a 5% ainda anda a
+    25% e carrega 25%. **Não "conserte" sem perguntar** — é o caso do D-32 outra vez.
+  - **Manutenção na Central de Transportes do colono**, custando **10% do custo do veículo** em
+    recursos (fração da tabela publicada, não constante nova). Restaura até o **teto**; e o teto cai
+    **5 pontos** a cada serviço (~14 manutenções até não haver mais o que recuperar). **Sem Central
+    não há manutenção** — e colônia nova não tem Central (D-59). É pressão, não sentença: o piso é
+    25% e nada trava.
+  - **Sucata só por vontade do dono**, sem devolução. E ela **arquiva, não apaga** (`SoftDeletes`):
+    senão a placa do morto seria reciclada pelo próximo veículo do planeta, e os sucateados que o §16
+    manda contar "por período" seriam incontáveis.
+  - **Mercado de usados: 6ª aba do Mercado, com escrow do MINISTÉRIO.** Contraria de propósito a
+    regra dos dois estoques do D-58 — o veículo está na colônia e mesmo assim não há calote. A razão:
+    o Ministério é o **cartório da placa** (§16.3). O comprador paga, o veículo **dirige-se sozinho**
+    até ele, e **o vendedor só recebe na chegada**.
+  - **Teto de revenda = preço de fábrica × teto de conservação.** Só o **Caminhão** tem — o Furgão não
+    é vendido pelo Ministério, logo não tem preço de fábrica, e o usuário decidiu deixá-lo **sem
+    âncora**. ⚠️ **É por aí que a lavagem de Fert$ entre duas contas do mesmo jogador vai aparecer
+    primeiro, se aparecer** (aditivo 14 do D-60).
+  - **Veículo anunciado não sai em viagem** — senão o comprador levaria um erro por culpa do vendedor.
+  - **Os parâmetros são do operador**, no painel de admin: desgaste, piso, custo da manutenção e
+    perda de teto. O §16 manda o Ministério configurá-los e o GDD nunca publica nenhum — **foi isso
+    que permitiu tirar a depreciação da geladeira sem inventar constante no código** (padrão do D-35).
+  - **Fora de escopo, de propósito:** o **Cargueiro Interplanetário** e o seu aluguel. Dependem do
+    Espaçoporto e dos planetas NPC, que não existem.
 
-**286 testes PHP (2533 asserções) + 7 e2e, verdes.** O cron do tick está instalado (crontab do usuário
+**314 testes PHP (2622 asserções) + 7 e2e, verdes.** O cron do tick está instalado (crontab do usuário
 `fertways`, log em `/home/fertways/logs/fertways-tick.log`) e roda o `artisan` **da cópia de
 deploy** — o mundo avança sozinho. O tick faz: produção, upgrades, proteções, trechos de viagem,
 acordos vencidos, **casos reatribuídos, janelas de apelação fechadas e a folha do Ministério**.
@@ -159,11 +189,23 @@ Nunca toca produção nem o MariaDB. A **receita da Oficina não tem e2e**: o pa
 clique num hexágono do Phaser, e acertá-lo por coordenada quebraria ao primeiro ajuste de layout. A
 API dela é coberta em PHP.
 
-Os **cinco** arquivos (`e2e/{telas,mercado,acordos,ministerio,fundacao}.e2e.mjs`) compartilham o
-andaime de `e2e/comum.mjs` **e o mesmo banco efêmero**, então a ordem em que `e2e.sh` os chama
-importa: o de Mapa e Frota vem primeiro, porque espera os três furgões ociosos; o do Mercado deixa
-dois em rota; o do Acordo despacha o terceiro; e o da **Fundação vem por último**, porque registra um
-colono e funda uma quinta colônia — rodar antes bagunçaria as contagens das telas anteriores.
+Os **sete** arquivos (`e2e/{telas,capital,mercado,acordos,ministerio,zonas,fundacao}.e2e.mjs`)
+compartilham o andaime de `e2e/comum.mjs` **e o mesmo banco efêmero**, então **a ordem em que
+`e2e.sh` os chama importa** e não é arbitrária:
+
+1. **Mapa e Frota** — espera os **três furgões ociosos**, no pátio.
+2. **Capital** — **subiu de posição no D-60**, e por um motivo concreto: a tela do Ministério dos
+   Transportes precisa de um veículo **no pátio** para reparar e sucatear, e o botão de manutenção só
+   existe para veículo ocioso. Rodando depois do Mercado, os três furgões já estão em rota e não há
+   em que clicar.
+3. **Mercado** — deixa dois furgões em rota. É também onde vive o e2e do **mercado de usados**, no fim.
+4. **Acordo** — despacha o terceiro.
+5. **Ministério** das Reputações, e **Zonas**.
+6. **Fundação, por último**: registra um colono e funda uma quinta colônia — rodar antes bagunçaria
+   as contagens de todas as telas anteriores.
+
+> O seeder do e2e **gasta um dos furgões de propósito** (62% de conservação): sem desgaste, o botão
+> de manutenção nasce desabilitado e o teste dela não teria o que exercitar.
 
 > O e2e semeia **quatro** colônias (e2e em (0,3), vizinha em (0,6), ré, autora); o teste da Fundação
 > acrescenta a quinta no fim. O mapa, visto pelo colono do e2e antes disso, desenha três vizinhas

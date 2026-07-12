@@ -33,6 +33,10 @@ Route::prefix('admin')->group(function () {
         Route::post('/noticias/{news}/remover', [AcoesController::class, 'noticiaRemover'])->name('admin.noticia.remover');
         // Ministério do Tesouro (D-57)
         Route::post('/tesouro/distribuir', [AcoesController::class, 'distribuir'])->name('admin.tesouro.distribuir');
+
+        // O Painel do Ministério dos Transportes (§16, D-60): os quatro números que o GDD manda o
+        // operador configurar e nunca publica.
+        Route::post('/transporte', [AcoesController::class, 'transporte'])->name('admin.transporte');
         // Operação
         Route::post('/tick', [AcoesController::class, 'tick'])->name('admin.tick');
         Route::post('/realocar', [AcoesController::class, 'realocar'])->name('admin.realocar');

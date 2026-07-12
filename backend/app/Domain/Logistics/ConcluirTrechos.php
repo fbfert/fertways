@@ -4,6 +4,8 @@ namespace App\Domain\Logistics;
 
 use App\Domain\Market\Deposito;
 use App\Domain\Trade\CreditarEntrega;
+use App\Domain\Transport\Conservacao;
+use App\Domain\Transport\MercadoDeUsados;
 use App\Models\Colony;
 use App\Models\Ledger;
 use App\Models\ResourceType;
@@ -28,7 +30,23 @@ use Illuminate\Support\Facades\DB;
  */
 class ConcluirTrechos
 {
-    public function __construct(private CreditarEntrega $creditarEntrega) {}
+    public function __construct(
+        private CreditarEntrega $creditarEntrega,
+        private Conservacao $conservacao,
+        private MercadoDeUsados $usados,
+    ) {}
+
+    /**
+     * Quanto durou o trecho que está terminando, em segundos.
+     *
+     * Sai da **spec**, não do relógio: `arrives_at - departs_at` daria a viagem inteira quando o
+     * trecho é o de volta, e um cron atrasado inflaria o desgaste de quem só teve azar de o
+     * servidor engasgar. O trecho tem a duração que a distância manda, e ponto.
+     */
+    private function duracaoDoTrecho(Vehicle $v): int
+    {
+        return $this->conservacao->segundosDoTrecho($v, (int) $v->distance_slots);
+    }
 
     /** @return int quantos trechos foram fechados */
     public function handle(): int
@@ -48,6 +66,14 @@ class ConcluirTrechos
                 if (! $v || $v->status !== 'em_rota' || $v->arrives_at > now()) {
                     return;
                 }
+
+                /*
+                 * O desgaste do trecho que acabou de terminar (D-60, §16.4): "por horas de uso
+                 * ativo, não por tempo desde a fabricação". Cobrado ANTES de o veículo mudar de
+                 * estado, porque a `Conservacao` precisa ler o `trip_purpose` — é ele que isenta as
+                 * duas viagens de entrega (fábrica e usado), e o `concluirVolta` o apaga.
+                 */
+                $this->conservacao->cobrarTrecho($v, $this->duracaoDoTrecho($v));
 
                 $v->leg === 'ida' ? $this->concluirIda($v) : $this->concluirVolta($v);
                 $fechados++;
@@ -122,8 +148,11 @@ class ConcluirTrechos
             'cargo_json' => $manterCarga ? $v->cargo_json : $carga,
             // A volta parte de quando a ida terminou, não de `now()`: se o cron atrasar, o
             // atraso não pode encurtar nem alongar o trecho de volta.
+            //
+            // Pela Conservacao: a ida acabou de cobrar o seu desgaste, então a volta já é um pouco
+            // mais lenta que a ida foi. É o §16.4 a morder dentro da própria viagem.
             'arrives_at' => $v->arrives_at->copy()->addSeconds(
-                VeiculoSpecs::segundosDoTrecho($v->type, $v->distance_slots),
+                $this->conservacao->segundosDoTrecho($v, (int) $v->distance_slots),
             ),
         ])->save();
     }
@@ -143,6 +172,16 @@ class ConcluirTrechos
                     $this->entregar($colonia, $colonia, $v, $recurso, (int) $qtd, 'retirada');
                 }
             }
+        } elseif ($v->trip_purpose === 'venda_usado') {
+            /*
+             * O usado chegou (D-60, fatia 3). O veículo já é do comprador desde a compra — o que
+             * faltava era **pagar o vendedor**, e é agora: o Ministério solta o escrow que reteve.
+             * Só a chegada libera, e é isso que torna o calote impossível neste canal.
+             *
+             * A entrega de fábrica (`entrega_de_fabrica`) não cai aqui e não precisa: ela não tem
+             * vendedor a quem pagar, e o veículo só tinha de chegar.
+             */
+            $this->usados->concluirEntrega($v);
         } elseif ($v->cargo_json) {
             /*
              * D-58: carga que sobrou de um depósito no Mercado, por não caber no teto. Ela volta

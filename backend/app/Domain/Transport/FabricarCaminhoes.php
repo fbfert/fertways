@@ -82,7 +82,7 @@ class FabricarCaminhoes
     private function encomendar(): bool
     {
         return DB::transaction(function () {
-            if (! $this->tesouro->gastar(Ministerio::CUSTO_FABRICACAO)) {
+            if (! $this->tesouro->gastar(Ministerio::custoFabricacao())) {
                 return false;
             }
 

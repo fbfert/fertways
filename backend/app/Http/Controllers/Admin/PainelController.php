@@ -48,6 +48,31 @@ class PainelController extends Controller
                 ->get(['treasury_holdings.resource_type as code', 'resource_types.nome', 'treasury_holdings.amount']),
             'tesouroFert' => app(Tesouro::class)->saldoFertMicro(),
             'FERT' => Tesouro::FERT,
+
+            /*
+             * Ministério dos Transportes (D-60). O §16 dá ao painel do Ministério seis atribuições,
+             * e **quatro delas são configurar números que o GDD nunca publica** — a curva de
+             * depreciação, o limite crítico, a perda de vida útil e o teto de revenda. Foi isso que
+             * permitiu tirar a depreciação da geladeira sem inventar constante no código: o próprio
+             * documento diz de quem os números são.
+             */
+            'transporte' => \App\Models\TransportSetting::singleton(),
+            'frotaGoverno' => [
+                'estoque' => Vehicle::whereNull('colony_id')->where('status', 'estoque')->count(),
+                'fabricando' => Vehicle::whereNull('colony_id')->where('status', 'fabricando')->count(),
+                'alvo' => \App\Domain\Transport\Ministerio::ESTOQUE_ALVO,
+            ],
+            // A 6ª atribuição: "volume de veículos registrados, vendidos e sucateados por período".
+            'volumeVeiculos' => [
+                'registrados' => Vehicle::whereNotNull('plate')->count(),
+                'em_rota' => Vehicle::where('status', 'em_rota')->count(),
+                'anunciados' => \App\Models\VehicleListing::where('status', 'aberto')->count(),
+                'vendidos' => \App\Models\VehicleListing::where('status', 'concluido')->count(),
+                'sucateados' => Vehicle::onlyTrashed()->count(),
+                'sucateados_7d' => Vehicle::onlyTrashed()->where('deleted_at', '>=', now()->subDays(7))->count(),
+                'vendidos_7d' => \App\Models\VehicleListing::where('status', 'concluido')
+                    ->where('updated_at', '>=', now()->subDays(7))->count(),
+            ],
         ]);
     }
 

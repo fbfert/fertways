@@ -164,6 +164,36 @@ class AcoesController extends Controller
         });
     }
 
+    /**
+     * O Painel do Ministério dos Transportes (§16), na parte que é do **operador** (D-60).
+     *
+     * O GDD dá a este painel quatro atribuições de configuração — "configurar a curva de depreciação
+     * por hora de uso", "configurar o limite crítico de desempenho", "configurar a perda de vida
+     * útil e o teto de revenda a cada manutenção" — e **não publica nenhum dos números**. Eles são,
+     * portanto, do operador. Foi isso que permitiu tirar a depreciação da geladeira sem inventar
+     * constante no código, e é este formulário.
+     *
+     * O jogo obedece ao que estiver na linha — não ao que o seeder escreveu.
+     */
+    public function transporte(Request $request): RedirectResponse
+    {
+        $dados = $request->validate([
+            // 0 = sem desgaste nenhum (desliga a depreciação). Teto de 1000 bps/h = 10%/h, que já é
+            // absurdo — mas é uma guarda contra o dedo escorregando, não uma regra de jogo.
+            'desgaste_bps_por_hora' => ['required', 'integer', 'min:0', 'max:1000'],
+            // O piso não pode passar de 100%: um veículo não anda melhor do que novo.
+            'piso_desempenho_bps' => ['required', 'integer', 'min:0', 'max:10000'],
+            'manutencao_bps_do_custo' => ['required', 'integer', 'min:0', 'max:10000'],
+            'perda_de_teto_bps' => ['required', 'integer', 'min:0', 'max:10000'],
+        ]);
+
+        return $this->tentar(function () use ($dados) {
+            \App\Models\TransportSetting::singleton()->update($dados);
+
+            return 'Parâmetros do Ministério dos Transportes atualizados. Valem já no próximo tick.';
+        });
+    }
+
     // ── Operação (orquestração, via Artisan em processo) ─────────────────────
 
     public function tick(): RedirectResponse

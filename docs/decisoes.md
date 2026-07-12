@@ -1921,3 +1921,53 @@ futuro vai tropeçar nelas:
 **O Cargueiro Interplanetário e o seu aluguel** — quinta atribuição do painel — **não entram**.
 Dependem do Espaçoporto e dos 5 planetas NPC, que não existem. O GDD é explícito: "não recebe tabela
 de fabricação; permanece serviço/aluguel governamental". Entra quando o Espaçoporto entrar.
+
+### Aditivo (2026-07-12) — as três lacunas que apareceram ao construir as fatias 2 e 3
+
+14. **O Furgão não tem teto de revenda.** O teto de revenda é `preço de fábrica × teto de
+    conservação`, e o Furgão **não tem preço de fábrica** — o Ministério não o vende (item 9). O
+    usuário decidiu **não lhe dar âncora nenhuma**: quem vende Furgão usado pede o que quiser.
+    > **O risco, aceito de olhos abertos.** Sem teto, um Furgão sucateado pode ser anunciado por
+    > 5.000 Fert$ — e duas contas do mesmo jogador podem usar isso para **lavar Fert$** de uma para a
+    > outra sem tributo de transporte, já que a venda de usado paga em Fert$ e não move carga. O
+    > Caminhão é imune (tem teto). Se o multi-conta virar problema, **é aqui que ele vai aparecer
+    > primeiro**, e a cura é dar um teto ao Furgão.
+15. **O mercado de usados é a 6ª aba do Mercado, com escrow do Ministério.** Isto **contraria a regra
+    dos dois estoques do D-58** ("o que está na colônia se negocia entre colonos, com calote
+    possível"): o veículo está na colônia e mesmo assim tem escrow. A razão é que **o Ministério é o
+    cartório** — é ele que emite a placa (§16.3), então é ele que fecha a transferência:
+    - o comprador paga e os Fert$ ficam **retidos no Ministério**;
+    - o veículo **dirige-se sozinho** até a colônia do comprador (item 4 das decisões);
+    - **a placa muda de dono na chegada**, e só então o vendedor recebe.
+    Sem calote possível. Um Caminhão de 300 Fert$ não é um lote de minério, e perdê-lo por calote
+    seria de outra ordem de grandeza.
+16. **Os relatórios de volume vão aos dois:** o painel de admin traz o relatório completo (§16, a 6ª
+    atribuição, que é do **operador**); a tela do slot 8 mostra ao colono um **resumo público** —
+    quantos veículos existem no planeta, quantos foram sucateados.
+
+### As consequências que o assistente arbitrou nas fatias 2 e 3
+
+- **Sem Central de Transportes não há manutenção.** O usuário decidiu que a manutenção é "na Central
+  de Transportes do colono" (item 12) — e uma colônia nova **não tem Central** (D-59), embora tenha o
+  Furgão do kit. Logo, ela **não pode manter o próprio Furgão** até erguer uma. Não é armadilha: o
+  desgaste é de 0,5%/h de uso **ativo**, o piso é 25% e **nada trava** (item 11), então o Furgão do
+  novato leva ~150 h de estrada até encostar no piso e continua andando depois disso. É pressão para
+  erguer a Central, não sentença de morte. Se incomodar, a saída é permitir a manutenção sem Central.
+- **A viagem do usado não deprecia o veículo até a entrega.** Simétrico à entrega de fábrica (item 8):
+  quem comprou não pode receber o veículo mais gasto do que o anúncio dizia. O desgaste volta a correr
+  na primeira viagem do novo dono.
+- **Comprar usado também exige vaga livre**, pela mesma razão do item da compra nova: um teto que não
+  impede nada é decoração.
+- **Veículo anunciado não sai em viagem.** Sem esta guarda, o vendedor anunciava e despachava em
+  seguida, e o comprador que clicasse em "comprar" levava um erro **por culpa do vendedor** (a compra
+  exige o veículo no pátio). O anúncio é um compromisso: ou você o está vendendo, ou o está usando.
+- **A sucata arquiva, não apaga** (`SoftDeletes` em `Vehicle`). Duas coisas dependem disso, e as duas
+  quebraram antes de eu perceber:
+  - **A placa não pode ser reciclada.** O sequencial vem da maior já emitida; se a linha sumisse, o
+    máximo cairia junto e o próximo veículo do planeta herdaria a placa do morto.
+  - **Os sucateados precisam ser contáveis.** O §16 pede o volume de sucateados "por período" — não
+    há como contar por período o que foi apagado, nem como saber quando.
+- **O desgaste encolhe a velocidade, e não só a capacidade.** O §16.4 diz "mais lento **e** carrega
+  menos", e é o mesmo multiplicador para os dois. Isso obrigou **toda** a máquina de viagem a passar
+  pela `Conservacao` em vez do `VeiculoSpecs` cru — inclusive a cotação da tela da Frota, que senão
+  prometeria ao colono um tempo que o veículo dele já não faz.

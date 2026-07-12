@@ -60,12 +60,18 @@ class VehicleController extends Controller
 
         $distancia = MapaFertways::distancia($colony->x, $colony->y, $destino->x, $destino->y);
 
+        // A cotação tem de mentir tão pouco quanto o despacho: desde o D-60 o veículo desgastado é
+        // mais lento e carrega menos (§16.4), e um orçamento pela spec crua prometeria ao colono um
+        // tempo e uma carga que o veículo dele já não entrega.
+        $conservacao = app(\App\Domain\Transport\Conservacao::class);
+        $trecho = $conservacao->segundosDoTrecho($veiculo, $distancia);
+
         return response()->json([
             'distance_slots' => $distancia,
-            'leg_seconds' => VeiculoSpecs::segundosDoTrecho($veiculo->type, $distancia),
-            'round_trip_seconds' => 2 * VeiculoSpecs::segundosDoTrecho($veiculo->type, $distancia),
+            'leg_seconds' => $trecho,
+            'round_trip_seconds' => 2 * $trecho,
             'energy_cost' => VeiculoSpecs::energiaDaViagem($veiculo->type, $distancia),
-            'capacity' => $veiculo->capacity,
+            'capacity' => $conservacao->capacidadeEfetiva($veiculo),
         ]);
     }
 

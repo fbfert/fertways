@@ -40,7 +40,7 @@ class MinisterioDosTransportesTest extends TestCase
     /** O caixa do governo, dotado para N caminhões. */
     private function dotarTesouro(int $vezes = 10): void
     {
-        foreach (Ministerio::CUSTO_FABRICACAO as $recurso => $qtd) {
+        foreach (Ministerio::custoFabricacao() as $recurso => $qtd) {
             TreasuryHolding::updateOrCreate(['resource_type' => $recurso], ['amount' => $qtd * $vezes]);
         }
     }
@@ -132,7 +132,7 @@ class MinisterioDosTransportesTest extends TestCase
 
         // O Tesouro pagou por cada um: dotámo-lo para 10, saíram 5.
         $this->assertSame(
-            Ministerio::CUSTO_FABRICACAO['ligas_metalicas'] * 5,
+            Ministerio::custoFabricacao()['ligas_metalicas'] * 5,
             (int) TreasuryHolding::whereKey('ligas_metalicas')->value('amount'),
         );
     }

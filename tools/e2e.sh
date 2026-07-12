@@ -117,6 +117,14 @@ foreach ([1, 2] as $ignorado) {
     app(App\Domain\Transport\Placas::class)->registrar($caminhao);
 }
 
+/*
+ * D-60, fatia 2: um dos furgões já rodou. Sem desgaste não há o que reparar, e o teste da
+ * manutenção não teria em que clicar — o botão nasce desabilitado para veículo no teto. 62% é um
+ * número qualquer, escolhido só por ser visivelmente gasto e ainda bem acima do piso de 25%.
+ */
+$c->vehicles()->where("type", "furgao_de_comercio")->orderBy("id")->first()
+  ->forceFill(["conservacao_bps" => 6200, "uso_ativo_seg" => 76 * 3600])->save();
+
 // Uma vizinha, para o diretório de colônias ter o que listar. Em (0,6): a 3 slots de (0,3).
 $v = App\Models\User::create([
     "name" => "Vizinha", "nickname" => "vizinha",
@@ -234,12 +242,13 @@ cd "$RAIZ/frontend"
 # despacha o terceiro. O da Fundação vem por último: funda uma quinta colônia, que mudaria as
 # contagens de colônias das telas anteriores.
 E2E_URL="http://127.0.0.1:$PORTA_WEB" node e2e/telas.e2e.mjs
+# A Capital SUBIU na ordem no D-60, e não por gosto: a tela do Ministério dos Transportes precisa de
+# um veículo **no pátio** para reparar e sucatear, e o botão de manutenção só existe para veículo
+# ocioso. Depois do Mercado e do Acordo os três furgões estão em rota, e não haveria em que clicar.
+E2E_URL="http://127.0.0.1:$PORTA_WEB" node e2e/capital.e2e.mjs
 E2E_URL="http://127.0.0.1:$PORTA_WEB" node e2e/mercado.e2e.mjs
 E2E_URL="http://127.0.0.1:$PORTA_WEB" node e2e/acordos.e2e.mjs
 E2E_URL="http://127.0.0.1:$PORTA_WEB" node e2e/ministerio.e2e.mjs
-# Capital: só leitura (hub + Tesouro/Finanças/Notícias). Não mexe em frota, estoque nem colônias,
-# então cabe entre o Ministério e as Zonas sem perturbar as contagens.
-E2E_URL="http://127.0.0.1:$PORTA_WEB" node e2e/capital.e2e.mjs
 # Zonas neutras: ocupa uma zona (só gasta recursos), depois das telas que dependem do estado da
 # colônia do e2e e antes da Fundação.
 E2E_URL="http://127.0.0.1:$PORTA_WEB" node e2e/zonas.e2e.mjs
