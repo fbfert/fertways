@@ -32,6 +32,15 @@ class Ledger extends Model
         'transferencia',
         'saldo_inicial',      // 50 Fert$ de onboarding
         'kit_inicial',        // raros concedidos na fundação — decisão de design, D-17
+        /*
+         * §27.8 e §28.10 (D-66): o butim de uma invasão (50% do exposto) ou de um cerco vencido
+         * (30%). É a única entrada de recurso que não tem contrapartida econômica nenhuma — não se
+         * produziu, não se comprou, não se recebeu do governo. Alguém perdeu exatamente o que
+         * entrou aqui. Por isso fica no ledger: é a única forma de medir quanto a guerra move.
+         */
+        'saque_de_guerra',
+        'compra_niobio',      // §D-17 "contratos do governo": sem isto a Sentinela é inalcançável
+        'fabricar_unidade',   // Sentinela, Infiltrador, Predador, Robô — feitos no Quartel (§27.1)
         'energia_viagem',     // §21.1: consumo do veículo por distância percorrida
         'deposito_mercado',   // §25.8: carga entregue entra na conta do colono no Mercado
         'retirada_mercado',   // §25.8: saldo reservado no Mercado para um veículo vir buscar

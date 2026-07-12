@@ -297,6 +297,21 @@ class DespacharVeiculo
             throw new DomainRuleException('zona_nao_e_sua', 'Esta zona neutra não é sua.');
         }
 
+        /*
+         * Cercada, nada entra nem sai (§28.10, D-66). É a metade da mordida do cerco que não está
+         * em `ExtrairZonasNeutras` — lá o depósito para de aceitar o que se extrai; aqui, o dono
+         * não pode esvaziar a zona debaixo do sítio para salvar o estoque do saque.
+         *
+         * Sem esta trava o cerco seria decorativo: bastaria mandar um Furgão e levar tudo embora
+         * antes das 48 h.
+         */
+        if ($zona->cercada()) {
+            throw new DomainRuleException(
+                'zona_cercada',
+                'A zona está cercada: nada entra nem sai. Rompa o cerco ou espere as 48 h.',
+            );
+        }
+
         $this->validarCarga($veiculo, $pedido);
 
         foreach ($pedido as $recurso => $qtd) {

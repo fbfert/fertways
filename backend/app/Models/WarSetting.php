@@ -38,8 +38,26 @@ class WarSetting extends Model
         'niobio_preco_micro' => 'integer',
     ];
 
+    /**
+     * ⚠️ **Relê do banco depois de criar, e isso não é preciosismo.**
+     *
+     * `firstOrCreate([])` devolve, no caminho da criação, um modelo com **só** o `id` e os
+     * timestamps: o Eloquent insere a linha e **não relê os defaults que o banco aplicou**. Todos os
+     * outros campos vêm `null`. Na prática, a **primeira** chamada depois da migration leria bônus
+     * zero, chances zero e preço zero — e a segunda, os números certos.
+     *
+     * Isso derrotaria exatamente o motivo de os defaults estarem no banco (ver a migration): o
+     * primeiro colono a abrir a guerra encontraria uma Muralha que não protege e um Nióbio de graça.
+     * Um teste afirma que a primeira chamada já traz os números do D-66.
+     */
     public static function singleton(): self
     {
-        return static::firstOrCreate([]);
+        if ($existente = static::first()) {
+            return $existente;
+        }
+
+        static::create([]);
+
+        return static::firstOrFail();
     }
 }

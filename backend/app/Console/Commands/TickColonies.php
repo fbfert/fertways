@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Domain\Capital\Patio;
 use App\Domain\Logistics\ConcluirTrechos;
+use App\Domain\Guerra\ResolverCombates;
 use App\Domain\Logistics\ExtrairZonasNeutras;
 use App\Domain\Transport\FabricarCaminhoes;
 use App\Domain\Ministry\ExpirarPrazos;
@@ -43,6 +44,7 @@ class TickColonies extends Command
         ExtrairZonasNeutras $zonasNeutras,
         FabricarCaminhoes $fabrica,
         Patio $patio,
+        ResolverCombates $combates,
     ): int {
         $agora = now();
         $processadas = 0;
@@ -110,7 +112,17 @@ class TickColonies extends Command
          */
         ['cobrados' => $cobrados, 'rebocados' => $rebocados] = $patio->handle($agora);
 
-        $this->info("tick: {$processadas} colônias, {$falhas} falhas, {$zonas} proteções expiradas, {$extraidas} zonas extraídas, {$entregas} trechos concluídos, {$vencidos} acordos vencidos, {$reatribuidos} casos reatribuídos, {$encerrados} casos encerrados, {$salarios} salários pagos, {$prontos} caminhões prontos, {$encomendados} encomendados, {$cobrados} horas de pátio cobradas, {$rebocados} rebocados");
+        /*
+         * A guerra (D-66). **Depois da extração, nunca antes**: o saque incide sobre o estoque
+         * exposto da zona, e o mineral que rendeu neste mesmo minuto já é butim legítimo. Resolver
+         * o combate primeiro faria o vencedor levar uma foto velha do depósito.
+         *
+         * Cada combate avança TODAS as rodadas que venceram, não uma por tick — se o tick atrasar,
+         * a batalha anda pelo relógio, e não pelo número de vezes que o cron acordou.
+         */
+        $batalhas = $combates->handle($agora);
+
+        $this->info("tick: {$processadas} colônias, {$falhas} falhas, {$zonas} proteções expiradas, {$extraidas} zonas extraídas, {$entregas} trechos concluídos, {$vencidos} acordos vencidos, {$reatribuidos} casos reatribuídos, {$encerrados} casos encerrados, {$salarios} salários pagos, {$prontos} caminhões prontos, {$encomendados} encomendados, {$cobrados} horas de pátio cobradas, {$rebocados} rebocados, {$batalhas} batalhas");
 
         return $falhas > 0 ? self::FAILURE : self::SUCCESS;
     }

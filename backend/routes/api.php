@@ -10,6 +10,7 @@ use App\Http\Controllers\Api\NeutralZoneController;
 use App\Http\Controllers\Api\TradeController;
 use App\Http\Controllers\Api\TransportController;
 use App\Http\Controllers\Api\VehicleController;
+use App\Http\Controllers\Api\WarController;
 use Illuminate\Support\Facades\Route;
 
 Route::post('/register', [AuthController::class, 'register']);
@@ -34,6 +35,14 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/zones', [NeutralZoneController::class, 'index']);
     Route::post('/zones/{zone}/occupy', [NeutralZoneController::class, 'occupy']);
     Route::post('/zones/{zone}/withdraw', [NeutralZoneController::class, 'withdraw']);
+
+    // A guerra (§27, §28.10; D-66). O exército, a fábrica do Quartel, o Nióbio do governo — sem o
+    // qual a Sentinela é inalcançável —, os quatro ataques, e as batalhas em curso.
+    Route::get('/war', [WarController::class, 'index']);
+    Route::get('/war/combats', [WarController::class, 'combates']);
+    Route::post('/war/units', [WarController::class, 'fabricar']);
+    Route::post('/war/niobio', [WarController::class, 'niobio']);
+    Route::post('/war/attack', [WarController::class, 'atacar']);
 
     Route::get('/buildings', [BuildingController::class, 'specs']);
     // O catálogo do slot vazio vem antes da rota de recurso: `/buildings/catalogo` casaria com

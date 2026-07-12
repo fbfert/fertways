@@ -1,0 +1,162 @@
+<?php
+
+namespace App\Http\Controllers\Api;
+
+use App\Domain\Guerra\Atacar;
+use App\Domain\Guerra\ComprarNiobio;
+use App\Domain\Guerra\FabricarUnidade;
+use App\Domain\Guerra\Forcas;
+use App\Domain\Guerra\Protegido;
+use App\Http\Controllers\Controller;
+use App\Models\Combat;
+use App\Models\NeutralZone;
+use App\Models\Unit;
+use App\Models\WarSetting;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
+
+/**
+ * A guerra (GDD §27, §28.10; docs/decisoes.md D-66). A Fatia 2 do D-52.
+ *
+ * O exército (`GET /war`), a fábrica (`POST /war/units`), o Nióbio do governo (`POST /war/niobio`),
+ * o ataque (`POST /war/attack`) e as batalhas em curso (`GET /war/combats`).
+ */
+class WarController extends Controller
+{
+    /** O que a colônia tem para guerrear, e a que preço o governo vende o que falta. */
+    public function index(Request $request, Forcas $forcas): JsonResponse
+    {
+        $colony = $request->user()->colony()->firstOrFail();
+        $config = WarSetting::singleton();
+
+        $unidades = Unit::where('colony_id', $colony->id)
+            ->where('status', 'casa')
+            ->get()
+            ->map(fn (Unit $u) => [
+                'id' => $u->id,
+                'type' => $u->type,
+                'level' => $u->level,
+                // O HP é o que decide o que ela vale: ferida, ataca e defende menos (§27.6).
+                'hp_pct' => round($u->hp_bps / 100, 1),
+                'ataque' => $u->ataque(),
+                'defesa' => $u->defesa(),
+            ]);
+
+        $quartel = $colony->buildings()->where('type', 'quartel')->value('level') ?? 0;
+
+        return response()->json([
+            'quartel_nivel' => $quartel,
+            'unidades' => $unidades,
+            'niobio' => [
+                // Sem Nióbio não há Sentinela, e nada no jogo o produz (D-66). O governo vende.
+                'em_estoque' => $colony->resources()->where('resource_type', 'niobio_alienigena')->value('amount') ?? 0,
+                'preco_fert' => $config->niobio_preco_micro / 1_000_000,
+            ],
+            'bonus_defensivos' => [
+                'muralha_pct_por_nivel' => $config->muralha_bonus_bps / 100,
+                'torre_de_vigia_pct_por_nivel' => $config->torre_bonus_bps / 100,
+                'bastiao_pct_por_nivel' => $config->bastiao_bonus_bps / 100,
+            ],
+        ]);
+    }
+
+    /** Fabrica no Quartel. Instantâneo: o freio é o Nióbio, não o relógio (D-66). */
+    public function fabricar(Request $request, FabricarUnidade $fabrica): JsonResponse
+    {
+        $dados = $request->validate([
+            'type' => ['required', Rule::in(FabricarUnidade::TIPOS)],
+            'level' => ['required', 'integer', 'min:1', 'max:5'],
+            'quantidade' => ['required', 'integer', 'min:1', 'max:50'],
+        ]);
+
+        $colony = $request->user()->colony()->firstOrFail();
+
+        $feitas = $fabrica->handle($colony, $dados['type'], $dados['level'], $dados['quantidade']);
+
+        return response()->json(['fabricadas' => $feitas], 201);
+    }
+
+    /** O governo vende Nióbio do caixa do Tesouro (D-17, D-66). Se o caixa secar, não há. */
+    public function niobio(Request $request, ComprarNiobio $compra): JsonResponse
+    {
+        $dados = $request->validate([
+            'quantidade' => ['required', 'integer', 'min:1', 'max:1000'],
+        ]);
+
+        $colony = $request->user()->colony()->firstOrFail();
+
+        return response()->json(
+            ['comprado' => $compra->handle($colony, $dados['quantidade'])],
+            201,
+        );
+    }
+
+    /** Despacha um dos quatro ataques do §27. A marcha é 1,3× mais lenta que a civil (§27.4). */
+    public function atacar(Request $request, Atacar $atacar): JsonResponse
+    {
+        $dados = $request->validate([
+            'zone_id' => ['required', 'integer', 'exists:neutral_zones,id'],
+            'tipo' => ['required', Rule::in(['invasao', 'cerco', 'sabotagem', 'apreensao'])],
+            'unit_ids' => ['required', 'array', 'min:1'],
+            'unit_ids.*' => ['integer'],
+            'alvo' => ['nullable', 'string', 'max:32'],
+        ]);
+
+        $colony = $request->user()->colony()->firstOrFail();
+        $zona = NeutralZone::findOrFail($dados['zone_id']);
+
+        $combate = $atacar->handle(
+            $colony,
+            $zona,
+            $dados['tipo'],
+            $dados['unit_ids'],
+            $dados['alvo'] ?? null,
+        );
+
+        return response()->json([
+            'id' => $combate->id,
+            'tipo' => $combate->tipo,
+            'status' => $combate->status,
+            'chega_at' => $combate->chega_at,
+        ], 201);
+    }
+
+    /**
+     * As batalhas que envolvem esta colônia — atacando ou defendendo.
+     *
+     * O defensor precisa **ver** o ataque a caminho: é o desenho declarado do §27.5, que faz o
+     * combate durar ~2 h justamente para dar "tempo suficiente para o defensor receber notificação,
+     * recrutar reforços e despachá-los".
+     */
+    public function combates(Request $request, Protegido $protegido): JsonResponse
+    {
+        $colony = $request->user()->colony()->firstOrFail();
+
+        $combates = Combat::with('zone:id,x,y,mineral,deposit_amount,deposit_level')
+            ->where(fn ($q) => $q
+                ->where('attacker_colony_id', $colony->id)
+                ->orWhere('defender_colony_id', $colony->id))
+            ->whereIn('status', ['marchando', 'em_curso'])
+            ->orderBy('proxima_rodada_at')
+            ->get()
+            ->map(fn (Combat $c) => [
+                'id' => $c->id,
+                'tipo' => $c->tipo,
+                'status' => $c->status,
+                'sou_o_atacante' => $c->attacker_colony_id === $colony->id,
+                'zona' => ['id' => $c->zone->id, 'x' => $c->zone->x, 'y' => $c->zone->y],
+                'rodada' => $c->rodada,
+                'chega_at' => $c->chega_at,
+                'proxima_rodada_at' => $c->proxima_rodada_at,
+                'prazo_at' => $c->prazo_at,
+                'alvo' => $c->alvo,
+                'forca_ofensiva' => $c->resultado['forca_ofensiva'] ?? null,
+                'forca_defensiva' => $c->resultado['forca_defensiva'] ?? null,
+                // O que está em jogo: só o exposto é saqueável (D-66).
+                'exposto' => $protegido->exposto($c->zone),
+            ]);
+
+        return response()->json(['combats' => $combates]);
+    }
+}
