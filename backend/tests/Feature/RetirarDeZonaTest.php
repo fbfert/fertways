@@ -42,7 +42,7 @@ class RetirarDeZonaTest extends TestCase
         return NeutralZone::create([
             'x' => 50, 'y' => 50, 'district' => 'nordeste', 'mineral' => 'metal_bruto',
             'level' => 1, 'status' => 'protegida',
-            'owner_colony_id' => $dona->id, 'command_post_level' => 1, 'garrison' => 20,
+            'owner_colony_id' => $dona->id, 'command_post_level' => 1,
             'productive_at' => now()->subDay(),
             'deposit_level' => 1, 'deposit_amount' => $amount,
         ]);

@@ -6,6 +6,7 @@ use App\Exceptions\DomainRuleException;
 use App\Models\Colony;
 use App\Models\Ledger;
 use App\Models\NeutralZone;
+use App\Models\Unit;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -51,13 +52,31 @@ class OcuparZonaNeutra
                 'occupied_at' => $agora,
                 'protected_until' => $agora->copy()->addDays(NeutralZone::DIAS_DE_PROTECAO),
                 'command_post_level' => 1,
-                'garrison' => NeutralZone::GUARNICAO_INICIAL,
                 'productive_at' => $produtiva,
                 'deposit_level' => 1,
                 'deposit_amount' => 0,
                 // A extração é creditada a partir daqui: nada rende durante o estabelecimento.
                 'last_extraction_at' => $produtiva,
             ]);
+
+            /*
+             * A guarnição são 20 Robôs Mineradores — e desde o D-66 eles são LINHAS, não um
+             * contador. O §27.2 os torna defensores improvisados (25% da Sentinela, ataque zero),
+             * e o §27.6 exige que cada um tenha o seu HP: quem sobrevive a um ataque volta ferido,
+             * quem chega a zero morre de vez. Um `int` não guarda isso.
+             */
+            $agora2 = now();
+
+            Unit::insert(array_fill(0, NeutralZone::GUARNICAO_INICIAL, [
+                'zone_id' => $zona->id,
+                'colony_id' => null,
+                'type' => 'robo_minerador',
+                'level' => 1,
+                'hp_bps' => Unit::INTEIRA,
+                'status' => 'na_zona',
+                'created_at' => $agora2,
+                'updated_at' => $agora2,
+            ]));
 
             return $zona->fresh();
         });

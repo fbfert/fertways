@@ -105,6 +105,14 @@ function nomesProprios(): array
         'mina_local' => 'Mina Local',
         'destilaria' => 'Destilaria',
         'tanque_de_combustivel' => 'Tanque de Combustível',
+        // A guerra (§27, D-66). Vivem na ZONA, não na colônia, então não entram no
+        // `Building::MVP` e as tabelas do GDD ainda não as renderizam. O nome fica aqui
+        // desde já: no dia em que o documento descrever a guerra, ele já o escreve certo.
+        'muralha_de_perimetro' => 'Muralha de Perímetro',
+        'torre_de_vigia' => 'Torre de Vigia',
+        'bastiao' => 'Bastião',
+        'abrigo_de_robos' => 'Abrigo de Robôs',
+        'sentinela' => 'Sentinela',
         // Recursos citados fora das tabelas geradas.
         'ligas_metalicas' => 'Ligas Metálicas',
         'componentes_eletronicos' => 'Componentes Eletrônicos',

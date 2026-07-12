@@ -61,7 +61,7 @@ class OcuparZonaNeutraTest extends TestCase
 
         $this->assertSame($colony->id, $zona->owner_colony_id);
         $this->assertSame('protegida', $zona->status);
-        $this->assertSame(20, $zona->garrison);
+        $this->assertSame(20, $zona->guarnicao());
         $this->assertSame(1, $zona->command_post_level);
 
         // Metal Bruto debitado: 800 (Posto) + 20×11 (robôs) = 1020.

@@ -1,1507 +1,1762 @@
 [
-  {
-    "type": "gerador_de_atmosfera",
-    "nome": "Gerador de Atmosfera",
-    "max_level": 5,
-    "levels": [
-      {
-        "level": 1,
-        "build_time_seconds": 240,
-        "cost": {
-          "agua": 50,
-          "biomassa": 30,
-          "energia": 10,
-          "oxigenio": 5
-        }
-      },
-      {
-        "level": 2,
-        "build_time_seconds": 300,
-        "cost": {
-          "agua": 83,
-          "biomassa": 50,
-          "energia": 17,
-          "oxigenio": 8
-        }
-      },
-      {
-        "level": 3,
-        "build_time_seconds": 480,
-        "cost": {
-          "agua": 136,
-          "biomassa": 82,
-          "energia": 27,
-          "oxigenio": 14
-        }
-      },
-      {
-        "level": 4,
-        "build_time_seconds": 720,
-        "cost": {
-          "agua": 225,
-          "biomassa": 135,
-          "energia": 45,
-          "oxigenio": 22
-        }
-      },
-      {
-        "level": 5,
-        "build_time_seconds": 1080,
-        "cost": {
-          "agua": 371,
-          "biomassa": 222,
-          "energia": 74,
-          "oxigenio": 37
-        }
-      }
-    ]
-  },
-  {
-    "type": "estrutura_de_sobrevivencia",
-    "nome": "Estrutura de Sobrevivência",
-    "max_level": 5,
-    "levels": [
-      {
-        "level": 1,
-        "build_time_seconds": 360,
-        "cost": {
-          "agua": 20,
-          "biomassa": 40,
-          "ligas_metalicas": 15,
-          "oxigenio": 15,
-          "energia": 8
-        }
-      },
-      {
-        "level": 2,
-        "build_time_seconds": 480,
-        "cost": {
-          "agua": 33,
-          "biomassa": 66,
-          "ligas_metalicas": 25,
-          "oxigenio": 25,
-          "energia": 13
-        }
-      },
-      {
-        "level": 3,
-        "build_time_seconds": 780,
-        "cost": {
-          "agua": 54,
-          "biomassa": 109,
-          "ligas_metalicas": 41,
-          "oxigenio": 41,
-          "energia": 22
-        }
-      },
-      {
-        "level": 4,
-        "build_time_seconds": 1140,
-        "cost": {
-          "agua": 90,
-          "biomassa": 180,
-          "ligas_metalicas": 67,
-          "oxigenio": 67,
-          "energia": 36
-        }
-      },
-      {
-        "level": 5,
-        "build_time_seconds": 1680,
-        "cost": {
-          "agua": 148,
-          "biomassa": 296,
-          "ligas_metalicas": 111,
-          "oxigenio": 111,
-          "energia": 59
-        }
-      }
-    ]
-  },
-  {
-    "type": "fazenda",
-    "nome": "Fazenda",
-    "max_level": 5,
-    "levels": [
-      {
-        "level": 1,
-        "build_time_seconds": 240,
-        "cost": {
-          "agua": 35,
-          "ligas_metalicas": 10,
-          "oxigenio": 10,
-          "energia": 12
-        }
-      },
-      {
-        "level": 2,
-        "build_time_seconds": 360,
-        "cost": {
-          "agua": 58,
-          "ligas_metalicas": 17,
-          "oxigenio": 17,
-          "energia": 20
-        }
-      },
-      {
-        "level": 3,
-        "build_time_seconds": 540,
-        "cost": {
-          "agua": 95,
-          "ligas_metalicas": 27,
-          "oxigenio": 27,
-          "energia": 33
-        }
-      },
-      {
-        "level": 4,
-        "build_time_seconds": 840,
-        "cost": {
-          "agua": 157,
-          "ligas_metalicas": 45,
-          "oxigenio": 45,
-          "energia": 54
-        }
-      },
-      {
-        "level": 5,
-        "build_time_seconds": 1260,
-        "cost": {
-          "agua": 259,
-          "ligas_metalicas": 74,
-          "oxigenio": 74,
-          "energia": 89
-        }
-      }
-    ]
-  },
-  {
-    "type": "reator_de_energia",
-    "nome": "Reator de Energia",
-    "max_level": 5,
-    "levels": [
-      {
-        "level": 1,
-        "build_time_seconds": 420,
-        "cost": {
-          "agua": 15,
-          "ligas_metalicas": 40,
-          "compostos_quimicos": 10,
-          "oxigenio": 8,
-          "biomassa": 5
-        }
-      },
-      {
-        "level": 2,
-        "build_time_seconds": 600,
-        "cost": {
-          "agua": 25,
-          "ligas_metalicas": 66,
-          "compostos_quimicos": 17,
-          "oxigenio": 13,
-          "biomassa": 8
-        }
-      },
-      {
-        "level": 3,
-        "build_time_seconds": 960,
-        "cost": {
-          "agua": 41,
-          "ligas_metalicas": 109,
-          "compostos_quimicos": 27,
-          "oxigenio": 22,
-          "biomassa": 14
-        }
-      },
-      {
-        "level": 4,
-        "build_time_seconds": 1440,
-        "cost": {
-          "agua": 67,
-          "ligas_metalicas": 180,
-          "compostos_quimicos": 45,
-          "oxigenio": 36,
-          "biomassa": 22
-        }
-      },
-      {
-        "level": 5,
-        "build_time_seconds": 2100,
-        "cost": {
-          "agua": 111,
-          "ligas_metalicas": 296,
-          "compostos_quimicos": 74,
-          "oxigenio": 59,
-          "biomassa": 37
-        }
-      }
-    ]
-  },
-  {
-    "type": "captacao_de_agua",
-    "nome": "Captação de Água",
-    "max_level": 5,
-    "levels": [
-      {
-        "level": 1,
-        "build_time_seconds": 300,
-        "cost": {
-          "biomassa": 10,
-          "ligas_metalicas": 25,
-          "oxigenio": 6,
-          "energia": 10
-        }
-      },
-      {
-        "level": 2,
-        "build_time_seconds": 420,
-        "cost": {
-          "biomassa": 17,
-          "ligas_metalicas": 41,
-          "oxigenio": 10,
-          "energia": 17
-        }
-      },
-      {
-        "level": 3,
-        "build_time_seconds": 660,
-        "cost": {
-          "biomassa": 27,
-          "ligas_metalicas": 68,
-          "oxigenio": 16,
-          "energia": 27
-        }
-      },
-      {
-        "level": 4,
-        "build_time_seconds": 1020,
-        "cost": {
-          "biomassa": 45,
-          "ligas_metalicas": 112,
-          "oxigenio": 27,
-          "energia": 45
-        }
-      },
-      {
-        "level": 5,
-        "build_time_seconds": 1500,
-        "cost": {
-          "biomassa": 74,
-          "ligas_metalicas": 185,
-          "oxigenio": 44,
-          "energia": 74
-        }
-      }
-    ]
-  },
-  {
-    "type": "oficina",
-    "nome": "Oficina",
-    "max_level": 5,
-    "levels": [
-      {
-        "level": 1,
-        "build_time_seconds": 1080,
-        "cost": {
-          "biomassa": 30,
-          "ligas_metalicas": 50,
-          "compostos_quimicos": 15,
-          "agua": 15,
-          "energia": 20,
-          "ferro_vermelho": 1
-        }
-      },
-      {
-        "level": 2,
-        "build_time_seconds": 1560,
-        "cost": {
-          "biomassa": 50,
-          "ligas_metalicas": 83,
-          "compostos_quimicos": 25,
-          "agua": 25,
-          "energia": 33,
-          "ferro_vermelho": 2
-        }
-      },
-      {
-        "level": 3,
-        "build_time_seconds": 2340,
-        "cost": {
-          "biomassa": 82,
-          "ligas_metalicas": 136,
-          "compostos_quimicos": 41,
-          "agua": 41,
-          "energia": 54,
-          "ferro_vermelho": 3
-        }
-      },
-      {
-        "level": 4,
-        "build_time_seconds": 3540,
-        "cost": {
-          "biomassa": 135,
-          "ligas_metalicas": 225,
-          "compostos_quimicos": 67,
-          "agua": 67,
-          "energia": 90,
-          "ferro_vermelho": 4
-        }
-      },
-      {
-        "level": 5,
-        "build_time_seconds": 5340,
-        "cost": {
-          "biomassa": 222,
-          "ligas_metalicas": 371,
-          "compostos_quimicos": 111,
-          "agua": 111,
-          "energia": 148,
-          "ferro_vermelho": 7
-        }
-      }
-    ]
-  },
-  {
-    "type": "refinaria_quimica",
-    "nome": "Refinaria Química",
-    "max_level": 5,
-    "levels": [
-      {
-        "level": 1,
-        "build_time_seconds": 1440,
-        "cost": {
-          "agua": 60,
-          "ligas_metalicas": 70,
-          "energia": 25,
-          "oxigenio": 10,
-          "quartzo_piezoeletrico": 1
-        }
-      },
-      {
-        "level": 2,
-        "build_time_seconds": 2220,
-        "cost": {
-          "agua": 99,
-          "ligas_metalicas": 116,
-          "energia": 41,
-          "oxigenio": 17,
-          "quartzo_piezoeletrico": 2
-        }
-      },
-      {
-        "level": 3,
-        "build_time_seconds": 3300,
-        "cost": {
-          "agua": 163,
-          "ligas_metalicas": 191,
-          "energia": 68,
-          "oxigenio": 27,
-          "quartzo_piezoeletrico": 3
-        }
-      },
-      {
-        "level": 4,
-        "build_time_seconds": 4980,
-        "cost": {
-          "agua": 270,
-          "ligas_metalicas": 314,
-          "energia": 112,
-          "oxigenio": 45,
-          "quartzo_piezoeletrico": 4
-        }
-      },
-      {
-        "level": 5,
-        "build_time_seconds": 7440,
-        "cost": {
-          "agua": 445,
-          "ligas_metalicas": 519,
-          "energia": 185,
-          "oxigenio": 74,
-          "quartzo_piezoeletrico": 7
-        }
-      }
-    ]
-  },
-  {
-    "type": "laboratorio",
-    "nome": "Laboratório",
-    "max_level": 5,
-    "levels": [
-      {
-        "level": 1,
-        "build_time_seconds": 1260,
-        "cost": {
-          "ligas_metalicas": 60,
-          "compostos_quimicos": 40,
-          "componentes_eletronicos": 20,
-          "energia": 18,
-          "agua": 12,
-          "resina_organica": 2
-        }
-      },
-      {
-        "level": 2,
-        "build_time_seconds": 1920,
-        "cost": {
-          "ligas_metalicas": 99,
-          "compostos_quimicos": 66,
-          "componentes_eletronicos": 33,
-          "energia": 30,
-          "agua": 20,
-          "resina_organica": 3
-        }
-      },
-      {
-        "level": 3,
-        "build_time_seconds": 2820,
-        "cost": {
-          "ligas_metalicas": 163,
-          "compostos_quimicos": 109,
-          "componentes_eletronicos": 54,
-          "energia": 49,
-          "agua": 33,
-          "resina_organica": 5
-        }
-      },
-      {
-        "level": 4,
-        "build_time_seconds": 4260,
-        "cost": {
-          "ligas_metalicas": 270,
-          "compostos_quimicos": 180,
-          "componentes_eletronicos": 90,
-          "energia": 81,
-          "agua": 54,
-          "resina_organica": 9
-        }
-      },
-      {
-        "level": 5,
-        "build_time_seconds": 6360,
-        "cost": {
-          "ligas_metalicas": 445,
-          "compostos_quimicos": 296,
-          "componentes_eletronicos": 148,
-          "energia": 133,
-          "agua": 89,
-          "resina_organica": 15
-        }
-      }
-    ]
-  },
-  {
-    "type": "antena_de_comunicacao",
-    "nome": "Antena de Comunicação",
-    "max_level": 5,
-    "levels": [
-      {
-        "level": 1,
-        "build_time_seconds": 600,
-        "cost": {
-          "ligas_metalicas": 35,
-          "componentes_eletronicos": 30,
-          "energia": 10,
-          "quartzo_piezoeletrico": 2
-        }
-      },
-      {
-        "level": 2,
-        "build_time_seconds": 960,
-        "cost": {
-          "ligas_metalicas": 58,
-          "componentes_eletronicos": 50,
-          "energia": 17,
-          "quartzo_piezoeletrico": 3
-        }
-      },
-      {
-        "level": 3,
-        "build_time_seconds": 1440,
-        "cost": {
-          "ligas_metalicas": 95,
-          "componentes_eletronicos": 82,
-          "energia": 27,
-          "quartzo_piezoeletrico": 5
-        }
-      },
-      {
-        "level": 4,
-        "build_time_seconds": 2100,
-        "cost": {
-          "ligas_metalicas": 157,
-          "componentes_eletronicos": 135,
-          "energia": 45,
-          "quartzo_piezoeletrico": 9
-        }
-      },
-      {
-        "level": 5,
-        "build_time_seconds": 3180,
-        "cost": {
-          "ligas_metalicas": 259,
-          "componentes_eletronicos": 222,
-          "energia": 74,
-          "quartzo_piezoeletrico": 15
-        }
-      }
-    ]
-  },
-  {
-    "type": "torre_de_defesa",
-    "nome": "Torre de Defesa",
-    "max_level": 5,
-    "levels": [
-      {
-        "level": 1,
-        "build_time_seconds": 840,
-        "cost": {
-          "ligas_metalicas": 80,
-          "compostos_quimicos": 20,
-          "energia": 15,
-          "niobio_alienigena": 2
-        }
-      },
-      {
-        "level": 2,
-        "build_time_seconds": 1260,
-        "cost": {
-          "ligas_metalicas": 132,
-          "compostos_quimicos": 33,
-          "energia": 25,
-          "niobio_alienigena": 3
-        }
-      },
-      {
-        "level": 3,
-        "build_time_seconds": 1920,
-        "cost": {
-          "ligas_metalicas": 218,
-          "compostos_quimicos": 54,
-          "energia": 41,
-          "niobio_alienigena": 5
-        }
-      },
-      {
-        "level": 4,
-        "build_time_seconds": 2820,
-        "cost": {
-          "ligas_metalicas": 359,
-          "compostos_quimicos": 90,
-          "energia": 67,
-          "niobio_alienigena": 9
-        }
-      },
-      {
-        "level": 5,
-        "build_time_seconds": 4260,
-        "cost": {
-          "ligas_metalicas": 593,
-          "compostos_quimicos": 148,
-          "energia": 111,
-          "niobio_alienigena": 15
-        }
-      }
-    ]
-  },
-  {
-    "type": "mercado_local",
-    "nome": "Mercado Local",
-    "max_level": 5,
-    "levels": [
-      {
-        "level": 1,
-        "build_time_seconds": 780,
-        "cost": {
-          "biomassa": 55,
-          "ligas_metalicas": 30,
-          "resina_organica": 1
-        }
-      },
-      {
-        "level": 2,
-        "build_time_seconds": 1140,
-        "cost": {
-          "biomassa": 91,
-          "ligas_metalicas": 50,
-          "resina_organica": 2
-        }
-      },
-      {
-        "level": 3,
-        "build_time_seconds": 1680,
-        "cost": {
-          "biomassa": 150,
-          "ligas_metalicas": 82,
-          "resina_organica": 3
-        }
-      },
-      {
-        "level": 4,
-        "build_time_seconds": 2580,
-        "cost": {
-          "biomassa": 247,
-          "ligas_metalicas": 135,
-          "resina_organica": 4
-        }
-      },
-      {
-        "level": 5,
-        "build_time_seconds": 3840,
-        "cost": {
-          "biomassa": 408,
-          "ligas_metalicas": 222,
-          "resina_organica": 7
-        }
-      }
-    ]
-  },
-  {
-    "type": "quartel",
-    "nome": "Quartel",
-    "max_level": 5,
-    "levels": [
-      {
-        "level": 1,
-        "build_time_seconds": 1200,
-        "cost": {
-          "ligas_metalicas": 90,
-          "compostos_quimicos": 30,
-          "energia": 20,
-          "niobio_alienigena": 3
-        }
-      },
-      {
-        "level": 2,
-        "build_time_seconds": 1740,
-        "cost": {
-          "ligas_metalicas": 149,
-          "compostos_quimicos": 50,
-          "energia": 33,
-          "niobio_alienigena": 5
-        }
-      },
-      {
-        "level": 3,
-        "build_time_seconds": 2640,
-        "cost": {
-          "ligas_metalicas": 245,
-          "compostos_quimicos": 82,
-          "energia": 54,
-          "niobio_alienigena": 8
-        }
-      },
-      {
-        "level": 4,
-        "build_time_seconds": 3960,
-        "cost": {
-          "ligas_metalicas": 404,
-          "compostos_quimicos": 135,
-          "energia": 90,
-          "niobio_alienigena": 13
-        }
-      },
-      {
-        "level": 5,
-        "build_time_seconds": 5940,
-        "cost": {
-          "ligas_metalicas": 667,
-          "compostos_quimicos": 222,
-          "energia": 148,
-          "niobio_alienigena": 22
-        }
-      }
-    ]
-  },
-  {
-    "type": "plataforma_de_pouso",
-    "nome": "Plataforma de Pouso",
-    "max_level": 5,
-    "levels": [
-      {
-        "level": 1,
-        "build_time_seconds": 1680,
-        "cost": {
-          "ligas_metalicas": 120,
-          "componentes_eletronicos": 60,
-          "energia": 25,
-          "gelo_de_metano": 3
-        }
-      },
-      {
-        "level": 2,
-        "build_time_seconds": 2520,
-        "cost": {
-          "ligas_metalicas": 198,
-          "componentes_eletronicos": 99,
-          "energia": 41,
-          "gelo_de_metano": 5
-        }
-      },
-      {
-        "level": 3,
-        "build_time_seconds": 3780,
-        "cost": {
-          "ligas_metalicas": 327,
-          "componentes_eletronicos": 163,
-          "energia": 68,
-          "gelo_de_metano": 8
-        }
-      },
-      {
-        "level": 4,
-        "build_time_seconds": 5640,
-        "cost": {
-          "ligas_metalicas": 539,
-          "componentes_eletronicos": 270,
-          "energia": 112,
-          "gelo_de_metano": 13
-        }
-      },
-      {
-        "level": 5,
-        "build_time_seconds": 8520,
-        "cost": {
-          "ligas_metalicas": 889,
-          "componentes_eletronicos": 445,
-          "energia": 185,
-          "gelo_de_metano": 22
-        }
-      }
-    ]
-  },
-  {
-    "type": "tanque_de_combustivel",
-    "nome": "Tanque de Combustível",
-    "max_level": 5,
-    "levels": [
-      {
-        "level": 1,
-        "build_time_seconds": 720,
-        "cost": {
-          "ligas_metalicas": 50,
-          "componentes_eletronicos": 15,
-          "metal_bruto": 10
-        }
-      },
-      {
-        "level": 2,
-        "build_time_seconds": 1080,
-        "cost": {
-          "ligas_metalicas": 83,
-          "componentes_eletronicos": 25,
-          "metal_bruto": 17
-        }
-      },
-      {
-        "level": 3,
-        "build_time_seconds": 1620,
-        "cost": {
-          "ligas_metalicas": 136,
-          "componentes_eletronicos": 41,
-          "metal_bruto": 27
-        }
-      },
-      {
-        "level": 4,
-        "build_time_seconds": 2460,
-        "cost": {
-          "ligas_metalicas": 225,
-          "componentes_eletronicos": 67,
-          "metal_bruto": 45
-        }
-      },
-      {
-        "level": 5,
-        "build_time_seconds": 3660,
-        "cost": {
-          "ligas_metalicas": 371,
-          "componentes_eletronicos": 111,
-          "metal_bruto": 74
-        }
-      }
-    ]
-  },
-  {
-    "type": "mina_local",
-    "nome": "Mina Local",
-    "max_level": 5,
-    "levels": [
-      {
-        "level": 1,
-        "build_time_seconds": 840,
-        "cost": {
-          "ligas_metalicas": 30,
-          "compostos_quimicos": 10
-        }
-      },
-      {
-        "level": 2,
-        "build_time_seconds": 1260,
-        "cost": {
-          "ligas_metalicas": 50,
-          "compostos_quimicos": 17
-        }
-      },
-      {
-        "level": 3,
-        "build_time_seconds": 1920,
-        "cost": {
-          "ligas_metalicas": 82,
-          "compostos_quimicos": 27
-        }
-      },
-      {
-        "level": 4,
-        "build_time_seconds": 2820,
-        "cost": {
-          "ligas_metalicas": 135,
-          "compostos_quimicos": 45
-        }
-      },
-      {
-        "level": 5,
-        "build_time_seconds": 4260,
-        "cost": {
-          "ligas_metalicas": 222,
-          "compostos_quimicos": 74
-        }
-      }
-    ]
-  },
-  {
-    "type": "central_de_transportes",
-    "nome": "Central de Transportes",
-    "max_level": 10,
-    "levels": [
-      {
-        "level": 1,
-        "build_time_seconds": null,
-        "cost": {
-          "ligas_metalicas": 70,
-          "componentes_eletronicos": 20
-        }
-      },
-      {
-        "level": 2,
-        "build_time_seconds": null,
-        "cost": {
-          "ligas_metalicas": 116,
-          "componentes_eletronicos": 33
-        }
-      },
-      {
-        "level": 3,
-        "build_time_seconds": null,
-        "cost": {
-          "ligas_metalicas": 191,
-          "componentes_eletronicos": 54
-        }
-      },
-      {
-        "level": 4,
-        "build_time_seconds": null,
-        "cost": {
-          "ligas_metalicas": 314,
-          "componentes_eletronicos": 90
-        }
-      },
-      {
-        "level": 5,
-        "build_time_seconds": null,
-        "cost": {
-          "ligas_metalicas": 519,
-          "componentes_eletronicos": 148
-        }
-      },
-      {
-        "level": 6,
-        "build_time_seconds": null,
-        "cost": {
-          "ligas_metalicas": 856,
-          "componentes_eletronicos": 245
-        }
-      },
-      {
-        "level": 7,
-        "build_time_seconds": null,
-        "cost": {
-          "ligas_metalicas": 1413,
-          "componentes_eletronicos": 404
-        }
-      },
-      {
-        "level": 8,
-        "build_time_seconds": null,
-        "cost": {
-          "ligas_metalicas": 2331,
-          "componentes_eletronicos": 666
-        }
-      },
-      {
-        "level": 9,
-        "build_time_seconds": null,
-        "cost": {
-          "ligas_metalicas": 3846,
-          "componentes_eletronicos": 1099
-        }
-      },
-      {
-        "level": 10,
-        "build_time_seconds": null,
-        "cost": {
-          "ligas_metalicas": 6345,
-          "componentes_eletronicos": 1813
-        }
-      }
-    ]
-  },
-  {
-    "type": "deposito_de_zona_neutra",
-    "nome": "Depósito de Zona Neutra",
-    "max_level": 10,
-    "levels": [
-      {
-        "level": 1,
-        "build_time_seconds": null,
-        "cost": {
-          "ligas_metalicas": 100,
-          "compostos_quimicos": 30
-        }
-      },
-      {
-        "level": 2,
-        "build_time_seconds": null,
-        "cost": {
-          "ligas_metalicas": 165,
-          "compostos_quimicos": 50
-        }
-      },
-      {
-        "level": 3,
-        "build_time_seconds": null,
-        "cost": {
-          "ligas_metalicas": 272,
-          "compostos_quimicos": 82
-        }
-      },
-      {
-        "level": 4,
-        "build_time_seconds": null,
-        "cost": {
-          "ligas_metalicas": 449,
-          "compostos_quimicos": 135
-        }
-      },
-      {
-        "level": 5,
-        "build_time_seconds": null,
-        "cost": {
-          "ligas_metalicas": 741,
-          "compostos_quimicos": 222
-        }
-      },
-      {
-        "level": 6,
-        "build_time_seconds": null,
-        "cost": {
-          "ligas_metalicas": 1223,
-          "compostos_quimicos": 367
-        }
-      },
-      {
-        "level": 7,
-        "build_time_seconds": null,
-        "cost": {
-          "ligas_metalicas": 2018,
-          "compostos_quimicos": 605
-        }
-      },
-      {
-        "level": 8,
-        "build_time_seconds": null,
-        "cost": {
-          "ligas_metalicas": 3330,
-          "compostos_quimicos": 999
-        }
-      },
-      {
-        "level": 9,
-        "build_time_seconds": null,
-        "cost": {
-          "ligas_metalicas": 5494,
-          "compostos_quimicos": 1648
-        }
-      },
-      {
-        "level": 10,
-        "build_time_seconds": null,
-        "cost": {
-          "ligas_metalicas": 9065,
-          "compostos_quimicos": 2719
-        }
-      }
-    ]
-  },
-  {
-    "type": "destilaria",
-    "nome": "Destilaria",
-    "max_level": 10,
-    "levels": [
-      {
-        "level": 1,
-        "build_time_seconds": null,
-        "cost": {
-          "ligas_metalicas": 40,
-          "compostos_quimicos": 15
-        }
-      },
-      {
-        "level": 2,
-        "build_time_seconds": null,
-        "cost": {
-          "ligas_metalicas": 66,
-          "compostos_quimicos": 25
-        }
-      },
-      {
-        "level": 3,
-        "build_time_seconds": null,
-        "cost": {
-          "ligas_metalicas": 109,
-          "compostos_quimicos": 41
-        }
-      },
-      {
-        "level": 4,
-        "build_time_seconds": null,
-        "cost": {
-          "ligas_metalicas": 180,
-          "compostos_quimicos": 67
-        }
-      },
-      {
-        "level": 5,
-        "build_time_seconds": null,
-        "cost": {
-          "ligas_metalicas": 296,
-          "compostos_quimicos": 111
-        }
-      },
-      {
-        "level": 6,
-        "build_time_seconds": null,
-        "cost": {
-          "ligas_metalicas": 489,
-          "compostos_quimicos": 183
-        }
-      },
-      {
-        "level": 7,
-        "build_time_seconds": null,
-        "cost": {
-          "ligas_metalicas": 807,
-          "compostos_quimicos": 303
-        }
-      },
-      {
-        "level": 8,
-        "build_time_seconds": null,
-        "cost": {
-          "ligas_metalicas": 1332,
-          "compostos_quimicos": 499
-        }
-      },
-      {
-        "level": 9,
-        "build_time_seconds": null,
-        "cost": {
-          "ligas_metalicas": 2198,
-          "compostos_quimicos": 824
-        }
-      },
-      {
-        "level": 10,
-        "build_time_seconds": null,
-        "cost": {
-          "ligas_metalicas": 3626,
-          "compostos_quimicos": 1360
-        }
-      }
-    ]
-  },
-  {
-    "type": "furgao_de_comercio",
-    "nome": "Furgão de Comércio",
-    "max_level": 5,
-    "levels": [
-      {
-        "level": 1,
-        "build_time_seconds": null,
-        "cost": {
-          "ligas_metalicas": 40,
-          "componentes_eletronicos": 10,
-          "metal_bruto": 7
-        }
-      },
-      {
-        "level": 2,
-        "build_time_seconds": null,
-        "cost": {
-          "ligas_metalicas": 66,
-          "componentes_eletronicos": 17,
-          "metal_bruto": 12
-        }
-      },
-      {
-        "level": 3,
-        "build_time_seconds": null,
-        "cost": {
-          "ligas_metalicas": 109,
-          "componentes_eletronicos": 27,
-          "metal_bruto": 19
-        }
-      },
-      {
-        "level": 4,
-        "build_time_seconds": null,
-        "cost": {
-          "ligas_metalicas": 180,
-          "componentes_eletronicos": 45,
-          "metal_bruto": 31
-        }
-      },
-      {
-        "level": 5,
-        "build_time_seconds": null,
-        "cost": {
-          "ligas_metalicas": 296,
-          "componentes_eletronicos": 74,
-          "metal_bruto": 52
-        }
-      }
-    ]
-  },
-  {
-    "type": "caminhao_de_carga",
-    "nome": "Caminhão de Carga",
-    "max_level": 5,
-    "levels": [
-      {
-        "level": 1,
-        "build_time_seconds": null,
-        "cost": {
-          "ligas_metalicas": 90,
-          "componentes_eletronicos": 25,
-          "metal_bruto": 16
-        }
-      },
-      {
-        "level": 2,
-        "build_time_seconds": null,
-        "cost": {
-          "ligas_metalicas": 149,
-          "componentes_eletronicos": 41,
-          "metal_bruto": 26
-        }
-      },
-      {
-        "level": 3,
-        "build_time_seconds": null,
-        "cost": {
-          "ligas_metalicas": 245,
-          "componentes_eletronicos": 68,
-          "metal_bruto": 44
-        }
-      },
-      {
-        "level": 4,
-        "build_time_seconds": null,
-        "cost": {
-          "ligas_metalicas": 404,
-          "componentes_eletronicos": 112,
-          "metal_bruto": 72
-        }
-      },
-      {
-        "level": 5,
-        "build_time_seconds": null,
-        "cost": {
-          "ligas_metalicas": 667,
-          "componentes_eletronicos": 185,
-          "metal_bruto": 119
-        }
-      }
-    ]
-  },
-  {
-    "type": "drone_de_exploracao",
-    "nome": "Drone de Exploração",
-    "max_level": 5,
-    "levels": [
-      {
-        "level": 1,
-        "build_time_seconds": null,
-        "cost": {
-          "componentes_eletronicos": 50,
-          "compostos_quimicos": 15,
-          "metal_bruto": 4
-        }
-      },
-      {
-        "level": 2,
-        "build_time_seconds": null,
-        "cost": {
-          "componentes_eletronicos": 83,
-          "compostos_quimicos": 25,
-          "metal_bruto": 7
-        }
-      },
-      {
-        "level": 3,
-        "build_time_seconds": null,
-        "cost": {
-          "componentes_eletronicos": 136,
-          "compostos_quimicos": 41,
-          "metal_bruto": 11
-        }
-      },
-      {
-        "level": 4,
-        "build_time_seconds": null,
-        "cost": {
-          "componentes_eletronicos": 225,
-          "compostos_quimicos": 67,
-          "metal_bruto": 18
-        }
-      },
-      {
-        "level": 5,
-        "build_time_seconds": null,
-        "cost": {
-          "componentes_eletronicos": 371,
-          "compostos_quimicos": 111,
-          "metal_bruto": 30
-        }
-      }
-    ]
-  },
-  {
-    "type": "robo_minerador",
-    "nome": "Robô Minerador",
-    "max_level": 5,
-    "levels": [
-      {
-        "level": 1,
-        "build_time_seconds": null,
-        "cost": {
-          "ligas_metalicas": 60,
-          "componentes_eletronicos": 20,
-          "metal_bruto": 11
-        }
-      },
-      {
-        "level": 2,
-        "build_time_seconds": null,
-        "cost": {
-          "ligas_metalicas": 99,
-          "componentes_eletronicos": 33,
-          "metal_bruto": 18
-        }
-      },
-      {
-        "level": 3,
-        "build_time_seconds": null,
-        "cost": {
-          "ligas_metalicas": 163,
-          "componentes_eletronicos": 54,
-          "metal_bruto": 30
-        }
-      },
-      {
-        "level": 4,
-        "build_time_seconds": null,
-        "cost": {
-          "ligas_metalicas": 270,
-          "componentes_eletronicos": 90,
-          "metal_bruto": 49
-        }
-      },
-      {
-        "level": 5,
-        "build_time_seconds": null,
-        "cost": {
-          "ligas_metalicas": 445,
-          "componentes_eletronicos": 148,
-          "metal_bruto": 82
-        }
-      }
-    ]
-  },
-  {
-    "type": "infiltrador",
-    "nome": "Infiltrador",
-    "max_level": 5,
-    "levels": [
-      {
-        "level": 1,
-        "build_time_seconds": null,
-        "cost": {
-          "ligas_metalicas": 80,
-          "componentes_eletronicos": 40,
-          "compostos_quimicos": 20,
-          "metal_bruto": 14
-        }
-      },
-      {
-        "level": 2,
-        "build_time_seconds": null,
-        "cost": {
-          "ligas_metalicas": 132,
-          "componentes_eletronicos": 66,
-          "compostos_quimicos": 33,
-          "metal_bruto": 23
-        }
-      },
-      {
-        "level": 3,
-        "build_time_seconds": null,
-        "cost": {
-          "ligas_metalicas": 218,
-          "componentes_eletronicos": 109,
-          "compostos_quimicos": 54,
-          "metal_bruto": 38
-        }
-      },
-      {
-        "level": 4,
-        "build_time_seconds": null,
-        "cost": {
-          "ligas_metalicas": 359,
-          "componentes_eletronicos": 180,
-          "compostos_quimicos": 90,
-          "metal_bruto": 63
-        }
-      },
-      {
-        "level": 5,
-        "build_time_seconds": null,
-        "cost": {
-          "ligas_metalicas": 593,
-          "componentes_eletronicos": 296,
-          "compostos_quimicos": 148,
-          "metal_bruto": 104
-        }
-      }
-    ]
-  },
-  {
-    "type": "predador",
-    "nome": "Predador",
-    "max_level": 5,
-    "levels": [
-      {
-        "level": 1,
-        "build_time_seconds": null,
-        "cost": {
-          "ligas_metalicas": 70,
-          "componentes_eletronicos": 35,
-          "compostos_quimicos": 15,
-          "metal_bruto": 13
-        }
-      },
-      {
-        "level": 2,
-        "build_time_seconds": null,
-        "cost": {
-          "ligas_metalicas": 116,
-          "componentes_eletronicos": 58,
-          "compostos_quimicos": 25,
-          "metal_bruto": 21
-        }
-      },
-      {
-        "level": 3,
-        "build_time_seconds": null,
-        "cost": {
-          "ligas_metalicas": 191,
-          "componentes_eletronicos": 95,
-          "compostos_quimicos": 41,
-          "metal_bruto": 35
-        }
-      },
-      {
-        "level": 4,
-        "build_time_seconds": null,
-        "cost": {
-          "ligas_metalicas": 314,
-          "componentes_eletronicos": 157,
-          "compostos_quimicos": 67,
-          "metal_bruto": 58
-        }
-      },
-      {
-        "level": 5,
-        "build_time_seconds": null,
-        "cost": {
-          "ligas_metalicas": 519,
-          "componentes_eletronicos": 259,
-          "compostos_quimicos": 111,
-          "metal_bruto": 96
-        }
-      }
-    ]
-  },
-  {
-    "type": "nave_de_transporte_planetaria",
-    "nome": "Nave de Transporte Planetária",
-    "max_level": 5,
-    "levels": [
-      {
-        "level": 1,
-        "build_time_seconds": null,
-        "cost": {
-          "ligas_metalicas": 250,
-          "componentes_eletronicos": 120,
-          "metal_bruto": 45
-        }
-      },
-      {
-        "level": 2,
-        "build_time_seconds": null,
-        "cost": {
-          "ligas_metalicas": 413,
-          "componentes_eletronicos": 198,
-          "metal_bruto": 74
-        }
-      },
-      {
-        "level": 3,
-        "build_time_seconds": null,
-        "cost": {
-          "ligas_metalicas": 681,
-          "componentes_eletronicos": 327,
-          "metal_bruto": 123
-        }
-      },
-      {
-        "level": 4,
-        "build_time_seconds": null,
-        "cost": {
-          "ligas_metalicas": 1123,
-          "componentes_eletronicos": 539,
-          "metal_bruto": 202
-        }
-      },
-      {
-        "level": 5,
-        "build_time_seconds": null,
-        "cost": {
-          "ligas_metalicas": 1853,
-          "componentes_eletronicos": 889,
-          "metal_bruto": 334
-        }
-      }
-    ]
-  }
+    {
+        "type": "gerador_de_atmosfera",
+        "nome": "Gerador de Atmosfera",
+        "max_level": 5,
+        "levels": [
+            {
+                "level": 1,
+                "build_time_seconds": 240,
+                "cost": {
+                    "agua": 50,
+                    "biomassa": 30,
+                    "energia": 10,
+                    "oxigenio": 5
+                }
+            },
+            {
+                "level": 2,
+                "build_time_seconds": 300,
+                "cost": {
+                    "agua": 83,
+                    "biomassa": 50,
+                    "energia": 17,
+                    "oxigenio": 8
+                }
+            },
+            {
+                "level": 3,
+                "build_time_seconds": 480,
+                "cost": {
+                    "agua": 136,
+                    "biomassa": 82,
+                    "energia": 27,
+                    "oxigenio": 14
+                }
+            },
+            {
+                "level": 4,
+                "build_time_seconds": 720,
+                "cost": {
+                    "agua": 225,
+                    "biomassa": 135,
+                    "energia": 45,
+                    "oxigenio": 22
+                }
+            },
+            {
+                "level": 5,
+                "build_time_seconds": 1080,
+                "cost": {
+                    "agua": 371,
+                    "biomassa": 222,
+                    "energia": 74,
+                    "oxigenio": 37
+                }
+            }
+        ]
+    },
+    {
+        "type": "estrutura_de_sobrevivencia",
+        "nome": "Estrutura de Sobrevivência",
+        "max_level": 5,
+        "levels": [
+            {
+                "level": 1,
+                "build_time_seconds": 360,
+                "cost": {
+                    "agua": 20,
+                    "biomassa": 40,
+                    "ligas_metalicas": 15,
+                    "oxigenio": 15,
+                    "energia": 8
+                }
+            },
+            {
+                "level": 2,
+                "build_time_seconds": 480,
+                "cost": {
+                    "agua": 33,
+                    "biomassa": 66,
+                    "ligas_metalicas": 25,
+                    "oxigenio": 25,
+                    "energia": 13
+                }
+            },
+            {
+                "level": 3,
+                "build_time_seconds": 780,
+                "cost": {
+                    "agua": 54,
+                    "biomassa": 109,
+                    "ligas_metalicas": 41,
+                    "oxigenio": 41,
+                    "energia": 22
+                }
+            },
+            {
+                "level": 4,
+                "build_time_seconds": 1140,
+                "cost": {
+                    "agua": 90,
+                    "biomassa": 180,
+                    "ligas_metalicas": 67,
+                    "oxigenio": 67,
+                    "energia": 36
+                }
+            },
+            {
+                "level": 5,
+                "build_time_seconds": 1680,
+                "cost": {
+                    "agua": 148,
+                    "biomassa": 296,
+                    "ligas_metalicas": 111,
+                    "oxigenio": 111,
+                    "energia": 59
+                }
+            }
+        ]
+    },
+    {
+        "type": "fazenda",
+        "nome": "Fazenda",
+        "max_level": 5,
+        "levels": [
+            {
+                "level": 1,
+                "build_time_seconds": 240,
+                "cost": {
+                    "agua": 35,
+                    "ligas_metalicas": 10,
+                    "oxigenio": 10,
+                    "energia": 12
+                }
+            },
+            {
+                "level": 2,
+                "build_time_seconds": 360,
+                "cost": {
+                    "agua": 58,
+                    "ligas_metalicas": 17,
+                    "oxigenio": 17,
+                    "energia": 20
+                }
+            },
+            {
+                "level": 3,
+                "build_time_seconds": 540,
+                "cost": {
+                    "agua": 95,
+                    "ligas_metalicas": 27,
+                    "oxigenio": 27,
+                    "energia": 33
+                }
+            },
+            {
+                "level": 4,
+                "build_time_seconds": 840,
+                "cost": {
+                    "agua": 157,
+                    "ligas_metalicas": 45,
+                    "oxigenio": 45,
+                    "energia": 54
+                }
+            },
+            {
+                "level": 5,
+                "build_time_seconds": 1260,
+                "cost": {
+                    "agua": 259,
+                    "ligas_metalicas": 74,
+                    "oxigenio": 74,
+                    "energia": 89
+                }
+            }
+        ]
+    },
+    {
+        "type": "reator_de_energia",
+        "nome": "Reator de Energia",
+        "max_level": 5,
+        "levels": [
+            {
+                "level": 1,
+                "build_time_seconds": 420,
+                "cost": {
+                    "agua": 15,
+                    "ligas_metalicas": 40,
+                    "compostos_quimicos": 10,
+                    "oxigenio": 8,
+                    "biomassa": 5
+                }
+            },
+            {
+                "level": 2,
+                "build_time_seconds": 600,
+                "cost": {
+                    "agua": 25,
+                    "ligas_metalicas": 66,
+                    "compostos_quimicos": 17,
+                    "oxigenio": 13,
+                    "biomassa": 8
+                }
+            },
+            {
+                "level": 3,
+                "build_time_seconds": 960,
+                "cost": {
+                    "agua": 41,
+                    "ligas_metalicas": 109,
+                    "compostos_quimicos": 27,
+                    "oxigenio": 22,
+                    "biomassa": 14
+                }
+            },
+            {
+                "level": 4,
+                "build_time_seconds": 1440,
+                "cost": {
+                    "agua": 67,
+                    "ligas_metalicas": 180,
+                    "compostos_quimicos": 45,
+                    "oxigenio": 36,
+                    "biomassa": 22
+                }
+            },
+            {
+                "level": 5,
+                "build_time_seconds": 2100,
+                "cost": {
+                    "agua": 111,
+                    "ligas_metalicas": 296,
+                    "compostos_quimicos": 74,
+                    "oxigenio": 59,
+                    "biomassa": 37
+                }
+            }
+        ]
+    },
+    {
+        "type": "captacao_de_agua",
+        "nome": "Captação de Água",
+        "max_level": 5,
+        "levels": [
+            {
+                "level": 1,
+                "build_time_seconds": 300,
+                "cost": {
+                    "biomassa": 10,
+                    "ligas_metalicas": 25,
+                    "oxigenio": 6,
+                    "energia": 10
+                }
+            },
+            {
+                "level": 2,
+                "build_time_seconds": 420,
+                "cost": {
+                    "biomassa": 17,
+                    "ligas_metalicas": 41,
+                    "oxigenio": 10,
+                    "energia": 17
+                }
+            },
+            {
+                "level": 3,
+                "build_time_seconds": 660,
+                "cost": {
+                    "biomassa": 27,
+                    "ligas_metalicas": 68,
+                    "oxigenio": 16,
+                    "energia": 27
+                }
+            },
+            {
+                "level": 4,
+                "build_time_seconds": 1020,
+                "cost": {
+                    "biomassa": 45,
+                    "ligas_metalicas": 112,
+                    "oxigenio": 27,
+                    "energia": 45
+                }
+            },
+            {
+                "level": 5,
+                "build_time_seconds": 1500,
+                "cost": {
+                    "biomassa": 74,
+                    "ligas_metalicas": 185,
+                    "oxigenio": 44,
+                    "energia": 74
+                }
+            }
+        ]
+    },
+    {
+        "type": "oficina",
+        "nome": "Oficina",
+        "max_level": 5,
+        "levels": [
+            {
+                "level": 1,
+                "build_time_seconds": 1080,
+                "cost": {
+                    "biomassa": 30,
+                    "ligas_metalicas": 50,
+                    "compostos_quimicos": 15,
+                    "agua": 15,
+                    "energia": 20,
+                    "ferro_vermelho": 1
+                }
+            },
+            {
+                "level": 2,
+                "build_time_seconds": 1560,
+                "cost": {
+                    "biomassa": 50,
+                    "ligas_metalicas": 83,
+                    "compostos_quimicos": 25,
+                    "agua": 25,
+                    "energia": 33,
+                    "ferro_vermelho": 2
+                }
+            },
+            {
+                "level": 3,
+                "build_time_seconds": 2340,
+                "cost": {
+                    "biomassa": 82,
+                    "ligas_metalicas": 136,
+                    "compostos_quimicos": 41,
+                    "agua": 41,
+                    "energia": 54,
+                    "ferro_vermelho": 3
+                }
+            },
+            {
+                "level": 4,
+                "build_time_seconds": 3540,
+                "cost": {
+                    "biomassa": 135,
+                    "ligas_metalicas": 225,
+                    "compostos_quimicos": 67,
+                    "agua": 67,
+                    "energia": 90,
+                    "ferro_vermelho": 4
+                }
+            },
+            {
+                "level": 5,
+                "build_time_seconds": 5340,
+                "cost": {
+                    "biomassa": 222,
+                    "ligas_metalicas": 371,
+                    "compostos_quimicos": 111,
+                    "agua": 111,
+                    "energia": 148,
+                    "ferro_vermelho": 7
+                }
+            }
+        ]
+    },
+    {
+        "type": "refinaria_quimica",
+        "nome": "Refinaria Química",
+        "max_level": 5,
+        "levels": [
+            {
+                "level": 1,
+                "build_time_seconds": 1440,
+                "cost": {
+                    "agua": 60,
+                    "ligas_metalicas": 70,
+                    "energia": 25,
+                    "oxigenio": 10,
+                    "quartzo_piezoeletrico": 1
+                }
+            },
+            {
+                "level": 2,
+                "build_time_seconds": 2220,
+                "cost": {
+                    "agua": 99,
+                    "ligas_metalicas": 116,
+                    "energia": 41,
+                    "oxigenio": 17,
+                    "quartzo_piezoeletrico": 2
+                }
+            },
+            {
+                "level": 3,
+                "build_time_seconds": 3300,
+                "cost": {
+                    "agua": 163,
+                    "ligas_metalicas": 191,
+                    "energia": 68,
+                    "oxigenio": 27,
+                    "quartzo_piezoeletrico": 3
+                }
+            },
+            {
+                "level": 4,
+                "build_time_seconds": 4980,
+                "cost": {
+                    "agua": 270,
+                    "ligas_metalicas": 314,
+                    "energia": 112,
+                    "oxigenio": 45,
+                    "quartzo_piezoeletrico": 4
+                }
+            },
+            {
+                "level": 5,
+                "build_time_seconds": 7440,
+                "cost": {
+                    "agua": 445,
+                    "ligas_metalicas": 519,
+                    "energia": 185,
+                    "oxigenio": 74,
+                    "quartzo_piezoeletrico": 7
+                }
+            }
+        ]
+    },
+    {
+        "type": "laboratorio",
+        "nome": "Laboratório",
+        "max_level": 5,
+        "levels": [
+            {
+                "level": 1,
+                "build_time_seconds": 1260,
+                "cost": {
+                    "ligas_metalicas": 60,
+                    "compostos_quimicos": 40,
+                    "componentes_eletronicos": 20,
+                    "energia": 18,
+                    "agua": 12,
+                    "resina_organica": 2
+                }
+            },
+            {
+                "level": 2,
+                "build_time_seconds": 1920,
+                "cost": {
+                    "ligas_metalicas": 99,
+                    "compostos_quimicos": 66,
+                    "componentes_eletronicos": 33,
+                    "energia": 30,
+                    "agua": 20,
+                    "resina_organica": 3
+                }
+            },
+            {
+                "level": 3,
+                "build_time_seconds": 2820,
+                "cost": {
+                    "ligas_metalicas": 163,
+                    "compostos_quimicos": 109,
+                    "componentes_eletronicos": 54,
+                    "energia": 49,
+                    "agua": 33,
+                    "resina_organica": 5
+                }
+            },
+            {
+                "level": 4,
+                "build_time_seconds": 4260,
+                "cost": {
+                    "ligas_metalicas": 270,
+                    "compostos_quimicos": 180,
+                    "componentes_eletronicos": 90,
+                    "energia": 81,
+                    "agua": 54,
+                    "resina_organica": 9
+                }
+            },
+            {
+                "level": 5,
+                "build_time_seconds": 6360,
+                "cost": {
+                    "ligas_metalicas": 445,
+                    "compostos_quimicos": 296,
+                    "componentes_eletronicos": 148,
+                    "energia": 133,
+                    "agua": 89,
+                    "resina_organica": 15
+                }
+            }
+        ]
+    },
+    {
+        "type": "antena_de_comunicacao",
+        "nome": "Antena de Comunicação",
+        "max_level": 5,
+        "levels": [
+            {
+                "level": 1,
+                "build_time_seconds": 600,
+                "cost": {
+                    "ligas_metalicas": 35,
+                    "componentes_eletronicos": 30,
+                    "energia": 10,
+                    "quartzo_piezoeletrico": 2
+                }
+            },
+            {
+                "level": 2,
+                "build_time_seconds": 960,
+                "cost": {
+                    "ligas_metalicas": 58,
+                    "componentes_eletronicos": 50,
+                    "energia": 17,
+                    "quartzo_piezoeletrico": 3
+                }
+            },
+            {
+                "level": 3,
+                "build_time_seconds": 1440,
+                "cost": {
+                    "ligas_metalicas": 95,
+                    "componentes_eletronicos": 82,
+                    "energia": 27,
+                    "quartzo_piezoeletrico": 5
+                }
+            },
+            {
+                "level": 4,
+                "build_time_seconds": 2100,
+                "cost": {
+                    "ligas_metalicas": 157,
+                    "componentes_eletronicos": 135,
+                    "energia": 45,
+                    "quartzo_piezoeletrico": 9
+                }
+            },
+            {
+                "level": 5,
+                "build_time_seconds": 3180,
+                "cost": {
+                    "ligas_metalicas": 259,
+                    "componentes_eletronicos": 222,
+                    "energia": 74,
+                    "quartzo_piezoeletrico": 15
+                }
+            }
+        ]
+    },
+    {
+        "type": "torre_de_defesa",
+        "nome": "Torre de Defesa",
+        "max_level": 5,
+        "levels": [
+            {
+                "level": 1,
+                "build_time_seconds": 840,
+                "cost": {
+                    "ligas_metalicas": 80,
+                    "compostos_quimicos": 20,
+                    "energia": 15,
+                    "niobio_alienigena": 2
+                }
+            },
+            {
+                "level": 2,
+                "build_time_seconds": 1260,
+                "cost": {
+                    "ligas_metalicas": 132,
+                    "compostos_quimicos": 33,
+                    "energia": 25,
+                    "niobio_alienigena": 3
+                }
+            },
+            {
+                "level": 3,
+                "build_time_seconds": 1920,
+                "cost": {
+                    "ligas_metalicas": 218,
+                    "compostos_quimicos": 54,
+                    "energia": 41,
+                    "niobio_alienigena": 5
+                }
+            },
+            {
+                "level": 4,
+                "build_time_seconds": 2820,
+                "cost": {
+                    "ligas_metalicas": 359,
+                    "compostos_quimicos": 90,
+                    "energia": 67,
+                    "niobio_alienigena": 9
+                }
+            },
+            {
+                "level": 5,
+                "build_time_seconds": 4260,
+                "cost": {
+                    "ligas_metalicas": 593,
+                    "compostos_quimicos": 148,
+                    "energia": 111,
+                    "niobio_alienigena": 15
+                }
+            }
+        ]
+    },
+    {
+        "type": "mercado_local",
+        "nome": "Mercado Local",
+        "max_level": 5,
+        "levels": [
+            {
+                "level": 1,
+                "build_time_seconds": 780,
+                "cost": {
+                    "biomassa": 55,
+                    "ligas_metalicas": 30,
+                    "resina_organica": 1
+                }
+            },
+            {
+                "level": 2,
+                "build_time_seconds": 1140,
+                "cost": {
+                    "biomassa": 91,
+                    "ligas_metalicas": 50,
+                    "resina_organica": 2
+                }
+            },
+            {
+                "level": 3,
+                "build_time_seconds": 1680,
+                "cost": {
+                    "biomassa": 150,
+                    "ligas_metalicas": 82,
+                    "resina_organica": 3
+                }
+            },
+            {
+                "level": 4,
+                "build_time_seconds": 2580,
+                "cost": {
+                    "biomassa": 247,
+                    "ligas_metalicas": 135,
+                    "resina_organica": 4
+                }
+            },
+            {
+                "level": 5,
+                "build_time_seconds": 3840,
+                "cost": {
+                    "biomassa": 408,
+                    "ligas_metalicas": 222,
+                    "resina_organica": 7
+                }
+            }
+        ]
+    },
+    {
+        "type": "quartel",
+        "nome": "Quartel",
+        "max_level": 5,
+        "levels": [
+            {
+                "level": 1,
+                "build_time_seconds": 1200,
+                "cost": {
+                    "ligas_metalicas": 90,
+                    "compostos_quimicos": 30,
+                    "energia": 20,
+                    "niobio_alienigena": 3
+                }
+            },
+            {
+                "level": 2,
+                "build_time_seconds": 1740,
+                "cost": {
+                    "ligas_metalicas": 149,
+                    "compostos_quimicos": 50,
+                    "energia": 33,
+                    "niobio_alienigena": 5
+                }
+            },
+            {
+                "level": 3,
+                "build_time_seconds": 2640,
+                "cost": {
+                    "ligas_metalicas": 245,
+                    "compostos_quimicos": 82,
+                    "energia": 54,
+                    "niobio_alienigena": 8
+                }
+            },
+            {
+                "level": 4,
+                "build_time_seconds": 3960,
+                "cost": {
+                    "ligas_metalicas": 404,
+                    "compostos_quimicos": 135,
+                    "energia": 90,
+                    "niobio_alienigena": 13
+                }
+            },
+            {
+                "level": 5,
+                "build_time_seconds": 5940,
+                "cost": {
+                    "ligas_metalicas": 667,
+                    "compostos_quimicos": 222,
+                    "energia": 148,
+                    "niobio_alienigena": 22
+                }
+            }
+        ]
+    },
+    {
+        "type": "plataforma_de_pouso",
+        "nome": "Plataforma de Pouso",
+        "max_level": 5,
+        "levels": [
+            {
+                "level": 1,
+                "build_time_seconds": 1680,
+                "cost": {
+                    "ligas_metalicas": 120,
+                    "componentes_eletronicos": 60,
+                    "energia": 25,
+                    "gelo_de_metano": 3
+                }
+            },
+            {
+                "level": 2,
+                "build_time_seconds": 2520,
+                "cost": {
+                    "ligas_metalicas": 198,
+                    "componentes_eletronicos": 99,
+                    "energia": 41,
+                    "gelo_de_metano": 5
+                }
+            },
+            {
+                "level": 3,
+                "build_time_seconds": 3780,
+                "cost": {
+                    "ligas_metalicas": 327,
+                    "componentes_eletronicos": 163,
+                    "energia": 68,
+                    "gelo_de_metano": 8
+                }
+            },
+            {
+                "level": 4,
+                "build_time_seconds": 5640,
+                "cost": {
+                    "ligas_metalicas": 539,
+                    "componentes_eletronicos": 270,
+                    "energia": 112,
+                    "gelo_de_metano": 13
+                }
+            },
+            {
+                "level": 5,
+                "build_time_seconds": 8520,
+                "cost": {
+                    "ligas_metalicas": 889,
+                    "componentes_eletronicos": 445,
+                    "energia": 185,
+                    "gelo_de_metano": 22
+                }
+            }
+        ]
+    },
+    {
+        "type": "tanque_de_combustivel",
+        "nome": "Tanque de Combustível",
+        "max_level": 5,
+        "levels": [
+            {
+                "level": 1,
+                "build_time_seconds": 720,
+                "cost": {
+                    "ligas_metalicas": 50,
+                    "componentes_eletronicos": 15,
+                    "metal_bruto": 10
+                }
+            },
+            {
+                "level": 2,
+                "build_time_seconds": 1080,
+                "cost": {
+                    "ligas_metalicas": 83,
+                    "componentes_eletronicos": 25,
+                    "metal_bruto": 17
+                }
+            },
+            {
+                "level": 3,
+                "build_time_seconds": 1620,
+                "cost": {
+                    "ligas_metalicas": 136,
+                    "componentes_eletronicos": 41,
+                    "metal_bruto": 27
+                }
+            },
+            {
+                "level": 4,
+                "build_time_seconds": 2460,
+                "cost": {
+                    "ligas_metalicas": 225,
+                    "componentes_eletronicos": 67,
+                    "metal_bruto": 45
+                }
+            },
+            {
+                "level": 5,
+                "build_time_seconds": 3660,
+                "cost": {
+                    "ligas_metalicas": 371,
+                    "componentes_eletronicos": 111,
+                    "metal_bruto": 74
+                }
+            }
+        ]
+    },
+    {
+        "type": "mina_local",
+        "nome": "Mina Local",
+        "max_level": 5,
+        "levels": [
+            {
+                "level": 1,
+                "build_time_seconds": 840,
+                "cost": {
+                    "ligas_metalicas": 30,
+                    "compostos_quimicos": 10
+                }
+            },
+            {
+                "level": 2,
+                "build_time_seconds": 1260,
+                "cost": {
+                    "ligas_metalicas": 50,
+                    "compostos_quimicos": 17
+                }
+            },
+            {
+                "level": 3,
+                "build_time_seconds": 1920,
+                "cost": {
+                    "ligas_metalicas": 82,
+                    "compostos_quimicos": 27
+                }
+            },
+            {
+                "level": 4,
+                "build_time_seconds": 2820,
+                "cost": {
+                    "ligas_metalicas": 135,
+                    "compostos_quimicos": 45
+                }
+            },
+            {
+                "level": 5,
+                "build_time_seconds": 4260,
+                "cost": {
+                    "ligas_metalicas": 222,
+                    "compostos_quimicos": 74
+                }
+            }
+        ]
+    },
+    {
+        "type": "central_de_transportes",
+        "nome": "Central de Transportes",
+        "max_level": 10,
+        "levels": [
+            {
+                "level": 1,
+                "build_time_seconds": null,
+                "cost": {
+                    "ligas_metalicas": 70,
+                    "componentes_eletronicos": 20
+                }
+            },
+            {
+                "level": 2,
+                "build_time_seconds": null,
+                "cost": {
+                    "ligas_metalicas": 116,
+                    "componentes_eletronicos": 33
+                }
+            },
+            {
+                "level": 3,
+                "build_time_seconds": null,
+                "cost": {
+                    "ligas_metalicas": 191,
+                    "componentes_eletronicos": 54
+                }
+            },
+            {
+                "level": 4,
+                "build_time_seconds": null,
+                "cost": {
+                    "ligas_metalicas": 314,
+                    "componentes_eletronicos": 90
+                }
+            },
+            {
+                "level": 5,
+                "build_time_seconds": null,
+                "cost": {
+                    "ligas_metalicas": 519,
+                    "componentes_eletronicos": 148
+                }
+            },
+            {
+                "level": 6,
+                "build_time_seconds": null,
+                "cost": {
+                    "ligas_metalicas": 856,
+                    "componentes_eletronicos": 245
+                }
+            },
+            {
+                "level": 7,
+                "build_time_seconds": null,
+                "cost": {
+                    "ligas_metalicas": 1413,
+                    "componentes_eletronicos": 404
+                }
+            },
+            {
+                "level": 8,
+                "build_time_seconds": null,
+                "cost": {
+                    "ligas_metalicas": 2331,
+                    "componentes_eletronicos": 666
+                }
+            },
+            {
+                "level": 9,
+                "build_time_seconds": null,
+                "cost": {
+                    "ligas_metalicas": 3846,
+                    "componentes_eletronicos": 1099
+                }
+            },
+            {
+                "level": 10,
+                "build_time_seconds": null,
+                "cost": {
+                    "ligas_metalicas": 6345,
+                    "componentes_eletronicos": 1813
+                }
+            }
+        ]
+    },
+    {
+        "type": "deposito_de_zona_neutra",
+        "nome": "Depósito de Zona Neutra",
+        "max_level": 10,
+        "levels": [
+            {
+                "level": 1,
+                "build_time_seconds": null,
+                "cost": {
+                    "ligas_metalicas": 100,
+                    "compostos_quimicos": 30
+                }
+            },
+            {
+                "level": 2,
+                "build_time_seconds": null,
+                "cost": {
+                    "ligas_metalicas": 165,
+                    "compostos_quimicos": 50
+                }
+            },
+            {
+                "level": 3,
+                "build_time_seconds": null,
+                "cost": {
+                    "ligas_metalicas": 272,
+                    "compostos_quimicos": 82
+                }
+            },
+            {
+                "level": 4,
+                "build_time_seconds": null,
+                "cost": {
+                    "ligas_metalicas": 449,
+                    "compostos_quimicos": 135
+                }
+            },
+            {
+                "level": 5,
+                "build_time_seconds": null,
+                "cost": {
+                    "ligas_metalicas": 741,
+                    "compostos_quimicos": 222
+                }
+            },
+            {
+                "level": 6,
+                "build_time_seconds": null,
+                "cost": {
+                    "ligas_metalicas": 1223,
+                    "compostos_quimicos": 367
+                }
+            },
+            {
+                "level": 7,
+                "build_time_seconds": null,
+                "cost": {
+                    "ligas_metalicas": 2018,
+                    "compostos_quimicos": 605
+                }
+            },
+            {
+                "level": 8,
+                "build_time_seconds": null,
+                "cost": {
+                    "ligas_metalicas": 3330,
+                    "compostos_quimicos": 999
+                }
+            },
+            {
+                "level": 9,
+                "build_time_seconds": null,
+                "cost": {
+                    "ligas_metalicas": 5494,
+                    "compostos_quimicos": 1648
+                }
+            },
+            {
+                "level": 10,
+                "build_time_seconds": null,
+                "cost": {
+                    "ligas_metalicas": 9065,
+                    "compostos_quimicos": 2719
+                }
+            }
+        ]
+    },
+    {
+        "type": "destilaria",
+        "nome": "Destilaria",
+        "max_level": 10,
+        "levels": [
+            {
+                "level": 1,
+                "build_time_seconds": null,
+                "cost": {
+                    "ligas_metalicas": 40,
+                    "compostos_quimicos": 15
+                }
+            },
+            {
+                "level": 2,
+                "build_time_seconds": null,
+                "cost": {
+                    "ligas_metalicas": 66,
+                    "compostos_quimicos": 25
+                }
+            },
+            {
+                "level": 3,
+                "build_time_seconds": null,
+                "cost": {
+                    "ligas_metalicas": 109,
+                    "compostos_quimicos": 41
+                }
+            },
+            {
+                "level": 4,
+                "build_time_seconds": null,
+                "cost": {
+                    "ligas_metalicas": 180,
+                    "compostos_quimicos": 67
+                }
+            },
+            {
+                "level": 5,
+                "build_time_seconds": null,
+                "cost": {
+                    "ligas_metalicas": 296,
+                    "compostos_quimicos": 111
+                }
+            },
+            {
+                "level": 6,
+                "build_time_seconds": null,
+                "cost": {
+                    "ligas_metalicas": 489,
+                    "compostos_quimicos": 183
+                }
+            },
+            {
+                "level": 7,
+                "build_time_seconds": null,
+                "cost": {
+                    "ligas_metalicas": 807,
+                    "compostos_quimicos": 303
+                }
+            },
+            {
+                "level": 8,
+                "build_time_seconds": null,
+                "cost": {
+                    "ligas_metalicas": 1332,
+                    "compostos_quimicos": 499
+                }
+            },
+            {
+                "level": 9,
+                "build_time_seconds": null,
+                "cost": {
+                    "ligas_metalicas": 2198,
+                    "compostos_quimicos": 824
+                }
+            },
+            {
+                "level": 10,
+                "build_time_seconds": null,
+                "cost": {
+                    "ligas_metalicas": 3626,
+                    "compostos_quimicos": 1360
+                }
+            }
+        ]
+    },
+    {
+        "type": "furgao_de_comercio",
+        "nome": "Furgão de Comércio",
+        "max_level": 5,
+        "levels": [
+            {
+                "level": 1,
+                "build_time_seconds": null,
+                "cost": {
+                    "ligas_metalicas": 40,
+                    "componentes_eletronicos": 10,
+                    "metal_bruto": 7
+                }
+            },
+            {
+                "level": 2,
+                "build_time_seconds": null,
+                "cost": {
+                    "ligas_metalicas": 66,
+                    "componentes_eletronicos": 17,
+                    "metal_bruto": 12
+                }
+            },
+            {
+                "level": 3,
+                "build_time_seconds": null,
+                "cost": {
+                    "ligas_metalicas": 109,
+                    "componentes_eletronicos": 27,
+                    "metal_bruto": 19
+                }
+            },
+            {
+                "level": 4,
+                "build_time_seconds": null,
+                "cost": {
+                    "ligas_metalicas": 180,
+                    "componentes_eletronicos": 45,
+                    "metal_bruto": 31
+                }
+            },
+            {
+                "level": 5,
+                "build_time_seconds": null,
+                "cost": {
+                    "ligas_metalicas": 296,
+                    "componentes_eletronicos": 74,
+                    "metal_bruto": 52
+                }
+            }
+        ]
+    },
+    {
+        "type": "caminhao_de_carga",
+        "nome": "Caminhão de Carga",
+        "max_level": 5,
+        "levels": [
+            {
+                "level": 1,
+                "build_time_seconds": null,
+                "cost": {
+                    "ligas_metalicas": 90,
+                    "componentes_eletronicos": 25,
+                    "metal_bruto": 16
+                }
+            },
+            {
+                "level": 2,
+                "build_time_seconds": null,
+                "cost": {
+                    "ligas_metalicas": 149,
+                    "componentes_eletronicos": 41,
+                    "metal_bruto": 26
+                }
+            },
+            {
+                "level": 3,
+                "build_time_seconds": null,
+                "cost": {
+                    "ligas_metalicas": 245,
+                    "componentes_eletronicos": 68,
+                    "metal_bruto": 44
+                }
+            },
+            {
+                "level": 4,
+                "build_time_seconds": null,
+                "cost": {
+                    "ligas_metalicas": 404,
+                    "componentes_eletronicos": 112,
+                    "metal_bruto": 72
+                }
+            },
+            {
+                "level": 5,
+                "build_time_seconds": null,
+                "cost": {
+                    "ligas_metalicas": 667,
+                    "componentes_eletronicos": 185,
+                    "metal_bruto": 119
+                }
+            }
+        ]
+    },
+    {
+        "type": "drone_de_exploracao",
+        "nome": "Drone de Exploração",
+        "max_level": 5,
+        "levels": [
+            {
+                "level": 1,
+                "build_time_seconds": null,
+                "cost": {
+                    "componentes_eletronicos": 50,
+                    "compostos_quimicos": 15,
+                    "metal_bruto": 4
+                }
+            },
+            {
+                "level": 2,
+                "build_time_seconds": null,
+                "cost": {
+                    "componentes_eletronicos": 83,
+                    "compostos_quimicos": 25,
+                    "metal_bruto": 7
+                }
+            },
+            {
+                "level": 3,
+                "build_time_seconds": null,
+                "cost": {
+                    "componentes_eletronicos": 136,
+                    "compostos_quimicos": 41,
+                    "metal_bruto": 11
+                }
+            },
+            {
+                "level": 4,
+                "build_time_seconds": null,
+                "cost": {
+                    "componentes_eletronicos": 225,
+                    "compostos_quimicos": 67,
+                    "metal_bruto": 18
+                }
+            },
+            {
+                "level": 5,
+                "build_time_seconds": null,
+                "cost": {
+                    "componentes_eletronicos": 371,
+                    "compostos_quimicos": 111,
+                    "metal_bruto": 30
+                }
+            }
+        ]
+    },
+    {
+        "type": "robo_minerador",
+        "nome": "Robô Minerador",
+        "max_level": 5,
+        "levels": [
+            {
+                "level": 1,
+                "build_time_seconds": null,
+                "cost": {
+                    "ligas_metalicas": 60,
+                    "componentes_eletronicos": 20,
+                    "metal_bruto": 11
+                }
+            },
+            {
+                "level": 2,
+                "build_time_seconds": null,
+                "cost": {
+                    "ligas_metalicas": 99,
+                    "componentes_eletronicos": 33,
+                    "metal_bruto": 18
+                }
+            },
+            {
+                "level": 3,
+                "build_time_seconds": null,
+                "cost": {
+                    "ligas_metalicas": 163,
+                    "componentes_eletronicos": 54,
+                    "metal_bruto": 30
+                }
+            },
+            {
+                "level": 4,
+                "build_time_seconds": null,
+                "cost": {
+                    "ligas_metalicas": 270,
+                    "componentes_eletronicos": 90,
+                    "metal_bruto": 49
+                }
+            },
+            {
+                "level": 5,
+                "build_time_seconds": null,
+                "cost": {
+                    "ligas_metalicas": 445,
+                    "componentes_eletronicos": 148,
+                    "metal_bruto": 82
+                }
+            }
+        ]
+    },
+    {
+        "type": "infiltrador",
+        "nome": "Infiltrador",
+        "max_level": 5,
+        "levels": [
+            {
+                "level": 1,
+                "build_time_seconds": null,
+                "cost": {
+                    "ligas_metalicas": 80,
+                    "componentes_eletronicos": 40,
+                    "compostos_quimicos": 20,
+                    "metal_bruto": 14
+                }
+            },
+            {
+                "level": 2,
+                "build_time_seconds": null,
+                "cost": {
+                    "ligas_metalicas": 132,
+                    "componentes_eletronicos": 66,
+                    "compostos_quimicos": 33,
+                    "metal_bruto": 23
+                }
+            },
+            {
+                "level": 3,
+                "build_time_seconds": null,
+                "cost": {
+                    "ligas_metalicas": 218,
+                    "componentes_eletronicos": 109,
+                    "compostos_quimicos": 54,
+                    "metal_bruto": 38
+                }
+            },
+            {
+                "level": 4,
+                "build_time_seconds": null,
+                "cost": {
+                    "ligas_metalicas": 359,
+                    "componentes_eletronicos": 180,
+                    "compostos_quimicos": 90,
+                    "metal_bruto": 63
+                }
+            },
+            {
+                "level": 5,
+                "build_time_seconds": null,
+                "cost": {
+                    "ligas_metalicas": 593,
+                    "componentes_eletronicos": 296,
+                    "compostos_quimicos": 148,
+                    "metal_bruto": 104
+                }
+            }
+        ]
+    },
+    {
+        "type": "predador",
+        "nome": "Predador",
+        "max_level": 5,
+        "levels": [
+            {
+                "level": 1,
+                "build_time_seconds": null,
+                "cost": {
+                    "ligas_metalicas": 70,
+                    "componentes_eletronicos": 35,
+                    "compostos_quimicos": 15,
+                    "metal_bruto": 13
+                }
+            },
+            {
+                "level": 2,
+                "build_time_seconds": null,
+                "cost": {
+                    "ligas_metalicas": 116,
+                    "componentes_eletronicos": 58,
+                    "compostos_quimicos": 25,
+                    "metal_bruto": 21
+                }
+            },
+            {
+                "level": 3,
+                "build_time_seconds": null,
+                "cost": {
+                    "ligas_metalicas": 191,
+                    "componentes_eletronicos": 95,
+                    "compostos_quimicos": 41,
+                    "metal_bruto": 35
+                }
+            },
+            {
+                "level": 4,
+                "build_time_seconds": null,
+                "cost": {
+                    "ligas_metalicas": 314,
+                    "componentes_eletronicos": 157,
+                    "compostos_quimicos": 67,
+                    "metal_bruto": 58
+                }
+            },
+            {
+                "level": 5,
+                "build_time_seconds": null,
+                "cost": {
+                    "ligas_metalicas": 519,
+                    "componentes_eletronicos": 259,
+                    "compostos_quimicos": 111,
+                    "metal_bruto": 96
+                }
+            }
+        ]
+    },
+    {
+        "type": "nave_de_transporte_planetaria",
+        "nome": "Nave de Transporte Planetária",
+        "max_level": 5,
+        "levels": [
+            {
+                "level": 1,
+                "build_time_seconds": null,
+                "cost": {
+                    "ligas_metalicas": 250,
+                    "componentes_eletronicos": 120,
+                    "metal_bruto": 45
+                }
+            },
+            {
+                "level": 2,
+                "build_time_seconds": null,
+                "cost": {
+                    "ligas_metalicas": 413,
+                    "componentes_eletronicos": 198,
+                    "metal_bruto": 74
+                }
+            },
+            {
+                "level": 3,
+                "build_time_seconds": null,
+                "cost": {
+                    "ligas_metalicas": 681,
+                    "componentes_eletronicos": 327,
+                    "metal_bruto": 123
+                }
+            },
+            {
+                "level": 4,
+                "build_time_seconds": null,
+                "cost": {
+                    "ligas_metalicas": 1123,
+                    "componentes_eletronicos": 539,
+                    "metal_bruto": 202
+                }
+            },
+            {
+                "level": 5,
+                "build_time_seconds": null,
+                "cost": {
+                    "ligas_metalicas": 1853,
+                    "componentes_eletronicos": 889,
+                    "metal_bruto": 334
+                }
+            }
+        ]
+    },
+    {
+        "type": "muralha_de_perimetro",
+        "nome": "Muralha de Perímetro",
+        "max_level": 5,
+        "levels": [
+            {
+                "level": 1,
+                "build_time_seconds": 14400,
+                "cost": {
+                    "metal_bruto": 400,
+                    "ligas_metalicas": 100
+                }
+            },
+            {
+                "level": 2,
+                "build_time_seconds": 21600,
+                "cost": {
+                    "metal_bruto": 660,
+                    "ligas_metalicas": 165
+                }
+            },
+            {
+                "level": 3,
+                "build_time_seconds": 32400,
+                "cost": {
+                    "metal_bruto": 1089,
+                    "ligas_metalicas": 272
+                }
+            },
+            {
+                "level": 4,
+                "build_time_seconds": 48600,
+                "cost": {
+                    "metal_bruto": 1797,
+                    "ligas_metalicas": 449
+                }
+            },
+            {
+                "level": 5,
+                "build_time_seconds": 72900,
+                "cost": {
+                    "metal_bruto": 2965,
+                    "ligas_metalicas": 741
+                }
+            }
+        ]
+    },
+    {
+        "type": "torre_de_vigia",
+        "nome": "Torre de Vigia",
+        "max_level": 5,
+        "levels": [
+            {
+                "level": 1,
+                "build_time_seconds": 21600,
+                "cost": {
+                    "metal_bruto": 300,
+                    "ligas_metalicas": 150,
+                    "componentes_eletronicos": 30
+                }
+            },
+            {
+                "level": 2,
+                "build_time_seconds": 32400,
+                "cost": {
+                    "metal_bruto": 495,
+                    "ligas_metalicas": 248,
+                    "componentes_eletronicos": 50
+                }
+            },
+            {
+                "level": 3,
+                "build_time_seconds": 48600,
+                "cost": {
+                    "metal_bruto": 817,
+                    "ligas_metalicas": 408,
+                    "componentes_eletronicos": 82
+                }
+            },
+            {
+                "level": 4,
+                "build_time_seconds": 72900,
+                "cost": {
+                    "metal_bruto": 1348,
+                    "ligas_metalicas": 674,
+                    "componentes_eletronicos": 135
+                }
+            },
+            {
+                "level": 5,
+                "build_time_seconds": 109320,
+                "cost": {
+                    "metal_bruto": 2224,
+                    "ligas_metalicas": 1112,
+                    "componentes_eletronicos": 222
+                }
+            }
+        ]
+    },
+    {
+        "type": "bastiao",
+        "nome": "Bastião",
+        "max_level": 5,
+        "levels": [
+            {
+                "level": 1,
+                "build_time_seconds": 43200,
+                "cost": {
+                    "metal_bruto": 1200,
+                    "ligas_metalicas": 400,
+                    "componentes_eletronicos": 100
+                }
+            },
+            {
+                "level": 2,
+                "build_time_seconds": 64800,
+                "cost": {
+                    "metal_bruto": 1980,
+                    "ligas_metalicas": 660,
+                    "componentes_eletronicos": 165
+                }
+            },
+            {
+                "level": 3,
+                "build_time_seconds": 97200,
+                "cost": {
+                    "metal_bruto": 3267,
+                    "ligas_metalicas": 1089,
+                    "componentes_eletronicos": 272
+                }
+            },
+            {
+                "level": 4,
+                "build_time_seconds": 145800,
+                "cost": {
+                    "metal_bruto": 5391,
+                    "ligas_metalicas": 1797,
+                    "componentes_eletronicos": 449
+                }
+            },
+            {
+                "level": 5,
+                "build_time_seconds": 218700,
+                "cost": {
+                    "metal_bruto": 8894,
+                    "ligas_metalicas": 2965,
+                    "componentes_eletronicos": 741
+                }
+            }
+        ]
+    },
+    {
+        "type": "abrigo_de_robos",
+        "nome": "Abrigo de Robôs",
+        "max_level": 5,
+        "levels": [
+            {
+                "level": 1,
+                "build_time_seconds": 21600,
+                "cost": {
+                    "metal_bruto": 500,
+                    "ligas_metalicas": 200
+                }
+            },
+            {
+                "level": 2,
+                "build_time_seconds": 32400,
+                "cost": {
+                    "metal_bruto": 825,
+                    "ligas_metalicas": 330
+                }
+            },
+            {
+                "level": 3,
+                "build_time_seconds": 48600,
+                "cost": {
+                    "metal_bruto": 1361,
+                    "ligas_metalicas": 545
+                }
+            },
+            {
+                "level": 4,
+                "build_time_seconds": 72900,
+                "cost": {
+                    "metal_bruto": 2246,
+                    "ligas_metalicas": 898
+                }
+            },
+            {
+                "level": 5,
+                "build_time_seconds": 109320,
+                "cost": {
+                    "metal_bruto": 3706,
+                    "ligas_metalicas": 1482
+                }
+            }
+        ]
+    },
+    {
+        "type": "sentinela",
+        "nome": "Sentinela",
+        "max_level": 5,
+        "levels": [
+            {
+                "level": 1,
+                "build_time_seconds": 0,
+                "cost": {
+                    "ligas_metalicas": 100,
+                    "componentes_eletronicos": 50,
+                    "metal_bruto": 20,
+                    "niobio_alienigena": 3
+                }
+            },
+            {
+                "level": 2,
+                "build_time_seconds": 0,
+                "cost": {
+                    "ligas_metalicas": 165,
+                    "componentes_eletronicos": 83,
+                    "metal_bruto": 33,
+                    "niobio_alienigena": 5
+                }
+            },
+            {
+                "level": 3,
+                "build_time_seconds": 0,
+                "cost": {
+                    "ligas_metalicas": 272,
+                    "componentes_eletronicos": 136,
+                    "metal_bruto": 54,
+                    "niobio_alienigena": 8
+                }
+            },
+            {
+                "level": 4,
+                "build_time_seconds": 0,
+                "cost": {
+                    "ligas_metalicas": 449,
+                    "componentes_eletronicos": 225,
+                    "metal_bruto": 90,
+                    "niobio_alienigena": 13
+                }
+            },
+            {
+                "level": 5,
+                "build_time_seconds": 0,
+                "cost": {
+                    "ligas_metalicas": 741,
+                    "componentes_eletronicos": 371,
+                    "metal_bruto": 148,
+                    "niobio_alienigena": 22
+                }
+            }
+        ]
+    }
 ]

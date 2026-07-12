@@ -42,7 +42,7 @@ class NeutralZoneController extends Controller
                 'deposit_cap' => $z->capacidadeDeposito(),
                 'extraction_per_hour' => $z->extracaoPorHora(),
                 'productive_at' => $z->productive_at,
-                'garrison' => $z->garrison,
+                'garrison' => $z->guarnicao(),
             ]);
 
         return response()->json(['zones' => $zonas]);
@@ -64,7 +64,7 @@ class NeutralZoneController extends Controller
             'y' => $zona->y,
             'mineral' => $zona->mineral,
             'status' => $zona->status,
-            'garrison' => $zona->garrison,
+            'garrison' => $zona->guarnicao(),
             'productive_at' => $zona->productive_at,
             'protected_until' => $zona->protected_until,
         ], 201);

@@ -37,7 +37,7 @@ class ExtrairZonasNeutrasTest extends TestCase
             'x' => 50, 'y' => 50, 'district' => 'nordeste', 'mineral' => 'metal_bruto',
             'level' => 1, 'status' => 'protegida',
             'owner_colony_id' => $this->colonia()->id,
-            'command_post_level' => 1, 'garrison' => 20,
+            'command_post_level' => 1,
             'productive_at' => $productiveAt, 'last_extraction_at' => $productiveAt,
             'deposit_level' => $depositLevel, 'deposit_amount' => 0,
         ]);

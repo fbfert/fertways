@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
  * Uma zona neutra (GDD §07, §24.4; docs/decisoes.md D-51 e D-52).
@@ -50,8 +51,10 @@ class NeutralZone extends Model
     protected $fillable = [
         'x', 'y', 'district', 'mineral', 'level',
         'owner_colony_id', 'status', 'occupied_at', 'protected_until',
-        'command_post_level', 'garrison', 'productive_at',
+        'command_post_level', 'productive_at',
         'deposit_level', 'deposit_amount', 'last_extraction_at',
+        'wall_level', 'watchtower_level', 'bastion_level', 'shelter_level',
+        'sieged_at', 'modules_offline',
     ];
 
     protected $casts = [
@@ -59,14 +62,61 @@ class NeutralZone extends Model
         'y' => 'integer',
         'level' => 'integer',
         'command_post_level' => 'integer',
-        'garrison' => 'integer',
         'deposit_level' => 'integer',
         'deposit_amount' => 'integer',
+        'wall_level' => 'integer',
+        'watchtower_level' => 'integer',
+        'bastion_level' => 'integer',
+        'shelter_level' => 'integer',
         'occupied_at' => 'datetime',
         'protected_until' => 'datetime',
         'productive_at' => 'datetime',
         'last_extraction_at' => 'datetime',
+        'sieged_at' => 'datetime',
+        'modules_offline' => 'array',
     ];
+
+    /**
+     * As unidades guarnecendo a zona. Robôs Mineradores e Sentinelas.
+     *
+     * Até o D-66 a guarnição era um `int` chamado `garrison`. Um inteiro não sabe quem está
+     * ferido, e o §27.6 manda os sobreviventes voltarem com HP reduzido e os de HP zero
+     * morrerem de vez — então ele morreu e virou linhas de `units`.
+     */
+    public function units(): HasMany
+    {
+        return $this->hasMany(Unit::class, 'zone_id');
+    }
+
+    /**
+     * Quantos Robôs Mineradores guarnecem a zona hoje.
+     *
+     * A API continua publicando isto como `garrison`: o contrato com o frontend não mudou, só
+     * a origem do número.
+     */
+    public function guarnicao(): int
+    {
+        return $this->units()
+            ->where('type', 'robo_minerador')
+            ->where('hp_bps', '>', 0)
+            ->count();
+    }
+
+    /** A zona está cercada? O cerco fecha a entrada e a saída de carga (§28.10, D-66). */
+    public function cercada(): bool
+    {
+        return $this->sieged_at !== null;
+    }
+
+    /**
+     * O depósito para de aceitar 30 minutos depois de o cerco começar — as 3 rodadas do §28.10.
+     * A extração continua correndo e se perde: "não há onde armazenar".
+     */
+    public function depositoBloqueado(): bool
+    {
+        return $this->sieged_at !== null
+            && $this->sieged_at->copy()->addMinutes(30)->isPast();
+    }
 
     public function owner(): BelongsTo
     {
