@@ -9,6 +9,7 @@ import { Login } from './ui/Login'
 import { Mapa } from './ui/Mapa'
 import { Marca } from './ui/Marca'
 import { Mercado } from './ui/Mercado'
+import { Quartel } from './ui/Quartel'
 import type { ContextoDoMercado } from './ui/Mercado'
 import { Ministerio } from './ui/Ministerio'
 import { Detalhe, FilaDeObras, Recursos, SlotVazio } from './ui/Hud'
@@ -41,6 +42,9 @@ export default function App() {
   const [erro, setErro] = useState<string | null>(null)
   const [semColonia, setSemColonia] = useState(false)
   const [mercadoAberto, setMercadoAberto] = useState(false)
+  // O Quartel é a porta da guerra (D-66): fabrica as unidades e mostra as batalhas em curso —
+  // inclusive as em que se está DEFENDENDO, que é o que o §27.5 exige para o defensor poder socorrer.
+  const [quartelAberto, setQuartelAberto] = useState(false)
   // De qual mercado o colono entrou (D-65). O Mercado Local é a construção da colônia; o Mercado
   // Central é a Capital. São duas telas, e não mais duas portas para o mesmo salão.
   const [mercado, setMercado] = useState<ContextoDoMercado>('local')
@@ -150,10 +154,18 @@ export default function App() {
     }
   }
 
-  /** A porta de uma construção: a Central de Transportes leva à Frota, o Mercado Local ao Mercado. */
+  /**
+   * A porta de uma construção: a Central de Transportes leva à Frota, o Mercado Local ao Mercado,
+   * o Quartel à guerra.
+   */
   function abrirPorta(tipo: string) {
     if (tipo === 'central_de_transportes') {
       setFrotaAberta(true)
+      return
+    }
+
+    if (tipo === 'quartel') {
+      setQuartelAberto(true)
       return
     }
 
@@ -237,6 +249,8 @@ export default function App() {
       )}
 
       {colonia && frotaAberta && <Frota aoFechar={() => setFrotaAberta(false)} />}
+
+      {colonia && quartelAberto && <Quartel aoFechar={() => setQuartelAberto(false)} />}
 
       {/* A Capital só lê: abrir/fechar não muda estoque nem saldo. Mercado Central e Ministério
           (slots 6 e 7) são instituições do governo e se alcançam por aqui — não por construção. */}

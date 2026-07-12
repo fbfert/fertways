@@ -1,6 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { api, ApiError } from '../api/client'
-import type { ColoniaVizinha, Diretorio, Veiculo, ZonaNeutra } from '../api/client'
+import type {
+  ColoniaVizinha,
+  Diretorio,
+  EstadoDaGuerra,
+  TipoDeAtaque,
+  Veiculo,
+  ZonaNeutra,
+} from '../api/client'
 import { CelulaSobOCursor, Faixas, Grade, Planeta, Reguas } from './Grade'
 import {
   JANELA_PADRAO,
@@ -670,6 +677,9 @@ function PainelZona({
         </div>
       )}
 
+      {/* De outro colono: atacar (§27, §28.10; D-66). É daqui que a guerra parte. */}
+      {z.owner && !z.mine && <Atacar zona={z} aoFeito={aoAgir} />}
+
       {/* Sua: estabelecendo, ou produzindo e pronta para retirar. */}
       {z.mine && !produtiva && (
         <p className="text-ink-soft/80 mt-3 text-xs">
@@ -790,4 +800,155 @@ function Legenda() {
  */
 function distancia(a: { x: number; y: number }, b: { x: number; y: number }): number {
   return Math.floor(Math.hypot(a.x - b.x, a.y - b.y) + 0.5)
+}
+
+/**
+ * O ataque a uma zona alheia (GDD §27, §28.10; docs/decisoes.md D-66).
+ *
+ * Os quatro tipos partem daqui. A tela diz o que o GDD **não** diz em lugar nenhum e sem o que o
+ * jogador não consegue decidir nada:
+ *
+ *  - **O que cada ataque leva e o que cada um ganha.** Só a Invasão toma a zona. O Cerco leva 30%
+ *    e não conquista; a Sabotagem e a Apreensão não levam recurso nenhum — desligam uma estrutura.
+ *  - **Que só o EXPOSTO é saqueável.** O que cabe no Depósito está protegido, e uma zona bem
+ *    cuidada não tem butim nenhum. Atacá-la é gastar exército de graça.
+ *  - **Que Infiltrador e Predador morrem se forem vistos.** Não é batalha, é aposta.
+ */
+function Atacar({ zona, aoFeito }: { zona: ZonaNeutra; aoFeito: () => Promise<void> | void }) {
+  const [guerra, setGuerra] = useState<EstadoDaGuerra | null>(null)
+  const [tipo, setTipo] = useState<TipoDeAtaque>('invasao')
+  const [quantas, setQuantas] = useState(1)
+  const [alvo, setAlvo] = useState('deposito')
+  const [erro, setErro] = useState<string | null>(null)
+  const [enviando, setEnviando] = useState(false)
+  const [aberto, setAberto] = useState(false)
+
+  useEffect(() => {
+    if (aberto && !guerra) void api.guerra().then(setGuerra).catch(() => setGuerra(null))
+  }, [aberto, guerra])
+
+  const emCasa = (t: string) => (guerra?.unidades ?? []).filter((u) => u.type === t)
+
+  // Sentinelas para invadir e cercar; uma unidade só para infiltrar ou apreender (§28.10).
+  const exercito = tipo === 'sabotagem' ? emCasa('infiltrador')
+    : tipo === 'apreensao' ? emCasa('predador')
+    : emCasa('sentinela')
+
+  const sozinha = tipo === 'sabotagem' || tipo === 'apreensao'
+  const usadas = sozinha ? 1 : Math.min(quantas, exercito.length)
+  const forca = exercito.slice(0, usadas).reduce((s, u) => s + u.ataque, 0)
+
+  async function despachar() {
+    setEnviando(true)
+    setErro(null)
+    try {
+      await api.atacar(
+        zona.id,
+        tipo,
+        exercito.slice(0, usadas).map((u) => u.id),
+        sozinha ? alvo : undefined,
+      )
+      await aoFeito()
+      setAberto(false)
+    } catch (e) {
+      setErro(e instanceof ApiError ? e.message : 'Falha ao despachar o ataque.')
+    } finally {
+      setEnviando(false)
+    }
+  }
+
+  if (!aberto) {
+    return (
+      <button
+        onClick={() => setAberto(true)}
+        data-abrir-ataque
+        className="border-rust text-rust hover:bg-rust hover:text-sand-light mt-3 w-full border py-2 text-sm font-bold"
+      >
+        Atacar esta zona
+      </button>
+    )
+  }
+
+  return (
+    <div className="border-rust/30 mt-3 border-t pt-3" data-painel-ataque>
+      <label className="text-ink eyebrow block">Tipo de ataque</label>
+      <select
+        value={tipo}
+        onChange={(e) => setTipo(e.target.value as TipoDeAtaque)}
+        data-tipo-ataque
+        className="border-rust/25 bg-sand-light focus:border-rust mt-1 w-full border px-2 py-1 text-sm outline-none"
+      >
+        <option value="invasao">Invasão — toma a zona e saqueia 50% do exposto</option>
+        <option value="cerco">Cerco — fecha a zona 48 h e leva 30%. Não conquista</option>
+        <option value="sabotagem">Sabotagem — desliga uma estrutura. Um Infiltrador</option>
+        <option value="apreensao">Apreensão — leva um módulo. Um Predador</option>
+      </select>
+
+      {sozinha && (
+        <>
+          <label className="text-ink eyebrow mt-2 block">Estrutura-alvo</label>
+          <select
+            value={alvo}
+            onChange={(e) => setAlvo(e.target.value)}
+            data-alvo
+            className="border-rust/25 bg-sand-light focus:border-rust mt-1 w-full border px-2 py-1 text-sm outline-none"
+          >
+            {['deposito', 'muralha', 'torre_de_vigia', 'bastiao', 'abrigo_de_robos', 'posto_de_comando'].map(
+              (a) => (
+                <option key={a} value={a}>
+                  {a.replace(/_/g, ' ')}
+                </option>
+              ),
+            )}
+          </select>
+          <p className="text-ink-soft/80 mt-1 text-xs">
+            Se for detectado, ele morre — não é batalha, é aposta.
+          </p>
+        </>
+      )}
+
+      {!sozinha && (
+        <>
+          <label className="text-ink eyebrow mt-2 block">
+            Sentinelas ({exercito.length} no pátio)
+          </label>
+          <input
+            type="number"
+            min={1}
+            max={Math.max(1, exercito.length)}
+            value={quantas}
+            onChange={(e) => setQuantas(Math.max(1, Number(e.target.value)))}
+            data-quantas-sentinelas
+            className="border-rust/25 bg-sand-light focus:border-rust mt-1 w-full border px-2 py-1 text-sm outline-none"
+          />
+          <p className="text-ink-soft/80 mt-1 text-xs">
+            Força ofensiva: <strong>{forca}</strong>. A marcha de combate é 1,3× mais lenta que a
+            civil, e o defensor vê você chegando.
+          </p>
+        </>
+      )}
+
+      {erro && <p className="text-rust mt-2 text-sm">{erro}</p>}
+
+      <div className="mt-3 flex gap-2">
+        <button
+          onClick={() => void despachar()}
+          disabled={enviando || exercito.length === 0}
+          data-despachar-ataque
+          className="bg-rust text-sand-light hover:bg-rust-bright flex-1 py-2 text-sm font-bold disabled:opacity-40"
+        >
+          {enviando ? 'Marchando…' : exercito.length === 0 ? 'Sem unidades no pátio' : 'Despachar'}
+        </button>
+        <button onClick={() => setAberto(false)} className="text-ink-soft hover:text-rust px-3 text-sm">
+          Cancelar
+        </button>
+      </div>
+
+      {exercito.length === 0 && (
+        <p className="text-ink-soft/80 mt-2 text-xs">
+          Fabrique no Quartel. A Sentinela exige Nióbio, e só o governo o vende.
+        </p>
+      )}
+    </div>
+  )
 }

@@ -550,41 +550,45 @@ Espaçoporto). **Nenhum número ali foi inventado, e nenhum será até que você
 
 **Quando o v36 estiver assentado, o D-47 vira história:** não há mais precedência a aplicar.
 
-## ⚠️ O trabalho em curso: a GUERRA (D-66) — meio construída, verde, **não publicada**
+## A GUERRA (D-66) — completa, verde, **ainda não publicada**
 
-**Estado em 2026-07-12.** As arbitragens estão **todas fechadas** (D-66 em `docs/decisoes.md` — leia-o
-antes de tocar em qualquer coisa). O código está **verde e comitado**, e **deliberadamente não
-publicado**: a guerra ainda não é jogável, e publicar meia guerra não serve a ninguém.
+**Estado em 2026-07-12.** A Fatia 2 do D-52 está **construída de ponta a ponta** e **verde**. As
+arbitragens estão todas fechadas (**D-66** em `docs/decisoes.md` — leia-o antes de tocar em qualquer
+coisa; são **oito**, e três delas nasceram de bugs do próprio GDD).
 
-> As duas árvores divergem **de propósito** desta vez. Não é o commit esquecido no vestiário — é obra
-> em andamento. Quando a fatia fechar, publica-se tudo junto.
+**Ainda não publicada.** As duas árvores divergem **de propósito**: não é o commit esquecido no
+vestiário — é uma fatia que só faz sentido publicar inteira, e falta a decisão do usuário. **Quando
+for, o `deploy.sh` roda a migration sozinho e não há passo à mão** (os parâmetros da guerra têm
+default no banco, justamente para não dependerem de seeder).
 
-**Pronto e verde (345 testes):**
+**O que existe (371 testes PHP + 7 e2e verdes):**
 - **Catálogo (+5, agora 30 tabelas):** Muralha de Perímetro, Torre de Vigia, Bastião, Abrigo de Robôs
-  (bases arbitradas no D-66) e a **Sentinela** (custo publicado no §27.1).
+  (bases arbitradas) e a **Sentinela** (custo publicado no §27.1).
 - **`units` — unidades com HP.** O `garrison` int **morreu**: o §27.6 exige HP individual, e um
   contador não sabe quem está ferido. A API ainda publica `garrison`, agora contado.
-- **`war_settings`** — os bônus do §27.3 e as duas chances do §28.10, do **operador**. Os defaults
-  moram **no banco**: esquecer o seeder não pode apagar a guerra (o `transport_settings` do D-60
-  ensinou isso do jeito ruim).
-- **`combats`** — a mesa de batalha, ainda vazia.
-- **`Domain/Guerra/Forcas`** (§27.3, com o +20% offline por snapshot), **`Protegido`** (a lacuna das
-  seis menções) e **`Atacar`** (o despacho dos 4 tipos, marcha 1,3×, cooldown de 48 h).
-- **A extração deixou de parar no teto do Depósito** — e isto é o achado que mais importa desta
-  sessão. Ver abaixo.
+- **`war_settings`** — os bônus do §27.3 e as duas chances do §28.10, do **operador**, com default no
+  banco. Falta ainda expô-los no **painel de admin** (hoje só se mudam por SQL).
+- **`Domain/Guerra/`** — `Forcas` (§27.3, com o +20% offline por snapshot), `Protegido`,
+  `Atacar` (os 4 tipos, marcha 1,3×, cooldown de 48 h), **`ResolverCombates`** (a rodada de 10 min,
+  no tick), `ComprarNiobio` e `FabricarUnidade`.
+- **O Quartel enfim fabrica.** Ele estava no catálogo desde sempre e não fazia nada: **nenhuma
+  Sentinela poderia existir**. O nível dele é o teto do nível da unidade (não está no GDD — é o
+  desenho da Central de Transportes do D-60).
+- **Tela:** o **Quartel** é a porta (clique na construção), com o Nióbio, a fábrica, o exército e as
+  batalhas em curso — **inclusive as em que se está defendendo**, que é o que o §27.5 exige. O
+  **ataque** parte do painel de zona, no mapa.
+- API: `GET /war`, `GET /war/combats`, `POST /war/units`, `POST /war/niobio`, `POST /war/attack`.
 
-**O que FALTA, na ordem:**
-1. **`ResolverCombates`** — a rodada de 10 min, no tick. **É a próxima coisa a escrever.** O desenho
-   está fechado (ver a arbitragem 8 do D-66): o dano sai da força **inicial**, é constante, e a força
-   cai linearmente. A perda se aplica como fração de HP igual a todas as unidades presentes, o que
-   distribui as baixas proporcionalmente (§27.6) **e fecha a conta sozinho**: a força restante é
-   exatamente `F − dano`.
-2. Os quatro comportamentos: **invasão** (toma a zona, saqueia 50% do exposto), **cerco** (fecha a
-   zona, 48 h, 30%), **sabotagem** (60% base contra a detecção da Torre), **apreensão** (o Predador
-   contra o Abrigo).
-3. **A venda de Nióbio pelo governo** — sem ela a guerra é inalcançável (ver abaixo). O preço já está
-   no `war_settings`: 3,163 Fert$ (o de referência do §06 × 10).
-4. API (`WarController`), tela, e2e, e os parâmetros no painel de admin.
+**O que falta, e nada disso bloqueia:**
+1. **Os parâmetros da guerra no painel de admin.** Existem e valem; só não têm tela. É o mesmo padrão
+   do D-60 (lá eles têm).
+2. **e2e do Quartel.** Ele está atrás de um clique num hexágono do Phaser — **mesma razão da receita
+   da Oficina (D-54) e da demolição (D-59)**. A API é coberta em PHP.
+3. **Romper o cerco.** O §28.10 diz que o defensor manda Sentinelas às rotas externas para quebrá-lo.
+   Hoje o cerco só se rompe **esperando as 48 h e entregando os 30%**. Falta a ação do defensor.
+4. **Reforçar uma zona sob ataque.** O motor **já conta** reforços (recongela a força a cada chegada,
+   que é o que faz o §27.5 dizer que "reforços tardios podem mudar o resultado"), mas **não há rota
+   nem botão** para despachá-los. A tela até diz ao defensor que "ainda dá tempo" — e ainda não dá.
 
 ### As três coisas que esta sessão descobriu e que ninguém sabia
 

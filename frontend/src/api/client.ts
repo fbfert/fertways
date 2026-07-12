@@ -208,6 +208,47 @@ export type ZonaNeutra = {
   garrison: number
 }
 
+/** Uma unidade de combate (§27.1, §27.2; D-66). O HP decide o que ela vale: ferida, vale menos. */
+export type Unidade = {
+  id: number
+  type: 'sentinela' | 'robo_minerador' | 'infiltrador' | 'predador'
+  level: number
+  hp_pct: number
+  ataque: number
+  defesa: number
+}
+
+export type EstadoDaGuerra = {
+  quartel_nivel: number
+  unidades: Unidade[]
+  /** Nada no jogo produz Nióbio, e a Sentinela custa 3. O governo vende (D-66). */
+  niobio: { em_estoque: number; preco_fert: number }
+  bonus_defensivos: {
+    muralha_pct_por_nivel: number
+    torre_de_vigia_pct_por_nivel: number
+    bastiao_pct_por_nivel: number
+  }
+}
+
+export type TipoDeAtaque = 'invasao' | 'cerco' | 'sabotagem' | 'apreensao'
+
+export type Combate = {
+  id: number
+  tipo: TipoDeAtaque
+  status: string
+  sou_o_atacante: boolean
+  zona: { id: number; x: number; y: number }
+  rodada: number
+  chega_at: string
+  proxima_rodada_at: string | null
+  prazo_at: string | null
+  alvo: string | null
+  forca_ofensiva: number | null
+  forca_defensiva: number | null
+  /** Só o exposto é saqueável: o que cabe no Depósito está protegido (D-66). */
+  exposto: number
+}
+
 export type ItemDaFila = {
   building: string
   target_level: number
@@ -620,6 +661,40 @@ export const api = {
       `/zones/${id}/withdraw`,
       { method: 'POST', body: JSON.stringify({ vehicle_id: vehicleId, cargo }) },
     ),
+
+  // ── a guerra (§27, §28.10; D-66) ──────────────────────────────────────────────────────────────
+
+  /** O exército em casa, o Quartel, e a que preço o governo vende o Nióbio que falta. */
+  guerra: () => req<EstadoDaGuerra>('/war'),
+
+  /** As batalhas em curso — atacando E defendendo: o §27.5 quer que o defensor veja e socorra. */
+  combates: () => req<{ combats: Combate[] }>('/war/combats'),
+
+  /** Fabrica no Quartel. Instantâneo: o freio do exército é o Nióbio, não o relógio (D-66). */
+  fabricarUnidade: (type: Unidade['type'], level: number, quantidade: number) =>
+    req<{ fabricadas: number }>('/war/units', {
+      method: 'POST',
+      body: JSON.stringify({ type, level, quantidade }),
+    }),
+
+  /** Compra Nióbio do caixa do Tesouro. Se o caixa secar, não há (como o caminhão do D-60). */
+  comprarNiobio: (quantidade: number) =>
+    req<{ comprado: number }>('/war/niobio', {
+      method: 'POST',
+      body: JSON.stringify({ quantidade }),
+    }),
+
+  /** Despacha um dos quatro ataques. A marcha de combate é 1,3× mais lenta que a civil (§27.4). */
+  atacar: (
+    zoneId: number,
+    tipo: TipoDeAtaque,
+    unitIds: number[],
+    alvo?: string,
+  ) =>
+    req<{ id: number; tipo: string; status: string; chega_at: string }>('/war/attack', {
+      method: 'POST',
+      body: JSON.stringify({ zone_id: zoneId, tipo, unit_ids: unitIds, alvo: alvo ?? null }),
+    }),
 
   fundarColonia: (name: string, x: number, y: number) =>
     req<Colonia>('/colony', { method: 'POST', body: JSON.stringify({ name, x, y }) }),

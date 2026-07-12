@@ -160,7 +160,20 @@ export async function clicarNoSlotVazio(page, slot) {
  */
 export async function abrirCapital(page) {
   await (await acharPorTexto(page, 'button', /^Mapa$/)).click()
-  await esperarTexto(page, /Capital em/)
+
+  /*
+   * Espera o LOSANGO, não o texto — e a diferença já mordeu (2026-07-12, ao construir a guerra).
+   *
+   * "Capital em (0,0)" aparece no cabeçalho assim que o diretório chega. Mas o losango vive dentro
+   * do SVG, e o SVG só desenha quando a **vista** existe — e ela é calculada num `useEffect` que
+   * corre DEPOIS. Há, portanto, um instante em que o texto está na tela e o alvo do clique não
+   * está.
+   *
+   * Esperar o texto era esperar por procuração. Passava quase sempre, e quebrava quando qualquer
+   * mudança no Mapa deslocava o tempo dos renders — foi o que aconteceu ao acrescentar o painel de
+   * ataque. **Espere o que você vai clicar.**
+   */
+  await page.waitForSelector('[aria-label="Capital"]')
   await page.click('[aria-label="Capital"]')
   await assentar()
 }
