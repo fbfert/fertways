@@ -201,7 +201,7 @@ O MVP tem, funcionando e no ar em `https://fertways.tars.art.br`:
   - **Fora de escopo, de propósito:** o **Cargueiro Interplanetário** e o seu aluguel. Dependem do
     Espaçoporto e dos planetas NPC, que não existem.
 
-**334 testes PHP (2678 asserções) + 7 e2e, verdes.** O cron do tick está instalado (crontab do usuário
+**344 testes PHP (2723 asserções) + 7 e2e, verdes.** O cron do tick está instalado (crontab do usuário
 `fertways`, log em `/home/fertways/logs/fertways-tick.log`) e roda o `artisan` **da cópia de
 deploy** — o mundo avança sozinho. O tick faz: produção, upgrades, proteções, trechos de viagem,
 acordos vencidos, **casos reatribuídos, janelas de apelação fechadas e a folha do Ministério**.
@@ -239,14 +239,26 @@ compartilham o andaime de `e2e/comum.mjs` **e o mesmo banco efêmero**, então *
 > (Runtime.getProperties): Target closed`. Verde nas outras três. Se reprovar assim, rode de novo
 > antes de investigar — mas se virar hábito, é bug de verdade.
 
-**Publicado no GitHub e no ar.** O último deploy é de **2026-07-12**, no commit `d29b981` — **a Capital
-virou lugar e as cenas ganharam zoom (D-63)**. **Só frontend: sem migration e sem passo à mão.**
+**Publicado no GitHub e no ar.** O último deploy é de **2026-07-12**, no commit `b43586c` — **os dois
+mercados, a carroceria com vários recursos e o Pátio da Capital (D-65)**, e ele **levou junto o D-64**
+(a grade do mapa), que estava comitado havia um dia e nunca fora publicado. A migration
+`patio_da_capital` (quatro colunas em `vehicles`) rodou sozinha. **Nenhum passo à mão** — a tarifa do
+Pátio é constante de código, não linha de banco, então não há seeder a esquecer.
 
-> Conferido: o bundle no ar é **byte-a-byte** o mesmo que as 7 suítes e2e exercitaram. Não se fez
-> login em produção para "olhar" — isso deixaria um token de teste no banco, e a regra é não escrever
-> em produção para verificar (ver a lição de 2026-07-10).
+> ⚠️ **Como o D-64 ficou esquecido:** comitou-se e empurrou-se sem publicar, e a página não anotou a
+> pendência. **Um commit em `main` que não está na árvore de deploy não é visível em lugar nenhum** —
+> o site não muda, os testes passam, e nada reclama. Confira sempre `git log -1` nas **duas** árvores
+> (está na Verificação rápida); se divergirem, há coisa pronta parada no vestiário.
 
-Antes dele, `bfd334f` — **o painel de administração com auditoria, CRUD e papéis (D-61)**, mais o
+> Conferido por leitura depois do deploy: a migration registrada (lote 16), as quatro colunas
+> (`local`, `parked_at`, `patio_cobrado_ate`, `return_distance_slots`) no `fertwaysbd`, os **10
+> veículos de produção em casa** (`local=colonia`, nenhum no Pátio — o certo: ninguém o usou ainda), as
+> tabelas semeadas ainda cheias, e o bundle no ar igual ao recém-compilado. **Não se fez login em
+> produção para "olhar"** — isso deixaria um token de teste no banco (lição de 2026-07-10).
+
+Antes dele, `cf75925` (D-64) e `d29b981` (D-63), que subiram juntos neste mesmo deploy.
+
+Antes deles, `bfd334f` — **o painel de administração com auditoria, CRUD e papéis (D-61)**, mais o
 **GDD v36** (D-62, que é só documento). A migration `auditoria_papeis_e_suspensao` rodou sozinha,
 exercitada antes no `fertwaysdev` nos dois sentidos. **Nenhum passo à mão.**
 
@@ -433,7 +445,7 @@ As **4 colônias de produção foram realocadas** para slots de founder ((0,1),(
 `artisan fertways:realocar-founders` — comando guardado por veículos ociosos, útil de novo se um dia
 houver que remanejar.
 
-## Os dois mercados e o Pátio da Capital (D-65) — **feito** (2026-07-12)
+## Os dois mercados e o Pátio da Capital (D-65) — **no ar** (2026-07-12)
 
 **O Mercado Local virou tela própria** (o botão da construção agora diz "Abrir o Mercado"): envia
 carga ao depósito e a outros colonos, oferta a colonos e vê as ofertas deles. **O Mercado Central**
@@ -460,7 +472,7 @@ carga não coube no teto do depósito, o veículo **volta na hora** com a sobra,
 `Domain/Capital/Patio.php` cobra a hora no tick e reboca. A tarifa fecha a lacuna que o D-63 deixou
 aberta: o GDD publica "cobrança por hora" no slot 6 e nunca o preço.
 
-## A grade do mapa (D-64) — **feito** (2026-07-11)
+## A grade do mapa (D-64) — **no ar** (2026-07-12, junto com o D-65)
 
 O mapa **abre em 15×15, centrado na colônia do jogador**, e o botão da mira devolve esse
 enquadramento. O zoom livre continua por cima (até o planeta inteiro — sem ele não se chega às zonas
