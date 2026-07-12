@@ -34,10 +34,15 @@ try {
   checar(await esperarTexto(page, /Fert\$/), 'o HUD carrega e mostra Fert$')
 
   console.log('\nAbre o Mercado')
-  // D-59: o Mercado Central é o Pátio Logístico da Capital (slot 6), alcançado pelo mapa.
+  /*
+   * D-63: a Capital deixou de ser um menu. O Mercado Central **é o Leste** — a área do slot 6, que
+   * no GDD é o Estacionamento de Caminhões / Pátio Logístico. Clicar na área abre o Mercado; não há
+   * mais um item de lista chamado "Mercado".
+   */
   await abrirCapital(page)
-  await page.click('[data-abrir="mercado"]')
-  checar(await esperarTexto(page, /Mercado Central/), 'o painel do Mercado abre')
+  await page.waitForSelector('[data-area="leste"]')
+  await page.click('[data-area="leste"]')
+  checar(await esperarTexto(page, /Mercado Central/), 'o painel do Mercado abre, clicando no Leste')
   checar(await esperarTexto(page, /Doca e frota/), 'a aba da doca aparece')
 
   console.log('\nAs cinco abas do D-58')

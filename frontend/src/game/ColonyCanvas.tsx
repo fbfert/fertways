@@ -1,6 +1,8 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import Phaser from 'phaser'
 import { colmeia, ColonyScene, rotulo } from './ColonyScene'
+import { ControlesDeZoom } from './ControlesDeZoom'
+import { useVista } from './vista'
 import type { Spec } from '../api/client'
 
 type Props = {
@@ -34,6 +36,9 @@ export function ColonyCanvas({ specs, linhas, onSelecionar, onSlotVazio }: Props
   const cena = useRef<ColonyScene | null>(null)
   const [tamanho, setTamanho] = useState({ largura: 0, altura: 0 })
 
+  // O zoom (D-63) — mesmo idioma do mapa do planeta: roda, botões −/+, centralizar, arrastar.
+  const { vista, alvo, ampliar, centralizar, arrastando, gestos } = useVista()
+
   useEffect(() => {
     if (!container.current || jogo.current) return
 
@@ -55,8 +60,8 @@ export function ColonyCanvas({ specs, linhas, onSelecionar, onSlotVazio }: Props
   }, [])
 
   useEffect(() => {
-    cena.current?.atualizar(specs, linhas)
-  }, [specs, linhas])
+    cena.current?.atualizar(specs, linhas, vista)
+  }, [specs, linhas, vista])
 
   // Os botões precisam saber o tamanho do canvas para se colocarem sobre os hexágonos. É o mesmo
   // tamanho que o Phaser usa (o `RESIZE` casa o canvas com este contêiner).
@@ -74,15 +79,27 @@ export function ColonyCanvas({ specs, linhas, onSelecionar, onSlotVazio }: Props
     return () => observador.disconnect()
   }, [])
 
+  // A MESMA chamada que a cena faz para desenhar, com a MESMA vista. Não há duas contas, então não
+  // há como o botão e o hexágono se afastarem quando o colono aproxima (D-63).
   const { r, centros } =
     linhas.length && tamanho.largura
-      ? colmeia(linhas, tamanho.largura, tamanho.altura)
+      ? colmeia(linhas, tamanho.largura, tamanho.altura, vista)
       : { r: 0, centros: [] as [number, number][] }
 
   const porSlot = new Map(specs.map((s) => [s.slot, s]))
 
   return (
-    <div ref={container} className="relative h-full w-full">
+    <div
+      ref={(el) => {
+        container.current = el
+        alvo.current = el
+      }}
+      {...gestos}
+      className="relative h-full w-full"
+      style={{ cursor: arrastando ? 'grabbing' : 'grab', touchAction: 'none' }}
+    >
+      <ControlesDeZoom vista={vista} ampliar={ampliar} centralizar={centralizar} />
+
       {centros.map(([x, y], slot) => {
         const spec = porSlot.get(slot)
         const nome = spec

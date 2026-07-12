@@ -1,5 +1,6 @@
 import Phaser from 'phaser'
 import type { Spec } from '../api/client'
+import { transformar, VISTA_INICIAL, type Vista } from './vista'
 
 /** Tokens amostrados do deck. Repetidos aqui porque Phaser não lê CSS. */
 export const CORES = {
@@ -18,12 +19,22 @@ export const CORES = {
  * **Fonte única da geometria**, usada por dois consumidores: a cena, que desenha os hexágonos, e a
  * camada de botões do `ColonyCanvas`, que os torna clicáveis. Fossem duas contas, elas divergiriam
  * — e o colono clicaria num buraco para acertar o vizinho.
+ *
+ * **O zoom entra aqui, e não na câmera do Phaser** (D-63). Se ele fosse `camera.setZoom()`, o desenho
+ * aproximaria e os botões de DOM ficariam onde estavam — o colono veria a Oficina grande no meio da
+ * tela e clicaria nela para acertar o vizinho. Passando a vista pela geometria, os dois consumidores
+ * continuam lendo os mesmos números, que é a razão de esta função existir. Ver `vista.ts`.
  */
-export function colmeia(linhas: number[], largura: number, altura: number) {
+export function colmeia(
+  linhas: number[],
+  largura: number,
+  altura: number,
+  vista: Vista = VISTA_INICIAL,
+) {
   const folga = 1.14
-  const r = Math.min(largura / 13.5, altura / 10.5)
-  const passoX = Math.sqrt(3) * r * folga
-  const passoY = 1.5 * r * folga
+  const base = Math.min(largura / 13.5, altura / 10.5)
+  const passoX = Math.sqrt(3) * base * folga
+  const passoY = 1.5 * base * folga
   const meioY = ((linhas.length - 1) * passoY) / 2
 
   const centros: [number, number][] = []
@@ -34,11 +45,20 @@ export function colmeia(linhas: number[], largura: number, altura: number) {
     const inicio = -((quantas - 1) * passoX) / 2
 
     for (let i = 0; i < quantas; i++) {
-      centros.push([largura / 2 + inicio + i * passoX, altura / 2 + linha * passoY - meioY])
+      centros.push(
+        transformar(
+          largura / 2 + inicio + i * passoX,
+          altura / 2 + linha * passoY - meioY,
+          largura,
+          altura,
+          vista,
+        ),
+      )
     }
   })
 
-  return { r, centros }
+  // O raio escala junto: um hexágono que não cresce com o zoom não é zoom, é panorâmica.
+  return { r: base * vista.escala, centros }
 }
 
 const NOMES: Record<string, string> = {
@@ -87,6 +107,7 @@ export class ColonyScene extends Phaser.Scene {
   private specs: Spec[] = []
   private linhas: number[] = []
   private realcado: number | null = null
+  private vista: Vista = VISTA_INICIAL
   private raiz!: Phaser.GameObjects.Container
 
   constructor() {
@@ -101,9 +122,10 @@ export class ColonyScene extends Phaser.Scene {
     this.scale.on('resize', () => this.desenhar())
   }
 
-  atualizar(specs: Spec[], linhas: number[]) {
+  atualizar(specs: Spec[], linhas: number[], vista: Vista) {
     this.specs = specs
     this.linhas = linhas
+    this.vista = vista
     if (this.raiz) this.desenhar()
   }
 
@@ -138,7 +160,9 @@ export class ColonyScene extends Phaser.Scene {
     if (!this.linhas.length) return
 
     const { width, height } = this.scale
-    const { r, centros } = colmeia(this.linhas, width, height)
+    // A MESMA chamada que o `ColonyCanvas` faz para pôr os botões. É o que impede o desenho e o
+    // alvo de clique de divergirem quando o colono aproxima.
+    const { r, centros } = colmeia(this.linhas, width, height, this.vista)
     const porSlot = new Map(this.specs.map((s) => [s.slot, s]))
 
     centros.forEach(([x, y], slot) => {

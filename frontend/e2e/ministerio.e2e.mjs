@@ -29,9 +29,11 @@ try {
   checar(await esperarTexto(page, /Fert\$/), 'o HUD carrega e mostra Fert$')
 
   console.log('\nAbre o Ministério')
-  // D-59: o Ministério é instituição do governo (§2.1) e se alcança pela Capital, não pelo HUD.
+  // D-63: a Capital virou uma cena. O Ministério das Reputações é o hexágono do **slot 7**, no
+  // Governo Central (ao norte) — não mais um item de lista.
   await abrirCapital(page)
-  await page.click('[data-abrir="ministerio"]')
+  await page.waitForSelector('[data-slot-capital="7"]')
+  await page.click('[data-slot-capital="7"]')
   checar(await esperarTexto(page, /Slot 7 da Capital/), 'o painel do Ministério abre (§9.1)')
 
   console.log('\nMinha reputação: os quatro índices do §26.2')

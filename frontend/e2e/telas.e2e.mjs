@@ -83,8 +83,38 @@ try {
   await assentar()
   checar(!(await textoDaPagina(page)).includes('Grade 101×101'), 'o Mapa fecha')
 
+  // ---------------------------------------------------------------- Zoom (D-63)
+  /*
+   * O que o zoom pode quebrar é o ALINHAMENTO. A cena é do Phaser; o alvo de clique é um botão de
+   * DOM sobreposto. Se o desenho aproximasse pela câmera do Phaser e os botões ficassem onde
+   * estavam, o colono veria a Oficina grande no meio da tela e clicaria nela para acertar o
+   * vizinho — um bug silencioso e cruel.
+   *
+   * Este teste aproxima e DEPOIS clica numa construção pelo nome. Se as duas contas divergirem,
+   * o clique abre o painel errado (ou nenhum) e o teste cai.
+   */
+  console.log('\nO zoom da colônia, e o alinhamento que ele pode quebrar')
+  const alvo = '[aria-label^="Central de Transportes"]'
+  const antes = await page.$eval(alvo, (el) => el.getBoundingClientRect().width)
+
+  await page.click('[data-zoom-mais]')
+  await page.click('[data-zoom-mais]')
+
+  const depois = await page.$eval(alvo, (el) => el.getBoundingClientRect().width)
+  checar(
+    depois > antes,
+    `o alvo de clique cresce junto com o hexágono (${Math.round(antes)} → ${Math.round(depois)} px)`,
+  )
+
+  await page.click('[data-zoom-centralizar]')
+  const voltou = await page.$eval(alvo, (el) => el.getBoundingClientRect().width)
+  checar(Math.abs(voltou - antes) < 2, 'e "centralizar" devolve o enquadramento')
+
+  // Aproxima de novo e clica JÁ COM ZOOM: é este o teste que importa.
+  await page.click('[data-zoom-mais]')
+
   // ---------------------------------------------------------------- Frota
-  console.log('\nAbre a Frota')
+  console.log('\nAbre a Frota — com a colônia aproximada')
   // D-59: a Frota vive dentro da Central de Transportes, a construção que o GDD diz gerir os
   // veículos (§17.2, §28.5).
   await clicarNaConstrucao(page, 'Central de Transportes')

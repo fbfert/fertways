@@ -428,6 +428,28 @@ do painel do §16) dependem do Espaçoporto e dos 5 planetas NPC, que não exist
 - **Os quatro parâmetros da depreciação** estão no painel de admin e mudam sem deploy. É lá que se
   balanceia o envelhecimento da frota — não no código.
 
+- **A Capital virou lugar, e as cenas ganharam zoom (D-63)** — ela era um menu de sete linhas.
+  - **Quatro áreas e uma praça**, em Phaser, como a colônia: **Norte** o Governo Central (19 slots),
+    **Oeste** os destroços da **Endurance**, **Leste** o **slot 6** (Mercado Central + Pátio
+    Logístico, a mesma área), **Sul** o **Espaçoporto**, e ao **centro a praça — decorativa**.
+  - ⚠️ **A planta não está no GDD.** Ele trata a Capital como uma **lista plana de 20 slots** (§2.1),
+    sem geografia nenhuma. As quatro áreas são arbitragem do usuário. **Não a procure no documento.**
+  - **O Norte mostra 19 slots, não 20:** o **6 não está lá porque ele *é* o Leste.** No GDD o slot 6
+    *é* o Estacionamento de Caminhões, que a versão sanitizada rebatiza de Pátio Logístico — e é
+    dentro dele que o Mercado mora desde o D-55. Uma coisa, um lugar.
+  - **A Endurance e o Espaçoporto contam a verdade:** mostram o que o GDD publica (a história da nave;
+    os 5 planetas NPC com distância e risco) e **admitem que missões e rotas não existem**. É o padrão
+    do Gagarin (D-55). O painel da Endurance **resolve a contradição do Gagarin**: ele é satélite
+    orbital, **não** repousa no casco (D-47).
+  - **O Estacionamento é só desenho.** O GDD publica as 20 vagas e **nunca o preço da hora** — lacuna.
+  - **Zoom na colônia e na Capital**, com o idioma do mapa: roda, botões −/+, centralizar, arrastar.
+    **Não persiste** entre aberturas.
+  - ⚠️ **O zoom NÃO é o da câmera do Phaser**, e isso é deliberado. A cena pinta, mas quem recebe o
+    clique são **botões de DOM** sobrepostos (D-59). Se o zoom fosse `camera.setZoom()`, o desenho
+    aproximaria e **os botões ficariam onde estavam** — o colono clicaria num hexágono e acertaria o
+    vizinho. A vista entra na **função de geometria**, que a cena e os botões compartilham: não há
+    duas contas, então não há como divergirem. **O e2e prova isso**: aproxima e depois clica.
+
 ## O GDD v36 — **existe** (2026-07-12) <span>D-62</span>
 
 **`/home/fertways/FERTWAYS_GDD_v36_CONSOLIDADO.html`.** Substitui o v35, que fica **intocado** como

@@ -32,47 +32,95 @@ try {
   await abrirCapital(page)
   checar(await esperarTexto(page, /Governo de Fertways/), 'o hub da Capital abre')
 
-  console.log('\nO diretório lista as instituições')
-  for (const nome of [
-    'Central de Tributos',
-    'Secretaria de Finanças',
-    'Central de Pesquisas e Notícias',
-    'Ministério das Reputações',
-    'Ministério da Segurança e Guerra',
-    'Ministério dos Transportes',
-  ]) {
-    checar(await esperarTexto(page, new RegExp(nome)), `o slot "${nome}" aparece`)
-  }
-  checar(await esperarTexto(page, /em breve/), 'a Guerra (slot 5) aparece marcada "em breve"')
+  // ─────────────────────────────────────────────────────────────────────────
+  // D-63: a Capital deixou de ser um menu e virou uma CENA. Os slots são hexágonos,
+  // e as três áreas (Endurance, Mercado/Pátio, Espaçoporto) são alvos próprios.
+  console.log('\nA Capital é um lugar, não um menu (D-63)')
+  await page.waitForSelector('[data-cena-capital]')
+  checar(true, 'a cena da Capital renderiza')
 
-  console.log('\nCentral de Tributos / Tesouro (slot 2)')
-  await page.waitForSelector('[data-abrir="tesouro"]')
-  await page.click('[data-abrir="tesouro"]')
-  checar(await esperarTexto(page, /Saldo do Tesouro/), 'a tela do Tesouro abre')
+  const slot6 = await page.$('[data-slot-capital="6"]')
+  checar(
+    slot6 === null,
+    'o slot 6 NÃO está no Governo Central: ele É o Leste (Mercado + Pátio são a mesma área)',
+  )
+
+  for (const n of [1, 2, 3, 4, 5, 7, 8, 9, 20]) {
+    const h = await page.$(`[data-slot-capital="${n}"]`)
+    checar(h !== null, `o slot ${n} está no Governo Central`)
+  }
+
+  const vago = await page.$eval('[data-slot-capital="20"]', (el) => el.disabled)
+  checar(vago === true, 'os slots vagos aparecem, mas não clicam — a Capital vai crescer')
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // O ZOOM (D-63). O que ele pode quebrar é o alinhamento: o desenho é do Phaser e o alvo de
+  // clique é um botão de DOM. Se as duas contas divergirem, o jogador clica num hexágono e
+  // acerta o vizinho. Este teste prova que, DEPOIS de aproximar, o clique ainda acerta.
+  console.log('\nO zoom, e o alinhamento que ele pode quebrar')
+  const antesDoZoom = await page.$eval('[data-slot-capital="2"]', (el) => el.getBoundingClientRect().width)
+
+  await page.click('[data-cena-capital] [data-zoom-mais]')
+  await page.click('[data-cena-capital] [data-zoom-mais]')
+
+  const depoisDoZoom = await page.$eval('[data-slot-capital="2"]', (el) => el.getBoundingClientRect().width)
+  checar(
+    depoisDoZoom > antesDoZoom,
+    `o alvo de clique cresce junto com o desenho (${Math.round(antesDoZoom)} → ${Math.round(depoisDoZoom)} px)`,
+  )
+
+  console.log('\nCentral de Tributos / Tesouro (slot 2) — clicado JÁ COM ZOOM')
+  await page.click('[data-slot-capital="2"]')
+  checar(
+    await esperarTexto(page, /Saldo do Tesouro/),
+    'o clique acerta o slot certo mesmo aproximado — o botão e o hexágono não divergiram',
+  )
   checar(await esperarTexto(page, /Painel de taxas/), 'o painel de taxas do §8.3 aparece')
   const tributos = await textoDaPagina(page)
   checar(/3%/.test(tributos) && /2%/.test(tributos) && /1%/.test(tributos), 'as alíquotas 3/2/1% aparecem')
 
   console.log('\nVolta e abre a Secretaria de Finanças (slot 4)')
   await page.click('[data-voltar-capital]')
-  await page.waitForSelector('[data-abrir="financas"]')
-  await page.click('[data-abrir="financas"]')
+  await page.waitForSelector('[data-cena-capital] [data-zoom-centralizar]')
+  await page.click('[data-cena-capital] [data-zoom-centralizar]')
+  await page.click('[data-slot-capital="4"]')
   checar(await esperarTexto(page, /Preços de referência/), 'a tela de Finanças abre')
   checar(await esperarTexto(page, /Metal Bruto/), 'a tabela de preços-base do §06 aparece')
   checar(await esperarTexto(page, /Indicadores/), 'os indicadores econômicos aparecem')
 
   console.log('\nVolta e abre a Central de Notícias (slot 3)')
   await page.click('[data-voltar-capital]')
-  await page.waitForSelector('[data-abrir="noticias"]')
-  await page.click('[data-abrir="noticias"]')
+  await page.click('[data-slot-capital="3"]')
   checar(await esperarTexto(page, /Telescópio Gagarin/), 'a tela de Notícias abre')
   checar(await esperarTexto(page, /inativo/), 'o Gagarin aparece honestamente inativo (§12.1)')
   checar(await esperarTexto(page, /Servidor aberto/), 'o comunicado semeado aparece no mural')
 
+  console.log('\nOs destroços da Endurance (Oeste)')
+  await page.click('[data-voltar-capital]')
+  await page.click('[data-area="oeste"]')
+  await page.waitForSelector('[data-tela="endurance"]')
+  checar(await esperarTexto(page, /nunca voltará a voar/), 'a Endurance conta a sua história')
+  checar(
+    await esperarTexto(page, /não repousa sobre o casco/),
+    'e resolve a contradição do GDD: o Gagarin é satélite orbital, não está no casco (D-47)',
+  )
+  checar(
+    await esperarTexto(page, /não há nada a fazer aqui ainda/),
+    'e admite honestamente que as missões não existem',
+  )
+
+  console.log('\nO Espaçoporto (Sul)')
+  await page.click('[data-voltar-capital]')
+  await page.click('[data-area="sul"]')
+  await page.waitForSelector('[data-tela="espacoporto"]')
+  checar(await esperarTexto(page, /Ninguém viaja daqui ainda/), 'o Espaçoporto admite que não abriu')
+  for (const p of ['Kalidor', 'Veyra', 'Auryn', 'Solène', 'Drakmoor']) {
+    checar(await esperarTexto(page, new RegExp(p)), `o planeta ${p} aparece, com o que o GDD publica`)
+  }
+
   console.log('\nVolta e abre o Ministério dos Transportes (slot 8)')
   await page.click('[data-voltar-capital]')
-  await page.waitForSelector('[data-abrir="transportes"]')
-  await page.click('[data-abrir="transportes"]')
+  await page.click('[data-slot-capital="8"]')
   await page.waitForSelector('[data-tela="transportes"]')
   checar(await esperarTexto(page, /Caminhão de Carga/), 'a fábrica do governo abre')
   checar(await esperarTexto(page, /300 F\$/), 'o preço do D-60 aparece')

@@ -1,30 +1,62 @@
 import { useState } from 'react'
+import { CapitalCanvas } from '../game/CapitalCanvas'
+import type { AreaId, SlotDaCapital } from '../game/CapitalScene'
+import { Endurance } from './Endurance'
+import { Espacoporto } from './Espacoporto'
 import { Financas } from './Financas'
 import { Noticias } from './Noticias'
 import { Tesouro } from './Tesouro'
 import { Transportes } from './Transportes'
 
 /**
- * A Capital — o hub das instituições do governo (§02, §2.1). Não substitui os botões do HUD:
- * é o diretório dos slots. Os slots ativos abrem sua tela; o Mercado (6) e o Ministério (7) reusam
- * as telas de topo do HUD (via callbacks), e as instituições novas (Tesouro 2, Notícias 3,
- * Finanças 4, Transportes 8) abrem como sub-telas aqui dentro.
+ * A Capital (§02) — **um lugar, não um menu** (D-63).
  *
- * O Ministério da Segurança e Guerra (5) é a Fatia 2 do D-52 — aparece marcado "em breve".
+ * Era um diretório de sete linhas. Agora é uma cena, como a colônia: quatro áreas em volta de uma
+ * praça, e o Governo Central ao norte com os slots institucionais do §2.1.
  *
- * **O slot 8 é uma arbitragem contra o GDD.** O §2.1 o reserva para o Quartel de Alianças, fora do
- * MVP; o usuário pôs ali o Ministério dos Transportes (D-60). São oito slots agora, não sete.
+ * **A planta não está no GDD.** O documento trata a Capital como uma lista plana de 20 slots, sem
+ * geografia nenhuma — sem praça, sem bairros, sem norte nem sul. As quatro áreas são arbitragem do
+ * usuário, e vale um leitor futuro saber disso antes de procurar no documento uma planta que não
+ * existe.
+ *
+ * **O Leste é o slot 6 inteiro.** No GDD o slot 6 *é* o Estacionamento de Caminhões, que a versão
+ * sanitizada rebatiza de Pátio Logístico Público — e é dentro dele que o Mercado Central mora desde
+ * o D-55. Mercado e Pátio são a mesma área, e os caminhões desenhados ali são **desenho**, não uma
+ * segunda porta.
  */
-type Sub = 'tesouro' | 'financas' | 'noticias' | 'transportes'
+type Sub = 'tesouro' | 'financas' | 'noticias' | 'transportes' | 'endurance' | 'espacoporto'
 
-type Acao =
-  | { tipo: 'sub'; sub: Sub }
-  | { tipo: 'externa'; chave: string; abrir: () => void }
-  | { tipo: 'equipe' }
-  | { tipo: 'embreve' }
-  | { tipo: 'travado' }
+/**
+ * Os slots do Governo Central. **O 6 não está aqui**: ele é a área do Leste.
+ *
+ * Os vagos (9–20) aparecem, apagados e travados. É o que faz a Capital parecer um lugar que vai
+ * crescer, e não uma lista — e o GDD publica os 20.
+ */
+const SLOTS: SlotDaCapital[] = [
+  { n: 1, nome: 'Administração Pública', abre: null, estado: 'em_breve' },
+  { n: 2, nome: 'Central de Tributos', abre: 'tesouro', estado: 'ativo' },
+  { n: 3, nome: 'Central de Pesquisas e Notícias', abre: 'noticias', estado: 'ativo' },
+  { n: 4, nome: 'Secretaria de Finanças e Tesouro', abre: 'financas', estado: 'ativo' },
+  { n: 5, nome: 'Ministério da Segurança e Guerra', abre: null, estado: 'em_breve' },
+  { n: 7, nome: 'Ministério das Reputações', abre: 'ministerio', estado: 'ativo' },
+  { n: 8, nome: 'Ministério dos Transportes', abre: 'transportes', estado: 'ativo' },
+  { n: 9, nome: 'Quartel de Alianças', abre: null, estado: 'reservado' },
+  ...Array.from({ length: 11 }, (_, i) => ({
+    n: 10 + i,
+    nome: 'Vago',
+    abre: null,
+    estado: 'vago' as const,
+  })),
+]
 
-type Slot = { n: string; nome: string; funcao: string; acao: Acao }
+const TITULO: Record<Sub, string> = {
+  tesouro: 'Central de Tributos',
+  financas: 'Secretaria de Finanças',
+  noticias: 'Central de Pesquisas e Notícias',
+  transportes: 'Ministério dos Transportes',
+  endurance: 'Endurance of Mankind',
+  espacoporto: 'Espaçoporto',
+}
 
 export function Capital({
   aoFechar,
@@ -37,33 +69,44 @@ export function Capital({
 }) {
   const [sub, setSub] = useState<Sub | null>(null)
 
-  const slots: Slot[] = [
-    { n: '1', nome: 'Administração Pública', funcao: 'Regras, comunicados e aplicação de sanções.', acao: { tipo: 'equipe' } },
-    { n: '2', nome: 'Central de Tributos', funcao: 'Painel de taxas e Tesouro Público.', acao: { tipo: 'sub', sub: 'tesouro' } },
-    { n: '3', nome: 'Central de Pesquisas e Notícias', funcao: 'Descobertas, Gagarin e boletins oficiais.', acao: { tipo: 'sub', sub: 'noticias' } },
-    { n: '4', nome: 'Secretaria de Finanças e Tesouro', funcao: 'Indicadores, preços de referência e intervenções.', acao: { tipo: 'sub', sub: 'financas' } },
-    { n: '5', nome: 'Ministério da Segurança e Guerra', funcao: 'Conflitos, tratados e janelas de vulnerabilidade.', acao: { tipo: 'embreve' } },
-    { n: '6', nome: 'Pátio Logístico Público', funcao: 'Docas públicas e Mercado Central.', acao: { tipo: 'externa', chave: 'mercado', abrir: aoAbrirMercado } },
-    { n: '7', nome: 'Ministério das Reputações', funcao: 'Denúncias, conciliação, recursos e histórico.', acao: { tipo: 'externa', chave: 'ministerio', abrir: aoAbrirMinisterio } },
-    { n: '8', nome: 'Ministério dos Transportes', funcao: 'Fábrica de Caminhões, registro de placas e frota.', acao: { tipo: 'sub', sub: 'transportes' } },
-  ]
+  function clicarSlot(slot: SlotDaCapital) {
+    // O Ministério das Reputações reusa a tela de topo do HUD, como antes do D-63.
+    if (slot.abre === 'ministerio') {
+      aoFechar()
+      aoAbrirMinisterio()
 
-  const TITULO: Record<Sub, string> = {
-    tesouro: 'Central de Tributos',
-    financas: 'Secretaria de Finanças',
-    noticias: 'Central de Pesquisas e Notícias',
-    transportes: 'Ministério dos Transportes',
+      return
+    }
+
+    if (slot.abre) setSub(slot.abre as Sub)
+  }
+
+  function clicarArea(area: AreaId) {
+    // O Leste é o slot 6: Mercado Central + Pátio Logístico. Clicar nele abre o Mercado.
+    if (area === 'leste') {
+      aoFechar()
+      aoAbrirMercado()
+
+      return
+    }
+
+    if (area === 'oeste') setSub('endurance')
+    if (area === 'sul') setSub('espacoporto')
   }
 
   return (
-    <div className="fixed inset-0 z-20 flex items-center justify-center bg-ink/70 p-4">
-      <div className="painel bg-sand-light max-h-[92vh] w-full max-w-3xl overflow-y-auto p-6">
-        <header className="flex items-start justify-between">
+    <div className="bg-ink/70 fixed inset-0 z-20 flex items-center justify-center p-4">
+      <div className="painel bg-sand-light flex max-h-[92vh] w-full max-w-4xl flex-col overflow-hidden p-6">
+        <header className="flex shrink-0 items-start justify-between">
           <div>
             <div className="text-rust eyebrow">Capital</div>
-            <h2 className="text-ink text-2xl font-black">{sub ? TITULO[sub] : 'Governo de Fertways'}</h2>
+            <h2 className="text-ink text-2xl font-black">
+              {sub ? TITULO[sub] : 'Governo de Fertways'}
+            </h2>
             <p className="text-ink-soft mt-1 text-sm">
-              {sub ? 'Instituição do governo, operada pela equipe.' : 'As instituições da Capital, em (0, 0).'}
+              {sub
+                ? 'Instituição do governo.'
+                : 'Clique numa área ou num slot. Use a roda do mouse para aproximar.'}
             </p>
           </div>
           <button onClick={aoFechar} className="text-ink-soft hover:text-rust text-2xl leading-none">
@@ -72,84 +115,46 @@ export function Capital({
         </header>
 
         {sub ? (
-          <>
+          <div className="mt-2 flex-1 overflow-y-auto">
             <button
               onClick={() => setSub(null)}
-              className="text-rust hover:text-rust-bright mt-4 text-sm"
+              className="text-rust hover:text-rust-bright text-sm"
               data-voltar-capital
             >
-              ‹ Voltar às instituições
+              ‹ Voltar à Capital
             </button>
             {sub === 'tesouro' && <Tesouro />}
             {sub === 'financas' && <Financas />}
             {sub === 'noticias' && <Noticias />}
             {sub === 'transportes' && <Transportes />}
-          </>
+            {sub === 'endurance' && <Endurance />}
+            {sub === 'espacoporto' && <Espacoporto />}
+          </div>
         ) : (
           <>
-            <ul className="mt-5 space-y-2">
-              {slots.map((s) => (
-                <SlotCard key={s.n} slot={s} aoAbrirSub={setSub} aoFecharHub={aoFechar} />
-              ))}
-            </ul>
-            <p className="text-ink-soft/60 mt-4 text-xs">
-              O slot 9 (Embaixada) e os 10–20 são reservados. O 8 era o Quartel de Alianças no §2.1;
-              o Ministério dos Transportes o ocupa por decisão do usuário (D-60).
+            {/*
+              **Altura definida, e sem `flex-1`.**
+
+              Com `flex-1` o item ganha `flex-basis: 0`, que sobrepõe a altura no eixo principal de
+              um flex-col — o `div` colapsava a zero, o Phaser nascia com um canvas de altura nula e
+              os hexágonos vinham com raio 0. Os botões existiam, mediam 0 px e não recebiam clique.
+              O e2e pegou: "Node is either not clickable".
+            */}
+            <div
+              className="border-rust/20 mt-4 h-[60vh] min-h-[360px] shrink-0 border"
+              data-cena-capital
+            >
+              <CapitalCanvas slots={SLOTS} aoClicarSlot={clicarSlot} aoClicarArea={clicarArea} />
+            </div>
+
+            <p className="text-ink-soft/60 mt-3 shrink-0 text-xs">
+              O <b>slot 6</b> não aparece no Governo Central porque ele <b>é</b> o Leste: o Mercado
+              Central e o Pátio Logístico são a mesma área (§2.1). Os slots 10–20 estão vagos, e o 9
+              (Embaixada) é reservado — fora do MVP.
             </p>
           </>
         )}
       </div>
     </div>
-  )
-}
-
-function SlotCard({
-  slot,
-  aoAbrirSub,
-  aoFecharHub,
-}: {
-  slot: Slot
-  aoAbrirSub: (s: Sub) => void
-  aoFecharHub: () => void
-}) {
-  const { acao } = slot
-
-  return (
-    <li className="border-rust/20 bg-sand flex items-center gap-3 border p-3" data-slot={slot.n}>
-      <span className="hex bg-rust text-sand-light flex h-8 w-8 shrink-0 items-center justify-center text-sm font-black">
-        {slot.n}
-      </span>
-      <div className="min-w-0 flex-1">
-        <div className="text-ink font-bold">{slot.nome}</div>
-        <div className="text-ink-soft/80 truncate text-xs">{slot.funcao}</div>
-      </div>
-      {acao.tipo === 'sub' && (
-        <button
-          onClick={() => aoAbrirSub(acao.sub)}
-          data-abrir={acao.sub}
-          className="bg-rust text-sand-light hover:bg-rust-bright shrink-0 px-4 py-2 text-sm font-bold"
-        >
-          Abrir
-        </button>
-      )}
-      {acao.tipo === 'externa' && (
-        <button
-          onClick={() => {
-            aoFecharHub()
-            acao.abrir()
-          }}
-          // Os sete botões da Capital dizem todos "Abrir": sem uma chave, nem o e2e nem um leitor
-          // de tela distinguem o Mercado Central do Ministério.
-          data-abrir={acao.chave}
-          aria-label={`Abrir ${slot.nome}`}
-          className="border-rust/30 text-ink-soft hover:text-rust shrink-0 border px-4 py-2 text-sm font-bold"
-        >
-          Abrir
-        </button>
-      )}
-      {acao.tipo === 'equipe' && <span className="text-ink-soft/60 shrink-0 text-xs">operada pela equipe</span>}
-      {acao.tipo === 'embreve' && <span className="text-rust/70 shrink-0 text-xs">em breve</span>}
-      {acao.tipo === 'travado' && <span className="text-ink-soft/40 shrink-0 text-xs">reservado</span>}
-    </li>
   )
 }

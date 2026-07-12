@@ -2061,3 +2061,72 @@ ele **promete**, como o `Domain/Building/Funcoes` já faz nas construções.
   como se chegou nela.
 - **Quando o v36 estiver no ar, o D-47 vira história**: não haverá mais precedência a aplicar, porque
   não haverá mais duas redações concorrentes.
+
+---
+
+## D-63 — A Capital vira lugar: quatro áreas, uma praça, e zoom nas cenas.
+**Data:** 2026-07-12 · **Status:** decidido pelo usuário · **GDD: a planta não existe nele**
+
+### Primeiro, o que o GDD *não* diz
+
+O usuário abriu o assunto com "lembrando o que está no GDD, a capital é dividida em 4 áreas com uma
+praça central". **Não está.** Procurou-se `praça`, `quadrante`, `norte`, `sul`, `leste`, `oeste`,
+`4 áreas`: o GDD trata a Capital como uma **lista plana de 20 slots** (§2.1), **sem geografia
+nenhuma**. Não há planta, não há centro, não há bairros.
+
+**A planta é invenção do usuário, e é boa** — mas é arbitragem nova, e fica registrada como tal. É a
+terceira vez que uma premissa "isto está no GDD" não estava (ver D-60, o caminhão da Central de
+Transportes); o padrão vale a pena notar.
+
+### O choque que o desenho tinha, e como o usuário o resolveu
+
+No GDD, o **slot 6 _é_ o Estacionamento de Caminhões** ("20 vagas. Cobrança por hora. Caminhões
+aguardam retirada de carga") — que a versão sanitizada rebatiza de **Pátio Logístico Público** ("docas
+públicas, entregas de Mercado e operação de cargueiros governamentais"), e é dentro dele que o nosso
+Mercado Central mora desde o D-55.
+
+O desenho original punha o **Mercado no Leste** e o **Pátio entre o Leste e o Sul** — dois lugares
+para a mesma coisa. **O usuário decidiu: o Leste é o slot 6 inteiro.** Mercado e Pátio são a mesma
+área; os caminhões estacionados são desenho, não uma segunda porta.
+
+### As decisões do usuário (2026-07-12)
+
+1. **A Capital deixa de ser um menu e vira uma cena**, em Phaser, como a colônia. Mesmo motor, mesmo
+   jeito de clicar num hexágono, mesma câmera.
+2. **Quatro áreas e uma praça:**
+   - **Norte** — Governo Central: a grade dos slots institucionais.
+   - **Oeste** — os destroços da **Endurance**.
+   - **Leste** — o **slot 6**: Mercado Central + Pátio Logístico, juntos. Clicar abre o Mercado.
+   - **Sul** — o futuro **Espaçoporto**.
+   - **Centro** — a **praça**, do tamanho de 1 slot. **Decorativa**: não clica e não faz nada. É o
+     marco que organiza as quatro áreas e dá à Capital cara de cidade — e o espaço guardado para
+     quando houver evento, chat público ou monumento.
+3. **O Norte mostra 19 slots**, não 20: os 1–5, 7–8 e 9–20. **O 6 não aparece lá**, porque ele **é** o
+   Leste. Uma coisa, um lugar — nada aparece duas vezes na tela. Os vagos (9–20) são **visíveis e
+   travados**: é o que faz a Capital parecer um lugar que vai crescer, e não um menu.
+4. **A Endurance e o Espaçoporto abrem, e contam a verdade.** Não são decoração muda nem um "em
+   breve" vazio: mostram **o que o GDD publica** e **admitem o que ainda não existe** — o padrão do
+   Gagarin, que o D-55 já usava.
+5. **O Estacionamento é só visual, por ora.** O GDD publica as **20 vagas** e **nunca o preço da
+   hora**. Cobrar exigiria arbitrar um número, e cobrar estacionamento de um jogador que está
+   esperando a própria carga é atrito que irrita mais do que ensina. As vagas ficam como
+   **lacuna aberta**.
+6. **Zoom na colônia e na Capital**, com **o mesmo idioma do mapa do planeta**: roda do mouse, botões
+   −/+, e "centralizar". O jogador aprende uma vez e usa nos três lugares. **O zoom não persiste**
+   entre aberturas — a tela abre sempre enquadrada.
+
+### A contradição do GDD que o painel da Endurance resolve
+
+O §3 (v3.0) diz que o telescópio **Gagarin "repousa no casco" da Endurance**. A versão sanitizada diz
+o contrário: *"O Gagarin **não** repousa sobre seu casco: é um satélite orbital lançado após o
+pouso"*. A **tabela de precedência da seção 0** já resolvia isto — *"É satélite orbital do Governo; a
+Endurance permanece em solo"* — e o painel conta **a versão certa**. Nenhuma decisão nova: é o D-47
+aplicado. <br>
+O **v36 já nasce com a versão certa**, e é por isso que ele existe.
+
+### O que fica de fora
+
+- **As missões da Endurance** ("fonte de peças e missões narrativas") não existem. O painel diz isso.
+- **As rotas do Espaçoporto** não abriram. O painel mostra os 5 planetas com a distância e o risco que
+  o GDD publica, e diz que ninguém viaja ainda.
+- **A cobrança do estacionamento** — <b>lacuna aberta</b>.
