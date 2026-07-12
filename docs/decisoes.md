@@ -2487,3 +2487,133 @@ constrói uma vez só.
   ranking** no jogo. Não entra nesta fatia.
 - **Federação** — o §28.10 diz que uma federação aliada pode romper um cerco. **Federações não
   existem** (é a mesma inércia do D-44). O cerco se rompe só pelo dono da zona, por ora.
+
+---
+
+## D-67 — A zona vira lugar, e as telas viram telas.
+**Data:** 2026-07-13 · **Status:** arbitrado pelo usuário · **GDD: o §17.4 descreve tudo; cala o custo**
+
+Pedido do usuário: o Mapa, a Capital e a Zona Neutra deixam de ser *popups* e viram **telas**. E, ao
+levantar o que a tela da zona teria de mostrar, apareceu um buraco meu.
+
+### O buraco: as defesas que eu criei são inalcançáveis
+
+O D-66 pôs no catálogo a **Muralha de Perímetro**, a **Torre de Vigia**, o **Bastião** e o **Abrigo de
+Robôs**, e o motor de combate **lê** os níveis deles. Mas **nada no jogo os ergue**: `wall_level`,
+`watchtower_level`, `bastion_level` e `shelter_level` nascem em zero e nunca saem de zero. Em produção,
+hoje:
+
+- O bônus defensivo do §27.3 é **sempre 0%**. Fortificar não existe.
+- A Torre de Vigia **nunca detecta** um Infiltrador (15% × 0). A sabotagem passa sempre.
+- O Depósito da zona fica **preso no nível 1**: não há como proteger mais estoque do saque.
+
+É o Caminhão antes do D-60 outra vez — e desta vez fui **eu** que o criei. A tela da zona é onde se
+conserta.
+
+### O erro do Bastião, e a decisão de mantê-lo
+
+⚠️ **O GDD não põe o Bastião na zona.** Ele é uma das **15 especializações da colônia**: exige *Torre de
+Defesa N3 + Quartel N3* e "dobra o bônus defensivo da Torre de Defesa" (+100%), sem conceder ataque. O
+§17.4, que lista as estruturas de zona, **não o menciona**. Foi o §27.3 — "Muralha +X%, Bastião +Y%,
+Torre de Vigia +Z%" — que me fez tratá-lo como estrutura de zona no D-66, e eu **inventei um custo** de
+zona para ele.
+
+**Decisão do usuário: mantém-se como estrutura de zona.** É contradição deliberada ao §17.4, na mesma
+família do tributo (D-32) e do Ministério dos Transportes (D-60). O §27.3 fica coerente consigo mesmo —
+as três defesas que ele nomeia existem no lugar onde ele as usa. **Não "conserte" sem perguntar.**
+
+> O Bastião da **colônia** (a especialização) continua existindo no GDD e fica para o dia em que as 15
+> especializações entrarem. São duas coisas com o mesmo nome, e o documento é que as confundiu primeiro.
+
+### O que o §17.4 publica, e que ninguém tinha lido
+
+**A lacuna 7 do D-52 nunca foi de função — só de custo.** O §17.4 descreve **todas** as estruturas:
+
+| Estrutura | O que o GDD diz que ela faz |
+|---|---|
+| Posto de Comando | Primeira da ocupação. Sem ela, não há controle territorial. |
+| Depósito (10 níveis) | Armazena. *"Quando lota, a extração para"* — ⚠️ ver abaixo |
+| Abrigo de Robôs | Onde as unidades **se recuperam entre turnos** |
+| Estrutura de Extração | Varia com o recurso — ⚠️ **e a zona já extrai sem ela** |
+| Muralha de Perímetro | Dificulta a Invasão Direta |
+| Torre de Vigia | **Avisa com antecedência** da aproximação inimiga; cada nível aumenta o tempo |
+| Refinaria de Campo | **Primário vira secundário na zona**, antes do transporte |
+| Central de Comunicação | Alertas à **federação** — que não existe |
+| Plataforma de Pouso | Pouso da **Nave de Transporte Planetária** — que não existe |
+| Estacionamento | 10 vagas para caminhões, como o da Capital |
+| Cemitério de Robôs | **Sem função mecânica — apenas visual**, declarado pelo próprio GDD |
+
+> ⚠️ **"Quando lota, a extração para" é a TERCEIRA vez que o GDD diz isso**, e nós já o contrariamos de
+> propósito no D-66 (2-bis): se a extração parasse no teto, nada jamais ficaria exposto e **o saque
+> seria sempre zero**. A decisão continua de pé. Não a reabra sem reabrir o saque junto.
+
+> ⚠️ **A zona extrai sem Estrutura de Extração.** A Fatia 1 fez a extração correr a partir da ocupação,
+> e o §17.4 dá esse papel a uma estrutura que não existe no jogo. **Lacuna aberta e declarada** — não a
+> "conserte" travando a extração das zonas que já rendem hoje.
+
+### As arbitragens
+
+**1. As telas.** Mapa, Capital e Zona viram **tela cheia com URL própria** (entra o `react-router`):
+`/mapa`, `/capital`, `/zona/:id`. O botão Voltar do navegador passa a funcionar, a página recarrega
+onde estava, e um link pode ser mandado a alguém. As demais (Mercado, Frota, Quartel, Ministério)
+seguem o mesmo idioma.
+
+**2. A planta da zona: áreas, não colmeia.** Como a Capital do D-63, e não como os 21 slots hex da
+colônia (D-59) — uma muralha **deve** estar no perímetro, e uma grade de slots não sabe disso. ⚠️ **A
+planta não está no GDD**: é arbitragem do usuário, como as quatro áreas da Capital.
+
+**3. Custo e tempo.** Mantêm-se os do D-66 (Muralha 400 MB + 100 Ligas / 4 h · Torre de Vigia 300 MB +
+150 Ligas + 30 Componentes / 6 h · Bastião 1.200 MB + 400 Ligas + 100 Componentes / 12 h · Abrigo 500 MB
++ 200 Ligas / 6 h). O **Depósito não é lacuna** — o §4.2 publica os 10 níveis, e eles já estão no
+catálogo. As novas seguem a mesma escala:
+
+| Estrutura | Custo (nível 1) | Tempo |
+|---|---|---|
+| Refinaria de Campo | 600 Metal Bruto + 250 Ligas + 60 Componentes | 8 h |
+| Estacionamento da Zona | 300 Metal Bruto + 100 Ligas | 4 h |
+| Cemitério de Robôs | 150 Metal Bruto | 2 h |
+
+**4. A Refinaria de Campo: 2 primários → 1 secundário**, por distrito.
+
+| Distrito | Extrai | A Refinaria transforma em |
+|---|---|---|
+| Nordeste | Metal Bruto | **Ligas Metálicas** |
+| Sudeste | Água | **Compostos Químicos** |
+| Sudoeste | Oxigênio | **Compostos Químicos** |
+| Noroeste | Biomassa | **Biocombustível** |
+
+**Nenhuma construção do jogo converte** — todas produzem a taxa fixa por hora, sem insumo. Esta é a
+primeira, e a taxa **2:1** é do usuário. Ela **não cria matéria do nada**: dobra o valor por unidade
+transportada, que é o que o §17.4 promete ("aumentando o valor da carga antes mesmo do transporte"), e
+o ganho real é de **volume** — a carroceria leva metade das unidades para o mesmo minério. Os níveis
+aumentam quanto ela processa por hora.
+
+**5. A Torre de Vigia avisa 10 min por nível.** Nível 1 vê o ataque 10 min antes de a marcha chegar;
+nível 5, 50 min — que, na maioria das distâncias, é ver o exército partir. **A unidade de medida já
+existe**: é uma rodada de combate (§27.5). **Parâmetro do operador**, como os demais da guerra.
+
+> A Torre passa a ter **duas** funções, e as duas são do GDD: avisar (§17.4) e **detectar o Infiltrador**
+> (§28.10, 15% por nível). Não se confundem.
+
+**6. Entrega física: o canteiro de obras.** A zona ganha um **estoque de material** próprio, separado do
+depósito de minério. Despacha-se um veículo com Metal Bruto e Ligas; ao chegar, o material entra no
+canteiro. **A obra só começa quando o canteiro tem o custo inteiro**, e a sobra fica lá para a próxima.
+
+> ⚠️ **Isto contradiz a ocupação**, que hoje debita da colônia e ergue o Posto de Comando **sem veículo
+> nenhum** (D-52). Decisão do usuário: a ocupação fica como está; as obras **posteriores** exigem
+> entrega. A razão é de desenho: a ocupação é o ato de chegar, e as obras são o ato de investir.
+>
+> **E o cerco passa a impedir fortificar sob sítio** — nada entra nem sai (D-66) —, o que não foi
+> planejado e é bom: quem cerca impede o cercado de se defender melhor.
+
+**7. Estacionamento de graça; Cemitério decorativo.** A vaga na **própria** zona não custa hora nenhuma
+— a tarifa do Pátio da Capital (D-65) existe porque aquele pátio é **do governo**. O Cemitério não tem
+função mecânica: o **próprio GDD** o declara "apenas visual". Ele mostra as unidades destruídas ali, e é
+a única construção do jogo que se ergue só por gosto.
+
+### Fora de escopo, e por quê
+
+- **Central de Comunicação da Zona** — só serve à **federação**, que não existe (mesma inércia do D-44).
+- **Plataforma de Pouso da Zona** — só serve à **Nave de Transporte Planetária**, que está no catálogo e
+  não no jogo. Ela é uma fatia inteira (§17.5): voo, placa, transporte de robôs entre zonas.
+- **Estrutura de Extração** — a zona já extrai sem ela. Ver a lacuna declarada acima.
