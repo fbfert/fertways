@@ -3,6 +3,11 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Console\Commands\TickColonies;
+use App\Domain\Admin\Auditoria;
+use App\Domain\Admin\Contas;
+use App\Domain\Admin\CorrigirEstado;
+use App\Domain\Admin\RealocarColonia;
+use App\Domain\Admin\Suspender;
 use App\Domain\Finance\DeclararIntervencao;
 use App\Domain\Ministry\Apelacao;
 use App\Domain\Ministry\DecidirCaso;
@@ -11,13 +16,19 @@ use App\Domain\News\PublicarNoticia;
 use App\Domain\Treasury\Tesouro;
 use App\Exceptions\DomainRuleException;
 use App\Http\Controllers\Controller;
+use App\Models\Admin;
 use App\Models\Colony;
 use App\Models\News;
 use App\Models\Report;
+use App\Models\TransportSetting;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\Rules\Password;
 
 /**
  * As ações de operador do painel. Cada uma chama a MESMA classe de domínio que o comando artisan
@@ -34,22 +45,22 @@ class AcoesController extends Controller
     {
         $procedente = $request->validate(['procedente' => ['required', 'boolean']])['procedente'];
 
-        return $this->tentar(function () use ($decidir, $report, $procedente) {
+        return $this->tentar('ministerio.julgar', function () use ($decidir, $report, $procedente) {
             $decidir->pelaEquipe($report, (bool) $procedente);
 
             return 'Caso #'.$report->id.' julgado '.($procedente ? 'procedente' : 'improcedente').'.';
-        });
+        }, "report:{$report->id}");
     }
 
     public function apelacao(Request $request, Report $report, Apelacao $apelacao): RedirectResponse
     {
         $decisao = $request->validate(['decisao' => ['required', 'in:manter,reverter']])['decisao'];
 
-        return $this->tentar(function () use ($apelacao, $report, $decisao) {
+        return $this->tentar('ministerio.apelacao', function () use ($apelacao, $report, $decisao) {
             $decisao === 'reverter' ? $apelacao->reverter($report) : $apelacao->manter($report);
 
             return 'Apelação do caso #'.$report->id.': '.($decisao === 'reverter' ? 'revertida' : 'mantida').'.';
-        });
+        }, "report:{$report->id}");
     }
 
     // ── Conciliadores ────────────────────────────────────────────────────────
@@ -63,16 +74,16 @@ class AcoesController extends Controller
             return $this->erro("Colono não encontrado: {$nick}");
         }
 
-        return $this->tentar(fn () => $gerir->nomear($colono)
+        return $this->tentar('conciliador.nomear', fn () => $gerir->nomear($colono)
             ? "{$colono->nickname} é conciliador."
-            : "{$colono->nickname} já era conciliador.");
+            : "{$colono->nickname} já era conciliador.", "user:{$colono->id}");
     }
 
     public function conciliadorGerir(Request $request, User $user, GerirConciliador $gerir): RedirectResponse
     {
         $acao = $request->validate(['acao' => ['required', 'in:demitir,reintegrar,suspender']])['acao'];
 
-        return $this->tentar(function () use ($gerir, $user, $acao) {
+        return $this->tentar("conciliador.{$acao}", function () use ($gerir, $user, $acao) {
             match ($acao) {
                 'demitir' => $gerir->demitir($user),
                 'reintegrar' => $gerir->reintegrar($user),
@@ -80,7 +91,7 @@ class AcoesController extends Controller
             };
 
             return "{$user->nickname}: {$acao}.";
-        });
+        }, "user:{$user->id}");
     }
 
     // ── Finanças ─────────────────────────────────────────────────────────────
@@ -95,7 +106,7 @@ class AcoesController extends Controller
             'dias' => ['required', 'integer', 'min:1'],
         ]);
 
-        return $this->tentar(function () use ($declarar, $dados) {
+        return $this->tentar('financas.intervencao', function () use ($declarar, $dados) {
             $i = $declarar->declarar(
                 $dados['resource_type'],
                 $this->emMicro($dados['teto'] ?? null),
@@ -105,7 +116,7 @@ class AcoesController extends Controller
             );
 
             return "Intervenção #{$i->id} em {$i->resource_type} declarada.";
-        });
+        }, "resource:{$dados['resource_type']}");
     }
 
     public function intervencaoRevogar(Request $request, DeclararIntervencao $declarar): RedirectResponse
@@ -113,7 +124,11 @@ class AcoesController extends Controller
         $recurso = $request->validate(['resource_type' => ['required', 'string']])['resource_type'];
         $n = $declarar->revogar($recurso);
 
-        return $this->ok($n > 0 ? "Revogadas {$n} intervenção(ões) de {$recurso}." : "Nenhuma vigente em {$recurso}.");
+        return $this->ok(
+            'financas.intervencao_revogar',
+            $n > 0 ? "Revogadas {$n} intervenção(ões) de {$recurso}." : "Nenhuma vigente em {$recurso}.",
+            "resource:{$recurso}",
+        );
     }
 
     // ── Notícias ─────────────────────────────────────────────────────────────
@@ -126,7 +141,7 @@ class AcoesController extends Controller
             'autor' => ['nullable', 'string', 'max:60'],
         ]);
 
-        return $this->tentar(function () use ($publicar, $dados) {
+        return $this->tentar('noticia.publicar', function () use ($publicar, $dados) {
             $n = $publicar->publicar($dados['titulo'], $dados['corpo'], $dados['autor'] ?? null);
 
             return "Comunicado #{$n->id} publicado.";
@@ -136,9 +151,10 @@ class AcoesController extends Controller
     public function noticiaRemover(News $news, PublicarNoticia $publicar): RedirectResponse
     {
         $id = $news->id;
+        $titulo = $news->title ?? '';
         $publicar->remover($id);
 
-        return $this->ok("Notícia #{$id} removida.");
+        return $this->ok('noticia.remover', "Notícia #{$id} removida. {$titulo}", "news:{$id}");
     }
 
     // ── Ministério do Tesouro (D-57) ─────────────────────────────────────────
@@ -157,11 +173,11 @@ class AcoesController extends Controller
             ? (int) round(((float) $dados['quantidade']) * Colony::MICRO_POR_FERT)
             : (int) $dados['quantidade'];
 
-        return $this->tentar(function () use ($tesouro, $destino, $dados, $qtd, $ehFert) {
+        return $this->tentar('tesouro.distribuir', function () use ($tesouro, $destino, $dados, $qtd, $ehFert) {
             $tesouro->distribuir($destino, $dados['recurso'], $qtd);
 
-            return 'Tesouro enviou '.($ehFert ? 'Fert$' : $dados['recurso'])." a {$destino->name}.";
-        });
+            return 'Tesouro enviou '.number_format($qtd).' de '.($ehFert ? 'Fert$ (micro)' : $dados['recurso'])." a {$destino->name}.";
+        }, "colony:{$destino->id}");
     }
 
     /**
@@ -187,11 +203,215 @@ class AcoesController extends Controller
             'perda_de_teto_bps' => ['required', 'integer', 'min:0', 'max:10000'],
         ]);
 
-        return $this->tentar(function () use ($dados) {
-            \App\Models\TransportSetting::singleton()->update($dados);
+        // O antes e o depois destes quatro números importam: eles mudam o envelhecimento da frota
+        // inteira, e sem o log ninguém saberia por que a depreciação começou a morder.
+        $config = TransportSetting::singleton();
+        $antes = $config->only(array_keys($dados));
 
-            return 'Parâmetros do Ministério dos Transportes atualizados. Valem já no próximo tick.';
+        return $this->tentar('transporte.parametros', function () use ($dados, $config, $antes) {
+            $config->update($dados);
+
+            $mudou = collect($dados)
+                ->reject(fn ($v, $k) => (int) $v === (int) $antes[$k])
+                ->map(fn ($v, $k) => "{$k}: {$antes[$k]} → {$v}")
+                ->implode('; ');
+
+            return 'Parâmetros do Ministério dos Transportes atualizados. '
+                .($mudou !== '' ? $mudou : 'Nada mudou.').' Valem já no próximo tick.';
         });
+    }
+
+    // ── Jogadores (D-61) ─────────────────────────────────────────────────────
+
+    /**
+     * Suspender: barra o acesso e congela **só o comércio** (reusa a restrição do §9.4).
+     *
+     * Motivo e prazo são obrigatórios — um banimento que não diz por quê e até quando não é
+     * moderação, é castigo mudo. `dias` vazio = definitiva.
+     */
+    public function suspender(Request $request, User $user, Suspender $suspender): RedirectResponse
+    {
+        $dados = $request->validate([
+            'motivo' => ['required', 'string', 'max:500'],
+            'dias' => ['nullable', 'integer', 'min:1', 'max:3650'],
+        ]);
+
+        return $this->tentarJaAuditado(function () use ($suspender, $user, $dados) {
+            $ate = isset($dados['dias']) ? now()->addDays((int) $dados['dias']) : null;
+            $suspender->suspender($user, $dados['motivo'], $ate);
+
+            return "{$user->nickname} suspenso.";
+        }, "admin.jogador", $user->id);
+    }
+
+    public function reintegrar(Request $request, User $user, Suspender $suspender): RedirectResponse
+    {
+        $motivo = $request->validate(['motivo' => ['required', 'string', 'max:500']])['motivo'];
+
+        return $this->tentarJaAuditado(
+            fn () => tap("{$user->nickname} reintegrado.", fn () => $suspender->reintegrar($user, $motivo)),
+            'admin.jogador',
+            $user->id,
+        );
+    }
+
+    /**
+     * Corrigir o estado de jogo. Lança `ajuste_admin` no ledger, sempre (D-61).
+     *
+     * Os campos vêm como **saldo absoluto**, não como delta: é o que o operador vê na tela, e pedir
+     * "+300" a quem está olhando "1.200" é convite a erro de conta.
+     */
+    public function corrigir(Request $request, User $user, CorrigirEstado $corrigir): RedirectResponse
+    {
+        $dados = $request->validate([
+            'motivo' => ['required', 'string', 'max:255'],
+            'fert' => ['nullable', 'numeric', 'min:0'],
+            'recursos' => ['array'],
+            'recursos.*' => ['nullable', 'integer', 'min:0'],
+            'indices' => ['array'],
+            'indices.*' => ['nullable', 'integer', 'min:0', 'max:1000'],
+        ]);
+
+        $colony = $user->colony;
+
+        if (! $colony) {
+            return $this->erro('Este jogador ainda não fundou colônia.');
+        }
+
+        return $this->tentarJaAuditado(function () use ($corrigir, $colony, $dados) {
+            $corrigir->corrigir(
+                $colony,
+                isset($dados['fert']) ? (int) round(((float) $dados['fert']) * Colony::MICRO_POR_FERT) : null,
+                array_filter($dados['recursos'] ?? [], fn ($v) => $v !== null),
+                array_filter($dados['indices'] ?? [], fn ($v) => $v !== null),
+                $dados['motivo'],
+            );
+
+            return "Estado de {$colony->name} corrigido.";
+        }, 'admin.jogador', $user->id);
+    }
+
+    public function editarJogador(Request $request, User $user, Auditoria $auditoria): RedirectResponse
+    {
+        $dados = $request->validate([
+            'name' => ['required', 'string', 'max:120'],
+            'nickname' => ['required', 'string', 'max:60', Rule::unique('users', 'nickname')->ignore($user->id)],
+            'email' => ['required', 'email', Rule::unique('users', 'email')->ignore($user->id)],
+        ]);
+
+        $antes = $user->only(['name', 'nickname', 'email']);
+        $user->update($dados);
+
+        $auditoria->registrar(
+            'jogador.editar',
+            "Editou os dados de {$user->nickname}.",
+            "user:{$user->id}",
+            $antes,
+            $user->fresh()->only(['name', 'nickname', 'email']),
+        );
+
+        return $this->voltarAoJogador($user, 'Dados atualizados.');
+    }
+
+    /**
+     * Redefinir a senha de um colono.
+     *
+     * **Os tokens dele morrem junto.** Uma senha nova que não revogue as sessões antigas não
+     * recupera conta nenhuma: quem tiver roubado o token continua entrando com ele, porque token do
+     * Sanctum não expira. É a mesma lição do logout (D-53) e da suspensão.
+     */
+    public function redefinirSenha(Request $request, User $user, Auditoria $auditoria): RedirectResponse
+    {
+        $senha = $request->validate([
+            'password' => ['required', 'string', Password::min(8)],
+        ])['password'];
+
+        $user->forceFill(['password' => Hash::make($senha)])->save();
+        $tokens = $user->tokens()->count();
+        $user->tokens()->delete();
+
+        $auditoria->registrar(
+            'jogador.senha',
+            "Redefiniu a senha de {$user->nickname} e revogou {$tokens} token(s).",
+            "user:{$user->id}",
+        );
+
+        return $this->voltarAoJogador($user, 'Senha redefinida e sessões encerradas.');
+    }
+
+    /** Realocar a colônia. **Só o dono** (a rota tem o middleware). Exige a palavra REALOCAR. */
+    public function realocarColonia(Request $request, User $user, RealocarColonia $realocar): RedirectResponse
+    {
+        $dados = $request->validate([
+            'x' => ['required', 'integer'],
+            'y' => ['required', 'integer'],
+            'motivo' => ['required', 'string', 'max:255'],
+            'confirmacao' => ['required', 'string'],
+        ]);
+
+        if ($dados['confirmacao'] !== 'REALOCAR') {
+            return $this->erro('Para realocar, escreva REALOCAR. A viagem de todo veículo em rota será refeita.');
+        }
+
+        $colony = $user->colony;
+
+        if (! $colony) {
+            return $this->erro('Este jogador ainda não fundou colônia.');
+        }
+
+        return $this->tentarJaAuditado(function () use ($realocar, $colony, $dados) {
+            $realocar->handle($colony, (int) $dados['x'], (int) $dados['y'], $dados['motivo']);
+
+            return "{$colony->name} realocada para ({$dados['x']}, {$dados['y']}).";
+        }, 'admin.jogador', $user->id);
+    }
+
+    // ── Admins (D-61). Só o dono — a rota tem o middleware `dono`. ────────────
+
+    public function adminCriar(Request $request, Contas $contas): RedirectResponse
+    {
+        $dados = $request->validate([
+            'name' => ['required', 'string', 'max:120'],
+            'email' => ['required', 'email', 'unique:admins,email'],
+            'password' => ['required', 'string', Password::min(10)],
+            'role' => ['required', Rule::in(Admin::PAPEIS)],
+        ]);
+
+        return $this->tentarJaAuditado(
+            fn () => tap('Admin criado.', fn () => $contas->criar($dados)),
+            'admin.admins',
+        );
+    }
+
+    public function adminEditar(Request $request, Admin $admin, Contas $contas): RedirectResponse
+    {
+        $dados = $request->validate([
+            'name' => ['required', 'string', 'max:120'],
+            'email' => ['required', 'email', Rule::unique('admins', 'email')->ignore($admin->id)],
+            'password' => ['nullable', 'string', Password::min(10)],
+            'role' => ['required', Rule::in(Admin::PAPEIS)],
+        ]);
+
+        return $this->tentarJaAuditado(
+            fn () => tap('Admin atualizado.', fn () => $contas->editar($admin, $this->eu(), $dados)),
+            'admin.admins',
+        );
+    }
+
+    public function adminDesativar(Admin $admin, Contas $contas): RedirectResponse
+    {
+        return $this->tentarJaAuditado(
+            fn () => tap("Admin {$admin->email} desativado.", fn () => $contas->desativar($admin, $this->eu())),
+            'admin.admins',
+        );
+    }
+
+    public function adminReativar(Admin $admin, Contas $contas): RedirectResponse
+    {
+        return $this->tentarJaAuditado(
+            fn () => tap("Admin {$admin->email} reativado.", fn () => $contas->reativar($admin)),
+            'admin.admins',
+        );
     }
 
     // ── Operação (orquestração, via Artisan em processo) ─────────────────────
@@ -200,7 +420,7 @@ class AcoesController extends Controller
     {
         Artisan::call(TickColonies::class);
 
-        return $this->ok('Tick disparado. O mundo avançou.');
+        return $this->ok('operacao.tick', 'Tick disparado. O mundo avançou.');
     }
 
     public function realocar(): RedirectResponse
@@ -210,30 +430,67 @@ class AcoesController extends Controller
         $saida = trim(Artisan::output());
 
         return $codigo === 0
-            ? $this->ok('Realocação aplicada. '.$saida)
+            ? $this->ok('operacao.realocar_founders', 'Realocação aplicada. '.$saida)
             : $this->erro('Realocação abortada. '.$saida);
     }
 
     // ── Helpers ──────────────────────────────────────────────────────────────
 
-    /** Roda a ação, traduz erro de regra e volta ao dashboard. */
-    private function tentar(callable $acao): RedirectResponse
+    /**
+     * Roda a ação, **audita**, traduz erro de regra e volta.
+     *
+     * **A auditoria não é opcional.** Este é o gargalo por onde toda ação bem-sucedida passa, e por
+     * isso `ok()` **exige o nome da ação**: não dá para acrescentar um botão ao painel e esquecer de
+     * registrá-lo — o código não compila sem nomear o que faz. É a mesma ideia do `ledger`, que
+     * obriga todo recurso a ter origem.
+     */
+    private function tentar(string $acao, callable $fn, ?string $alvo = null): RedirectResponse
     {
         try {
-            return $this->ok($acao());
+            return $this->ok($acao, $fn(), $alvo);
         } catch (DomainRuleException $e) {
             return $this->erro($e->getMessage());
         }
     }
 
-    private function ok(string $msg): RedirectResponse
+    /**
+     * Para as ações cujo **serviço de domínio já auditou** — com o antes e o depois, que só ele
+     * conhece: `Suspender`, `CorrigirEstado`, `Contas` e `RealocarColonia`.
+     *
+     * Auditar de novo aqui duplicaria a linha. O nome é feio de propósito: quem o usar sem que o
+     * domínio audite está criando uma ação invisível, e o nome do método é o aviso.
+     */
+    private function tentarJaAuditado(callable $fn, string $rota = 'admin.dashboard', mixed $param = null): RedirectResponse
     {
-        return redirect()->route('admin.dashboard')->with('ok', $msg);
+        try {
+            $msg = $fn();
+
+            return redirect()->route($rota, $param ? [$param] : [])->with('ok', $msg);
+        } catch (DomainRuleException $e) {
+            return $this->erro($e->getMessage());
+        }
+    }
+
+    private function ok(string $acao, string $msg, ?string $alvo = null): RedirectResponse
+    {
+        app(Auditoria::class)->registrar($acao, $msg, $alvo);
+
+        return redirect()->back()->with('ok', $msg);
     }
 
     private function erro(string $msg): RedirectResponse
     {
-        return redirect()->route('admin.dashboard')->with('erro', $msg);
+        return redirect()->back()->with('erro', $msg);
+    }
+
+    private function voltarAoJogador(User $user, string $msg): RedirectResponse
+    {
+        return redirect()->route('admin.jogador', $user)->with('ok', $msg);
+    }
+
+    private function eu(): Admin
+    {
+        return Auth::guard('admin')->user();
     }
 
     private function emMicro(mixed $fert): ?int

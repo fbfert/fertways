@@ -16,8 +16,17 @@ Route::prefix('admin')->group(function () {
     Route::post('/login', [AdminAuth::class, 'login']);
 
     Route::middleware('auth:admin')->group(function () {
-        Route::get('/', [PainelController::class, 'dashboard'])->name('admin.dashboard');
         Route::post('/logout', [AdminAuth::class, 'logout'])->name('admin.logout');
+
+        // ── As seções (D-61). Eram uma página só; o CRUD e a auditoria não caberiam nela. ──
+        Route::get('/', [PainelController::class, 'dashboard'])->name('admin.dashboard');
+        Route::get('/jogadores', [PainelController::class, 'jogadores'])->name('admin.jogadores');
+        Route::get('/jogadores/{user}', [PainelController::class, 'jogador'])->name('admin.jogador');
+        Route::get('/ministerio', [PainelController::class, 'ministerio'])->name('admin.ministerio');
+        Route::get('/economia', [PainelController::class, 'economia'])->name('admin.economia');
+        Route::get('/transportes', [PainelController::class, 'transportes'])->name('admin.transportes');
+        Route::get('/auditoria', [PainelController::class, 'auditoria'])->name('admin.auditoria');
+        Route::get('/operacao', [PainelController::class, 'operacao'])->name('admin.operacao');
 
         // Ministério
         Route::post('/reports/{report}/julgar', [AcoesController::class, 'julgar'])->name('admin.julgar');
@@ -37,9 +46,37 @@ Route::prefix('admin')->group(function () {
         // O Painel do Ministério dos Transportes (§16, D-60): os quatro números que o GDD manda o
         // operador configurar e nunca publica.
         Route::post('/transporte', [AcoesController::class, 'transporte'])->name('admin.transporte');
+
+        // ── Jogadores (D-61). O operador vê, suspende e corrige; realocar é só do dono. ──
+        Route::post('/jogadores/{user}/suspender', [AcoesController::class, 'suspender'])->name('admin.jogador.suspender');
+        Route::post('/jogadores/{user}/reintegrar', [AcoesController::class, 'reintegrar'])->name('admin.jogador.reintegrar');
+        Route::post('/jogadores/{user}/corrigir', [AcoesController::class, 'corrigir'])->name('admin.jogador.corrigir');
+        Route::post('/jogadores/{user}/senha', [AcoesController::class, 'redefinirSenha'])->name('admin.jogador.senha');
+        Route::post('/jogadores/{user}/dados', [AcoesController::class, 'editarJogador'])->name('admin.jogador.dados');
+
         // Operação
         Route::post('/tick', [AcoesController::class, 'tick'])->name('admin.tick');
-        Route::post('/realocar', [AcoesController::class, 'realocar'])->name('admin.realocar');
+        Route::post('/realocar-founders', [AcoesController::class, 'realocar'])->name('admin.realocar');
+
+        /*
+         * ── Só o dono (D-61) ──
+         *
+         * A linha é **quem altera o estado do jogo de forma difícil de desfazer**: gerir admins (que
+         * pode trancar o painel) e realocar uma colônia (que muda a distância, o eixo de toda a
+         * logística, e afeta o mundo de outros jogadores).
+         *
+         * A guarda é no servidor. O menu esconde a aba, mas esconder o botão sem barrar a rota faria
+         * da divisão de papéis uma sugestão.
+         */
+        Route::middleware('dono')->group(function () {
+            Route::get('/admins', [PainelController::class, 'admins'])->name('admin.admins');
+            Route::post('/admins', [AcoesController::class, 'adminCriar'])->name('admin.admin.criar');
+            Route::post('/admins/{admin}', [AcoesController::class, 'adminEditar'])->name('admin.admin.editar');
+            Route::post('/admins/{admin}/desativar', [AcoesController::class, 'adminDesativar'])->name('admin.admin.desativar');
+            Route::post('/admins/{admin}/reativar', [AcoesController::class, 'adminReativar'])->name('admin.admin.reativar');
+
+            Route::post('/jogadores/{user}/realocar', [AcoesController::class, 'realocarColonia'])->name('admin.jogador.realocar');
+        });
     });
 });
 

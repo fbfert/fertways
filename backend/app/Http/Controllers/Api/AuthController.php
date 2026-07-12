@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Domain\Admin\Suspender;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -47,6 +48,23 @@ class AuthController extends Controller
 
         if (! $user || ! Hash::check($dados['password'], $user->password)) {
             throw ValidationException::withMessages(['email' => 'Credenciais inválidas.']);
+        }
+
+        /*
+         * Suspensão (D-61): a porta está trancada. Vem **depois** da checagem da senha, de propósito
+         * — quem erra a senha não fica sabendo que a conta existe e está suspensa.
+         *
+         * A mensagem diz o motivo e o prazo. Um banimento que não explica por quê e até quando não é
+         * moderação, é castigo mudo.
+         */
+        if (Suspender::estaSuspenso($user)) {
+            $ate = $user->suspenso_ate
+                ? 'até '.$user->suspenso_ate->format('d/m/Y H:i')
+                : 'por tempo indeterminado';
+
+            throw ValidationException::withMessages([
+                'email' => "Conta suspensa {$ate}. Motivo: {$user->suspenso_motivo}",
+            ]);
         }
 
         return response()->json([

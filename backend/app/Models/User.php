@@ -38,6 +38,11 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'tutorial_completed_at' => 'datetime',
+            // A suspensão administrativa (D-61). Sem estes casts, `suspenso_ate` volta como string
+            // e o `isFuture()` que decide se a suspensão ainda vale estoura — foi assim que um
+            // teste a pegou.
+            'suspenso_em' => 'datetime',
+            'suspenso_ate' => 'datetime',
             'password' => 'hashed',
             'confianca_comercial' => 'integer',
             'conduta_social' => 'integer',

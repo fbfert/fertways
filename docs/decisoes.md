@@ -1971,3 +1971,93 @@ de fabricação; permanece serviço/aluguel governamental". Entra quando o Espa�
   menos", e é o mesmo multiplicador para os dois. Isso obrigou **toda** a máquina de viagem a passar
   pela `Conservacao` em vez do `VeiculoSpecs` cru — inclusive a cotação da tela da Frota, que senão
   prometeria ao colono um tempo que o veículo dele já não faz.
+
+---
+
+## D-61 — O painel de administração: auditoria, CRUD de contas e a palavra que confirma.
+**Data:** 2026-07-12 · **Status:** decidido pelo usuário · **GDD: fora do escopo dele**
+
+Nada disto é do GDD. O documento descreve o **jogo**; o painel de administração é **ferramenta de
+operação**, e o §9.2 só diz que existe uma "equipe". Tudo aqui é decisão do usuário.
+
+**O buraco que motivou tudo: o painel não deixava rastro nenhum.** Julgar um caso, distribuir o
+Tesouro, disparar um tick — tudo acontecia sem registro de quem fez, quando, ou o que mudou. O
+`ledger` audita a **economia**; nada auditava a **administração**. Num jogo cuja regra de ouro é que
+recurso não nasce sem história, o operador era o único que podia criar valor sem deixar história.
+
+### As decisões do usuário (2026-07-12)
+
+1. **Auditoria de todo ato de admin, com o antes e o depois.** Cada ação grava: **quem** (admin),
+   **quando**, **o quê**, **sobre quem/o quê**, os **valores antes e depois**, o **IP** e o
+   **navegador**. Mais os **logins de admin, inclusive os que falharam**. **Append-only**, como o
+   ledger — nem o admin apaga. É o que permite responder "quem deu 10.000 Fert$ a este colono?".
+2. **O painel quebra em seções navegáveis.** A página única já era longa e dobraria com o CRUD e o
+   log. Continua Blade por sessão, mesma estética, sem SPA.
+3. **CRUD de jogadores**: ficha completa (colônia, recursos, Fert$, construções, frota com placas, os
+   4 índices, punições, denúncias, acordos, extrato do ledger), **suspensão**, **correção de estado**
+   e **realocação da colônia**. **Não se apaga jogador** — apagar levaria em cascata o ledger, os
+   acordos e as denúncias em que ele é parte, quebrando o histórico de **outros** jogadores.
+4. **A suspensão barra o acesso e congela só o comércio.** O login é recusado e os tokens são
+   revogados na hora; a colônia **continua produzindo** e os veículos em rota **chegam**. Mas nenhuma
+   carga sai — e isso **reusa a restrição comercial do §9.4**, que o Ministério das Reputações já
+   sabe aplicar, em vez de inventar mecânica nova. Protege os outros jogadores sem congelar o mundo.
+   Motivo e prazo (ou "definitivo") são obrigatórios.
+5. **Dois papéis de admin: dono e operador.**
+   - **Dono**: tudo, inclusive gerir admins e **realocar colônias**.
+   - **Operador**: julga casos, publica notícias, distribui o Tesouro, e — nos jogadores — **vê,
+     suspende e corrige estado**. Não gere admins e **não realoca**.
+   - Duas travas, sempre: **ninguém apaga a si mesmo**, e **não se apaga o último dono** (senão o
+     painel fica inacessível para sempre e a única saída seria o `artisan`).
+6. **Corrigir estado lança `ajuste_admin` no ledger, sempre.** Fert$ ou recurso que aparece por
+   decisão do operador entra no extrato do colono com o motivo escrito e o admin que fez. **A
+   auditoria guarda o antes/depois; o ledger guarda o delta.** Dinheiro sem história é exatamente o
+   que o ledger existe para impedir — e o admin não é exceção.
+7. **Realocar força e recalcula.** Ao contrário do `fertways:realocar-founders`, que **recusa** se
+   houver veículo em rota, a realocação do painel **acontece assim mesmo** e **refaz as viagens** a
+   partir da nova posição. Exige a palavra **REALOCAR**, escrita.
+8. **Demolir exige a palavra DEMOLIR — na tela E na API.** O `DELETE /buildings/{id}` passa a exigir
+   `confirmacao: "DEMOLIR"`. Só na tela seria cosmético: qualquer chamada direta à API (ou um bug de
+   duplo-clique) demoliria sem digitar nada. A API é a porta de verdade.
+
+### As consequências que o assistente arbitrou, e por quê
+
+- **A realocação não acerta a energia já gasta.** O veículo pagou, no despacho, a energia da viagem
+  inteira pela distância **antiga** (D-30). Se a colônia se mudar para longe, a viagem refeita é mais
+  cara do que o que ele pagou; se for para perto, mais barata. **Não há acerto**: nem cobrança, nem
+  estorno. Cobrar do colono uma energia que ele não escolheu gastar seria puni-lo por um ato do
+  operador, e estornar seria dar-lhe lucro pelo mesmo motivo. **O governo come a diferença**, e a
+  auditoria registra a realocação inteira.
+- **A viagem refeita recomeça do zero.** O trecho em curso é recalculado como se o veículo partisse
+  **agora**, da posição nova. Não se tenta preservar a fração já percorrida: ela não existe em lugar
+  nenhum do modelo (só há `departs_at` e `arrives_at`), e inventá-la seria fingir uma precisão que o
+  jogo não tem.
+- **Acordos de Troca abertos ficam com o prazo da distância antiga.** O prazo é um instante gravado
+  (D-42), e mudar a colônia de lugar pode torná-lo impossível de cumprir. **O painel avisa antes**, e
+  a decisão é do operador — está na auditoria.
+- **A suspensão não tira o conciliador do cargo.** São coisas diferentes: o §26.7 tem o seu próprio
+  rito de suspensão de conciliador, com reversões e prazo. Um suspenso que seja conciliador
+  simplesmente não entra para julgar, e os casos dele vencem as 48 h e sobem à equipe — que é o que o
+  §9.2 já manda fazer.
+
+---
+
+## D-62 — O GDD v36: um documento que não se contradiz.
+**Data:** 2026-07-12 · **Status:** decidido pelo usuário
+
+O GDD v35 é uma **pilha de versões**: a Parte I é a v3.2 sanitizada, a Parte II é a v3.0, e uma
+tabela de precedência na seção 0 existe para o leitor resolver as contradições que o próprio
+documento carrega. É por isso que o **D-47** precisou virar regra de leitura, e é por isso que **30
+das nossas 59 decisões** existem — o documento se contradiz ou é omisso.
+
+**O v36 resolve as contradições no texto**, em vez de deixar uma tabela para o leitor resolver.
+Incorpora as 59 decisões, marca **LACUNA ABERTA** onde o GDD nunca publicou um número (sem inventar
+nenhum — é a regra de ouro aplicada ao próprio documento), e separa o que o jogo **entrega** do que
+ele **promete**, como o `Domain/Building/Funcoes` já faz nas construções.
+
+- **Formato:** HTML, como o v35. É documento para ler, não para o git.
+- **O v35 fica intocado**, como registro histórico do que se pensava antes. O v36 diz na abertura que
+  o substitui, e por quê.
+- **O `docs/decisoes.md` continua sendo o diário** — o v36 é a fonte única; o diário é o rastro de
+  como se chegou nela.
+- **Quando o v36 estiver no ar, o D-47 vira história**: não haverá mais precedência a aplicar, porque
+  não haverá mais duas redações concorrentes.

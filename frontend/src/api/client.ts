@@ -626,7 +626,18 @@ export const api = {
     }),
 
   /** Demole e libera o slot. O investido não volta (D-59). */
-  demolir: (id: number) => req<{ demolida: boolean }>(`/buildings/${id}`, { method: 'DELETE' }),
+  /**
+   * Demolir (D-61). A API **exige a palavra** — não é enfeite de tela.
+   *
+   * Uma confirmação que vivesse só no React protegeria contra o dedo escorregando e contra mais
+   * nada: quem chamasse a API direto demoliria sem digitar coisa alguma. Ela vai no corpo porque é
+   * a porta de verdade.
+   */
+  demolir: (id: number) =>
+    req<{ demolida: boolean }>(`/buildings/${id}`, {
+      method: 'DELETE',
+      body: JSON.stringify({ confirmacao: 'DEMOLIR' }),
+    }),
 
   fila: () => req<Fila>('/queue'),
 

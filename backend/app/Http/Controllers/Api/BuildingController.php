@@ -89,6 +89,26 @@ class BuildingController extends Controller
             throw new DomainRuleException('sem_colonia', 'Funde uma colônia primeiro.');
         }
 
+        /*
+         * D-61: o colono tem de **escrever a palavra**.
+         *
+         * A exigência vive **aqui**, e não só na tela, de propósito. Uma confirmação que só existe no
+         * React protege contra o dedo escorregando e contra mais nada: quem chamar a API direto — ou
+         * um duplo-clique que dispare a chamada duas vezes — demole sem digitar nada. **A API é a
+         * porta de verdade.**
+         *
+         * Demolir é irreversível e não devolve nada (D-59): o custo já foi lançado, e a construção
+         * vira pó. É a ação mais destrutiva que o colono tem à mão.
+         */
+        $confirmacao = (string) $request->input('confirmacao');
+
+        if ($confirmacao !== Demolir::PALAVRA) {
+            throw new DomainRuleException(
+                'confirmacao_invalida',
+                'Para demolir, escreva '.Demolir::PALAVRA.'. Nada é devolvido, e não há volta.',
+            );
+        }
+
         $demolir->handle($colony, $building);
 
         return response()->json(['demolida' => true]);

@@ -45,6 +45,10 @@ class Ledger extends Model
         'compra_veiculo',      // §16: Caminhão comprado do Ministério, ou um usado de outro colono (D-60)
         'venda_veiculo',       // §16.4: o vendedor recebe, quando o usado chega ao comprador (D-60)
         'manutencao_veiculo',  // §16.4: recursos gastos na Central de Transportes para reparar (D-60)
+        // Correção de estado feita pelo operador (D-61). É a ÚNICA coisa no jogo que cria valor sem
+        // origem econômica — e por isso ela é obrigada a passar por aqui, com motivo escrito. O
+        // `amount` é o delta, com sinal: uma correção também pode TIRAR o que um bug deu de graça.
+        'ajuste_admin',
         'estorno',
     ];
 

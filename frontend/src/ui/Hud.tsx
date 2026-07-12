@@ -268,6 +268,8 @@ export function Detalhe({
   // construção faz, não no que ela cobra.
   const [evoluindo, setEvoluindo] = useState(false)
   const [confirmandoDemolicao, setConfirmandoDemolicao] = useState(false)
+  // D-61: a palavra que o colono tem de escrever. A API exige a mesma.
+  const [palavra, setPalavra] = useState('')
 
   // Trocar de construção fecha os dois painéis: o custo da Oficina não pode ficar aberto quando o
   // colono clica na Mina.
@@ -391,14 +393,40 @@ export function Detalhe({
                 Demolir libera o slot. <span className="text-rust font-bold">Nada é devolvido</span> —
                 os recursos investidos nos {spec.level} níveis se perdem.
               </p>
+
+              {/*
+                D-61: além de confirmar, o colono tem de ESCREVER a palavra.
+
+                O botão de confirmação sozinho já foi clicado por engano. Escrever exige ler — e é a
+                única defesa contra o dedo rápido numa ação que não tem volta e não devolve nada.
+
+                A API exige a mesma palavra (`Demolir::PALAVRA`), e essa é a guarda de verdade: esta
+                aqui protege o descuido; a de lá protege contra tudo o mais.
+              */}
+              <label className="text-ink-soft mt-2 block text-xs">
+                Escreva <span className="text-rust font-bold">DEMOLIR</span> para confirmar:
+                <input
+                  value={palavra}
+                  onChange={(e) => setPalavra(e.target.value)}
+                  autoFocus
+                  data-palavra-demolir
+                  className="border-rust/40 bg-sand text-ink mt-1 w-full border px-2 py-1 font-mono text-sm"
+                />
+              </label>
+
               <button
                 onClick={() => aoDemolir(spec)}
-                className="border-rust text-rust hover:bg-rust hover:text-sand-light mt-2 w-full border py-2 text-sm font-bold"
+                disabled={palavra !== 'DEMOLIR'}
+                data-demolir
+                className="border-rust text-rust hover:bg-rust hover:text-sand-light disabled:border-ink-soft/25 disabled:text-ink-soft/40 mt-2 w-full border py-2 text-sm font-bold disabled:cursor-not-allowed disabled:hover:bg-transparent"
               >
                 Demolir mesmo assim
               </button>
               <button
-                onClick={() => setConfirmandoDemolicao(false)}
+                onClick={() => {
+                  setConfirmandoDemolicao(false)
+                  setPalavra('')
+                }}
                 className="text-ink-soft hover:text-rust mt-1 w-full py-1 text-xs"
               >
                 cancelar

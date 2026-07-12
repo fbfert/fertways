@@ -124,9 +124,12 @@ class AdminPainelTest extends TestCase
         $caso = $this->casoNaEquipe();
         $this->assertSame('na_equipe', $caso->status);
 
+        // Desde o D-61 as ações voltam para a página de onde vieram (`back()`), e não sempre ao
+        // dashboard: julgar um caso na aba do Ministério não deve jogar o operador na visão geral.
         $this->actingAs($this->admin(), 'admin')
+            ->from(route('admin.ministerio'))
             ->post(route('admin.julgar', $caso), ['procedente' => '1'])
-            ->assertRedirect(route('admin.dashboard'))
+            ->assertRedirect(route('admin.ministerio'))
             ->assertSessionHas('ok');
 
         $this->assertSame('decidido', $caso->fresh()->status);
@@ -172,8 +175,11 @@ class AdminPainelTest extends TestCase
     #[Test]
     public function o_painel_dispara_o_tick(): void
     {
-        $this->actingAs($this->admin(), 'admin')->post(route('admin.tick'))
-            ->assertRedirect(route('admin.dashboard'))->assertSessionHas('ok');
+        $this->actingAs($this->admin(), 'admin')
+            ->from(route('admin.operacao'))
+            ->post(route('admin.tick'))
+            ->assertRedirect(route('admin.operacao'))
+            ->assertSessionHas('ok');
     }
 
     #[Test]

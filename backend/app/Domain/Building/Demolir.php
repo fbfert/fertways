@@ -26,6 +26,15 @@ use Illuminate\Support\Facades\DB;
  */
 class Demolir
 {
+    /**
+     * A palavra que o colono tem de escrever para confirmar (D-61).
+     *
+     * Ela é conferida na **API**, não só na tela: uma confirmação que vive só no React protege contra
+     * o dedo escorregando e contra mais nada. Vive aqui, no domínio, para que a tela e o controlador
+     * leiam a mesma verdade em vez de repetirem a string.
+     */
+    public const PALAVRA = 'DEMOLIR';
+
     public function handle(Colony $colony, Building $building): void
     {
         if ($building->colony_id !== $colony->id) {

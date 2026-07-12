@@ -2,6 +2,7 @@
 
 namespace App\Domain\Logistics;
 
+use App\Domain\Admin\Suspender;
 use App\Domain\Market\Deposito;
 use App\Domain\Trade\AcessoAoMercado;
 use App\Exceptions\DomainRuleException;
@@ -90,7 +91,27 @@ class DespacharVeiculo
     {
         $usuario = $origem->user;
 
-        if ($usuario && Punishment::restricaoComercialAtiva($usuario->id)) {
+        if (! $usuario) {
+            return;
+        }
+
+        /*
+         * D-61: a suspensão administrativa **congela o comércio**, e é aqui que ela morde.
+         *
+         * Ela não inventa mecânica: reusa exatamente esta porta, que o §9.4 já usava. A suspensão
+         * barra o login, mas um suspenso pode ter deixado a colônia com veículos e acordos — e os
+         * **outros** jogadores não podem ficar à espera de carga de quem não pode mais entrar.
+         *
+         * A colônia continua produzindo, e os veículos em rota chegam. Só a saída fecha.
+         */
+        if (Suspender::estaSuspenso($usuario)) {
+            throw new DomainRuleException(
+                'conta_suspensa',
+                'A sua conta está suspensa: nenhuma carga sai da colônia enquanto durar.',
+            );
+        }
+
+        if (Punishment::restricaoComercialAtiva($usuario->id)) {
             throw new DomainRuleException(
                 'restricao_comercial',
                 'O Ministério das Reputações proibiu você de enviar recursos. Aguarde o fim da restrição.',

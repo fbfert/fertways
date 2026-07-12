@@ -57,18 +57,77 @@
         .pilula.alerta { background: var(--ember); color: var(--ink); }
         .mut { color: var(--ink-soft); }
         .pequeno { font-size: .72rem; }
+
+        /* ── Navegação por seções (D-61). A página única não aguentava o CRUD e o log. ── */
+        nav.abas {
+            display: flex; gap: 2px; flex-wrap: wrap; background: var(--ink-soft); padding: 0 20px;
+        }
+        nav.abas a {
+            color: rgba(253,240,226,.7); text-decoration: none; padding: 9px 13px;
+            font-size: .74rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em;
+        }
+        nav.abas a:hover { color: var(--ember); }
+        nav.abas a.ativa { background: var(--sand); color: var(--rust); }
+        header.topo .busca { display: flex; gap: 6px; align-items: center; }
+        header.topo .busca input {
+            width: 220px; background: rgba(255,255,255,.1); border-color: rgba(255,255,255,.25);
+            color: var(--sand-light);
+        }
+        header.topo .busca input::placeholder { color: rgba(253,240,226,.45); }
+        .papel { font-size: .58rem; color: var(--ember); letter-spacing: .12em; text-transform: uppercase; }
     </style>
 </head>
 <body>
     <header class="topo">
         <div class="marca"><small>Administração</small>FERTWAYS</div>
+
         @auth('admin')
-            <form method="POST" action="{{ route('admin.logout') }}" class="inline">
-                @csrf
-                <button class="leve" style="color:var(--sand-light);border-color:rgba(255,255,255,.3)">Sair</button>
+            {{-- A busca global: é o que se usa em 90% das vezes que alguém reclama de alguma coisa. --}}
+            <form method="GET" action="{{ route('admin.jogadores') }}" class="busca">
+                <input type="text" name="q" value="{{ request('q') }}"
+                       placeholder="jogador, e-mail, colônia ou placa…">
+                <button class="leve" style="color:var(--sand-light);border-color:rgba(255,255,255,.3)">Buscar</button>
             </form>
+
+            <div style="display:flex;align-items:center;gap:12px">
+                <div style="text-align:right">
+                    <div style="font-weight:700">{{ auth('admin')->user()->name }}</div>
+                    <div class="papel">{{ auth('admin')->user()->role }}</div>
+                </div>
+                <form method="POST" action="{{ route('admin.logout') }}" class="inline">
+                    @csrf
+                    <button class="leve" style="color:var(--sand-light);border-color:rgba(255,255,255,.3)">Sair</button>
+                </form>
+            </div>
         @endauth
     </header>
+
+    @auth('admin')
+        @php
+            // O CRUD de admins é só do dono (D-61) — e o menu não oferece o que a rota vai recusar.
+            $abas = [
+                'admin.dashboard' => 'Visão geral',
+                'admin.jogadores' => 'Jogadores',
+                'admin.ministerio' => 'Ministério',
+                'admin.economia' => 'Economia',
+                'admin.transportes' => 'Transportes',
+                'admin.auditoria' => 'Auditoria',
+                'admin.operacao' => 'Operação',
+            ];
+
+            if (auth('admin')->user()->ehDono()) {
+                $abas['admin.admins'] = 'Admins';
+            }
+        @endphp
+
+        <nav class="abas">
+            @foreach ($abas as $rota => $rotulo)
+                <a href="{{ route($rota) }}"
+                   class="{{ request()->routeIs($rota) ? 'ativa' : '' }}"
+                   data-aba="{{ $rota }}">{{ $rotulo }}</a>
+            @endforeach
+        </nav>
+    @endauth
 
     <main>
         @if (session('ok'))<div class="flash ok">{{ session('ok') }}</div>@endif

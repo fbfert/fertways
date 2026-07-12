@@ -29,6 +29,10 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->redirectGuestsTo(
             fn (Request $request) => $request->is('admin', 'admin/*') ? route('admin.login') : null,
         );
+
+        // Os dois papéis do painel (D-61). A checagem é no servidor: esconder o botão sem barrar a
+        // rota faria da divisão de papéis uma sugestão.
+        $middleware->alias(['dono' => \App\Http\Middleware\ExigirDono::class]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
         /*

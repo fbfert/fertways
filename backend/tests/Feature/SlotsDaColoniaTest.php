@@ -235,7 +235,22 @@ class SlotsDaColoniaTest extends TestCase
         $mina = $this->erguerPredio($colony, 'mina_local', 3);
         $slot = $mina->slot;
 
-        $this->actingAs($user)->deleteJson("/buildings/{$mina->id}")
+        /*
+         * D-61: sem a palavra escrita, a API RECUSA — e é aqui que a guarda tem de estar.
+         *
+         * Uma confirmação que só existisse no React protegeria contra o dedo escorregando e contra
+         * mais nada: quem chamasse a API direto demoliria sem digitar coisa alguma. Estes três casos
+         * (nada, palavra errada, minúscula) são as três maneiras de tentar passar por cima dela.
+         */
+        foreach ([[], ['confirmacao' => 'sim'], ['confirmacao' => 'demolir']] as $tentativa) {
+            $this->actingAs($user)->deleteJson("/buildings/{$mina->id}", $tentativa)
+                ->assertStatus(422)
+                ->assertJsonPath('code', 'confirmacao_invalida');
+        }
+
+        $this->assertNotNull($colony->fresh()->buildings->firstWhere('slot', $slot), 'e a Mina continua de pé');
+
+        $this->actingAs($user)->deleteJson("/buildings/{$mina->id}", ["confirmacao" => "DEMOLIR"])
             ->assertOk()
             ->assertJsonPath('demolida', true);
 
@@ -253,7 +268,7 @@ class SlotsDaColoniaTest extends TestCase
         $reator = $user->colony->buildings->firstWhere('type', 'reator_de_energia');
 
         // Demolir o Reator deixaria a colônia sem energia, e o GDD não diz o que acontece então.
-        $this->actingAs($user)->deleteJson("/buildings/{$reator->id}")
+        $this->actingAs($user)->deleteJson("/buildings/{$reator->id}", ["confirmacao" => "DEMOLIR"])
             ->assertStatus(422)
             ->assertJsonPath('code', 'essencial_indemolivel');
 
@@ -268,7 +283,7 @@ class SlotsDaColoniaTest extends TestCase
         $this->actingAs($user)->postJson('/buildings', ['type' => 'mina_local', 'slot' => 0])->assertCreated();
         $mina = $user->colony->fresh()->buildings->firstWhere('type', 'mina_local');
 
-        $this->actingAs($user)->deleteJson("/buildings/{$mina->id}")
+        $this->actingAs($user)->deleteJson("/buildings/{$mina->id}", ["confirmacao" => "DEMOLIR"])
             ->assertStatus(422)
             ->assertJsonPath('code', 'demolir_em_obra');
     }
