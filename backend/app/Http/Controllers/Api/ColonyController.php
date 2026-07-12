@@ -143,9 +143,15 @@ class ColonyController extends Controller
         // não de constantes no frontend, porque a geometria vai mudar (D-51: lado 101, Capital em
         // (0,0), coordenadas com sinal) e um número copiado no React sobreviveria à mudança
         // mentindo. Campos aditivos: quem já lia `colonies` não quebra.
+        //
+        // Os dois raios entram pelo mesmo motivo, desde o D-64: agora que o mapa desenha as
+        // células de verdade, ele sombreia o disco de founders e o anel livre — e a fronteira de
+        // uma faixa é a distância **exata** (`MapaFertways::faixaDe`), não a arredondada do frete.
         return response()->json([
             'side' => MapaFertways::LADO,
             'capital' => ['x' => MapaFertways::CAPITAL_X, 'y' => MapaFertways::CAPITAL_Y],
+            'raio_founder' => MapaFertways::RAIO_FOUNDER,
+            'raio_anel' => MapaFertways::RAIO_ANEL,
             'me' => ['id' => $minha->id, 'name' => $minha->name, 'x' => $minha->x, 'y' => $minha->y],
             'colonies' => $colonias,
         ]);

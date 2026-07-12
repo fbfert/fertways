@@ -161,6 +161,9 @@ export type Receita = {
 export type Diretorio = {
   side: number
   capital: { x: number; y: number }
+  /** Os raios das faixas do centro (D-51), para o mapa sombrear as células de cada uma (D-64). */
+  raio_founder: number
+  raio_anel: number
   me: { id: number; name: string; x: number; y: number }
   colonies: ColoniaVizinha[]
 }

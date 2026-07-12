@@ -206,9 +206,10 @@ class DiretorioDeColoniasTest extends TestCase
     }
 
     /**
-     * A tela do mapa precisa saber onde é a Capital e qual o lado da grade. Esses números vêm da
-     * API e não de constantes no frontend, porque a geometria vai mudar (D-51) e um número copiado
-     * no React sobreviveria à mudança mentindo.
+     * A tela do mapa precisa saber onde é a Capital, qual o lado da grade e onde acabam as faixas
+     * do centro — desde o D-64 ela sombreia as células do disco de founders e do anel livre. Esses
+     * números vêm da API e não de constantes no frontend, porque a geometria vai mudar (D-51) e um
+     * número copiado no React sobreviveria à mudança mentindo.
      */
     #[Test]
     public function o_diretorio_publica_a_geometria_do_mapa_e_a_propria_colonia(): void
@@ -220,6 +221,8 @@ class DiretorioDeColoniasTest extends TestCase
         $r->assertJsonPath('side', \App\Domain\Logistics\MapaFertways::LADO)
             ->assertJsonPath('capital.x', \App\Domain\Logistics\MapaFertways::CAPITAL_X)
             ->assertJsonPath('capital.y', \App\Domain\Logistics\MapaFertways::CAPITAL_Y)
+            ->assertJsonPath('raio_founder', \App\Domain\Logistics\MapaFertways::RAIO_FOUNDER)
+            ->assertJsonPath('raio_anel', \App\Domain\Logistics\MapaFertways::RAIO_ANEL)
             ->assertJsonPath('me.id', $eu->id)
             ->assertJsonPath('me.x', 10)
             ->assertJsonPath('me.y', 10);

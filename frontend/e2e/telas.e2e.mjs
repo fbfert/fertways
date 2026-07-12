@@ -62,6 +62,32 @@ try {
   // mapa desenha as três vizinhas mais você. A Capital é losango, não círculo.
   checar(circulos === 4, `desenha as três vizinhas e você (achou ${circulos} círculos)`)
 
+  console.log('\nA vista abre em 15×15, centrada em você (D-64)')
+  /*
+   * Esta é a prova do enquadramento, e não dá para tirá-la do desenho: um SVG que ninguém lê pode
+   * estar em qualquer zoom. As RÉGUAS, sim, dizem que células o jogador está vendo.
+   *
+   * O seeder põe o colono em (0,3). Uma janela de 15 colunas centrada nele vai de -7 a 7; a de 15
+   * linhas, de -4 a 10. Se o mapa abrisse no planeta inteiro (o de antes), seriam 11 números de 10
+   * em 10; se abrisse centrado na Capital, o Y iria de -7 a 7.
+   */
+  const rotulos = (n) => n.map((t) => t.textContent)
+  const reguaX = await page.$$eval('svg[data-mapa] [data-regua-x] text', rotulos)
+  const reguaY = await page.$$eval('svg[data-mapa] [data-regua-y] text', rotulos)
+  checar(
+    reguaX.length === 15 && reguaX[0] === '-7' && reguaX[14] === '7',
+    `a régua de X numera 15 colunas, de -7 a 7 (achou ${reguaX.length}: ${reguaX[0]}…${reguaX.at(-1)})`,
+  )
+  checar(
+    reguaY.length === 15 && reguaY[0] === '-4' && reguaY[14] === '10',
+    `a régua de Y numera 15 linhas, de -4 a 10 (achou ${reguaY.length}: ${reguaY[0]}…${reguaY.at(-1)})`,
+  )
+
+  // Uma linha por borda de célula, mais os dois eixos da Capital. O mapa antigo tinha 18 linhas
+  // decorativas fixas (9 por eixo) que não eram células nenhumas: o piso aqui as descarta.
+  const grade = await page.$$eval('svg[data-mapa] line:not([stroke-dasharray])', (n) => n.length)
+  checar(grade >= 30, `risca as linhas de X e de Y, uma por célula (achou ${grade})`)
+
   console.log('\nA vizinha aparece e é clicável')
   checar(await esperarTexto(page, /Colônia vizinha/), 'a vizinha aparece na lista lateral')
 

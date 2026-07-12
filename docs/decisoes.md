@@ -2130,3 +2130,68 @@ O **v36 já nasce com a versão certa**, e é por isso que ele existe.
 - **As rotas do Espaçoporto** não abriram. O painel mostra os 5 planetas com a distância e o risco que
   o GDD publica, e diz que ninguém viaja ainda.
 - **A cobrança do estacionamento** — <b>lacuna aberta</b>.
+
+---
+
+## D-64 — O mapa ganha grade: 15×15 centrado em você, com linhas e coordenadas.
+**Data:** 2026-07-11 · **Status:** decidido pelo usuário · **GDD: omisso (a geometria é do D-51)**
+
+### O que havia, e por que não servia
+
+O mapa do D-51 abria no **planeta inteiro**: 101×101 células num SVG de meio milhar de pixels, o que
+dá **6 px por célula**. A "grade de fundo" eram **9 linhas decorativas por eixo** — não eram células,
+eram décimos do desenho —, e **coordenada nenhuma aparecia na tela**: o X e o Y só existiam como
+texto no cabeçalho ("Você em (0, 3)") e nos painéis laterais.
+
+O resultado é que o mapa dizia *onde* o colono estava sem nunca **mostrar**. Ele via um borrão com
+pontos, e para achar a própria colônia tinha de caçar o círculo âmbar.
+
+### As decisões do usuário (2026-07-11)
+
+1. **O mapa abre em 15×15, centrado na colônia do jogador** — e o botão da mira devolve esse
+   enquadramento a qualquer momento. O **zoom livre continua** por cima disso: dá para afastar até o
+   planeta inteiro e aproximar mais. Travar a vista em 15×15 tornaria as **120 zonas neutras dos
+   cantos** (±45..50) inalcançáveis sem dezenas de arrastes — elas continuam a exigir o afastamento.
+2. **Na borda do planeta, a vista passa da grade em vez de se prender a ela.** Um colono em (50,50)
+   fica no **meio da tela**, e o que sobra ao redor é o vazio de fora do mundo — que o retângulo do
+   planeta deixa visível. Preso à borda (o comportamento antigo), ele nunca se veria no centro, que é
+   justamente o que "foco no slot dele" promete. O que se prende é o **centro da vista**, que não sai
+   do planeta: sem isso o mapa poderia sumir da tela.
+3. **Os números moram numa calha fora do mapa** — o X em cima, o Y à esquerda, como numa planilha —,
+   e **não escorregam com o arraste**. Rótulo dentro de cada célula seriam 225 números brigando com
+   os marcadores.
+4. **Célula vazia não é alvo de clique.** A grade é leitura: a célula sob o cursor acende e a
+   coordenada dela aparece, mas continuam clicáveis só a Capital, as vizinhas e as zonas.
+5. **A tela de Fundação ganha a mesma grade e as mesmas réguas**, nas duas abas. Nela não há "seu
+   slot" para enquadrar — o colono ainda não fundou —, mas escolher onde morar era clicar às cegas
+   num borrão de 5 px por célula.
+6. **As faixas do centro passam a ser sombreadas, célula a célula**: o disco de founders (d ≤ 4) e o
+   anel livre (4 < d ≤ 5). Sombreia-se a **célula**, e não um círculo por cima dela, porque a faixa
+   **é** um conjunto de células — a fronteira é a distância euclidiana **exata** de
+   `MapaFertways::faixaDe`, e um círculo desenhado por cima mentiria justo nas células da beirada,
+   que são as que importam.
+
+### O que isto obrigou no servidor
+
+`GET /colonies` passou a publicar `raio_founder` e `raio_anel` (aditivo). Pela regra do D-51, a
+geometria vem da API e **nunca** de constante no React: um número copiado para o frontend
+sobreviveria a uma mudança da grade mentindo. O `GET /map` da Fundação já os publicava.
+
+### O que a foto pegou e o e2e não pegaria
+
+O D-63 já tinha ensinado que **e2e não prova desenho**, e aqui a lição cobrou de novo. Com a suíte
+inteira verde, a captura de tela mostrou três defeitos que nenhuma asserção via:
+
+- a calha existia só **em cima e à esquerda**, então o rótulo da **última** coluna e da **última**
+  linha (o "50" e o "−50") era centrado na borda de fora do SVG e saía **cortado ao meio**. A calha
+  passou a ser simétrica — os números só ocupam dois lados, mas a **folga** precisa dos quatro;
+- os botões de zoom, no canto superior direito, **tapavam o número da última coluna**. Desceram para
+  baixo da régua;
+- o botão de centralizar usava o caractere **⌖ (U+2316), que a fonte do jogo não tem**: o colono via
+  o retângulo vazio do glifo que falta. Virou um ícone desenhado. (Este era **anterior** ao D-64 —
+  estava no ar desde o D-51 e ninguém tinha olhado.)
+
+**A prova do enquadramento, essa sim, é do e2e — e vem das réguas, não do desenho.** Um SVG que
+ninguém lê pode estar em qualquer zoom; os números dizem que células o jogador está vendo. Com o
+colono semeado em (0,3), o teste exige que o X vá de −7 a 7 e o Y de −4 a 10: 15 colunas, 15 linhas,
+ele no meio.

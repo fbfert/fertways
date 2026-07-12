@@ -1,6 +1,17 @@
 import { useEffect, useMemo, useState } from 'react'
 import { api, ApiError } from '../api/client'
 import type { MapaFundacao } from '../api/client'
+import { CelulaSobOCursor, Faixas, Grade, Planeta, Reguas } from './Grade'
+import {
+  LADO_SVG,
+  celulaEm,
+  passoDaGrade,
+  pontoNoSvg,
+  projecaoAmpliada,
+  projecaoDoPlaneta,
+  viewBoxComReguas,
+} from './geometria'
+import type { Caixa } from './geometria'
 
 /**
  * O seletor de fundação (D-51).
@@ -16,9 +27,11 @@ import type { MapaFundacao } from '../api/client'
  * O anel livre (4 < d ≤ 5) não é fundável em lugar nenhum — é respiro. Toda a geometria vem do
  * servidor (`GET /map`); o `POST /colony` confere de novo, então esta validação de cliente é só
  * para não oferecer o impossível.
+ *
+ * As duas abas desenham a grade, as linhas de X e de Y e as réguas de coordenadas do `Grade`
+ * (D-64). Aqui não há "seu slot" para enquadrar — você ainda não fundou —, mas há coordenada para
+ * ler: escolher onde morar era clicar às cegas num borrão.
  */
-
-const LADO_SVG = 1000
 
 export function Fundacao({ aoFundar }: { aoFundar: () => Promise<void> }) {
   const [mapa, setMapa] = useState<MapaFundacao | null>(null)
@@ -27,6 +40,8 @@ export function Fundacao({ aoFundar }: { aoFundar: () => Promise<void> }) {
   const [aba, setAba] = useState<'founder' | 'periferia'>('founder')
   const [erro, setErro] = useState<string | null>(null)
   const [enviando, setEnviando] = useState(false)
+  // A célula sob o cursor na aba Periferia: só realce e leitura da coordenada.
+  const [cursor, setCursor] = useState<{ x: number; y: number } | null>(null)
 
   useEffect(() => {
     api
@@ -82,16 +97,28 @@ export function Fundacao({ aoFundar }: { aoFundar: () => Promise<void> }) {
             </div>
 
             <div className="mt-4 grid gap-6 md:grid-cols-[1fr_16rem]">
-              <div className="border-rust/20 bg-sand border p-2">
+              <div className="border-rust/20 bg-sand relative border p-2">
                 {aba === 'founder' ? (
                   <DiscoDeFounders mapa={mapa} escolha={escolha} aoEscolher={setEscolha} />
                 ) : (
-                  <MapaPeriferia
-                    mapa={mapa}
-                    ocupadas={ocupadas}
-                    escolha={escolha}
-                    aoEscolher={setEscolha}
-                  />
+                  <>
+                    <MapaPeriferia
+                      mapa={mapa}
+                      ocupadas={ocupadas}
+                      escolha={escolha}
+                      aoEscolher={setEscolha}
+                      cursor={cursor}
+                      aoMoverCursor={setCursor}
+                    />
+                    {cursor && (
+                      <div
+                        data-coordenada-cursor
+                        className="bg-sand-light/90 border-rust/25 text-ink absolute bottom-3 left-3 border px-2 py-0.5 text-xs tabular-nums"
+                      >
+                        ({cursor.x}, {cursor.y})
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
 
@@ -165,7 +192,10 @@ function Aba({
 
 /**
  * O disco de founders, ampliado para os 48 slots ficarem clicáveis. Escala fixa: cada célula do
- * jogo vale `PASSO` px, e a Capital fica no centro.
+ * jogo vale `PASSO` unidades do SVG, e a Capital fica no centro.
+ *
+ * O enquadramento vai até o anel (d ≤ 5), e não até o disco (d ≤ 4): o anel é justamente onde
+ * **não** se funda, e mostrá-lo é o que explica por que os slots param onde param.
  */
 function DiscoDeFounders({
   mapa,
@@ -176,28 +206,22 @@ function DiscoDeFounders({
   escolha: { x: number; y: number } | null
   aoEscolher: (c: { x: number; y: number } | null) => void
 }) {
-  const R = mapa.raio_founder
+  const R = mapa.raio_anel
   const PASSO = 42
-  const centro = (R + 1.5) * PASSO // margem de meia célula e folga
-  const W = centro * 2
-  const fx = (gx: number) => centro + gx * PASSO
-  const fy = (gy: number) => centro - gy * PASSO
+  const centro = (R + 0.5) * PASSO // meia célula de folga em cada ponta
+  const proj = projecaoAmpliada(PASSO, centro)
+  const caixa: Caixa = { x0: 0, y0: 0, lado: centro * 2 }
+  const faixa = { xDe: -R, xAte: R, yDe: -R, yAte: R }
 
   return (
-    <svg data-disco-founder viewBox={`0 0 ${W} ${W}`} className="block h-auto w-full">
-      {/* A fronteira do disco (d=4) e a do anel livre (d=5), como referência. */}
-      <circle cx={centro} cy={centro} r={R * PASSO} fill="none" stroke="var(--color-rust)" strokeOpacity={0.15} />
-      <circle
-        cx={centro}
-        cy={centro}
-        r={mapa.raio_anel * PASSO}
-        fill="none"
-        stroke="var(--color-rust)"
-        strokeOpacity={0.1}
-        strokeDasharray="6 6"
-      />
+    <svg data-disco-founder viewBox={viewBoxComReguas(caixa)} className="block h-auto w-full">
+      <Reguas proj={proj} caixa={caixa} faixa={faixa} passo={1} />
+      <Faixas proj={proj} raioFounder={mapa.raio_founder} raioAnel={mapa.raio_anel} />
+      <Grade proj={proj} faixa={faixa} passo={1} />
 
-      {/* A Capital, losango no centro. */}
+      {/* A Capital, losango no centro. Sem rótulo escrito ao lado: agora que a grade existe, o
+          texto caía dentro da célula (0,-1) e brigava com o slot de founder que mora nela. Quem
+          nomeia o losango é a legenda, à direita, e o `title` de quem passa o mouse. */}
       <rect
         x={centro - 10}
         y={centro - 10}
@@ -205,28 +229,22 @@ function DiscoDeFounders({
         height={20}
         transform={`rotate(45 ${centro} ${centro})`}
         fill="var(--color-rust)"
-      />
-      <text x={centro} y={centro + 30} textAnchor="middle" className="fill-ink-soft" fontSize={16}>
-        Mercado
-      </text>
+      >
+        <title>Mercado Central (0, 0) — a Capital</title>
+      </rect>
 
       {mapa.founder_slots.map((s) => {
         const livre = !s.reservado && !s.ocupado
         const escolhido = escolha?.x === s.x && escolha?.y === s.y
+
         return (
           <circle
             key={`${s.x}:${s.y}`}
             data-founder-slot={livre ? `${s.x},${s.y}` : undefined}
-            cx={fx(s.x)}
-            cy={fy(s.y)}
-            r={escolhido ? 16 : 12}
-            fill={
-              escolhido
-                ? 'var(--color-rust-bright)'
-                : livre
-                  ? 'var(--color-ink-soft)'
-                  : 'var(--color-ink-soft)'
-            }
+            cx={proj.px(s.x)}
+            cy={proj.py(s.y)}
+            r={escolhido ? 15 : 11}
+            fill={escolhido ? 'var(--color-rust-bright)' : 'var(--color-ink-soft)'}
             fillOpacity={livre || escolhido ? 1 : 0.25}
             stroke={escolhido ? 'var(--color-ink)' : 'none'}
             strokeWidth={2}
@@ -234,8 +252,7 @@ function DiscoDeFounders({
             onClick={() => livre && aoEscolher(escolhido ? null : { x: s.x, y: s.y })}
           >
             <title>
-              ({s.x}, {s.y}) —{' '}
-              {s.ocupado ? 'ocupado' : s.reservado ? 'reservado' : 'livre'}
+              ({s.x}, {s.y}) — {s.ocupado ? 'ocupado' : s.reservado ? 'reservado' : 'livre'}
             </title>
           </circle>
         )
@@ -247,74 +264,90 @@ function DiscoDeFounders({
 /**
  * O planeta inteiro, para escolher na periferia. Clicar numa célula a seleciona se ela for livre
  * e de fato periferia (d > 5); founders e anel ficam de fora — para os founders, a outra aba.
+ *
+ * A célula sob o cursor acende e a sua coordenada aparece: com 101 colunas em meio milhar de
+ * pixels, uma célula tem 5 px de largura, e sem o realce ninguém sabe em qual delas está prestes
+ * a passar o resto do jogo.
  */
 function MapaPeriferia({
   mapa,
   ocupadas,
   escolha,
   aoEscolher,
+  cursor,
+  aoMoverCursor,
 }: {
   mapa: MapaFundacao
   ocupadas: Set<string>
   escolha: { x: number; y: number } | null
   aoEscolher: (c: { x: number; y: number } | null) => void
+  cursor: { x: number; y: number } | null
+  aoMoverCursor: (c: { x: number; y: number } | null) => void
 }) {
-  const meia = Math.floor(mapa.side / 2)
-  const px = (v: number) => ((v + meia + 0.5) / mapa.side) * LADO_SVG
-  const py = (v: number) => LADO_SVG - ((v + meia + 0.5) / mapa.side) * LADO_SVG
+  const proj = projecaoDoPlaneta(mapa.side)
+  const caixa: Caixa = { x0: 0, y0: 0, lado: LADO_SVG }
+  const faixa = { xDe: -mapa.raio, xAte: mapa.raio, yDe: -mapa.raio, yAte: mapa.raio }
+  const passo = passoDaGrade(mapa.side)
+
+  /** A célula sob o ponteiro, ou null se ele caiu fora do planeta (ou na calha das réguas). */
+  function celulaDoEvento(e: React.MouseEvent<SVGSVGElement>): { x: number; y: number } | null {
+    const p = pontoNoSvg(e.currentTarget, e)
+    if (!p) return null
+    const c = celulaEm(p, mapa.side)
+
+    return Math.abs(c.x) > mapa.raio || Math.abs(c.y) > mapa.raio ? null : c
+  }
 
   function aoClicarNoMapa(e: React.MouseEvent<SVGSVGElement>) {
-    const svg = e.currentTarget
-    const r = svg.getBoundingClientRect()
-    const sx = ((e.clientX - r.left) / r.width) * LADO_SVG
-    const sy = ((e.clientY - r.top) / r.height) * LADO_SVG
-    const gx = Math.round((sx / LADO_SVG) * mapa.side - meia - 0.5)
-    const gy = Math.round(((LADO_SVG - sy) / LADO_SVG) * mapa.side - meia - 0.5)
-
-    if (Math.abs(gx) > mapa.raio || Math.abs(gy) > mapa.raio) return
-    if (Math.hypot(gx, gy) <= mapa.raio_anel) return // founder ou anel: não aqui
-    if (ocupadas.has(`${gx}:${gy}`)) return
-    aoEscolher({ x: gx, y: gy })
+    const c = celulaDoEvento(e)
+    if (!c) return
+    if (Math.hypot(c.x, c.y) <= mapa.raio_anel) return // founder ou anel: não aqui
+    if (ocupadas.has(`${c.x}:${c.y}`)) return
+    aoEscolher(c)
   }
 
   return (
     <svg
       data-seletor-mapa
-      viewBox={`0 0 ${LADO_SVG} ${LADO_SVG}`}
-      className="block h-auto w-full cursor-crosshair"
+      viewBox={viewBoxComReguas(caixa)}
+      className="block h-auto w-full cursor-crosshair select-none"
       onClick={aoClicarNoMapa}
+      onMouseMove={(e) => aoMoverCursor(celulaDoEvento(e))}
+      onMouseLeave={() => aoMoverCursor(null)}
     >
-      {/* O disco central (founders+anel), onde não se funda pela periferia. */}
-      <circle
-        cx={px(0)}
-        cy={py(0)}
-        r={(mapa.raio_anel / mapa.side) * LADO_SVG}
-        fill="var(--color-rust)"
-        fillOpacity={0.06}
-        stroke="var(--color-rust)"
-        strokeOpacity={0.15}
-      />
+      <Reguas proj={proj} caixa={caixa} faixa={faixa} passo={passo} />
+      <Planeta />
+      <Faixas proj={proj} raioFounder={mapa.raio_founder} raioAnel={mapa.raio_anel} />
+      <Grade proj={proj} faixa={faixa} passo={passo} />
+
+      {cursor && <CelulaSobOCursor proj={proj} celula={cursor} />}
 
       {/* A Capital. */}
       <rect
-        x={px(0) - 8}
-        y={py(0) - 8}
+        x={proj.px(0) - 8}
+        y={proj.py(0) - 8}
         width={16}
         height={16}
-        transform={`rotate(45 ${px(0)} ${py(0)})`}
+        transform={`rotate(45 ${proj.px(0)} ${proj.py(0)})`}
         fill="var(--color-rust)"
       />
 
       {/* Colônias já instaladas. */}
       {mapa.colonias.map((c) => (
-        <circle key={`${c.x}:${c.y}`} cx={px(c.x)} cy={py(c.y)} r={5} fill="var(--color-ink-soft)" />
+        <circle
+          key={`${c.x}:${c.y}`}
+          cx={proj.px(c.x)}
+          cy={proj.py(c.y)}
+          r={5}
+          fill="var(--color-ink-soft)"
+        />
       ))}
 
       {/* A célula escolhida, se for de periferia. */}
       {escolha && Math.hypot(escolha.x, escolha.y) > mapa.raio_anel && (
         <circle
-          cx={px(escolha.x)}
-          cy={py(escolha.y)}
+          cx={proj.px(escolha.x)}
+          cy={proj.py(escolha.y)}
           r={9}
           fill="var(--color-rust-bright)"
           stroke="var(--color-ink)"

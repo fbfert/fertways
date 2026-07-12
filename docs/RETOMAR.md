@@ -433,6 +433,19 @@ As **4 colônias de produção foram realocadas** para slots de founder ((0,1),(
 `artisan fertways:realocar-founders` — comando guardado por veículos ociosos, útil de novo se um dia
 houver que remanejar.
 
+## A grade do mapa (D-64) — **feito** (2026-07-11)
+
+O mapa **abre em 15×15, centrado na colônia do jogador**, e o botão da mira devolve esse
+enquadramento. O zoom livre continua por cima (até o planeta inteiro — sem ele não se chega às zonas
+dos cantos). A grade risca **uma linha por célula** (rareia para 5 e 10 conforme se afasta), os
+números de X e de Y moram numa **calha fora do mapa** que não escorrega com o arraste, e as faixas do
+centro (disco de founders, anel livre) são **sombreadas célula a célula**. Na borda do planeta a
+vista passa da grade: você fica sempre no meio da tela. A **Fundação** usa a mesma grade nas duas
+abas. `GET /colonies` passou a publicar `raio_founder` e `raio_anel`.
+
+A geometria compartilhada vive em `frontend/src/ui/geometria.ts`; o que se desenha dela, em
+`frontend/src/ui/Grade.tsx`. Nenhuma constante de grade no React — vêm da API (D-51).
+
 ## O Ministério dos Transportes (D-60) — **fechado e no ar** (2026-07-12)
 
 As três fatias estão publicadas. Não sobrou nada por construir e não há pergunta em aberto. O que

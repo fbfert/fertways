@@ -1,25 +1,48 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { api, ApiError } from '../api/client'
 import type { ColoniaVizinha, Diretorio, Veiculo, ZonaNeutra } from '../api/client'
+import { CelulaSobOCursor, Faixas, Grade, Planeta, Reguas } from './Grade'
+import {
+  JANELA_PADRAO,
+  LADO_SVG,
+  calhaDe,
+  celulaEm,
+  celulasNaJanela,
+  comFolga,
+  passoDaGrade,
+  pontoNoSvg,
+  projecaoDoPlaneta,
+  totalComReguas,
+  viewBoxComReguas,
+} from './geometria'
+import type { Caixa, Projecao } from './geometria'
 
 /**
  * O mapa de Fertways: a Capital, a sua colônia, as vizinhas e as 120 zonas neutras (D-52).
  *
- * Toda a geometria — lado da grade e posição da Capital — vem da API (`GET /colonies`), nunca de
- * constante daqui (D-51). Não há névoa de guerra: o diretório e as zonas listam tudo (D-37).
+ * Toda a geometria — lado da grade, posição da Capital, raios das faixas — vem da API
+ * (`GET /colonies`), nunca de constante daqui (D-51). Não há névoa de guerra: o diretório e as
+ * zonas listam tudo (D-37).
  *
- * As zonas moram nos cantos e são células únicas num mapa 101×101, então o mapa navega: **arrastar**
- * para mover, **roda do mouse** e botões +/− para o **zoom**, e um botão para **centralizar na sua
- * colônia** — sem isso não dá para clicar numa zona.
+ * **A vista abre em 15×15, centrada na sua colônia** (D-64): num planeta 101×101 não se lia
+ * coordenada nenhuma de tão longe, e o que o colono quer ver primeiro é a própria vizinhança. A
+ * grade risca as linhas de X e de Y, e os números moram numa calha fora do mapa, que não
+ * escorrega com o arraste. Daí em diante o mapa navega: **arrastar** para mover, **roda do mouse**
+ * e botões +/− para o **zoom** — até o planeta inteiro, sem o qual não se chega às zonas dos
+ * cantos —, e o ⌖ devolve o enquadramento de 15×15.
+ *
+ * Perto da borda do planeta a vista **passa da grade** em vez de se prender a ela: você fica
+ * sempre no meio da tela, e o que sobra é o vazio de fora do mundo — que o `Planeta` deixa
+ * visível. Presa à borda, uma colônia em (50,50) nunca se veria no centro.
  */
 
-/** Lado do desenho, em px do sistema de coordenadas do SVG. */
-const LADO_SVG = 1000
-
-/** Limites do zoom. 1 mostra o mapa inteiro; ZOOM_MAX aproxima o bastante para clicar numa zona. */
+/** Limites do zoom. 1 mostra o planeta inteiro; ZOOM_MAX aproxima o bastante para clicar numa zona. */
 const ZOOM_MIN = 1
 const ZOOM_MAX = 12
 const limitarEscala = (s: number) => Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, s))
+
+/** O centro da vista anda sobre o planeta — nunca para fora dele, ou o mapa sumiria da tela. */
+const limitarCentro = (v: number) => Math.min(LADO_SVG, Math.max(0, v))
 
 const MINERAL: Record<string, string> = {
   metal_bruto: 'Metal Bruto',
@@ -35,6 +58,9 @@ const DISTRITO: Record<string, string> = {
   noroeste: 'Noroeste',
 }
 
+/** Zoom e centro do que se vê, em unidades do SVG. */
+type Vista = { cx: number; cy: number; scale: number }
+
 type Selecao =
   | { tipo: 'colonia'; c: ColoniaVizinha }
   | { tipo: 'zona'; z: ZonaNeutra }
@@ -47,9 +73,12 @@ export function Mapa({ aoFechar, aoAbrirCapital }: { aoFechar: () => void; aoAbr
   const [erro, setErro] = useState<string | null>(null)
   const [selecao, setSelecao] = useState<Selecao>(null)
 
-  // Zoom e centro do viewBox, em px do SVG. `scale` 1 mostra o mapa inteiro.
-  const [vista, setVista] = useState({ cx: LADO_SVG / 2, cy: LADO_SVG / 2, scale: 1 })
+  // Nasce nula: o enquadramento inicial depende de onde é a sua colônia, e isso só se sabe quando
+  // o diretório chega.
+  const [vista, setVista] = useState<Vista | null>(null)
   const [pegando, setPegando] = useState(false)
+  // A célula sob o cursor. Só realce e leitura: célula vazia não é alvo de clique (D-64).
+  const [cursor, setCursor] = useState<{ x: number; y: number } | null>(null)
   const svgRef = useRef<SVGSVGElement>(null)
   // Marca que o último gesto foi um arraste, para o pointerup não virar seleção de zona/colônia.
   const arrastou = useRef(false)
@@ -69,69 +98,84 @@ export function Mapa({ aoFechar, aoAbrirCapital }: { aoFechar: () => void; aoAbr
     void recarregar()
   }, [recarregar])
 
+  const proj = useMemo(() => projecaoDoPlaneta(dir?.side ?? 1), [dir?.side])
+
+  /** O enquadramento de abertura, e o do botão ⌖: a janela padrão, centrada na sua colônia. */
+  const enquadrarEmMim = useCallback((d: Diretorio): Vista => {
+    const p = projecaoDoPlaneta(d.side)
+
+    return { cx: p.px(d.me.x), cy: p.py(d.me.y), scale: d.side / JANELA_PADRAO }
+  }, [])
+
+  // Assim que o diretório chega, enquadra. Só na primeira vez: um `recarregar` depois de ocupar
+  // uma zona não pode arrancar o mapa de onde o jogador o deixou.
+  useEffect(() => {
+    if (dir && !vista) setVista(enquadrarEmMim(dir))
+  }, [dir, vista, enquadrarEmMim])
+
   // Zoom pela roda do mouse, ancorado no cursor. Nativo e não-passivo para segurar o scroll do
   // modal enquanto se aproxima o mapa; o React registra onWheel como passivo e não deixaria.
   useEffect(() => {
     const svg = svgRef.current
     if (!svg) return
+
     const aoRolar = (e: WheelEvent) => {
       e.preventDefault()
+      const p = pontoNoSvg(svg, e)
+      if (!p) return
       const r = svg.getBoundingClientRect()
       const fx = (e.clientX - r.left) / r.width
       const fy = (e.clientY - r.top) / r.height
       const fator = e.deltaY < 0 ? 1.2 : 1 / 1.2
+
       setVista((v) => {
+        if (!v) return v
         const escala = limitarEscala(v.scale * fator)
         if (escala === v.scale) return v
-        const w = LADO_SVG / v.scale
-        const vx = Math.max(0, Math.min(v.cx - w / 2, LADO_SVG - w))
-        const vy = Math.max(0, Math.min(v.cy - w / 2, LADO_SVG - w))
-        // O ponto sob o cursor tem de ficar parado: resolvo o novo centro por ele.
-        const sx = vx + fx * w
-        const sy = vy + fy * w
-        const w2 = LADO_SVG / escala
-        return { cx: sx - fx * w2 + w2 / 2, cy: sy - fy * w2 + w2 / 2, scale: escala }
+
+        // O ponto sob o cursor tem de ficar parado: resolvo por ele o novo canto, e daí o centro.
+        // A conta inclui a calha — o viewBox é maior que o mapa, e ignorá-la desviaria o zoom.
+        const lado = LADO_SVG / escala
+        const g = calhaDe(lado)
+        const total = totalComReguas(lado)
+        const x0 = p.x - fx * total + g
+        const y0 = p.y - fy * total + g
+
+        return { cx: limitarCentro(x0 + lado / 2), cy: limitarCentro(y0 + lado / 2), scale: escala }
       })
     }
+
     svg.addEventListener('wheel', aoRolar, { passive: false })
+
     return () => svg.removeEventListener('wheel', aoRolar)
   }, [dir])
 
-  const px = (v: number, side: number) => ((v + Math.floor(side / 2) + 0.5) / side) * LADO_SVG
-  const py = (v: number, side: number) => LADO_SVG - ((v + Math.floor(side / 2) + 0.5) / side) * LADO_SVG
-
-  // viewBox a partir do centro e do zoom, preso às bordas do desenho.
-  const w = LADO_SVG / vista.scale
-  const vx = Math.max(0, Math.min(vista.cx - w / 2, LADO_SVG - w))
-  const vy = Math.max(0, Math.min(vista.cy - w / 2, LADO_SVG - w))
-  const viewBox = `${vx} ${vy} ${w} ${w}`
-  // Marcadores em tamanho de tela ~constante: encolhem no SVG conforme o zoom aumenta.
-  const k = 1 / vista.scale
-
-  const zoom = (fator: number) => setVista((v) => ({ ...v, scale: limitarEscala(v.scale * fator) }))
-
-  const centrarNaColonia = () => {
-    if (!dir) return
-    setVista({ cx: px(dir.me.x, dir.side), cy: py(dir.me.y, dir.side), scale: Math.max(vista.scale, 4) })
-  }
+  const zoom = (fator: number) =>
+    setVista((v) => (v ? { ...v, scale: limitarEscala(v.scale * fator) } : v))
 
   // Arrastar para mover o mapa. Sem setPointerCapture (ele desviaria o `click` da zona para o SVG):
   // ouço o move/up na janela e desligo no fim. O limiar de 4 px separa clique de arraste.
   const iniciarArrasto = (e: React.PointerEvent<SVGSVGElement>) => {
-    if (e.button !== 0) return
+    if (e.button !== 0 || !vista) return
     const r = e.currentTarget.getBoundingClientRect()
-    const largura = LADO_SVG / vista.scale
+    const lado = LADO_SVG / vista.scale
+    // O elemento cobre o mapa MAIS a calha: é essa a largura que o arraste percorre.
+    const largura = totalComReguas(lado)
     const inicio = { cx: vista.cx, cy: vista.cy, clientX: e.clientX, clientY: e.clientY }
     arrastou.current = false
     setPegando(true)
+
     const mover = (ev: PointerEvent) => {
       const dx = ((ev.clientX - inicio.clientX) / r.width) * largura
       const dy = ((ev.clientY - inicio.clientY) / r.height) * largura
       if (!arrastou.current && Math.hypot(ev.clientX - inicio.clientX, ev.clientY - inicio.clientY) > 4) {
         arrastou.current = true
       }
-      setVista((v) => ({ ...v, cx: inicio.cx - dx, cy: inicio.cy - dy }))
+      setVista((v) =>
+        v ? { ...v, cx: limitarCentro(inicio.cx - dx), cy: limitarCentro(inicio.cy - dy) } : v,
+      )
     }
+
     const soltar = () => {
       window.removeEventListener('pointermove', mover)
       window.removeEventListener('pointerup', soltar)
@@ -141,8 +185,27 @@ export function Mapa({ aoFechar, aoAbrirCapital }: { aoFechar: () => void; aoAbr
         arrastou.current = false
       }, 0)
     }
+
     window.addEventListener('pointermove', mover)
     window.addEventListener('pointerup', soltar)
+  }
+
+  // A célula sob o cursor, para o realce e para a leitura da coordenada. Só reage quando a célula
+  // muda: um setState por pixel de mouse redesenharia o mapa inteiro à toa.
+  const aoMoverCursor = (e: React.PointerEvent<SVGSVGElement>) => {
+    if (!dir) return
+    const p = pontoNoSvg(e.currentTarget, e)
+    if (!p) return
+    const c = celulaEm(p, dir.side)
+    const meia = Math.floor(dir.side / 2)
+    const dentro = Math.abs(c.x) <= meia && Math.abs(c.y) <= meia
+
+    setCursor((antes) => {
+      const agora = dentro ? c : null
+      if (antes?.x === agora?.x && antes?.y === agora?.y) return antes
+
+      return agora
+    })
   }
 
   // Seleciona só se o gesto foi um clique de verdade, não a ponta de um arraste.
@@ -152,7 +215,11 @@ export function Mapa({ aoFechar, aoAbrirCapital }: { aoFechar: () => void; aoAbr
 
   const focar = (x: number, y: number) => {
     if (!dir) return
-    setVista({ cx: px(x, dir.side), cy: py(y, dir.side), scale: Math.max(vista.scale, 5) })
+    setVista((v) => ({
+      cx: proj.px(x),
+      cy: proj.py(y),
+      scale: Math.max(v?.scale ?? 1, dir.side / JANELA_PADRAO),
+    }))
   }
 
   return (
@@ -176,119 +243,53 @@ export function Mapa({ aoFechar, aoAbrirCapital }: { aoFechar: () => void; aoAbr
 
         {erro && <p className="text-rust mt-4 text-sm">{erro}</p>}
 
-        {dir && (
+        {dir && vista && (
           <div className="mt-5 grid gap-6 md:grid-cols-[1fr_18rem]">
-            <div className="relative border-rust/20 bg-sand border">
-              {/* Ferramentas de zoom e foco. Ficam sobre o mapa, no canto. */}
-              <div className="absolute right-2 top-2 z-10 flex flex-col gap-1">
+            <div className="border-rust/20 bg-sand relative border">
+              {/* Ferramentas de zoom e foco. Ficam sobre o mapa, ABAIXO da régua de X — no topo,
+                  elas tapavam o número da última coluna. */}
+              <div className="absolute right-1 top-12 z-10 flex flex-col gap-1">
                 <BotaoMapa aoClicar={() => zoom(1.5)} rotulo="Aproximar" data-zoom-in>
                   +
                 </BotaoMapa>
                 <BotaoMapa aoClicar={() => zoom(1 / 1.5)} rotulo="Afastar" data-zoom-out>
                   −
                 </BotaoMapa>
-                <BotaoMapa aoClicar={centrarNaColonia} rotulo="Centralizar na sua colônia" data-centrar>
-                  ⌖
+                <BotaoMapa
+                  aoClicar={() => setVista(enquadrarEmMim(dir))}
+                  rotulo="Centralizar na sua colônia"
+                  data-centrar
+                >
+                  <Alvo />
                 </BotaoMapa>
               </div>
 
-              <svg
-                ref={svgRef}
-                data-mapa
-                viewBox={viewBox}
-                onPointerDown={iniciarArrasto}
-                className={`block h-auto w-full touch-none select-none ${
-                  pegando ? 'cursor-grabbing' : 'cursor-grab'
-                }`}
-              >
-                <GradeDeFundo />
-
-                {/* As zonas neutras: quadradinhos nos cantos, coloridos por dono. */}
-                {zonas.map((z) => (
-                  <rect
-                    key={`z${z.id}`}
-                    data-zona={z.id}
-                    x={px(z.x, dir.side) - 6 * k}
-                    y={py(z.y, dir.side) - 6 * k}
-                    width={12 * k}
-                    height={12 * k}
-                    fill={corDaZona(z, selecao)}
-                    stroke={selecao?.tipo === 'zona' && selecao.z.id === z.id ? 'var(--color-ink)' : 'none'}
-                    strokeWidth={2 * k}
-                    className="cursor-pointer"
-                    onClick={() => selecionar(() => setSelecao({ tipo: 'zona', z }))}
-                  >
-                    <title>
-                      Zona {DISTRITO[z.district]} ({z.x}, {z.y}) — {MINERAL[z.mineral] ?? z.mineral}
-                      {z.owner ? ` · ${z.owner.name}` : ' · livre'}
-                    </title>
-                  </rect>
-                ))}
-
-                {/* A Capital. Losango, para não se confundir com colônia nenhuma. */}
-                <rect
-                  x={px(dir.capital.x, dir.side) - 9 * k}
-                  y={py(dir.capital.y, dir.side) - 9 * k}
-                  width={18 * k}
-                  height={18 * k}
-                  transform={`rotate(45 ${px(dir.capital.x, dir.side)} ${py(dir.capital.y, dir.side)})`}
-                  fill="var(--color-rust)"
-                  className={aoAbrirCapital ? 'cursor-pointer' : undefined}
-                  onClick={aoAbrirCapital ? () => selecionar(aoAbrirCapital) : undefined}
-                  // Desde o D-59 o losango é o ÚNICO caminho para a Capital — e, por dentro dela,
-                  // para o Ministério e o Mercado Central. Um alvo de clique que só existe como
-                  // desenho não tem nome para quem usa leitor de tela nem para o e2e; este tem.
-                  role={aoAbrirCapital ? 'button' : undefined}
-                  aria-label={aoAbrirCapital ? 'Capital' : undefined}
+              {/* A coordenada da célula sob o cursor. */}
+              {cursor && (
+                <div
+                  data-coordenada-cursor
+                  className="bg-sand-light/90 border-rust/25 text-ink absolute bottom-2 left-2 z-10 border px-2 py-0.5 text-xs tabular-nums"
                 >
-                  <title>Capital — Governo de Fertways{aoAbrirCapital ? ' (abrir)' : ''}</title>
-                </rect>
+                  ({cursor.x}, {cursor.y})
+                </div>
+              )}
 
-                {dir.colonies.map((c) => (
-                  <circle
-                    key={c.id}
-                    cx={px(c.x, dir.side)}
-                    cy={py(c.y, dir.side)}
-                    r={(selecao?.tipo === 'colonia' && selecao.c.id === c.id ? 11 : 7) * k}
-                    fill={
-                      selecao?.tipo === 'colonia' && selecao.c.id === c.id
-                        ? 'var(--color-rust-bright)'
-                        : 'var(--color-ink-soft)'
-                    }
-                    className="cursor-pointer"
-                    onClick={() => selecionar(() => setSelecao({ tipo: 'colonia', c }))}
-                  >
-                    <title>
-                      {c.name} ({c.nickname}) — {c.distance} slots
-                    </title>
-                  </circle>
-                ))}
-
-                {/* A sua colônia por último: fica por cima de qualquer vizinha sobreposta. */}
-                <circle
-                  cx={px(dir.me.x, dir.side)}
-                  cy={py(dir.me.y, dir.side)}
-                  r={9 * k}
-                  fill="var(--color-ember)"
-                  stroke="var(--color-ink)"
-                  strokeWidth={2 * k}
-                >
-                  <title>{dir.me.name} — você</title>
-                </circle>
-
-                {/* A reta até o alvo escolhido: o frete cobra por esta distância. */}
-                {selecao && (
-                  <line
-                    x1={px(dir.me.x, dir.side)}
-                    y1={py(dir.me.y, dir.side)}
-                    x2={px(alvoX(selecao), dir.side)}
-                    y2={py(alvoY(selecao), dir.side)}
-                    stroke="var(--color-rust)"
-                    strokeWidth={2 * k}
-                    strokeDasharray={`${8 * k} ${6 * k}`}
-                  />
-                )}
-              </svg>
+              <Desenho
+                svgRef={svgRef}
+                dir={dir}
+                proj={proj}
+                vista={vista}
+                zonas={zonas}
+                selecao={selecao}
+                cursor={cursor}
+                pegando={pegando}
+                aoArrastar={iniciarArrasto}
+                aoMoverCursor={aoMoverCursor}
+                aoSairCursor={() => setCursor(null)}
+                aoSelecionar={selecionar}
+                aoEscolher={setSelecao}
+                aoAbrirCapital={aoAbrirCapital}
+              />
             </div>
 
             <div>
@@ -309,8 +310,9 @@ export function Mapa({ aoFechar, aoAbrirCapital }: { aoFechar: () => void; aoAbr
 
               {!selecao && (
                 <p className="text-ink-soft mt-4 text-sm">
-                  Clique numa colônia ou numa zona neutra. Arraste para mover, role o mouse ou use + /
-                  − para o zoom, e o ⌖ centraliza na sua colônia. As zonas ficam nos cantos.
+                  O mapa abre em 15×15, centrado em você. Clique numa colônia ou numa zona neutra.
+                  Arraste para mover, role o mouse ou use + / − para o zoom; o botão da mira devolve
+                  o enquadramento. As zonas ficam nos cantos: para chegar a elas, afaste.
                 </p>
               )}
 
@@ -348,7 +350,10 @@ export function Mapa({ aoFechar, aoAbrirCapital }: { aoFechar: () => void; aoAbr
                 {dir.colonies.map((c) => (
                   <li key={c.id}>
                     <button
-                      onClick={() => setSelecao({ tipo: 'colonia', c })}
+                      onClick={() => {
+                        setSelecao({ tipo: 'colonia', c })
+                        focar(c.x, c.y)
+                      }}
                       className={`flex w-full items-baseline justify-between px-2 py-1 text-left text-sm ${
                         selecao?.tipo === 'colonia' && selecao.c.id === c.id
                           ? 'bg-rust text-sand-light'
@@ -369,6 +374,179 @@ export function Mapa({ aoFechar, aoAbrirCapital }: { aoFechar: () => void; aoAbr
   )
 }
 
+/**
+ * O desenho em si. Separado do painel porque é aqui que mora a conta do enquadramento: a janela
+ * visível (a `caixa`), a faixa de células que ela alcança, e o passo com que a grade se rareia
+ * conforme o jogador se afasta.
+ */
+function Desenho({
+  svgRef,
+  dir,
+  proj,
+  vista,
+  zonas,
+  selecao,
+  cursor,
+  pegando,
+  aoArrastar,
+  aoMoverCursor,
+  aoSairCursor,
+  aoSelecionar,
+  aoEscolher,
+  aoAbrirCapital,
+}: {
+  svgRef: React.RefObject<SVGSVGElement | null>
+  dir: Diretorio
+  proj: Projecao
+  vista: Vista
+  zonas: ZonaNeutra[]
+  selecao: Selecao
+  cursor: { x: number; y: number } | null
+  pegando: boolean
+  aoArrastar: (e: React.PointerEvent<SVGSVGElement>) => void
+  aoMoverCursor: (e: React.PointerEvent<SVGSVGElement>) => void
+  aoSairCursor: () => void
+  aoSelecionar: (fn: () => void) => void
+  aoEscolher: (s: Selecao) => void
+  aoAbrirCapital?: () => void
+}) {
+  const lado = LADO_SVG / vista.scale
+  const caixa: Caixa = { x0: vista.cx - lado / 2, y0: vista.cy - lado / 2, lado }
+
+  // Duas faixas, e não uma: os números são das células inteiras na janela; as linhas ganham uma
+  // célula de folga em cada ponta, para a da beirada não ficar sem risco. O recorte apara o resto.
+  const numeradas = celulasNaJanela(caixa, dir.side)
+  const riscadas = comFolga(numeradas, dir.side)
+
+  const passo = passoDaGrade(dir.side / vista.scale)
+
+  // Os marcadores têm tamanho de tela ~constante (o `k`), mas nunca menor que um bom pedaço da
+  // célula: aproximado em 15×15, um ponto de 7 px dentro de uma célula de 37 px se perderia.
+  const k = 1 / vista.scale
+  const tam = (px: number, daCelula: number) => Math.max(px * k, proj.passo * daCelula)
+
+  const rZona = tam(6, 0.35)
+  const rCapital = tam(9, 0.4)
+  const recorte = 'recorte-do-mapa'
+
+  return (
+    <svg
+      ref={svgRef}
+      data-mapa
+      viewBox={viewBoxComReguas(caixa)}
+      onPointerDown={aoArrastar}
+      onPointerMove={aoMoverCursor}
+      onPointerLeave={aoSairCursor}
+      className={`block h-auto w-full touch-none select-none ${
+        pegando ? 'cursor-grabbing' : 'cursor-grab'
+      }`}
+    >
+      <defs>
+        {/* Recorta o desenho na janela: sem isto, o planeta invadiria a calha das réguas. */}
+        <clipPath id={recorte}>
+          <rect x={caixa.x0} y={caixa.y0} width={lado} height={lado} />
+        </clipPath>
+      </defs>
+
+      <Reguas proj={proj} caixa={caixa} faixa={numeradas} passo={passo} />
+
+      <g clipPath={`url(#${recorte})`}>
+        <Planeta k={k} />
+        <Faixas proj={proj} raioFounder={dir.raio_founder} raioAnel={dir.raio_anel} />
+        <Grade proj={proj} faixa={riscadas} passo={passo} k={k} />
+
+        {cursor && <CelulaSobOCursor proj={proj} celula={cursor} k={k} />}
+
+        {/* As zonas neutras: quadradinhos nos cantos, coloridos por dono. */}
+        {zonas.map((z) => (
+          <rect
+            key={`z${z.id}`}
+            data-zona={z.id}
+            x={proj.px(z.x) - rZona}
+            y={proj.py(z.y) - rZona}
+            width={rZona * 2}
+            height={rZona * 2}
+            fill={corDaZona(z, selecao)}
+            stroke={selecao?.tipo === 'zona' && selecao.z.id === z.id ? 'var(--color-ink)' : 'none'}
+            strokeWidth={2 * k}
+            className="cursor-pointer"
+            onClick={() => aoSelecionar(() => aoEscolher({ tipo: 'zona', z }))}
+          >
+            <title>
+              Zona {DISTRITO[z.district]} ({z.x}, {z.y}) — {MINERAL[z.mineral] ?? z.mineral}
+              {z.owner ? ` · ${z.owner.name}` : ' · livre'}
+            </title>
+          </rect>
+        ))}
+
+        {/* A Capital. Losango, para não se confundir com colônia nenhuma. */}
+        <rect
+          x={proj.px(dir.capital.x) - rCapital}
+          y={proj.py(dir.capital.y) - rCapital}
+          width={rCapital * 2}
+          height={rCapital * 2}
+          transform={`rotate(45 ${proj.px(dir.capital.x)} ${proj.py(dir.capital.y)})`}
+          fill="var(--color-rust)"
+          className={aoAbrirCapital ? 'cursor-pointer' : undefined}
+          onClick={aoAbrirCapital ? () => aoSelecionar(aoAbrirCapital) : undefined}
+          // Desde o D-59 o losango é o ÚNICO caminho para a Capital — e, por dentro dela,
+          // para o Ministério e o Mercado Central. Um alvo de clique que só existe como
+          // desenho não tem nome para quem usa leitor de tela nem para o e2e; este tem.
+          role={aoAbrirCapital ? 'button' : undefined}
+          aria-label={aoAbrirCapital ? 'Capital' : undefined}
+        >
+          <title>Capital — Governo de Fertways{aoAbrirCapital ? ' (abrir)' : ''}</title>
+        </rect>
+
+        {dir.colonies.map((c) => (
+          <circle
+            key={c.id}
+            cx={proj.px(c.x)}
+            cy={proj.py(c.y)}
+            r={tam(selecao?.tipo === 'colonia' && selecao.c.id === c.id ? 11 : 7, 0.3)}
+            fill={
+              selecao?.tipo === 'colonia' && selecao.c.id === c.id
+                ? 'var(--color-rust-bright)'
+                : 'var(--color-ink-soft)'
+            }
+            className="cursor-pointer"
+            onClick={() => aoSelecionar(() => aoEscolher({ tipo: 'colonia', c }))}
+          >
+            <title>
+              {c.name} ({c.nickname}) — {c.distance} slots
+            </title>
+          </circle>
+        ))}
+
+        {/* A sua colônia por último: fica por cima de qualquer vizinha sobreposta. */}
+        <circle
+          cx={proj.px(dir.me.x)}
+          cy={proj.py(dir.me.y)}
+          r={tam(9, 0.34)}
+          fill="var(--color-ember)"
+          stroke="var(--color-ink)"
+          strokeWidth={2 * k}
+        >
+          <title>{dir.me.name} — você</title>
+        </circle>
+
+        {/* A reta até o alvo escolhido: o frete cobra por esta distância. */}
+        {selecao && (
+          <line
+            x1={proj.px(dir.me.x)}
+            y1={proj.py(dir.me.y)}
+            x2={proj.px(alvoX(selecao))}
+            y2={proj.py(alvoY(selecao))}
+            stroke="var(--color-rust)"
+            strokeWidth={2 * k}
+            strokeDasharray={`${8 * k} ${6 * k}`}
+          />
+        )}
+      </g>
+    </svg>
+  )
+}
+
 function alvoX(s: Exclude<Selecao, null>): number {
   return s.tipo === 'colonia' ? s.c.x : s.z.x
 }
@@ -380,6 +558,7 @@ function corDaZona(z: ZonaNeutra, selecao: Selecao): string {
   if (selecao?.tipo === 'zona' && selecao.z.id === z.id) return 'var(--color-rust-bright)'
   if (z.mine) return 'var(--color-ember)'
   if (z.owner) return 'var(--color-rust)'
+
   return 'var(--color-ink-soft)'
 }
 
@@ -546,11 +725,24 @@ function BotaoMapa({
       onClick={aoClicar}
       title={rotulo}
       aria-label={rotulo}
-      className="bg-sand-light/90 border-rust/25 text-ink hover:bg-rust hover:text-sand-light h-8 w-8 border text-lg leading-none font-bold"
+      className="bg-sand-light/90 border-rust/25 text-ink hover:bg-rust hover:text-sand-light flex h-8 w-8 items-center justify-center border text-lg leading-none font-bold"
       {...rest}
     >
       {children}
     </button>
+  )
+}
+
+/**
+ * A mira do botão de centralizar. Desenhada, e não o caractere ⌖ (U+2316): a fonte do jogo não o
+ * tem, e o botão exibia o retângulo vazio do glifo que falta.
+ */
+function Alvo() {
+  return (
+    <svg viewBox="0 0 16 16" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={1.5}>
+      <circle cx="8" cy="8" r="3.5" />
+      <path d="M8 0.5v3M8 12.5v3M0.5 8h3M12.5 8h3" />
+    </svg>
   )
 }
 
@@ -580,23 +772,15 @@ function Legenda() {
       <li>
         <span className="bg-rust mr-2 inline-block h-3 w-3 align-middle" /> Zonas de outros
       </li>
+      <li>
+        <span className="bg-rust/12 border-rust/40 mr-2 inline-block h-3 w-3 border align-middle" />{' '}
+        Disco de founders
+      </li>
+      <li>
+        <span className="bg-ink-soft/10 border-ink-soft/25 mr-2 inline-block h-3 w-3 border align-middle" />{' '}
+        Anel livre — ninguém funda
+      </li>
     </ul>
-  )
-}
-
-/** Dez linhas por eixo, só para dar noção de escala. Não são as células: são ~10 delas por linha. */
-function GradeDeFundo() {
-  const passos = Array.from({ length: 9 }, (_, i) => ((i + 1) * LADO_SVG) / 10)
-
-  return (
-    <g stroke="var(--color-rust)" strokeOpacity={0.12} strokeWidth={1}>
-      {passos.map((p) => (
-        <line key={`v${p}`} x1={p} y1={0} x2={p} y2={LADO_SVG} />
-      ))}
-      {passos.map((p) => (
-        <line key={`h${p}`} x1={0} y1={p} x2={LADO_SVG} y2={p} />
-      ))}
-    </g>
   )
 }
 
