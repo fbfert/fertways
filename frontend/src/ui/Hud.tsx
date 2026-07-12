@@ -310,7 +310,7 @@ export function Detalhe({
           onClick={() => aoAbrirPorta(spec.type)}
           className="bg-rust text-sand-light hover:bg-rust-bright mt-4 w-full py-2.5 font-bold"
         >
-          {spec.type === 'central_de_transportes' ? 'Ver a Frota' : 'Abrir os Acordos'}
+          {spec.type === 'central_de_transportes' ? 'Ver a Frota' : 'Abrir o Mercado'}
         </button>
       )}
 

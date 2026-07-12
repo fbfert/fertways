@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { api, ApiError } from '../api/client'
 import type { RegistroVeiculo, Transportes as TransportesDto } from '../api/client'
 import { dataHumana, nomeRecurso, nomeVeiculo } from './recursos'
+import { Usados } from './Usados'
 
 /**
  * Ministério dos Transportes (§16) — slot 8 da Capital (D-60).
@@ -14,6 +15,11 @@ import { dataHumana, nomeRecurso, nomeVeiculo } from './recursos'
  *  2. **De onde vem o teto de frota**: é o nível da Central dele.
  *  3. **O que o desgaste faz.** Um número de conservação sozinho não diz nada. O que importa é que
  *     velocidade e capacidade encolhem junto — e é isso que a linha do registro mostra.
+ *
+ * Os **usados** mudaram para cá no D-65. Eles moravam no Mercado, e não tinham por que: o Mercado
+ * passou a ser o lugar do **recurso** (o Local, entre colonos; o Central, no governo), e veículo é
+ * assunto do Ministério — é ele o cartório da placa (§16.3), e é aqui que se compra o novo, se
+ * repara e se sucateia. O usado ao lado do novo.
  */
 export function Transportes() {
   const [dados, setDados] = useState<TransportesDto | null>(null)
@@ -132,6 +138,11 @@ export function Transportes() {
             <LinhaDoRegistro key={v.id} v={v} ocupado={ocupado} agir={agir} />
           ))}
         </ul>
+      </section>
+
+      {/* ---------------------------------------------------------------- os usados (D-60, D-65) */}
+      <section className="border-rust/20 border-t pt-4">
+        <Usados />
       </section>
 
       {/* ---------------------------------------------------------------- o resumo do planeta */}

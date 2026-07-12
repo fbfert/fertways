@@ -11,6 +11,7 @@ use App\Models\Ledger;
 use App\Models\ResourceType;
 use App\Models\TradeAgreement;
 use App\Models\Vehicle;
+use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -113,7 +114,23 @@ class ConcluirTrechos
                 }
             }
 
-            $this->iniciarVolta($v, manterCarga: false, carga: $sobra ?: null);
+            /*
+             * D-65, e é aqui que a decisão do usuário mora: descarregou tudo, **fica estacionado
+             * no Pátio**. A viagem era só de ida e acabou.
+             *
+             * Se sobrou carga (o teto do depósito barrou parte dela), o veículo **volta na hora**
+             * com a sobra — o usuário escolheu isso: só estaciona quem descarregou tudo. Essa volta
+             * não foi paga no despacho, e **não é cobrada**: quem a causou foi o teto, não o colono,
+             * e cobrar energia de uma viagem que ele não pediu seria multar o azar.
+             */
+            if ($sobra === []) {
+                $this->estacionar($v);
+
+                return;
+            }
+
+            $v->forceFill(['return_distance_slots' => $v->distance_slots])->save();
+            $this->iniciarVolta($v, manterCarga: false, carga: $sobra);
 
             return;
         }
@@ -138,13 +155,65 @@ class ConcluirTrechos
             }
         }
 
+        /*
+         * Só de ida (D-65): o caminhão que saiu do Pátio para a **própria** colônia acabou de
+         * chegar em casa. Não há volta — ele já está onde ia ficar.
+         */
+        if ($v->return_distance_slots === null) {
+            $this->terminarViagem($v, Vehicle::EM_CASA);
+
+            return;
+        }
+
         $this->iniciarVolta($v, manterCarga: false);
+    }
+
+    /**
+     * O veículo fica no Pátio Logístico da Capital (D-65).
+     *
+     * `parked_at` é o relógio da vaga, e `patio_cobrado_ate` nasce igual a ele: a hora começa a
+     * correr da chegada, não do próximo tick — senão um veículo que chegasse logo depois de um
+     * tick ganharia uma hora de graça.
+     */
+    private function estacionar(Vehicle $v): void
+    {
+        $chegada = $v->arrives_at->copy();
+
+        $this->terminarViagem($v, Vehicle::NO_PATIO, $chegada);
+    }
+
+    /** Fim de viagem: o veículo para, onde quer que seja, e esquece tudo o que era da viagem. */
+    private function terminarViagem(Vehicle $v, string $local, ?CarbonInterface $chegada = null): void
+    {
+        $v->forceFill([
+            'status' => 'ocioso',
+            'local' => $local,
+            'leg' => null,
+            'trip_purpose' => null,
+            'destination_type' => null,
+            'destination_id' => null,
+            'distance_slots' => null,
+            'return_distance_slots' => null,
+            'departs_at' => null,
+            'arrives_at' => null,
+            'parked_at' => $local === Vehicle::NO_PATIO ? $chegada : null,
+            'patio_cobrado_ate' => $local === Vehicle::NO_PATIO ? $chegada : null,
+            'cargo_json' => null,
+            'trade_agreement_id' => null,
+        ])->save();
     }
 
     private function iniciarVolta(Vehicle $v, bool $manterCarga, ?array $carga = null): void
     {
+        // A perna da volta pode ter distância própria (D-65): o caminhão que saiu do Pátio entregou
+        // num colono e agora vai para **casa**, que não fica à mesma distância. `distance_slots`
+        // passa a ser a da volta, porque é o trecho que está sendo rodado — é dela que saem o
+        // tempo e o desgaste.
+        $volta = (int) ($v->return_distance_slots ?? $v->distance_slots);
+
         $v->forceFill([
             'leg' => 'volta',
+            'distance_slots' => $volta,
             'cargo_json' => $manterCarga ? $v->cargo_json : $carga,
             // A volta parte de quando a ida terminou, não de `now()`: se o cron atrasar, o
             // atraso não pode encurtar nem alongar o trecho de volta.
@@ -152,7 +221,7 @@ class ConcluirTrechos
             // Pela Conservacao: a ida acabou de cobrar o seu desgaste, então a volta já é um pouco
             // mais lenta que a ida foi. É o §16.4 a morder dentro da própria viagem.
             'arrives_at' => $v->arrives_at->copy()->addSeconds(
-                $this->conservacao->segundosDoTrecho($v, (int) $v->distance_slots),
+                $this->conservacao->segundosDoTrecho($v, $volta),
             ),
         ])->save();
     }
@@ -200,18 +269,9 @@ class ConcluirTrechos
             }
         }
 
-        $v->forceFill([
-            'status' => 'ocioso',
-            'leg' => null,
-            'trip_purpose' => null,
-            'destination_type' => null,
-            'destination_id' => null,
-            'distance_slots' => null,
-            'departs_at' => null,
-            'arrives_at' => null,
-            'cargo_json' => null,
-            'trade_agreement_id' => null,
-        ])->save();
+        // A volta é sempre para casa — inclusive a do caminhão que saiu do Pátio e entregou num
+        // colono. Quem quiser o veículo de volta na Capital manda-o depositar de novo.
+        $this->terminarViagem($v, Vehicle::EM_CASA);
     }
 
     /**

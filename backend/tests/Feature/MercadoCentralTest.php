@@ -81,7 +81,10 @@ class MercadoCentralTest extends TestCase
 
         // A carga saiu do estoque no despacho, mas ainda não chegou: a conta segue zerada.
         $this->assertSame(0, $this->estoque($c, 'metal_bruto'));
-        $this->assertSame(85, $this->estoque($c, 'energia'));
+
+        // D-65: o depósito é uma viagem **só de ida** — o veículo fica estacionado no Pátio da
+        // Capital. Paga-se uma perna de energia, não duas (a ida e a volta custavam 15).
+        $this->assertSame(92, $this->estoque($c, 'energia'));
         $this->assertSame(0, $this->saldo($c, 'metal_bruto'));
         $this->assertSame(0, DB::table('tax_events')->count());
 
@@ -102,8 +105,13 @@ class MercadoCentralTest extends TestCase
         Carbon::setTestNow();
     }
 
+    /**
+     * D-65: depois de depositar, o veículo **não volta** — ele fica estacionado no Pátio da
+     * Capital, esperando ordem. Era a viagem de volta vazia que o usuário quis matar: o caminhão
+     * que acabou de descarregar está exatamente onde o depósito está.
+     */
     #[Test]
-    public function depois_do_deposito_o_veiculo_volta_vazio_e_fica_ocioso(): void
+    public function depois_do_deposito_o_veiculo_fica_estacionado_no_patio(): void
     {
         $c = $this->colonia();
         $this->abastecer($c, ['metal_bruto' => 1_000, 'energia' => 100]);
@@ -114,17 +122,21 @@ class MercadoCentralTest extends TestCase
         app(ConcluirTrechos::class)->handle();
 
         $v = $this->furgao($c)->fresh();
-        $this->assertSame('volta', $v->leg);
+        $this->assertSame('ocioso', $v->status, 'a viagem acabou na ida: não há volta');
+        $this->assertSame(Vehicle::NO_PATIO, $v->local);
+        $this->assertTrue($v->noPatio());
+        $this->assertNull($v->leg);
+        $this->assertNull($v->trip_purpose);
         $this->assertNull($v->cargo_json, 'a carga ficou no Mercado');
+        $this->assertNotNull($v->parked_at, 'a hora do estacionamento começa a correr da chegada');
 
-        Carbon::setTestNow(now()->addMinutes(8));
+        // Um tick a mais não inventa uma volta que não existe.
+        Carbon::setTestNow(now()->addMinutes(30));
         app(ConcluirTrechos::class)->handle();
 
-        $v = $this->furgao($c)->fresh();
-        $this->assertSame('ocioso', $v->status);
-        $this->assertNull($v->trip_purpose);
+        $this->assertSame(Vehicle::NO_PATIO, $this->furgao($c)->fresh()->local);
 
-        // Voltar vazio não é uma segunda entrega: um único tributo na viagem inteira.
+        // Uma entrega, um tributo. A volta vazia deixou de existir e não era tributável de todo modo.
         $this->assertSame(1, DB::table('tax_events')->count());
 
         Carbon::setTestNow();

@@ -2195,3 +2195,92 @@ inteira verde, a captura de tela mostrou três defeitos que nenhuma asserção v
 ninguém lê pode estar em qualquer zoom; os números dizem que células o jogador está vendo. Com o
 colono semeado em (0,3), o teste exige que o X vá de −7 a 7 e o Y de −4 a 10: 15 colunas, 15 linhas,
 ele no meio.
+
+---
+
+## D-65 — Dois mercados, a carroceria com vários recursos, e o Pátio da Capital.
+**Data:** 2026-07-12 · **Status:** decidido pelo usuário · **GDD: o slot 6 existe; o preço da hora, não**
+
+### O que havia
+
+**O Mercado Local não era uma tela.** O botão dele dizia "Abrir os Acordos" e abria a **mesma modal
+do Mercado Central**, só que numa aba diferente. Seis abas dividiam o mesmo salão — doca, ofertar
+entre colonos, ver ofertas de colonos, ofertar no Mercado Central, ofertas globais, veículos usados
+— e havia duas portas para ele. O colono não tinha como saber em que canal estava negociando.
+
+**O veículo levava um recurso por viagem.** Não por regra: o §25.4 mede a capacidade em unidades
+**somadas** ("1.000 unidades de qualquer recurso = 1 m³"), e o servidor sempre soube disso —
+`cargo_json` é JSON e `array_sum(carga)` é conferido contra a capacidade. Quem insistia em um
+recurso era a **tela**, que montava `{ [código]: qtd }` de um `<select>` só.
+
+**O veículo nunca "estava" na Capital.** `colony_id` era dono **e** lugar: ele viajava até lá,
+descarregava e voltava vazio, sozinho.
+
+### As decisões do usuário (2026-07-12)
+
+1. **O Mercado Local vira tela própria**, aberta pela construção (o botão passa a ser "Abrir o
+   Mercado"). Nele: **enviar carga** ao depósito da Capital e a outros colonos, **ofertar a colonos**
+   e **ver as ofertas dos colonos**.
+2. **O Mercado Central (Capital) fica só com o que é do governo**: ofertar no Mercado Central,
+   ofertas globais — e o **Pátio e depósito**. Ofertar no Central e as ofertas globais **só** se
+   veem pela Capital.
+3. **Os veículos usados saem do Mercado e vão para o Ministério dos Transportes.** Veículo é assunto
+   do Ministério — ele é o cartório da placa (§16.3), e é lá que se compra o novo, se repara e se
+   sucateia. O usado ao lado do novo.
+4. **A carroceria leva vários recursos até lotar.** Uma lista de linhas (recurso, quantidade) somada
+   contra a capacidade **efetiva** — a encolhida pelo desgaste (§16.4), que é a que o servidor cobra.
+   Vale para o depósito, para a entrega a colono, para a retirada e para o Acordo (que agora paga a
+   promessa inteira numa viagem só, em vez de uma por recurso).
+5. **Todo veículo que entrega no depósito FICA estacionado no Pátio da Capital.** Não volta sozinho.
+   É de lá que ele sai de novo.
+6. **Do Pátio, ele sai para a sua colônia ou direto para outro colono** — e, tendo entregado, **segue
+   para casa**.
+7. **A retirada de hoje continua existindo** (mandar um veículo de casa buscar, ida e volta): ela
+   serve a quem **não** tem veículo estacionado lá. Ter um no Pátio passa a ser a vantagem — metade
+   do caminho.
+8. **A hora do Pátio: 0,005 Fert$, por veículo, sem limite de vagas.** Vai para o Tesouro. **Sem
+   Fert$, o veículo é rebocado para casa**, de graça: ninguém fica devendo, ninguém perde o veículo,
+   e ninguém guarda caminhão de graça no meio da Capital.
+9. **Se sobrou carga** (o teto do depósito barrou parte dela), o veículo **volta na hora** com a
+   sobra: só estaciona quem descarregou tudo.
+10. **Cada perna paga a sua energia, no ato do despacho.**
+
+### O que estas decisões obrigaram no motor
+
+**A viagem passou a ter pernas independentes.** Até aqui `distance_slots` era uma só, e a volta era
+igual à ida — porque toda viagem saía de casa e voltava para casa. Deixou de ser verdade: um
+caminhão do Pátio entrega num colono e **segue para casa**, o que são **três pontos e duas
+distâncias**. Nasceu `return_distance_slots`, e com ele a regra que unifica tudo:
+
+> **`return_distance_slots` nulo significa "viagem só de ida": o veículo termina no destino e fica lá.**
+
+É esse nulo — e nenhum outro sinalizador — que faz o depósito estacionar o veículo no Pátio e que
+faz o caminhão do Pátio chegar em casa e ficar. O reboque usa o mesmo nulo.
+
+**A energia deixou de ser sempre ida-e-volta (revisão do D-30).** Ela agora é a soma das pernas que
+a viagem **vai de fato rodar**, arredondada uma vez só. Levar ao depósito passou a custar **metade**
+do que custava (uma perna), porque o veículo não volta. A retirada e a entrega entre colonos
+continuam custando duas.
+
+**A volta forçada pela sobra não custa energia.** Ela não foi paga no despacho (a viagem era só de
+ida) e não é cobrada depois: quem a causou foi o **teto**, não o colono. Cobrar seria multar o azar.
+
+### O que a tarifa do estacionamento fecha
+
+O GDD publica o slot 6 como "Estacionamento de Caminhões. 20 vagas. **Cobrança por hora**" — e
+**nunca publica o preço**. O D-63 tinha deixado isso como lacuna aberta, e é ela que se fecha aqui,
+por arbitragem do usuário: **0,005 Fert$/hora**. As **vagas**, essas, ficam **sem limite** — o
+usuário decidiu que o Pátio não recusa ninguém, e o número 20 do GDD fica como texto.
+
+Cobram-se **horas cheias**: a fração que ainda não fechou uma hora fica para o próximo tick. Sem
+isso, um tick por minuto cobraria sessenta frações arredondadas, e o colono pagaria muito mais que
+a tarifa.
+
+### O que ficou de fora, e por quê
+
+- **Levar carga ao depósito continua acessível pela Capital**, e não só pelo Mercado Local. É a única
+  ação que aparece nas duas telas — de propósito: a colônia nasce **sem** o Mercado Local, e quem
+  ainda não o ergueu ficaria com o depósito inalcançável. Negociar com colonos, esse sim, exige a
+  construção: ela é a porta disso.
+- **O veículo estacionado não pode ir para uma zona neutra** a partir do Pátio. Ninguém pediu, e a
+  zona é uma retirada, que já tem o seu caminho.

@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Domain\Capital\Patio;
 use App\Domain\Logistics\ConcluirTrechos;
 use App\Domain\Logistics\ExtrairZonasNeutras;
 use App\Domain\Transport\FabricarCaminhoes;
@@ -41,6 +42,7 @@ class TickColonies extends Command
         PagarConciliadores $folha,
         ExtrairZonasNeutras $zonasNeutras,
         FabricarCaminhoes $fabrica,
+        Patio $patio,
     ): int {
         $agora = now();
         $processadas = 0;
@@ -100,7 +102,15 @@ class TickColonies extends Command
          */
         ['prontos' => $prontos, 'encomendados' => $encomendados] = $fabrica->handle();
 
-        $this->info("tick: {$processadas} colônias, {$falhas} falhas, {$zonas} proteções expiradas, {$extraidas} zonas extraídas, {$entregas} trechos concluídos, {$vencidos} acordos vencidos, {$reatribuidos} casos reatribuídos, {$encerrados} casos encerrados, {$salarios} salários pagos, {$prontos} caminhões prontos, {$encomendados} encomendados");
+        /*
+         * A hora do Pátio da Capital (D-65). **Depois** das entregas, nunca antes: o veículo que
+         * estaciona neste mesmo tick tem de começar a pagar da chegada dele, e não do tick que vem
+         * — e quem chegou agora ainda não deve hora nenhuma, porque a primeira só fecha daqui a 60
+         * minutos.
+         */
+        ['cobrados' => $cobrados, 'rebocados' => $rebocados] = $patio->handle($agora);
+
+        $this->info("tick: {$processadas} colônias, {$falhas} falhas, {$zonas} proteções expiradas, {$extraidas} zonas extraídas, {$entregas} trechos concluídos, {$vencidos} acordos vencidos, {$reatribuidos} casos reatribuídos, {$encerrados} casos encerrados, {$salarios} salários pagos, {$prontos} caminhões prontos, {$encomendados} encomendados, {$cobrados} horas de pátio cobradas, {$rebocados} rebocados");
 
         return $falhas > 0 ? self::FAILURE : self::SUCCESS;
     }

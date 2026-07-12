@@ -80,7 +80,29 @@ final class VeiculoSpecs
      */
     public static function energiaDaViagem(string $tipo, int $distanciaSlots): int
     {
-        return (int) ceil(2 * self::energiaDoTrecho($tipo, $distanciaSlots));
+        return self::energiaDasPernas($tipo, [$distanciaSlots, $distanciaSlots]);
+    }
+
+    /**
+     * Energia das pernas que a viagem **vai de fato rodar** (D-65).
+     *
+     * Até aqui toda viagem era ida e volta pelo mesmo caminho, e uma distância bastava. Não basta
+     * mais: o veículo que leva carga ao depósito **fica na Capital** (uma perna só), e o que sai do
+     * Pátio para outro colono entrega e **segue para casa** (duas pernas, de distâncias diferentes).
+     * Cada perna paga a sua, e a soma é arredondada uma vez só — arredondar perna a perna cobraria
+     * até 1 kWh a mais numa viagem que antes custava o mesmo.
+     *
+     * @param  int[]  $distanciasSlots  uma entrada por perna, na ordem em que serão rodadas
+     */
+    public static function energiaDasPernas(string $tipo, array $distanciasSlots): int
+    {
+        $kwh = 0.0;
+
+        foreach ($distanciasSlots as $distancia) {
+            $kwh += self::energiaDoTrecho($tipo, $distancia);
+        }
+
+        return (int) ceil($kwh);
     }
 
     public static function capacidade(string $tipo): int

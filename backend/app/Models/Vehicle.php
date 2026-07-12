@@ -16,10 +16,11 @@ class Vehicle extends Model
     use SoftDeletes;
 
     protected $fillable = [
-        'colony_id', 'type', 'plate', 'level', 'status', 'capacity',
+        'colony_id', 'type', 'plate', 'level', 'status', 'capacity', 'local',
         'conservacao_bps', 'teto_conservacao_bps', 'manutencoes', 'uso_ativo_seg',
         'origin_id', 'destination_type', 'destination_id', 'leg', 'trip_purpose', 'distance_slots',
-        'departs_at', 'arrives_at', 'ready_at', 'cargo_json',
+        'return_distance_slots', 'departs_at', 'arrives_at', 'parked_at', 'patio_cobrado_ate',
+        'ready_at', 'cargo_json',
     ];
 
     /**
@@ -35,6 +36,8 @@ class Vehicle extends Model
         'teto_conservacao_bps' => 10_000,
         'manutencoes' => 0,
         'uso_ativo_seg' => 0,
+        // O veículo nasce em casa. Só o Pátio da Capital o move de lugar (D-65).
+        'local' => self::EM_CASA,
     ];
 
     protected $casts = [
@@ -45,12 +48,19 @@ class Vehicle extends Model
         'manutencoes' => 'integer',
         'uso_ativo_seg' => 'integer',
         'distance_slots' => 'integer',
+        'return_distance_slots' => 'integer',
         'departs_at' => 'datetime',
         'arrives_at' => 'datetime',
+        'parked_at' => 'datetime',
+        'patio_cobrado_ate' => 'datetime',
         // Só a frota do governo o usa: quando o caminhão sai da linha de montagem (D-60).
         'ready_at' => 'datetime',
         'cargo_json' => 'array',
     ];
+
+    /** Onde o veículo está quando está parado (D-65). Em rota, `local` é o lugar de onde ele saiu. */
+    public const EM_CASA = 'colonia';
+    public const NO_PATIO = 'capital';
 
     /**
      * Capacidade por viagem (GDD §25.4): 1.000 unidades de qualquer recurso = 1 m³.
@@ -71,5 +81,17 @@ class Vehicle extends Model
     public function disponivel(): bool
     {
         return $this->status === 'ocioso';
+    }
+
+    /**
+     * Está parado no Pátio Logístico da Capital (D-65)?
+     *
+     * Só quem está **parado** lá: um veículo que saiu do Pátio e está em rota tem `local` ainda em
+     * `capital` até a viagem acabar — é de lá que ele partiu —, mas não está estacionado, não paga
+     * a hora e não aceita novo despacho.
+     */
+    public function noPatio(): bool
+    {
+        return $this->local === self::NO_PATIO && $this->status === 'ocioso';
     }
 }

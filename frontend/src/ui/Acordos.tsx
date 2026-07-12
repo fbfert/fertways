@@ -505,18 +505,33 @@ function Entrega({
   agir: (a: () => Promise<unknown>) => Promise<void>
 }) {
   const devidos = Object.keys(acordo.i_still_owe)
-  const [codigo, setCodigo] = useState('')
 
-  const escolhido = devidos.includes(codigo) ? codigo : devidos[0]
-  const liquido = acordo.i_still_owe[escolhido] ?? 0
-  const bruto = acordo.gross_needed[escolhido] ?? 0
+  /*
+   * D-65: a promessa vai INTEIRA numa carroceria só, se couber.
+   *
+   * Um acordo pode prometer três recursos, e até aqui a tela despachava um por vez — três viagens
+   * para pagar uma promessa, num veículo que sempre soube levar os três (o §25.4 mede a capacidade
+   * em unidades somadas). Agora ele leva tudo o que estiver marcado, e o colono só desmarca o que
+   * não couber.
+   */
+  const [fora, setFora] = useState<string[]>([])
+  const marcados = devidos.filter((c) => !fora.includes(c))
+
+  const bruto = (c: string) => acordo.gross_needed[c] ?? 0
+  const total = marcados.reduce((s, c) => s + bruto(c), 0)
+
   const veiculo = ociosos[0]
+  const capacidade = veiculo?.capacity_efetiva ?? 0
 
   const impedimento = !veiculo
     ? 'Nenhum veículo ocioso.'
-    : bruto > veiculo.capacity
-      ? `O veículo leva ${veiculo.capacity.toLocaleString('pt-BR')}. Entregue em partes.`
-      : null
+    : marcados.length === 0
+      ? 'Marque o que vai na carga.'
+      : total > capacidade
+        ? `O veículo leva ${capacidade.toLocaleString('pt-BR')}. Desmarque algo, ou entregue em partes.`
+        : null
+
+  const carga = Object.fromEntries(marcados.map((c) => [c, bruto(c)]))
 
   return (
     <div className="border-rust/15 bg-sand mt-3 border p-3">
@@ -526,45 +541,53 @@ function Entrega({
         {veiculo && (
           <>
             {' '}
-            Vai o {nomeVeiculo(veiculo.type)}, que leva{' '}
-            {veiculo.capacity.toLocaleString('pt-BR')}.
+            Vai o {nomeVeiculo(veiculo.type)}, que leva {capacidade.toLocaleString('pt-BR')}.
           </>
         )}
       </p>
 
-      <div className="mt-2 flex flex-wrap items-center gap-2">
-        <select
-          aria-label="Recurso a entregar"
-          className="border-rust/25 bg-sand-light focus:border-rust flex-1 border px-2 py-1.5 text-sm outline-none"
-          value={escolhido ?? ''}
-          onChange={(e) => setCodigo(e.target.value)}
+      <div className="mt-2 space-y-1">
+        {devidos.map((c) => (
+          <label key={c} className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              aria-label={`Levar ${nomeRecurso(c)}`}
+              checked={marcados.includes(c)}
+              onChange={() =>
+                setFora((f) => (f.includes(c) ? f.filter((x) => x !== c) : [...f, c]))
+              }
+            />
+            <span className="text-ink-soft flex-1">
+              {nomeRecurso(c)} — faltam{' '}
+              <span className="text-ink font-bold">
+                {acordo.i_still_owe[c].toLocaleString('pt-BR')}
+              </span>{' '}
+              líquidos, então embarcam{' '}
+              <span className="text-ink font-bold">{bruto(c).toLocaleString('pt-BR')}</span>
+            </span>
+          </label>
+        ))}
+      </div>
+
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        <span
+          className={`text-xs tabular-nums ${total > capacidade ? 'text-rust font-bold' : 'text-ink-soft'}`}
         >
-          {devidos.map((c) => (
-            <option key={c} value={c}>
-              {nomeRecurso(c)} (faltam {acordo.i_still_owe[c].toLocaleString('pt-BR')})
-            </option>
-          ))}
-        </select>
+          {total.toLocaleString('pt-BR')} / {capacidade.toLocaleString('pt-BR')}
+        </span>
 
         <button
-          disabled={!!impedimento || !escolhido}
-          onClick={() =>
-            void agir(() => api.enviarAColonia(veiculo.id, destino, { [escolhido]: bruto }, acordo.id))
-          }
-          className="bg-rust text-sand-light hover:bg-rust-bright px-4 py-2 text-sm font-bold disabled:cursor-not-allowed disabled:opacity-40"
+          disabled={!!impedimento}
+          onClick={() => void agir(() => api.enviarAColonia(veiculo.id, destino, carga, acordo.id))}
+          className="bg-rust text-sand-light hover:bg-rust-bright ml-auto px-4 py-2 text-sm font-bold disabled:cursor-not-allowed disabled:opacity-40"
         >
-          Despachar {bruto.toLocaleString('pt-BR')}
+          Despachar {total.toLocaleString('pt-BR')}
         </button>
       </div>
 
-      {escolhido && bruto > liquido && (
-        <p className="text-ink-soft mt-2 text-xs">
-          Faltam <span className="text-ink font-bold">{liquido.toLocaleString('pt-BR')}</span>{' '}
-          líquidos, então o veículo leva{' '}
-          <span className="text-ink font-bold">{bruto.toLocaleString('pt-BR')}</span>: o tributo da
-          entrega come a diferença no caminho.
-        </p>
-      )}
+      <p className="text-ink-soft mt-2 text-xs">
+        Embarca mais do que falta porque o tributo da entrega come a diferença no caminho.
+      </p>
 
       {impedimento && <p className="text-rust mt-2 text-xs">{impedimento}</p>}
     </div>

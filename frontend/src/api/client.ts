@@ -225,9 +225,19 @@ export type Veiculo = {
   type: string
   level: number
   status: 'ocioso' | 'carregando' | 'em_rota' | 'descarregando'
+  /** A capacidade de fábrica (§25.4). É a nominal: não é ela que o despacho cobra. */
   capacity: number
+  /**
+   * A capacidade que o veículo **de fato** tem hoje, encolhida pelo desgaste (§16.4, D-60). É
+   * contra este número que a carga é montada — a nominal deixaria o colono somar uma carga que o
+   * servidor recusa.
+   */
+  capacity_efetiva: number
+  /** Onde ele está parado (D-65): em casa, ou no Pátio Logístico da Capital. */
+  local: 'colonia' | 'capital'
+  parked_at: string | null
   leg: 'ida' | 'volta' | null
-  trip_purpose: 'entrega' | 'retirada' | null
+  trip_purpose: 'entrega' | 'retirada' | 'reboque' | 'entrega_de_fabrica' | 'venda_usado' | null
   distance_slots: number | null
   destination_type: string | null
   destination_id: number | null

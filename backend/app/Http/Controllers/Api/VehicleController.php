@@ -28,6 +28,14 @@ class VehicleController extends Controller
                 'level' => $v->level,
                 'status' => $v->status,
                 'capacity' => $v->capacity,
+                // A capacidade EFETIVA, que é a que o despacho vai cobrar (§16.4, D-60). A UI
+                // monta a carga contra este número desde o D-65, agora que ela pode somar vários
+                // recursos: oferecer a nominal seria deixar o colono montar uma carga que o
+                // servidor recusa.
+                'capacity_efetiva' => app(\App\Domain\Transport\Conservacao::class)->capacidadeEfetiva($v),
+                // Onde ele está parado (D-65): em casa, ou no Pátio da Capital.
+                'local' => $v->local,
+                'parked_at' => $v->parked_at,
                 'leg' => $v->leg,
                 'trip_purpose' => $v->trip_purpose,
                 'distance_slots' => $v->distance_slots,

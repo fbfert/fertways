@@ -33,14 +33,17 @@ try {
    * D-58: o Acordo deixou de ser tela de topo. Ele virou aba do Mercado — negócio é assunto do
    * Mercado —, e o botão "Acordos" saiu do HUD.
    */
-  console.log('\nAbre o Mercado e vai à aba de ofertar entre colonos')
-  // D-59: os Acordos entre colonos vivem dentro do Mercado Local — "comércio direto com
-  // vizinhos" (§17.2). Clica-se na construção, e ela abre a tela já na aba certa.
+  console.log('\nAbre o Mercado Local e vai à aba de ofertar a colonos')
+  /*
+   * D-59: os Acordos entre colonos vivem dentro do Mercado Local — "comércio direto com vizinhos"
+   * (§17.2). D-65: o botão passou a se chamar "Abrir o Mercado", e o Mercado Local virou uma tela
+   * de verdade, e não mais uma aba do salão da Capital.
+   */
   await clicarNaConstrucao(page, 'Mercado Local')
-  await (await acharPorTexto(page, 'button', /Abrir os Acordos/)).click()
-  checar(await esperarTexto(page, /Mercado Central/), 'o painel do Mercado abre')
+  await (await acharPorTexto(page, 'button', /Abrir o Mercado/)).click()
+  checar(await esperarTexto(page, /A sua colônia/), 'o painel do Mercado Local abre')
 
-  await (await acharPorTexto(page, 'button', /Ofertar entre colonos/)).click()
+  await (await acharPorTexto(page, 'button', /Ofertar a colonos/)).click()
   checar(
     await esperarTexto(page, /Aqui se negocia o que está na sua colônia/),
     'a aba diz de que estoque este canal vive',
@@ -61,7 +64,7 @@ try {
   )
 
   console.log('\nMeus acordos')
-  await (await acharPorTexto(page, 'button', /Ofertar entre colonos/)).click()
+  await (await acharPorTexto(page, 'button', /Ofertar a colonos/)).click()
   await (await acharPorTexto(page, 'button', /Meus acordos/)).click()
 
   console.log('\nConfiança Comercial')

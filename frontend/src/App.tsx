@@ -9,6 +9,7 @@ import { Login } from './ui/Login'
 import { Mapa } from './ui/Mapa'
 import { Marca } from './ui/Marca'
 import { Mercado } from './ui/Mercado'
+import type { ContextoDoMercado } from './ui/Mercado'
 import { Ministerio } from './ui/Ministerio'
 import { Detalhe, FilaDeObras, Recursos, SlotVazio } from './ui/Hud'
 
@@ -40,7 +41,9 @@ export default function App() {
   const [erro, setErro] = useState<string | null>(null)
   const [semColonia, setSemColonia] = useState(false)
   const [mercadoAberto, setMercadoAberto] = useState(false)
-  const [abaDoMercado, setAbaDoMercado] = useState<'doca' | 'ofertar_colono'>('doca')
+  // De qual mercado o colono entrou (D-65). O Mercado Local é a construção da colônia; o Mercado
+  // Central é a Capital. São duas telas, e não mais duas portas para o mesmo salão.
+  const [mercado, setMercado] = useState<ContextoDoMercado>('local')
   const [ministerioAberto, setMinisterioAberto] = useState(false)
   const [mapaAberto, setMapaAberto] = useState(false)
   const [frotaAberta, setFrotaAberta] = useState(false)
@@ -147,7 +150,7 @@ export default function App() {
     }
   }
 
-  /** A porta de uma construção: a Central de Transportes leva à Frota, o Mercado Local aos Acordos. */
+  /** A porta de uma construção: a Central de Transportes leva à Frota, o Mercado Local ao Mercado. */
   function abrirPorta(tipo: string) {
     if (tipo === 'central_de_transportes') {
       setFrotaAberta(true)
@@ -155,7 +158,7 @@ export default function App() {
     }
 
     if (tipo === 'mercado_local') {
-      setAbaDoMercado('ofertar_colono')
+      setMercado('local')
       setMercadoAberto(true)
     }
   }
@@ -241,7 +244,7 @@ export default function App() {
         <Capital
           aoFechar={() => setCapitalAberta(false)}
           aoAbrirMercado={() => {
-            setAbaDoMercado('doca')
+            setMercado('central')
             setMercadoAberto(true)
           }}
           aoAbrirMinisterio={() => setMinisterioAberto(true)}
@@ -261,7 +264,7 @@ export default function App() {
       {colonia && mercadoAberto && (
         <Mercado
           colonia={colonia}
-          abaInicial={abaDoMercado}
+          contexto={mercado}
           aoFechar={() => {
             setMercadoAberto(false)
             // O depósito tira recurso do estoque na hora: o HUD tem de refletir isso já.

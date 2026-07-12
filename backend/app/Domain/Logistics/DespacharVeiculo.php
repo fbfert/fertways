@@ -26,8 +26,13 @@ use Illuminate\Support\Facades\DB;
  * durante o trajeto. Se ele nunca chegasse, o recurso não deveria reaparecer na origem — é
  * exatamente isso que torna o calote do comércio informal "real e visível" (§25.7).
  *
- * A energia dos dois trechos também é debitada no despacho. O GDD não diz quando cobrar; cobrar
- * na saída impede que um veículo parta sem ter como voltar. Ver docs/decisoes.md D-30.
+ * A energia também é debitada no despacho. O GDD não diz quando cobrar; cobrar na saída impede que
+ * um veículo parta sem ter como voltar (D-30). Desde o D-65, porém, **cada perna paga a sua**: nem
+ * toda viagem volta. Quem leva carga ao depósito da Capital **fica estacionado lá** (uma perna),
+ * e quem sai do Pátio para outro colono entrega e **segue para casa** (duas pernas, de distâncias
+ * diferentes). O que decide é a lista de pernas que a viagem vai rodar, e nada mais.
+ *
+ * `return_distance_slots` nulo é o que diz "só de ida": o veículo termina no destino e fica lá.
  */
 class DespacharVeiculo
 {
@@ -35,9 +40,20 @@ class DespacharVeiculo
     // do veículo, que o §16.4 manda encolherem com o desgaste.
     public function __construct(private readonly Conservacao $conservacao) {}
 
+    /**
+     * Despacha de onde o veículo estiver: da colônia, ou do Pátio da Capital (D-65).
+     *
+     * A bifurcação é aqui, e não no controller, porque "de onde ele sai" é regra de domínio: muda
+     * a origem geográfica, muda de onde a carga é debitada (estoque ou depósito) e muda quais
+     * pernas a viagem roda.
+     */
     public function handle(Colony $origem, Vehicle $veiculo, string $destinoTipo, ?int $destinoId, array $carga, ?int $acordoId = null): Vehicle
     {
         $this->validarVeiculo($origem, $veiculo);
+
+        if ($veiculo->noPatio()) {
+            return $this->doPatio($origem, $veiculo, $destinoTipo, $destinoId, $carga, $acordoId);
+        }
 
         $destino = $this->resolverDestino($origem, $destinoTipo, $destinoId);
         $this->validarCarga($veiculo, $carga);
@@ -72,9 +88,17 @@ class DespacharVeiculo
 
         $acordo = $this->resolverAcordo($origem, $destinoTipo, $destino['id'], $acordoId);
 
-        [$distancia, $energia] = $this->trajeto($origem, $veiculo, $destino);
+        $ida = $this->distancia($origem->x, $origem->y, $destino['x'], $destino['y']);
 
-        return DB::transaction(function () use ($origem, $veiculo, $destinoTipo, $destino, $carga, $distancia, $energia, $acordo) {
+        /*
+         * D-65: levar carga ao depósito é uma viagem **só de ida**. O veículo descarrega e fica
+         * estacionado no Pátio — foi a decisão do usuário —, então não há volta a rodar nem volta
+         * a pagar. Toda outra viagem que sai de casa continua sendo ida e volta, como no D-30.
+         */
+        $volta = $destinoTipo === 'mercado_central' ? null : $ida;
+        $energia = VeiculoSpecs::energiaDasPernas($veiculo->type, array_filter([$ida, $volta]));
+
+        return DB::transaction(function () use ($origem, $veiculo, $destinoTipo, $destino, $carga, $ida, $volta, $energia, $acordo) {
             $agora = now();
             $ref = $this->partir($origem, $veiculo, $energia, $agora);
 
@@ -82,7 +106,71 @@ class DespacharVeiculo
                 $this->debitarEstoque($origem, $recurso, $qtd, 'transferencia', $ref);
             }
 
-            return $this->emRota($veiculo, $destinoTipo, $destino['id'], 'entrega', $distancia, $carga, $agora, $acordo?->id);
+            return $this->emRota($veiculo, $destinoTipo, $destino['id'], 'entrega', $ida, $volta, $carga, $agora, $acordo?->id);
+        });
+    }
+
+    /**
+     * Despacho a partir do Pátio da Capital (D-65).
+     *
+     * A carga sai do **depósito** do colono, não do estoque da colônia: o veículo está na Capital,
+     * e é o depósito que está ao lado dele. A origem geográfica é a Capital.
+     *
+     * Dois destinos, e eles decidem as pernas:
+     *
+     *  - **a sua própria colônia**: viagem só de ida. O veículo chega, entrega (com tributo, como
+     *    qualquer entrega física — §25.2) e **fica em casa**. É a retirada do §25.8 feita ao
+     *    contrário: em vez de mandar um veículo de casa buscar, você já tinha um lá.
+     *  - **a colônia de outro colono**: entrega lá e **segue para casa**. Três pontos, duas
+     *    distâncias — é por isso que a viagem precisou de pernas independentes.
+     */
+    private function doPatio(Colony $dona, Vehicle $veiculo, string $destinoTipo, ?int $destinoId, array $carga, ?int $acordoId): Vehicle
+    {
+        if ($destinoTipo !== 'colonia') {
+            throw new DomainRuleException(
+                'destino_invalido_do_patio',
+                'Um veículo no Pátio da Capital só sai para uma colônia — ele já está na Capital.',
+            );
+        }
+
+        $this->exigirSemRestricaoComercial($dona);
+
+        // Tirar carga do depósito é usar o Mercado Central (§25.8), como a retirada.
+        AcessoAoMercado::exigir($dona);
+
+        $destino = Colony::find($destinoId);
+
+        if (! $destino) {
+            throw new DomainRuleException('destino_inexistente', 'Colônia de destino não encontrada.');
+        }
+
+        $this->validarCarga($veiculo, $carga);
+
+        // Para casa, o acordo não faz sentido (ninguém promete a si mesmo); para outro colono, é a
+        // mesma regra de sempre — a carga só abate o acordo que ela aponta (D-41).
+        $acordo = $destino->id === $dona->id
+            ? null
+            : $this->resolverAcordo($dona, 'colonia', $destino->id, $acordoId);
+
+        $ida = $this->distancia(MapaFertways::CAPITAL_X, MapaFertways::CAPITAL_Y, $destino->x, $destino->y);
+        $volta = $destino->id === $dona->id
+            ? null
+            : $this->distancia($destino->x, $destino->y, $dona->x, $dona->y);
+
+        $energia = VeiculoSpecs::energiaDasPernas($veiculo->type, array_filter([$ida, $volta]));
+
+        return DB::transaction(function () use ($dona, $veiculo, $destino, $carga, $ida, $volta, $energia, $acordo) {
+            $agora = now();
+
+            // A energia sai do estoque da **colônia**, ainda que o veículo esteja na Capital: quem
+            // abastece o caminhão é o dono dele, e é o único estoque que existe.
+            $ref = $this->partir($dona, $veiculo, $energia, $agora);
+
+            foreach ($carga as $recurso => $qtd) {
+                $this->debitarConta($dona, $recurso, $qtd, $ref);
+            }
+
+            return $this->emRota($veiculo, 'colonia', $destino->id, 'entrega', $ida, $volta, $carga, $agora, $acordo?->id);
         });
     }
 
@@ -175,7 +263,9 @@ class DespacharVeiculo
         $destino = $this->resolverDestino($origem, 'mercado_central', null);
         $this->validarCarga($veiculo, $pedido);
 
-        [$distancia, $energia] = $this->trajeto($origem, $veiculo, $destino);
+        // A retirada continua sendo ida e volta (D-65): ela existe justamente para quem **não**
+        // tem veículo estacionado na Capital. Quem tem, despacha do Pátio e paga uma perna só.
+        [$distancia, $energia] = $this->idaEVolta($origem, $veiculo, $destino);
 
         return DB::transaction(function () use ($origem, $veiculo, $pedido, $distancia, $energia) {
             $agora = now();
@@ -187,7 +277,7 @@ class DespacharVeiculo
 
             // `cargo_json` numa retirada é a carga **reservada**, que só embarca de fato ao
             // chegar na Capital. O veículo viaja vazio na ida; `trip_purpose` diz qual é qual.
-            return $this->emRota($veiculo, 'mercado_central', null, 'retirada', $distancia, $pedido, $agora);
+            return $this->emRota($veiculo, 'mercado_central', null, 'retirada', $distancia, $distancia, $pedido, $agora);
         });
     }
 
@@ -219,7 +309,7 @@ class DespacharVeiculo
         }
 
         $destino = ['id' => $zona->id, 'x' => $zona->x, 'y' => $zona->y];
-        [$distancia, $energia] = $this->trajeto($origem, $veiculo, $destino);
+        [$distancia, $energia] = $this->idaEVolta($origem, $veiculo, $destino);
 
         return DB::transaction(function () use ($origem, $veiculo, $zona, $pedido, $distancia, $energia) {
             $agora = now();
@@ -230,7 +320,7 @@ class DespacharVeiculo
             }
 
             // `cargo_json` na retirada é a carga reservada; só embarca de fato ao chegar na zona.
-            return $this->emRota($veiculo, 'zona_neutra', $zona->id, 'retirada', $distancia, $pedido, $agora);
+            return $this->emRota($veiculo, 'zona_neutra', $zona->id, 'retirada', $distancia, $distancia, $pedido, $agora);
         });
     }
 
@@ -276,16 +366,28 @@ class DespacharVeiculo
         }
     }
 
-    /** @return array{0: int, 1: int} distância em slots e energia da viagem inteira */
-    private function trajeto(Colony $origem, Vehicle $veiculo, array $destino): array
+    /** A distância de uma perna, em slots. Zero seria uma viagem para o lugar onde já se está. */
+    private function distancia(int $x1, int $y1, int $x2, int $y2): int
     {
-        $distancia = MapaFertways::distancia($origem->x, $origem->y, $destino['x'], $destino['y']);
+        $distancia = MapaFertways::distancia($x1, $y1, $x2, $y2);
 
         if ($distancia === 0) {
             throw new DomainRuleException('destino_igual_origem', 'Origem e destino são o mesmo ponto.');
         }
 
-        return [$distancia, VeiculoSpecs::energiaDaViagem($veiculo->type, $distancia)];
+        return $distancia;
+    }
+
+    /**
+     * Ida e volta pelo mesmo caminho: a viagem clássica, que sai de casa e volta para casa.
+     *
+     * @return array{0: int, 1: int} a distância (que serve às duas pernas) e a energia das duas
+     */
+    private function idaEVolta(Colony $origem, Vehicle $veiculo, array $destino): array
+    {
+        $distancia = $this->distancia($origem->x, $origem->y, $destino['x'], $destino['y']);
+
+        return [$distancia, VeiculoSpecs::energiaDasPernas($veiculo->type, [$distancia, $distancia])];
     }
 
     /** Debita a energia e devolve a referência que amarra todos os lançamentos da viagem. */
@@ -298,7 +400,14 @@ class DespacharVeiculo
         return $ref;
     }
 
-    private function emRota(Vehicle $veiculo, string $destinoTipo, ?int $destinoId, string $proposito, int $distancia, array $carga, CarbonInterface $agora, ?int $acordoId = null): Vehicle
+    /**
+     * Põe o veículo na estrada.
+     *
+     * `$volta` nulo é o que diz "viagem só de ida" (D-65): ao fechar a ida, o veículo **fica no
+     * destino** em vez de dar meia-volta. É assim que o depósito o deixa estacionado no Pátio, e é
+     * assim que o caminhão do Pátio volta para casa de vez. Nenhum outro sinalizador é preciso.
+     */
+    private function emRota(Vehicle $veiculo, string $destinoTipo, ?int $destinoId, string $proposito, int $distancia, ?int $volta, array $carga, CarbonInterface $agora, ?int $acordoId = null): Vehicle
     {
         $veiculo->forceFill([
             'status' => 'em_rota',
@@ -307,7 +416,11 @@ class DespacharVeiculo
             'destination_type' => $destinoTipo,
             'destination_id' => $destinoId,
             'distance_slots' => $distancia,
+            'return_distance_slots' => $volta,
             'departs_at' => $agora,
+            // Sai da vaga: em rota não se paga a hora, e nada disto vale enquanto ele roda.
+            'parked_at' => null,
+            'patio_cobrado_ate' => null,
             // Pela Conservacao, não pelo VeiculoSpecs cru: o veículo desgastado é mais lento
             // (§16.4, D-60). A carroça de 30% não pode chegar junto com a nova.
             'arrives_at' => $agora->copy()->addSeconds(

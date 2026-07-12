@@ -433,6 +433,33 @@ As **4 colônias de produção foram realocadas** para slots de founder ((0,1),(
 `artisan fertways:realocar-founders` — comando guardado por veículos ociosos, útil de novo se um dia
 houver que remanejar.
 
+## Os dois mercados e o Pátio da Capital (D-65) — **feito** (2026-07-12)
+
+**O Mercado Local virou tela própria** (o botão da construção agora diz "Abrir o Mercado"): envia
+carga ao depósito e a outros colonos, oferta a colonos e vê as ofertas deles. **O Mercado Central**
+(pelo Leste da Capital) ficou com o que é do governo: **Pátio e depósito**, Ofertar no Mercado
+Central e Ofertas globais. Os **usados** mudaram para o **Ministério dos Transportes**.
+
+**A carroceria leva vários recursos até lotar** — o servidor sempre aceitou (o §25.4 soma unidades);
+era a tela que mandava um por vez.
+
+**O Pátio:** todo veículo que entrega no depósito **fica estacionado na Capital** e é de lá que sai
+de novo (para casa, ou direto para outro colono — e, entregando, segue para casa). Paga **0,005
+Fert$/hora** ao Tesouro, sem limite de vagas; **sem Fert$, é rebocado para casa** de graça. Se a
+carga não coube no teto do depósito, o veículo **volta na hora** com a sobra, em vez de estacionar.
+
+**Duas coisas do motor mudaram, e é bom saber antes de mexer em logística:**
+
+- A viagem tem **pernas independentes** (`return_distance_slots`). **Nulo = viagem só de ida**: o
+  veículo termina no destino e fica lá. É esse nulo que estaciona o veículo no Pátio, que traz o
+  caminhão do Pátio para casa de vez, e que reboca quem não paga.
+- **Cada perna paga a sua energia** (revisão do D-30). Levar ao depósito custa **metade** do que
+  custava — uma perna, porque ele não volta. A volta forçada pela sobra é **de graça**: quem a causou
+  foi o teto, não o colono.
+
+`Domain/Capital/Patio.php` cobra a hora no tick e reboca. A tarifa fecha a lacuna que o D-63 deixou
+aberta: o GDD publica "cobrança por hora" no slot 6 e nunca o preço.
+
 ## A grade do mapa (D-64) — **feito** (2026-07-11)
 
 O mapa **abre em 15×15, centrado na colônia do jogador**, e o botão da mira devolve esse
