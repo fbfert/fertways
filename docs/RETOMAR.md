@@ -201,7 +201,7 @@ O MVP tem, funcionando e no ar em `https://fertways.tars.art.br`:
   - **Fora de escopo, de propósito:** o **Cargueiro Interplanetário** e o seu aluguel. Dependem do
     Espaçoporto e dos planetas NPC, que não existem.
 
-**388 testes PHP (3134 asserções) + 7 e2e, verdes.** O cron do tick está instalado (crontab do usuário
+**404 testes PHP (3247 asserções) + 7 e2e, verdes.** O cron do tick está instalado (crontab do usuário
 `fertways`, log em `/home/fertways/logs/fertways-tick.log`) e roda o `artisan` **da cópia de
 deploy** — o mundo avança sozinho. O tick faz: produção, upgrades, proteções, trechos de viagem,
 acordos vencidos, **casos reatribuídos, janelas de apelação fechadas e a folha do Ministério**.
@@ -239,7 +239,33 @@ compartilham o andaime de `e2e/comum.mjs` **e o mesmo banco efêmero**, então *
 > (Runtime.getProperties): Target closed`. Verde nas outras três. Se reprovar assim, rode de novo
 > antes de investigar — mas se virar hábito, é bug de verdade.
 
-**Publicado no GitHub e no ar.** O último deploy é de **2026-07-13**, no commit `5aa850e` — **a GUERRA
+**Publicado no GitHub e no ar.** O último deploy é de **2026-07-13**, no commit `c791cd2` — **a zona
+vira lugar e as telas viram telas (D-67)**. Migration `a_zona_vira_lugar` (canteiro de obras, fila de
+obras da zona, Refinaria, aviso da Torre). **UM passo à mão:** `artisan db:seed
+--class=BuildingSpecSeeder --force` no `fertwaysbd`.
+
+> ⚠️⚠️ **E esse passo à mão CONSERTOU a guerra, que estava quebrada em produção desde o dia anterior.**
+>
+> O catálogo de produção tinha **25 construções** e nenhuma da guerra: nem Sentinela, nem Muralha, nem
+> Torre de Vigia. O Quartel procurava o custo da Sentinela no `building_specs` e não achava — **ninguém
+> podia fabricar unidade nenhuma**, e nada reclamava. O deploy do D-66 foi feito e o
+> `BuildingSpecSeeder` foi esquecido.
+>
+> É **exatamente** a armadilha que a Verificação rápida abaixo descreve, e eu caí nela mesmo com ela
+> escrita: *"o `deploy.sh` NÃO roda seeders, e o esquecimento é silencioso"*. Já aconteceu com o Tesouro
+> (D-57), as zonas (D-52), os parâmetros do transporte (D-60) — e agora com o **catálogo inteiro**.
+>
+> **Daqui em diante: toda vez que `building_specs.json` mudar, o seeder é passo à mão no deploy.** O
+> seeder é `upsert`, então repeti-lo é seguro. Confira com a contagem de tipos: hoje são **33**.
+
+> Conferido por leitura depois do deploy: catálogo com 33 tipos e a Sentinela com o custo do §27.1; a
+> migration registrada (lote 18); `zone_materials` e `zone_build_queue` criadas; a zona ocupada intacta
+> (20 unidades); o aviso da Torre em 10 min/nível, do default do banco. **`/mapa`, `/capital`,
+> `/zona/1` e `/quartel` respondem 200** — antes davam **404**, porque não existem em disco. E a API
+> continua devolvendo **JSON**: `/central/war` dá 401 com `{"message":"Unauthenticated."}`, não HTML —
+> era esse o risco catastrófico do `.htaccess` novo.
+
+Antes dele, `5aa850e` — **a GUERRA
 (D-66, a Fatia 2 do D-52)** e a **segunda leva do painel de admin** (Reputações, Notícias com estado,
 frota com placa, realocação pontual). Duas migrations, ambas ensaiadas no MariaDB com dados; **nenhum
 passo à mão**. Ver as duas seções abaixo.
