@@ -550,7 +550,61 @@ Espaçoporto). **Nenhum número ali foi inventado, e nenhum será até que você
 
 **Quando o v36 estiver assentado, o D-47 vira história:** não há mais precedência a aplicar.
 
-## O trabalho em curso: zonas neutras + Drone (D-52)
+## ⚠️ O trabalho em curso: a GUERRA (D-66) — meio construída, verde, **não publicada**
+
+**Estado em 2026-07-12.** As arbitragens estão **todas fechadas** (D-66 em `docs/decisoes.md` — leia-o
+antes de tocar em qualquer coisa). O código está **verde e comitado**, e **deliberadamente não
+publicado**: a guerra ainda não é jogável, e publicar meia guerra não serve a ninguém.
+
+> As duas árvores divergem **de propósito** desta vez. Não é o commit esquecido no vestiário — é obra
+> em andamento. Quando a fatia fechar, publica-se tudo junto.
+
+**Pronto e verde (345 testes):**
+- **Catálogo (+5, agora 30 tabelas):** Muralha de Perímetro, Torre de Vigia, Bastião, Abrigo de Robôs
+  (bases arbitradas no D-66) e a **Sentinela** (custo publicado no §27.1).
+- **`units` — unidades com HP.** O `garrison` int **morreu**: o §27.6 exige HP individual, e um
+  contador não sabe quem está ferido. A API ainda publica `garrison`, agora contado.
+- **`war_settings`** — os bônus do §27.3 e as duas chances do §28.10, do **operador**. Os defaults
+  moram **no banco**: esquecer o seeder não pode apagar a guerra (o `transport_settings` do D-60
+  ensinou isso do jeito ruim).
+- **`combats`** — a mesa de batalha, ainda vazia.
+- **`Domain/Guerra/Forcas`** (§27.3, com o +20% offline por snapshot), **`Protegido`** (a lacuna das
+  seis menções) e **`Atacar`** (o despacho dos 4 tipos, marcha 1,3×, cooldown de 48 h).
+- **A extração deixou de parar no teto do Depósito** — e isto é o achado que mais importa desta
+  sessão. Ver abaixo.
+
+**O que FALTA, na ordem:**
+1. **`ResolverCombates`** — a rodada de 10 min, no tick. **É a próxima coisa a escrever.** O desenho
+   está fechado (ver a arbitragem 8 do D-66): o dano sai da força **inicial**, é constante, e a força
+   cai linearmente. A perda se aplica como fração de HP igual a todas as unidades presentes, o que
+   distribui as baixas proporcionalmente (§27.6) **e fecha a conta sozinho**: a força restante é
+   exatamente `F − dano`.
+2. Os quatro comportamentos: **invasão** (toma a zona, saqueia 50% do exposto), **cerco** (fecha a
+   zona, 48 h, 30%), **sabotagem** (60% base contra a detecção da Torre), **apreensão** (o Predador
+   contra o Abrigo).
+3. **A venda de Nióbio pelo governo** — sem ela a guerra é inalcançável (ver abaixo). O preço já está
+   no `war_settings`: 3,163 Fert$ (o de referência do §06 × 10).
+4. API (`WarController`), tela, e2e, e os parâmetros no painel de admin.
+
+### As três coisas que esta sessão descobriu e que ninguém sabia
+
+- **A guerra nasceria morta, e por causa do Nióbio.** A Sentinela custa **3 Nióbio Alienígena**, o
+  Quartel onde ela é feita custa outros 3, **nada no jogo produz Nióbio**, e o planeta inteiro tem
+  **20 unidades** (do kit de fundação; a colônia `teste` tem zero). Cada colônia ergueria **uma**
+  Sentinela — 80 de ataque — contra uma zona de **500 de defesa**. Atacar seria **matematicamente
+  impossível**. É o Caminhão antes do D-60 outra vez. **A cura arbitrada: o governo vende Nióbio** do
+  caixa do Tesouro (que tem 10.000), a 10× o preço de referência do §06.
+- **O saque seria sempre zero.** "Protegido = o que cabe no Depósito" (arbitragem) + "a extração para
+  no teto do Depósito" (Fatia 1) ⇒ nada jamais exposto ⇒ **espólio nenhum**. Curado: **a extração
+  deixou de parar no teto**, o excedente empilha ao relento, e é ele o butim. ⚠️ **Contraria o §19.6
+  de propósito** — ele chama aqueles números de "capacidade". **Não "conserte" sem perguntar.**
+- **Nenhuma batalha terminaria.** A fórmula do §27.5 tira o dano da força "**atual**", que decai
+  geometricamente e nunca zera: no cenário que o GDD estima em ~4 rodadas, a defesa ainda tem 92
+  pontos na rodada 12. Curado: **o dano sai da força INICIAL**. E isso **reproduz exatamente** a
+  estimativa do próprio GDD no cenário equilibrado (12 rodadas, 120 min) — quem escreveu a tabela
+  calculou assim e escreveu "atual" no texto.
+
+## O trabalho anterior: zonas neutras + Drone (D-52)
 
 Leia **D-52**. Sequência decidida: Fatia 1 = o núcleo (ocupar/extrair/retirar); Fatia 2 = a guerra
 (§27); Fatia 3 = o Drone. O mapa (pré-requisito) e a **Fatia 1 já estão no ar** (2026-07-10).
@@ -570,18 +624,31 @@ leitura. Ele é idempotente, então repetir é seguro se um dia houver dúvida.
 
 ## Perguntas em aberto — faça estas ao usuário ao retomar
 
+0. **A guerra está no meio. A primeira pergunta é se ele quer que você a termine** — e, se sim,
+   **não há mais nada a arbitrar para isso**: as oito lacunas do §27 estão fechadas no D-66. Comece
+   pelo `ResolverCombates` (ver a seção da guerra, acima). **Não refaça as perguntas do D-66.**
+
 1. **As lacunas do D-52 que ainda travam — só as das próximas fatias.** Não invente nenhuma. Já
-   arbitradas (Fatia 1): base de extração 100/h, mineral por distrito, requisitos de ocupação. Ainda
-   abertas, por fatia:
-   - **Fatia 2 (guerra):** o que é **"estoque protegido"** (o saque de 50% depende disso) e os
-     **bônus defensivos** de Muralha e Torre de Vigia (§27.3).
+   arbitradas: **Fatia 1** (extração 100/h, mineral por distrito, ocupação) e **Fatia 2 inteira**
+   (D-66: Nióbio, estoque protegido, bônus defensivos, custo das 4 construções de defesa, Módulo
+   Operacional, as duas chances do §28.10, o cerco, e o término do combate). Ainda abertas:
    - **Fatia 3 (Drone):** **velocidade** (Furgão 4 slots/min, Caminhão 1,5, Nave 10 são as âncoras),
      **raio de revelação** e **persistência**, e **onde é fabricado**. **Não pergunte o custo:** ele
      está publicado, e a errata do D-37 (2026-07-11) fixou qual das duas tabelas vale — a curva
      **1,65×** do §4.3 do v3.4, `50 83 136 225 371`. Bateria, recarga e depreciação também estão no
      GDD (D-52). As lacunas do Drone são **quatro**, não cinco.
-   - Em qualquer fatia: **custo/tempo das 9 estruturas** de zona restantes (só o Posto de Comando foi
-     arbitrado), **teto de zonas por jogador** e **upgrade de zona** (a Fatia 1 fixou nível 1).
+   - **Custo/tempo das 6 estruturas de zona restantes** (Estrutura de Extração, Refinaria de Campo,
+     Central de Comunicação, Plataforma de Pouso, Estacionamento, Cemitério de Robôs). O Posto de
+     Comando saiu no D-52; a Muralha, a Torre de Vigia, o Bastião e o Abrigo de Robôs, no D-66.
+     **Nenhuma das seis é exigida pela guerra.**
+   - **Teto de zonas por jogador** e **upgrade de zona** (a Fatia 1 fixou nível 1).
+   - **Fabricar unidade é instantâneo hoje** — o Robô Minerador, o Infiltrador e o Predador já eram
+     assim, e a Sentinela seguiu a regra da casa. O freio do exército é o **Nióbio**, não o relógio.
+     Ninguém decidiu isso: foi consistência. **Se ele quiser um tempo de fábrica, é decisão dele.**
+   - **Ranking de guerras (§27.13)** — publicado por inteiro (percentis e pesos), mas **não há sistema
+     de ranking** no jogo. Fora da Fatia 2.
+   - **Federação** — o §28.10 diz que uma federação aliada pode romper um cerco. **Federações não
+     existem** (mesma inércia do D-44). Por ora o cerco só se rompe pelo dono da zona.
 
 3. **O Marco do GDD** (§03) continua congelado em `colonizacao_inicial`. O GDD nomeia os marcos
    (1 Sobrevivente … 100 Lenda de Fertways) e **não publica a fórmula**. Ver D-38 — o

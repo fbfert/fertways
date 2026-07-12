@@ -2419,9 +2419,33 @@ A máquina de combate **inteira** está no GDD, e o D-52 não a tinha lido:
 - **Força** (§27.3): Ofensiva = Σ ataque das Sentinelas enviadas. Defensiva = Σ defesa das unidades na
   zona **× bônus de construção**.
 - **Combate por rodadas de 10 min** (§27.5). Dano ao defensor por rodada =
-  `(Força Ofensiva / Força Total) × 15% × Força Defensiva atual`, e o simétrico ao atacante. Rodadas
+  `(Força Ofensiva / Força Total) × 15% × Força Defensiva`, e o simétrico ao atacante. Rodadas
   até um lado zerar. Reforços que chegam **entram no cálculo a partir da rodada seguinte** — é
   deliberado que o combate equilibrado dure ~2 h, para dar tempo de socorrer.
+
+> **8. A fórmula do §27.5, à letra, faz o combate NUNCA terminar — e a arbitragem foi mudar uma
+> palavra.** Descoberto ao implementar, em 2026-07-12.
+>
+> O texto diz "× Força Defensiva **atual**". Se o dano de cada rodada se recalcula sobre a força que
+> restou, a força decai **geometricamente** e não chega a zero nunca. Conferido com os números do
+> próprio documento: no cenário "Ataque 2.000 vs Defesa 500", que o GDD estima em **~4 rodadas**, a
+> defesa ainda tem **92 pontos na rodada 12**. As três "estimativas de duração" do §27.5 **não
+> derivam** da fórmula que está impressa ao lado delas.
+>
+> **Decisão do usuário: o dano sai da força INICIAL**, calculada uma vez, com que os dois lados
+> entraram no combate. O dano por rodada passa a ser **constante**, a força cai **linearmente**, e a
+> batalha termina sozinha — **sem piso inventado e sem constante nova**.
+>
+> E há uma confirmação forte de que é a leitura certa: no cenário **equilibrado** do próprio GDD
+> (Ataque 1.000 × Defesa 800), a força inicial dá **12 rodadas, 120 minutos** — que é **exatamente** o
+> que o §27.5 escreve na coluna "estimativa de duração". A fórmula com a força *atual* dá 19 rodadas
+> ali. Quem escreveu a tabela calculou com a força inicial e escreveu "atual" no texto.
+>
+> ⚠️ Contraria a palavra "atual" do §27.5, de propósito. **Não "conserte" sem perguntar.**
+>
+> **Reforços continuam entrando** (§27.5): quem chega no meio soma à força, e o dano por rodada é
+> **recalculado naquele momento** — a partir da nova força inicial. É o que preserva o desenho que o
+> documento declara deliberado ("reforços tardios podem ainda mudar o resultado").
 - **Perdas proporcionais** (§27.6): as baixas se distribuem entre as unidades presentes; sobreviventes
   voltam ao Abrigo (defensores) ou ao Quartel (atacantes) **com HP reduzido**; HP zero é **destruição
   permanente**.
