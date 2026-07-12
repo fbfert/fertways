@@ -17,7 +17,11 @@ use App\Domain\Treasury\Tesouro;
 use App\Exceptions\DomainRuleException;
 use App\Http\Controllers\Controller;
 use App\Models\Admin;
+use App\Domain\Media\Biblioteca;
+use App\Domain\Media\Vinculaveis;
 use App\Models\Colony;
+use App\Models\ImageBinding;
+use App\Models\MediaAsset;
 use App\Models\News;
 use App\Models\Report;
 use App\Models\TransportSetting;
@@ -535,6 +539,88 @@ class AcoesController extends Controller
 
             return "{$colonia->name} realocada para ({$dados['x']}, {$dados['y']}).";
         }, 'admin.operacao');
+    }
+
+    // ── Gestão de imagens (D-68) ─────────────────────────────────────────────
+
+    /** Envia um PNG para a biblioteca. O arquivo vai para fora da árvore de deploy. */
+    public function imagemEnviar(Request $request, Biblioteca $biblioteca): RedirectResponse
+    {
+        $dados = $request->validate([
+            'categoria' => ['required', Rule::in(array_keys(Biblioteca::CATEGORIAS))],
+            'arquivo' => ['required', 'file'],
+        ]);
+
+        return $this->tentar('imagem.enviar', function () use ($biblioteca, $dados, $request) {
+            $a = $biblioteca->enviar(
+                $dados['categoria'],
+                $request->file('arquivo'),
+                auth('admin')->id(),
+            );
+
+            return "Imagem {$a->filename} enviada para {$a->category}.";
+        });
+    }
+
+    /**
+     * Vincula (ou desvincula) uma imagem a uma coisa do jogo.
+     *
+     * `media_asset_id` vazio = **desvincular**: a construção volta ao hexágono colorido. Não é um
+     * caso de erro, é uma escolha — e é ela que torna a arte reversível sem apagar arquivo nenhum.
+     */
+    public function imagemVincular(Request $request): RedirectResponse
+    {
+        $dados = $request->validate([
+            'entity_key' => ['required', Rule::in(array_keys(Vinculaveis::todas()))],
+            'media_asset_id' => ['nullable', 'integer', 'exists:media_assets,id'],
+        ]);
+
+        $nome = Vinculaveis::todas()[$dados['entity_key']];
+
+        if (empty($dados['media_asset_id'])) {
+            ImageBinding::where('entity_key', $dados['entity_key'])->delete();
+
+            return $this->ok(
+                'imagem.desvincular',
+                "{$nome} voltou ao hexágono: sem imagem.",
+                "entity:{$dados['entity_key']}",
+            );
+        }
+
+        $a = MediaAsset::findOrFail($dados['media_asset_id']);
+
+        ImageBinding::updateOrCreate(
+            ['entity_key' => $dados['entity_key']],
+            ['media_asset_id' => $a->id],
+        );
+
+        return $this->ok(
+            'imagem.vincular',
+            "{$nome} passou a usar {$a->category}/{$a->filename}.",
+            "entity:{$dados['entity_key']}",
+        );
+    }
+
+    /**
+     * Apaga da biblioteca — o arquivo e o registro.
+     *
+     * As construções que a usavam **voltam ao hexágono**, e a auditoria registra **quais**: sem isso,
+     * alguém apagaria uma imagem, três prédios perderiam a arte, e ninguém saberia relacionar as duas
+     * coisas semanas depois.
+     */
+    public function imagemApagar(MediaAsset $media, Biblioteca $biblioteca): RedirectResponse
+    {
+        $ref = "{$media->category}/{$media->filename}";
+        $orfas = $biblioteca->apagar($media);
+
+        $quem = $orfas === []
+            ? 'Não estava em uso.'
+            : 'Voltaram ao hexágono: '.implode(', ', array_map(
+                fn ($k) => Vinculaveis::todas()[$k] ?? $k,
+                $orfas,
+            )).'.';
+
+        return $this->ok('imagem.apagar', "Imagem {$ref} apagada. {$quem}", "media:{$media->id}");
     }
 
     // ── Helpers ──────────────────────────────────────────────────────────────

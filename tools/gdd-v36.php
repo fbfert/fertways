@@ -80,58 +80,16 @@ function n(int|float $v, int $casas = 0): string
 /**
  * O nome de exibição.
  *
- * Os slugs do banco não têm acento (`refinaria_quimica`), e derivar o nome deles produzia
- * "Refinaria quimica" — um GDD com o nome do prédio escrito errado não serve para nada. Os nomes
- * próprios ficam aqui, que é onde a apresentação pertence; o resto cai no fallback.
+ * ⚠️ **A lista vive em `App\Domain\Media\NomesDeExibicao`, e não mais aqui.** Ela passou a ser usada
+ * também pelo painel de gestão de imagens (D-68), que lista as construções para o operador escolher a
+ * arte de cada uma. Duas cópias divergiriam no dia em que alguém corrigisse só uma — e um GDD que
+ * escreve "Refinaria quimica" e um painel que escreve "Refinaria Química" seriam dois jogos.
+ *
+ * A guarda abaixo continua valendo, e agora protege as duas pontas.
  */
 function nomesProprios(): array
 {
-    return [
-        // As 17 construções (§17.1, §17.2, §21.9).
-        'gerador_de_atmosfera' => 'Gerador de Atmosfera',
-        'estrutura_de_sobrevivencia' => 'Estrutura de Sobrevivência',
-        'fazenda' => 'Fazenda',
-        'reator_de_energia' => 'Reator de Energia',
-        'captacao_de_agua' => 'Captação de Água',
-        'oficina' => 'Oficina',
-        'refinaria_quimica' => 'Refinaria Química',
-        'laboratorio' => 'Laboratório',
-        'antena_de_comunicacao' => 'Antena de Comunicação',
-        'torre_de_defesa' => 'Torre de Defesa',
-        'mercado_local' => 'Mercado Local',
-        'quartel' => 'Quartel',
-        'plataforma_de_pouso' => 'Plataforma de Pouso',
-        'central_de_transportes' => 'Central de Transportes',
-        'mina_local' => 'Mina Local',
-        'destilaria' => 'Destilaria',
-        'tanque_de_combustivel' => 'Tanque de Combustível',
-        // A guerra (§27, D-66). Vivem na ZONA, não na colônia, então não entram no
-        // `Building::MVP` e as tabelas do GDD ainda não as renderizam. O nome fica aqui
-        // desde já: no dia em que o documento descrever a guerra, ele já o escreve certo.
-        'muralha_de_perimetro' => 'Muralha de Perímetro',
-        'torre_de_vigia' => 'Torre de Vigia',
-        'bastiao' => 'Bastião',
-        'abrigo_de_robos' => 'Abrigo de Robôs',
-        'sentinela' => 'Sentinela',
-        // As estruturas de zona do §17.4 (D-67).
-        'refinaria_de_campo' => 'Refinaria de Campo',
-        'estacionamento_da_zona' => 'Estacionamento da Zona',
-        'cemiterio_de_robos' => 'Cemitério de Robôs',
-        // Recursos citados fora das tabelas geradas.
-        'ligas_metalicas' => 'Ligas Metálicas',
-        'componentes_eletronicos' => 'Componentes Eletrônicos',
-        'compostos_quimicos' => 'Compostos Químicos',
-        'metal_bruto' => 'Metal Bruto',
-        'biocombustivel' => 'Biocombustível',
-        'oxigenio' => 'Oxigênio',
-        'agua' => 'Água',
-        'biomassa' => 'Biomassa',
-        'energia' => 'Energia',
-        // Classes tributárias.
-        'primario' => 'Primário',
-        'secundario' => 'Secundário',
-        'raro' => 'Raro',
-    ];
+    return App\Domain\Media\NomesDeExibicao::mapa();
 }
 
 function humano(string $slug): string

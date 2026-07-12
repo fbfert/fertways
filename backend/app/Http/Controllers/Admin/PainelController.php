@@ -6,6 +6,8 @@ use App\Domain\Admin\CorrigirEstado;
 use App\Domain\Admin\RealocarColonia;
 use App\Domain\Admin\Suspender;
 use App\Domain\Building\Funcoes;
+use App\Domain\Media\Biblioteca;
+use App\Domain\Media\Vinculaveis;
 use App\Domain\Ministry\PunicaoSpecs;
 use App\Domain\Transport\Conservacao;
 use App\Domain\Transport\Ministerio;
@@ -15,6 +17,8 @@ use App\Models\Admin;
 use App\Models\AuditEntry;
 use App\Models\BuildQueue;
 use App\Models\Colony;
+use App\Models\ImageBinding;
+use App\Models\MediaAsset;
 use App\Models\Ledger;
 use App\Models\NeutralZone;
 use App\Models\News;
@@ -233,6 +237,54 @@ class PainelController extends Controller
             'filtros' => compact('q', 'estado', 'kind', 'de', 'ate'),
             // Os tipos que existem de fato. Hoje só há `comunicado`; o seletor não inventa outros.
             'kinds' => News::query()->distinct()->orderBy('kind')->pluck('kind'),
+        ]);
+    }
+
+    /**
+     * A gestão de imagens (D-68).
+     *
+     * Uma aba por categoria. Em cada uma: a biblioteca (miniaturas, envio, exclusão) e as coisas do
+     * jogo que aquela categoria costuma vestir, cada uma com um seletor.
+     *
+     * ⚠️ **O seletor lista TODAS as imagens, não só as da categoria.** A arrumação por categoria é
+     * conveniência, não trava: se a melhor arte para a Oficina estiver na pasta das especializações,
+     * o operador tem de poder usá-la sem mover arquivo nenhum.
+     */
+    public function imagens(Request $request): View
+    {
+        $categoria = (string) $request->query('cat', array_key_first(Biblioteca::CATEGORIAS));
+
+        if (! array_key_exists($categoria, Biblioteca::CATEGORIAS)) {
+            $categoria = array_key_first(Biblioteca::CATEGORIAS);
+        }
+
+        $grupos = Vinculaveis::porCategoria();
+
+        return view('admin.imagens', [
+            'categorias' => Biblioteca::CATEGORIAS,
+            'categoria' => $categoria,
+
+            // As imagens desta categoria — o que se envia, se vê e se apaga.
+            'imagens' => MediaAsset::where('category', $categoria)->orderBy('filename')->get(),
+
+            // TODAS, para o seletor. A categoria arruma; não tranca.
+            'todasAsImagens' => MediaAsset::orderBy('category')->orderBy('filename')->get()
+                ->groupBy('category'),
+
+            // As coisas do jogo que esta categoria costuma vestir. Nulo se a categoria não veste nada
+            // (é o caso de `mapas`, `espacoporto`, `destrocos-da-endurance` — a arte deles vai para
+            // as ÁREAS da Capital, que estão sob `capital`).
+            'grupo' => $grupos[$categoria] ?? null,
+
+            // Quem já tem imagem. `entity_key => MediaAsset`.
+            'vinculos' => ImageBinding::with('asset')->get()->keyBy('entity_key'),
+
+            'contagem' => MediaAsset::selectRaw('category, count(*) as n')
+                ->groupBy('category')->pluck('n', 'category'),
+
+            // Quantas coisas do jogo ainda estão sem arte — é o número que diz quanto falta.
+            'semArte' => count(Vinculaveis::todas()) - ImageBinding::count(),
+            'totalVinculavel' => count(Vinculaveis::todas()),
         ]);
     }
 

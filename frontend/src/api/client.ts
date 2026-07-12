@@ -713,6 +713,15 @@ export const api = {
       body: JSON.stringify({ vehicle_id: vehicleId, cargo }),
     }),
 
+  /**
+   * A arte das construções (D-68). Só o que TEM imagem vem no mapa; o resto cai no hexágono.
+   *
+   * A chave é a coisa do jogo: um `building_type` (`reator_de_energia`, `sentinela`) ou um lugar da
+   * Capital (`capital:slot:2`, `capital:area:oeste`).
+   */
+  imagens: () =>
+    req<{ images: Record<string, { pequena: string; grande: string }> }>('/images'),
+
   fundarColonia: (name: string, x: number, y: number) =>
     req<Colonia>('/colony', { method: 'POST', body: JSON.stringify({ name, x, y }) }),
 

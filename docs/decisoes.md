@@ -2617,3 +2617,76 @@ a única construção do jogo que se ergue só por gosto.
 - **Plataforma de Pouso da Zona** — só serve à **Nave de Transporte Planetária**, que está no catálogo e
   não no jogo. Ela é uma fatia inteira (§17.5): voo, placa, transporte de robôs entre zonas.
 - **Estrutura de Extração** — a zona já extrai sem ela. Ver a lacuna declarada acima.
+
+---
+
+## D-68 — A gestão de imagens: o jogo ganha rosto.
+**Data:** 2026-07-13 · **Status:** decidido pelo usuário · **Não há GDD sobre isto**
+
+O usuário mandou 44 sprites isométricos (264×264 e 1024×1024, fundo transparente) e pediu uma aba de
+administração para geri-los. Três problemas apareceram antes de escrever uma linha:
+
+**1. Os nomes não batem com nada.** A arte veio com nomes de fantasia (`reator-helios`,
+`estufa-aurora`, `nucleo-ares`) e o jogo conhece slugs (`reator_de_energia`, `fazenda`,
+`gerador_de_atmosfera`). **Nenhuma associação é automática** — e é por isso que o painel existe: quem
+decide qual imagem é qual construção é uma pessoa.
+
+**2. A cobertura é parcial.** `colonia-base` tem 5 imagens e a colônia tem 17 construções.
+
+**3. Upload dentro da árvore de deploy QUEBRARIA o deploy.** O `deploy.sh` **aborta** se achar arquivo
+não rastreado (lição de 2026-07-11).
+
+### As decisões
+
+**Onde a arte aparece:** nas **cenas E nos painéis**. O hexágono da colônia mostra o prédio (264px) e o
+cartão de detalhe mostra a arte grande (1024px). É para isso que ela foi feita.
+
+**Quem não tem imagem continua sendo HEXÁGONO.** A API só devolve o que **tem** imagem; o resto o
+frontend nem procura. Nada quebra por falta de arte, e dá para ir preenchendo aos poucos.
+
+**Onde os arquivos moram: `/home/fertways/media/`**, fora do repositório e fora da árvore de deploy,
+servidos por um symlink em `public_html/media`. 52 MB de PNG no git seriam para sempre, e cada upload
+exigiria um commit — o que derrotaria o "trocar quando quisermos".
+
+> ⚠️ **O symlink precisa ser do `fertways`.** Criado como root, o Apache respondeu **403**: a diretiva
+> `SymLinksIfOwnerMatch` exige que o dono do link e o do alvo batam. `chown -h` resolveu.
+
+> ⚠️ **`/media` está excluído do fallback do SPA**, junto com `/central`. Sem isso, uma imagem que não
+> existe cairia no `index.html` e o servidor devolveria a **aplicação inteira, com 200**, para cada
+> `<img>` quebrada — a pior combinação possível para quem for depurar.
+
+**As nove categorias:** as oito do zip mais `mapas`, que nasce vazia. Fixas: uma categoria criada à mão
+e escrita errado vira uma pasta órfã.
+
+**No painel:** enviar imagem, trocar a de uma construção (e desvincular, voltando ao hexágono), e
+apagar da biblioteca. **Apagar diz antes quais construções perdem a arte**, e a auditoria registra
+quais foram — senão alguém apagaria uma imagem, três prédios ficariam sem arte, e ninguém relacionaria
+as duas coisas semanas depois.
+
+**Os vínculos iniciais saíram de OLHAR a arte, não do nome.** `estufa-aurora` são estufas com plantas —
+é a Fazenda. `estacao-nereida` são tanques azuis — é a Captação de Água. `nucleo-ares` tem chaminés e
+cilindros de gás sob uma cúpula — é o Gerador de Atmosfera. **18 vínculos evidentes; as outras 28
+ficam sem vínculo**, porque eu não sei o que são e chutar poria arte errada num prédio.
+
+### O que se aprendeu construindo
+
+> **A lista de nomes de exibição virou UMA só.** Ela vivia dentro do gerador do GDD; o painel precisava
+> dela para não mostrar `refinaria_quimica` ao operador. Duas cópias divergiriam no dia em que alguém
+> corrigisse só uma — e um GDD que escreve "Refinaria quimica" e um painel que escreve "Refinaria
+> Química" seriam dois jogos. Agora vive em `Domain\Media\NomesDeExibicao`, e o gerador a lê.
+
+> **O Vite não servia `/media`, e o e2e teria passado em verde sobre uma colônia de hexágonos.** Em
+> produção o Apache serve o symlink; em desenvolvimento não há symlink nenhum. Um plugin no
+> `vite.config.ts` serve a mesma pasta. Sem isso, a arte simplesmente não apareceria no e2e — e o verde
+> não diria nada. É a classe de falso-verde do D-63.
+
+> **A cena morre e a arte chega depois.** O React em modo estrito monta e desmonta os componentes de
+> propósito, e o `ColonyCanvas` destrói o jogo Phaser ao desmontar. A promessa da arte, disparada pela
+> cena antiga, resolvia depois e chamava `desenhar()` num objeto já derrubado — `Cannot read properties
+> of null (reading 'forEach')`, e a colônia inteira sumia. A guarda é `viva()`.
+
+> **E a lição do D-63, cobrada de novo: fotografe e OLHE.** A primeira versão punha o número do nível no
+> centro do hexágono, como sempre esteve. Sobre um hexágono chapado estava certo; sobre um prédio
+> isométrico, o dígito caía **em cima da cúpula** e o nome **em cima da base**. Nenhum e2e reclamaria —
+> os cliques funcionavam e o texto estava lá. Só se vê tirando uma foto. O `e2e/foto.mjs` existe para
+> isso: `E2E_FOTOS=1 ./tools/e2e.sh`.

@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\BuildingController;
 use App\Http\Controllers\Api\CapitalController;
 use App\Http\Controllers\Api\ColonyController;
+use App\Http\Controllers\Api\ImagesController;
 use App\Http\Controllers\Api\MarketController;
 use App\Http\Controllers\Api\MinistryController;
 use App\Http\Controllers\Api\NeutralZoneController;
@@ -49,6 +50,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/war/units', [WarController::class, 'fabricar']);
     Route::post('/war/niobio', [WarController::class, 'niobio']);
     Route::post('/war/attack', [WarController::class, 'atacar']);
+
+    // A arte das construções (D-68). Só o que TEM imagem vem aqui; o resto cai no hexágono.
+    Route::get('/images', [ImagesController::class, 'index']);
 
     Route::get('/buildings', [BuildingController::class, 'specs']);
     // O catálogo do slot vazio vem antes da rota de recurso: `/buildings/catalogo` casaria com

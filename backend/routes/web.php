@@ -26,6 +26,13 @@ Route::prefix('admin')->group(function () {
         Route::get('/economia', [PainelController::class, 'economia'])->name('admin.economia');
         // As notícias saíram de Economia e viraram aba própria (2026-07-13): elas não são economia.
         Route::get('/noticias', [PainelController::class, 'noticias'])->name('admin.noticias');
+
+        // Gestão de imagens (D-68). Os ARQUIVOS moram fora da árvore de deploy (/home/fertways/media),
+        // servidos por symlink — o deploy.sh aborta com arquivo não rastreado na árvore.
+        Route::get('/imagens', [PainelController::class, 'imagens'])->name('admin.imagens');
+        Route::post('/imagens', [AcoesController::class, 'imagemEnviar'])->name('admin.imagem.enviar');
+        Route::post('/imagens/vincular', [AcoesController::class, 'imagemVincular'])->name('admin.imagem.vincular');
+        Route::post('/imagens/{media}/apagar', [AcoesController::class, 'imagemApagar'])->name('admin.imagem.apagar');
         Route::get('/transportes', [PainelController::class, 'transportes'])->name('admin.transportes');
         Route::get('/auditoria', [PainelController::class, 'auditoria'])->name('admin.auditoria');
         Route::get('/operacao', [PainelController::class, 'operacao'])->name('admin.operacao');

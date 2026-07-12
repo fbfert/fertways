@@ -297,6 +297,12 @@ export function Detalhe({
     <div className="painel bg-sand-light max-h-[calc(100vh-13rem)] w-72 overflow-y-auto p-4">
       <div className="text-rust eyebrow">Construção</div>
       <h2 className="text-ink mt-1 text-lg leading-tight font-black">{rotulo(spec.type)}</h2>
+
+      {/*
+        A arte grande (1024×1024), quando existe (D-68). Sem imagem, nada aparece — e o cartão fica
+        como sempre foi. É o mesmo fallback do hexágono: nada quebra por falta de arte.
+      */}
+      <ArteDaConstrucao tipo={spec.type} />
       <div className="text-ink-soft text-xs">
         {emObra ? 'em obra' : `nível ${spec.level} de ${spec.max_level}`}
         {spec.essencial && <span className="text-rust"> · essencial</span>}
@@ -551,5 +557,50 @@ export function SlotVazio({
         </>
       )}
     </div>
+  )
+}
+
+/**
+ * A arte de uma construção, no cartão de detalhe (docs/decisoes.md D-68).
+ *
+ * Busca o mapa uma vez e o guarda em módulo — o cartão remonta a cada clique num hexágono, e bater
+ * na API a cada clique por uma tabela que muda quando um operador aperta um botão seria desperdício.
+ *
+ * **Sem imagem, não renderiza nada.** O cartão fica exatamente como sempre foi. É o mesmo princípio
+ * do hexágono: a falta de arte nunca é um buraco na tela, é só a ausência de um enfeite.
+ */
+let arteCache: Record<string, { pequena: string; grande: string }> | null = null
+
+function ArteDaConstrucao({ tipo }: { tipo: string }) {
+  const [arte, setArte] = useState(arteCache)
+
+  useEffect(() => {
+    if (arteCache) return
+
+    void api
+      .imagens()
+      .then((r) => {
+        arteCache = r.images
+        setArte(arteCache)
+      })
+      .catch(() => {
+        // Uma falha aqui não pode derrubar o cartão inteiro: sem arte, sem imagem, e pronto.
+        arteCache = {}
+        setArte({})
+      })
+  }, [])
+
+  const img = arte?.[tipo]
+
+  if (!img) return null
+
+  return (
+    <img
+      src={img.grande}
+      alt=""
+      data-arte={tipo}
+      className="border-rust/15 mt-3 w-full rounded border bg-white/30"
+      loading="lazy"
+    />
   )
 }

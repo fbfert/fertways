@@ -132,6 +132,7 @@
                 'admin.ministerio' => 'Reputações',
                 'admin.economia' => 'Economia',
                 'admin.noticias' => 'Notícias',
+                'admin.imagens' => 'Imagens',
                 'admin.transportes' => 'Transportes',
                 'admin.auditoria' => 'Auditoria',
                 'admin.operacao' => 'Operação',

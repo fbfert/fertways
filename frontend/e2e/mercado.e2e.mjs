@@ -37,9 +37,22 @@ import {
 
 const { navegador, page } = await abrirNavegador()
 
-/** Preenche uma linha da carroceria, dentro de um formulário de carga (escopado pelo título). */
+/**
+ * Preenche uma linha da carroceria, dentro de um formulário de carga (escopado pelo título).
+ *
+ * ⚠️ **Espera o seletor existir.** Ele só aparece depois de `GET /vehicles` responder, e o formulário
+ * mostra "Nenhum veículo ocioso" até lá. Sem a espera, uma resposta um pouco mais lenta fazia
+ * `selects[linha]` vir `undefined` e a suíte morrer com um críptico *"Cannot read properties of
+ * undefined (reading 'select')"* — que não diz nada sobre veículos.
+ *
+ * Falhou uma vez em duas ao acrescentar a arte (D-68), que pôs mais uma requisição na fila inicial.
+ * A corrida já existia; a arte só a tornou provável. **Espere o que você vai usar.**
+ */
 async function carregar(page, form, linha, codigo, qtd) {
-  const selects = await page.$$(`[data-carga="${form}"] select[aria-label="Recurso"]`)
+  const seletor = `[data-carga="${form}"] select[aria-label="Recurso"]`
+  await page.waitForSelector(seletor)
+
+  const selects = await page.$$(seletor)
   await selects[linha].select(codigo)
 
   const campos = await page.$$(`[data-carga="${form}"] input[aria-label="Quantidade"]`)

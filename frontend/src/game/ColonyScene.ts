@@ -1,4 +1,5 @@
 import Phaser from 'phaser'
+import { carregarArte, carregarTexturas, chaveDeTextura } from './arte'
 import type { Spec } from '../api/client'
 import { transformar, VISTA_INICIAL, type Vista } from './vista'
 
@@ -120,6 +121,31 @@ export class ColonyScene extends Phaser.Scene {
     this.desenharTerreno()
     this.desenhar()
     this.scale.on('resize', () => this.desenhar())
+
+    /*
+     * A arte chega depois (D-68), e a cena já desenhou hexágonos — que é o certo: o jogo aparece
+     * na hora, e a arte entra quando pode. **O redesenho é obrigatório**: sem ele, a colônia ficaria
+     * hexagonal para sempre e ninguém saberia por quê. Foi exatamente esse o defeito do D-63, em que
+     * os ministérios da Capital saíram pálidos porque a cena nunca era reavisada.
+     */
+    void carregarArte()
+      .then((arte) => (this.viva() ? carregarTexturas(this, arte) : undefined))
+      .then(() => this.viva() && this.desenhar())
+  }
+
+  /**
+   * A cena ainda existe?
+   *
+   * ⚠️ **A arte chega de forma assíncrona, e a cena pode ter morrido no meio.** O React em modo
+   * estrito monta, desmonta e remonta os componentes de propósito — e o `ColonyCanvas` destrói o
+   * jogo Phaser ao desmontar. A promessa da arte, disparada pela cena antiga, resolve depois, chama
+   * `desenhar()` num objeto cujos sistemas o Phaser já derrubou, e o erro sai lá de dentro:
+   * `Cannot read properties of null (reading 'forEach')`.
+   *
+   * Isso derrubou a colônia inteira e o e2e o pegou na primeira tentativa. A guarda é esta.
+   */
+  private viva(): boolean {
+    return Boolean(this.raiz?.scene && this.sys?.isActive())
   }
 
   atualizar(specs: Spec[], linhas: number[], vista: Vista) {
@@ -226,7 +252,21 @@ export class ColonyScene extends Phaser.Scene {
      * o Phaser triangula um caminho aberto e o hexágono sai como uma gravata-borboleta. O defeito
      * só aparecia nas construções erguidas: nas vazias o preenchimento é quase da cor do fundo.
      */
-    if (erguida) {
+    /*
+     * A arte (D-68). **Só se a textura já estiver na cache** — pedir uma que não chegou faria o
+     * Phaser desenhar o quadrado verde de "textura ausente", que é pior do que o hexágono.
+     *
+     * Com arte, o hexágono deixa de ser preenchido e vira só o contorno do slot: o prédio é o que se
+     * vê, e um preenchimento cor de ferrugem por baixo o sujaria. Sem arte, tudo continua como
+     * sempre foi — e é isso que faz o jogo nunca ficar com buraco enquanto a arte não chega.
+     */
+    const temArte = erguida && this.textures.exists(chaveDeTextura(spec.type))
+
+    if (temArte) {
+      g.fillStyle(CORES.sandLight, 0.35)
+      g.fillPoints(pontos, true, true)
+      g.lineStyle(realce ? 3 : 1.5, realce ? CORES.rustBright : CORES.rust, realce ? 1 : 0.35)
+    } else if (erguida) {
       g.fillStyle(CORES.rust, 1)
       g.fillPoints(pontos, true, true)
       g.lineStyle(realce ? 3 : 2, realce ? CORES.rustBright : CORES.ember, 1)
@@ -238,13 +278,40 @@ export class ColonyScene extends Phaser.Scene {
     g.strokePoints(pontos, true)
     c.add(g)
 
+    if (temArte) {
+      /*
+       * `1,72 · r`: o sprite transborda o hexágono, de propósito. Uma arte contida dentro dele
+       * pareceria um selo colado; transbordando, parece um prédio **pousado no terreno** — que é o
+       * que ela é. O `setOrigin(0.5, 0.58)` puxa a base para baixo do centro, porque o sprite é
+       * isométrico e a sombra dele mora no rodapé da imagem.
+       */
+      const img = this.add.image(0, r * 0.14, chaveDeTextura(spec.type))
+      img.setDisplaySize(r * 1.72, r * 1.72)
+      img.setOrigin(0.5, 0.58)
+      c.add(img)
+    }
+
+    /*
+     * ⚠️ **Com arte, o nível vai para o TOPO — e isso saiu de OLHAR a tela, não de um teste.**
+     *
+     * A primeira versão o deixava no centro do hexágono, como sempre esteve. Sobre um hexágono
+     * chapado isso era certo; sobre um prédio isométrico, o dígito caía **em cima da cúpula**, e o
+     * nome caía **em cima da base**. Ficava sujo, e nenhum e2e reclamaria: os cliques funcionavam e
+     * o texto estava lá. É a lição do D-63 outra vez — **fotografe e olhe**.
+     */
+    const nivelY = temArte ? -r * 0.66 : -r * 0.3
+    const nivelTam = temArte ? Math.round(r * 0.3) : Math.round(r * 0.5)
+
     c.add(
       this.add
-        .text(0, -r * 0.3, erguida ? String(spec.level) : '⏳', {
+        .text(0, nivelY, erguida ? String(spec.level) : '⏳', {
           fontFamily: 'Archivo, Inter, sans-serif',
-          fontSize: `${Math.round(r * 0.5)}px`,
+          fontSize: `${nivelTam}px`,
           fontStyle: 'bold',
-          color: erguida ? '#fdf0e2' : '#b4450b',
+          color: temArte ? '#b4450b' : erguida ? '#fdf0e2' : '#b4450b',
+          // Contorno claro: mesmo no topo, o dígito pode cair sobre uma antena ou uma chaminé.
+          stroke: temArte ? '#fdf0e2' : undefined,
+          strokeThickness: temArte ? 4 : 0,
         })
         .setOrigin(0.5),
     )
@@ -256,10 +323,14 @@ export class ColonyScene extends Phaser.Scene {
      */
     c.add(
       this.add
-        .text(0, r * 0.12, rotulo(spec.type), {
+        .text(0, temArte ? r * 0.52 : r * 0.12, rotulo(spec.type), {
           fontFamily: 'Archivo, Inter, sans-serif',
           fontSize: `${Math.max(9, Math.round(r * 0.14))}px`,
-          color: erguida ? '#fdf0e2' : '#372f27',
+          color: temArte ? '#1e1c17' : erguida ? '#fdf0e2' : '#372f27',
+          // Sobre a arte, o nome precisa de contorno pelo mesmo motivo que o número: ele cai em
+          // cima do prédio, e um texto escuro sobre um telhado escuro desaparece.
+          stroke: temArte ? '#fdf0e2' : undefined,
+          strokeThickness: temArte ? 3 : 0,
           align: 'center',
           wordWrap: { width: r * 1.15, useAdvancedWrap: true },
         })

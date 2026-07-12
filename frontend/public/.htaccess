@@ -24,6 +24,14 @@
     RewriteCond %{REQUEST_URI} ^/central
     RewriteRule ^ - [L]
 
+    # As imagens das construções (symlink para /home/fertways/media, fora da árvore de deploy).
+    #
+    # Sem esta linha, uma imagem que não existe cai no fallback e o servidor devolve a APLICAÇÃO
+    # INTEIRA em HTML, com 200, para cada `<img>` quebrada. Quem depurasse veria uma imagem que não
+    # aparece e um 200 no console — a pior combinação possível. Agora dá 404, que é o que é.
+    RewriteCond %{REQUEST_URI} ^/media
+    RewriteRule ^ - [L]
+
     # Arquivo ou diretório que existe de verdade (o bundle, os ícones, o favicon): serve como está.
     RewriteCond %{REQUEST_FILENAME} -f [OR]
     RewriteCond %{REQUEST_FILENAME} -d

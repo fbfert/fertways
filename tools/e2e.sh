@@ -53,6 +53,11 @@ echo "==> banco efêmero em $BANCO"
 cd "$RAIZ/backend"
 $PHP artisan migrate:fresh --seed --force >/dev/null
 
+# A arte das construções (D-68). Sem isto, a pilha efêmera desenharia HEXÁGONOS e o e2e passaria em
+# verde sobre uma colônia sem arte nenhuma — o falso-verde do D-63, de novo. Os arquivos vivem em
+# /home/fertways/media (fora da árvore); este comando só os registra e vincula.
+$PHP artisan fertways:importar-imagens --aplicar >/dev/null 2>&1 || true
+
 echo "==> semeando o colono do e2e"
 $PHP artisan tinker --execute='
 $u = App\Models\User::create([
@@ -254,3 +259,12 @@ E2E_URL="http://127.0.0.1:$PORTA_WEB" node e2e/ministerio.e2e.mjs
 E2E_URL="http://127.0.0.1:$PORTA_WEB" node e2e/zonas.e2e.mjs
 # Por último: funda uma quinta colônia pelo seletor do D-51, o que mexeria nas contagens acima.
 E2E_URL="http://127.0.0.1:$PORTA_WEB" node e2e/fundacao.e2e.mjs
+
+# As FOTOS (D-68). Não afirmam nada — só deixam as imagens em /tmp para alguém OLHAR.
+#
+# O e2e prova que CLICA, não que está certo na tela: as cenas de Phaser são canvas, e nenhum teste
+# de clique ou de texto as alcança. Foi assim que os sete ministérios da Capital saíram pálidos com
+# os sete e2e verdes (D-63). Quando mexer em cena, rode isto e olhe.
+if [ "${E2E_FOTOS:-}" = "1" ]; then
+  E2E_URL="http://127.0.0.1:$PORTA_WEB" node e2e/foto.mjs || true
+fi
