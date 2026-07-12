@@ -268,54 +268,42 @@ class AdminPainel2Test extends TestCase
     // ── operação: a realocação ──────────────────────────────────────────────────────────────────
 
     /**
-     * ⚠️ **A realocação em massa passou a exigir o dono — e antes NÃO exigia.**
+     * **Não há realocação em massa pelo painel** — decisão do usuário (2026-07-13).
      *
-     * Realocar UMA colônia sempre foi privilégio do dono ("muda a distância, o eixo de toda a
-     * logística, e afeta o mundo de outros jogadores"). Mas o botão que move **todas as colônias do
-     * jogo de uma vez** estava aberto a qualquer operador. A restrição menor guardava o ato menor, e
-     * o ato maior estava desguardado. Era descuido, não desenho.
+     * Existiu um botão "Realocar founders" que movia todas as colônias do jogo de uma vez. Ele era a
+     * ferramenta de uma migração histórica (D-51) e ficara pendurado na tela de Operação, ao lado do
+     * "Disparar tick", como se fosse coisa que se faz. Realocar é ato sobre UM jogador escolhido.
+     *
+     * Este teste existe para que ninguém o traga de volta sem querer: a rota não existe mais, e a tela
+     * não a oferece.
      */
-    public function test_a_realocacao_em_massa_agora_exige_o_dono(): void
+    public function test_nao_ha_realocacao_em_massa_pelo_painel(): void
     {
-        $this->actingAs($this->operador(), 'admin')
-            ->post('/admin/realocar-founders', ['confirmacao' => 'REALOCAR'])
-            ->assertForbidden();
+        $this->assertFalse(
+            \Illuminate\Support\Facades\Route::has("admin.realocar"),
+            "a rota da realocação em massa foi retirada de propósito",
+        );
 
-        $this->actingAs($this->dono(), 'admin')
-            ->post('/admin/realocar-founders', ['confirmacao' => 'REALOCAR'])
-            ->assertRedirect();   // passa a guarda; o comando decide o resto
+        $this->actingAs($this->dono(), "admin")
+            ->post("/admin/realocar-founders", ["confirmacao" => "REALOCAR"])
+            ->assertNotFound();
     }
 
-    /** Sem a palavra, nada acontece — como na demolição e na realocação individual. */
-    public function test_a_realocacao_em_massa_exige_a_palavra_escrita(): void
+    /** A tela de Operação oferece a realocação PONTUAL, e nenhuma outra. */
+    public function test_a_operacao_so_oferece_a_realocacao_pontual(): void
     {
-        $colono = User::factory()->create();
-        $colonia = app(CreateColony::class)->handle($colono, 'Base', 20, 20);
-        [$x, $y] = [$colonia->x, $colonia->y];
+        $colono = User::factory()->create(["nickname" => "fulano"]);
+        app(CreateColony::class)->handle($colono, "Colônia Distante", 30, 30);
 
-        $this->actingAs($this->dono(), 'admin')
-            ->post('/admin/realocar-founders', ['confirmacao' => 'sim'])
-            ->assertSessionHas('erro');
-
-        $colonia->refresh();
-        $this->assertSame($x, $colonia->x, 'nada se moveu sem a palavra');
-        $this->assertSame($y, $colonia->y);
-    }
-
-    /** A tela mostra o PLANO: quem vai de onde para onde. Antes era um clique no escuro. */
-    public function test_a_operacao_mostra_o_plano_de_realocacao(): void
-    {
-        $colono = User::factory()->create();
-        app(CreateColony::class)->handle($colono, 'Colônia Distante', 30, 30);
-
-        $this->actingAs($this->dono(), 'admin')
-            ->get('/admin/operacao')
+        $this->actingAs($this->dono(), "admin")
+            ->get("/admin/operacao")
             ->assertOk()
-            ->assertSee('O plano')
-            ->assertSee('Colônia Distante')
-            ->assertSee('(30, 30)');   // de onde ela sai
+            ->assertSee("Realocar uma colônia")
+            ->assertSee("fulano")               // escolhe-se o jogador
+            ->assertSee("(30, 30)")             // e vê-se de onde ele sai
+            ->assertDontSee("Realocar para slots de founder")
+            ->assertDontSee("Aplicar o plano");
     }
-
     /** A realocação manual: esta colônia, para este x,y. Reusa o RealocarColonia da ficha (D-61). */
     public function test_a_realocacao_manual_move_uma_colonia_e_audita(): void
     {

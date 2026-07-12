@@ -499,40 +499,18 @@ class AcoesController extends Controller
     }
 
     /**
-     * O plano automático de founders — agora atrás da palavra REALOCAR (2026-07-13).
+     * Realocação **pontual**: esta colônia, para este `x,y` (2026-07-13).
      *
-     * Move **todas** as colônias do jogo de uma vez. Um clique acidental é caro, e a demolição e a
-     * realocação individual já exigiam a palavra escrita; esta, que faz mais estrago que as duas,
-     * exigia só um `confirm()` do navegador — que qualquer um clica sem ler.
+     * ⚠️ **Não existe realocação em massa pelo painel, e é decisão do usuário.** Existiu um botão
+     * "Realocar founders" que movia **todas as colônias do jogo de uma vez** — a ferramenta de uma
+     * migração histórica (D-51) que ficara pendurada na tela de Operação, ao lado do "Disparar tick",
+     * como se fosse uma coisa que se faz. Não é. Realocar é ato sobre **um jogador escolhido**.
      *
-     * A tela mostra o plano antes, e os veículos que o impedem. A guarda de verdade continua sendo a
-     * do comando, que reconfere no momento de aplicar: entre a página carregar e o botão ser clicado,
-     * um veículo pode ter saído do pátio.
-     */
-    public function realocar(Request $request): RedirectResponse
-    {
-        if ($request->input('confirmacao') !== 'REALOCAR') {
-            return $this->erro(
-                'Para realocar TODAS as colônias, escreva REALOCAR. Confira o plano acima antes.',
-            );
-        }
-
-        // A própria realocação aborta se algum veículo não estiver ocioso (guarda do comando).
-        $codigo = Artisan::call('fertways:realocar-founders', ['--force' => true]);
-        $saida = trim(Artisan::output());
-
-        return $codigo === 0
-            ? $this->ok('operacao.realocar_founders', 'Realocação aplicada. '.$saida)
-            : $this->erro('Realocação abortada. '.$saida);
-    }
-
-    /**
-     * Realocação **manual**: esta colônia, para este `x,y` (2026-07-13).
+     * O comando `artisan fertways:realocar-founders` continua existindo, fora do painel: ele simula
+     * por omissão e só aplica com `--force`.
      *
-     * O plano automático é determinístico (D-51: a mais antiga leva o primeiro slot) e não serve
-     * quando se quer mover *uma* colônia para *um* lugar — que é, na prática, o que o operador acaba
-     * querendo. Reusa o mesmo `RealocarColonia` da ficha do jogador (D-61), com os mesmos avisos: a
-     * energia já gasta não é acertada, e os Acordos abertos ficam com o prazo da distância antiga.
+     * Reusa o mesmo `RealocarColonia` da ficha do jogador (D-61), com os mesmos avisos: a energia já
+     * gasta não é acertada, e os Acordos abertos ficam com o prazo da distância antiga.
      */
     public function realocarManual(Request $request, RealocarColonia $realocar): RedirectResponse
     {

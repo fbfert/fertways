@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Domain\Admin\CorrigirEstado;
-use App\Domain\Admin\PlanoFounders;
 use App\Domain\Admin\RealocarColonia;
 use App\Domain\Admin\Suspender;
 use App\Domain\Building\Funcoes;
@@ -278,27 +277,19 @@ class PainelController extends Controller
     }
 
     /**
-     * A Operação, e a realocação que deixou de ser um clique no escuro (2026-07-13).
+     * A Operação: o tick, e a realocação — que é **pontual**, sobre um jogador escolhido.
      *
-     * O botão "Realocar founders" aplicava direto: ou movia **todas** as colônias do jogo, ou levava
-     * um "abortado" que não dizia por quê. Agora a tela mostra o **plano** (quem vai de onde para
-     * onde), **quais veículos** impedem — com placa e hora de chegada, para se saber quanto esperar —,
-     * e exige a palavra **REALOCAR**, como a demolição e a realocação individual já exigiam.
-     *
-     * E ganha a realocação **manual**: escolher a colônia e o destino `x,y`. O plano automático é
-     * determinístico (D-51: a mais antiga leva o primeiro slot) e não serve quando se quer mover *uma*
-     * colônia para *um* lugar — que era, na prática, o que o operador sempre acabava querendo.
+     * ⚠️ **Não há realocação em massa aqui, e isso é decisão do usuário (2026-07-13).** Existiu um
+     * botão "Realocar founders" que movia **todas as colônias do jogo de uma vez**. Ele era a
+     * ferramenta de uma migração histórica (D-51) que ficara pendurada nesta tela, ao lado do
+     * "Disparar tick", como se fosse coisa que se faz no dia a dia. Foi retirado.
      */
-    public function operacao(PlanoFounders $planos): View
+    public function operacao(): View
     {
-        $bloqueios = $planos->bloqueios();
-
         return view('admin.operacao', [
             'resumo' => $this->resumo(),
-            'plano' => $bloqueios->isEmpty() ? $planos->plano() : collect(),
-            'bloqueios' => $bloqueios,
-            'semSlot' => $planos->semSlot(),
-            'colonias' => Colony::orderBy('id')->get(['id', 'name', 'x', 'y']),
+            // Com a colônia de cada uma, para o operador ver de onde ela sai antes de escolher o destino.
+            'colonias' => Colony::with('user:id,nickname')->orderBy('id')->get(),
         ]);
     }
 

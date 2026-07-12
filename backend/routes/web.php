@@ -84,15 +84,16 @@ Route::prefix('admin')->group(function () {
             Route::post('/jogadores/{user}/realocar', [AcoesController::class, 'realocarColonia'])->name('admin.jogador.realocar');
 
             /*
-             * ⚠️ **A realocação em massa passou a ser do dono em 2026-07-13, e antes NÃO era.**
+             * ⚠️ **Não há realocação em massa pelo painel, e isso é decisão do usuário (2026-07-13).**
              *
-             * Realocar UMA colônia sempre exigiu ser dono — "muda a distância, o eixo de toda a
-             * logística, e afeta o mundo de outros jogadores", diz a regra acima. Mas o botão
-             * "Realocar founders", que move **todas as colônias do jogo de uma vez**, estava na área
-             * comum: qualquer operador podia clicá-lo. A restrição menor guardava o ato menor, e o
-             * ato maior estava aberto. Era um descuido, não um desenho.
+             * Existiu um botão "Realocar founders" que movia **todas as colônias do jogo de uma vez**.
+             * Ele foi retirado: realocar é ato pontual, sobre um jogador escolhido, e um botão que
+             * remaneja o planeta inteiro é perigoso demais para viver ao lado do "Disparar tick".
+             *
+             * O comando `artisan fertways:realocar-founders` continua existindo — ele foi a ferramenta
+             * de UMA migração histórica (D-51), roda com `--force` explícito e simula por omissão.
+             * Fora do painel, e é aí que ele deve ficar.
              */
-            Route::post('/realocar-founders', [AcoesController::class, 'realocar'])->name('admin.realocar');
             Route::post('/realocar-manual', [AcoesController::class, 'realocarManual'])->name('admin.realocar.manual');
         });
     });
