@@ -11,6 +11,7 @@ use App\Http\Controllers\Api\TradeController;
 use App\Http\Controllers\Api\TransportController;
 use App\Http\Controllers\Api\VehicleController;
 use App\Http\Controllers\Api\WarController;
+use App\Http\Controllers\Api\ZoneController;
 use Illuminate\Support\Facades\Route;
 
 Route::post('/register', [AuthController::class, 'register']);
@@ -35,6 +36,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/zones', [NeutralZoneController::class, 'index']);
     Route::post('/zones/{zone}/occupy', [NeutralZoneController::class, 'occupy']);
     Route::post('/zones/{zone}/withdraw', [NeutralZoneController::class, 'withdraw']);
+
+    // A zona como LUGAR (§17.4, D-67): a ficha dela, as obras, e a entrega física do material.
+    Route::get('/zones/{zone}', [ZoneController::class, 'show']);
+    Route::post('/zones/{zone}/build', [ZoneController::class, 'construir']);
+    Route::post('/zones/{zone}/material', [ZoneController::class, 'entregarMaterial']);
 
     // A guerra (§27, §28.10; D-66). O exército, a fábrica do Quartel, o Nióbio do governo — sem o
     // qual a Sentinela é inalcançável —, os quatro ataques, e as batalhas em curso.

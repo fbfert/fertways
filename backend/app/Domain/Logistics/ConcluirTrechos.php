@@ -8,9 +8,11 @@ use App\Domain\Transport\Conservacao;
 use App\Domain\Transport\MercadoDeUsados;
 use App\Models\Colony;
 use App\Models\Ledger;
+use App\Models\NeutralZone;
 use App\Models\ResourceType;
 use App\Models\TradeAgreement;
 use App\Models\Vehicle;
+use App\Models\ZoneMaterial;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\DB;
 
@@ -131,6 +133,33 @@ class ConcluirTrechos
 
             $v->forceFill(['return_distance_slots' => $v->distance_slots])->save();
             $this->iniciarVolta($v, manterCarga: false, carga: $sobra);
+
+            return;
+        }
+
+        /*
+         * Material de obra chegando a uma zona neutra (D-67).
+         *
+         * Descarrega no **canteiro** (`zone_materials`) e o veículo volta. **Sem tributo**: o §25.2
+         * tributa a entrega comercial, e isto não é comércio — é o colono levando o próprio material
+         * para o próprio território. Cobrar tributo aqui seria taxá-lo por construir em casa.
+         */
+        if ($v->destination_type === 'zona_neutra') {
+            $zona = NeutralZone::find($v->destination_id);
+
+            if ($zona) {
+                foreach ($v->cargo_json ?? [] as $recurso => $qtd) {
+                    ZoneMaterial::query()
+                        ->firstOrCreate(
+                            ['zone_id' => $zona->id, 'resource_type' => $recurso],
+                            ['amount' => 0],
+                        )
+                        ->increment('amount', (int) $qtd);
+                }
+            }
+
+            // Se a zona sumiu no trajeto, a carga se perde — como já acontece com a colônia apagada.
+            $this->iniciarVolta($v, manterCarga: false);
 
             return;
         }

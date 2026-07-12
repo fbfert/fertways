@@ -41,6 +41,12 @@ class Ledger extends Model
         'saque_de_guerra',
         'compra_niobio',      // §D-17 "contratos do governo": sem isto a Sentinela é inalcançável
         'fabricar_unidade',   // Sentinela, Infiltrador, Predador, Robô — feitos no Quartel (§27.1)
+        /*
+         * §17.4 (D-67): o material que sai da colônia num veículo rumo ao CANTEIRO de uma zona.
+         * As obras da zona exigem entrega física — e é este lançamento que prova de onde veio o
+         * Metal Bruto que virou muralha a 40 slots de casa.
+         */
+        'custo_obra_zona',
         'energia_viagem',     // §21.1: consumo do veículo por distância percorrida
         'deposito_mercado',   // §25.8: carga entregue entra na conta do colono no Mercado
         'retirada_mercado',   // §25.8: saldo reservado no Mercado para um veículo vir buscar

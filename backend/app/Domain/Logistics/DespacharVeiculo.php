@@ -314,11 +314,20 @@ class DespacharVeiculo
 
         $this->validarCarga($veiculo, $pedido);
 
+        /*
+         * Desde o D-67 a zona pode ter **duas** coisas para levar: o minério que ela extrai e o
+         * secundário em que a **Refinaria de Campo** já o converteu. Retirar só o bruto tornaria a
+         * Refinaria uma armadilha — o colono a construiria e o produto ficaria preso na zona.
+         */
+        $refinado = $zona->recursoRefinado();
+
         foreach ($pedido as $recurso => $qtd) {
-            if ($recurso !== $zona->mineral) {
+            if ($recurso !== $zona->mineral && ! ($refinado !== null && $recurso === $refinado && $zona->refinery_level >= 1)) {
                 throw new DomainRuleException(
                     'recurso_nao_e_da_zona',
-                    "Esta zona só rende {$zona->mineral}; não há {$recurso} para retirar.",
+                    "Esta zona rende {$zona->mineral}"
+                    .($zona->refinery_level >= 1 && $refinado ? " e {$refinado} (Refinaria)" : '')
+                    ."; não há {$recurso} para retirar.",
                 );
             }
         }
@@ -331,7 +340,9 @@ class DespacharVeiculo
             $ref = $this->partir($origem, $veiculo, $energia, $agora);
 
             foreach ($pedido as $recurso => $qtd) {
-                $this->debitarDeposito($zona, $qtd, $ref);
+                // Cada um sai da sua coluna: o bruto do `deposit_amount`, o refinado do `refined_amount`.
+                $coluna = $recurso === $zona->mineral ? 'deposit_amount' : 'refined_amount';
+                $this->debitarDeposito($zona, $qtd, $ref, $coluna);
             }
 
             // `cargo_json` na retirada é a carga reservada; só embarca de fato ao chegar na zona.
@@ -339,17 +350,67 @@ class DespacharVeiculo
         });
     }
 
+    /**
+     * Leva material de obra até a zona (docs/decisoes.md D-67).
+     *
+     * **As obras da zona exigem entrega física.** O material sai do estoque da colônia, viaja de
+     * veículo, e ao chegar entra no **canteiro** (`zone_materials`). Só então se pode construir.
+     *
+     * ⚠️ Isso **contradiz a ocupação**, que debita da colônia e ergue o Posto de Comando sem veículo
+     * nenhum (D-52). Deliberado: a ocupação é o ato de **chegar**; as obras são o ato de **investir**.
+     *
+     * A viagem é de **ida e volta**: o veículo descarrega e volta para casa. (Diferente da entrega no
+     * depósito da Capital, que é só de ida e estaciona no Pátio — lá há pátio, aqui não
+     * necessariamente.)
+     */
+    public function entregarMaterialNaZona(Colony $origem, Vehicle $veiculo, NeutralZone $zona, array $carga): Vehicle
+    {
+        $this->validarVeiculo($origem, $veiculo);
+        $this->exigirSemRestricaoComercial($origem);
+
+        if ($zona->owner_colony_id !== $origem->id) {
+            throw new DomainRuleException('zona_nao_e_sua', 'Esta zona neutra não é sua.');
+        }
+
+        // Cercada, nada entra nem sai — e é isso que impede fortificar sob sítio (D-67).
+        if ($zona->cercada()) {
+            throw new DomainRuleException(
+                'zona_cercada',
+                'A zona está cercada: nada entra nem sai. Não se constrói sob sítio.',
+            );
+        }
+
+        $this->validarCarga($veiculo, $carga);
+
+        $destino = ['id' => $zona->id, 'x' => $zona->x, 'y' => $zona->y];
+        [$distancia, $energia] = $this->idaEVolta($origem, $veiculo, $destino);
+
+        return DB::transaction(function () use ($origem, $veiculo, $zona, $carga, $distancia, $energia) {
+            $agora = now();
+            $ref = $this->partir($origem, $veiculo, $energia, $agora);
+
+            // O material sai do estoque da colônia AGORA, no despacho — como toda carga que embarca.
+            foreach ($carga as $recurso => $qtd) {
+                $this->debitarEstoque($origem, $recurso, (int) $qtd, 'custo_obra_zona', $ref);
+            }
+
+            return $this->emRota($veiculo, 'zona_neutra', $zona->id, 'entrega', $distancia, $distancia, $carga, $agora);
+        });
+    }
+
     /** Reserva do Depósito da zona, com a mesma guarda atômica do estoque. */
-    private function debitarDeposito(NeutralZone $zona, int $qtd, string $ref): void
+    private function debitarDeposito(NeutralZone $zona, int $qtd, string $ref, string $coluna = 'deposit_amount'): void
     {
         $afetadas = NeutralZone::whereKey($zona->id)
-            ->where('deposit_amount', '>=', $qtd)
-            ->decrement('deposit_amount', $qtd);
+            ->where($coluna, '>=', $qtd)
+            ->decrement($coluna, $qtd);
 
         if ($afetadas === 0) {
+            $que = $coluna === 'refined_amount' ? ($zona->recursoRefinado() ?? 'refinado') : $zona->mineral;
+
             throw new DomainRuleException(
                 'deposito_insuficiente',
-                "O Depósito da zona não tem {$qtd} de {$zona->mineral}.",
+                "O Depósito da zona não tem {$qtd} de {$que}.",
             );
         }
     }

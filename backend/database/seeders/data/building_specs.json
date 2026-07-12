@@ -1758,5 +1758,146 @@
                 }
             }
         ]
+    },
+    {
+        "type": "refinaria_de_campo",
+        "nome": "Refinaria de Campo",
+        "max_level": 5,
+        "levels": [
+            {
+                "level": 1,
+                "build_time_seconds": 28800,
+                "cost": {
+                    "metal_bruto": 600,
+                    "ligas_metalicas": 250,
+                    "componentes_eletronicos": 60
+                }
+            },
+            {
+                "level": 2,
+                "build_time_seconds": 43200,
+                "cost": {
+                    "metal_bruto": 990,
+                    "ligas_metalicas": 413,
+                    "componentes_eletronicos": 99
+                }
+            },
+            {
+                "level": 3,
+                "build_time_seconds": 64800,
+                "cost": {
+                    "metal_bruto": 1634,
+                    "ligas_metalicas": 681,
+                    "componentes_eletronicos": 163
+                }
+            },
+            {
+                "level": 4,
+                "build_time_seconds": 97200,
+                "cost": {
+                    "metal_bruto": 2695,
+                    "ligas_metalicas": 1123,
+                    "componentes_eletronicos": 270
+                }
+            },
+            {
+                "level": 5,
+                "build_time_seconds": 145800,
+                "cost": {
+                    "metal_bruto": 4447,
+                    "ligas_metalicas": 1853,
+                    "componentes_eletronicos": 445
+                }
+            }
+        ]
+    },
+    {
+        "type": "estacionamento_da_zona",
+        "nome": "Estacionamento da Zona",
+        "max_level": 5,
+        "levels": [
+            {
+                "level": 1,
+                "build_time_seconds": 14400,
+                "cost": {
+                    "metal_bruto": 300,
+                    "ligas_metalicas": 100
+                }
+            },
+            {
+                "level": 2,
+                "build_time_seconds": 21600,
+                "cost": {
+                    "metal_bruto": 495,
+                    "ligas_metalicas": 165
+                }
+            },
+            {
+                "level": 3,
+                "build_time_seconds": 32400,
+                "cost": {
+                    "metal_bruto": 817,
+                    "ligas_metalicas": 272
+                }
+            },
+            {
+                "level": 4,
+                "build_time_seconds": 48600,
+                "cost": {
+                    "metal_bruto": 1348,
+                    "ligas_metalicas": 449
+                }
+            },
+            {
+                "level": 5,
+                "build_time_seconds": 72900,
+                "cost": {
+                    "metal_bruto": 2224,
+                    "ligas_metalicas": 741
+                }
+            }
+        ]
+    },
+    {
+        "type": "cemiterio_de_robos",
+        "nome": "Cemitério de Robôs",
+        "max_level": 5,
+        "levels": [
+            {
+                "level": 1,
+                "build_time_seconds": 7200,
+                "cost": {
+                    "metal_bruto": 150
+                }
+            },
+            {
+                "level": 2,
+                "build_time_seconds": 10800,
+                "cost": {
+                    "metal_bruto": 248
+                }
+            },
+            {
+                "level": 3,
+                "build_time_seconds": 16200,
+                "cost": {
+                    "metal_bruto": 408
+                }
+            },
+            {
+                "level": 4,
+                "build_time_seconds": 24300,
+                "cost": {
+                    "metal_bruto": 674
+                }
+            },
+            {
+                "level": 5,
+                "build_time_seconds": 36480,
+                "cost": {
+                    "metal_bruto": 1112
+                }
+            }
+        ]
     }
 ]

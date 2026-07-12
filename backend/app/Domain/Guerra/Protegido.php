@@ -28,25 +28,54 @@ use App\Models\NeutralZone;
  */
 class Protegido
 {
-    /** Quanto do estoque da zona está a salvo de saque. */
+    /**
+     * Quanto do estoque da zona está a salvo de saque.
+     *
+     * Conta o **total** — o minério bruto e o que a Refinaria de Campo já converteu (D-67). Os dois
+     * ocupam o mesmo Depósito. **Refinar não esconde recurso do inimigo**, só o torna mais valioso:
+     * seria estranho que passar o minério por uma refinaria o tirasse do alcance de quem invade.
+     */
     public function protegido(NeutralZone $zona): int
     {
-        return min($zona->deposit_amount, $zona->capacidadeDeposito());
+        return min($zona->estoqueTotal(), $zona->capacidadeDeposito());
     }
 
     /** Quanto está exposto — é sobre isto que incidem os 50% e os 30%. */
     public function exposto(NeutralZone $zona): int
     {
-        return max(0, $zona->deposit_amount - $zona->capacidadeDeposito());
+        return max(0, $zona->estoqueTotal() - $zona->capacidadeDeposito());
     }
 
     /**
-     * O butim de um saque, em unidades do mineral da zona.
+     * O butim de um saque, repartido entre o minério bruto e o refinado.
+     *
+     * A repartição é **proporcional ao que há de cada um**: quem invade uma zona metade refinada leva
+     * metade de cada. O contrário — levar primeiro o refinado, que vale mais — premiaria o atacante
+     * por uma escolha do defensor, e ninguém decidiu isso.
      *
      * @param  int  $bps  5000 na Invasão Direta (§27.8), 3000 no Cerco (§28.10).
+     * @return array{bruto: int, refinado: int, total: int}
      */
+    public function saqueDetalhado(NeutralZone $zona, int $bps): array
+    {
+        $total = intdiv($this->exposto($zona) * $bps, 10000);
+        $estoque = $zona->estoqueTotal();
+
+        if ($total <= 0 || $estoque <= 0) {
+            return ['bruto' => 0, 'refinado' => 0, 'total' => 0];
+        }
+
+        // Proporcional, e o bruto absorve o arredondamento: o refinado é o que vale mais, e o
+        // atacante não deve ganhar uma unidade a mais dele por um resto de divisão.
+        $refinado = min($zona->refined_amount, intdiv($total * $zona->refined_amount, $estoque));
+        $bruto = min($zona->deposit_amount, $total - $refinado);
+
+        return ['bruto' => $bruto, 'refinado' => $refinado, 'total' => $bruto + $refinado];
+    }
+
+    /** O butim total, em unidades. Atalho de `saqueDetalhado()`. */
     public function saque(NeutralZone $zona, int $bps): int
     {
-        return intdiv($this->exposto($zona) * $bps, 10000);
+        return $this->saqueDetalhado($zona, $bps)['total'];
     }
 }

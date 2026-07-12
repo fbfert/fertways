@@ -54,7 +54,35 @@ class NeutralZone extends Model
         'command_post_level', 'productive_at',
         'deposit_level', 'deposit_amount', 'last_extraction_at',
         'wall_level', 'watchtower_level', 'bastion_level', 'shelter_level',
+        'refinery_level', 'parking_level', 'cemetery_level',
+        'refined_amount', 'last_refine_at',
         'sieged_at', 'modules_offline',
+    ];
+
+    /**
+     * ⚠️ **Os defaults têm de estar AQUI, e não só no banco.**
+     *
+     * O Eloquent insere a linha e **não relê os defaults que o banco aplicou**: um
+     * `NeutralZone::create()` devolve um modelo cujo `wall_level` é `null`, não `0`. O `Forcas`
+     * então soma `bonus × null` e o bônus some — e nada reclama, porque `null` em contexto numérico
+     * vira zero em silêncio.
+     *
+     * É a **terceira vez** que esta pegadinha aparece: o `Vehicle` já tinha aprendido (o
+     * `conservacao_bps` nascia nulo), e o `WarSetting` a repetiu (a primeira leitura dos parâmetros
+     * da guerra vinha zerada). Quando um default vive no banco, ele precisa viver no model também.
+     */
+    protected $attributes = [
+        'command_post_level' => 0,
+        'deposit_level' => 0,
+        'deposit_amount' => 0,
+        'wall_level' => 0,
+        'watchtower_level' => 0,
+        'bastion_level' => 0,
+        'shelter_level' => 0,
+        'refinery_level' => 0,
+        'parking_level' => 0,
+        'cemetery_level' => 0,
+        'refined_amount' => 0,
     ];
 
     protected $casts = [
@@ -72,6 +100,11 @@ class NeutralZone extends Model
         'protected_until' => 'datetime',
         'productive_at' => 'datetime',
         'last_extraction_at' => 'datetime',
+        'refinery_level' => 'integer',
+        'parking_level' => 'integer',
+        'cemetery_level' => 'integer',
+        'refined_amount' => 'integer',
+        'last_refine_at' => 'datetime',
         'sieged_at' => 'datetime',
         'modules_offline' => 'array',
     ];
@@ -100,6 +133,57 @@ class NeutralZone extends Model
             ->where('type', 'robo_minerador')
             ->where('hp_bps', '>', 0)
             ->count();
+    }
+
+    /** O canteiro de obras: o material que chegou de veículo e ainda não virou construção (D-67). */
+    public function materiais(): HasMany
+    {
+        return $this->hasMany(ZoneMaterial::class, 'zone_id');
+    }
+
+    /** A obra em curso. Uma por vez — a zona não tem fila, tem canteiro (D-67). */
+    public function obras(): HasMany
+    {
+        return $this->hasMany(ZoneBuild::class, 'zone_id');
+    }
+
+    public function obraEmCurso(): bool
+    {
+        return $this->obras()->exists();
+    }
+
+    /**
+     * Quanto a Refinaria de Campo processa por hora, no nível construído.
+     *
+     * Zero sem Refinaria. A curva é a do §19.1 (`Base × 1,5^(N−1)`), como tudo o mais; a base é
+     * **metade da extração da zona** (D-67) — não um número novo, uma fração de um que já existe.
+     */
+    public function refinoPorHora(): int
+    {
+        if ($this->refinery_level < 1) {
+            return 0;
+        }
+
+        return (int) round(
+            \App\Domain\Zona\Estruturas::REFINO_BASE_HORA * self::CURVA ** ($this->refinery_level - 1),
+        );
+    }
+
+    /** Em que o minério desta zona se transforma, se houver Refinaria. Nulo se o mineral não refina. */
+    public function recursoRefinado(): ?string
+    {
+        return \App\Domain\Zona\Estruturas::REFINA[$this->mineral] ?? null;
+    }
+
+    /**
+     * O que o Depósito guarda, somando o minério bruto e o já refinado.
+     *
+     * Os dois ocupam o **mesmo** Depósito, e é sobre este total que a capacidade decide o que está
+     * protegido do saque (D-66). Refinar não esconde recurso do inimigo — só o torna mais valioso.
+     */
+    public function estoqueTotal(): int
+    {
+        return $this->deposit_amount + $this->refined_amount;
     }
 
     /** A zona está cercada? O cerco fecha a entrada e a saída de carga (§28.10, D-66). */

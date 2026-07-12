@@ -5,6 +5,8 @@ namespace App\Console\Commands;
 use App\Domain\Capital\Patio;
 use App\Domain\Logistics\ConcluirTrechos;
 use App\Domain\Guerra\ResolverCombates;
+use App\Domain\Zona\ConcluirObrasDaZona;
+use App\Domain\Zona\RefinarNaZona;
 use App\Domain\Logistics\ExtrairZonasNeutras;
 use App\Domain\Transport\FabricarCaminhoes;
 use App\Domain\Ministry\ExpirarPrazos;
@@ -45,6 +47,8 @@ class TickColonies extends Command
         FabricarCaminhoes $fabrica,
         Patio $patio,
         ResolverCombates $combates,
+        RefinarNaZona $refinarias,
+        ConcluirObrasDaZona $obras,
     ): int {
         $agora = now();
         $processadas = 0;
@@ -122,7 +126,15 @@ class TickColonies extends Command
          */
         $batalhas = $combates->handle($agora);
 
-        $this->info("tick: {$processadas} colônias, {$falhas} falhas, {$zonas} proteções expiradas, {$extraidas} zonas extraídas, {$entregas} trechos concluídos, {$vencidos} acordos vencidos, {$reatribuidos} casos reatribuídos, {$encerrados} casos encerrados, {$salarios} salários pagos, {$prontos} caminhões prontos, {$encomendados} encomendados, {$cobrados} horas de pátio cobradas, {$rebocados} rebocados, {$batalhas} batalhas");
+        /*
+         * A zona vira lugar (D-67). **Depois da extração e do combate**, e a ordem importa nas duas
+         * pontas: a Refinaria converte o minério que a extração acabou de creditar, e o saque já
+         * levou o que tinha de levar — refinar o que o inimigo carregou embora seria refinar o nada.
+         */
+        $obrasFeitas = $obras->handle($agora);
+        $refinadas = $refinarias->handle($agora);
+
+        $this->info("tick: {$processadas} colônias, {$falhas} falhas, {$zonas} proteções expiradas, {$extraidas} zonas extraídas, {$entregas} trechos concluídos, {$vencidos} acordos vencidos, {$reatribuidos} casos reatribuídos, {$encerrados} casos encerrados, {$salarios} salários pagos, {$prontos} caminhões prontos, {$encomendados} encomendados, {$cobrados} horas de pátio cobradas, {$rebocados} rebocados, {$batalhas} batalhas, {$obrasFeitas} obras de zona, {$refinadas} zonas refinaram");
 
         return $falhas > 0 ? self::FAILURE : self::SUCCESS;
     }

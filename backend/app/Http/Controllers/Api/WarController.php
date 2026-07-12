@@ -133,13 +133,41 @@ class WarController extends Controller
     {
         $colony = $request->user()->colony()->firstOrFail();
 
-        $combates = Combat::with('zone:id,x,y,mineral,deposit_amount,deposit_level')
+        $aviso = WarSetting::singleton()->torre_aviso_minutos_por_nivel;
+
+        $combates = Combat::with('zone')
             ->where(fn ($q) => $q
                 ->where('attacker_colony_id', $colony->id)
                 ->orWhere('defender_colony_id', $colony->id))
             ->whereIn('status', ['marchando', 'em_curso'])
             ->orderBy('proxima_rodada_at')
             ->get()
+            /*
+             * ⚠️ **A Torre de Vigia decide o que o DEFENSOR vê, e essa é a mudança do D-67.**
+             *
+             * Até aqui o defensor via o ataque desde o instante em que ele era despachado — o que
+             * tornava a Torre de Vigia **inútil**: o §17.4 lhe dá justamente o papel de "detectar a
+             * aproximação de unidades inimigas com antecedência", e não há antecedência a ganhar
+             * quando já se vê tudo.
+             *
+             * Agora: **sem Torre, o defensor só vê o inimigo quando ele chega.** Com Torre, vê
+             * `10 min × nível` antes de a marcha terminar — no nível 5, na maioria das distâncias,
+             * é ver o exército partir. É o que dá sentido ao §27.5, que fez o combate durar ~2 h
+             * "para o defensor receber notificação, recrutar reforços e despachá-los": a notificação
+             * agora é uma coisa que se **constrói**.
+             *
+             * O atacante vê sempre o próprio ataque — ele o mandou.
+             */
+            ->filter(function (Combat $c) use ($colony, $aviso) {
+                if ($c->attacker_colony_id === $colony->id) {
+                    return true;
+                }
+
+                $antecedencia = $aviso * (int) ($c->zone->watchtower_level ?? 0);
+
+                return $c->chega_at->copy()->subMinutes($antecedencia)->isPast();
+            })
+            ->values()
             ->map(fn (Combat $c) => [
                 'id' => $c->id,
                 'tipo' => $c->tipo,

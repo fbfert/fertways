@@ -113,6 +113,10 @@ function nomesProprios(): array
         'bastiao' => 'Bastião',
         'abrigo_de_robos' => 'Abrigo de Robôs',
         'sentinela' => 'Sentinela',
+        // As estruturas de zona do §17.4 (D-67).
+        'refinaria_de_campo' => 'Refinaria de Campo',
+        'estacionamento_da_zona' => 'Estacionamento da Zona',
+        'cemiterio_de_robos' => 'Cemitério de Robôs',
         // Recursos citados fora das tabelas geradas.
         'ligas_metalicas' => 'Ligas Metálicas',
         'componentes_eletronicos' => 'Componentes Eletrônicos',

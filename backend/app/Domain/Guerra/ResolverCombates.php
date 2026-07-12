@@ -267,26 +267,7 @@ class ResolverCombates
      */
     private function vitoriaDoAtacante(Combat $combate, NeutralZone $zona): void
     {
-        $butim = $this->protegido->saque($zona, Combat::SAQUE_BPS);
-
-        if ($butim > 0) {
-            $atacante = Colony::whereKey($combate->attacker_colony_id)->lockForUpdate()->first();
-
-            $atacante->resources()
-                ->where('resource_type', $zona->mineral)
-                ->increment('amount', $butim);
-
-            Ledger::create([
-                'colony_id' => $atacante->id,
-                'type' => 'saque_de_guerra',
-                'amount' => $butim,
-                'resource_type' => $zona->mineral,
-                'ref' => "zona:{$zona->id}:combate:{$combate->id}",
-                'created_at' => now(),
-            ]);
-
-            $zona->decrement('deposit_amount', $butim);
-        }
+        $butim = $this->saquear($combate, $zona, Combat::SAQUE_BPS, "combate:{$combate->id}");
 
         /*
          * A zona muda de dono, e o novo dono **espera o tempo de ocupação** antes de extrair
@@ -317,7 +298,9 @@ class ResolverCombates
         $combate->status = 'vitoria_atacante';
         $combate->proxima_rodada_at = null;
         $combate->resultado = array_merge($combate->resultado, [
-            'saque' => $butim,
+            'saque' => $butim['total'],
+            'saque_bruto' => $butim['bruto'],
+            'saque_refinado' => $butim['refinado'],
             'mineral' => $zona->mineral,
             'rodadas' => $combate->rodada,
         ]);
@@ -352,26 +335,7 @@ class ResolverCombates
         }
 
         // As 48 h venceram sem ruptura: o defensor se rende e entrega 30% do não protegido.
-        $butim = $this->protegido->saque($zona, Combat::CERCO_BPS);
-
-        if ($butim > 0) {
-            $atacante = Colony::whereKey($combate->attacker_colony_id)->lockForUpdate()->first();
-
-            $atacante->resources()
-                ->where('resource_type', $zona->mineral)
-                ->increment('amount', $butim);
-
-            Ledger::create([
-                'colony_id' => $atacante->id,
-                'type' => 'saque_de_guerra',
-                'amount' => $butim,
-                'resource_type' => $zona->mineral,
-                'ref' => "zona:{$zona->id}:cerco:{$combate->id}",
-                'created_at' => now(),
-            ]);
-
-            $zona->decrement('deposit_amount', $butim);
-        }
+        $butim = $this->saquear($combate, $zona, Combat::CERCO_BPS, "cerco:{$combate->id}");
 
         /*
          * A zona **não muda de dono**: o cerco entrega recurso, não território. É a hierarquia que
@@ -385,7 +349,9 @@ class ResolverCombates
         $combate->status = 'rendido';
         $combate->proxima_rodada_at = null;
         $combate->resultado = array_merge($combate->resultado, [
-            'saque' => $butim,
+            'saque' => $butim['total'],
+            'saque_bruto' => $butim['bruto'],
+            'saque_refinado' => $butim['refinado'],
             'mineral' => $zona->mineral,
             'rodadas' => $combate->rodada,
         ]);
@@ -492,6 +458,55 @@ class ResolverCombates
     }
 
     // ── peças comuns ────────────────────────────────────────────────────────────────────────────
+
+    /**
+     * O butim, creditado na colônia do atacante e debitado da zona.
+     *
+     * **Dois recursos, não um** (D-67): o minério bruto e o que a Refinaria de Campo já converteu. Os
+     * dois estão no mesmo Depósito e os dois são butim — refinar torna a carga mais valiosa, não mais
+     * segura. A repartição é proporcional ao que há de cada um.
+     *
+     * O exército carrega. Não exigimos veículo, e não cobramos tributo: saque não é entrega comercial,
+     * e o §25.2 tributa comércio.
+     *
+     * @return array{bruto: int, refinado: int, total: int}
+     */
+    private function saquear(Combat $combate, NeutralZone $zona, int $bps, string $ref): array
+    {
+        $butim = $this->protegido->saqueDetalhado($zona, $bps);
+
+        if ($butim['total'] <= 0) {
+            return $butim;
+        }
+
+        $atacante = Colony::whereKey($combate->attacker_colony_id)->lockForUpdate()->first();
+
+        $lotes = [
+            [$zona->mineral, $butim['bruto'], 'deposit_amount'],
+            [$zona->recursoRefinado(), $butim['refinado'], 'refined_amount'],
+        ];
+
+        foreach ($lotes as [$recurso, $qtd, $coluna]) {
+            if ($recurso === null || $qtd <= 0) {
+                continue;
+            }
+
+            $atacante->resources()->where('resource_type', $recurso)->increment('amount', $qtd);
+
+            Ledger::create([
+                'colony_id' => $atacante->id,
+                'type' => 'saque_de_guerra',
+                'amount' => $qtd,
+                'resource_type' => $recurso,
+                'ref' => "zona:{$zona->id}:{$ref}",
+                'created_at' => now(),
+            ]);
+
+            $zona->decrement($coluna, $qtd);
+        }
+
+        return $butim;
+    }
 
     /**
      * Tira uma estrutura de operação. É o "Módulo Operacional" da v3.2 (D-66): a estrutura para de
