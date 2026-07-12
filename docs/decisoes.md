@@ -2284,3 +2284,152 @@ a tarifa.
   construção: ela é a porta disso.
 - **O veículo estacionado não pode ir para uma zona neutra** a partir do Pátio. Ninguém pediu, e a
   zona é uma retirada, que já tem o seu caminho.
+
+---
+
+## D-66 — A guerra (§27 e §28.10): a Fatia 2 do D-52, e o Nióbio que a destravou.
+**Data:** 2026-07-12 · **Status:** arbitrado pelo usuário · **GDD: o §27 publica muito; cala seis coisas**
+
+Levantamento do §27 e do §28.10 feito em 2026-07-12, ao retomar. **O D-52 subestimava as duas
+pontas:** publicava-se mais do que ele dizia (a máquina de combate inteira está no documento), e
+faltava algo que ele não tinha visto — a guerra, como especificada, **nasceria morta**.
+
+### O bloqueio que ninguém tinha visto: o Nióbio
+
+A **Sentinela** é a única unidade com poder de ataque (§27.1) e custa **3 Nióbio Alienígena** no
+nível 1. Ao conferir a produção:
+
+- **Nada no jogo produz Nióbio.** Zero construções o têm em `producao_hora_json`.
+- O planeta inteiro tem **20 unidades**, todas do kit de fundação: 5 em cada uma de quatro colônias.
+  A colônia `teste` tem **zero**.
+- E o **Quartel** — onde a Sentinela é produzida — **também custa 3 Nióbio** para erguer.
+
+Logo, cada colônia ergueria **uma** Sentinela, e quem tivesse Quartel, **nenhuma**. Uma Sentinela tem
+**80 pontos de ataque**; uma zona guarnecida com os 20 Robôs Mineradores que a ocupação do D-52 exige
+tem **500 de defesa** (20 × 25, §27.2). **Atacar seria matematicamente impossível.** É o Caminhão
+antes do D-60 outra vez: publicado na tabela, inalcançável no jogo.
+
+**1. O governo vende Nióbio.** O D-17 lista "contratos do governo" como fonte de raros da Temporada 1,
+e o **Tesouro tem 10.000** (dotação do D-57). O precedente é o Ministério dos Transportes (D-60): o
+governo fabrica, o colono compra, o caixa do Tesouro é a fonte e pode secar.
+
+**O preço: o de referência do §06 (0,3163 Fert$) × 10 ≈ 3,16 Fert$ a unidade.** O múltiplo é
+arbitragem do usuário. Ao preço de referência puro o raro seria **enfeite** — 3 Nióbio custariam 95
+centavos, e o kit inicial de um colono é 50 Fert$. A ×10 o Nióbio freia sem proibir. **É parâmetro do
+operador**, não constante de código: a Secretaria de Finanças (§06) já é o lugar onde preço se
+declara, e ele muda sem deploy.
+
+> **A tabela de preços do GDD é estranha e não a consertamos.** O Nióbio, *raro*, vale 0,3163; os
+> Componentes Eletrônicos, *secundários*, valem 1,2778 — quatro vezes mais. É a mesma doença do D-34
+> (Metal Bruto 5,5× abaixo do §07). Não se toca nela aqui; o ×10 contorna o sintoma onde ele morde.
+
+### As cinco lacunas do §27, arbitradas
+
+**2. "Estoque protegido" = o que cabe no Depósito de Zona Neutra.** A expressão aparece **seis vezes**
+no GDD — o saque de 50% da invasão, os 30% do cerco e o alvo do Predador dependem dela — e o mecanismo
+**nunca é descrito em lugar nenhum**. Decisão: está protegido o que couber na capacidade do Depósito
+no nível construído (§19.6 publica `500 … 19.222`); **o que excede está exposto**. Não inventa número
+nenhum, reusa uma construção que já está no catálogo, e dá sentido econômico a subir o Depósito.
+
+**3. Os bônus defensivos do §27.3**, que o próprio documento escreve como `+X% / +Y% / +Z%` e chama de
+"**valores configuráveis**". São **três** construções, não duas como o D-52 anotava — e nenhuma existe
+no catálogo. Arbitrado, **aditivos**: **Muralha de Perímetro +20%, Torre de Vigia +30%, Bastião +50%**
+(as três juntas dobram a defesa).
+
+> **"Valores configuráveis" é o mesmo gancho do §16** que destravou a depreciação no D-60: o GDD manda
+> alguém declará-los e nunca publica nenhum. Vão para o **painel de admin**, não para o código. É o
+> padrão do D-35, pela terceira vez.
+
+**4. O custo das quatro construções de defesa** (lacuna 7 do D-52, parte dela). A âncora é o **Posto de
+Comando**, que o D-52 já arbitrara em 800 Metal Bruto + 300 Fert$ e 8 h. Decisão: **fortificar custa
+menos do que ocupar** — tomar a zona é o gasto grande, defendê-la bem é incremental.
+
+| Construção | Custo (nível 1) | Tempo |
+|---|---|---|
+| Muralha de Perímetro | 400 Metal Bruto + 100 Ligas | 4 h |
+| Torre de Vigia | 300 Metal Bruto + 150 Ligas + 30 Componentes | 6 h |
+| Bastião | 1.200 Metal Bruto + 400 Ligas + 100 Componentes | 12 h |
+| Abrigo de Robôs | 500 Metal Bruto + 200 Ligas | 6 h |
+
+Só a **base** é arbitrada: a curva **1,65×** da v3.4 gera os níveis 2–5 sozinha, como o D-52 já
+observara ("o GDD publica a curva e cala apenas a base").
+
+**5. O "Módulo Operacional" do Predador.** A v3.2 sanitizou a "captura de trabalhadores" da v3.0 para
+"apreensão de Módulos Operacionais", e **nunca diz o que é um**. Arbitrado: o Predador **desliga uma
+estrutura da zona** (Extração, Depósito, Torre…) até o dono pagar o resgate ou repará-la. **"Não
+protegido"** = as estruturas cobertas pelo **Bastião** são imunes. Casa com o texto da v3.2 ("módulo
+temporariamente removido, que pode ser rastreado, recuperado e reparado") e **não cria conceito novo**.
+
+**6. As duas chances que o §28.10 manda calcular e não publica.**
+- **Torre de Vigia detecta o Infiltrador: 15% × nível, por rodada** (nv1 = 15%, nv5 = 75%). O §28.10
+  só diz "proporcional ao nível da Torre".
+- **Predador: 50% + 10% × (nível dele − nível do Abrigo de Robôs)**, preso entre **10% e 90%**. O
+  §28.10 só diz "compara o nível do Predador ao nível do Abrigo". Empate dá moeda justa; cada nível de
+  vantagem vale 10 pontos; nunca há certeza, nos dois sentidos.
+
+Ambas são **parâmetros do operador**, como os bônus.
+
+**7. O Cerco, num jogo sem rotas.** O §28.10 manda "bloquear as rotas externas", e **o jogo não tem
+rotas** — a viagem é ponto a ponto por distância (D-30, D-65). Arbitrado: enquanto cercada, **nada
+entra nem sai da zona** (nenhum despacho para ela, nenhuma retirada dela), e após **30 minutos** (as 3
+rodadas do §28.10) o depósito **para de aceitar a extração**, que continua correndo e **se perde** —
+é o que o documento manda ("extração continua mas não há onde armazenar"). O defensor rompe mandando
+Sentinelas, ou se rende em 48 h entregando **30% do não protegido**. Reusa o bloqueio de saída de
+carga que a restrição comercial do §9.4 já tem.
+
+### Publicado — não arbitre, não invente
+
+A máquina de combate **inteira** está no GDD, e o D-52 não a tinha lido:
+
+- **Sentinela** (§27.1): Defesa `100 150 225 338 506`, Ataque `80 120 180 270 405`. Custo na curva
+  1,65×: Ligas `100 165 272 449 741`, Componentes `50 82 136 225 371`, Metal Bruto `20 33 54 90 148`,
+  Nióbio `3 5 8 13 22`. Produzida no **Quartel**.
+- **Robô Minerador como defensor** (§27.2): defesa = **25% da Sentinela** (`25 38 56 84 126`); ataque
+  **zero**. Infiltrador e Predador **já estão no catálogo** com custo publicado, e **sem Nióbio**.
+- **Força** (§27.3): Ofensiva = Σ ataque das Sentinelas enviadas. Defensiva = Σ defesa das unidades na
+  zona **× bônus de construção**.
+- **Combate por rodadas de 10 min** (§27.5). Dano ao defensor por rodada =
+  `(Força Ofensiva / Força Total) × 15% × Força Defensiva atual`, e o simétrico ao atacante. Rodadas
+  até um lado zerar. Reforços que chegam **entram no cálculo a partir da rodada seguinte** — é
+  deliberado que o combate equilibrado dure ~2 h, para dar tempo de socorrer.
+- **Perdas proporcionais** (§27.6): as baixas se distribuem entre as unidades presentes; sobreviventes
+  voltam ao Abrigo (defensores) ou ao Quartel (atacantes) **com HP reduzido**; HP zero é **destruição
+  permanente**.
+- **Marcha de combate 1,3× mais lenta** que a civil (§27.4) — ida e reforço. A distância do mapa é que
+  decide quem chega a tempo.
+- **Defensor offline genuíno: +20% de defesa** (§27.7). E o anti-exploit é explícito: **quem ficou
+  offline depois de saber do ataque não ganha o bônus**.
+- **Vitória e saque** (§27.8, corrigido pela v3.2): ao zerar a defesa, o atacante toma a zona e
+  saqueia **50% do estoque não protegido**. ⚠️ **Os outros 50% permanecem no depósito.** A v3.0 dizia
+  que eram *destruídos*; a tabela de precedência da seção 0 dá ganho à v3.2, que diz "não há destruição
+  automática adicional". **Não copie o §27.8 da v3.0 à letra.**
+- **Abandono voluntário** (§27.9): o defensor retira as tropas, a zona passa **na hora**, e o saque de
+  50% se aplica assim mesmo. A zona abandonada se reconquista pelos 3 requisitos normais, e o novo dono
+  **espera o tempo de ocupação** antes de extrair.
+- **Cooldown de 48 h** (§27.10): o mesmo jogador não reataca a mesma zona. **Outros podem.**
+- **Proteção de novato: 8 dias** (seção 0 e §28.4). O §27.11 diz "20 dias" e depois "a partir do 8º"; a
+  seção 0 resolve, pelo D-47.
+- **Manutenção territorial** (§27.12): nível 1 custa **50 Biomassa + 30 Energia por dia**. Não pago,
+  decai — e aqui o **D-52 já arbitrara**: **5% por dia** (não por hora) e abandono em **72 h**, porque
+  a Parte I corrige a Parte II.
+- **Sabotagem** (§28.10): o Infiltrador tem **60% de chance base** por rodada, se não detectado. Se
+  detectado, cai em combate normal e provavelmente morre. Se passa, a estrutura-alvo **perde capacidade
+  proporcional ao nível do Infiltrador** e precisa de reparo.
+
+### Escopo — os quatro ataques
+
+Decisão do usuário: **Invasão Direta, Cerco, Sabotagem (Infiltrador) e Apreensão de Módulos
+(Predador)**, de uma vez. Os quatro compartilham a mesma máquina de rodadas de 10 min; é ela que se
+constrói uma vez só.
+
+### O que continua em aberto, e não bloqueia
+
+- **As seis outras estruturas de zona** (Estrutura de Extração, Refinaria de Campo, Central de
+  Comunicação, Plataforma de Pouso, Estacionamento, Cemitério de Robôs) — lacuna 7 do D-52, ainda
+  aberta. Nenhuma é exigida pela guerra.
+- **Teto de zonas por jogador** (lacuna 9). Só o Bastião cita "zonas defendidas simultaneamente 1–3", e
+  isso não é um teto de posse. Fica aberta.
+- **Ranking de guerras** (§27.13) — publicado por inteiro (percentis, pesos), mas **não há sistema de
+  ranking** no jogo. Não entra nesta fatia.
+- **Federação** — o §28.10 diz que uma federação aliada pode romper um cerco. **Federações não
+  existem** (é a mesma inércia do D-44). O cerco se rompe só pelo dono da zona, por ora.
