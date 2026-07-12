@@ -53,32 +53,40 @@ class ExtrairZonasNeutras
                 return false;
             }
 
-            $espaco = $zona->capacidadeDeposito() - $zona->deposit_amount;
-            if ($espaco <= 0) {
-                // Cheio: a extração para (§07). O tempo com o Depósito lotado não vira produção.
-                $zona->update(['last_extraction_at' => $agora]);
-
-                return false;
-            }
-
             $taxa = $zona->extracaoPorHora();
             $unidades = intdiv($taxa * $segundos, 3600); // piso: não credita fração de unidade
             if ($unidades <= 0) {
                 return false; // menos de uma unidade de tempo: deixa o resto acumular
             }
 
-            $credito = min($unidades, $espaco);
-            $encheu = $credito >= $espaco;
+            /*
+             * CERCADA: o depósito para de aceitar 30 minutos depois de o cerco começar (§28.10, as
+             * 3 rodadas). A extração **continua correndo e se perde** — "extração continua mas não
+             * há onde armazenar". O relógio avança; o mineral, não. É a mordida do cerco.
+             */
+            if ($zona->depositoBloqueado()) {
+                $zona->update(['last_extraction_at' => $agora]);
 
-            // Avança o relógio só pelo tempo que produziu o crédito (carrega o resto); se encheu,
-            // para em `agora` — o excedente de tempo não vira produção retroativa.
-            $novoRelogio = $encheu
-                ? $agora
-                : $desde->copy()->addSeconds(intdiv($credito * 3600, $taxa));
+                return false;
+            }
 
+            /*
+             * A extração NÃO para no teto do Depósito, e isso contraria o §19.6 de propósito
+             * (D-66): lá, os `500 … 19.222` são "capacidade" — o que cabe. Aqui, são o que está
+             * **protegido**.
+             *
+             * A razão é que a Fatia 2 depende disso. O saque de 50% do §27.8 incide sobre o estoque
+             * "não protegido", e o usuário arbitrou que protegido é o que cabe no Depósito. Com o
+             * teto travando a extração, nada jamais excederia o Depósito, nada jamais estaria
+             * exposto, e **o saque seria sempre zero** — a guerra não teria espólio nenhum.
+             *
+             * Então o excedente empilha ao relento. Deixar mineral rendendo na zona passa a ser um
+             * risco real, retirá-lo passa a ser hábito, e subir o Depósito passa a valer a pena
+             * porque protege mais. Ver `Domain\Guerra\Protegido`.
+             */
             $zona->update([
-                'deposit_amount' => $zona->deposit_amount + $credito,
-                'last_extraction_at' => $novoRelogio,
+                'deposit_amount' => $zona->deposit_amount + $unidades,
+                'last_extraction_at' => $desde->copy()->addSeconds(intdiv($unidades * 3600, $taxa)),
             ]);
 
             return true;

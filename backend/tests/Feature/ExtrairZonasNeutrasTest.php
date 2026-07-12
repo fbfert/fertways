@@ -79,17 +79,44 @@ class ExtrairZonasNeutrasTest extends TestCase
         $this->assertSame(16, $zona->fresh()->deposit_amount);
     }
 
-    public function test_para_quando_o_deposito_lota(): void
+    /**
+     * A extração NÃO para no teto do Depósito — e isso é o D-66, não um bug.
+     *
+     * Até a Fatia 2 ela parava (`min($unidades, $espaco)`), e o `deposit_amount` nunca excedia a
+     * capacidade. Mas o saque da guerra incide sobre o estoque "não protegido", e protegido é o
+     * que cabe no Depósito: com o teto travando a extração, **nada jamais estaria exposto e o
+     * saque seria sempre zero**. O excedente agora empilha ao relento, e é ele o butim.
+     */
+    public function test_a_extracao_nao_para_no_teto_e_o_excedente_fica_exposto(): void
     {
         $agora = now();
-        // Produtiva há 10 h: 1000 unidades caberiam, mas o Depósito nível 1 tem cap 500.
+        // Produtiva há 10 h a 100/h: 1000 unidades. O Depósito nível 1 protege 500.
         $zona = $this->zonaProdutivaDesde($agora->copy()->subHours(10));
 
         app(ExtrairZonasNeutras::class)->handle($agora);
 
         $zona->refresh();
-        $this->assertSame(500, $zona->deposit_amount);       // travou no cap (§07)
-        // Relógio parado em agora (ao segundo: a coluna timestamp não guarda micros).
+        $this->assertSame(1000, $zona->deposit_amount);   // extraiu tudo: o teto não trava
+
+        $protegido = app(\App\Domain\Guerra\Protegido::class);
+        $this->assertSame(500, $protegido->protegido($zona));  // o que cabe no Depósito
+        $this->assertSame(500, $protegido->exposto($zona));    // o que transborda: saqueável
+        // Uma Invasão Direta levaria 50% do exposto (§27.8), não do total.
+        $this->assertSame(250, $protegido->saque($zona, \App\Models\Combat::SAQUE_BPS));
+    }
+
+    /** Cercada há mais de 30 min, o depósito para de aceitar — e a extração se PERDE (§28.10). */
+    public function test_o_cerco_faz_a_extracao_se_perder(): void
+    {
+        $agora = now();
+        $zona = $this->zonaProdutivaDesde($agora->copy()->subHours(10));
+        $zona->update(['sieged_at' => $agora->copy()->subHour()]);   // cercada há 1 h
+
+        app(ExtrairZonasNeutras::class)->handle($agora);
+
+        $zona->refresh();
+        $this->assertSame(0, $zona->deposit_amount);   // dez horas de extração, e nada entrou
+        // O relógio andou: o tempo não volta, e o mineral daquelas horas está perdido de vez.
         $this->assertSame($agora->timestamp, $zona->last_extraction_at->timestamp);
     }
 

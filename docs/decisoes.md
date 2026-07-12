@@ -2331,6 +2331,25 @@ no GDD — o saque de 50% da invasão, os 30% do cerco e o alvo do Predador depe
 no nível construído (§19.6 publica `500 … 19.222`); **o que excede está exposto**. Não inventa número
 nenhum, reusa uma construção que já está no catálogo, e dá sentido econômico a subir o Depósito.
 
+> **2-bis. E isso obrigou a revisar a Fatia 1 — senão o saque seria sempre zero.**
+>
+> A extração da Fatia 1 **parava no teto do Depósito** (`$credito = min($unidades, $espaco)`), então o
+> `deposit_amount` nunca o excedia. Com "protegido = o que cabe no Depósito", **nada jamais estaria
+> exposto**, e os 50% do §27.8 incidiriam sempre sobre zero. **A guerra não teria espólio nenhum.** A
+> colisão só apareceu ao implementar, e o usuário a resolveu em 2026-07-12:
+>
+> **A extração deixa de parar no teto.** O excedente **empilha ao relento** na zona, e é ele o butim.
+> O Depósito passa a dizer o que está *protegido*, não o que *cabe*.
+>
+> ⚠️ **Contraria o §19.6 de propósito**, que chama aqueles números de "capacidade". É a mesma classe de
+> contradição deliberada do tributo (D-32) e do Ministério dos Transportes (D-60). **Não "conserte"
+> sem perguntar.**
+>
+> O efeito no jogo é o que se queria: deixar mineral rendendo na zona vira **risco de verdade**,
+> retirá-lo vira hábito, e subir o Depósito vale a pena porque **protege mais**. E o cerco passa a ser
+> a única coisa que trava a acumulação — o que casa exatamente com o §28.10 ("a extração continua mas
+> não há onde armazenar", e o que se extrai **se perde**).
+
 **3. Os bônus defensivos do §27.3**, que o próprio documento escreve como `+X% / +Y% / +Z%` e chama de
 "**valores configuráveis**". São **três** construções, não duas como o D-52 anotava — e nenhuma existe
 no catálogo. Arbitrado, **aditivos**: **Muralha de Perímetro +20%, Torre de Vigia +30%, Bastião +50%**
@@ -2339,6 +2358,17 @@ no catálogo. Arbitrado, **aditivos**: **Muralha de Perímetro +20%, Torre de Vi
 > **"Valores configuráveis" é o mesmo gancho do §16** que destravou a depreciação no D-60: o GDD manda
 > alguém declará-los e nunca publica nenhum. Vão para o **painel de admin**, não para o código. É o
 > padrão do D-35, pela terceira vez.
+
+> **O bônus escala com o NÍVEL, e o §27.3 não diz isso — é derivação, não número novo.** O documento
+> escreve só "+X% / +Y% / +Z%". Mas as três construções têm **cinco níveis** (a curva 1,65× do
+> catálogo), e um bônus fixo tornaria os níveis 2 a 5 **decorativos**: pagar-se-iam 8.894 Metal Bruto
+> por um Bastião nível 5 que defende igual ao nível 1. Escala **linear**: no nível 1 valem os
+> +20/+30/+50 arbitrados (as três juntas dobram a defesa, que foi o que se aprovou), e daí para cima
+> crescem proporcionalmente. Os **números** continuam sendo os do operador; só a forma da escala é
+> derivada — pelo mesmo princípio do D-52 ("o GDD publica a curva e cala apenas a base").
+>
+> O **Abrigo de Robôs não dá bônus.** O §27.3 não o lista, e não o inventamos: ele é onde os
+> sobreviventes se recolhem (§27.6) e o que o Predador tem de vencer (§28.10).
 
 **4. O custo das quatro construções de defesa** (lacuna 7 do D-52, parte dela). A âncora é o **Posto de
 Comando**, que o D-52 já arbitrara em 800 Metal Bruto + 300 Fert$ e 8 h. Decisão: **fortificar custa
