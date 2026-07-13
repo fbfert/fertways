@@ -2821,3 +2821,72 @@ que o GDD manda alguém declarar e não publica é **do operador**.
 > (`preview.proxy` é outra chave), e o plugin que serve `/media` só se registrava no
 > `configureServer`. Um proxy ausente no preview **não dá erro**: cada chamada de API cai no
 > fallback de SPA e volta como o `index.html`, com status 200.
+
+---
+
+## D-71 — A porta do painel: o que a auditoria não via, e o quebre-o-vidro que não quebrava.
+**Data:** 2026-07-13 · **Status:** implementado · **Segurança do painel, não do GDD**
+
+A tarefa era "criar um segundo admin dono", porque um só é ponto único de falha. **Ele já existia** —
+a pendência estava velha. Mas conferir o caminho de emergência inteiro abriu três buracos, e o
+primeiro deles é do tipo que só se descobre olhando.
+
+### 1. A auditoria estava cega para a porta
+
+O `audit_log` de produção tinha **12 linhas e nenhum login** — nem certo, nem errado — enquanto o
+dono usava o painel todo dia. A auditoria do D-61 gravava o login **no `AuthController`**, e quem
+volta pelo cookie do *"lembrar de mim"* é reautenticado pelo `SessionGuard` a partir do *recaller* e
+**nunca passa pelo controller**.
+
+⚠️ **É o pior estado possível para um log: o silêncio dele parecia dizer "ninguém entrou aqui".** Um
+log que registra parte das entradas é mais perigoso do que um que não registra nenhuma, porque quem
+o lê acredita nele.
+
+Agora quem audita são os **eventos do `Auth`** (`Login` e `Failed`), que é o único ponto por onde os
+dois caminhos passam — o guard. E as entradas passaram a ser **quatro fatos distintos**, porque são
+distintos para quem investiga: `login.ok` (digitou a senha), **`login.lembrado`** (um navegador que
+já tinha a chave voltou), `login.falhou` e `login.bloqueado`.
+
+> **O ouvinte é registrado À MÃO**, e não pela descoberta automática de `app/Listeners`. Um ouvinte
+> que deixa de se registrar **não dá erro — ele simplesmente não grava nada**, que é exatamente o bug
+> que este decisório fecha. A auditoria não pode depender de mágica silenciosa.
+
+### 2. A porta aceitava tentativas ilimitadas
+
+`POST /admin/login` **não tinha throttle nenhum**. É a mesma porta que realoca colônia e distribui o
+Tesouro. Agora: **5 por minuto por e-mail+IP**, e **20 por minuto por IP**.
+
+⚠️ **As duas chaves são necessárias.** Só o e-mail, e bastaria variar o e-mail a cada tentativa para
+nunca esbarrar no limite. E **o IP entra na chave da conta de propósito**: se ela fosse só o e-mail,
+qualquer um do outro lado do mundo trancaria o dono para fora martelando o e-mail dele — **a defesa
+viraria a arma**. Há um teste que afirma que a senha certa, vinda de outro IP, entra mesmo com o
+balde do atacante cheio.
+
+### 3. O quebre-o-vidro não quebrava vidro nenhum
+
+O `fertways:admin` é o *break-glass*: o painel gere admins, mas **só se houver um dono capaz de
+entrar nele**. Perdidas as senhas dos donos, é o que resta. E ele era de **antes** de os papéis
+existirem (D-61):
+
+- **`--criar` nunca escrevia o papel**, e o default da coluna é `operador`. **Não havia como criar
+  nem promover um dono pela CLI.** A única saída real era SQL cru.
+- **`--remover` chamava `delete()` direto no modelo, por fora do `Domain\Admin\Contas`.** A trava que
+  impede apagar o último dono — "o painel ficaria inacessível para sempre" — estava escrita, testada,
+  e **a CLI passava ao largo dela**.
+- `--listar` não mostrava papel nem se a conta estava desativada.
+
+Agora tudo passa pelo `Contas`, cada ato deixa linha na auditoria, e o `--listar` **avisa quando há
+um dono só** — que era, literalmente, a pendência que abriu esta sessão.
+
+### O que se aprendeu construindo
+
+> **Uma trava só protege o caminho que a consulta.** O `Contas` foi escrito no D-61 para que ninguém
+> jamais apagasse o último dono, e o teste dele passava. Só que a trava mora no domínio, e a CLI
+> falava direto com o `Model` — **a porta dos fundos não sabia da fechadura da frente**. Não adianta
+> a regra estar certa se existe um segundo caminho até o mesmo estrago.
+
+> **O verde do `artisan test` não prova o throttle.** Os testes rodam com cache em memória; a
+> produção usa `CACHE_STORE=database`. Se as tabelas `cache`/`cache_locks` não existissem lá, o
+> `RateLimiter` explodiria **na porta do painel** e trancaria todo mundo para fora — com a suíte
+> verde. Conferidas antes do deploy, e o freio foi exercitado contra o MariaDB de dev. É o D-27
+> outra vez, por outro caminho.

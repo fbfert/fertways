@@ -2,7 +2,11 @@
 
 namespace App\Providers;
 
+use App\Listeners\AuditarLoginDoAdmin;
+use Illuminate\Auth\Events\Failed;
+use Illuminate\Auth\Events\Login;
 use Illuminate\Pagination\Paginator;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -30,5 +34,17 @@ class AppServiceProvider extends ServiceProvider
          */
         Paginator::defaultView('admin.paginacao');
         Paginator::defaultSimpleView('admin.paginacao');
+
+        /*
+         * A auditoria da porta do painel (D-71).
+         *
+         * ⚠️ **Registrado À MÃO, e não pela descoberta automática de `app/Listeners`.** O Laravel
+         * acharia estas duas sozinho, mas um ouvinte que deixa de se registrar **não dá erro: ele
+         * simplesmente não grava nada** — e o buraco que estamos fechando aqui é exatamente esse, um
+         * log que ficou meses vazio parecendo dizer "ninguém entrou". A auditoria não pode depender
+         * de mágica silenciosa.
+         */
+        Event::listen(Login::class, [AuditarLoginDoAdmin::class, 'entrou']);
+        Event::listen(Failed::class, [AuditarLoginDoAdmin::class, 'falhou']);
     }
 }

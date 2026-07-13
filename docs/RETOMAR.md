@@ -126,7 +126,21 @@ O MVP tem, funcionando e no ar em `https://fertways.tars.art.br`:
     abertos ficam com o prazo da **distância antiga** — o painel avisa antes.
   - **Demolir exige a palavra `DEMOLIR` — na tela E NA API.** Só na tela seria cosmético.
   - **Sem e2e**, os dois: a demolição está atrás de um clique num hexágono do Phaser (mesma razão da
-    receita da Oficina), e o painel é Blade, coberto por **34 testes PHP**.
+    receita da Oficina), e o painel é Blade, coberto por **48 testes PHP**.
+- **A PORTA do painel, endurecida (D-71)** — a auditoria do D-61 era cega para a própria entrada.
+  - ⚠️ **Quem volta pelo cookie do "lembrar de mim" NÃO passava pelo controller**, que era onde o
+    login era auditado. Em produção o `audit_log` estava havia meses **sem uma única linha de
+    login**, enquanto o dono usava o painel todo dia. Agora quem audita são os **eventos do `Auth`**
+    (`Login`/`Failed`) — o único ponto por onde os dois caminhos passam. Quatro fatos distintos:
+    `login.ok`, **`login.lembrado`**, `login.falhou` e `login.bloqueado`.
+  - **Throttle no login**: 5/min por e-mail+IP e 20/min por IP. Antes eram **tentativas ilimitadas**,
+    na mesma porta que realoca colônia e distribui o Tesouro. ⚠️ **O IP entra na chave de propósito:**
+    só com o e-mail, qualquer um trancaria o dono para fora martelando o e-mail dele.
+  - **O `fertways:admin` virou de novo um quebre-o-vidro de verdade.** Ele era de antes dos papéis:
+    **`--criar` não escrevia o papel** (default `operador` — não havia como criar um dono pela CLI) e
+    **`--remover` apagava por fora do `Domain\Admin\Contas`**, contornando a trava do último dono.
+    Agora tudo passa pelo `Contas`, tudo audita, e `--listar` **avisa se há um dono só**.
+  - **Dois donos ativos em produção** (`by_nvs@outlook.com` e `fbfert+fertways@gmail.com`).
 - **Ministério do Tesouro e kit de recursos (D-57)** — o Tesouro virou caixa gastável (ver slot 2
   acima). E toda colônia recebe um **kit fixo**: 1000 metal bruto, 1000 ligas, 500 compostos, 300
   biocombustível, 500 componentes — **emissão do governo**, concedido na fundação
@@ -201,7 +215,7 @@ O MVP tem, funcionando e no ar em `https://fertways.tars.art.br`:
   - **Fora de escopo, de propósito:** o **Cargueiro Interplanetário** e o seu aluguel. Dependem do
     Espaçoporto e dos planetas NPC, que não existem.
 
-**423 testes PHP (3330 asserções) + 7 e2e, verdes.** O cron do tick está instalado (crontab do usuário
+**451 testes PHP (3431 asserções) + 7 e2e, verdes.** O cron do tick está instalado (crontab do usuário
 `fertways`, log em `/home/fertways/logs/fertways-tick.log`) e roda o `artisan` **da cópia de
 deploy** — o mundo avança sozinho. O tick faz: produção, upgrades, proteções, trechos de viagem,
 acordos vencidos, **casos reatribuídos, janelas de apelação fechadas e a folha do Ministério**.
@@ -735,11 +749,17 @@ leitura. Ele é idempotente, então repetir é seguro se um dia houver dúvida.
    uma aba do painel. Ataque, defesa, cerco, ruptura e apreensão de módulos: tudo jogável.
 
    **A pergunta agora é qual frente atacar.** As que estão na mesa, e ele já sabe de todas:
-   - **Um segundo admin `dono`** — hoje há um só, e é ponto único de falha. Barato.
    - **O teto de revenda do Furgão** — buraco de lavagem de Fert$ conhecido, ainda aberto.
    - **As 28 imagens sem vínculo** (D-68) — arte que existe e o jogo não mostra.
    - **D-52 Fatia 3, o Drone** — precisa de arbitragem (4 lacunas; ver o item 1 abaixo).
    - **O Marco do §03** e o **serviço logístico público do §07** — os dois precisam de arbitragem.
+
+   ⚠️ **O "segundo admin dono" SAIU da lista, e a lição de por quê vale mais do que a tarefa.** Ele
+   **já existia** — a pendência estava velha. Mas conferir o caminho de emergência inteiro (D-71)
+   achou três buracos de verdade: a auditoria **não via** quem entrava pelo cookie do "lembrar de
+   mim" (o log estava havia meses sem uma linha de login), o `POST /admin/login` **não tinha throttle
+   nenhum**, e o `fertways:admin` **não sabia criar um dono** e sabia **apagar o último**. Antes de
+   fazer uma pendência velha, confira se ela ainda é verdade — e olhe o que está ao redor dela.
 
 1. **As lacunas do D-52 que ainda travam — só as das próximas fatias.** Não invente nenhuma. Já
    arbitradas: **Fatia 1** (extração 100/h, mineral por distrito, ocupação) e **Fatia 2 inteira**

@@ -45,7 +45,12 @@ class Contas
         return $admin;
     }
 
-    public function editar(Admin $alvo, Admin $autor, array $dados): Admin
+    /**
+     * O `$autor` é **nulo quando quem age é a CLI** (D-71), e é por isso que ele é opcional: no
+     * `artisan` não há admin logado. As travas que importam — a do último dono — não dependem de
+     * quem age, e continuam valendo lá.
+     */
+    public function editar(Admin $alvo, ?Admin $autor, array $dados): Admin
     {
         $antes = $this->retrato($alvo);
 
@@ -77,9 +82,11 @@ class Contas
         return $alvo->fresh();
     }
 
-    public function desativar(Admin $alvo, Admin $autor): void
+    public function desativar(Admin $alvo, ?Admin $autor = null): void
     {
-        if ($alvo->id === $autor->id) {
+        // Na CLI não há "si mesmo": quem digita no shell do servidor não é nenhuma das contas. A
+        // trava do último dono, abaixo, é a que vale nos dois caminhos.
+        if ($autor && $alvo->id === $autor->id) {
             throw new DomainRuleException(
                 'nao_se_desativa',
                 'Você não pode desativar a si mesmo. Peça a outro dono.',
@@ -113,6 +120,40 @@ class Contas
             "admin:{$alvo->id}",
             $antes,
             $this->retrato($alvo->fresh()),
+        );
+    }
+
+    /**
+     * Apaga de verdade — e **só a CLI faz isto** (D-71). O painel não apaga, e não vai apagar: um
+     * admin apagado deixaria as linhas de auditoria dele órfãs, e guardar quem julgou o quê é a razão
+     * de a auditoria existir. Para tirar o acesso de alguém, `desativar()`.
+     *
+     * Existe para uma coisa só: **a conta criada errado agora há pouco**, sem histórico nenhum, que
+     * seria absurdo carregar para sempre por causa de um e-mail com erro de digitação.
+     *
+     * ⚠️ **A trava do último dono vale aqui também**, e é o motivo real deste método. Até o D-71 a
+     * CLI chamava `Admin::where(...)->delete()` **direto**, por fora de tudo isto: um `--remover` no
+     * dono errado deixava o painel sem dono nenhum e **inacessível para sempre**. A trava estava
+     * escrita, testada, e a CLI passava ao largo dela.
+     */
+    public function apagar(Admin $alvo): void
+    {
+        if ($alvo->ehDono()) {
+            $this->exigirNaoSerOUltimoDono($alvo, 'apagar');
+        }
+
+        $retrato = $this->retrato($alvo);
+        $email = $alvo->email;
+        $id = $alvo->id;
+
+        $alvo->delete();
+
+        $this->auditoria->registrar(
+            'admin.apagar',
+            "Apagou a conta de admin {$email}. (Apagar é da CLI; o painel desativa.)",
+            "admin:{$id}",
+            $retrato,
+            null,
         );
     }
 

@@ -41,6 +41,15 @@ class Auditoria
     {
         $admin = Auth::guard('admin')->user();
 
+        /*
+         * ⚠️ **No `artisan` não há admin logado, e a linha sai sem "quem".** Desde o D-71 a CLI
+         * também audita (`fertways:admin` cria e promove donos), e uma linha sem admin, sem IP e sem
+         * navegador é indistinguível de um bug para quem lê o log. Dizer "artisan" é dizer a verdade:
+         * **quem fez isto tinha shell no servidor** — o que é uma informação de segurança, não um
+         * detalhe técnico. Não há como saber quem é a pessoa; o painel sabe, o console não.
+         */
+        $noConsole = app()->runningInConsole();
+
         return AuditEntry::create([
             'admin_id' => $admin?->id,
             'admin_email' => $admin?->email,
@@ -51,28 +60,44 @@ class Auditoria
             'resumo' => mb_substr($resumo, 0, 255),
             'de' => $de,
             'para' => $para,
-            'ip' => Request::ip(),
-            'agente' => mb_substr((string) Request::userAgent(), 0, 255),
+            'ip' => $noConsole ? null : Request::ip(),
+            'agente' => $noConsole ? 'artisan (shell no servidor)' : mb_substr((string) Request::userAgent(), 0, 255),
             'created_at' => now(),
         ]);
     }
 
+    /** As quatro coisas que podem acontecer na porta do painel (D-71). */
+    public const LOGINS = [
+        'login.ok' => 'Entrou no painel',
+        // Nunca era registrado antes do D-71: o cookie do "lembrar de mim" não passa pelo controller.
+        'login.lembrado' => 'Voltou ao painel pelo cookie de "lembrar de mim"',
+        'login.falhou' => 'Tentativa de login recusada',
+        'login.bloqueado' => 'Tentativas demais — login bloqueado por alguns segundos',
+    ];
+
     /**
-     * Registra uma tentativa de login — **inclusive a que falhou**.
+     * Registra o que acontece na porta do painel — **e a tentativa recusada é a mais importante das
+     * quatro**: é o único sinal que o painel dá de que alguém está tentando entrar.
      *
-     * A que falhou é a mais importante das duas: é o único sinal que o painel dá de que alguém está
-     * tentando entrar. Ela não tem `admin_id` (o e-mail digitado pode nem existir), e é por isso que
-     * a coluna é nulável.
+     * ⚠️ **Quem chama isto são os EVENTOS do `Auth`** (ver `Listeners\AuditarLoginDoAdmin`), e não o
+     * controller. Enquanto era o controller, quem entrava pelo cookie do "lembrar de mim" não
+     * deixava rastro nenhum — e o log ficou meses sem uma única linha de login sem que ninguém
+     * notasse, porque um log silencioso parece dizer "não houve nada".
+     *
+     * A linha da tentativa recusada não tem `admin_id`: o e-mail digitado pode nem existir. É por
+     * isso que a coluna é nulável.
      */
-    public function login(string $email, bool $sucesso): AuditEntry
+    public function login(string $email, string $acao): AuditEntry
     {
+        $entrou = $acao === 'login.ok' || $acao === 'login.lembrado';
+
         return AuditEntry::create([
-            'admin_id' => $sucesso ? Auth::guard('admin')->id() : null,
+            'admin_id' => $entrou ? Auth::guard('admin')->id() : null,
             'admin_email' => $email,
-            'papel' => $sucesso ? Auth::guard('admin')->user()?->role : null,
-            'acao' => $sucesso ? 'login.ok' : 'login.falhou',
+            'papel' => $entrou ? Auth::guard('admin')->user()?->role : null,
+            'acao' => $acao,
             'alvo' => null,
-            'resumo' => $sucesso ? "Entrou no painel: {$email}" : "Tentativa de login recusada: {$email}",
+            'resumo' => (self::LOGINS[$acao] ?? 'Login').": {$email}",
             'de' => null,
             'para' => null,
             'ip' => Request::ip(),

@@ -57,11 +57,20 @@
                 <th>O quê</th><th>Mudou</th><th>De onde</th>
             </tr>
             @forelse ($entradas as $e)
-                <tr @if (str_starts_with($e->acao, 'login.falhou')) style="background:rgba(138,47,8,.12)" @endif>
+                {{--
+                    O BLOQUEIO grita mais alto que a recusa, e de propósito (D-71): cinco senhas
+                    erradas podem ser um dedo gordo; um bloqueio quer dizer que alguém INSISTIU.
+                --}}
+                <tr @if ($e->acao === 'login.bloqueado') style="background:rgba(138,47,8,.30)"
+                    @elseif ($e->acao === 'login.falhou') style="background:rgba(138,47,8,.12)" @endif>
                     <td class="mut pequeno" style="white-space:nowrap">{{ $quando($e->created_at) }}</td>
                     <td class="pequeno">
                         {{ $e->admin_email ?? '—' }}
                         @if ($e->papel)<div class="mut" style="font-size:.58rem">{{ $e->papel }}</div>@endif
+                        {{-- Sem admin e vindo do shell: é a CLI. Dizer isso evita que a linha pareça um bug. --}}
+                        @if (! $e->admin_email && $e->agente === 'artisan (shell no servidor)')
+                            <div class="mut" style="font-size:.58rem">shell no servidor</div>
+                        @endif
                     </td>
                     <td><span class="pilula alerta">{{ $e->acao }}</span></td>
                     <td class="pequeno">{{ $e->alvo ?? '—' }}</td>

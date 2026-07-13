@@ -13,7 +13,11 @@ use Illuminate\Support\Facades\Route;
  */
 Route::prefix('admin')->group(function () {
     Route::get('/login', [AdminAuth::class, 'showLogin'])->name('admin.login');
-    Route::post('/login', [AdminAuth::class, 'login']);
+
+    // O nome não é enfeite: é por ele que o `AuditarLoginDoAdmin` distingue quem **digitou a senha**
+    // de quem **voltou pelo cookie** do "lembrar de mim" (D-71). O evento do `Auth` é o mesmo nos
+    // dois casos; só o pedido sabe a diferença.
+    Route::post('/login', [AdminAuth::class, 'login'])->name('admin.login.enviar');
 
     Route::middleware('auth:admin')->group(function () {
         Route::post('/logout', [AdminAuth::class, 'logout'])->name('admin.logout');
