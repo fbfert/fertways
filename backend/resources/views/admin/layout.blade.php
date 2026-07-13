@@ -133,6 +133,7 @@
                 'admin.economia' => 'Economia',
                 'admin.noticias' => 'Notícias',
                 'admin.imagens' => 'Imagens',
+                'admin.guerra' => 'Guerra',
                 'admin.transportes' => 'Transportes',
                 'admin.auditoria' => 'Auditoria',
                 'admin.operacao' => 'Operação',

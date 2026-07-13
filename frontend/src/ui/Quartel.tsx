@@ -38,6 +38,71 @@ const PARA_QUE: Record<Unidade['type'], string> = {
 
 const TIPOS: Unidade['type'][] = ['sentinela', 'robo_minerador', 'infiltrador', 'predador']
 
+/**
+ * O botão que faltava (D-70): despachar N Sentinelas — reforçar uma zona ou romper um cerco.
+ *
+ * O jogador diz **quantas**, e a tela escolhe **quais**: as mais inteiras primeiro. Trinta Sentinelas
+ * nível 1 são intercambiáveis, e obrigar a marcar caixinha por caixinha seria trabalho sem escolha.
+ */
+function Despacho({
+  rotulo,
+  dica,
+  disponiveis,
+  ocupado,
+  teste,
+  aoDespachar,
+}: {
+  rotulo: string
+  dica: string
+  disponiveis: Unidade[]
+  ocupado: boolean
+  teste: string
+  aoDespachar: (ids: number[]) => Promise<void>
+}) {
+  const [quantas, setQuantas] = useState(1)
+
+  const max = disponiveis.length
+  const n = Math.min(Math.max(1, quantas), Math.max(1, max))
+  const escolhidas = disponiveis.slice(0, n)
+  const forca = escolhidas.reduce((s, u) => s + u.ataque, 0)
+
+  return (
+    <div className="border-ink-soft/20 mt-2 border-t pt-2" data-despacho={teste}>
+      <p className="text-ink-soft text-xs">{dica}</p>
+
+      {max === 0 ? (
+        <p className="text-rust mt-1 text-xs font-bold">
+          Nenhuma Sentinela no pátio. Não há o que despachar — fabrique-as acima, se ainda houver
+          tempo.
+        </p>
+      ) : (
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          <input
+            type="number"
+            min={1}
+            max={max}
+            value={quantas}
+            onChange={(e) => setQuantas(Math.max(1, Number(e.target.value)))}
+            className="w-20 rounded border px-2 py-1 text-sm"
+            data-quantas={teste}
+          />
+          <span className="text-ink-soft text-xs">
+            de {max} · {forca} de ataque
+          </span>
+          <button
+            className="botao"
+            disabled={ocupado}
+            data-despachar={teste}
+            onClick={() => void aoDespachar(escolhidas.map((u) => u.id))}
+          >
+            {rotulo}
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
 export function Quartel({ aoFechar }: { aoFechar: () => void }) {
   const [dados, setDados] = useState<EstadoDaGuerra | null>(null)
   const [combates, setCombates] = useState<Combate[]>([])
@@ -100,6 +165,18 @@ export function Quartel({ aoFechar }: { aoFechar: () => void }) {
   if (!dados) return moldura(<p className="text-ink-soft text-sm">Carregando…</p>)
 
   const semQuartel = dados.quartel_nivel < 1
+
+  /*
+   * As Sentinelas no pátio, **as mais inteiras primeiro** (D-70).
+   *
+   * Só elas socorrem: o Robô defende a zona onde já está, e o Infiltrador e o Predador não têm
+   * ataque nenhum. Quem escolhe é a tela — o jogador diz *quantas*, não *quais*, porque escolher
+   * unidade a unidade entre trinta Sentinelas idênticas não é decisão, é digitação. Manda as
+   * saudáveis primeiro pelo motivo óbvio: ferida, ela vale menos (a força conta o HP).
+   */
+  const emCasa = dados.unidades
+    .filter((u) => u.type === 'sentinela' && u.hp_pct > 0)
+    .sort((a, b) => b.hp_pct - a.hp_pct)
 
   // Agrupa o exército: vinte Sentinelas nível 1 são uma linha, não vinte.
   const porGrupo = new Map<string, { u: Unidade; n: number; feridas: number }>()
@@ -281,40 +358,94 @@ export function Quartel({ aoFechar }: { aoFechar: () => void }) {
           <p className="text-ink-soft mt-2 text-sm">Nenhuma. Nem atacando, nem sendo atacado.</p>
         ) : (
           <ul className="mt-2 space-y-2">
-            {combates.map((c) => (
-              <li
-                key={c.id}
-                className="painel bg-sand p-3 text-sm"
-                data-combate={c.id}
-                data-lado={c.sou_o_atacante ? 'atacante' : 'defensor'}
-              >
-                <div className="flex flex-wrap items-baseline justify-between gap-2">
-                  <strong className={c.sou_o_atacante ? '' : 'text-rust'}>
-                    {c.sou_o_atacante ? 'Você ataca' : '⚠ Estão a atacar você'} — {c.tipo} na zona (
-                    {c.zona.x}, {c.zona.y})
-                  </strong>
-                  <span className="text-ink-soft text-xs">
-                    {c.status === 'marchando'
-                      ? `marcha chega ${dataHumana(c.chega_at)}`
-                      : `rodada ${c.rodada}`}
-                  </span>
-                </div>
+            {combates.map((c) => {
+              /*
+               * O que o defensor pode FAZER, que até o D-70 era nada.
+               *
+               *  - **Cercado**: nada entra nem sai (§28.10). Reforçar é impossível por desenho, e a
+               *    única saída é romper — por isso os dois nunca aparecem juntos.
+               *  - **Não cercado**: dá para socorrer, e o §27.5 desenhou o combate longo justamente
+               *    para isso ("reforços tardios podem ainda mudar o resultado").
+               */
+              const meDefendo = !c.sou_o_atacante && c.tipo !== 'ruptura'
+              const podeRomper = meDefendo && c.tipo === 'cerco' && c.status === 'em_curso'
+              const podeReforcar = meDefendo && !c.cercada && !podeRomper
 
-                {c.status === 'em_curso' && (
-                  <p className="text-ink-soft mt-1 text-xs">
-                    Ataque {c.forca_ofensiva} × Defesa {c.forca_defensiva}
-                    {c.exposto > 0 && ` · ${c.exposto} exposto ao saque`}
-                    {c.prazo_at && ` · prazo ${dataHumana(c.prazo_at)}`}
-                  </p>
-                )}
+              return (
+                <li
+                  key={c.id}
+                  className="painel bg-sand p-3 text-sm"
+                  data-combate={c.id}
+                  data-lado={c.sou_o_atacante ? 'atacante' : 'defensor'}
+                >
+                  <div className="flex flex-wrap items-baseline justify-between gap-2">
+                    <strong className={c.sou_o_atacante || c.tipo === 'ruptura' ? '' : 'text-rust'}>
+                      {c.tipo === 'ruptura'
+                        ? 'Sua força de socorro'
+                        : c.sou_o_atacante
+                          ? 'Você ataca'
+                          : '⚠ Estão a atacar você'}{' '}
+                      — {c.tipo} na zona ({c.zona.x}, {c.zona.y})
+                    </strong>
+                    <span className="text-ink-soft text-xs">
+                      {c.status === 'marchando'
+                        ? `marcha chega ${dataHumana(c.chega_at)}`
+                        : `rodada ${c.rodada}`}
+                    </span>
+                  </div>
 
-                {!c.sou_o_atacante && c.status === 'marchando' && (
-                  <p className="mt-1 text-xs">
-                    Ainda dá tempo de reforçar a zona: despache Sentinelas antes de a marcha chegar.
-                  </p>
-                )}
-              </li>
-            ))}
+                  {c.status === 'em_curso' && (
+                    <p className="text-ink-soft mt-1 text-xs">
+                      Ataque {c.forca_ofensiva} × Defesa {c.forca_defensiva}
+                      {c.exposto > 0 && ` · ${c.exposto} exposto ao saque`}
+                      {c.prazo_at && ` · prazo ${dataHumana(c.prazo_at)}`}
+                    </p>
+                  )}
+
+                  {podeReforcar && (
+                    <Despacho
+                      rotulo="Reforçar a zona"
+                      dica={
+                        c.status === 'marchando'
+                          ? 'Ainda dá tempo: despache Sentinelas antes de a marcha chegar. Elas só contam quando chegam — e a marcha militar é 1,3× mais lenta.'
+                          : 'A batalha já corre. Um reforço que chegue a tempo ainda muda o resultado (§27.5) — mas ele marcha, e a rodada é de 10 minutos.'
+                      }
+                      disponiveis={emCasa}
+                      ocupado={ocupado}
+                      teste={`reforcar-${c.id}`}
+                      aoDespachar={(ids) =>
+                        agir(async () => {
+                          const r = await api.reforcar(c.zona.id, ids)
+                          return `${r.marcharam} Sentinela(s) a caminho da zona (${c.zona.x}, ${c.zona.y}).`
+                        })
+                      }
+                    />
+                  )}
+
+                  {podeRomper && (
+                    <Despacho
+                      rotulo="Romper o cerco"
+                      dica="A zona está fechada: nada entra nem sai, nem tropa. Suas Sentinelas lutam FORA — sem Muralha, sem Torre, sem Bastião e sem a guarnição, que está presa lá dentro. Vencendo, o cerco cai. Perdendo, o socorro morre e as 48 h continuam a correr."
+                      disponiveis={emCasa}
+                      ocupado={ocupado}
+                      teste={`romper-${c.id}`}
+                      aoDespachar={(ids) =>
+                        agir(async () => {
+                          await api.romperCerco(c.id, ids)
+                          return `${ids.length} Sentinela(s) marcham para romper o cerco.`
+                        })
+                      }
+                    />
+                  )}
+
+                  {meDefendo && c.cercada && !podeRomper && (
+                    <p className="text-rust mt-1 text-xs">
+                      Zona cercada: reforço nenhum entra. Só rompendo o cerco.
+                    </p>
+                  )}
+                </li>
+              )
+            })}
           </ul>
         )}
       </section>

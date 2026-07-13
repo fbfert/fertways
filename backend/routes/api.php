@@ -61,6 +61,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/war/niobio', [WarController::class, 'niobio']);
     Route::post('/war/attack', [WarController::class, 'atacar']);
 
+    // O DEFENSOR enfim tem o que fazer (D-70): reforçar a zona, e romper um cerco. A tela já
+    // prometia o primeiro e o §28.10 manda o segundo — nenhum dos dois existia.
+    Route::post('/war/reinforce', [WarController::class, 'reforcar']);
+    Route::post('/war/break-siege', [WarController::class, 'romper']);
+
     // A arte das construções (D-68). Só o que TEM imagem vem aqui; o resto cai no hexágono.
     Route::get('/images', [ImagesController::class, 'index']);
 

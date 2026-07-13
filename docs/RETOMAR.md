@@ -5,7 +5,7 @@
 > e então **faça ao usuário as perguntas da seção "Perguntas em aberto"** antes de escolher
 > o que fazer. Atualize este arquivo ao fim de cada sessão.
 
-**Última atualização:** 2026-07-11 · **Branch:** `main`
+**Última atualização:** 2026-07-13 · **Branch:** `main`
 
 > O commit não é anotado aqui de propósito: ele fica velho a cada sessão e a página passa a
 > mentir. Rode `git log --oneline -1`.
@@ -658,34 +658,38 @@ bugs do próprio GDD). Deploy no commit `5aa850e`, **sem passo à mão**.
 > dev não era espelho fiel da produção, e ensaiar nele não provava nada.** Corrigido. Se for exercitar
 > uma migration lá, **compare os esquemas primeiro** (`Schema::getColumnListing` nos dois bancos).
 
-**O que existe (388 testes PHP + 7 e2e verdes):**
+**O que existe (437 testes PHP + 7 e2e verdes):** — o D-70 (2026-07-13) fechou os quatro buracos que
+esta seção listava. **A guerra está inteira.**
 - **Catálogo (+5, agora 30 tabelas):** Muralha de Perímetro, Torre de Vigia, Bastião, Abrigo de Robôs
   (bases arbitradas) e a **Sentinela** (custo publicado no §27.1).
 - **`units` — unidades com HP.** O `garrison` int **morreu**: o §27.6 exige HP individual, e um
   contador não sabe quem está ferido. A API ainda publica `garrison`, agora contado.
-- **`war_settings`** — os bônus do §27.3 e as duas chances do §28.10, do **operador**, com default no
-  banco. Falta ainda expô-los no **painel de admin** (hoje só se mudam por SQL).
+- **`war_settings`** — os bônus do §27.3 e as duas chances do §28.10, do **operador**. **Têm aba no
+  painel** desde o D-70 (`/central/admin/guerra`); antes só se mudavam por SQL. Mudança **não afeta
+  batalha em curso** — a força e o dano congelam na chegada.
 - **`Domain/Guerra/`** — `Forcas` (§27.3, com o +20% offline por snapshot), `Protegido`,
   `Atacar` (os 4 tipos, marcha 1,3×, cooldown de 48 h), **`ResolverCombates`** (a rodada de 10 min,
-  no tick), `ComprarNiobio` e `FabricarUnidade`.
+  no tick), `ComprarNiobio`, `FabricarUnidade`, e — do D-70 — **`Reforcar`**, **`ChegarReforcos`** e
+  **`RomperCerco`**.
+- **O defensor tem as duas mãos (D-70).** **Reforçar** (§27.5): a tropa que **chega** recongela a
+  força, e a mesma batalha que tomava a zona passa a ser repelida; a que está **em marcha** não conta.
+  **Romper o cerco** (§28.10): o sitiado sai a campo com Sentinelas — na ruptura **quem ataca é o dono
+  da zona**. ⚠️ **Zona cercada não recebe reforço** (é o que "cercada" significa), e por isso a
+  ruptura existe. A tela oferece um botão **ou** o outro, nunca os dois.
 - **O Quartel enfim fabrica.** Ele estava no catálogo desde sempre e não fazia nada: **nenhuma
   Sentinela poderia existir**. O nível dele é o teto do nível da unidade (não está no GDD — é o
   desenho da Central de Transportes do D-60).
 - **Tela:** o **Quartel** é a porta (clique na construção), com o Nióbio, a fábrica, o exército e as
-  batalhas em curso — **inclusive as em que se está defendendo**, que é o que o §27.5 exige. O
-  **ataque** parte do painel de zona, no mapa.
-- API: `GET /war`, `GET /war/combats`, `POST /war/units`, `POST /war/niobio`, `POST /war/attack`.
+  batalhas em curso — **inclusive as em que se está defendendo**, que é o que o §27.5 exige, agora
+  com o **botão de despacho** (o colono diz *quantas*; a UI escolhe *quais* — as Sentinelas mais
+  sãs primeiro). O **ataque** parte do painel de zona, no mapa.
+- API: `GET /war`, `GET /war/combats`, `POST /war/units`, `POST /war/niobio`, `POST /war/attack`,
+  **`POST /war/reinforce`**, **`POST /war/break-siege`**.
 
 **O que falta, e nada disso bloqueia:**
-1. **Os parâmetros da guerra no painel de admin.** Existem e valem; só não têm tela. É o mesmo padrão
-   do D-60 (lá eles têm).
-2. **e2e do Quartel.** Ele está atrás de um clique num hexágono do Phaser — **mesma razão da receita
-   da Oficina (D-54) e da demolição (D-59)**. A API é coberta em PHP.
-3. **Romper o cerco.** O §28.10 diz que o defensor manda Sentinelas às rotas externas para quebrá-lo.
-   Hoje o cerco só se rompe **esperando as 48 h e entregando os 30%**. Falta a ação do defensor.
-4. **Reforçar uma zona sob ataque.** O motor **já conta** reforços (recongela a força a cada chegada,
-   que é o que faz o §27.5 dizer que "reforços tardios podem mudar o resultado"), mas **não há rota
-   nem botão** para despachá-los. A tela até diz ao defensor que "ainda dá tempo" — e ainda não dá.
+1. **e2e do Quartel.** Ele está atrás de um clique num hexágono do Phaser — **mesma razão da receita
+   da Oficina (D-54) e da demolição (D-59)**. A API é coberta em PHP (`DefesaTest`, 14 testes).
+2. **Federação rompendo cerco por aliado** (§28.10). **Federações não existem.** O dono rompe o seu.
 
 ### As três coisas que esta sessão descobriu e que ninguém sabia
 
@@ -725,9 +729,17 @@ leitura. Ele é idempotente, então repetir é seguro se um dia houver dúvida.
 
 ## Perguntas em aberto — faça estas ao usuário ao retomar
 
-0. **A guerra está no meio. A primeira pergunta é se ele quer que você a termine** — e, se sim,
-   **não há mais nada a arbitrar para isso**: as oito lacunas do §27 estão fechadas no D-66. Comece
-   pelo `ResolverCombates` (ver a seção da guerra, acima). **Não refaça as perguntas do D-66.**
+0. **A guerra está INTEIRA — não pergunte mais sobre ela.** O D-66 fechou as oito lacunas do §27 e
+   pôs o motor de combate no ar; o **D-70** deu ao defensor as duas mãos que faltavam (**reforçar**
+   uma zona sob ataque, §27.5, e **romper o cerco**, §28.10) e tirou os dez parâmetros do SQL para
+   uma aba do painel. Ataque, defesa, cerco, ruptura e apreensão de módulos: tudo jogável.
+
+   **A pergunta agora é qual frente atacar.** As que estão na mesa, e ele já sabe de todas:
+   - **Um segundo admin `dono`** — hoje há um só, e é ponto único de falha. Barato.
+   - **O teto de revenda do Furgão** — buraco de lavagem de Fert$ conhecido, ainda aberto.
+   - **As 28 imagens sem vínculo** (D-68) — arte que existe e o jogo não mostra.
+   - **D-52 Fatia 3, o Drone** — precisa de arbitragem (4 lacunas; ver o item 1 abaixo).
+   - **O Marco do §03** e o **serviço logístico público do §07** — os dois precisam de arbitragem.
 
 1. **As lacunas do D-52 que ainda travam — só as das próximas fatias.** Não invente nenhuma. Já
    arbitradas: **Fatia 1** (extração 100/h, mineral por distrito, ocupação) e **Fatia 2 inteira**
@@ -749,7 +761,8 @@ leitura. Ele é idempotente, então repetir é seguro se um dia houver dúvida.
    - **Ranking de guerras (§27.13)** — publicado por inteiro (percentis e pesos), mas **não há sistema
      de ranking** no jogo. Fora da Fatia 2.
    - **Federação** — o §28.10 diz que uma federação aliada pode romper um cerco. **Federações não
-     existem** (mesma inércia do D-44). Por ora o cerco só se rompe pelo dono da zona.
+     existem** (mesma inércia do D-44). O cerco **se rompe** desde o D-70, mas só **pelo dono da
+     zona**: é a metade do §28.10 que dava para entregar sem inventar um sistema inteiro.
 
 3. **O Marco do GDD** (§03) continua congelado em `colonizacao_inicial`. O GDD nomeia os marcos
    (1 Sobrevivente … 100 Lenda de Fertways) e **não publica a fórmula**. Ver D-38 — o

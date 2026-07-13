@@ -97,8 +97,14 @@ class ResolverCombates
              *
              * Sem esta guarda ele encontraria uma zona sem defensores, "venceria" e a tomaria de si
              * mesmo — zerando a produtividade dela outra vez, de graça.
+             *
+             * ⚠️ **Menos a RUPTURA, e por isso ela quase nasceu morta.** Na ruptura quem "ataca" é o
+             * dono da zona (§28.10: é o sitiado que sai a campo), então esta condição é verdadeira
+             * SEMPRE — e expirava toda força de socorro no instante em que ela chegava, antes da
+             * primeira rodada. O teste do D-70 pegou; sem ele, romper um cerco simplesmente não
+             * funcionaria e o jogo não diria por quê.
              */
-            if ($zona->owner_colony_id === $combate->attacker_colony_id) {
+            if ($combate->tipo !== 'ruptura' && $zona->owner_colony_id === $combate->attacker_colony_id) {
                 $this->recolherSobreviventes($combate);
                 $combate->update(['status' => 'expirado', 'proxima_rodada_at' => null]);
 
@@ -151,8 +157,34 @@ class ResolverCombates
             $combate->prazo_at = $agora->copy()->addHours(Combat::CERCO_HORAS);
         }
 
+        /*
+         * A RUPTURA não luta contra a zona — luta contra o exército sitiante, em campo aberto
+         * (§28.10, "nas rotas externas"). Por isso ela congela a própria força, e não a da zona: nem
+         * a Muralha, nem a Torre, nem a guarnição entram nesta conta. Ver `congelarRuptura`.
+         */
+        if ($combate->tipo === 'ruptura') {
+            $this->congelarRuptura($combate);
+            $combate->save();
+
+            return;
+        }
+
         $this->congelarForcas($combate, $zona);
 
+        $combate->save();
+    }
+
+    /**
+     * Recalcula a força e o dano de um combate em curso — **é o que faz um reforço valer** (D-70).
+     *
+     * Público de propósito: quem o chama é o `ChegarReforcos`, no tick, quando uma tropa que estava
+     * marchando enfim entra na zona. Sem isto, a força nova entraria na conta mas o **dano por
+     * rodada** continuaria o da primeira rodada — e o defensor veria as tropas recém-chegadas
+     * morrerem ao ritmo antigo, sem entender por quê.
+     */
+    public function recongelar(Combat $combate, NeutralZone $zona): void
+    {
+        $this->congelarForcas($combate, $zona);
         $combate->save();
     }
 
@@ -190,6 +222,7 @@ class ResolverCombates
 
         match ($combate->tipo) {
             'invasao' => $this->rodadaDeInvasao($combate, $zona),
+            'ruptura' => $this->rodadaDeRuptura($combate),
             'cerco' => $this->rodadaDeCerco($combate, $zona, $agora),
             'sabotagem' => $this->rodadaDeSabotagem($combate, $zona),
             'apreensao' => $this->rodadaDeApreensao($combate, $zona, $agora),
@@ -314,6 +347,148 @@ class ResolverCombates
         $combate->status = 'repelido';
         $combate->proxima_rodada_at = null;
         $combate->resultado = array_merge($combate->resultado, ['rodadas' => $combate->rodada]);
+    }
+
+    // ── Ruptura de cerco (§28.10) ───────────────────────────────────────────────────────────────
+
+    /**
+     * Congela a força da ruptura: o socorro contra o exército sitiante.
+     *
+     * **Nenhum bônus entra aqui**, e é o que distingue esta conta de todas as outras. A batalha é
+     * "nas rotas externas" (§28.10) — fora da zona. A Muralha, a Torre e o Bastião defendem a zona, e
+     * a luta não é na zona; a guarnição está sitiada, do lado de dentro. Quem rompe um cerco luta em
+     * campo aberto, e o sitiante também.
+     */
+    private function congelarRuptura(Combat $combate): void
+    {
+        $r = $combate->resultado ?? [];
+
+        $fo = $this->atacantes($combate)->sum(fn (Unit $u) => $u->ataque());
+        $fd = $this->sitiantes($combate)->sum(fn (Unit $u) => $u->defesa());
+        $ft = $fo + $fd;
+
+        $r['forca_ofensiva'] = $fo;
+        $r['forca_defensiva'] = $fd;
+        $r['dano_ao_defensor'] = $ft > 0 ? intdiv($fo * Combat::DANO_BPS * $fd, $ft * self::CHEIO) : 0;
+        $r['dano_ao_atacante'] = $ft > 0 ? intdiv($fd * Combat::DANO_BPS * $fo, $ft * self::CHEIO) : 0;
+
+        $combate->resultado = $r;
+    }
+
+    /** O exército sitiante — as unidades do combate de cerco que esta ruptura veio quebrar. */
+    private function sitiantes(Combat $ruptura): Collection
+    {
+        $cercoId = $ruptura->resultado['cerco_id'] ?? null;
+
+        if ($cercoId === null) {
+            return collect();
+        }
+
+        return Unit::where('combat_id', $cercoId)
+            ->where('status', 'em_combate')
+            ->where('hp_bps', '>', 0)
+            ->get();
+    }
+
+    /**
+     * A rodada da ruptura. Mesma fórmula, campo aberto.
+     *
+     * **Vence o socorro:** o cerco é levantado, o exército sitiante morre, e o sítio acaba.
+     * **Vence o sitiante:** a força de socorro morre e **o cerco continua** — e o relógio das 48 h
+     * não parou um segundo. Falhar em romper custa caro, e é para isso que o cerco existe.
+     */
+    private function rodadaDeRuptura(Combat $combate): void
+    {
+        $socorro = $this->atacantes($combate);
+        $sitiantes = $this->sitiantes($combate);
+
+        $forcaSocorro = $socorro->sum(fn (Unit $u) => $u->ataque());
+        $forcaSitio = $sitiantes->sum(fn (Unit $u) => $u->defesa());
+
+        $cercoId = $combate->resultado['cerco_id'] ?? null;
+        $cerco = $cercoId ? Combat::find($cercoId) : null;
+
+        // O cerco acabou por outro caminho (as 48 h venceram, o sitiante desistiu). Nada a romper.
+        if (! $cerco || ! $cerco->vivo()) {
+            $this->recolherSobreviventes($combate);
+            $combate->status = 'expirado';
+            $combate->proxima_rodada_at = null;
+
+            return;
+        }
+
+        if ($forcaSitio <= 0) {
+            $this->cercoRompido($combate, $cerco);
+
+            return;
+        }
+
+        if ($forcaSocorro <= 0) {
+            $this->socorroDestruido($combate);
+
+            return;
+        }
+
+        $r = $combate->resultado;
+
+        $this->aplicarDano($sitiantes, $forcaSitio, (int) $r['dano_ao_defensor']);
+        $this->aplicarDano($socorro, $forcaSocorro, (int) $r['dano_ao_atacante']);
+
+        $sitioRestante = $this->sitiantes($combate)->sum(fn (Unit $u) => $u->defesa());
+        $socorroRestante = $this->atacantes($combate)->sum(fn (Unit $u) => $u->ataque());
+
+        if ($socorroRestante <= 0) {
+            $this->socorroDestruido($combate);
+
+            return;
+        }
+
+        if ($sitioRestante <= 0) {
+            $this->cercoRompido($combate, $cerco);
+        }
+    }
+
+    /** O socorro venceu: o sítio se levanta e a zona respira. */
+    private function cercoRompido(Combat $ruptura, Combat $cerco): void
+    {
+        $zona = NeutralZone::find($ruptura->zone_id);
+
+        if ($zona) {
+            /*
+             * `sieged_at = null` é o que devolve a zona ao mundo: o depósito volta a aceitar, os
+             * veículos voltam a entrar e sair, e as obras podem recomeçar. Tudo isso é lido do
+             * `cercada()`, e é por isso que basta esta linha.
+             */
+            $zona->update(['sieged_at' => null]);
+        }
+
+        // O exército sitiante é destruído: ele estava em campo aberto e perdeu.
+        Unit::where('combat_id', $cerco->id)->delete();
+
+        $cerco->update([
+            'status' => 'repelido',
+            'proxima_rodada_at' => null,
+            'resultado' => array_merge($cerco->resultado ?? [], [
+                'rompido_por' => $ruptura->id,
+                'rodadas' => $cerco->rodada,
+            ]),
+        ]);
+
+        $this->recolherSobreviventes($ruptura);
+
+        $ruptura->status = 'vitoria_atacante';
+        $ruptura->proxima_rodada_at = null;
+        $ruptura->resultado = array_merge($ruptura->resultado, ['rodadas' => $ruptura->rodada]);
+    }
+
+    /** O socorro morreu. **O cerco continua**, e o relógio das 48 h não parou. */
+    private function socorroDestruido(Combat $ruptura): void
+    {
+        Unit::where('combat_id', $ruptura->id)->delete();
+
+        $ruptura->status = 'repelido';
+        $ruptura->proxima_rodada_at = null;
+        $ruptura->resultado = array_merge($ruptura->resultado, ['rodadas' => $ruptura->rodada]);
     }
 
     // ── Cerco (§28.10) ──────────────────────────────────────────────────────────────────────────

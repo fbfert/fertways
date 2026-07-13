@@ -6,6 +6,8 @@ use App\Domain\Guerra\Atacar;
 use App\Domain\Guerra\ComprarNiobio;
 use App\Domain\Guerra\FabricarUnidade;
 use App\Domain\Guerra\Forcas;
+use App\Domain\Guerra\Reforcar;
+use App\Domain\Guerra\RomperCerco;
 use App\Domain\Guerra\Protegido;
 use App\Http\Controllers\Controller;
 use App\Models\Combat;
@@ -123,6 +125,55 @@ class WarController extends Controller
     }
 
     /**
+     * Reforça uma zona sua (§27.5, D-70).
+     *
+     * ⚠️ **A tela já prometia isto e a ação não existia.** O Quartel dizia ao defensor "ainda dá tempo
+     * de reforçar" e não havia rota nem botão — o motor contava reforços desde o D-66 e ninguém podia
+     * mandá-los.
+     */
+    public function reforcar(Request $request, Reforcar $reforcar): JsonResponse
+    {
+        $dados = $request->validate([
+            'zone_id' => ['required', 'integer', 'exists:neutral_zones,id'],
+            'unit_ids' => ['required', 'array', 'min:1'],
+            'unit_ids.*' => ['integer'],
+        ]);
+
+        $colony = $request->user()->colony()->firstOrFail();
+        $zona = NeutralZone::findOrFail($dados['zone_id']);
+
+        $n = $reforcar->handle($colony, $zona, $dados['unit_ids']);
+
+        return response()->json(['marcharam' => $n], 201);
+    }
+
+    /**
+     * Rompe um cerco (§28.10, D-70).
+     *
+     * O documento dá ao sitiado DUAS saídas — "romper o cerco ou render-se" — e o jogo só tinha uma:
+     * esperar as 48 h e entregar 30%. Agora ele pode lutar.
+     */
+    public function romper(Request $request, RomperCerco $romper): JsonResponse
+    {
+        $dados = $request->validate([
+            'combat_id' => ['required', 'integer', 'exists:combats,id'],
+            'unit_ids' => ['required', 'array', 'min:1'],
+            'unit_ids.*' => ['integer'],
+        ]);
+
+        $colony = $request->user()->colony()->firstOrFail();
+        $cerco = Combat::findOrFail($dados['combat_id']);
+
+        $r = $romper->handle($colony, $cerco, $dados['unit_ids']);
+
+        return response()->json([
+            'id' => $r->id,
+            'status' => $r->status,
+            'chega_at' => $r->chega_at,
+        ], 201);
+    }
+
+    /**
      * As batalhas que envolvem esta colônia — atacando ou defendendo.
      *
      * O defensor precisa **ver** o ataque a caminho: é o desenho declarado do §27.5, que faz o
@@ -183,6 +234,9 @@ class WarController extends Controller
                 'forca_defensiva' => $c->resultado['forca_defensiva'] ?? null,
                 // O que está em jogo: só o exposto é saqueável (D-66).
                 'exposto' => $protegido->exposto($c->zone),
+                // Cercada, nada entra nem sai — nem tropa (§28.10). É o que decide se a tela oferece
+                // "reforçar" ou "romper o cerco": sob sítio, reforçar é impossível por desenho (D-70).
+                'cercada' => $c->zone->cercada(),
             ]);
 
         return response()->json(['combats' => $combates]);

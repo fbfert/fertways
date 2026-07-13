@@ -232,9 +232,12 @@ export type EstadoDaGuerra = {
 
 export type TipoDeAtaque = 'invasao' | 'cerco' | 'sabotagem' | 'apreensao'
 
+/** A ruptura (§28.10) não se despacha como ataque — nasce de um cerco. Por isso está fora acima. */
+export type TipoDeCombate = TipoDeAtaque | 'ruptura'
+
 export type Combate = {
   id: number
-  tipo: TipoDeAtaque
+  tipo: TipoDeCombate
   status: string
   sou_o_atacante: boolean
   zona: { id: number; x: number; y: number }
@@ -247,6 +250,8 @@ export type Combate = {
   forca_defensiva: number | null
   /** Só o exposto é saqueável: o que cabe no Depósito está protegido (D-66). */
   exposto: number
+  /** A zona está cercada AGORA (§28.10): nada entra nem sai — nem tropa. Só romper a abre (D-70). */
+  cercada: boolean
 }
 
 /** O perfil do colono (D-69). Os quatro índices são do Ministério e NÃO se editam. */
@@ -727,6 +732,30 @@ export const api = {
     req<{ id: number; tipo: string; status: string; chega_at: string }>('/war/attack', {
       method: 'POST',
       body: JSON.stringify({ zone_id: zoneId, tipo, unit_ids: unitIds, alvo: alvo ?? null }),
+    }),
+
+  /**
+   * Reforça uma zona sua (§27.5, D-70). Elas marcham 1,3× mais devagar, como todo movimento militar.
+   *
+   * ⚠️ **Não entra em zona cercada.** "Nada entra nem sai" alcança a tropa: quem está sitiado não
+   * recebe socorro por dentro. A única saída é `romperCerco`.
+   */
+  reforcar: (zoneId: number, unitIds: number[]) =>
+    req<{ marcharam: number }>('/war/reinforce', {
+      method: 'POST',
+      body: JSON.stringify({ zone_id: zoneId, unit_ids: unitIds }),
+    }),
+
+  /**
+   * Rompe um cerco (§28.10, D-70): o sitiado sai a campo contra o exército que o cerca.
+   *
+   * A batalha é **fora** da zona — sem Muralha, sem Torre, sem Bastião e sem a guarnição. Vencendo,
+   * o cerco se levanta; perdendo, o socorro morre e as 48 h continuam a correr.
+   */
+  romperCerco: (combatId: number, unitIds: number[]) =>
+    req<{ id: number; status: string; chega_at: string }>('/war/break-siege', {
+      method: 'POST',
+      body: JSON.stringify({ combat_id: combatId, unit_ids: unitIds }),
     }),
 
   /** A ficha da zona: estruturas, canteiro, depósito, guarnição (D-67). Só o dono a vê. */

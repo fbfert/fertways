@@ -18,9 +18,17 @@ use Illuminate\Database\Eloquent\Model;
  */
 class WarSetting extends Model
 {
+    /**
+     * ⚠️ `torre_aviso_minutos_por_nivel` **estava de fora**, e ninguém tinha notado — porque até o
+     * D-70 nada o escrevia. A coluna nasceu no D-67 (é ela que faz a Torre de Vigia valer alguma
+     * coisa: sem ela o defensor via todo ataque desde o despacho) e a leitura funciona sem `fillable`.
+     * O `update()` do painel é que a descartaria **em silêncio**: o admin mudaria o número, a tela
+     * diria "atualizado", e o valor continuaria o mesmo. Um teste do D-70 afirma que ele grava.
+     */
     protected $fillable = [
         'muralha_bonus_bps', 'torre_bonus_bps', 'bastiao_bonus_bps',
         'torre_deteccao_bps_por_nivel',
+        'torre_aviso_minutos_por_nivel',
         'predador_base_bps', 'predador_por_nivel_bps',
         'predador_min_bps', 'predador_max_bps',
         'niobio_preco_micro',
@@ -31,6 +39,7 @@ class WarSetting extends Model
         'torre_bonus_bps' => 'integer',
         'bastiao_bonus_bps' => 'integer',
         'torre_deteccao_bps_por_nivel' => 'integer',
+        'torre_aviso_minutos_por_nivel' => 'integer',
         'predador_base_bps' => 'integer',
         'predador_por_nivel_bps' => 'integer',
         'predador_min_bps' => 'integer',

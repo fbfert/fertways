@@ -2758,3 +2758,66 @@ número da tela que significa "vá agora" — só o que excede o Depósito é sa
 > `/media` fazia `createReadStream(...).pipe(res)` sem ouvir `error`. Um erro de leitura deixaria a
 > requisição pendurada para sempre, a rede nunca ficaria ociosa, e o `waitForNetworkIdle` do e2e
 > estouraria em 30 s — **com uma mensagem que não fala de imagem nenhuma**.
+
+---
+
+## D-70 — O defensor ganha as duas mãos: reforçar e romper o cerco.
+**Data:** 2026-07-13 · **Status:** implementado · **GDD: §27.5 e §28.10**
+
+A guerra do D-66 tinha um buraco de um lado só: **o defensor não podia fazer nada.** O motor já
+sabia contar reforços — e a tela **já prometia ao defensor** que ele podia mandá-los. Faltavam a
+rota e o botão. Pior: o §28.10 dá ao sitiado uma saída (sair a campo com Sentinelas), e ela não
+existia. Um cerco era 48 h de espera até a rendição.
+
+### 1. Reforçar (§27.5)
+
+O §27.5 dimensiona o combate em ~2 h com uma justificativa explícita: *"tempo suficiente para o
+defensor receber notificação, recrutar reforços e despachá-los"*. **A tropa em marcha não conta** —
+só a que chegou. E o dano é congelado na chegada (arbitragem 8 do D-66), então o que faz um reforço
+mudar o resultado é o `recongelar()`: a força de defesa é recalculada, e a mesma batalha que
+**tomava** a zona passa a ser **repelida**. Há um teste que afirma exatamente isso, com e sem o
+socorro.
+
+⚠️ **Os reforços chegam ANTES de a rodada resolver**, e a ordem no tick é deliberada:
+`ChegarReforcos` roda antes de `ResolverCombates`. Se fosse ao contrário, a tropa que chegasse no
+mesmo minuto da rodada final chegaria **um instante tarde demais** — e o colono teria feito tudo
+certo e perdido assim mesmo.
+
+### 2. Romper o cerco (§28.10)
+
+Na ruptura **quem ataca é o dono da zona**: o sitiado sai a campo. Só ele pode rompê-la, uma de cada
+vez, e o socorro fraco morre — o cerco continua.
+
+⚠️ **A zona cercada NÃO recebe reforço.** É o que "cercada" significa: nada entra nem sai, nem
+tropa. Por isso a ruptura existe — se dava para reforçar por dentro, o cerco não seria cerco. A tela
+oferece **um** botão ou **o outro**, nunca os dois.
+
+### 3. Os dez números saem do SQL
+
+Os parâmetros da guerra (§27.3 os declara *"valores configuráveis"*; o §28.10 manda comparar níveis
+e **não publica a conta**) só se mudavam por SQL. Agora há aba no painel. Mesmo gancho do D-60: o
+que o GDD manda alguém declarar e não publica é **do operador**.
+
+### O que se aprendeu construindo
+
+> **A ruptura nasceu morta, e o teste foi o único a notar.** O `ResolverCombates` tem uma guarda:
+> "se a zona já é do atacante, expire o combate" — ela existe para que um segundo exército enviado
+> pelo mesmo atacante não reconquiste a própria zona. Só que **na ruptura o atacante é o dono**, e a
+> guarda era verdadeira **sempre**: toda força de socorro expirava no instante em que chegava, antes
+> da primeira rodada. Romper um cerco simplesmente não funcionaria, **e o jogo não diria por quê**.
+
+> **Um campo fora do `$fillable` mente com cara de sucesso.** `torre_aviso_minutos_por_nivel` (a
+> antecedência com que a Torre de Vigia avisa) não estava lá. A leitura funciona sem `fillable`, e
+> **até hoje nada o escrevia** — então ninguém tinha notado. O formulário novo diria "atualizado" e
+> **descartaria o valor em silêncio**. Um teste afirma que os dez gravam.
+
+> **`exit 137` não é teste reprovado — é o kernel matando por falta de RAM.** O e2e subia `vite dev`
+> (que guarda o grafo de módulos inteiro em memória, com o Phaser dentro) **junto** do Chrome, e num
+> servidor de 4 GB isso não cabe. Passou a rodar `build` + `preview`: o build é pesado (~360 MB) mas
+> roda **sozinho** e morre, e o preview serve estático por uns 50 MB. Os dois picos deixaram de se
+> sobrepor — e de brinde o e2e passou a exercitar **o bundle que de fato vai ao ar**.
+>
+> ⚠️ Isso exigiu duplicar duas coisas na config do Vite: `server.proxy` **não vale** no preview
+> (`preview.proxy` é outra chave), e o plugin que serve `/media` só se registrava no
+> `configureServer`. Um proxy ausente no preview **não dá erro**: cada chamada de API cai no
+> fallback de SPA e volta como o `index.html`, com status 200.

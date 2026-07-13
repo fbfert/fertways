@@ -25,6 +25,7 @@ use App\Models\MediaAsset;
 use App\Models\News;
 use App\Models\Report;
 use App\Models\TransportSetting;
+use App\Models\WarSetting;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -270,6 +271,65 @@ class AcoesController extends Controller
      *
      * O jogo obedece ao que estiver na linha — não ao que o seeder escreveu.
      */
+    /**
+     * Os dez números da guerra (§27.3, §28.10; D-70). **Até aqui só se mudavam por SQL.**
+     *
+     * O §27.3 escreve os bônus defensivos como "(valores configuráveis)" e o §28.10 manda comparar
+     * níveis sem publicar a conta — quer dizer que o GDD delega, e o painel é onde ele delega para.
+     * Mexer no preço do Nióbio direto na produção com um `UPDATE` é o tipo de coisa que ninguém
+     * audita e ninguém desfaz; aqui fica registrado quem mudou o quê, de quanto para quanto.
+     *
+     * Os limites são guardas contra o dedo escorregando, não regras de jogo: o único que morde de
+     * verdade é o `predador_min_bps ≤ predador_max_bps`, porque invertê-los prenderia a chance de
+     * apreensão num intervalo vazio — e aí o `max(min, min(max, x))` do motor devolveria sempre o
+     * mínimo, calado.
+     */
+    public function guerra(Request $request): RedirectResponse
+    {
+        $dados = $request->validate([
+            // Bônus por NÍVEL da construção. 0 desliga a construção como defesa; 10000 = +100%/nível.
+            'muralha_bonus_bps' => ['required', 'integer', 'min:0', 'max:10000'],
+            'torre_bonus_bps' => ['required', 'integer', 'min:0', 'max:10000'],
+            'bastiao_bonus_bps' => ['required', 'integer', 'min:0', 'max:10000'],
+
+            // A Torre olha (sabotagem) e avisa (o defensor vê a marcha). Duas coisas distintas.
+            'torre_deteccao_bps_por_nivel' => ['required', 'integer', 'min:0', 'max:10000'],
+            'torre_aviso_minutos_por_nivel' => ['required', 'integer', 'min:0', 'max:120'],
+
+            // A apreensão do Predador (§28.10): base no empate, ±por nível, presa entre min e max.
+            'predador_base_bps' => ['required', 'integer', 'min:0', 'max:10000'],
+            'predador_por_nivel_bps' => ['required', 'integer', 'min:0', 'max:10000'],
+            'predador_min_bps' => ['required', 'integer', 'min:0', 'max:10000'],
+            'predador_max_bps' => ['required', 'integer', 'min:0', 'max:10000', 'gte:predador_min_bps'],
+
+            // O preço do Nióbio, em micro-Fert$. É o freio de todo o exército do planeta: nada o
+            // produz, e a Sentinela custa 3. Zerá-lo torna a guerra gratuita.
+            'niobio_preco_micro' => ['required', 'integer', 'min:0'],
+        ]);
+
+        $config = WarSetting::singleton();
+        $antes = $config->only(array_keys($dados));
+
+        return $this->tentar('guerra.parametros', function () use ($dados, $config, $antes) {
+            $config->update($dados);
+
+            $mudou = collect($dados)
+                ->reject(fn ($v, $k) => (int) $v === (int) $antes[$k])
+                ->map(fn ($v, $k) => "{$k}: {$antes[$k]} → {$v}")
+                ->implode('; ');
+
+            /*
+             * "Valem já no próximo combate", e não "nos combates em curso": a força e o dano são
+             * **congelados** quando o exército chega (D-66). Uma Muralha que fica mais forte agora não
+             * salva a zona que já está sob ataque — e é bom que o operador saiba disso antes de tentar
+             * salvar alguém no meio de uma batalha.
+             */
+            return 'Parâmetros da guerra atualizados. '
+                .($mudou !== '' ? $mudou : 'Nada mudou.')
+                .' Valem no PRÓXIMO combate: os em curso já congelaram a força e o dano.';
+        });
+    }
+
     public function transporte(Request $request): RedirectResponse
     {
         $dados = $request->validate([

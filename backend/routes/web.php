@@ -33,6 +33,10 @@ Route::prefix('admin')->group(function () {
         Route::post('/imagens', [AcoesController::class, 'imagemEnviar'])->name('admin.imagem.enviar');
         Route::post('/imagens/vincular', [AcoesController::class, 'imagemVincular'])->name('admin.imagem.vincular');
         Route::post('/imagens/{media}/apagar', [AcoesController::class, 'imagemApagar'])->name('admin.imagem.apagar');
+        // A guerra (D-70): dez parâmetros que o GDD manda o operador declarar (§27.3 "valores
+        // configuráveis", §28.10 chances sem conta publicada) e que até aqui só se mudavam por SQL.
+        Route::get('/guerra', [PainelController::class, 'guerra'])->name('admin.guerra');
+        Route::post('/guerra', [AcoesController::class, 'guerra'])->name('admin.guerra.parametros');
         Route::get('/transportes', [PainelController::class, 'transportes'])->name('admin.transportes');
         Route::get('/auditoria', [PainelController::class, 'auditoria'])->name('admin.auditoria');
         Route::get('/operacao', [PainelController::class, 'operacao'])->name('admin.operacao');

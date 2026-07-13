@@ -17,6 +17,7 @@ use App\Models\Admin;
 use App\Models\AuditEntry;
 use App\Models\BuildQueue;
 use App\Models\Colony;
+use App\Models\Combat;
 use App\Models\ImageBinding;
 use App\Models\MediaAsset;
 use App\Models\Ledger;
@@ -28,9 +29,11 @@ use App\Models\Report;
 use App\Models\ResourceType;
 use App\Models\TradeAgreement;
 use App\Models\TransportSetting;
+use App\Models\Unit;
 use App\Models\User;
 use App\Models\Vehicle;
 use App\Models\VehicleListing;
+use App\Models\WarSetting;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
@@ -285,6 +288,47 @@ class PainelController extends Controller
             // Quantas coisas do jogo ainda estão sem arte — é o número que diz quanto falta.
             'semArte' => count(Vinculaveis::todas()) - ImageBinding::count(),
             'totalVinculavel' => count(Vinculaveis::todas()),
+        ]);
+    }
+
+    /**
+     * A guerra (§27, §28.10; D-70). **Dez números que só se mudavam por SQL.**
+     *
+     * O §27.3 escreve os bônus defensivos como "(valores configuráveis)" e o §28.10 manda calcular
+     * duas chances que nunca publica — quer dizer: o GDD delega ao operador e o painel não oferecia
+     * onde. Até aqui, mexer no preço do Nióbio ou no alcance da Torre exigia um `UPDATE` à mão na
+     * produção, que é exatamente o tipo de coisa que ninguém audita e ninguém desfaz.
+     *
+     * A tela também mostra **a guerra como ela está agora**: quem marcha contra quem, que zonas
+     * estão sitiadas e quanto exército existe no planeta. Sem isso o operador só descobre que a
+     * guerra desandou quando os jogadores reclamam.
+     */
+    public function guerra(): View
+    {
+        return view('admin.guerra', [
+            'guerra' => WarSetting::singleton(),
+
+            'combates' => Combat::with(['zone:id,x,y,mineral', 'attacker:id,name', 'defender:id,name'])
+                ->whereIn('status', ['marchando', 'em_curso'])
+                ->orderBy('proxima_rodada_at')
+                ->limit(100)
+                ->get(),
+
+            // As sitiadas primeiro: são as que têm relógio correndo (48 h) e é onde o operador olha.
+            'cercadas' => NeutralZone::with('owner:id,name')
+                ->whereNotNull('sieged_at')
+                ->orderBy('sieged_at')
+                ->get(),
+
+            'exercito' => Unit::selectRaw('type, count(*) as n')
+                ->groupBy('type')
+                ->pluck('n', 'type'),
+
+            // Quanto Nióbio o governo já vendeu, em estoque nas colônias. É o teto do exército que
+            // ainda pode nascer: 3 por Sentinela, e nada no planeta o produz (D-66).
+            'niobio' => (int) DB::table('resources')
+                ->where('resource_type', 'niobio_alienigena')
+                ->sum('amount'),
         ]);
     }
 

@@ -220,9 +220,19 @@ echo "==> subindo a API em :$PORTA_API"
 $PHP artisan serve --port="$PORTA_API" >/tmp/e2e-api.log 2>&1 &
 pids+=($!)
 
-echo "==> subindo o front em :$PORTA_WEB"
+# ⚠️ **`build` + `preview`, e não `vite dev`** (D-70). O servidor tem 4 GB, e o `dev` guarda o grafo
+# de módulos inteiro em memória — com o Phaser dentro. Junto do Chrome do puppeteer, isso estourava
+# a RAM e o kernel matava o e2e: `exit 137`, que NÃO é teste reprovado, e é fácil ler como se fosse.
+#
+# O build é pesado (~360 MB) mas roda **sozinho** e morre; o preview serve o `dist/` estático por uns
+# 50 MB e convive com o navegador. De quebra, o e2e passa a exercitar o **bundle que de fato vai ao
+# ar**, e não o servidor de desenvolvimento.
+echo "==> construindo o bundle"
 cd "$RAIZ/frontend"
-npm run dev -- --port "$PORTA_WEB" --strictPort >/tmp/e2e-web.log 2>&1 &
+npm run build >/tmp/e2e-build.log 2>&1 || { echo "o build falhou:"; tail -20 /tmp/e2e-build.log; exit 1; }
+
+echo "==> servindo o front em :$PORTA_WEB"
+npm run preview -- --port "$PORTA_WEB" --strictPort >/tmp/e2e-web.log 2>&1 &
 pids+=($!)
 
 echo "==> esperando os dois responderem"

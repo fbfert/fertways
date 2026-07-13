@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Domain\Capital\Patio;
 use App\Domain\Logistics\ConcluirTrechos;
+use App\Domain\Guerra\ChegarReforcos;
 use App\Domain\Guerra\ResolverCombates;
 use App\Domain\Zona\ConcluirObrasDaZona;
 use App\Domain\Zona\RefinarNaZona;
@@ -47,6 +48,7 @@ class TickColonies extends Command
         FabricarCaminhoes $fabrica,
         Patio $patio,
         ResolverCombates $combates,
+        ChegarReforcos $reforcos,
         RefinarNaZona $refinarias,
         ConcluirObrasDaZona $obras,
     ): int {
@@ -124,6 +126,14 @@ class TickColonies extends Command
          * Cada combate avança TODAS as rodadas que venceram, não uma por tick — se o tick atrasar,
          * a batalha anda pelo relógio, e não pelo número de vezes que o cron acordou.
          */
+        /*
+         * Os reforços chegam ANTES de as rodadas correrem (D-70). É o que faz "reforços tardios
+         * podem ainda mudar o resultado" (§27.5) ser verdade: a tropa que chegou neste minuto tem de
+         * estar em campo quando a rodada deste minuto for resolvida. Depois, ela chegaria sempre uma
+         * rodada atrasada — e o §27.5 desenhou o combate longo justamente para dar tempo de socorrer.
+         */
+        $chegaram = $reforcos->handle($agora);
+
         $batalhas = $combates->handle($agora);
 
         /*
@@ -134,7 +144,7 @@ class TickColonies extends Command
         $obrasFeitas = $obras->handle($agora);
         $refinadas = $refinarias->handle($agora);
 
-        $this->info("tick: {$processadas} colônias, {$falhas} falhas, {$zonas} proteções expiradas, {$extraidas} zonas extraídas, {$entregas} trechos concluídos, {$vencidos} acordos vencidos, {$reatribuidos} casos reatribuídos, {$encerrados} casos encerrados, {$salarios} salários pagos, {$prontos} caminhões prontos, {$encomendados} encomendados, {$cobrados} horas de pátio cobradas, {$rebocados} rebocados, {$batalhas} batalhas, {$obrasFeitas} obras de zona, {$refinadas} zonas refinaram");
+        $this->info("tick: {$processadas} colônias, {$falhas} falhas, {$zonas} proteções expiradas, {$extraidas} zonas extraídas, {$entregas} trechos concluídos, {$vencidos} acordos vencidos, {$reatribuidos} casos reatribuídos, {$encerrados} casos encerrados, {$salarios} salários pagos, {$prontos} caminhões prontos, {$encomendados} encomendados, {$cobrados} horas de pátio cobradas, {$rebocados} rebocados, {$batalhas} batalhas, {$chegaram} reforços chegados, {$obrasFeitas} obras de zona, {$refinadas} zonas refinaram");
 
         return $falhas > 0 ? self::FAILURE : self::SUCCESS;
     }
