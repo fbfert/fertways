@@ -235,4 +235,27 @@ class ImagensTest extends TestCase
         $this->assertArrayHasKey('mapas', Biblioteca::CATEGORIAS);
         $this->assertArrayHasKey('destrocos-da-endurance', Biblioteca::CATEGORIAS);
     }
+
+    /**
+     * Toda chave da tabela EVIDENTES do importador tem de existir em `Vinculaveis` (D-72).
+     *
+     * ⚠️ **Uma chave com erro de digitação não daria erro nenhum**: o comando criaria o vínculo, a
+     * tela diria "vinculada" — e nenhuma cena jamais perguntaria por aquela chave. A arte sumiria no
+     * banco, o hexágono continuaria na tela, e ninguém relacionaria as duas coisas. É o mesmo
+     * silêncio do `$fillable` do D-70, noutro lugar.
+     */
+    public function test_todo_vinculo_evidente_aponta_para_algo_que_existe(): void
+    {
+        $constante = new \ReflectionClassConstant(
+            \App\Console\Commands\ImportarImagens::class, 'EVIDENTES',
+        );
+        $validas = Vinculaveis::todas();
+
+        foreach ($constante->getValue() as $arquivo => $chave) {
+            $this->assertArrayHasKey(
+                $chave, $validas,
+                "O importador vincula {$arquivo}.png a [{$chave}], que nenhuma tela conhece.",
+            );
+        }
+    }
 }

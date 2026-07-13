@@ -43,10 +43,16 @@ class ImportarImagens extends Command
      * azuis — é a Captação de Água. `nucleo-ares` tem chaminés e cilindros de gás sob uma cúpula —
      * é o Gerador de Atmosfera.
      *
-     * ⚠️ **O que não está aqui, eu não sei o que é.** `extratora-rubicon`, `centro-cerco-kraken`,
-     * `salao-aurum`, `forum-concordia` — a arte é bonita e ambígua, e o jogo não tem nada com esse
-     * nome. Chutar poria arte errada num prédio, e meses depois ninguém saberia por quê. Elas ficam
-     * na biblioteca, sem vínculo, e quem sabe o que quer escolhe no painel — **vendo a miniatura**.
+     * ⚠️ **O que não está aqui, eu não sei o que é** — ou o jogo ainda não tem onde pendurar.
+     * Chutar poria arte errada num prédio, e meses depois ninguém saberia por quê. Fica na
+     * biblioteca, sem vínculo, e quem sabe o que quer escolhe no painel — **vendo a miniatura**.
+     *
+     * No D-72 as 28 restantes foram enfim olhadas uma a uma: **12 eram evidentes** e desceram para
+     * a tabela; **7 têm duas leituras** e esperam a escolha do operador no painel (`torre-axiom`,
+     * `aquifero-talassa`, `bastiao-vanguarda`, `estufa-lumen`, `centro-cerco-kraken`,
+     * `terminal-aduaneiro-vetor`, `camara-escrow-prisma`); e **9 não têm lar no jogo** — as oito
+     * seções da Endurance (a área Oeste já mostra o casco inteiro) e o `cargueiro-zenith`, que é o
+     * Cargueiro Interplanetário de um Espaçoporto que ainda não existe.
      *
      * @var array<string,string> arquivo (sem `.png`) => chave da coisa no jogo
      */
@@ -78,6 +84,28 @@ class ImportarImagens extends Command
         'espacoporto-gagarin' => 'capital:area:sul',
         'casco-endurance' => 'capital:area:oeste',
         'mercado-aurora' => 'capital:area:leste',
+
+        // ── A segunda leva (D-72): as 28 que sobraram, enfim olhadas uma a uma.
+        //    O critério continua o mesmo — a IMAGEM tem de provar; duas destas cruzam de categoria
+        //    (a pasta do artista não manda no jogo).
+
+        // Os ministérios da Capital que a arte identifica sozinha.
+        'bastiao-aegis' => 'capital:slot:5',      // escudo no frontão, torres, radares: a guerra
+        'cofre-meridian' => 'capital:slot:4',     // cofre com estandartes de gráficos: as finanças
+        'forum-concordia' => 'capital:slot:7',    // a balança da justiça holográfica: quem julga
+        'terminal-atlas' => 'capital:slot:8',     // pátio de cargas com portões: os transportes
+
+        // As especializações da colônia, pela FUNÇÃO que a arte mostra.
+        'forja-titan' => 'oficina',                       // fundição — quem produz as Ligas
+        'observatorio-kepler' => 'antena_de_comunicacao', // a parabólica gigante domina a cena
+        'salao-aurum' => 'mercado_local',                 // o salão dourado de comércio
+        'terminal-mercurio' => 'plataforma_de_pouso',     // a plataforma octogonal é o centro
+        'torre-vulcan' => 'tanque_de_combustivel',        // cilindros deitados na base; sem arma no topo
+
+        // As que cruzam de categoria: a pasta diz uma coisa, a imagem prova outra.
+        'extratora-rubicon' => 'mina_local',       // sonda de perfuração — extração, não zona
+        'doca-meridiana' => 'central_de_transportes',  // docas e guindastes — o hub de veículos
+        'torre-trafego-zenite' => 'torre_de_vigia',    // radares: ver o ataque chegando (o aviso do D-70)
     ];
 
     public function handle(Biblioteca $biblioteca): int
@@ -158,8 +186,9 @@ class ImportarImagens extends Command
         if ($porVincular !== []) {
             $this->line('');
             $this->warn('SEM vínculo — escolha no painel (/central/admin/imagens):');
-            $this->line('  '.count($porVincular).' imagens. Eu não sei o que elas são, e chutar poria');
-            $this->line('  arte errada num prédio sem ninguém saber por quê. Ficam na biblioteca.');
+            $this->line('  '.count($porVincular).' imagens. Ou têm duas leituras possíveis e a escolha é do');
+            $this->line('  operador, ou o jogo ainda não tem onde pendurá-las (as seções da Endurance,');
+            $this->line('  o Cargueiro). Ficam na biblioteca — ver o D-72.');
             foreach ($porVincular as $p) {
                 $this->line("    {$p}");
             }

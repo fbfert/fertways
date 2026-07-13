@@ -215,7 +215,7 @@ O MVP tem, funcionando e no ar em `https://fertways.tars.art.br`:
   - **Fora de escopo, de propósito:** o **Cargueiro Interplanetário** e o seu aluguel. Dependem do
     Espaçoporto e dos planetas NPC, que não existem.
 
-**451 testes PHP (3431 asserções) + 7 e2e, verdes.** O cron do tick está instalado (crontab do usuário
+**452 testes PHP (3461 asserções) + 7 e2e, verdes.** O cron do tick está instalado (crontab do usuário
 `fertways`, log em `/home/fertways/logs/fertways-tick.log`) e roda o `artisan` **da cópia de
 deploy** — o mundo avança sozinho. O tick faz: produção, upgrades, proteções, trechos de viagem,
 acordos vencidos, **casos reatribuídos, janelas de apelação fechadas e a folha do Ministério**.
@@ -750,7 +750,12 @@ leitura. Ele é idempotente, então repetir é seguro se um dia houver dúvida.
 
    **A pergunta agora é qual frente atacar.** As que estão na mesa, e ele já sabe de todas:
    - **O teto de revenda do Furgão** — buraco de lavagem de Fert$ conhecido, ainda aberto.
-   - **As 28 imagens sem vínculo** (D-68) — arte que existe e o jogo não mostra.
+   - **As 7 imagens com duas leituras** (D-72) — as 28 do D-68 foram olhadas uma a uma: 12
+     evidentes estão NO AR, 9 não têm lar no jogo (Endurance e o Cargueiro), e **7 esperam a
+     escolha dele no painel** (`torre-axiom`, `aquifero-talassa`, `bastiao-vanguarda`,
+     `estufa-lumen`, `centro-cerco-kraken`, `terminal-aduaneiro-vetor`, `camara-escrow-prisma` —
+     as opções de cada uma estão no D-72). Há também ~10 entidades **sem imagem candidata
+     nenhuma** — encomenda ao artista, não vínculo.
    - **D-52 Fatia 3, o Drone** — precisa de arbitragem (4 lacunas; ver o item 1 abaixo).
    - **O Marco do §03** e o **serviço logístico público do §07** — os dois precisam de arbitragem.
 

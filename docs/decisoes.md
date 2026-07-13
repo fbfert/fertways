@@ -2890,3 +2890,44 @@ um dono só** — que era, literalmente, a pendência que abriu esta sessão.
 > `RateLimiter` explodiria **na porta do painel** e trancaria todo mundo para fora — com a suíte
 > verde. Conferidas antes do deploy, e o freio foi exercitado contra o MariaDB de dev. É o D-27
 > outra vez, por outro caminho.
+
+---
+
+## D-72 — As 28 imagens, enfim olhadas: 12 evidentes, 7 escolhas, 9 sem lar.
+**Data:** 2026-07-13 · **Status:** os 12 evidentes decididos pelo usuário; os 7 ambíguos aguardam ele · **Não há GDD sobre isto**
+
+O D-68 vinculou 18 imagens e deixou 28 sem vínculo com a nota "eu não sei o que são, e chutar poria
+arte errada num prédio". Neste decisório elas foram **olhadas uma a uma** — na tela, com a proposta
+ao lado — e o número 28 se abriu em três grupos que não têm nada a ver um com o outro:
+
+**12 evidentes, aplicadas** (o usuário mandou publicar só as com certeza). O critério continuou o do
+D-68 — a imagem tem de provar, cruzada com **o que a construção FAZ no jogo**: a `forja-titan` é uma
+fundição com metal derretido, e a Oficina é quem produz as Ligas; a `torre-trafego-zenite` é uma
+torre de radares, e ver o ataque chegando é o ofício da Torre de Vigia (o aviso do D-70); o
+`forum-concordia` tem a balança da justiça no centro — é o Ministério das Reputações. Quatro
+ministérios da Capital, sete construções de colônia e uma da zona.
+
+⚠️ **Duas cruzam de categoria, e isso é informação, não erro:** a `extratora-rubicon` veio na pasta
+de zonas mas é uma sonda de perfuração (Mina Local), e a `doca-meridiana` veio em mercado-e-comércio
+mas é o pátio de docas da Central de Transportes. **A pasta do artista não manda no jogo.**
+
+**7 têm duas leituras** e ficam para o operador escolher no painel, vendo a miniatura: `torre-axiom`
+(área Norte ou Slot 1), `aquifero-talassa` (Refinaria Química ou Destilaria), `bastiao-vanguarda`
+(Quartel ou Torre de Defesa), `estufa-lumen` (Laboratório ou trocar a Fazenda), `centro-cerco-kraken`
+(Abrigo de Robôs ou Torre de Defesa), `terminal-aduaneiro-vetor` (Estacionamento da Zona ou esperar o
+Espaçoporto), `camara-escrow-prisma` (guardar ou trocar a área Leste).
+
+**9 não têm lar no jogo:** as oito seções da Endurance (a área Oeste já mostra o casco inteiro; as
+seções individuais não são vinculáveis a nada) e o `cargueiro-zenith` — que é o Cargueiro
+Interplanetário de um Espaçoporto que não existe. A arte espera o navio, não o contrário.
+
+**E aplicar tudo não fecha o assunto:** mesmo com as recomendações dos 7, sobrariam ~10 entidades
+sem NENHUMA imagem candidata (Muralha, Depósito, Refinaria de Campo e Cemitério da zona; Infiltrador
+e Predador; e o que as escolhas não levarem). É lista de encomenda ao artista, não de vínculo.
+
+### O que se aprendeu construindo
+
+> **Um vínculo com chave errada não daria erro nenhum.** O comando criaria a linha, diria
+> "vinculada" — e nenhuma cena jamais perguntaria por aquela chave: a arte sumiria no banco e o
+> hexágono continuaria na tela. Um teste novo percorre a tabela `EVIDENTES` e exige que cada chave
+> exista em `Vinculaveis::todas()`. É o silêncio do `$fillable` do D-70, noutro lugar.
