@@ -22,6 +22,17 @@
         </include>
     </source>
     <php>
+        <!--
+            ⚠️ A biblioteca de imagens NUNCA aponta para a pasta de produção nos testes.
+
+            O `ImagensTest` exercita o botão de apagar, e o `Biblioteca::apagar()` chama `unlink()`
+            no caminho real. Com a raiz apontando para /home/fertways/media, ele DESTRUIU uma imagem
+            de produção — a arte do Reator de Energia — e o teste passou verde.
+
+            É a mesma família de defesa do APP_CONFIG_CACHE abaixo (D-27), pela mesma razão: a trava
+            tem de estar aqui, e não na disciplina de quem escreve o teste.
+        -->
+        <env name="FERTWAYS_MEDIA_DIR" value="/tmp/fertways-testes-media"/>
         <env name="APP_ENV" value="testing"/>
         <!--
             Fixo, porque em produção o `.env` traz `APP_URL=https://fertways.tars.art.br/central`:

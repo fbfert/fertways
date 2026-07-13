@@ -177,6 +177,34 @@ class ImagensTest extends TestCase
             ->assertSessionHasErrors('categoria');
     }
 
+    // ── a trava que impede um teste de apagar a arte de produção ────────────────────────────────
+
+    /**
+     * ⚠️ **Esta é a guarda mais importante deste arquivo, e ela existe porque o dano já aconteceu.**
+     *
+     * O teste de apagar, acima, chama `Biblioteca::apagar()`, que chama `unlink()` no caminho real.
+     * Enquanto a raiz era uma constante apontando para `/home/fertways/media`, ele **destruiu uma
+     * imagem de produção** — a arte do Reator de Energia — e passou verde. Ninguém saberia, exceto
+     * pelo prédio que voltou a ser hexágono.
+     *
+     * Agora a raiz vem da config, o `phpunit.xml` a aponta para uma pasta temporária, e a biblioteca
+     * **recusa-se a rodar** se um teste ainda assim mirar a pasta de verdade. É a família de trava do
+     * D-27 (o `migrate:fresh` que apagou o banco do jogo): a defesa está no código, e não na
+     * disciplina de quem escreve o teste.
+     */
+    public function test_a_biblioteca_recusa_apontar_para_producao_num_teste(): void
+    {
+        // A pasta de testes é outra — é o `phpunit.xml` que garante isso.
+        $this->assertNotSame(Biblioteca::RAIZ_PRODUCAO, Biblioteca::raiz());
+
+        config(['fertways.media_raiz' => Biblioteca::RAIZ_PRODUCAO]);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessageMatches('/PRODUÇÃO/');
+
+        Biblioteca::raiz();
+    }
+
     // ── o catálogo do que pode receber arte ─────────────────────────────────────────────────────
 
     /**

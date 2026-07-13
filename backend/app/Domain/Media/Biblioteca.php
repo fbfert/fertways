@@ -19,8 +19,35 @@ use Illuminate\Support\Str;
  */
 class Biblioteca
 {
-    /** Onde os arquivos moram, de verdade. Fora de tudo o que o deploy toca. */
-    public const RAIZ = '/home/fertways/media';
+    /** A pasta de produção. NUNCA use esta constante para escrever: use `raiz()`. */
+    public const RAIZ_PRODUCAO = '/home/fertways/media';
+
+    /**
+     * Onde os arquivos moram. Fora de tudo o que o deploy toca.
+     *
+     * ⚠️ **Isto era uma constante, e o meu próprio teste apagou uma imagem de PRODUÇÃO com ela.** O
+     * `ImagensTest` exercita o botão de apagar; o `apagar()` chama `unlink()` no caminho real; e o
+     * arquivo — `reator-helios.png`, a arte do Reator de Energia — sumiu do disco. O teste passou
+     * verde. Ninguém saberia, exceto pelo prédio que voltou a ser hexágono.
+     *
+     * Agora a raiz vem da config, o `phpunit.xml` a aponta para uma pasta temporária, e a guarda
+     * abaixo **recusa-se a rodar** se um teste ainda assim mirar a pasta de verdade. É a família de
+     * trava do D-27 (o `migrate:fresh` que apagou o banco do jogo): a defesa tem de estar no código,
+     * e não na disciplina de quem escreve o teste.
+     */
+    public static function raiz(): string
+    {
+        $raiz = (string) config('fertways.media_raiz', self::RAIZ_PRODUCAO);
+
+        if (app()->runningUnitTests() && $raiz === self::RAIZ_PRODUCAO) {
+            throw new \RuntimeException(
+                'Um teste está apontando a biblioteca de imagens para a pasta de PRODUÇÃO. '
+                .'Isto já apagou um arquivo de verdade uma vez. Ver `phpunit.xml` e config/fertways.php.',
+            );
+        }
+
+        return $raiz;
+    }
 
     /** Como o navegador os alcança. O symlink faz o resto. */
     public const URL = '/media';
@@ -88,7 +115,7 @@ class Biblioteca
         $base = Str::slug(pathinfo($arquivo->getClientOriginalName(), PATHINFO_FILENAME));
         $nome = ($base !== '' ? $base : 'imagem').'-'.Str::lower(Str::random(6)).'.png';
 
-        $pasta = self::RAIZ."/{$categoria}";
+        $pasta = self::raiz()."/{$categoria}";
 
         if (! is_dir($pasta)) {
             mkdir($pasta, 0755, true);
@@ -121,13 +148,13 @@ class Biblioteca
                 continue;
             }
 
-            $caminho = self::RAIZ."/{$a->category}/{$f}";
+            $caminho = self::raiz()."/{$a->category}/{$f}";
 
             // `realpath` + prefixo: uma linha de banco adulterada não pode nos fazer apagar
             // /etc/passwd. O caminho tem de estar DENTRO da raiz da biblioteca.
             $real = realpath($caminho);
 
-            if ($real !== false && str_starts_with($real, self::RAIZ.'/') && is_file($real)) {
+            if ($real !== false && str_starts_with($real, self::raiz().'/') && is_file($real)) {
                 unlink($real);
             }
         }

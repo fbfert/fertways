@@ -82,8 +82,8 @@ class ImportarImagens extends Command
 
     public function handle(Biblioteca $biblioteca): int
     {
-        if (! is_dir(Biblioteca::RAIZ)) {
-            $this->error('Não achei '.Biblioteca::RAIZ.'. As imagens moram fora da árvore de deploy.');
+        if (! is_dir(Biblioteca::raiz())) {
+            $this->error('Não achei '.Biblioteca::raiz().'. As imagens moram fora da árvore de deploy.');
 
             return self::FAILURE;
         }
@@ -94,7 +94,7 @@ class ImportarImagens extends Command
         $porVincular = [];
 
         foreach (array_keys(Biblioteca::CATEGORIAS) as $categoria) {
-            $pasta = Biblioteca::RAIZ."/{$categoria}";
+            $pasta = Biblioteca::raiz()."/{$categoria}";
 
             if (! is_dir($pasta)) {
                 continue;
