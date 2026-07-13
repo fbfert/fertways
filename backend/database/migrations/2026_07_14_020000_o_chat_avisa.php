@@ -41,7 +41,15 @@ return new class extends Migration
             $table->foreignId('message_id')->constrained('chat_messages')->cascadeOnDelete();
             $table->string('channel', 24);
             $table->timestamp('seen_at')->nullable();
-            $table->timestamp('created_at');
+            /*
+             * ⚠️ `useCurrent()` é OBRIGATÓRIO aqui, e o motivo é o MariaDB: como o `seen_at` anulável
+             * vem antes, o default automático do primeiro TIMESTAMP já foi gasto — e um segundo
+             * TIMESTAMP NOT NULL sem default explícito vira `0000-00-00`, que o sql_mode de produção
+             * proíbe (`1067 Invalid default value`). O SQLite dos testes engole; o MariaDB não. Esta
+             * migration QUEBROU o deploy do D-77 exatamente assim — e o dev também tinha falhado,
+             * em silêncio, porque a saída do migrate foi cortada com `tail -1`.
+             */
+            $table->timestamp('created_at')->useCurrent();
 
             $table->index(['user_id', 'seen_at']);
         });

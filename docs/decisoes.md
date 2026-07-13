@@ -3237,6 +3237,16 @@ chamado é meio chat. Fechado antes do primeiro deploy:
 
 ### O que se aprendeu construindo
 
+> **A migration do aviso QUEBROU o deploy — e o dev já tinha quebrado igual, em silêncio.** Na
+> `chat_mentions`, o `seen_at` anulável vinha antes do `created_at`: no MariaDB o default automático
+> do primeiro TIMESTAMP já estava gasto, e o segundo, sem default explícito, vira `0000-00-00` — que
+> o sql_mode proíbe (`1067`). O SQLite dos testes engole. **Pior:** o migrate do dev falhou HORAS
+> antes, e a saída estava cortada com `tail -1` — o verde que eu vi era só a suíte SQLite. É
+> literalmente a lição gravada na memória do projeto ("o verde do artisan test não prova DDL"), e
+> ela mordeu mesmo assim. Regra nova: **migrate no dev sempre com a saída inteira e conferência das
+> tabelas** — e o DDL parcial (MariaDB não tem DDL transacional) deixa tabela órfã para trás:
+> `chat_reads` ficou criada com a migration não registrada, nas duas pontas.
+
 > **O silêncio do D-44 ligou sem uma linha nova no Ministério.** A pena já era gravada com tipo e
 > prazo (`Punishment`, escopo `vigente()`) — só nunca houve porta em que bater. O chat perguntou
 > "há silêncio vigente?" e três anos de arquitetura respondida em uma consulta. Guardar estado
