@@ -427,6 +427,87 @@ class AcoesController extends Controller
         });
     }
 
+    /**
+     * Silencia um colono (§10.2; D-77): a MESMA pena `silencio` do Ministério (§9.4/D-44), aplicada
+     * por decisão humana do painel — o filtro conta reincidência, mas não cala ninguém sozinho.
+     */
+    public function silenciar(Request $request, User $user): RedirectResponse
+    {
+        $dados = $request->validate([
+            'motivo' => ['required', 'string', 'max:255'],
+            'horas' => ['required', 'integer', 'min:1', 'max:720'],
+        ]);
+
+        return $this->tentar('chat.silenciar', function () use ($user, $dados) {
+            \App\Models\Punishment::create([
+                'report_id' => null,   // pena do PAINEL, não de um caso — e a coluna é nulável por isso
+                'user_id' => $user->id,
+                'kind' => \App\Domain\Ministry\PunicaoSpecs::SILENCIO,
+                'index_name' => 'conduta_social',
+                'points' => 0,
+                'applied_at' => now(),
+                'expires_at' => now()->addHours((int) $dados['horas']),
+            ]);
+
+            return "{$user->nickname} em silêncio por {$dados['horas']} h. Motivo: {$dados['motivo']}";
+        }, "user:{$user->id}");
+    }
+
+    /** A lista de termos vedados e o raio da vizinhança (§10.1/§10.2; D-77) — do operador. */
+    public function chat(Request $request): RedirectResponse
+    {
+        $dados = $request->validate([
+            'vizinhanca_raio_slots' => ['required', 'integer', 'min:1', 'max:100'],
+            'termos' => ['nullable', 'string', 'max:5000'],
+        ]);
+
+        $config = \App\Models\ChatSetting::singleton();
+        $antes = count($config->termos());
+
+        return $this->tentar('chat.parametros', function () use ($config, $dados, $antes) {
+            $termos = array_values(array_filter(array_map('trim', explode("\n", (string) ($dados['termos'] ?? '')))));
+
+            $config->update([
+                'vizinhanca_raio_slots' => (int) $dados['vizinhanca_raio_slots'],
+                'termos_vedados' => $termos,
+            ]);
+
+            return 'Chat atualizado: raio de vizinhança '.$dados['vizinhanca_raio_slots']
+                .' slots; termos vedados: '.$antes.' → '.count($termos).'.';
+        });
+    }
+
+    /**
+     * Espiar uma conversa privada (§10.3; D-77). O GDD permite o acesso interno E EXIGE o rastro:
+     * "todo acesso interno a mensagens reportadas é registrado". O rastro é a linha de auditoria
+     * que este método grava ANTES de mostrar qualquer coisa — espiar sem registro é impossível
+     * por construção. (A notificação ao denunciado, também do §10.3, espera um sistema de
+     * notificações que não existe — registrado no D-77.)
+     */
+    public function chatEspiar(Request $request): RedirectResponse
+    {
+        $dados = $request->validate([
+            'nickname_a' => ['required', 'string'],
+            'nickname_b' => ['required', 'string'],
+            'motivo' => ['required', 'string', 'max:255'],
+        ]);
+
+        $a = User::where('nickname', $dados['nickname_a'])->first();
+        $b = User::where('nickname', $dados['nickname_b'])->first();
+
+        if (! $a || ! $b) {
+            return $this->erro('Colono não encontrado. Confira os dois nicknames.');
+        }
+
+        app(Auditoria::class)->registrar(
+            'chat.acesso_privado',
+            "Acessou a conversa privada {$a->nickname} ↔ {$b->nickname}. Motivo: {$dados['motivo']}",
+            "users:{$a->id},{$b->id}",
+        );
+
+        return redirect()->route('admin.chat', ['privada_a' => $a->id, 'privada_b' => $b->id]);
+    }
+
     // ── Jogadores (D-61) ─────────────────────────────────────────────────────
 
     /**

@@ -134,6 +134,7 @@
                 'admin.noticias' => 'Notícias',
                 'admin.imagens' => 'Imagens',
                 'admin.guerra' => 'Guerra',
+                'admin.chat' => 'Chat',
                 'admin.transportes' => 'Transportes',
                 'admin.auditoria' => 'Auditoria',
                 'admin.operacao' => 'Operação',

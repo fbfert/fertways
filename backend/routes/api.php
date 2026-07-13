@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\BuildingController;
 use App\Http\Controllers\Api\CapitalController;
+use App\Http\Controllers\Api\ChatController;
 use App\Http\Controllers\Api\ColonyController;
 use App\Http\Controllers\Api\DroneController;
 use App\Http\Controllers\Api\ImagesController;
@@ -93,6 +94,16 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/market/account', [MarketController::class, 'conta']);
     // O serviço logístico público do §07 (D-76): o governo busca na doca e leva até a colônia.
     Route::post('/market/freight', [MarketController::class, 'frete']);
+
+    // O Sistema de Mensagens (§10, D-77): polling, 4 canais vivos (federação espera federações).
+    Route::get('/chat', [ChatController::class, 'canais']);
+    Route::get('/chat/conversas', [ChatController::class, 'conversas']);
+    Route::get('/chat/privada/{user}', [ChatController::class, 'privada']);
+    Route::post('/chat/privada/{user}', [ChatController::class, 'falarPrivado']);
+    Route::post('/chat/bloquear/{user}', [ChatController::class, 'bloquear']);
+    Route::delete('/chat/bloquear/{user}', [ChatController::class, 'desbloquear']);
+    Route::get('/chat/{canal}', [ChatController::class, 'ler']);
+    Route::post('/chat/{canal}', [ChatController::class, 'falar']);
     Route::post('/vehicles/{vehicle}/withdraw', [MarketController::class, 'retirar']);
 
     // Ofertas Globais: vitrine, não livro de casamento (D-58). A oferta repousa até que alguém a

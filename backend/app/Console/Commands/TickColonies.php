@@ -52,6 +52,7 @@ class TickColonies extends Command
         RefinarNaZona $refinarias,
         ConcluirObrasDaZona $obras,
         \App\Domain\Drone\ConcluirMissoes $drones,
+        \App\Domain\Chat\PurgarMensagens $chat,
     ): int {
         $agora = now();
         $processadas = 0;
@@ -95,6 +96,10 @@ class TickColonies extends Command
          * atacar neste minuto.
          */
         $missoes = $drones->handle($agora);
+
+        // A retenção do chat é PUBLICADA (§08: 180/90 dias; privadas ficam) — a purga é lei, não
+        // faxina. Deletes indexados por idade: baratos o bastante para todo tick.
+        $purgadas = $chat->handle($agora);
 
         /*
          * Depois das entregas, nunca antes: a carga que chega no último segundo do prazo ainda
@@ -153,7 +158,7 @@ class TickColonies extends Command
         $obrasFeitas = $obras->handle($agora);
         $refinadas = $refinarias->handle($agora);
 
-        $this->info("tick: {$processadas} colônias, {$falhas} falhas, {$zonas} proteções expiradas, {$extraidas} zonas extraídas, {$entregas} trechos concluídos, {$vencidos} acordos vencidos, {$reatribuidos} casos reatribuídos, {$encerrados} casos encerrados, {$salarios} salários pagos, {$prontos} caminhões prontos, {$encomendados} encomendados, {$cobrados} horas de pátio cobradas, {$rebocados} rebocados, {$batalhas} batalhas, {$chegaram} reforços chegados, {$obrasFeitas} obras de zona, {$refinadas} zonas refinaram, {$missoes} pernas de drone");
+        $this->info("tick: {$processadas} colônias, {$falhas} falhas, {$zonas} proteções expiradas, {$extraidas} zonas extraídas, {$entregas} trechos concluídos, {$vencidos} acordos vencidos, {$reatribuidos} casos reatribuídos, {$encerrados} casos encerrados, {$salarios} salários pagos, {$prontos} caminhões prontos, {$encomendados} encomendados, {$cobrados} horas de pátio cobradas, {$rebocados} rebocados, {$batalhas} batalhas, {$chegaram} reforços chegados, {$obrasFeitas} obras de zona, {$refinadas} zonas refinaram, {$missoes} pernas de drone, {$purgadas} mensagens purgadas");
 
         return $falhas > 0 ? self::FAILURE : self::SUCCESS;
     }

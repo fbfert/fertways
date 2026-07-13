@@ -19,7 +19,14 @@ class AuthController extends Controller
         $dados = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             // "Nickname é único no servidor e obrigatório" (GDD, Identidade do colono).
-            'nickname' => ['required', 'string', 'min:3', 'max:32', 'alpha_dash', 'unique:users,nickname'],
+            'nickname' => ['required', 'string', 'min:3', 'max:32', 'alpha_dash', 'unique:users,nickname',
+                // §03: o nickname "passa pelo mesmo filtro automático de termos do chat" — desde o
+                // D-77 esse filtro existe de verdade, e a promessa vale nos dois sentidos.
+                function ($attr, $value, $fail) {
+                    if (\App\Domain\Chat\Filtro::barra($value)) {
+                        $fail('Este nickname contém um termo vedado (§03).');
+                    }
+                }],
             'email' => ['required', 'email', 'max:255', 'unique:users,email'],
             'password' => ['required', Password::defaults()],
         ]);

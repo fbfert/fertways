@@ -77,6 +77,21 @@
                 restrição comercial do §9.4. A colônia <b>continua produzindo</b>.
             </p>
         @endif
+
+        {{-- ── Silêncio (§10.2; D-77): cala a praça, não a boca — as privadas continuam. ── --}}
+        <form method="POST" action="{{ route('admin.jogador.silenciar', $jogador) }}" class="linha-form" style="margin-top:10px">
+            @csrf
+            <div><label>Motivo do silêncio (fica na auditoria)</label>
+                <input type="text" name="motivo" required maxlength="255"></div>
+            <div style="flex:0"><label>Horas</label>
+                <input type="number" name="horas" min="1" max="720" value="24" style="width:90px" required></div>
+            <div style="flex:0"><button class="perigo" data-silenciar>Silenciar</button></div>
+        </form>
+        <p class="mut pequeno">
+            Remove o acesso aos <b>chats públicos</b> pelo prazo (§10.2) — a privada continua. É a
+            mesma pena <code>silencio</code> que o Ministério aplica (§9.4/D-44); silêncio nasce de
+            gente, nunca do filtro sozinho (D-77).
+        </p>
     </div>
 
     @if ($colonia)

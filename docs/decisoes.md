@@ -3169,3 +3169,58 @@ veículo próprio — é o que o §07 publica, e território conquistado tem log
 
 Com o D-76, **todas as frentes do GDD que dependiam de arbitragem estão fechadas**. O que resta no
 RETOMAR são escolhas de operação (as 7 imagens ambíguas) e encomenda de arte.
+
+---
+
+## D-77 — O rádio do planeta: o Sistema de Mensagens do §10.
+**Data:** 2026-07-13 · **Status:** arbitrado pelo usuário · **GDD §10 (capítulo inteiro), §03, §08, seção 15**
+
+O §10 publica quase tudo: os 5 canais (Global, Região, Federação, Privada, Vizinhança), a moderação
+(filtro de termos nos públicos; federação e privadas só por denúncia; silêncio temporário
+configurável que afeta a Conduta Social), o armazenamento (privadas acessíveis ao dono, histórico
+como evidência de denúncia) e a retenção (global/região 180 dias, vizinhança 90, privadas
+indefinido, "todo acesso interno a mensagens reportadas é registrado"). As quatro arbitragens:
+
+**1. Polling, não Reverb.** O GDD nomeia Redis + Laravel Reverb; o servidor tem 4 GB divididos com
+o MariaDB de produção, e um daemon de websocket é memória que o jogo não tem. A tela consulta
+`?after=<id>` a cada 5 s **enquanto aberta** — fechada, o chat não custa um request. Contradição
+consciente com a stack sugerida; o Reverb entra quando o servidor crescer.
+
+**2. As 5 regiões = 4 quadrantes + Núcleo.** O §10.1 publica "5 canais regionais" e cala o mapa. A
+geografia que o planeta já tem soma exatamente 5: cada quadrante herda o nome do distrito que
+contém (os distritos moram nos cantos, D-52), e o Núcleo é o disco central — raio 10 da Capital,
+onde vivem os founders. A região é da POSIÇÃO da colônia: realocou, mudou de sala.
+
+**3. O filtro BLOQUEIA o envio e avisa.** Nada de asteriscos (mensagem censurada pela metade ainda
+comunica) nem publicar-e-sinalizar (filtro que não barra é termômetro). A reincidência fica contada
+(`chat_filter_hits`) para o moderador ver padrão. A lista de termos é do operador (aba Chat) — e o
+§03 promete que o nickname passa "pelo mesmo filtro": agora passa, na criação e na troca.
+
+**4. Silêncio só por pena humana.** A máquina conta; a pessoa pune. É a MESMA pena `silencio` do
+§9.4 que o Ministério aplica desde o D-44 — inerte até hoje ("o silêncio precisa de chat") — mais
+um botão na ficha do jogador. **Cala a praça, não a boca**: os públicos fecham, a privada continua
+(§10.2 é textual: "remove acesso aos chats públicos").
+
+### O que mais ficou fixado
+
+- **A vizinhança é um RAIO, não uma sala** (§10.1: "escopo limitado por distância"): a mensagem
+  carrega a posição da colônia do autor NO ENVIO, e cada leitor vê o que foi dito a até N slots da
+  colônia DELE (N do operador, padrão 10). Realocar não reescreve onde a voz soou.
+- **Bloqueio é não ouvir, não é calar**: quem eu bloqueio some da MINHA tela em todos os canais e
+  não me manda privada — mas o resto do planeta continua ouvindo-o (MVP social, seção 15).
+- **Espiar privada é possível e IMPOSSÍVEL de fazer em silêncio**: o formulário do painel registra
+  a auditoria (`chat.acesso_privado`, com motivo) ANTES de abrir a conversa — a página sem os
+  parâmetros do redirect não mostra privada nenhuma. É o §10.3 por construção.
+- **A retenção publicada roda no tick** (180/90 dias; privadas ficam). ⚠️ Quando a denúncia do
+  Ministério aprender a anexar mensagem como evidência, a purga terá de desviar de evidência de
+  caso vivo (+90 dias) — hoje não há vínculo; registrado.
+- **A notificação ao denunciado** ("é notificado que o histórico pode ser consultado", §10.3)
+  espera um sistema de notificações que não existe. Registrado.
+- **O canal de Federação não nasceu**: federações não existem (D-44). A coluna já o comporta.
+
+### O que se aprendeu construindo
+
+> **O silêncio do D-44 ligou sem uma linha nova no Ministério.** A pena já era gravada com tipo e
+> prazo (`Punishment`, escopo `vigente()`) — só nunca houve porta em que bater. O chat perguntou
+> "há silêncio vigente?" e três anos de arquitetura respondida em uma consulta. Guardar estado
+> completo de sistemas futuros (D-44: "passa a morder sozinho no dia em que existirem") pagou.

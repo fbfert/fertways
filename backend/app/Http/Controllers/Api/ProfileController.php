@@ -78,7 +78,13 @@ class ProfileController extends Controller
 
         $dados = $request->validate([
             'name' => ['required', 'string', 'max:120'],
-            'nickname' => ['required', 'string', 'max:60', Rule::unique('users', 'nickname')->ignore($user->id)],
+            'nickname' => ['required', 'string', 'max:60', Rule::unique('users', 'nickname')->ignore($user->id),
+                // §03/D-77: a troca passa pelo MESMO filtro do chat — igual à criação.
+                function ($attr, $value, $fail) {
+                    if (\App\Domain\Chat\Filtro::barra($value)) {
+                        $fail('Este nickname contém um termo vedado (§03).');
+                    }
+                }],
             'email' => ['required', 'email', 'max:190', Rule::unique('users', 'email')->ignore($user->id)],
             'colony_name' => ['nullable', 'string', 'max:120'],
             'senha_atual' => ['nullable', 'string'],

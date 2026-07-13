@@ -42,6 +42,10 @@ Route::prefix('admin')->group(function () {
         Route::get('/guerra', [PainelController::class, 'guerra'])->name('admin.guerra');
         Route::post('/guerra', [AcoesController::class, 'guerra'])->name('admin.guerra.parametros');
         Route::get('/transportes', [PainelController::class, 'transportes'])->name('admin.transportes');
+        // O rádio do planeta (§10, D-77): moderação, termos, reincidência e a espiada AUDITADA.
+        Route::get('/chat', [PainelController::class, 'chat'])->name('admin.chat');
+        Route::post('/chat/parametros', [AcoesController::class, 'chat'])->name('admin.chat.parametros');
+        Route::post('/chat/espiar', [AcoesController::class, 'chatEspiar'])->name('admin.chat.espiar');
         Route::get('/auditoria', [PainelController::class, 'auditoria'])->name('admin.auditoria');
         Route::get('/operacao', [PainelController::class, 'operacao'])->name('admin.operacao');
         Route::post('/operacao/marco', [AcoesController::class, 'marco'])->name('admin.marco.parametros');
@@ -78,6 +82,7 @@ Route::prefix('admin')->group(function () {
         Route::post('/jogadores/{user}/corrigir', [AcoesController::class, 'corrigir'])->name('admin.jogador.corrigir');
         Route::post('/jogadores/{user}/senha', [AcoesController::class, 'redefinirSenha'])->name('admin.jogador.senha');
         Route::post('/jogadores/{user}/dados', [AcoesController::class, 'editarJogador'])->name('admin.jogador.dados');
+        Route::post('/jogadores/{user}/silenciar', [AcoesController::class, 'silenciar'])->name('admin.jogador.silenciar');
 
         // Operação
         Route::post('/tick', [AcoesController::class, 'tick'])->name('admin.tick');

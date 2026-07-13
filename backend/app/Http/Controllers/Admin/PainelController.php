@@ -402,6 +402,39 @@ class PainelController extends Controller
         ]);
     }
 
+    /** A aba Chat (§10; D-77): o rádio do planeta pelos olhos do moderador. */
+    public function chat(\Illuminate\Http\Request $request): View
+    {
+        $privadaA = (int) $request->query('privada_a');
+        $privadaB = (int) $request->query('privada_b');
+
+        /*
+         * A conversa privada SÓ aparece se a URL veio do `chatEspiar` — que registrou o acesso na
+         * auditoria antes de redirecionar (§10.3: "todo acesso interno é registrado"). Abrir esta
+         * página sem os parâmetros não mostra privada nenhuma.
+         */
+        $privada = ($privadaA && $privadaB)
+            ? \App\Models\ChatMessage::where('channel', 'privada')
+                ->where(fn ($q) => $q
+                    ->where(fn ($a) => $a->where('user_id', $privadaA)->where('recipient_user_id', $privadaB))
+                    ->orWhere(fn ($b) => $b->where('user_id', $privadaB)->where('recipient_user_id', $privadaA)))
+                ->with('user:id,nickname')->orderByDesc('id')->limit(100)->get()->reverse()->values()
+            : collect();
+
+        return view('admin.chat', [
+            'config' => \App\Models\ChatSetting::singleton(),
+            'mensagens' => \App\Models\ChatMessage::where('channel', '!=', 'privada')
+                ->with('user:id,nickname')->orderByDesc('id')->limit(100)->get(),
+            'reincidencia' => \Illuminate\Support\Facades\DB::table('chat_filter_hits')
+                ->join('users', 'users.id', '=', 'chat_filter_hits.user_id')
+                ->selectRaw('users.nickname, count(*) as barradas, max(chat_filter_hits.created_at) as ultima')
+                ->groupBy('users.nickname')->orderByDesc('barradas')->limit(20)->get(),
+            'silenciados' => \App\Models\Punishment::where('kind', \App\Domain\Ministry\PunicaoSpecs::SILENCIO)
+                ->vigente()->with('user:id,nickname')->get(),
+            'privada' => $privada,
+        ]);
+    }
+
     // ─────────────────────────────────────────────────────────── Auditoria e admins
 
     /**

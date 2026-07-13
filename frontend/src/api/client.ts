@@ -311,6 +311,14 @@ export type Perfil = {
   marco: Marco | null
 }
 
+/** Uma fala no rádio do planeta (§10; D-77). */
+export type MensagemDeChat = {
+  id: number
+  de: { id: number; nickname: string }
+  body: string
+  em: string
+}
+
 /** Uma zona minha, como a barra lateral da colônia a lista (D-69). */
 export type MinhaZona = {
   id: number
@@ -996,6 +1004,24 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ cargo }),
     }),
+
+  // ── O Sistema de Mensagens (§10; D-77). Polling: `after` traz só o que chegou depois. ──
+  chatCanais: () =>
+    req<{ regiao: string | null; silenciado_ate: string | null; bloqueados: { id: number; nickname: string }[] }>('/chat'),
+  chatLer: (canal: 'global' | 'regiao' | 'vizinhanca', after = 0) =>
+    req<{ mensagens: MensagemDeChat[] }>(`/chat/${canal}?after=${after}`),
+  chatFalar: (canal: 'global' | 'regiao' | 'vizinhanca', body: string) =>
+    req<MensagemDeChat>(`/chat/${canal}`, { method: 'POST', body: JSON.stringify({ body }) }),
+  chatConversas: () =>
+    req<{ conversas: { user_id: number; nickname: string; ultima: MensagemDeChat }[] }>('/chat/conversas'),
+  chatPrivada: (userId: number, after = 0) =>
+    req<{ com: { id: number; nickname: string }; mensagens: MensagemDeChat[] }>(`/chat/privada/${userId}?after=${after}`),
+  chatFalarPrivado: (userId: number, body: string) =>
+    req<MensagemDeChat>(`/chat/privada/${userId}`, { method: 'POST', body: JSON.stringify({ body }) }),
+  chatBloquear: (userId: number) =>
+    req<{ bloqueado: string }>(`/chat/bloquear/${userId}`, { method: 'POST' }),
+  chatDesbloquear: (userId: number) =>
+    req<{ desbloqueado: string }>(`/chat/bloquear/${userId}`, { method: 'DELETE' }),
 
   conta: () => req<ContaDoMercado>('/market/account'),
 

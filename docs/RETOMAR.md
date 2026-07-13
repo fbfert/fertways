@@ -217,7 +217,7 @@ O MVP tem, funcionando e no ar em `https://fertways.tars.art.br`:
   - **Fora de escopo, de propósito:** o **Cargueiro Interplanetário** e o seu aluguel. Dependem do
     Espaçoporto e dos planetas NPC, que não existem.
 
-**489 testes PHP (3611 asserções) + 7 e2e, verdes.** O cron do tick está instalado (crontab do usuário
+**502 testes PHP (3686 asserções) + 7 e2e, verdes.** O cron do tick está instalado (crontab do usuário
 `fertways`, log em `/home/fertways/logs/fertways-tick.log`) e roda o `artisan` **da cópia de
 deploy** — o mundo avança sozinho. O tick faz: produção, upgrades, proteções, trechos de viagem,
 acordos vencidos, **casos reatribuídos, janelas de apelação fechadas e a folha do Ministério**.
@@ -832,9 +832,10 @@ ida→vigia→volta), sem tabela nova além de `drone_sightings` (as fotos).
   é 50 Fert$. Um conciliador ganha um kit inicial por dia sem jogar. Com quatro colônias não importa;
   quando o jogo abrir, é o primeiro número a revisitar. Está no ledger (`salario_conciliador`), então
   dá para medir.
-- **Metade do Ministério está inerte, por decisão** (D-44, D-49): silêncio precisa de chat, bloqueio
-  de leilões precisa de leilões, e o impedimento por federação precisa de federações. Tudo grava com
-  índice e prazo, e passa a morder sozinho no dia em que esses sistemas existirem.
+- **Parte do Ministério ainda é inerte, por decisão** (D-44, D-49): ~~silêncio precisa de chat~~ —
+  **o chat existe (D-77) e o silêncio morde**: fecha os canais públicos pelo prazo, a privada
+  continua. Seguem inertes: bloqueio de leilões (precisa de leilões) e impedimento por federação
+  (precisa de federações). Tudo grava com índice e prazo, como sempre.
 - **Depreciação de veículos (§16.4)** — **saiu da geladeira e está no ar** (D-60, fatia 2). Não é mais
   pendência. O GDD nunca publica a curva, o limite crítico nem o custo de manutenção — e o painel do
   §16 existe justamente para o **operador declará-los**. Foi isso que destravou o assunto, e é no

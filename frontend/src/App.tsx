@@ -6,6 +6,7 @@ import { Capital } from './ui/Capital'
 import { Frota } from './ui/Frota'
 import { Fundacao } from './ui/Fundacao'
 import { Login } from './ui/Login'
+import { Chat } from './ui/Chat'
 import { Mapa } from './ui/Mapa'
 import { Marca } from './ui/Marca'
 import { Route, Routes, useNavigate, useParams } from 'react-router-dom'
@@ -162,6 +163,8 @@ export default function App() {
    * O e2e pegou: o teste de logout falhou porque o clique em "Sair" acertava o escurecimento. E o
    * card já cumpriu o papel dele — quem atravessou a porta não precisa mais dela aberta.
    */
+  const [chatAberto, setChatAberto] = useState(false)
+
   function abrirPorta(tipo: string) {
     setSelecionada(null)
 
@@ -223,6 +226,17 @@ export default function App() {
               Mapa
             </button>
           )}
+
+          {/* O rádio do planeta (§10, D-77). Fechado, não custa um request. */}
+          {colonia && (
+            <button
+              onClick={() => setChatAberto((v) => !v)}
+              data-abrir-chat
+              className="painel bg-sand-light text-rust hover:text-rust-bright eyebrow px-5"
+            >
+              Chat
+            </button>
+          )}
         </div>
 
         {colonia && (
@@ -255,6 +269,8 @@ export default function App() {
           </div>
         )}
       </header>
+
+      {chatAberto && colonia && <Chat aoFechar={() => setChatAberto(false)} />}
 
 
       {colonia && (
