@@ -34,6 +34,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
+use Illuminate\Validation\ValidationException;
 
 /**
  * As ações de operador do painel. Cada uma chama a MESMA classe de domínio que o comando artisan
@@ -517,6 +518,135 @@ class AcoesController extends Controller
             return "Missão «{$template->titulo}» ({$template->chave}) "
                 .($template->ativa ? 'voltou ao baralho.' : 'saiu do baralho — as já entregues seguem valendo.');
         }, "missao:{$template->id}");
+    }
+
+    /** Cria um molde de missão (§06; D-78). Nasce ativa — o operador desativa se mudar de ideia. */
+    public function missaoCriar(Request $request): RedirectResponse
+    {
+        $dados = $this->validarMissao($request);
+
+        return $this->tentar('missao.criar', function () use ($dados) {
+            $t = \App\Models\MissionTemplate::create($dados + ['ativa' => true]);
+
+            return "Missão «{$t->titulo}» ({$t->chave}) criada, no baralho de {$t->categoria}.";
+        });
+    }
+
+    /**
+     * Edita um molde (§06; D-78).
+     *
+     * ⚠️ **`acao` e `meta` só valem para missões sorteadas DAQUI EM DIANTE** — o Atribuir copia os
+     * dois para a linha de `mission_assignments` no instante do sorteio, e mudar o molde depois não
+     * reescreve o que uma colônia já tem na mão (senão editar uma missão ativa faria o progresso
+     * dela pular de meta no meio do dia). **A recompensa é diferente, e de propósito**: ela NÃO é
+     * copiada — é o painel de admin que serve de torniquete contra a inflação do §06, e um torniquete
+     * que só freia amanhã não freia hoje. Editar o prêmio agora vale também para quem já está com a
+     * missão na mão e ainda não completou.
+     */
+    public function missaoEditar(Request $request, \App\Models\MissionTemplate $template): RedirectResponse
+    {
+        $dados = $this->validarMissao($request, $template->id);
+        $antes = $template->only(['titulo', 'meta', 'acao', 'recompensa_fert_micro', 'recompensa_xp']);
+
+        return $this->tentar('missao.editar', function () use ($template, $dados, $antes) {
+            $template->update($dados);
+
+            $mudou = collect($dados)
+                ->only(array_keys($antes))
+                ->reject(fn ($v, $k) => $v === $antes[$k])
+                ->map(fn ($v, $k) => "{$k}: {$antes[$k]} → {$v}")
+                ->implode('; ');
+
+            return "Missão «{$template->titulo}» ({$template->chave}) atualizada."
+                .($mudou !== '' ? " {$mudou}" : '');
+        }, "missao:{$template->id}");
+    }
+
+    /**
+     * Apaga um molde — só se ele NUNCA foi sorteado (D-78). Uma missão já entregue a uma colônia
+     * seria destruída junto (a FK é `cascadeOnDelete`), e isso apagaria o rastro de uma recompensa
+     * que já saiu do Tesouro. Para um molde com histórico, o botão certo é desativar.
+     */
+    public function missaoApagar(\App\Models\MissionTemplate $template): RedirectResponse
+    {
+        if (\App\Models\MissionAssignment::where('template_id', $template->id)->exists()) {
+            return $this->erro(
+                "«{$template->titulo}» já foi sorteada para alguém — apagar destruiria o histórico. Desative em vez disso.",
+            );
+        }
+
+        return $this->tentar('missao.apagar', function () use ($template) {
+            $chave = $template->chave;
+            $titulo = $template->titulo;
+            $template->delete();
+
+            return "Missão «{$titulo}» ({$chave}) apagada — nunca tinha sido sorteada.";
+        }, "missao:{$template->id}");
+    }
+
+    /**
+     * A validação comum de criar/editar. `recompensa_recursos` chega como texto, uma linha
+     * `recurso:quantidade` por vez — o mesmo padrão dos termos vedados do chat (D-77).
+     *
+     * ⚠️ **Cada recurso é conferido contra o catálogo real** (`resource_types`). Sem isto, um erro
+     * de digitação ("liga_metalicas" por "ligas_metalicas") criaria uma missão que paga um recurso
+     * que não existe — silenciosamente: `Progresso::pagar()` faria o `increment` num recurso
+     * inexistente, e a colônia não receberia nada, sem erro nenhum. É a mesma classe de silêncio
+     * do vínculo de imagem com chave errada (D-72).
+     */
+    private function validarMissao(Request $request, ?int $ignorarId = null): array
+    {
+        $dados = $request->validate([
+            'chave' => ['required', 'string', 'max:40', 'alpha_dash', Rule::unique('mission_templates', 'chave')->ignore($ignorarId)],
+            'categoria' => ['required', Rule::in(['tutoria', 'diaria', 'semanal'])],
+            'titulo' => ['required', 'string', 'max:80'],
+            'descricao' => ['required', 'string', 'max:200'],
+            'acao' => ['required', Rule::in(array_keys(\App\Domain\Missoes\Acoes::TODAS))],
+            'meta' => ['required', 'integer', 'min:1', 'max:999'],
+            'recompensa_fert' => ['nullable', 'numeric', 'min:0', 'max:1000'],
+            'recompensa_xp' => ['nullable', 'integer', 'min:0', 'max:100000'],
+            'recompensa_recursos' => ['nullable', 'string', 'max:2000'],
+        ]);
+
+        $recursos = [];
+
+        foreach (explode("\n", (string) ($dados['recompensa_recursos'] ?? '')) as $linha) {
+            $linha = trim($linha);
+
+            if ($linha === '') {
+                continue;
+            }
+
+            [$recurso, $qtd] = array_pad(explode(':', $linha, 2), 2, null);
+            $recurso = trim((string) $recurso);
+            $qtd = (int) trim((string) $qtd);
+
+            if ($recurso === '' || $qtd <= 0) {
+                throw ValidationException::withMessages([
+                    'recompensa_recursos' => "Linha inválida: «{$linha}». Use recurso:quantidade, um por linha.",
+                ]);
+            }
+
+            if (! \App\Models\ResourceType::whereKey($recurso)->exists()) {
+                throw ValidationException::withMessages([
+                    'recompensa_recursos' => "«{$recurso}» não é um recurso do catálogo. Confira a grafia (ex.: ligas_metalicas).",
+                ]);
+            }
+
+            $recursos[$recurso] = $qtd;
+        }
+
+        return [
+            'chave' => $dados['chave'],
+            'categoria' => $dados['categoria'],
+            'titulo' => $dados['titulo'],
+            'descricao' => $dados['descricao'],
+            'acao' => $dados['acao'],
+            'meta' => (int) $dados['meta'],
+            'recompensa_fert_micro' => (int) round((float) ($dados['recompensa_fert'] ?? 0) * 1_000_000),
+            'recompensa_xp' => (int) ($dados['recompensa_xp'] ?? 0),
+            'recompensa_recursos' => $recursos ?: null,
+        ];
     }
 
     // ── Jogadores (D-61) ─────────────────────────────────────────────────────

@@ -399,8 +399,19 @@ class PainelController extends Controller
             'colonias' => Colony::with('user:id,nickname')->orderBy('id')->get(),
             // Os valores de XP por ato (D-75) — e o marco de cada colônia sai da lista acima.
             'marco' => \App\Models\MilestoneSetting::singleton(),
-            // O catálogo de missões (§06, D-78): liga/desliga sem deploy; valores no seeder.
-            'missoes' => \App\Models\MissionTemplate::orderBy('categoria')->orderBy('chave')->get(),
+        ]);
+    }
+
+    /**
+     * A aba Missões (§06; D-78) — o CRUD do catálogo. Ganhou aba própria porque o formulário de
+     * criar/editar é grande demais para caber num card da Operação sem afogar o resto da tela.
+     */
+    public function missoes(): View
+    {
+        return view('admin.missoes', [
+            'missoes' => \App\Models\MissionTemplate::withCount('assignments')
+                ->orderBy('categoria')->orderBy('chave')->get(),
+            'acoes' => \App\Domain\Missoes\Acoes::TODAS,
         ]);
     }
 

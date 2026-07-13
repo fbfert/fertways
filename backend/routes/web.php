@@ -49,7 +49,13 @@ Route::prefix('admin')->group(function () {
         Route::get('/auditoria', [PainelController::class, 'auditoria'])->name('admin.auditoria');
         Route::get('/operacao', [PainelController::class, 'operacao'])->name('admin.operacao');
         Route::post('/operacao/marco', [AcoesController::class, 'marco'])->name('admin.marco.parametros');
+
+        // O catálogo de missões (§06, D-78): aba própria — o CRUD é grande demais para um card.
+        Route::get('/missoes', [PainelController::class, 'missoes'])->name('admin.missoes');
+        Route::post('/missoes', [AcoesController::class, 'missaoCriar'])->name('admin.missao.criar');
+        Route::post('/missoes/{template}/editar', [AcoesController::class, 'missaoEditar'])->name('admin.missao.editar');
         Route::post('/missoes/{template}/alternar', [AcoesController::class, 'missaoAlternar'])->name('admin.missao.alternar');
+        Route::post('/missoes/{template}/apagar', [AcoesController::class, 'missaoApagar'])->name('admin.missao.apagar');
 
         // Ministério
         Route::post('/reports/{report}/julgar', [AcoesController::class, 'julgar'])->name('admin.julgar');

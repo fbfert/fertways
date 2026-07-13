@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /** Um molde de missão do catálogo (§06; D-78). O baralho de onde as diárias são sorteadas. */
 class MissionTemplate extends Model
@@ -19,4 +20,10 @@ class MissionTemplate extends Model
         'recompensa_recursos' => 'array',
         'ativa' => 'boolean',
     ];
+
+    /** Quantas vezes já foi sorteada — é o que decide se o painel deixa apagar ou só desativar. */
+    public function assignments(): HasMany
+    {
+        return $this->hasMany(MissionAssignment::class, 'template_id');
+    }
 }

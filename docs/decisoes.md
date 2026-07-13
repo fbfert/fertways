@@ -3287,7 +3287,31 @@ D-18 morreu como stub e renasceu como decisão: o comentário no `CreateColony` 
   único por onde toda viagem nasce), fabricar unidade, missão de drone, nióbio, chat público,
   frete público e manutenção.
 - **Tela própria** (botão Missões no HUD): barras de progresso, prêmio, "trocar" na diária.
-  **Painel**: o catálogo inteiro na aba Operação, com liga/desliga auditado.
+
+### Aditivo (2026-07-14, antes do deploy) — o catálogo vira CRUD
+
+O painel só ligava/desligava moldes. O usuário pediu: *"quero que essas missões sejam
+gerenciáveis no backend"*. Ganhou **aba própria** (Missões, ao lado de Chat e Guerra) — o
+formulário de criar/editar é grande demais para um card da Operação.
+
+- **`App\Domain\Missoes\Acoes::TODAS`**: a lista canônica das 13 ações que os ganchos do jogo de
+  fato disparam. É o que o `<select acao>` do formulário oferece — **não dá para digitar uma ação
+  errada**, só escolher uma que existe. Um teste percorre o catálogo do seeder contra esta lista;
+  se algum molde usar uma ação fora dela, o teste denuncia a missão impossível (0/N para sempre,
+  em silêncio) antes de chegar a produção — a mesma classe de buraco do vínculo de imagem com
+  chave errada (D-72).
+- **O recurso da recompensa é conferido contra `resource_types` real.** Sem isto, `liga_metalicas`
+  (sem o "s") criaria uma missão que paga um recurso inexistente — `Progresso::pagar()` faria um
+  `increment` que não erra e não entrega nada, silenciosamente.
+- ⚠️ **Editar `ação`/`meta` só vale para o PRÓXIMO sorteio; editar o PRÊMIO vale também para quem
+  já tem a missão na mão.** A razão é o desenho: `mission_assignments` copia `acao`/`meta` do
+  molde no instante do sorteio (mudar o molde depois não pode fazer o progresso de uma colônia
+  pular de meta no meio do dia), mas a recompensa é lida do molde AO VIVO em `Progresso::pagar()`
+  — de propósito, porque é o torniquete contra a inflação do §06 (D-78, item 2), e um torniquete
+  que só aperta amanhã não serve para hoje.
+- **Apagar só é permitido para um molde NUNCA sorteado** (`mission_assignments` vazio) — a FK é
+  `cascadeOnDelete`, e apagar um molde com histórico destruiria o rastro de uma recompensa que já
+  saiu do Tesouro. Para um molde usado, o painel só oferece desligar.
 
 ### O que se aprendeu construindo
 
