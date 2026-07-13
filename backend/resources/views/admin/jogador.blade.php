@@ -163,6 +163,16 @@
         {{-- ─────────────────────────────────────────── O estado do jogo --}}
         <h2 class="secao">Colônia</h2>
         <div class="cartao">
+            @php $marcoN = \App\Domain\Marco\Curva::marco((int) $colonia->xp); @endphp
+            <p class="pequeno" data-marco="{{ $marcoN }}" style="margin-top:0">
+                <b>Marco {{ $marcoN }} — {{ \App\Domain\Marco\Curva::titulo($marcoN) }}</b>
+                <span class="mut">· {{ number_format((int) $colonia->xp, 0, ',', '.') }} XP
+                @if ($marcoN < 100)
+                    ({{ number_format(\App\Domain\Marco\Curva::xpDoMarco($marcoN + 1), 0, ',', '.') }} para o próximo)
+                @endif
+                — o ledger está em <code>xp_entries</code>; os valores por ato, na aba Operação (D-75)</span>
+            </p>
+
             <b class="pequeno">Construções ({{ $construcoes->count() }} de 21 slots)</b>
             <table>
                 <tr><th>Slot</th><th>Construção</th><th class="num">Nível</th></tr>

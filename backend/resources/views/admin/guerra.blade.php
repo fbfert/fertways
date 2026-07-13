@@ -26,6 +26,39 @@
         </p>
     </div>
 
+    {{-- ── Os olhos do planeta (D-74): a guerra de informação ── --}}
+    <h2 class="secao">Drones de Exploração</h2>
+    <div class="cartao">
+        @if ($drones->isEmpty())
+            <p class="mut">Nenhum Drone fabricado no planeta. A névoa do D-74 está intacta:
+            ninguém vê o interior de zona alheia.</p>
+        @else
+            <table>
+                <tr><th>Placa</th><th>Dono</th><th class="num">Nível</th><th>Estado</th><th>Volta/termina</th></tr>
+                @foreach ($drones as $d)
+                    <tr data-drone="{{ $d->id }}">
+                        <td>{{ $d->plate }}</td>
+                        <td>{{ $d->colony->name ?? "—" }}</td>
+                        <td class="num">{{ $d->level }}</td>
+                        <td>
+                            @if ($d->leg === null) no hangar
+                            @elseif ($d->leg === "ida") voando (missão: {{ $d->trip_purpose }})
+                            @elseif ($d->leg === "vigia") <b>sobrevoando a zona #{{ $d->destination_id }}</b>
+                            @else voltando
+                            @endif
+                        </td>
+                        <td>{{ $quando($d->arrives_at) }}</td>
+                    </tr>
+                @endforeach
+            </table>
+        @endif
+        <p class="mut pequeno" style="margin-top:6px">
+            Fotos de reconhecimento tiradas até hoje: <b data-fotos>{{ $fotos }}</b>. A guarnição e o
+            depósito de zona alheia são <b>névoa</b> desde o D-74 — o Drone é o único olho que a
+            atravessa, e esta tabela é a guerra de informação em curso.
+        </p>
+    </div>
+
     {{-- ── Cercos: o único relógio que corre contra alguém ── --}}
     <h2 class="secao">Zonas cercadas</h2>
     <div class="cartao">

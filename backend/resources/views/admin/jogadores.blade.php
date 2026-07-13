@@ -28,6 +28,7 @@
         <table style="margin-top:8px">
             <tr>
                 <th>#</th><th>Nickname</th><th>E-mail</th><th>Colônia</th>
+                <th class="num">Marco</th>
                 <th class="num">Fert$</th><th>Situação</th><th></th>
             </tr>
             @forelse ($jogadores as $u)
@@ -40,6 +41,15 @@
                         {{ $u->colony?->name ?? '—' }}
                         @if ($u->colony)
                             <div class="mut pequeno">({{ $u->colony->x }}, {{ $u->colony->y }})</div>
+                        @endif
+                    </td>
+                    <td class="num">
+                        @if ($u->colony)
+                            @php $m = \App\Domain\Marco\Curva::marco((int) $u->colony->xp); @endphp
+                            <b>{{ $m }}</b>
+                            <div class="mut pequeno">{{ \App\Domain\Marco\Curva::titulo($m) }}</div>
+                        @else
+                            —
                         @endif
                     </td>
                     <td class="num">{{ $u->colony ? $fert($u->colony->fert_micro) : '—' }}</td>

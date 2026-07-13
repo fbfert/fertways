@@ -329,6 +329,14 @@ class PainelController extends Controller
             'niobio' => (int) DB::table('resources')
                 ->where('resource_type', 'niobio_alienigena')
                 ->sum('amount'),
+
+            // Os olhos do planeta (D-74): os Drones não são `units` — são veículos — e sem esta
+            // lista a guerra de informação seria invisível para o operador.
+            'drones' => \App\Models\Vehicle::with('colony:id,name')
+                ->where('type', \App\Domain\Drone\DroneSpecs::TIPO)
+                ->orderBy('id')
+                ->get(),
+            'fotos' => (int) DB::table('drone_sightings')->count(),
         ]);
     }
 

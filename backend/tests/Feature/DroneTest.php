@@ -94,6 +94,7 @@ class DroneTest extends TestCase
         $this->assertSame(DroneSpecs::TIPO, $drone->type);
         $this->assertSame(0, (int) $drone->capacity, 'o Drone olha, não transporta');
         $this->assertNotNull($drone->plate, '§16.3: todo veículo civil tem placa');
+        $this->assertStringEndsWith('-D', $drone->plate, 'D de Drone — o X seria o fallback de tipo desconhecido');
         $this->assertFalse(app(Conservacao::class)->deprecia($drone), '§16.4: o Drone não deprecia');
     }
 

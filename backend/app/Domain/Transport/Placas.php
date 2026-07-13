@@ -28,6 +28,9 @@ class Placas
     private const INICIAL = [
         'furgao_de_comercio' => 'F',
         'caminhao_de_carga' => 'C',
+        // Sem esta linha o Drone cairia no fallback 'X' — e placa é para sempre (D-75, auditoria
+        // do painel). O 'X' é o código do tipo desconhecido, não uma escolha.
+        'drone_de_exploracao' => 'D',
     ];
 
     /**

@@ -239,6 +239,44 @@ class MarcoTest extends TestCase
         $this->assertSame(0, $c->xp_mercado_executado, 'zero desliga a fonte, e o painel aceita');
     }
 
+    public function test_o_painel_de_jogadores_mostra_o_marco(): void
+    {
+        $user = $this->colono();
+        $this->darXp($user->colony, 5_000);
+
+        $admin = Admin::create([
+            'name' => 'Op2', 'email' => 'op2@fertways.test',
+            'password' => Hash::make('segredo-forte-1234'), 'role' => Admin::OPERADOR,
+        ]);
+
+        // A lista e a ficha: o operador vê o marco sem SQL (auditoria do painel, D-75).
+        $this->actingAs($admin, 'admin')->get('/admin/jogadores')
+            ->assertOk()->assertSee('Pioneiro');
+        $this->actingAs($admin, 'admin')->get("/admin/jogadores/{$user->id}")
+            ->assertOk()->assertSee('Marco 10');
+    }
+
+    public function test_a_aba_guerra_mostra_os_drones(): void
+    {
+        $user = $this->colono();
+        $colony = $user->colony;
+        $colony->buildings()->create(['type' => 'oficina', 'level' => 1, 'slot' => 0]);
+        foreach (['componentes_eletronicos' => 200, 'compostos_quimicos' => 100, 'metal_bruto' => 100] as $r => $q) {
+            $colony->resources()->where('resource_type', $r)->update(['amount' => $q]);
+        }
+        $drone = app(\App\Domain\Drone\FabricarDrone::class)->handle($colony, 1);
+
+        $admin = Admin::create([
+            'name' => 'Op3', 'email' => 'op3@fertways.test',
+            'password' => Hash::make('segredo-forte-1234'), 'role' => Admin::OPERADOR,
+        ]);
+
+        $this->actingAs($admin, 'admin')->get('/admin/guerra')
+            ->assertOk()
+            ->assertSee('Drones de Exploração')
+            ->assertSee($drone->plate);
+    }
+
     // ---------------------------------------------------------------- o payload
 
     public function test_a_colonia_publica_o_marco_no_payload(): void

@@ -3113,3 +3113,16 @@ também. O Diário do Colono (§03) continua não existindo; quando existir, os 
 > fundada DEPOIS do D-75 já tem os 5 níveis no ledger vivo — e o retro, que conta níveis de pé, os
 > contaria de novo. O retro agora desconta, ação por ação, o que o ledger vivo já pagou. Aproximado
 > se o operador mudar valores no meio; aproximar para MENOS é o lado certo do erro.
+
+### Aditivo (2026-07-13, mesma noite) — o painel enxerga o que o dia criou
+
+Auditoria do usuário: "essas modificações refletem no admin já?" Três buracos, fechados:
+
+- **A placa do Drone nasceria `FW-…-X`** — o X é o fallback de "tipo desconhecido" no mapa de
+  iniciais, e placa é para sempre. Nenhum drone existia em produção ainda; agora é **D**, antes do
+  primeiro. ⚠️ A lição: **um fallback silencioso num registro permanente é uma armadilha armada** —
+  o teste agora afirma o sufixo.
+- **A aba Guerra ganhou "Drones de Exploração"**: o Drone é veículo, não `unit`, e a guerra de
+  informação do D-74 era invisível ao operador — quem sobrevoa o quê, e quantas fotos já se tiraram.
+- **Jogadores ganhou a coluna Marco** (e a ficha, o XP com o rumo ao próximo): o operador via tudo
+  de um colono menos o marco dele.
