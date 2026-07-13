@@ -12,7 +12,9 @@ import { Route, Routes, useNavigate, useParams } from 'react-router-dom'
 import { Mercado } from './ui/Mercado'
 import { Quartel } from './ui/Quartel'
 import { Zona } from './ui/Zona'
+import { MinhasZonas } from './ui/MinhasZonas'
 import { Ministerio } from './ui/Ministerio'
+import { Perfil } from './ui/Perfil'
 import { Detalhe, FilaDeObras, Recursos, SlotVazio } from './ui/Hud'
 
 /** Sem websocket nesta fase: polling simples, como o plano define. */
@@ -151,8 +153,18 @@ export default function App() {
   /**
    * A porta de uma construção: a Central de Transportes leva à Frota, o Mercado Local ao Mercado,
    * o Quartel à guerra.
+   *
+   * ⚠️ **Atravessar a porta FECHA o popup — e sem isto o jogo trava.** Desde o D-69 o detalhe da
+   * construção é um popup com escurecimento por cima da colônia. Sem esta linha, o colono clicava no
+   * Mercado Local, entrava no Mercado, voltava — e encontrava o popup ainda aberto, cobrindo tudo:
+   * o HUD, os recursos e o botão de sair ficavam **inalcançáveis atrás dele**.
+   *
+   * O e2e pegou: o teste de logout falhou porque o clique em "Sair" acertava o escurecimento. E o
+   * card já cumpriu o papel dele — quem atravessou a porta não precisa mais dela aberta.
    */
   function abrirPorta(tipo: string) {
+    setSelecionada(null)
+
     if (tipo === 'central_de_transportes') return navegar('/frota')
     if (tipo === 'quartel') return navegar('/quartel')
     if (tipo === 'mercado_local') return navegar('/mercado/local')
@@ -214,12 +226,32 @@ export default function App() {
         </div>
 
         {colonia && (
-          <div className="painel bg-sand-light pointer-events-auto px-5 py-3 text-right">
-            <div className="text-rust eyebrow">{colonia.name}</div>
-            <div className="text-ink text-xl font-black tabular-nums">
-              {colonia.fert.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}{' '}
-              <span className="text-rust text-sm">Fert$</span>
+          <div className="pointer-events-auto flex items-stretch gap-3">
+            <div className="painel bg-sand-light px-5 py-3 text-right">
+              <div className="text-rust eyebrow">{colonia.name}</div>
+              <div className="text-ink text-xl font-black tabular-nums">
+                {colonia.fert.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}{' '}
+                <span className="text-rust text-sm">Fert$</span>
+              </div>
             </div>
+
+            {/*
+              O perfil (D-69). Ao lado do saldo e do nome da colônia, que é onde o colono já olha
+              para se ver. Antes ele não podia sequer trocar a própria senha — tinha de pedir a um
+              operador.
+            */}
+            <button
+              onClick={() => navegar('/perfil')}
+              aria-label="O seu perfil"
+              title="O seu perfil"
+              data-abrir-perfil
+              className="painel bg-sand-light text-rust hover:bg-sand flex w-14 items-center justify-center"
+            >
+              <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="12" cy="8" r="4" />
+                <path d="M4 21c0-4 3.6-6 8-6s8 2 8 6" strokeLinecap="round" />
+              </svg>
+            </button>
           </div>
         )}
       </header>
@@ -231,27 +263,42 @@ export default function App() {
         </div>
       )}
 
-      <div className="absolute top-24 right-5 space-y-4">
-        {slotVazio !== null ? (
-          <SlotVazio
-            slot={slotVazio}
-            catalogo={catalogo}
-            aoErguer={(tipo, slot) => void erguer(tipo, slot)}
-            aoFechar={() => setSlotVazio(null)}
-            erro={erro}
-          />
-        ) : (
-          <Detalhe
-            spec={selecionada}
-            aoConstruir={(s) => void evoluir(s)}
-            aoAtualizar={() => void carregar()}
-            aoDemolir={(s) => void demolir(s)}
-            aoAbrirPorta={abrirPorta}
-            erro={erro}
-          />
-        )}
+      {/*
+        A DIREITA deixou de ser o lugar do detalhe (D-69). O card da construção virou POPUP — por
+        cima da colônia, que é o que lhe dá contexto —, e a barra lateral ficou para o que o colono
+        precisa ver SEM clicar: as zonas dele e a fila de obras.
+      */}
+      <div className="absolute top-24 right-5 w-64 space-y-4">
+        <MinhasZonas />
         {fila && <FilaDeObras fila={fila} />}
       </div>
+
+      {/*
+        O popup. **Não é uma tela com URL**, ao contrário de tudo o mais desde o D-67 — e é decisão
+        do usuário: o detalhe de uma construção só faz sentido COM A COLÔNIA ATRÁS DELE. Uma tela
+        cheia esconderia justamente o que dá contexto ao card.
+      */}
+      {slotVazio !== null && (
+        <SlotVazio
+          slot={slotVazio}
+          catalogo={catalogo}
+          aoErguer={(tipo, slot) => void erguer(tipo, slot)}
+          aoFechar={() => setSlotVazio(null)}
+          erro={erro}
+        />
+      )}
+
+      {slotVazio === null && selecionada && (
+        <Detalhe
+          spec={selecionada}
+          aoConstruir={(s) => void evoluir(s)}
+          aoAtualizar={() => void carregar()}
+          aoDemolir={(s) => void demolir(s)}
+          aoAbrirPorta={abrirPorta}
+          aoFechar={() => setSelecionada(null)}
+          erro={erro}
+        />
+      )}
 
       <button
         onClick={() => void sair()}
@@ -282,6 +329,12 @@ export default function App() {
       />
 
       <Route path="/frota" element={<Frota aoFechar={voltar} />} />
+
+      {/* O perfil do colono (D-69). `aoSalvar` recarrega o HUD: o nome da colônia aparece no topo. */}
+      <Route
+        path="/perfil"
+        element={<Perfil aoFechar={voltar} aoSalvar={() => void carregar()} />}
+      />
       <Route path="/quartel" element={<Quartel aoFechar={voltar} />} />
 
       {/* A zona neutra ocupada é um LUGAR, como a colônia e a Capital (D-67). */}

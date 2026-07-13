@@ -23,6 +23,50 @@ use Illuminate\Validation\Rule;
  */
 class ZoneController extends Controller
 {
+    /**
+     * As MINHAS zonas, com o que exige ação (docs/decisoes.md D-69).
+     *
+     * É o que a barra lateral da colônia lista. Cada linha traz o que decide se o colono precisa
+     * largar o que está fazendo:
+     *
+     *  - **exposto** — o que a guerra pode levar. Só o que EXCEDE o Depósito é saqueável (D-66), e
+     *    uma zona com 3.000 expostos é um convite pendurado no mapa.
+     *  - **cercada** — nada entra nem sai, e o que se extrai se perde (§28.10). É a urgência maior.
+     *  - **obra** — o que está sendo erguido, e quando fica pronto.
+     */
+    public function minhas(Request $request, Protegido $protegido): JsonResponse
+    {
+        $colony = $request->user()->colony()->firstOrFail();
+
+        $zonas = NeutralZone::where('owner_colony_id', $colony->id)
+            ->with('obras')
+            ->orderBy('id')
+            ->get()
+            ->map(function (NeutralZone $z) use ($protegido) {
+                $obra = $z->obras->first();
+
+                return [
+                    'id' => $z->id,
+                    'x' => $z->x,
+                    'y' => $z->y,
+                    'mineral' => $z->mineral,
+                    'deposito' => $z->estoqueTotal(),
+                    'capacidade' => $z->capacidadeDeposito(),
+                    // ⚠️ O número que decide se há urgência: é isto que um invasor leva.
+                    'exposto' => $protegido->exposto($z),
+                    'cercada' => $z->cercada(),
+                    'produtiva' => $z->estaProdutiva(),
+                    'obra' => $obra ? [
+                        'nome' => Estruturas::de($obra->structure)['nome'],
+                        'nivel' => $obra->target_level,
+                        'termina_at' => $obra->finishes_at,
+                    ] : null,
+                ];
+            });
+
+        return response()->json(['zones' => $zonas]);
+    }
+
     /** A ficha da zona. Só o dono a vê por dentro — para os outros, o mapa já diz o essencial. */
     public function show(Request $request, NeutralZone $zone, Protegido $protegido): JsonResponse
     {

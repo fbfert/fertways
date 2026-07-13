@@ -249,6 +249,39 @@ export type Combate = {
   exposto: number
 }
 
+/** O perfil do colono (D-69). Os quatro índices são do Ministério e NÃO se editam. */
+export type Perfil = {
+  name: string
+  nickname: string
+  email: string
+  colony_name: string | null
+  desde: string
+  reputacao: {
+    confianca_comercial: number
+    conduta_social: number
+    status_civico: number
+    honra_militar_diplomatica: number
+  }
+  /** Abaixo disto, a Confiança Comercial bloqueia o acesso ao Mercado (§26.2, D-43). */
+  limiar_bloqueio: number
+  conciliador: boolean
+}
+
+/** Uma zona minha, como a barra lateral da colônia a lista (D-69). */
+export type MinhaZona = {
+  id: number
+  x: number
+  y: number
+  mineral: string
+  deposito: number
+  capacidade: number
+  /** O que a guerra pode levar. Só o que EXCEDE o Depósito é saqueável (D-66). */
+  exposto: number
+  cercada: boolean
+  produtiva: boolean
+  obra: { nome: string; nivel: number; termina_at: string } | null
+}
+
 export type ItemDaFila = {
   building: string
   target_level: number
@@ -721,6 +754,29 @@ export const api = {
    */
   imagens: () =>
     req<{ images: Record<string, { pequena: string; grande: string }> }>('/images'),
+
+  // ── o perfil do colono (D-69) ───────────────────────────────────────────────────────────────
+
+  perfil: () => req<Perfil>('/profile'),
+
+  /** Trocar o e-mail exige a senha atual: é com ele que se entra, e não há recuperação de conta. */
+  salvarPerfil: (dados: {
+    name: string
+    nickname: string
+    email: string
+    colony_name?: string
+    senha_atual?: string
+  }) => req<{ ok: boolean }>('/profile', { method: 'PATCH', body: JSON.stringify(dados) }),
+
+  /** Trocar a senha REVOGA as outras sessões — senão quem entrou na conta continua dentro (D-53). */
+  trocarSenha: (senha_atual: string, senha: string) =>
+    req<{ ok: boolean; sessoes_revogadas: number }>('/profile/password', {
+      method: 'POST',
+      body: JSON.stringify({ senha_atual, senha, senha_confirmation: senha }),
+    }),
+
+  /** As minhas zonas, com o que exige ação: o exposto ao saque, o cerco e a obra. */
+  minhasZonas: () => req<{ zones: MinhaZona[] }>('/zones/minhas'),
 
   fundarColonia: (name: string, x: number, y: number) =>
     req<Colonia>('/colony', { method: 'POST', body: JSON.stringify({ name, x, y }) }),

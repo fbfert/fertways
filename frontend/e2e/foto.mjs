@@ -24,7 +24,7 @@ try {
 
   // O cartão de detalhe: abre uma construção COM arte e fotografa a imagem grande.
   await clicarNaConstrucao(page, 'Reator de Energia')
-  await new Promise((r) => setTimeout(r, 1200))
+  await new Promise((r) => setTimeout(r, 2500))
   await page.screenshot({ path: '/tmp/foto-detalhe.png' })
   console.log('detalhe → /tmp/foto-detalhe.png')
 

@@ -42,7 +42,22 @@ function servirMedia() {
         }
 
         res.setHeader('Content-Type', 'image/png')
-        fs.createReadStream(arquivo).pipe(res)
+
+        const fluxo = fs.createReadStream(arquivo)
+
+        /*
+         * ⚠️ **Um stream que falha sem este tratamento nunca ENCERRA a resposta.** O navegador fica
+         * com a requisição pendurada para sempre, a rede nunca fica ociosa, e o `waitForNetworkIdle`
+         * do e2e estoura em 30 s — com uma mensagem que não fala de imagem nenhuma.
+         *
+         * Fechar a resposta é o mínimo. Um 500 é feio; uma requisição eterna é pior.
+         */
+        fluxo.on('error', () => {
+          res.statusCode = 500
+          res.end()
+        })
+
+        fluxo.pipe(res)
       })
     },
   }

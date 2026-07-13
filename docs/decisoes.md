@@ -2690,3 +2690,71 @@ ficam sem vínculo**, porque eu não sei o que são e chutar poria arte errada n
 > isométrico, o dígito caía **em cima da cúpula** e o nome **em cima da base**. Nenhum e2e reclamaria —
 > os cliques funcionavam e o texto estava lá. Só se vê tirando uma foto. O `e2e/foto.mjs` existe para
 > isso: `E2E_FOTOS=1 ./tools/e2e.sh`.
+
+---
+
+## D-69 — O card vira popup, o colono ganha perfil, e as zonas saem do esconderijo.
+**Data:** 2026-07-13 · **Status:** decidido pelo usuário · **Não há GDD sobre isto**
+
+Três pedidos do usuário, e um deles descobriu uma falta grave.
+
+### 1. O detalhe da construção vira POPUP
+
+Era um card fixo na barra direita. Agora abre **por cima da colônia**, com escurecimento, e fecha de
+três maneiras: clicando fora, com **Esc**, e no **×**.
+
+⚠️ **É popup, e não tela com URL** — ao contrário de tudo o mais desde o D-67. A razão é o que o card
+mostra: o detalhe de uma construção **só faz sentido com a colônia atrás dele**. Uma tela cheia
+esconderia justamente o que dá contexto ao card, e abrir o detalhe de um prédio não é navegação — é
+olhar mais de perto.
+
+> **E isso trouxe um bug que o e2e pegou na hora.** Atravessar a porta de uma construção (o Mercado
+> Local leva ao Mercado, o Quartel à guerra) navegava **sem fechar o popup**. Ao voltar, o colono
+> encontrava o escurecimento cobrindo tudo: o HUD, os recursos e o botão de sair ficavam
+> **inalcançáveis atrás dele**. O `abrirPorta` agora fecha o card — quem atravessou a porta não
+> precisa mais dela aberta.
+
+### 2. O perfil do colono — ele não podia trocar a própria senha
+
+**Descoberta ao implementar:** o colono podia fundar colônia, guerrear, comerciar e ocupar
+território — e **não podia mudar nada da própria conta**. Nem o nome, nem o e-mail, nem a senha. A
+única saída era pedir a um operador, pelo painel de admin.
+
+Edita: **nome, nickname, e-mail, senha e o nome da colônia.**
+
+**Trocar o e-mail exige a SENHA ATUAL; trocar o nome, não.** A diferença não é capricho: o e-mail é
+com o que se **entra** no jogo, e **não há recuperação de conta em Fertways**. Quem pegasse uma sessão
+aberta num computador esquecido poderia trocá-lo, trocar a senha, e o dono nunca mais entraria. Um
+nome mal escolhido se corrige; uma conta tomada, não.
+
+**Trocar a senha REVOGA as outras sessões** — e isso é o ponto, não um efeito colateral. Se o colono
+está trocando porque desconfia que alguém entrou na conta dele, uma senha nova **sem revogar os
+tokens não expulsa ninguém**: o token do Sanctum não expira, e o invasor continua dentro com a chave
+antiga. É a lição do D-53 (o logout que não revogava), e o que a redefinição do painel de admin já
+fazia. A sessão que faz a troca sobrevive: seria absurdo deslogar quem acabou de se proteger.
+
+⚠️ **Os quatro índices de reputação (§26.2) NÃO se editam, e nunca poderão.** São o histórico do
+colono no Ministério. Deixar o dono mexer neles seria deixá-lo apagar as próprias condenações.
+Aparecem no perfil porque ele tem direito de os ver.
+
+### 3. As zonas neutras na barra lateral
+
+Elas eram **invisíveis**. Para saber que uma zona sua estava **cercada**, ou que tinha 3.000 unidades
+**expostas ao saque**, era preciso abrir o mapa, aproximar, achar a célula e clicar. Uma zona que
+exige ação urgente não pode estar a quatro cliques de distância.
+
+Cada linha mostra o que decide se o colono precisa largar o que está fazendo: o **exposto** (o único
+número da tela que significa "vá agora" — só o que excede o Depósito é saqueável, D-66), o **cerco**
+(nada entra nem sai, e a extração se perde) e a **obra** em curso. Clicar abre a zona.
+
+### O que se aprendeu construindo
+
+> **Duas caches para a mesma tabela é o começo de uma divergência.** O cartão de detalhe tinha uma
+> cache de arte própria, separada da que a cena usa. Resultado: a cena mostrava o prédio no hexágono
+> e o **cartão não mostrava nada** — e não havia como saber por quê sem ler os dois arquivos. Uma
+> fonte só (`game/arte.ts`).
+
+> **Um stream que falha sem tratamento nunca ENCERRA a resposta.** O plugin do Vite que serve
+> `/media` fazia `createReadStream(...).pipe(res)` sem ouvir `error`. Um erro de leitura deixaria a
+> requisição pendurada para sempre, a rede nunca ficaria ociosa, e o `waitForNetworkIdle` do e2e
+> estouraria em 30 s — **com uma mensagem que não fala de imagem nenhuma**.

@@ -11,6 +11,7 @@ use App\Http\Controllers\Api\NeutralZoneController;
 use App\Http\Controllers\Api\TradeController;
 use App\Http\Controllers\Api\TransportController;
 use App\Http\Controllers\Api\VehicleController;
+use App\Http\Controllers\Api\ProfileController;
 use App\Http\Controllers\Api\WarController;
 use App\Http\Controllers\Api\ZoneController;
 use Illuminate\Support\Facades\Route;
@@ -21,6 +22,11 @@ Route::post('/login', [AuthController::class, 'login']);
 Route::middleware('auth:sanctum')->group(function () {
     // Revoga o token que fez a chamada. Sem isto, "sair" só apaga o token do navegador.
     Route::post('/logout', [AuthController::class, 'logout']);
+
+    // O perfil do colono (D-69). Ele podia guerrear e não podia trocar a própria senha.
+    Route::get('/profile', [ProfileController::class, 'show']);
+    Route::patch('/profile', [ProfileController::class, 'update']);
+    Route::post('/profile/password', [ProfileController::class, 'password']);
 
     Route::get('/colony', [ColonyController::class, 'show']);
     Route::post('/colony', [ColonyController::class, 'store']);
@@ -39,6 +45,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/zones/{zone}/withdraw', [NeutralZoneController::class, 'withdraw']);
 
     // A zona como LUGAR (§17.4, D-67): a ficha dela, as obras, e a entrega física do material.
+    //
+    // ⚠️ `/zones/minhas` vem ANTES de `/zones/{zone}`, ou o Laravel tentaria achar uma zona de id
+    // "minhas". É a mesma armadilha do `/buildings/catalogo`, e ela já mordeu uma vez.
+    Route::get('/zones/minhas', [ZoneController::class, 'minhas']);
     Route::get('/zones/{zone}', [ZoneController::class, 'show']);
     Route::post('/zones/{zone}/build', [ZoneController::class, 'construir']);
     Route::post('/zones/{zone}/material', [ZoneController::class, 'entregarMaterial']);

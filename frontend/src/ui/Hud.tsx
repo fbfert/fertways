@@ -2,6 +2,9 @@ import { useEffect, useState } from 'react'
 import { api, ApiError } from '../api/client'
 import type { Catalogo, Colonia, Efeito, Erguivel, Fila, Funcao, Receita, Spec } from '../api/client'
 import { rotulo } from '../game/ColonyScene'
+import { carregarArte } from '../game/arte'
+import type { Arte } from '../game/arte'
+import { Popup } from './Popup'
 import { INDUSTRIAIS, nomeRecurso, PRIMARIOS, RAROS } from './recursos'
 
 function Linha({ codigo, valor }: { codigo: string; valor: number }) {
@@ -255,6 +258,7 @@ export function Detalhe({
   aoAtualizar,
   aoDemolir,
   aoAbrirPorta,
+  aoFechar,
   erro,
 }: {
   spec: Spec | null
@@ -262,6 +266,8 @@ export function Detalhe({
   aoAtualizar: () => void
   aoDemolir: (s: Spec) => void
   aoAbrirPorta: (tipo: string) => void
+  // Desde o D-69 o detalhe é um POPUP, e um popup fecha. Antes era um card fixo na direita.
+  aoFechar: () => void
   erro: string | null
 }) {
   // O custo só aparece depois de o colono pedir para evoluir (D-59, item 5): a tela abre no que a
@@ -294,10 +300,7 @@ export function Detalhe({
   const emObra = spec.level === 0
 
   return (
-    <div className="painel bg-sand-light max-h-[calc(100vh-13rem)] w-72 overflow-y-auto p-4">
-      <div className="text-rust eyebrow">Construção</div>
-      <h2 className="text-ink mt-1 text-lg leading-tight font-black">{rotulo(spec.type)}</h2>
-
+    <Popup eyebrow="Construção" titulo={rotulo(spec.type)} aoFechar={aoFechar}>
       {/*
         A arte grande (1024×1024), quando existe (D-68). Sem imagem, nada aparece — e o cartão fica
         como sempre foi. É o mesmo fallback do hexágono: nada quebra por falta de arte.
@@ -441,7 +444,7 @@ export function Detalhe({
           )}
         </>
       )}
-    </div>
+    </Popup>
   )
 }
 
@@ -482,13 +485,7 @@ export function SlotVazio({
   const disponiveis = catalogo.buildings.filter((b) => b.disponivel)
 
   return (
-    <div className="painel bg-sand-light max-h-[calc(100vh-13rem)] w-72 overflow-y-auto p-4">
-      <div className="flex items-baseline justify-between">
-        <div className="text-rust eyebrow">Slot vazio</div>
-        <button onClick={aoFechar} className="text-ink-soft hover:text-rust text-xs">
-          fechar
-        </button>
-      </div>
+    <Popup eyebrow="Slot vazio" titulo={`Slot ${slot}`} aoFechar={aoFechar}>
 
       {!escolhida ? (
         <>
@@ -556,38 +553,32 @@ export function SlotVazio({
           </button>
         </>
       )}
-    </div>
+    </Popup>
   )
 }
 
 /**
  * A arte de uma construção, no cartão de detalhe (docs/decisoes.md D-68).
  *
- * Busca o mapa uma vez e o guarda em módulo — o cartão remonta a cada clique num hexágono, e bater
- * na API a cada clique por uma tabela que muda quando um operador aperta um botão seria desperdício.
+ * ⚠️ **Usa a MESMA cache que a cena** (`game/arte.ts`), e não uma sua. A primeira versão tinha uma
+ * cache própria aqui, e duas caches para a mesma tabela é o começo de uma divergência: a cena
+ * mostrava o prédio no hexágono e o cartão não mostrava nada, e não havia como saber por quê sem ler
+ * os dois arquivos. Uma fonte só.
  *
  * **Sem imagem, não renderiza nada.** O cartão fica exatamente como sempre foi. É o mesmo princípio
  * do hexágono: a falta de arte nunca é um buraco na tela, é só a ausência de um enfeite.
  */
-let arteCache: Record<string, { pequena: string; grande: string }> | null = null
-
 function ArteDaConstrucao({ tipo }: { tipo: string }) {
-  const [arte, setArte] = useState(arteCache)
+  const [arte, setArte] = useState<Arte | null>(null)
 
   useEffect(() => {
-    if (arteCache) return
+    let vivo = true
 
-    void api
-      .imagens()
-      .then((r) => {
-        arteCache = r.images
-        setArte(arteCache)
-      })
-      .catch(() => {
-        // Uma falha aqui não pode derrubar o cartão inteiro: sem arte, sem imagem, e pronto.
-        arteCache = {}
-        setArte({})
-      })
+    void carregarArte().then((a) => vivo && setArte(a))
+
+    return () => {
+      vivo = false
+    }
   }, [])
 
   const img = arte?.[tipo]
@@ -600,7 +591,6 @@ function ArteDaConstrucao({ tipo }: { tipo: string }) {
       alt=""
       data-arte={tipo}
       className="border-rust/15 mt-3 w-full rounded border bg-white/30"
-      loading="lazy"
     />
   )
 }
