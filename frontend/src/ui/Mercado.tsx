@@ -392,6 +392,8 @@ function PatioEDeposito({
           aoEnviar={(veiculo, carga) => agir(() => api.retirar(veiculo, carga))}
         />
 
+        {conta && <FreteDoGoverno conta={conta} agir={agir} />}
+
         <FormularioDeCarga
           titulo="Levar ao seu depósito"
           ajuda="Do estoque da colônia para cá. O veículo fica estacionado no Pátio."
@@ -481,6 +483,91 @@ type Linha = { codigo: string; qtd: string }
  * só. Agora ela monta linhas, soma-as e as confere contra a capacidade **efetiva** do veículo — a
  * encolhida pelo desgaste (§16.4), que é a que o servidor vai cobrar.
  */
+/**
+ * O serviço logístico público do §07 (D-76): o governo busca na doca e leva até a colônia.
+ *
+ * Sem veículo próprio, sem energia — só Fert$ (o preço já aparece antes de pagar) e paciência: o
+ * caminhão da Garagem é REAL, e se os do governo estiverem todos na estrada, o serviço recusa. A
+ * entrega paga tributo na chegada como qualquer outra (D-32): frete não é rota de fuga.
+ */
+function FreteDoGoverno({
+  conta,
+  agir,
+}: {
+  conta: ContaDoMercado
+  agir: (acao: () => Promise<unknown>) => Promise<void>
+}) {
+  const [recurso, setRecurso] = useState('')
+  const [qtd, setQtd] = useState('')
+  const opcoes = doDeposito(conta)
+  const saldo = opcoes.find((o) => o.codigo === recurso)?.disponivel ?? 0
+  const quantidade = Number(qtd)
+  const pode =
+    recurso !== '' && quantidade > 0 && quantidade <= saldo && quantidade <= conta.frete.capacidade
+
+  return (
+    <section className="border-rust/20 bg-sand mt-4 border p-3" data-frete-publico>
+      <h4 className="text-ink font-black">Frete do governo</h4>
+      <p className="text-ink-soft/80 mt-1 text-xs">
+        Sem veículo? O governo leva por{' '}
+        <strong>{conta.frete.preco_fert.toFixed(2).replace('.', ',')} F$</strong> a viagem (até{' '}
+        {conta.frete.capacidade.toLocaleString('pt-BR')} unidades). Caminhões livres na Garagem:{' '}
+        <strong data-garagem-livres>{conta.frete.caminhoes_livres}</strong>. A entrega paga tributo
+        na chegada, como toda entrega física.
+      </p>
+
+      <div className="mt-2 flex flex-wrap items-end gap-2">
+        <label className="text-ink-soft text-xs">
+          Recurso
+          <select
+            value={recurso}
+            onChange={(e) => setRecurso(e.target.value)}
+            data-frete-recurso
+            className="border-rust/30 bg-sand-light text-ink mt-1 block border px-2 py-1 text-sm"
+          >
+            <option value="">escolha…</option>
+            {opcoes.map((o) => (
+              <option key={o.codigo} value={o.codigo}>
+                {nomeRecurso(o.codigo)} ({o.disponivel.toLocaleString('pt-BR')})
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <label className="text-ink-soft text-xs">
+          Quantidade
+          <input
+            value={qtd}
+            onChange={(e) => setQtd(e.target.value)}
+            inputMode="numeric"
+            data-frete-qtd
+            className="border-rust/30 bg-sand-light text-ink mt-1 block w-28 border px-2 py-1 text-sm"
+          />
+        </label>
+
+        <button
+          onClick={() =>
+            void agir(async () => {
+              await api.fretePublico({ [recurso]: quantidade })
+              setQtd('')
+            })
+          }
+          disabled={!pode || conta.frete.caminhoes_livres < 1}
+          data-frete-enviar
+          className="bg-rust text-sand-light hover:bg-rust-bright disabled:bg-ink-soft/30 px-4 py-1.5 text-sm font-bold disabled:cursor-not-allowed"
+        >
+          Fretar
+        </button>
+      </div>
+      {conta.frete.caminhoes_livres < 1 && (
+        <p className="text-rust mt-1 text-xs">
+          Os caminhões do governo estão todos na estrada. Tente mais tarde — ou mande um veículo seu.
+        </p>
+      )}
+    </section>
+  )
+}
+
 function FormularioDeCarga({
   titulo,
   ajuda,

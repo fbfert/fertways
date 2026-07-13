@@ -362,10 +362,10 @@ class AdminPainel2Test extends TestCase
 
     /**
      * O formulário nunca tinha teste — e a lição do D-70 é que um campo fora do `$fillable` faria a
-     * tela dizer "atualizado" e descartar o valor **em silêncio**. Os cinco gravam, inclusive a
-     * âncora nova do Furgão.
+     * tela dizer "atualizado" e descartar o valor **em silêncio**. Os sete gravam: os quatro do
+     * D-60, a âncora do Furgão (D-73) e os dois do frete público (D-76).
      */
-    public function test_o_painel_grava_os_cinco_parametros_do_transporte(): void
+    public function test_o_painel_grava_os_sete_parametros_do_transporte(): void
     {
         $this->actingAs($this->operador(), 'admin')
             ->post('/admin/transporte', [
@@ -374,6 +374,8 @@ class AdminPainel2Test extends TestCase
                 'manutencao_bps_do_custo' => 1_500,
                 'perda_de_teto_bps' => 400,
                 'furgao_preco_referencia_micro' => 80_000_000,
+                'frete_base_micro' => 1_500_000,
+                'frete_por_slot_micro' => 30_000,
             ])->assertRedirect();
 
         $c = \App\Models\TransportSetting::singleton()->fresh();
@@ -382,6 +384,8 @@ class AdminPainel2Test extends TestCase
         $this->assertSame(1_500, $c->manutencao_bps_do_custo);
         $this->assertSame(400, $c->perda_de_teto_bps);
         $this->assertSame(80_000_000, $c->furgao_preco_referencia_micro);
+        $this->assertSame(1_500_000, $c->frete_base_micro);
+        $this->assertSame(30_000, $c->frete_por_slot_micro);
     }
 
     /** Zero reabriria a lavagem por baixo: teto 0 recusaria TODO anúncio de Furgão. O painel recusa. */

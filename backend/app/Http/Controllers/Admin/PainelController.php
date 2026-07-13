@@ -343,6 +343,9 @@ class PainelController extends Controller
     public function transportes(Request $request): View
     {
         return view('admin.transportes', [
+            // A Garagem do frete público (D-76): a frota real do serviço do §07.
+            'garagem' => \App\Domain\Frete\Garagem::frota()->orderBy('id')->get(),
+            'garagemLivres' => \App\Domain\Frete\Garagem::livres()->count(),
             /*
              * A frota inteira do planeta, com placa (2026-07-13). O painel dizia quantos veículos
              * havia e nunca **quais** — e a placa é o único identificador de um veículo que aparece

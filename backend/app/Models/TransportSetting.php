@@ -25,6 +25,9 @@ class TransportSetting extends Model
         // A âncora do teto de revenda do Furgão (D-73). NÃO é preço de venda — o Ministério continua
         // não vendendo Furgão; é só o número de que o teto se calcula.
         'furgao_preco_referencia_micro',
+        // O frete público (§07, D-76): bandeirada + por slot de distância. Do operador, no painel.
+        'frete_base_micro',
+        'frete_por_slot_micro',
     ];
 
     protected $casts = [
@@ -33,6 +36,8 @@ class TransportSetting extends Model
         'manutencao_bps_do_custo' => 'integer',
         'perda_de_teto_bps' => 'integer',
         'furgao_preco_referencia_micro' => 'integer',
+        'frete_base_micro' => 'integer',
+        'frete_por_slot_micro' => 'integer',
     ];
 
     /**

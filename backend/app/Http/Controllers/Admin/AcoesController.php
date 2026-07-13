@@ -347,6 +347,10 @@ class AcoesController extends Controller
              * decisão para se tomar de frente, não por um dedo escorregado.
              */
             'furgao_preco_referencia_micro' => ['required', 'integer', 'min:1'],
+            // O frete público (§07, D-76). Zero é permitido: frete de graça é subsídio, decisão
+            // legítima do operador — a Garagem finita continua sendo o freio.
+            'frete_base_micro' => ['required', 'integer', 'min:0'],
+            'frete_por_slot_micro' => ['required', 'integer', 'min:0'],
         ]);
 
         // O antes e o depois destes quatro números importam: eles mudam o envelhecimento da frota
@@ -394,6 +398,32 @@ class AcoesController extends Controller
             return 'Valores de XP do Marco atualizados. '
                 .($mudou !== '' ? $mudou : 'Nada mudou.')
                 .' Valem para os atos NOVOS: o ledger de XP não é reescrito.';
+        });
+    }
+
+    /**
+     * Encomenda um caminhão para a GARAGEM do frete público (D-76).
+     *
+     * Instantâneo e por fiat, ao contrário da prateleira de venda (que tem linha de montagem no
+     * tick): a Garagem é infraestrutura do serviço público, não economia — e o operador que a
+     * expande está respondendo a demanda, não jogando. Fica tudo na auditoria.
+     */
+    public function garagem(\App\Domain\Transport\Placas $placas): RedirectResponse
+    {
+        return $this->tentar('garagem.encomendar', function () use ($placas) {
+            $caminhao = \App\Models\Vehicle::create([
+                'colony_id' => null,
+                'type' => 'caminhao_de_carga',
+                'level' => 1,
+                'status' => 'ocioso',
+                'local' => \App\Models\Vehicle::NO_PATIO,
+                'capacity' => \App\Models\Vehicle::CAPACIDADE['caminhao_de_carga'],
+            ]);
+            $placas->registrar($caminhao);
+
+            $frota = \App\Domain\Frete\Garagem::frota()->count();
+
+            return "Caminhão {$caminhao->plate} entregue à Garagem do Governo. Frota: {$frota}.";
         });
     }
 

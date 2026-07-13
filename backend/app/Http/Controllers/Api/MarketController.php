@@ -168,6 +168,9 @@ class MarketController extends Controller
             ];
         })->values();
 
+        // O orçamento do frete público (§07, D-76): a tela mostra o preço ANTES de o colono pagar.
+        $frete = app(\App\Domain\Frete\FretePublico::class)->orcamento($colony);
+
         return response()->json([
             'capital' => ['x' => MapaFertways::CAPITAL_X, 'y' => MapaFertways::CAPITAL_Y],
             'distance_slots' => MapaFertways::ateCapital($colony->x, $colony->y),
@@ -176,7 +179,30 @@ class MarketController extends Controller
                 'amount' => $c->amount,
             ])->values(),
             'deposito' => $deposito,
+            'frete' => [
+                'preco_fert' => $frete['preco_micro'] / 1_000_000,
+                'capacidade' => $frete['capacidade'],
+                'caminhoes_livres' => $frete['caminhoes_livres'],
+            ],
         ]);
+    }
+
+    /** O governo leva (§07, D-76): frete público da doca até a colônia — pago, com tributo na chegada. */
+    public function frete(Request $request, \App\Domain\Frete\FretePublico $frete): JsonResponse
+    {
+        $dados = $request->validate([
+            'cargo' => ['required', 'array', 'min:1'],
+            'cargo.*' => ['integer', 'min:1'],
+        ]);
+
+        $colony = $this->colonia($request);
+        $caminhao = $frete->despachar($colony, $dados['cargo']);
+
+        return response()->json([
+            'caminhao' => $caminhao->plate,
+            'chega_at' => $caminhao->arrives_at?->toIso8601String(),
+            'preco_fert' => $frete->orcamento($colony)['preco_micro'] / 1_000_000,
+        ], 201);
     }
 
     /** Manda um veículo buscar carga da conta e trazê-la até o slot (§25.8). */

@@ -392,6 +392,8 @@ export type ContaDoMercado = {
   distance_slots: number
   balances: { resource_type: string; amount: number }[]
   deposito: SaldoDoRecurso[]
+  /** O frete público do §07 (D-76): o governo leva da doca até a colônia — se houver caminhão livre. */
+  frete: { preco_fert: number; capacidade: number; caminhoes_livres: number }
 }
 
 export type Ordem = {
@@ -984,6 +986,13 @@ export const api = {
   /** Manda um veículo buscar carga da doca. O saldo é reservado já no despacho (D-32). */
   retirar: (veiculo: number, cargo: Record<string, number>) =>
     req<Veiculo>(`/vehicles/${veiculo}/withdraw`, {
+      method: 'POST',
+      body: JSON.stringify({ cargo }),
+    }),
+
+  /** O governo leva (§07, D-76): frete pago, com tributo na chegada como toda entrega física. */
+  fretePublico: (cargo: Record<string, number>) =>
+    req<{ caminhao: string; chega_at: string; preco_fert: number }>('/market/freight', {
       method: 'POST',
       body: JSON.stringify({ cargo }),
     }),

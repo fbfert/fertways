@@ -3126,3 +3126,46 @@ Auditoria do usuário: "essas modificações refletem no admin já?" Três burac
   informação do D-74 era invisível ao operador — quem sobrevoa o quê, e quantas fotos já se tiraram.
 - **Jogadores ganhou a coluna Marco** (e a ficha, o XP com o rumo ao próximo): o operador via tudo
   de um colono menos o marco dele.
+
+---
+
+## D-76 — O serviço logístico público (§07): a Garagem do Governo.
+**Data:** 2026-07-13 · **Status:** arbitrado pelo usuário · **GDD §07 (uma frase operativa)**
+
+O §07 publica UMA frase sobre o assunto — "o comprador agenda retirada com veículo próprio **ou
+paga serviço logístico público**; a carga continua na doca até a retirada" — e mais duas âncoras:
+a retirada não gera novo imposto, e "serviços públicos" estão na lista de sumidouros de Fert$.
+Preço, prazo, capacidade, veículo: nada. As arbitragens do usuário:
+
+**1. A Garagem do Governo — frota REAL, não fantasma.** 10 caminhões iniciais (o `GaragemSeeder`,
+rodado à mão em produção como o NeutralZoneSeeder), expansíveis pelo painel ("Encomendar +1")
+conforme a demanda. Um caminhão de garagem é um `vehicles` com dono nulo, `status` ocioso e `local`
+capital — **distinto da prateleira de VENDA** (`status` estoque): vender jamais esvazia a garagem,
+e a linha de montagem (`fabricando`) não engorda a frota. Caminhão ocupado = frete recusado, e é
+essa escassez que impede o preço amável de aposentar a frota própria.
+
+**2. O preço: 1 F$ + 0,02 F$/slot** (bandeirada + distância até a colônia), por viagem de até
+30.000 unidades — quase subsídio, de propósito: o governo empurra o comércio. Os dois números são
+do OPERADOR (painel dos Transportes) e a receita vai ao **Tesouro**, como as taxas.
+
+**3. Escopo: só a doca do Mercado Central** → a própria colônia. Zona neutra continua exigindo
+veículo próprio — é o que o §07 publica, e território conquistado tem logística por conta do dono.
+
+### As regras que ninguém precisou arbitrar (e por quê)
+
+- ⚠️ **A entrega paga tributo na chegada.** O §07 diz que a retirada não gera novo imposto — mas
+  essa contradição JÁ FOI arbitrada no D-32 (tributo em toda entrega física, inclusive a retirada
+  com veículo próprio), e um frete isento seria **rota de fuga**: bastaria "fretar" em vez de
+  buscar. Mesma regra nos dois caminhos, fixada em teste.
+- **O frete não desgasta a frota pública** (`trip_purpose = frete` entra nas viagens isentas do
+  §16.4): sem isso, os dez caminhões exigiriam uma manutenção estatal que ninguém opera e morreriam
+  aos poucos, em silêncio. Leitura consciente; o §16.4 fala da frota do colono.
+- **O caminhão trava primeiro, o Fert$ depois, a carga por último** — tudo numa transação: a recusa
+  de qualquer passo desfaz os anteriores, e dois fretes disputando o último caminhão são
+  serializados pelo lock (o segundo ouve "garagem vazia").
+- **A máquina de tributo não foi duplicada:** o frete é um `trip_purpose` que o próprio
+  `ConcluirTrechos` conhece — o ramo entra ANTES do `$origem`, porque caminhão do governo não tem
+  colônia de origem. Reuso do `entregar()` blindado contra dupla incidência.
+
+Com o D-76, **todas as frentes do GDD que dependiam de arbitragem estão fechadas**. O que resta no
+RETOMAR são escolhas de operação (as 7 imagens ambíguas) e encomenda de arte.

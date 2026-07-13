@@ -63,6 +63,16 @@
                 <input type="number" min="1" name="furgao_preco_referencia_micro"
                        value="{{ $transporte->furgao_preco_referencia_micro }}" required>
             </div>
+            <div style="flex:0">
+                <label>Frete: base (micro-F$)</label>
+                <input type="number" min="0" name="frete_base_micro"
+                       value="{{ $transporte->frete_base_micro }}" required>
+            </div>
+            <div style="flex:0">
+                <label>Frete: por slot (micro-F$)</label>
+                <input type="number" min="0" name="frete_por_slot_micro"
+                       value="{{ $transporte->frete_por_slot_micro }}" required>
+            </div>
             <div style="flex:0"><button>Salvar</button></div>
         </form>
         <p class="mut pequeno">
@@ -81,6 +91,45 @@
             um Furgão sucateado anunciado por 5.000 Fert$ movia dinheiro limpo entre duas contas do
             mesmo jogador, sem carga e sem tributo. O Caminhão usa o preço de fábrica (300 Fert$).
         </p>
+    </div>
+
+    {{-- ── A Garagem do Governo (§07; D-76): a frota real do frete público ── --}}
+    <h2 class="secao">Garagem do Governo — frete público</h2>
+    <div class="cartao">
+        <p class="mut pequeno">
+            O serviço logístico público do §07: o governo busca o lote na doca do Mercado e o leva à
+            colônia — <b>com tributo na chegada, como toda entrega física</b> (D-32). Preço:
+            <b>{{ number_format($transporte->frete_base_micro / 1000000, 2, ',', '.') }} F$</b> +
+            <b>{{ number_format($transporte->frete_por_slot_micro / 1000000, 2, ',', '.') }} F$/slot</b>
+            (o formulário acima), direto ao Tesouro. A frota é REAL: caminhão ocupado é frete recusado.
+        </p>
+
+        <table style="margin-top:8px">
+            <tr><th>Placa</th><th>Situação</th><th>Chega/volta</th></tr>
+            @forelse ($garagem as $c)
+                <tr data-garagem="{{ $c->id }}">
+                    <td><code>{{ $c->plate }}</code></td>
+                    <td>
+                        @if ($c->status === 'ocioso') livre, na Capital
+                        @elseif ($c->leg === 'ida') <b>em frete</b> → colônia #{{ $c->destination_id }}
+                        @else voltando à Garagem
+                        @endif
+                    </td>
+                    <td>{{ $c->arrives_at?->format('d/m H:i') ?? '—' }}</td>
+                </tr>
+            @empty
+                <tr><td colspan="3" class="mut">A Garagem está vazia — rode o GaragemSeeder ou encomende abaixo.</td></tr>
+            @endforelse
+        </table>
+
+        <form method="POST" action="{{ route('admin.garagem') }}" class="linha-form" style="margin-top:10px">
+            @csrf
+            <div style="flex:0">
+                <button data-encomendar-garagem>Encomendar +1 caminhão para a Garagem</button>
+            </div>
+            <span class="mut pequeno">Livres agora: <b data-garagem-livres>{{ $garagemLivres }}</b> de {{ $garagem->count() }}.
+            A frota inicial são 10 (arbitragem do usuário, D-76); expanda conforme a demanda.</span>
+        </form>
     </div>
 
     {{-- ── A frota do planeta, com PLACA ──

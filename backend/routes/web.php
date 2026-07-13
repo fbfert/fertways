@@ -69,6 +69,8 @@ Route::prefix('admin')->group(function () {
         // O Painel do Ministério dos Transportes (§16, D-60): os quatro números que o GDD manda o
         // operador configurar e nunca publica.
         Route::post('/transporte', [AcoesController::class, 'transporte'])->name('admin.transporte');
+        // A Garagem do frete público (D-76): encomendar mais um caminhão, conforme a demanda.
+        Route::post('/garagem', [AcoesController::class, 'garagem'])->name('admin.garagem');
 
         // ── Jogadores (D-61). O operador vê, suspende e corrige; realocar é só do dono. ──
         Route::post('/jogadores/{user}/suspender', [AcoesController::class, 'suspender'])->name('admin.jogador.suspender');

@@ -95,6 +95,28 @@ class ConcluirTrechos
 
     private function concluirIda(Vehicle $v): void
     {
+        /*
+         * O FRETE PÚBLICO chegou (D-76): o caminhão do governo entrega na colônia de destino —
+         * **com tributo, como qualquer entrega física** (a arbitragem do D-32; um frete isento
+         * seria rota de fuga) — e dá meia-volta para a Garagem, vazio. O ramo vem ANTES do
+         * `$origem`: caminhão do governo não tem colônia de origem.
+         */
+        if ($v->trip_purpose === 'frete') {
+            $destino = Colony::find($v->destination_id);
+
+            if ($destino) {
+                foreach ($v->cargo_json ?? [] as $recurso => $qtd) {
+                    // Origem e destino são a mesma colônia: é ELA que retira o próprio lote, e é
+                    // dela o tributo — exatamente como na retirada com veículo próprio (§25.8).
+                    $this->entregar($destino, $destino, $v, $recurso, (int) $qtd, 'frete');
+                }
+            }
+
+            $this->iniciarVolta($v, manterCarga: false, carga: null);
+
+            return;
+        }
+
         $origem = Colony::find($v->colony_id);
 
         /*
@@ -264,6 +286,25 @@ class ConcluirTrechos
 
     private function concluirVolta(Vehicle $v): void
     {
+        // O caminhão do governo voltou à Garagem (D-76): livre para o próximo frete.
+        if ($v->trip_purpose === 'frete') {
+            $v->forceFill([
+                'status' => 'ocioso',
+                'local' => Vehicle::NO_PATIO,
+                'leg' => null,
+                'trip_purpose' => null,
+                'destination_type' => null,
+                'destination_id' => null,
+                'distance_slots' => null,
+                'return_distance_slots' => null,
+                'departs_at' => null,
+                'arrives_at' => null,
+                'cargo_json' => null,
+            ])->save();
+
+            return;
+        }
+
         /*
          * §25.8: o colono "precisa enviar um veículo próprio para retirá-lo e levá-lo até seu
          * slot — mesma lógica de distância e tributo na chegada". A chegada é aqui: origem e

@@ -91,6 +91,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/vehicles/{vehicle}/dispatch', [VehicleController::class, 'despachar']);
 
     Route::get('/market/account', [MarketController::class, 'conta']);
+    // O serviço logístico público do §07 (D-76): o governo busca na doca e leva até a colônia.
+    Route::post('/market/freight', [MarketController::class, 'frete']);
     Route::post('/vehicles/{vehicle}/withdraw', [MarketController::class, 'retirar']);
 
     // Ofertas Globais: vitrine, não livro de casamento (D-58). A oferta repousa até que alguém a

@@ -95,7 +95,10 @@ class Conservacao
 
     public function viagemDeEntrega(Vehicle $veiculo): bool
     {
-        return in_array($veiculo->trip_purpose, ['entrega_de_fabrica', 'venda_usado'], true);
+        // 'frete' (D-76): o desgaste da frota PÚBLICA é absorvido pelo governo — sem isto, os dez
+        // caminhões da Garagem exigiriam uma manutenção estatal que ninguém opera, e morreriam aos
+        // poucos em silêncio. Leitura consciente, registrada; o §16.4 fala da frota do colono.
+        return in_array($veiculo->trip_purpose, ['entrega_de_fabrica', 'venda_usado', 'frete'], true);
     }
 
     /** A capacidade efetiva, já descontado o desgaste. É ela que o despacho tem de respeitar. */
