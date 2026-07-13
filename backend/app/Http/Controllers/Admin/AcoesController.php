@@ -340,6 +340,13 @@ class AcoesController extends Controller
             'piso_desempenho_bps' => ['required', 'integer', 'min:0', 'max:10000'],
             'manutencao_bps_do_custo' => ['required', 'integer', 'min:0', 'max:10000'],
             'perda_de_teto_bps' => ['required', 'integer', 'min:0', 'max:10000'],
+            /*
+             * A âncora do teto do Furgão (D-73). O `min:1` é a regra que importa: um zero digitado
+             * no painel faria teto 0 e **recusaria todo anúncio de Furgão** — pareceria "voltar ao
+             * sem-teto do aditivo 14" e seria o contrário. Tirar o Furgão do mercado de usados é
+             * decisão para se tomar de frente, não por um dedo escorregado.
+             */
+            'furgao_preco_referencia_micro' => ['required', 'integer', 'min:1'],
         ]);
 
         // O antes e o depois destes quatro números importam: eles mudam o envelhecimento da frota

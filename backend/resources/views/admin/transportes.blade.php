@@ -58,6 +58,11 @@
                 <input type="number" min="0" max="10000" name="perda_de_teto_bps"
                        value="{{ $transporte->perda_de_teto_bps }}" required>
             </div>
+            <div style="flex:0">
+                <label>Referência do Furgão (micro-F$)</label>
+                <input type="number" min="1" name="furgao_preco_referencia_micro"
+                       value="{{ $transporte->furgao_preco_referencia_micro }}" required>
+            </div>
             <div style="flex:0"><button>Salvar</button></div>
         </form>
         <p class="mut pequeno">
@@ -67,6 +72,14 @@
             §16.4, D-60); manutenção a <b>{{ $transporte->manutencao_bps_do_custo / 100 }}%</b> do
             custo do veículo; e o teto de conservação cai
             <b>{{ $transporte->perda_de_teto_bps / 100 }} pontos</b> a cada manutenção.
+        </p>
+        <p class="mut pequeno">
+            A <b>referência do Furgão</b>
+            (hoje <b>{{ number_format($transporte->furgao_preco_referencia_micro / 1000000, 2, ',', '.') }} Fert$</b>)
+            é a âncora do teto de revenda dele no mercado de usados — teto = referência × conservação
+            (D-73). <b>Não é preço de venda</b>: o Ministério continua não vendendo Furgão. Antes dela,
+            um Furgão sucateado anunciado por 5.000 Fert$ movia dinheiro limpo entre duas contas do
+            mesmo jogador, sem carga e sem tributo. O Caminhão usa o preço de fábrica (300 Fert$).
         </p>
     </div>
 

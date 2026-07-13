@@ -357,4 +357,49 @@ class AdminPainel2Test extends TestCase
             // E as notícias saíram daqui: viraram aba própria.
             ->assertDontSee('Central de Notícias');
     }
+
+    // ── transportes: os cinco parâmetros gravam (D-73) ─────────────────────────────────────────
+
+    /**
+     * O formulário nunca tinha teste — e a lição do D-70 é que um campo fora do `$fillable` faria a
+     * tela dizer "atualizado" e descartar o valor **em silêncio**. Os cinco gravam, inclusive a
+     * âncora nova do Furgão.
+     */
+    public function test_o_painel_grava_os_cinco_parametros_do_transporte(): void
+    {
+        $this->actingAs($this->operador(), 'admin')
+            ->post('/admin/transporte', [
+                'desgaste_bps_por_hora' => 60,
+                'piso_desempenho_bps' => 3_000,
+                'manutencao_bps_do_custo' => 1_500,
+                'perda_de_teto_bps' => 400,
+                'furgao_preco_referencia_micro' => 80_000_000,
+            ])->assertRedirect();
+
+        $c = \App\Models\TransportSetting::singleton()->fresh();
+        $this->assertSame(60, $c->desgaste_bps_por_hora);
+        $this->assertSame(3_000, $c->piso_desempenho_bps);
+        $this->assertSame(1_500, $c->manutencao_bps_do_custo);
+        $this->assertSame(400, $c->perda_de_teto_bps);
+        $this->assertSame(80_000_000, $c->furgao_preco_referencia_micro);
+    }
+
+    /** Zero reabriria a lavagem por baixo: teto 0 recusaria TODO anúncio de Furgão. O painel recusa. */
+    public function test_a_referencia_do_furgao_nao_aceita_zero(): void
+    {
+        $this->actingAs($this->operador(), 'admin')
+            ->post('/admin/transporte', [
+                'desgaste_bps_por_hora' => 50,
+                'piso_desempenho_bps' => 2_500,
+                'manutencao_bps_do_custo' => 1_000,
+                'perda_de_teto_bps' => 500,
+                'furgao_preco_referencia_micro' => 0,
+            ])->assertSessionHasErrors('furgao_preco_referencia_micro');
+
+        $this->assertSame(
+            60_000_000,
+            \App\Models\TransportSetting::singleton()->fresh()->furgao_preco_referencia_micro,
+            'e o valor não mudou',
+        );
+    }
 }

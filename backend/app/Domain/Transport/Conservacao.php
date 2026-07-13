@@ -127,18 +127,30 @@ class Conservacao
      * estado "afeta diretamente o preço de venda no mercado de usados").
      *
      * **Arbitragem do assistente (D-60):** o GDD nunca diz em relação a quê. O **preço de fábrica**
-     * é a única âncora que existe — e por isso **o Furgão não tem teto**: o Ministério não o vende
-     * (D-60, item 9), logo ele não tem preço de fábrica. O usuário decidiu deixá-lo sem âncora
-     * (aditivo 14), sabendo do risco de lavagem de Fert$ que isso abre.
+     * é a única âncora que existe.
      *
-     * @return int|null micro-Fert$; `null` = sem teto
+     * **E o Furgão passou a ter uma (D-73).** Ele ficou sem teto do aditivo 14 do D-52 até
+     * 2026-07-13 — o Ministério não o vende, logo não havia preço de fábrica — e era por esse buraco
+     * que duas contas do mesmo jogador podiam **lavar Fert$**: um Furgão sucateado anunciado por
+     * 5.000 Fert$ move dinheiro limpo pelo escrow, sem carga e sem tributo. O usuário reviu: a âncora
+     * é um **preço de referência do operador** (60 Fert$ por padrão — a proporção da capacidade: 1/5
+     * do Caminhão de 300), no painel dos Transportes. Referência, não preço de venda: o Ministério
+     * continua não vendendo Furgão.
+     *
+     * @return int|null micro-Fert$; `null` = sem teto (Nave e Drone não passam pelo mercado de usados)
      */
     public function tetoDeRevendaMicro(Vehicle $veiculo): ?int
     {
-        if ($veiculo->type !== Ministerio::TIPO) {
+        $referencia = match ($veiculo->type) {
+            Ministerio::TIPO => Ministerio::PRECO_MICRO,
+            'furgao_de_comercio' => (int) $this->config()->furgao_preco_referencia_micro,
+            default => null,
+        };
+
+        if ($referencia === null) {
             return null;
         }
 
-        return intdiv(Ministerio::PRECO_MICRO * (int) $veiculo->teto_conservacao_bps, self::CHEIO);
+        return intdiv($referencia * (int) $veiculo->teto_conservacao_bps, self::CHEIO);
     }
 }

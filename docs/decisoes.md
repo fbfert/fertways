@@ -2931,3 +2931,43 @@ e Predador; e o que as escolhas não levarem). É lista de encomenda ao artista,
 > "vinculada" — e nenhuma cena jamais perguntaria por aquela chave: a arte sumiria no banco e o
 > hexágono continuaria na tela. Um teste novo percorre a tabela `EVIDENTES` e exige que cada chave
 > exista em `Vinculaveis::todas()`. É o silêncio do `$fillable` do D-70, noutro lugar.
+
+---
+
+## D-73 — O Furgão ganha âncora: a lavagem de Fert$ pelo mercado de usados fecha.
+**Data:** 2026-07-13 · **Status:** decidido pelo usuário (revisão do aditivo 14 do D-52) · **GDD §16.4**
+
+O aditivo 14 tinha deixado o Furgão **sem teto de revenda de propósito**: o teto é `preço de fábrica
+× conservação`, e o Furgão não tem preço de fábrica — o Ministério não o vende. O risco ficou
+registrado com nome e endereço: *"duas contas do mesmo jogador podem usar isso para lavar Fert$"*,
+um Furgão sucateado anunciado por 5.000 Fert$ movendo dinheiro limpo pelo escrow, sem carga e sem
+tributo. *"Se o multi-conta virar problema, é aqui que ele vai aparecer primeiro, e a cura é dar um
+teto ao Furgão."* Era o único item da lista de frentes que era uma **falha sangrando**, não uma
+ausência — e o usuário reviu a arbitragem.
+
+**A âncora: 60 Fert$, parâmetro do operador.** A proporção é a da capacidade — o Furgão carrega
+6.000, 1/5 do Caminhão de 300 Fert$. **Referência, não preço de venda:** o Ministério continua não
+vendendo Furgão; o número existe só para o teto se calcular dele. Vive em `transport_settings`, no
+painel dos Transportes (o padrão da casa: D-60, D-66), e muda sem deploy.
+
+**A imposição já existia e não custou nada:** o `anunciar()` do mercado de usados barra preço acima
+do teto desde o D-60 — só que `tetoDeRevendaMicro()` devolvia `null` para o Furgão. A mudança real
+é uma linha num `match`. Produção tinha **zero anúncios abertos** no deploy: ninguém ficou com
+anúncio órfão acima do teto novo.
+
+⚠️ **O painel recusa referência zero, e o `min:1` é regra, não pedantismo.** Um zero digitado faria
+teto 0 e **recusaria todo anúncio de Furgão** — pareceria "voltar ao sem-teto do aditivo 14" e seria
+o contrário: o Furgão sumiria do mercado de usados. Tirar o veículo do mercado é decisão para se
+tomar de frente, não por um dedo escorregado.
+
+### O que se aprendeu construindo
+
+> **Um teste que prende uma arbitragem morre com ela — e é assim que se sabe que ela mudou.**
+> `test_o_furgao_nao_tem_teto_de_revenda` afirmava o aditivo 14 com o comentário "risco aceito de
+> olhos abertos". Virou `test_o_furgao_agora_tem_teto_e_ele_e_do_operador`, e o cenário exato da
+> lavagem (a carcaça por 5.000) virou o teste de que ela está fechada.
+
+> **A lição do `WarSetting`, aplicada ANTES de doer:** o `TransportSetting::singleton()` tinha o
+> mesmo `firstOrCreate([])` cru que no D-70 fez a primeira leitura devolver `null` em tudo. Com a
+> coluna nova, a primeira chamada num banco recém-criado leria um Furgão sem âncora. Corrigido no
+> mesmo padrão — relê depois de criar — junto com a coluna, e não depois do primeiro susto.

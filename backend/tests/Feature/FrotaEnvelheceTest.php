@@ -68,6 +68,14 @@ class FrotaEnvelheceTest extends TestCase
         $this->assertSame(2_500, $c->piso_desempenho_bps, 'o piso de 25%');
         $this->assertSame(1_000, $c->manutencao_bps_do_custo, '10% do custo do veículo');
         $this->assertSame(500, $c->perda_de_teto_bps, '5 pontos por manutenção');
+
+        /*
+         * E a PRIMEIRA chamada já traz os números — é a lição do `WarSetting` (D-70): o
+         * `firstOrCreate([])` cru devolve, no caminho da criação, um modelo sem os defaults que o
+         * banco aplicou. Este teste roda num banco recém-migrado, então ele é exatamente a primeira
+         * chamada; se o singleton não relesse, todas as asserções acima teriam visto null.
+         */
+        $this->assertSame(60_000_000, $c->furgao_preco_referencia_micro, 'a âncora do Furgão: 60 Fert$ (D-73)');
     }
 
     // ---------------------------------------------------------------- o desgaste (§16.4)
@@ -322,13 +330,50 @@ class FrotaEnvelheceTest extends TestCase
         );
     }
 
-    public function test_o_furgao_nao_tem_teto_de_revenda(): void
+    /**
+     * A REVISÃO do aditivo 14 (D-73). O Furgão ficou sem teto de propósito — e era por esse buraco
+     * que duas contas do mesmo jogador podiam lavar Fert$: um Furgão sucateado anunciado por 5.000
+     * movia dinheiro limpo pelo escrow, sem carga e sem tributo. O usuário reviu: âncora de
+     * referência do operador, 60 Fert$ por padrão (1/5 do Caminhão, como a capacidade).
+     */
+    public function test_o_furgao_agora_tem_teto_e_ele_e_do_operador(): void
     {
-        // ADITIVO 14 do D-60, com o risco aceito de olhos abertos: o Furgão não é vendido pelo
-        // Ministério, logo não tem preço de fábrica — e o usuário decidiu não lhe dar âncora.
         $v = $this->furgao($this->colono()->colony);
 
-        $this->assertNull(app(Conservacao::class)->tetoDeRevendaMicro($v));
+        // Novo: teto = referência inteira.
+        $this->assertSame(60_000_000, app(Conservacao::class)->tetoDeRevendaMicro($v));
+
+        // Gasto a 50%: o teto acompanha a conservação, como no Caminhão.
+        $this->assertSame(
+            30_000_000,
+            app(Conservacao::class)->tetoDeRevendaMicro($v->forceFill(['teto_conservacao_bps' => 5_000])),
+        );
+
+        // E a âncora é do OPERADOR: mudou no painel, mudou o teto — sem deploy.
+        TransportSetting::singleton()->update(['furgao_preco_referencia_micro' => 100_000_000]);
+        $this->assertSame(
+            100_000_000,
+            app(Conservacao::class)->tetoDeRevendaMicro($v->forceFill(['teto_conservacao_bps' => 10_000])),
+        );
+    }
+
+    public function test_a_lavagem_pelo_furgao_esta_fechada(): void
+    {
+        // O cenário EXATO do aditivo 14: a carcaça anunciada por 5.000 Fert$ para a segunda conta
+        // "comprar". Hoje o anúncio morre na porta, como o do Caminhão sempre morreu.
+        $user = $this->colono();
+        $carcaca = $this->desgastar($this->furgao($user->colony), 8.0);
+
+        $this->actingAs($user)->postJson('/transport/listings', [
+            'vehicle_id' => $carcaca->id,
+            'preco_fert' => 5_000,
+        ])->assertStatus(422)->assertJsonPath('code', 'acima_do_teto_de_revenda');
+
+        // Dentro do teto, o anúncio passa: fechar a lavagem não fechou o mercado.
+        $this->actingAs($user)->postJson('/transport/listings', [
+            'vehicle_id' => $carcaca->id,
+            'preco_fert' => 30,
+        ])->assertCreated();
     }
 
     public function test_anunciar_caminhao_acima_do_teto_e_recusado(): void
@@ -359,8 +404,9 @@ class FrotaEnvelheceTest extends TestCase
         $v = $this->furgao($vendedor->colony);
         $fertDoVendedorAntes = (int) $vendedor->colony->fresh()->fert_micro;
 
+        // 50 Fert$: dentro do teto do Furgão, que desde o D-73 existe (60 × conservação).
         $anuncio = app(MercadoDeUsados::class)->anunciar(
-            $vendedor->colony, $v, 100 * Colony::MICRO_POR_FERT,
+            $vendedor->colony, $v, 50 * Colony::MICRO_POR_FERT,
         );
 
         $this->actingAs($comprador)->postJson("/transport/listings/{$anuncio->id}/buy")
@@ -368,9 +414,9 @@ class FrotaEnvelheceTest extends TestCase
             ->assertJsonPath('comprado.a_caminho', true);
 
         // O comprador pagou; o VENDEDOR AINDA NÃO RECEBEU — os Fert$ estão retidos no Ministério.
-        $this->assertSame(100 * Colony::MICRO_POR_FERT, (int) $comprador->colony->fresh()->fert_micro);
+        $this->assertSame(150 * Colony::MICRO_POR_FERT, (int) $comprador->colony->fresh()->fert_micro);
         $this->assertSame($fertDoVendedorAntes, (int) $vendedor->colony->fresh()->fert_micro);
-        $this->assertSame(100 * Colony::MICRO_POR_FERT, (int) $anuncio->fresh()->escrow_micro);
+        $this->assertSame(50 * Colony::MICRO_POR_FERT, (int) $anuncio->fresh()->escrow_micro);
         $this->assertSame('em_transito', $anuncio->fresh()->status);
 
         // O veículo já é do comprador, e vem dirigindo.
@@ -382,7 +428,7 @@ class FrotaEnvelheceTest extends TestCase
         app(ConcluirTrechos::class)->handle();
 
         $this->assertSame(
-            $fertDoVendedorAntes + 100 * Colony::MICRO_POR_FERT,
+            $fertDoVendedorAntes + 50 * Colony::MICRO_POR_FERT,
             (int) $vendedor->colony->fresh()->fert_micro,
             'só agora o vendedor recebe',
         );
@@ -401,7 +447,7 @@ class FrotaEnvelheceTest extends TestCase
         $v = $this->desgastar($this->furgao($vendedor->colony), 80);
 
         $anuncio = app(MercadoDeUsados::class)->anunciar(
-            $vendedor->colony, $v, 100 * Colony::MICRO_POR_FERT,
+            $vendedor->colony, $v, 50 * Colony::MICRO_POR_FERT,
         );
 
         app(MercadoDeUsados::class)->comprar($comprador->colony, $anuncio);
@@ -422,7 +468,7 @@ class FrotaEnvelheceTest extends TestCase
         $comprador->colony->update(['fert_micro' => 500 * Colony::MICRO_POR_FERT]);
 
         $anuncio = app(MercadoDeUsados::class)->anunciar(
-            $vendedor->colony, $this->furgao($vendedor->colony), 100 * Colony::MICRO_POR_FERT,
+            $vendedor->colony, $this->furgao($vendedor->colony), 50 * Colony::MICRO_POR_FERT,
         );
 
         $this->actingAs($comprador)->postJson("/transport/listings/{$anuncio->id}/buy")
@@ -438,7 +484,7 @@ class FrotaEnvelheceTest extends TestCase
         $user->colony->update(['fert_micro' => 500 * Colony::MICRO_POR_FERT]);
 
         $anuncio = app(MercadoDeUsados::class)->anunciar(
-            $user->colony, $this->furgao($user->colony), 100 * Colony::MICRO_POR_FERT,
+            $user->colony, $this->furgao($user->colony), 50 * Colony::MICRO_POR_FERT,
         );
 
         $this->actingAs($user)->postJson("/transport/listings/{$anuncio->id}/buy")
@@ -457,7 +503,7 @@ class FrotaEnvelheceTest extends TestCase
         $user->colony->resources()->update(['amount' => 100_000]);
         $v = $this->furgao($user->colony);
 
-        app(MercadoDeUsados::class)->anunciar($user->colony, $v, 100 * Colony::MICRO_POR_FERT);
+        app(MercadoDeUsados::class)->anunciar($user->colony, $v, 50 * Colony::MICRO_POR_FERT);
 
         $this->actingAs($user)->postJson('/vehicles/'.$v->id.'/dispatch', [
             'destination_type' => 'mercado_central',
@@ -481,7 +527,7 @@ class FrotaEnvelheceTest extends TestCase
         $user = $this->comCentral(3);
         $v = $this->furgao($user->colony);
 
-        $anuncio = app(MercadoDeUsados::class)->anunciar($user->colony, $v, 100 * Colony::MICRO_POR_FERT);
+        $anuncio = app(MercadoDeUsados::class)->anunciar($user->colony, $v, 50 * Colony::MICRO_POR_FERT);
 
         app(Sucatear::class)->handle($user->colony, $v);
 
@@ -497,13 +543,13 @@ class FrotaEnvelheceTest extends TestCase
         $comprador = $this->comCentral(3);
 
         $v = $this->desgastar($this->furgao($vendedor->colony), 62);
-        app(MercadoDeUsados::class)->anunciar($vendedor->colony, $v, 100 * Colony::MICRO_POR_FERT);
+        app(MercadoDeUsados::class)->anunciar($vendedor->colony, $v, 50 * Colony::MICRO_POR_FERT);
 
         $this->actingAs($comprador)->getJson('/transport/listings')
             ->assertOk()
             ->assertJsonPath('anuncios.0.veiculo.conservacao', 62)
             ->assertJsonPath('anuncios.0.meu', false)
-            ->assertJsonPath('anuncios.0.preco_fert', 100);
+            ->assertJsonPath('anuncios.0.preco_fert', 50);
     }
 
     public function test_o_resumo_publico_conta_o_planeta(): void

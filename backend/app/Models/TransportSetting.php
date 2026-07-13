@@ -22,6 +22,9 @@ class TransportSetting extends Model
         'piso_desempenho_bps',
         'manutencao_bps_do_custo',
         'perda_de_teto_bps',
+        // A âncora do teto de revenda do Furgão (D-73). NÃO é preço de venda — o Ministério continua
+        // não vendendo Furgão; é só o número de que o teto se calcula.
+        'furgao_preco_referencia_micro',
     ];
 
     protected $casts = [
@@ -29,6 +32,7 @@ class TransportSetting extends Model
         'piso_desempenho_bps' => 'integer',
         'manutencao_bps_do_custo' => 'integer',
         'perda_de_teto_bps' => 'integer',
+        'furgao_preco_referencia_micro' => 'integer',
     ];
 
     /**
@@ -36,9 +40,20 @@ class TransportSetting extends Model
      *
      * O `firstOrCreate` evita que um banco sem o seeder (um teste, uma migração parcial) deixe a
      * depreciação inerte em silêncio — o que seria pior que falhar.
+     *
+     * ⚠️ **Relê do banco depois de criar** (a lição do `WarSetting`, D-70): no caminho da criação o
+     * Eloquent devolve um modelo com só o `id` e os timestamps — ele **não relê os defaults que o
+     * banco aplicou**. A primeira chamada leria desgaste nulo e um Furgão sem teto; a segunda, os
+     * números certos — e ninguém saberia explicar a diferença.
      */
     public static function singleton(): self
     {
-        return static::firstOrCreate([]);
+        if ($existente = static::first()) {
+            return $existente;
+        }
+
+        static::create([]);
+
+        return static::firstOrFail();
     }
 }

@@ -204,10 +204,12 @@ O MVP tem, funcionando e no ar em `https://fertways.tars.art.br`:
     regra dos dois estoques do D-58 — o veículo está na colônia e mesmo assim não há calote. A razão:
     o Ministério é o **cartório da placa** (§16.3). O comprador paga, o veículo **dirige-se sozinho**
     até ele, e **o vendedor só recebe na chegada**.
-  - **Teto de revenda = preço de fábrica × teto de conservação.** Só o **Caminhão** tem — o Furgão não
-    é vendido pelo Ministério, logo não tem preço de fábrica, e o usuário decidiu deixá-lo **sem
-    âncora**. ⚠️ **É por aí que a lavagem de Fert$ entre duas contas do mesmo jogador vai aparecer
-    primeiro, se aparecer** (aditivo 14 do D-60).
+  - **Teto de revenda = âncora × teto de conservação.** A âncora do **Caminhão** é o preço de fábrica
+    (300 Fert$); a do **Furgão** é um **preço de referência do operador** (60 Fert$ por padrão, painel
+    dos Transportes) — ele ficou **sem âncora** do aditivo 14 até o D-73, e era por aí que duas contas
+    do mesmo jogador podiam **lavar Fert$** (Furgão sucateado anunciado por 5.000, escrow, sem carga,
+    sem tributo). O usuário reviu; o cenário exato da lavagem virou teste. ⚠️ O painel recusa
+    referência **zero**: teto 0 recusaria todo anúncio e tiraria o Furgão do mercado por acidente.
   - **Veículo anunciado não sai em viagem** — senão o comprador levaria um erro por culpa do vendedor.
   - **Os parâmetros são do operador**, no painel de admin: desgaste, piso, custo da manutenção e
     perda de teto. O §16 manda o Ministério configurá-los e o GDD nunca publica nenhum — **foi isso
@@ -215,7 +217,7 @@ O MVP tem, funcionando e no ar em `https://fertways.tars.art.br`:
   - **Fora de escopo, de propósito:** o **Cargueiro Interplanetário** e o seu aluguel. Dependem do
     Espaçoporto e dos planetas NPC, que não existem.
 
-**452 testes PHP (3461 asserções) + 7 e2e, verdes.** O cron do tick está instalado (crontab do usuário
+**455 testes PHP (3476 asserções) + 7 e2e, verdes.** O cron do tick está instalado (crontab do usuário
 `fertways`, log em `/home/fertways/logs/fertways-tick.log`) e roda o `artisan` **da cópia de
 deploy** — o mundo avança sozinho. O tick faz: produção, upgrades, proteções, trechos de viagem,
 acordos vencidos, **casos reatribuídos, janelas de apelação fechadas e a folha do Ministério**.
@@ -592,12 +594,13 @@ do painel do §16) dependem do Espaçoporto e dos 5 planetas NPC, que não exist
 
 **O que vigiar quando o jogo abrir**, e por que:
 
-- **O Furgão sem teto de revenda.** É o buraco por onde a lavagem de Fert$ entre duas contas do mesmo
-  jogador vai aparecer primeiro, se aparecer (aditivo 14 do D-60). A cura é dar-lhe um teto.
+- ~~O Furgão sem teto de revenda~~ — **fechado no D-73**: âncora de 60 Fert$ do operador, no painel.
+  Se 60 se mostrar apertado ou largo quando o mercado de usados mexer, muda-se lá, sem deploy.
 - **O preço de 300 Fert$ do Caminhão** é ~9× o valor dos recursos dele. Foi escolhido para ser um
   objetivo de médio prazo e um dreno de Fert$; se ninguém comprar, é o primeiro número a revisitar.
-- **Os quatro parâmetros da depreciação** estão no painel de admin e mudam sem deploy. É lá que se
-  balanceia o envelhecimento da frota — não no código.
+- **Os cinco parâmetros do transporte** (desgaste, piso, manutenção, perda de teto e — desde o D-73 —
+  a referência do Furgão) estão no painel de admin e mudam sem deploy. É lá que se balanceia a
+  frota — não no código.
 
 - **A Capital virou lugar, e as cenas ganharam zoom (D-63)** — ela era um menu de sete linhas.
   - **Quatro áreas e uma praça**, em Phaser, como a colônia: **Norte** o Governo Central (19 slots),
@@ -749,7 +752,8 @@ leitura. Ele é idempotente, então repetir é seguro se um dia houver dúvida.
    uma aba do painel. Ataque, defesa, cerco, ruptura e apreensão de módulos: tudo jogável.
 
    **A pergunta agora é qual frente atacar.** As que estão na mesa, e ele já sabe de todas:
-   - **O teto de revenda do Furgão** — buraco de lavagem de Fert$ conhecido, ainda aberto.
+   - ~~O teto de revenda do Furgão~~ — **fechado no D-73** (âncora de 60 Fert$ do operador, no
+     painel dos Transportes). A lavagem por Furgão superfaturado morreu; o cenário dela virou teste.
    - **As 7 imagens com duas leituras** (D-72) — as 28 do D-68 foram olhadas uma a uma: 12
      evidentes estão NO AR, 9 não têm lar no jogo (Endurance e o Cargueiro), e **7 esperam a
      escolha dele no painel** (`torre-axiom`, `aquifero-talassa`, `bastiao-vanguarda`,

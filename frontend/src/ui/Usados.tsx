@@ -130,17 +130,18 @@ export function Usados() {
           </div>
         )}
 
-        {/* O teto só existe para o Caminhão, e o jogador precisa saber de onde ele vem. */}
+        {/* O jogador precisa saber de onde o teto vem — Caminhão e Furgão têm âncoras diferentes. */}
         {escolhido && teto !== null && (
           <p className={`mt-2 text-xs ${acimaDoTeto ? 'text-rust font-bold' : 'text-ink-soft/70'}`}>
-            Teto de revenda: <strong>{teto} F$</strong> — ele é o preço de fábrica corrigido pelo
-            desgaste, e cai a cada manutenção (§16.4).
+            Teto de revenda: <strong>{teto} F$</strong> — a âncora do veículo (o preço de fábrica do
+            Caminhão; a referência do governo para o Furgão) corrigida pelo desgaste. Cai a cada
+            manutenção (§16.4).
           </p>
         )}
         {escolhido && teto === null && (
           <p className="text-ink-soft/70 mt-2 text-xs">
-            O Furgão não tem teto de revenda: o Ministério não o vende novo, logo ele não tem preço de
-            fábrica. Peça o que quiser.
+            Este veículo não tem teto de revenda: não há preço de fábrica nem referência para ele.
+            Peça o que quiser.
           </p>
         )}
       </section>
