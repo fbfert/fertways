@@ -164,6 +164,22 @@ export default function App() {
    * card já cumpriu o papel dele — quem atravessou a porta não precisa mais dela aberta.
    */
   const [chatAberto, setChatAberto] = useState(false)
+  const [chatPendente, setChatPendente] = useState(0)
+
+  /*
+   * O selo do rádio (D-77, aditivo): sem isto, uma privada só era vista se o colono abrisse a aba
+   * por vontade própria. Poll de 30 s, duas contagens indexadas — barato o bastante para rodar
+   * sempre; o painel aberto zera ao ler.
+   */
+  useEffect(() => {
+    if (!colonia) return
+    const puxar = () =>
+      void api.chatPendencias().then((p) => setChatPendente(p.privadas_nao_lidas + p.mencoes)).catch(() => {})
+    puxar()
+    const tique = setInterval(puxar, 30_000)
+    return () => clearInterval(tique)
+  }, [colonia, chatAberto])
+
 
   function abrirPorta(tipo: string) {
     setSelecionada(null)
@@ -232,9 +248,15 @@ export default function App() {
             <button
               onClick={() => setChatAberto((v) => !v)}
               data-abrir-chat
-              className="painel bg-sand-light text-rust hover:text-rust-bright eyebrow px-5"
+              data-chat-pendente={chatPendente}
+              className="painel bg-sand-light text-rust hover:text-rust-bright eyebrow relative px-5"
             >
               Chat
+              {chatPendente > 0 && (
+                <span className="bg-rust text-sand-light absolute -top-1.5 -right-1.5 flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-[10px] font-black">
+                  {chatPendente > 9 ? '9+' : chatPendente}
+                </span>
+              )}
             </button>
           )}
         </div>

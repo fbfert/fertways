@@ -59,6 +59,9 @@ class LerMensagens
                 ->values();
         }
 
+        // Abrir o canal apaga as citações dele: o selo avisou, o colono veio (D-77, aditivo).
+        app(Avisos::class)->verMencoes($leitor, $canal === 'regiao' ? 'regiao:'.Regiao::de($colony) : $canal);
+
         return $mensagens;
     }
 
@@ -84,7 +87,7 @@ class LerMensagens
 
     public function privada(User $leitor, User $outro, int $depoisDe = 0): Collection
     {
-        return ChatMessage::where('channel', 'privada')
+        $mensagens = ChatMessage::where('channel', 'privada')
             ->where(fn ($q) => $q
                 ->where(fn ($a) => $a->where('user_id', $leitor->id)->where('recipient_user_id', $outro->id))
                 ->orWhere(fn ($b) => $b->where('user_id', $outro->id)->where('recipient_user_id', $leitor->id)))
@@ -95,6 +98,13 @@ class LerMensagens
             ->get()
             ->reverse()
             ->values();
+
+        // Ler É marcar como lida — a marca só anda para a frente, então o polling não a bagunça.
+        if ($mensagens->isNotEmpty()) {
+            app(Avisos::class)->marcarLida($leitor, $outro->id, (int) $mensagens->last()->id);
+        }
+
+        return $mensagens;
     }
 
     /** @return list<int> */

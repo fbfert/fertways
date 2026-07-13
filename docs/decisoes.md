@@ -3218,6 +3218,23 @@ um botão na ficha do jogador. **Cala a praça, não a boca**: os públicos fech
   espera um sistema de notificações que não existe. Registrado.
 - **O canal de Federação não nasceu**: federações não existem (D-44). A coluna já o comporta.
 
+### Aditivo (2026-07-13, antes do deploy) — o chat que AVISA
+
+Auditoria do usuário: "foi feito alguma forma do colono saber que chegou mensagem privada, e alerta
+de quando ele é citado?" Não tinha sido — o D-77 nasceu mudo, e um chat onde ninguém sabe que foi
+chamado é meio chat. Fechado antes do primeiro deploy:
+
+- **Não-lidas**: `chat_reads` guarda até onde cada um leu cada conversa (coluna `peer_id` INTEIRA,
+  de propósito: um contexto textual exigiria concatenar em SQL, e o CONCAT do MariaDB não é o do
+  SQLite dos testes). O não-lido é DERIVADO, nunca flag por mensagem; ler move a marca, e a marca
+  **só anda para a frente** — o polling que relê página velha não reacende o selo.
+- **Citações**: `@nickname` num canal público registra menção (até 5 por mensagem — mais é
+  megafone). O citado ganha o selo e vê a mensagem destacada; **abrir o canal apaga**. Quem o
+  citado bloqueou não gera menção: bloquear é não ouvir, inclusive quando chamam o seu nome.
+- **O selo no HUD**: o botão Chat mostra privadas não lidas + menções, com um poll de 30 s que
+  roda mesmo com o painel fechado — duas contagens indexadas, nada mais. O "fechado não custa um
+  request" do polling virou "custa dois números a cada 30 s", e é o preço de saber que chamaram.
+
 ### O que se aprendeu construindo
 
 > **O silêncio do D-44 ligou sem uma linha nova no Ministério.** A pena já era gravada com tipo e

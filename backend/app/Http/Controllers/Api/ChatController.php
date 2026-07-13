@@ -19,6 +19,12 @@ use Illuminate\Support\Facades\DB;
  */
 class ChatController extends Controller
 {
+    /** O poll leve do HUD: roda a cada ~30 s mesmo com o painel fechado — é só contagem indexada. */
+    public function pendencias(Request $request, \App\Domain\Chat\Avisos $avisos): JsonResponse
+    {
+        return response()->json($avisos->pendencias($request->user()));
+    }
+
     public function canais(Request $request, EnviarMensagem $enviar): JsonResponse
     {
         $user = $request->user();
@@ -26,6 +32,7 @@ class ChatController extends Controller
         $silencio = $enviar->silencioVigente($user);
 
         return response()->json([
+            'nickname' => $user->nickname,
             'regiao' => $colony ? Regiao::NOMES[Regiao::de($colony)] : null,
             'silenciado_ate' => $silencio?->expires_at?->toIso8601String(),
             'bloqueados' => DB::table('chat_blocks')
@@ -53,14 +60,21 @@ class ChatController extends Controller
 
     public function conversas(Request $request, LerMensagens $ler): JsonResponse
     {
-        $conversas = $ler->conversas($request->user());
+        $eu = $request->user();
+        $conversas = $ler->conversas($eu);
         $nomes = User::whereIn('id', $conversas->pluck('com'))->pluck('nickname', 'id');
+        $marcas = DB::table('chat_reads')->where('user_id', $eu->id)->pluck('last_read_id', 'peer_id');
 
         return response()->json([
             'conversas' => $conversas->map(fn ($c) => [
                 'user_id' => $c['com'],
                 'nickname' => $nomes[$c['com']] ?? '—',
                 'ultima' => $this->linha($c['mensagem']),
+                'nao_lidas' => ChatMessage::where('channel', 'privada')
+                    ->where('user_id', $c['com'])
+                    ->where('recipient_user_id', $eu->id)
+                    ->where('id', '>', (int) ($marcas[$c['com']] ?? 0))
+                    ->count(),
             ]),
         ]);
     }

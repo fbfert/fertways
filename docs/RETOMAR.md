@@ -217,7 +217,7 @@ O MVP tem, funcionando e no ar em `https://fertways.tars.art.br`:
   - **Fora de escopo, de propósito:** o **Cargueiro Interplanetário** e o seu aluguel. Dependem do
     Espaçoporto e dos planetas NPC, que não existem.
 
-**502 testes PHP (3686 asserções) + 7 e2e, verdes.** O cron do tick está instalado (crontab do usuário
+**505 testes PHP (3699 asserções) + 7 e2e, verdes.** O cron do tick está instalado (crontab do usuário
 `fertways`, log em `/home/fertways/logs/fertways-tick.log`) e roda o `artisan` **da cópia de
 deploy** — o mundo avança sozinho. O tick faz: produção, upgrades, proteções, trechos de viagem,
 acordos vencidos, **casos reatribuídos, janelas de apelação fechadas e a folha do Ministério**.

@@ -97,6 +97,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // O Sistema de Mensagens (§10, D-77): polling, 4 canais vivos (federação espera federações).
     Route::get('/chat', [ChatController::class, 'canais']);
+    Route::get('/chat/pendencias', [ChatController::class, 'pendencias']);
     Route::get('/chat/conversas', [ChatController::class, 'conversas']);
     Route::get('/chat/privada/{user}', [ChatController::class, 'privada']);
     Route::post('/chat/privada/{user}', [ChatController::class, 'falarPrivado']);

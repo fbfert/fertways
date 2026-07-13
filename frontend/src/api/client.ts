@@ -1007,13 +1007,20 @@ export const api = {
 
   // ── O Sistema de Mensagens (§10; D-77). Polling: `after` traz só o que chegou depois. ──
   chatCanais: () =>
-    req<{ regiao: string | null; silenciado_ate: string | null; bloqueados: { id: number; nickname: string }[] }>('/chat'),
+    req<{
+      nickname: string
+      regiao: string | null
+      silenciado_ate: string | null
+      bloqueados: { id: number; nickname: string }[]
+    }>('/chat'),
+  /** O poll leve do HUD (~30 s, mesmo com o painel fechado): só duas contagens indexadas. */
+  chatPendencias: () => req<{ privadas_nao_lidas: number; mencoes: number }>('/chat/pendencias'),
   chatLer: (canal: 'global' | 'regiao' | 'vizinhanca', after = 0) =>
     req<{ mensagens: MensagemDeChat[] }>(`/chat/${canal}?after=${after}`),
   chatFalar: (canal: 'global' | 'regiao' | 'vizinhanca', body: string) =>
     req<MensagemDeChat>(`/chat/${canal}`, { method: 'POST', body: JSON.stringify({ body }) }),
   chatConversas: () =>
-    req<{ conversas: { user_id: number; nickname: string; ultima: MensagemDeChat }[] }>('/chat/conversas'),
+    req<{ conversas: { user_id: number; nickname: string; ultima: MensagemDeChat; nao_lidas: number }[] }>('/chat/conversas'),
   chatPrivada: (userId: number, after = 0) =>
     req<{ com: { id: number; nickname: string }; mensagens: MensagemDeChat[] }>(`/chat/privada/${userId}?after=${after}`),
   chatFalarPrivado: (userId: number, body: string) =>

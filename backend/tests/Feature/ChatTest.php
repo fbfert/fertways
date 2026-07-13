@@ -230,6 +230,66 @@ class ChatTest extends TestCase
         $this->assertSame(1, ChatMessage::where('channel', 'global')->count(), 'os 180 dias valem para os dois lados');
     }
 
+    // ---------------------------------------------------------------- os avisos (aditivo do D-77)
+
+    public function test_a_privada_acende_o_selo_e_ler_apaga(): void
+    {
+        $a = $this->colono(20, 20, 'remetente');
+        $b = $this->colono(30, 30, 'destinataria');
+
+        $this->actingAs($a)->postJson("/chat/privada/{$b->id}", ['body' => 'oi!']);
+        $this->actingAs($a)->postJson("/chat/privada/{$b->id}", ['body' => 'tudo bem?']);
+
+        // O selo acende para quem recebeu — o poll do HUD vê sem abrir o painel.
+        $this->actingAs($b)->getJson('/chat/pendencias')
+            ->assertOk()->assertJsonPath('privadas_nao_lidas', 2);
+
+        // E a lista de conversas diz QUAL conversa está acesa.
+        $this->actingAs($b)->getJson('/chat/conversas')
+            ->assertJsonPath('conversas.0.nao_lidas', 2);
+
+        // Ler É apagar: a marca anda junto com a leitura.
+        $this->actingAs($b)->getJson("/chat/privada/{$a->id}");
+        $this->actingAs($b)->getJson('/chat/pendencias')->assertJsonPath('privadas_nao_lidas', 0);
+
+        // E não reacende por releitura de página velha: a marca só anda PARA A FRENTE.
+        $this->actingAs($b)->getJson("/chat/privada/{$a->id}?after=0");
+        $this->actingAs($b)->getJson('/chat/pendencias')->assertJsonPath('privadas_nao_lidas', 0);
+    }
+
+    public function test_a_citacao_acende_e_abrir_o_canal_apaga(): void
+    {
+        $a = $this->colono(20, 20, 'oradora');
+        $b = $this->colono(30, 30, 'citado');
+
+        $this->actingAs($a)->postJson('/chat/global', ['body' => 'Alguém viu o @citado por aí?'])->assertCreated();
+
+        $this->actingAs($b)->getJson('/chat/pendencias')->assertJsonPath('mencoes', 1);
+
+        // Citar a si mesmo não acende nada, e nickname inexistente também não.
+        $this->actingAs($a)->postJson('/chat/global', ['body' => 'eu, @oradora, e o @fantasma_que_nao_existe']);
+        $this->actingAs($a)->getJson('/chat/pendencias')->assertJsonPath('mencoes', 0);
+
+        // Abrir o canal citado apaga o selo: ele avisou, o colono veio.
+        $this->actingAs($b)->getJson('/chat/global');
+        $this->actingAs($b)->getJson('/chat/pendencias')->assertJsonPath('mencoes', 0);
+    }
+
+    public function test_quem_eu_bloqueei_nao_acende_o_meu_selo(): void
+    {
+        $a = $this->colono(20, 20, 'tranquila');
+        $chato = $this->colono(30, 30, 'gritalhao');
+
+        $this->actingAs($a)->postJson("/chat/bloquear/{$chato->id}");
+
+        // Nem a citação na praça, nem a privada (que já era barrada na porta).
+        $this->actingAs($chato)->postJson('/chat/global', ['body' => 'ei @tranquila!!']);
+
+        $this->actingAs($a)->getJson('/chat/pendencias')
+            ->assertJsonPath('mencoes', 0)
+            ->assertJsonPath('privadas_nao_lidas', 0);
+    }
+
     // ---------------------------------------------------------------- o painel
 
     public function test_espiar_privada_registra_a_auditoria_antes_de_abrir(): void

@@ -90,7 +90,7 @@ class EnviarMensagem
 
     private function gravar(User $autor, string $canal, string $corpo, ?int $destinatario = null, ?int $x = null, ?int $y = null): ChatMessage
     {
-        return ChatMessage::create([
+        $mensagem = ChatMessage::create([
             'user_id' => $autor->id,
             'channel' => $canal,
             'recipient_user_id' => $destinatario,
@@ -99,6 +99,13 @@ class EnviarMensagem
             'body' => $corpo,
             'created_at' => now(),
         ]);
+
+        // A citação (@nickname) só existe na praça: na privada o aviso é o próprio não-lido.
+        if ($destinatario === null) {
+            app(Avisos::class)->citar($mensagem);
+        }
+
+        return $mensagem;
     }
 
     /** A pena `silencio` do D-44, enfim com dentes. */

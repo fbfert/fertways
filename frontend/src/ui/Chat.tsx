@@ -20,11 +20,13 @@ export function Chat({ aoFechar }: { aoFechar: () => void }) {
   const [aba, setAba] = useState<Aba>('global')
   const [regiao, setRegiao] = useState<string | null>(null)
   const [silenciadoAte, setSilenciadoAte] = useState<string | null>(null)
+  const [meuNick, setMeuNick] = useState('')
 
   useEffect(() => {
     void api.chatCanais().then((c) => {
       setRegiao(c.regiao)
       setSilenciadoAte(c.silenciado_ate)
+      setMeuNick(c.nickname)
     })
   }, [])
 
@@ -67,13 +69,13 @@ export function Chat({ aoFechar }: { aoFechar: () => void }) {
         </p>
       )}
 
-      {aba === 'privadas' ? <Privadas /> : <Canal canal={aba} key={aba} />}
+      {aba === 'privadas' ? <Privadas /> : <Canal canal={aba} meuNick={meuNick} key={aba} />}
     </div>
   )
 }
 
 /** Um canal público: lista com polling + caixa de envio. */
-function Canal({ canal }: { canal: 'global' | 'regiao' | 'vizinhanca' }) {
+function Canal({ canal, meuNick }: { canal: 'global' | 'regiao' | 'vizinhanca'; meuNick: string }) {
   const [mensagens, setMensagens] = useState<MensagemDeChat[]>([])
   const [texto, setTexto] = useState('')
   const [erro, setErro] = useState<string | null>(null)
@@ -121,12 +123,16 @@ function Canal({ canal }: { canal: 'global' | 'regiao' | 'vizinhanca' }) {
         {mensagens.length === 0 && (
           <p className="text-ink-soft/60 text-xs">O canal está em silêncio — diga um oi.</p>
         )}
-        {mensagens.map((m) => (
-          <p key={m.id}>
-            <strong className="text-rust">{m.de.nickname}</strong>{' '}
-            <span className="text-ink">{m.body}</span>
-          </p>
-        ))}
+        {mensagens.map((m) => {
+          // A citação: quem chamou o SEU nome sai destacado — é para isso que o selo trouxe você.
+          const meCita = meuNick !== '' && m.body.toLowerCase().includes('@' + meuNick.toLowerCase())
+          return (
+            <p key={m.id} className={meCita ? 'border-rust bg-sand -mx-1 border-l-2 px-1' : undefined}>
+              <strong className="text-rust">{m.de.nickname}</strong>{' '}
+              <span className="text-ink">{m.body}</span>
+            </p>
+          )
+        })}
         <div ref={fimRef} />
       </div>
 
@@ -138,7 +144,7 @@ function Canal({ canal }: { canal: 'global' | 'regiao' | 'vizinhanca' }) {
           onChange={(e) => setTexto(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && void falar()}
           maxLength={500}
-          placeholder="Fale com o planeta…"
+          placeholder="Fale com o planeta… (@nickname cita alguém)"
           data-chat-texto
           className="border-rust/30 bg-sand-light text-ink min-w-0 flex-1 border px-2 py-1 text-sm outline-none"
         />
@@ -156,7 +162,9 @@ function Canal({ canal }: { canal: 'global' | 'regiao' | 'vizinhanca' }) {
 
 /** As conversas privadas: a lista, e dentro dela cada conversa com polling próprio. */
 function Privadas() {
-  const [conversas, setConversas] = useState<{ user_id: number; nickname: string; ultima: MensagemDeChat }[]>([])
+  const [conversas, setConversas] = useState<
+    { user_id: number; nickname: string; ultima: MensagemDeChat; nao_lidas: number }[]
+  >([])
   const [aberta, setAberta] = useState<{ id: number; nickname: string } | null>(null)
 
   useEffect(() => {
@@ -185,7 +193,14 @@ function Privadas() {
           className="border-rust/10 hover:bg-sand block w-full border-b py-2 text-left"
         >
           <strong className="text-rust">{c.nickname}</strong>
-          <span className="text-ink-soft block truncate text-xs">{c.ultima.body}</span>
+          {c.nao_lidas > 0 && (
+            <span className="bg-rust text-sand-light ml-2 rounded-full px-1.5 text-[10px] font-black" data-nao-lidas={c.nao_lidas}>
+              {c.nao_lidas}
+            </span>
+          )}
+          <span className={`block truncate text-xs ${c.nao_lidas > 0 ? 'text-ink font-bold' : 'text-ink-soft'}`}>
+            {c.ultima.body}
+          </span>
         </button>
       ))}
     </div>
