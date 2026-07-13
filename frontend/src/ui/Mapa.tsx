@@ -587,6 +587,16 @@ function PainelColonia({ c }: { c: ColoniaVizinha }) {
   )
 }
 
+/** "vista há 3 h" — a idade é o que torna a foto honesta: o número pode estar velho, e a tela diz quanto. */
+function idadeDaFoto(iso: string): string {
+  const minutos = Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 60_000))
+  if (minutos < 1) return 'vista agora'
+  if (minutos < 60) return `vista há ${minutos} min`
+  const horas = Math.floor(minutos / 60)
+  if (horas < 48) return `vista há ${horas} h`
+  return `vista há ${Math.floor(horas / 24)} dias`
+}
+
 function PainelZona({
   z,
   me,
@@ -602,15 +612,20 @@ function PainelZona({
 }) {
   const [erro, setErro] = useState<string | null>(null)
   const [enviando, setEnviando] = useState(false)
-  const ociosos = frota.filter((v) => v.status === 'ocioso')
+  // O Drone é veículo, mas não é carga (capacity 0): sem este filtro, o `ociosos[0]` da retirada
+  // poderia ser um drone, e o botão de despachar nasceria travado em 0 sem dizer por quê (D-74).
+  const ociosos = frota.filter((v) => v.status === 'ocioso' && v.type !== 'drone_de_exploracao')
+  const drones = frota.filter((v) => v.status === 'ocioso' && v.type === 'drone_de_exploracao')
   const [qtd, setQtd] = useState(0)
 
   const dist = distancia(me, z)
   const produtiva = z.productive_at ? new Date(z.productive_at).getTime() <= Date.now() : false
 
+  const deposito = z.deposit_amount ?? 0
+
   useEffect(() => {
     const cap = ociosos[0]?.capacity ?? 0
-    setQtd(Math.min(z.deposit_amount, cap))
+    setQtd(Math.min(deposito, cap))
     setErro(null)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [z.id, z.deposit_amount])
@@ -623,6 +638,22 @@ function PainelZona({
       await aoAgir()
     } catch (e) {
       setErro(e instanceof ApiError ? e.message : 'Falha ao ocupar.')
+    } finally {
+      setEnviando(false)
+    }
+  }
+
+  async function reconhecer(modo: 'foto' | 'vigilancia') {
+    if (!drones[0]) return
+    setErro(null)
+    setEnviando(true)
+    try {
+      // O drone de MAIOR nível vai primeiro: raio e bateria maiores. A lista vem ordenada da frota.
+      const melhor = [...drones].sort((a, b) => b.level - a.level)[0]
+      await api.enviarDrone(melhor.id, z.id, modo)
+      await aoAgir()
+    } catch (e) {
+      setErro(e instanceof ApiError ? e.message : 'Falha ao despachar o Drone.')
     } finally {
       setEnviando(false)
     }
@@ -650,7 +681,7 @@ function PainelZona({
         <Linha termo="Posição" valor={`(${z.x}, ${z.y})`} />
         <Linha termo="Distância" valor={`${dist} slots`} />
         <Linha termo="Dono" valor={z.owner ? (z.mine ? 'você' : z.owner.name) : 'livre'} />
-        {z.mine && <Linha termo="Depósito" valor={`${z.deposit_amount} / ${z.deposit_cap}`} />}
+        {z.mine && <Linha termo="Depósito" valor={`${deposito} / ${z.deposit_cap}`} />}
         {z.mine && <Linha termo="Extração" valor={`${z.extraction_per_hour}/h`} />}
       </dl>
 
@@ -675,6 +706,46 @@ function PainelZona({
           >
             {enviando ? 'Ocupando…' : 'Ocupar'}
           </button>
+        </div>
+      )}
+
+      {/* De outro colono: o interior é névoa (D-74) — o Drone é o único olho que a atravessa. */}
+      {z.owner && !z.mine && (
+        <div className="border-rust/20 mt-3 border-t pt-2" data-intel={z.intel}>
+          <dl className="text-ink-soft space-y-1 text-sm">
+            <Linha termo="Guarnição" valor={z.garrison === null ? '?' : `${z.garrison} robôs`} />
+            <Linha termo="Depósito" valor={z.deposit_amount === null ? '?' : `${z.deposit_amount}`} />
+          </dl>
+          <p className="text-ink-soft/70 mt-1 text-xs">
+            {z.intel === 'ao_vivo' && 'Um Drone seu sobrevoa a região: transmissão ao vivo.'}
+            {z.intel === 'foto' && z.intel_em &&
+              `Foto de Drone — ${idadeDaFoto(z.intel_em)}. O de lá de agora pode ser outro.`}
+            {z.intel === 'nenhuma' &&
+              'Interior desconhecido. Só um Drone de Exploração revela a guarnição e o depósito (§16.1).'}
+          </p>
+          {drones.length > 0 && (
+            <div className="mt-2 flex gap-2">
+              <button
+                onClick={() => void reconhecer('foto')}
+                disabled={enviando}
+                data-drone-foto
+                className="border-rust/40 text-rust hover:border-rust flex-1 border py-1.5 text-xs font-bold disabled:opacity-40"
+              >
+                Drone: foto
+              </button>
+              <button
+                onClick={() => void reconhecer('vigilancia')}
+                disabled={enviando}
+                data-drone-vigiar
+                className="border-rust/40 text-rust hover:border-rust flex-1 border py-1.5 text-xs font-bold disabled:opacity-40"
+              >
+                Drone: vigiar
+              </button>
+            </div>
+          )}
+          {drones.length === 0 && z.intel === 'nenhuma' && (
+            <p className="text-ink-soft/60 mt-1 text-xs">Nenhum Drone ocioso no hangar — fabrique um na Oficina, pelo Quartel.</p>
+          )}
         </div>
       )}
 
@@ -703,7 +774,7 @@ function PainelZona({
         <div className="mt-3">
           {ociosos.length === 0 ? (
             <p className="text-ink-soft/80 text-xs">Nenhum veículo ocioso para buscar a carga.</p>
-          ) : z.deposit_amount === 0 ? (
+          ) : deposito === 0 ? (
             <p className="text-ink-soft/80 text-xs">O Depósito está vazio; a extração corre no tick.</p>
           ) : (
             <>
@@ -711,14 +782,14 @@ function PainelZona({
               <input
                 type="number"
                 min={1}
-                max={Math.min(z.deposit_amount, ociosos[0].capacity)}
+                max={Math.min(deposito, ociosos[0].capacity)}
                 value={qtd}
                 onChange={(e) => setQtd(Math.max(0, Number(e.target.value)))}
                 className="border-rust/25 bg-sand-light focus:border-rust mt-1 w-full border px-2 py-1 text-sm outline-none"
               />
               <button
                 onClick={() => void retirar()}
-                disabled={enviando || qtd <= 0 || qtd > Math.min(z.deposit_amount, ociosos[0].capacity)}
+                disabled={enviando || qtd <= 0 || qtd > Math.min(deposito, ociosos[0].capacity)}
                 data-retirar
                 className="bg-rust text-sand-light hover:bg-rust-bright mt-2 w-full py-2 text-sm font-bold disabled:opacity-40"
               >

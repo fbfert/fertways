@@ -90,7 +90,21 @@ export async function abrirNavegador() {
     executablePath: CHROMIUM,
     headless: true,
     // Este ambiente roda como root; sem isto o Chromium recusa subir.
-    args: ['--no-sandbox', '--disable-dev-shm-usage'],
+    //
+    // ⚠️ E roda num servidor de 4 GB SEM SWAP, dividido com o MariaDB de produção: o resto das
+    // flags é dieta de memória. O e2e já morreu de OOM (`exit 137`) por falta delas — e `exit 137`
+    // não é teste reprovado, é o kernel escolhendo uma vítima.
+    args: [
+      '--no-sandbox',
+      '--disable-dev-shm-usage',
+      '--disable-gpu',
+      '--disable-extensions',
+      '--no-first-run',
+      // O teto do heap do JS dentro do Chromium. O jogo inteiro cabe folgado em 256 MB.
+      '--js-flags=--max-old-space-size=256',
+      // Sem isto o Chromium abre um processo de renderização por origem, e cada um custa ~100 MB.
+      '--renderer-process-limit=2',
+    ],
   })
 
   const page = await navegador.newPage()

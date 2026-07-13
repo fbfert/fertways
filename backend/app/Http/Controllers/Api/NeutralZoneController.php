@@ -20,30 +20,47 @@ class NeutralZoneController extends Controller
 {
     /**
      * As 120 zonas, com o que é público: célula, distrito, mineral, nível e o estado da ocupação.
-     * Sem névoa de guerra (D-37): quem ocupa o quê é visível, como o diretório de colônias.
+     * Quem ocupa o quê é visível, como o diretório de colônias (D-37).
+     *
+     * ⚠️ **O INTERIOR de zona alheia é névoa desde o D-74** — guarnição e depósito vêm `null` para
+     * quem nunca mandou um Drone lá. Null, e não zero: zero é um fato ("está indefesa"); null é a
+     * honestidade de não saber. O `intel` diz com que olhos se vê (`dona`/`livre`/`ao_vivo`/`foto`/
+     * `nenhuma`), e o `intel_em` data a foto — informação que envelhece é informação honesta.
      */
-    public function index(Request $request): JsonResponse
+    public function index(Request $request, \App\Domain\Drone\Avistamentos $avistamentos): JsonResponse
     {
         $minha = $request->user()->colony()->first();
 
         $zonas = NeutralZone::with('owner:id,name')->orderBy('district')->orderBy('x')->orderBy('y')->get()
-            ->map(fn (NeutralZone $z) => [
-                'id' => $z->id,
-                'x' => $z->x,
-                'y' => $z->y,
-                'district' => $z->district,
-                'mineral' => $z->mineral,
-                'level' => $z->level,
-                'status' => $z->status,
-                'owner' => $z->owner ? ['id' => $z->owner->id, 'name' => $z->owner->name] : null,
-                'mine' => $minha && $z->owner_colony_id === $minha->id,
-                // O Depósito e a produtividade só interessam ao dono; para os outros, o essencial.
-                'deposit_amount' => $z->deposit_amount,
-                'deposit_cap' => $z->capacidadeDeposito(),
-                'extraction_per_hour' => $z->extracaoPorHora(),
-                'productive_at' => $z->productive_at,
-                'garrison' => $z->guarnicao(),
-            ]);
+            ->map(function (NeutralZone $z) use ($minha, $avistamentos) {
+                $visto = $minha
+                    ? $avistamentos->de($minha, $z)
+                    // Sem colônia não há drone nem direito a interior nenhum — só o público.
+                    : ($z->owner_colony_id === null
+                        ? ['intel' => 'livre', 'garrison' => $z->guarnicao(), 'deposit_amount' => (int) $z->deposit_amount, 'visto_em' => null]
+                        : ['intel' => 'nenhuma', 'garrison' => null, 'deposit_amount' => null, 'visto_em' => null]);
+
+                return [
+                    'id' => $z->id,
+                    'x' => $z->x,
+                    'y' => $z->y,
+                    'district' => $z->district,
+                    'mineral' => $z->mineral,
+                    'level' => $z->level,
+                    'status' => $z->status,
+                    'owner' => $z->owner ? ['id' => $z->owner->id, 'name' => $z->owner->name] : null,
+                    'mine' => $minha && $z->owner_colony_id === $minha->id,
+                    // Derivados do nível, que é público — esconder seria teatro: qualquer um calcula.
+                    'deposit_cap' => $z->capacidadeDeposito(),
+                    'extraction_per_hour' => $z->extracaoPorHora(),
+                    'productive_at' => $z->productive_at,
+                    // Os dois únicos segredos do interior, pelos olhos de quem pergunta (D-74).
+                    'deposit_amount' => $visto['deposit_amount'],
+                    'garrison' => $visto['garrison'],
+                    'intel' => $visto['intel'],
+                    'intel_em' => $visto['visto_em'],
+                ];
+            });
 
         return response()->json(['zones' => $zonas]);
     }

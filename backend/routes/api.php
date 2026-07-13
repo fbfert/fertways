@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\BuildingController;
 use App\Http\Controllers\Api\CapitalController;
 use App\Http\Controllers\Api\ColonyController;
+use App\Http\Controllers\Api\DroneController;
 use App\Http\Controllers\Api\ImagesController;
 use App\Http\Controllers\Api\MarketController;
 use App\Http\Controllers\Api\MinistryController;
@@ -65,6 +66,11 @@ Route::middleware('auth:sanctum')->group(function () {
     // prometia o primeiro e o §28.10 manda o segundo — nenhum dos dois existia.
     Route::post('/war/reinforce', [WarController::class, 'reforcar']);
     Route::post('/war/break-siege', [WarController::class, 'romper']);
+
+    // O Drone (D-74): fabricado na Oficina, guardado no Quartel, e o único olho que atravessa a
+    // névoa do interior das zonas alheias. A missão mira uma zona; o raio revela as vizinhas.
+    Route::post('/drones', [DroneController::class, 'fabricar']);
+    Route::post('/drones/{vehicle}/mission', [DroneController::class, 'enviar']);
 
     // A arte das construções (D-68). Só o que TEM imagem vem aqui; o resto cai no hexágono.
     Route::get('/images', [ImagesController::class, 'index']);

@@ -51,6 +51,7 @@ class TickColonies extends Command
         ChegarReforcos $reforcos,
         RefinarNaZona $refinarias,
         ConcluirObrasDaZona $obras,
+        \App\Domain\Drone\ConcluirMissoes $drones,
     ): int {
         $agora = now();
         $processadas = 0;
@@ -86,6 +87,14 @@ class TickColonies extends Command
          * a carga só quando a colônia de origem fosse processada.
          */
         $entregas = $trechos->handle();
+
+        /*
+         * As missões de Drone (D-74) andam junto das entregas — são viagens, só que de olhos, e o
+         * `ConcluirTrechos` as ignora de propósito (o Drone não carrega carga). Antes do combate,
+         * pela mesma lógica dos reforços: a foto tirada neste minuto já vale para quem decide
+         * atacar neste minuto.
+         */
+        $missoes = $drones->handle($agora);
 
         /*
          * Depois das entregas, nunca antes: a carga que chega no último segundo do prazo ainda
@@ -144,7 +153,7 @@ class TickColonies extends Command
         $obrasFeitas = $obras->handle($agora);
         $refinadas = $refinarias->handle($agora);
 
-        $this->info("tick: {$processadas} colônias, {$falhas} falhas, {$zonas} proteções expiradas, {$extraidas} zonas extraídas, {$entregas} trechos concluídos, {$vencidos} acordos vencidos, {$reatribuidos} casos reatribuídos, {$encerrados} casos encerrados, {$salarios} salários pagos, {$prontos} caminhões prontos, {$encomendados} encomendados, {$cobrados} horas de pátio cobradas, {$rebocados} rebocados, {$batalhas} batalhas, {$chegaram} reforços chegados, {$obrasFeitas} obras de zona, {$refinadas} zonas refinaram");
+        $this->info("tick: {$processadas} colônias, {$falhas} falhas, {$zonas} proteções expiradas, {$extraidas} zonas extraídas, {$entregas} trechos concluídos, {$vencidos} acordos vencidos, {$reatribuidos} casos reatribuídos, {$encerrados} casos encerrados, {$salarios} salários pagos, {$prontos} caminhões prontos, {$encomendados} encomendados, {$cobrados} horas de pátio cobradas, {$rebocados} rebocados, {$batalhas} batalhas, {$chegaram} reforços chegados, {$obrasFeitas} obras de zona, {$refinadas} zonas refinaram, {$missoes} pernas de drone");
 
         return $falhas > 0 ? self::FAILURE : self::SUCCESS;
     }

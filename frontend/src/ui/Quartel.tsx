@@ -38,6 +38,13 @@ const PARA_QUE: Record<Unidade['type'], string> = {
 
 const TIPOS: Unidade['type'][] = ['sentinela', 'robo_minerador', 'infiltrador', 'predador']
 
+/** Os três recursos do custo do Drone (§4.3), com nome de gente. */
+const NOME_CUSTO: Record<string, string> = {
+  componentes_eletronicos: 'Componentes',
+  compostos_quimicos: 'Compostos',
+  metal_bruto: 'Metal Bruto',
+}
+
 /**
  * O botão que faltava (D-70): despachar N Sentinelas — reforçar uma zona ou romper um cerco.
  *
@@ -114,6 +121,7 @@ export function Quartel({ aoFechar }: { aoFechar: () => void }) {
   const [nivel, setNivel] = useState(1)
   const [quantas, setQuantas] = useState(1)
   const [niobio, setNiobio] = useState(3)
+  const [nivelDrone, setNivelDrone] = useState(1)
 
   const carregar = useCallback(async () => {
     try {
@@ -305,6 +313,79 @@ export function Quartel({ aoFechar }: { aoFechar: () => void }) {
             Fabricar
           </button>
         </div>
+      </section>
+
+      {/* ── o hangar dos Drones (§21.4: o Quartel armazena e recarrega; a fábrica é a Oficina, D-74) */}
+      <section className="painel bg-sand p-4" data-secao="drones">
+        <h3 className="font-bold">Drones de Exploração</h3>
+        <p className="text-ink-soft mt-1 text-xs">
+          O único olho que atravessa a névoa: guarnição e depósito de zona alheia só se veem por
+          Drone (D-74). <strong>Fabrica-se na Oficina</strong> — o Quartel só o guarda e recarrega
+          (§21.4) — e a missão parte do <strong>mapa</strong>: clique numa zona de outro colono.
+        </p>
+
+        {dados.drones.length > 0 && (
+          <ul className="mt-3 space-y-1 text-sm" data-hangar>
+            {dados.drones.map((d) => (
+              <li key={d.id} className="flex flex-wrap items-baseline gap-2" data-drone={d.id}>
+                <span className="font-bold">{d.placa}</span>
+                <span className="text-ink-soft text-xs">
+                  nível {d.level} · raio {d.raio} slots · bateria {d.bateria_horas} h
+                </span>
+                <span className="text-rust text-xs">
+                  {d.fase === null && 'no hangar'}
+                  {d.fase === 'ida' && 'voando ao alvo'}
+                  {d.fase === 'vigia' && `sobrevoando (volta ${d.chega_at ? dataHumana(d.chega_at) : '…'})`}
+                  {d.fase === 'volta' && 'voltando'}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        <div className="mt-3 flex flex-wrap items-center gap-3">
+          <label className="text-sm">
+            Nível{' '}
+            <select
+              value={nivelDrone}
+              onChange={(e) => setNivelDrone(Number(e.target.value))}
+              className="rounded border px-2 py-1"
+              data-drone-nivel
+            >
+              {[1, 2, 3, 4, 5].map((n) => (
+                <option key={n} value={n} disabled={n > dados.oficina_nivel}>
+                  {n}
+                  {n > dados.oficina_nivel ? ' (acima da Oficina)' : ''}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <button
+            className="botao"
+            disabled={ocupado || dados.oficina_nivel < 1}
+            data-fabricar-drone
+            onClick={() =>
+              void agir(async () => {
+                const r = await api.fabricarDrone(nivelDrone)
+                return `Drone ${r.placa} fabricado na Oficina.`
+              })
+            }
+          >
+            Fabricar Drone
+          </button>
+
+          <span className="text-ink-soft text-xs">
+            custa{' '}
+            {Object.entries(dados.drone_custos[nivelDrone] ?? {})
+              .map(([r, q]) => `${q} ${NOME_CUSTO[r] ?? r}`)
+              .join(' + ')}
+          </span>
+        </div>
+
+        {dados.oficina_nivel < 1 && (
+          <p className="text-rust mt-2 text-xs">Sem Oficina não há Drone: é ela que o fabrica (D-74).</p>
+        )}
       </section>
 
       {/* ── o exército ────────────────────────────────────────────────────────────────────── */}

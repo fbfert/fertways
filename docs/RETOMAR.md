@@ -217,7 +217,7 @@ O MVP tem, funcionando e no ar em `https://fertways.tars.art.br`:
   - **Fora de escopo, de propósito:** o **Cargueiro Interplanetário** e o seu aluguel. Dependem do
     Espaçoporto e dos planetas NPC, que não existem.
 
-**455 testes PHP (3476 asserções) + 7 e2e, verdes.** O cron do tick está instalado (crontab do usuário
+**467 testes PHP (3526 asserções) + 7 e2e, verdes.** O cron do tick está instalado (crontab do usuário
 `fertways`, log em `/home/fertways/logs/fertways-tick.log`) e roda o `artisan` **da cópia de
 deploy** — o mundo avança sozinho. O tick faz: produção, upgrades, proteções, trechos de viagem,
 acordos vencidos, **casos reatribuídos, janelas de apelação fechadas e a folha do Ministério**.
@@ -741,8 +741,19 @@ na colônia**, e o painel de zona ocupa e despacha a retirada). **197 testes PHP
 foi rodado à parte no `fertwaysbd` (não roda no deploy) — 120 zonas em 4 distritos, conferidas por
 leitura. Ele é idempotente, então repetir é seguro se um dia houver dúvida.
 
-**Fatia 2 e 3, depois:** guerra do §27 (lacunas 4 e 8) e o Drone (lacunas 5, 6, 10). O gate do Marco
-(§05) fica **suspenso**, por decisão do usuário.
+**Fatia 2 — no ar** (D-66/D-70: a guerra inteira). **Fatia 3 — no ar** (D-74, 2026-07-13): o Drone
+e a névoa que lhe deu ofício. **O D-52 está completo.** O gate do Marco (§05) segue **suspenso**,
+por decisão do usuário.
+
+**A Fatia 3, em uma linha:** o interior de zona ALHEIA (guarnição e depósito) virou névoa — vem
+`null`, e a tela mostra "?" — e o Drone é o único olho que a atravessa. Fabrica-se na **Oficina**
+(nível dela = teto do nível), guarda-se no Quartel (§21.4), e a missão parte do MAPA, mirando uma
+zona: **foto** (ida e volta; registro permanente e DATADO — "vista há 3 h") ou **vigilância** (ida
+simples: transmite ao vivo até a bateria publicada acabar — 24 h nível 1 … 122 h nível 5 — e volta
+sozinho, deixando a última foto). Raio 6×1,5 por nível (6/9/13/20/30); 8 slots/min; não gasta
+energia da colônia; NÃO entra no mercado de usados (sem âncora — seria a lavagem do D-73 de volta).
+Domínio em `app/Domain/Drone/`; a missão vive nas colunas de viagem do próprio veículo (`leg`
+ida→vigia→volta), sem tabela nova além de `drone_sightings` (as fotos).
 
 ## Perguntas em aberto — faça estas ao usuário ao retomar
 
@@ -760,7 +771,6 @@ leitura. Ele é idempotente, então repetir é seguro se um dia houver dúvida.
      `estufa-lumen`, `centro-cerco-kraken`, `terminal-aduaneiro-vetor`, `camara-escrow-prisma` —
      as opções de cada uma estão no D-72). Há também ~10 entidades **sem imagem candidata
      nenhuma** — encomenda ao artista, não vínculo.
-   - **D-52 Fatia 3, o Drone** — precisa de arbitragem (4 lacunas; ver o item 1 abaixo).
    - **O Marco do §03** e o **serviço logístico público do §07** — os dois precisam de arbitragem.
 
    ⚠️ **O "segundo admin dono" SAIU da lista, e a lição de por quê vale mais do que a tarefa.** Ele
@@ -774,11 +784,10 @@ leitura. Ele é idempotente, então repetir é seguro se um dia houver dúvida.
    arbitradas: **Fatia 1** (extração 100/h, mineral por distrito, ocupação) e **Fatia 2 inteira**
    (D-66: Nióbio, estoque protegido, bônus defensivos, custo das 4 construções de defesa, Módulo
    Operacional, as duas chances do §28.10, o cerco, e o término do combate). Ainda abertas:
-   - **Fatia 3 (Drone):** **velocidade** (Furgão 4 slots/min, Caminhão 1,5, Nave 10 são as âncoras),
-     **raio de revelação** e **persistência**, e **onde é fabricado**. **Não pergunte o custo:** ele
-     está publicado, e a errata do D-37 (2026-07-11) fixou qual das duas tabelas vale — a curva
-     **1,65×** do §4.3 do v3.4, `50 83 136 225 371`. Bateria, recarga e depreciação também estão no
-     GDD (D-52). As lacunas do Drone são **quatro**, não cinco.
+   - ~~Fatia 3 (Drone)~~ — **as quatro lacunas foram arbitradas e estão no ar (D-74)**: velocidade
+     8 slots/min, raio 6×1,5 por nível, persistência = os dois modos do §21.4 (foto datada /
+     vigilância até a bateria publicada acabar — nenhum número inventado), fábrica = Oficina.
+     **Não reabra.** E a névoa que o D-37 anotou entrou no D-74, só no interior de zona alheia.
    - **Custo/tempo das 6 estruturas de zona restantes** (Estrutura de Extração, Refinaria de Campo,
      Central de Comunicação, Plataforma de Pouso, Estacionamento, Cemitério de Robôs). O Posto de
      Comando saiu no D-52; a Muralha, a Torre de Vigia, o Bastião e o Abrigo de Robôs, no D-66.

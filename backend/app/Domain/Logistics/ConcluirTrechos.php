@@ -55,6 +55,13 @@ class ConcluirTrechos
     public function handle(): int
     {
         $vencidos = Vehicle::where('status', 'em_rota')
+            /*
+             * ⚠️ O Drone também fica `em_rota`, e NÃO é desta máquina (D-74): ele não carrega carga,
+             * não paga tributo e não passa pelo Pátio — quem fecha as pernas dele é o
+             * `Drone\ConcluirMissoes`. Sem este filtro, a chegada de um drone cairia no fluxo de
+             * entrega, que perguntaria pela carga dele e acharia o nada.
+             */
+            ->where('type', '!=', \App\Domain\Drone\DroneSpecs::TIPO)
             ->where('arrives_at', '<=', now())
             ->orderBy('arrives_at')
             ->get();

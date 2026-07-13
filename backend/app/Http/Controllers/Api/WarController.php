@@ -47,9 +47,33 @@ class WarController extends Controller
 
         $quartel = $colony->buildings()->where('type', 'quartel')->value('level') ?? 0;
 
+        /*
+         * Os Drones aparecem AQUI porque o §21.4 os põe aqui: "armazenado e recarregado no
+         * Quartel". A fábrica é a Oficina (D-74) — a tela do Quartel é só o hangar deles.
+         */
+        $drones = $colony->vehicles()
+            ->where('type', \App\Domain\Drone\DroneSpecs::TIPO)
+            ->get()
+            ->map(fn ($d) => [
+                'id' => $d->id,
+                'placa' => $d->plate,
+                'level' => $d->level,
+                'status' => $d->status,
+                // A fase da missão é o `leg`; a tela traduz (voando / sobrevoando / voltando).
+                'fase' => $d->leg,
+                'modo' => $d->trip_purpose,
+                'alvo_zone_id' => $d->leg ? $d->destination_id : null,
+                'chega_at' => $d->arrives_at?->toIso8601String(),
+                'raio' => \App\Domain\Drone\DroneSpecs::RAIO[$d->level] ?? 6,
+                'bateria_horas' => \App\Domain\Drone\DroneSpecs::BATERIA_HORAS[$d->level] ?? 24,
+            ]);
+
         return response()->json([
             'quartel_nivel' => $quartel,
             'unidades' => $unidades,
+            'drones' => $drones,
+            'oficina_nivel' => $colony->buildings()->where('type', 'oficina')->value('level') ?? 0,
+            'drone_custos' => \App\Domain\Drone\DroneSpecs::CUSTO,
             'niobio' => [
                 // Sem Nióbio não há Sentinela, e nada no jogo o produz (D-66). O governo vende.
                 'em_estoque' => $colony->resources()->where('resource_type', 'niobio_alienigena')->value('amount') ?? 0,

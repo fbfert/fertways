@@ -201,11 +201,34 @@ export type ZonaNeutra = {
   status: string
   owner: { id: number; name: string } | null
   mine: boolean
-  deposit_amount: number
+  /**
+   * Os dois únicos segredos do interior (D-74): null = névoa, não zero. Zero é um fato ("está
+   * indefesa"); null é a honestidade de não saber. Mande um Drone.
+   */
+  deposit_amount: number | null
   deposit_cap: number
   extraction_per_hour: number
   productive_at: string | null
-  garrison: number
+  garrison: number | null
+  /** Com que olhos esta colônia vê a zona (D-74). */
+  intel: 'dona' | 'livre' | 'ao_vivo' | 'foto' | 'nenhuma'
+  /** A data da foto, quando intel === 'foto' — informação que envelhece é informação honesta. */
+  intel_em: string | null
+}
+
+/** Um Drone de Exploração no hangar do Quartel (§21.4; D-74). */
+export type Drone = {
+  id: number
+  placa: string
+  level: number
+  status: string
+  /** A fase da missão: null (em casa) | 'ida' | 'vigia' | 'volta'. */
+  fase: 'ida' | 'vigia' | 'volta' | null
+  modo: 'foto' | 'vigilancia' | null
+  alvo_zone_id: number | null
+  chega_at: string | null
+  raio: number
+  bateria_horas: number
 }
 
 /** Uma unidade de combate (§27.1, §27.2; D-66). O HP decide o que ela vale: ferida, vale menos. */
@@ -221,6 +244,10 @@ export type Unidade = {
 export type EstadoDaGuerra = {
   quartel_nivel: number
   unidades: Unidade[]
+  /** O hangar (§21.4: o Quartel armazena e recarrega; a fábrica é a Oficina — D-74). */
+  drones: Drone[]
+  oficina_nivel: number
+  drone_custos: Record<number, Record<string, number>>
   /** Nada no jogo produz Nióbio, e a Sentinela custa 3. O governo vende (D-66). */
   niobio: { em_estoque: number; preco_fert: number }
   bonus_defensivos: {
@@ -704,6 +731,20 @@ export const api = {
 
   /** O exército em casa, o Quartel, e a que preço o governo vende o Nióbio que falta. */
   guerra: () => req<EstadoDaGuerra>('/war'),
+
+  /** Fabrica um Drone na Oficina (D-74). Instantâneo: o freio é o custo, não o relógio. */
+  fabricarDrone: (nivel: number) =>
+    req<{ id: number; placa: string; level: number }>('/drones', {
+      method: 'POST',
+      body: JSON.stringify({ nivel }),
+    }),
+
+  /** Missão de reconhecimento (§21.4): foto = ida e volta; vigilancia = fica até a bateria acabar. */
+  enviarDrone: (droneId: number, zoneId: number, modo: 'foto' | 'vigilancia') =>
+    req<{ id: number; fase: string; chega_at: string }>(`/drones/${droneId}/mission`, {
+      method: 'POST',
+      body: JSON.stringify({ zone_id: zoneId, modo }),
+    }),
 
   /** As batalhas em curso — atacando E defendendo: o §27.5 quer que o defensor veja e socorra. */
   combates: () => req<{ combats: Combate[] }>('/war/combats'),

@@ -152,18 +152,20 @@ try {
   checar(opcoes.length > 0, `o seletor lista os veículos do pátio (${opcoes.length})`)
 
   await page.select('[data-usado-veiculo]', opcoes[0])
+  // O aditivo 14 morreu no D-73: o Furgão GANHOU teto (referência do operador × conservação),
+  // porque sem ele a venda de usado era a porta da lavagem de Fert$ entre contas.
   checar(
-    await esperarTexto(page, /Furgão não tem teto de revenda/),
-    'e explica por que o Furgão não tem teto: ele não tem preço de fábrica (D-60, aditivo 14)',
+    await esperarTexto(page, /Teto de revenda: .*60 F\$/),
+    'e mostra o teto do Furgão: 60 F$ — a referência do operador, novo no D-73',
   )
 
-  await page.type('[data-usado-preco]', '80')
+  await page.type('[data-usado-preco]', '50')
   await page.click('[data-anunciar-usado]')
   checar(
     await esperarTexto(page, /Ele continua seu e no pátio até alguém comprar/),
     'o anúncio entra, e o veículo continua do vendedor até a venda',
   )
-  checar(await esperarTexto(page, /80 F\$/), 'o anúncio aparece na vitrine com o preço pedido')
+  checar(await esperarTexto(page, /50 F\$/), 'o anúncio aparece na vitrine com o preço pedido')
 
   await page.click('[data-cancelar-anuncio]')
   checar(await esperarTexto(page, /Anúncio retirado/), 'o vendedor pode retirar o anúncio')
@@ -185,15 +187,30 @@ try {
   )
   checar(await esperarTexto(page, /FW-\d{5}-C/), 'o Caminhão comprado traz a sua placa, com o C do tipo')
 
-  // A prateleira do governo baixou e a vaga do colono foi ocupada: a venda mexeu nos dois lados.
-  const depois = await page.$eval('[data-estoque]', (el) => el.getAttribute('data-estoque'))
-  checar(depois === '1', `a prateleira do governo baixou de 2 para 1 (veio ${depois})`)
+  /*
+   * A prateleira baixou e a vaga fechou — mas ESPERANDO, não no impulso: o recibo da compra
+   * aparece ANTES de a tela recarregar (o `agir` mostra o texto e só então refaz o fetch), e ler
+   * o contador nesse vão via o número VELHO. Um teste PHP prova que a leitura seguinte do
+   * servidor já vem certa; a espera aqui é só o navegador alcançá-la.
+   */
+  const baixou = await page
+    .waitForFunction(
+      () => document.querySelector('[data-estoque]')?.getAttribute('data-estoque') === '1',
+      { timeout: 5000 },
+    )
+    .then(() => true)
+    .catch(() => false)
+  checar(baixou, 'a prateleira do governo baixou de 2 para 1')
 
-  const vagasDepois = await page.$eval('[data-vagas]', (el) => el.getAttribute('data-vagas'))
-  checar(
-    Number(vagasDepois) === Number(vagasAntes) - 1,
-    `a compra ocupou uma vaga da frota (${vagasAntes} → ${vagasDepois})`,
-  )
+  const vagouMenos = await page
+    .waitForFunction(
+      (esperado) => document.querySelector('[data-vagas]')?.getAttribute('data-vagas') === esperado,
+      { timeout: 5000 },
+      String(Number(vagasAntes) - 1),
+    )
+    .then(() => true)
+    .catch(() => false)
+  checar(vagouMenos, `a compra ocupou uma vaga da frota (${vagasAntes} → ${Number(vagasAntes) - 1})`)
 
   console.log('\nA frota envelhece (§16.4) — a manutenção')
   // O seeder gastou um dos furgões de propósito: sem desgaste não há o que reparar.

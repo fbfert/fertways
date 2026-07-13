@@ -207,6 +207,26 @@ class MinisterioDosTransportesTest extends TestCase
         );
     }
 
+    /**
+     * O refetch da tela depois da compra (D-74, ao caçar um e2e vermelho): a prateleira baixa e a
+     * vaga fecha JÁ NA PRÓXIMA LEITURA — se isto passa e a tela mostra o número velho, o problema
+     * é a corrida do navegador, não o servidor.
+     */
+    public function test_depois_da_compra_a_vitrine_ja_mostra_a_prateleira_menor(): void
+    {
+        $this->prepararPrateleira();
+        $user = $this->compradorPronto();
+
+        $antes = $this->actingAs($user)->getJson('/transport')->json();
+
+        $this->actingAs($user)->postJson('/transport/buy')->assertCreated();
+
+        $this->actingAs($user)->getJson('/transport')
+            ->assertOk()
+            ->assertJsonPath('caminhao.em_estoque', $antes['caminhao']['em_estoque'] - 1)
+            ->assertJsonPath('frota.livres', $antes['frota']['livres'] - 1);
+    }
+
     public function test_a_venda_nao_cria_veiculo_e_preserva_a_placa(): void
     {
         $this->prepararPrateleira();

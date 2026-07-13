@@ -2971,3 +2971,78 @@ tomar de frente, não por um dedo escorregado.
 > mesmo `firstOrCreate([])` cru que no D-70 fez a primeira leitura devolver `null` em tudo. Com a
 > coluna nova, a primeira chamada num banco recém-criado leria um Furgão sem âncora. Corrigido no
 > mesmo padrão — relê depois de criar — junto com a coluna, e não depois do primeiro susto.
+
+---
+
+## D-74 — O Drone ganha ofício: a névoa entra no interior das zonas alheias.
+**Data:** 2026-07-13 · **Status:** arbitrado pelo usuário (4 lacunas do D-52) · **GDD §16.1, §21.4, §4.3 v3.4**
+
+O Drone existia no GDD para "revelar mapa ao redor do slot e zonas neutras" (§16.1) — e o D-37 abriu
+o diretório **sem névoa**, deixando-o sem o que revelar. O D-37 anotou: *"se um dia a névoa entrar,
+este é o ponto"*. Ela entrou aqui, pelo menor lado possível, e foi a **primeira arbitragem** desta
+leva:
+
+### 1. A névoa (arbitragem 1): só o INTERIOR de zona alheia
+
+O mapa continua mostrando toda zona — posição, mineral, dono, nível, status (e os deriváveis do
+nível: capacidade de depósito, extração/h — escondê-los seria teatro, qualquer um os calcula). O que
+virou segredo: **a guarnição e o depósito de zona que não é sua**. Vêm `null`, e null não é zero:
+zero é um fato ("está indefesa"); null é a honestidade de não saber.
+
+**Zona livre não tem interior a esconder** — guarnição 0, depósito 0, vê-se tudo. O "revela zonas
+neutras ANTES de ocupação" do §16.1 sai de graça: o segredo só nasce quando alguém toma a zona.
+
+⚠️ **Isto muda a guerra:** até o D-74, um atacante via a guarnição de qualquer zona de graça. Agora
+atacar às cegas continua permitido — só ficou imprudente. O Drone é o olheiro que o §27 merecia.
+
+### 2. O que o GDD publica, e ninguém arbitrou
+
+Bateria **24 36 54 81 122 h** por nível (§21.4); custo **50/15/4 → 371/111/30** (Componentes/
+Compostos/Metal, §4.3 do v3.4 — a curva 1,65× vence, regra do D-47); os **dois modos** ("ida simples
+ou ida e volta, configurável por missão"); recarga "automática, no Quartel"; tem placa e não
+deprecia (§16).
+
+### 3. As outras três arbitragens
+
+- **Velocidade: 8 slots/min** — o dobro do Furgão (4), abaixo da Nave (10). Fixa por nível: o nível
+  compra bateria e raio, não velocidade.
+- **Raio de revelação: 6 slots × 1,5 por nível** (a curva do §19.1, para baixo): 6, 9, 13, 20, 30.
+  A missão mira uma ZONA, e o raio revela as vizinhas.
+- **Persistência: os dois modos do §21.4, sem número inventado.** Ida e volta = **foto datada** — o
+  que se viu fica para sempre, com hora ("vista há 3 h"); informação que envelhece é informação
+  honesta. Ida simples = **vigilância**: o Drone fica sobrevoando, transmite AO VIVO, e **a bateria
+  publicada É a persistência** — acabou, fotografa uma última vez (vigilância que termina vira foto,
+  não esquecimento) e volta sozinho.
+- **Fábrica: a Oficina** — o §21.4 diz que o Quartel só ARMAZENA e recarrega, e o custo é em
+  recursos, o que é fabricação, não compra. Nível da Oficina = teto do nível do Drone (o desenho do
+  Quartel/D-66 e da Central/D-60). A tela do Quartel é o hangar; a missão parte do mapa.
+
+### As leituras registradas (ninguém as decidiu além de mim; estão aqui para serem revistas)
+
+- **A recarga é instantânea ao voltar.** O §21.4 diz "automática" e não publica taxa. A bateria só
+  existe como duração da vigília; não inventei um relógio que o documento não tem.
+- **A missão não debita energia da colônia**: bateria própria é o combustível dele (o Furgão e o
+  Caminhão pagam kWh porque o §21.2/§21.3 os cobra; o §21.4 não cobra o Drone).
+- **O Drone está FORA do mercado de usados**, apesar do "vendável" do §16.1: sem preço de fábrica
+  nem referência, ele seria a reabertura da lavagem que o D-73 fechou. Quando ganhar âncora, entra.
+
+### O que se aprendeu construindo
+
+> **A missão não ganhou tabela própria, e o `status` ENUM não foi tocado.** As colunas de viagem do
+> veículo já contam a história (`leg` ida → vigia → volta, `trip_purpose` = o modo, `destination_id`
+> = a zona), e `vehicles.status` é ENUM no MariaDB — `em_rota` serve ao voo inteiro. Uma segunda
+> máquina de viagem seria o segundo lugar onde ela quebra. Só o `ConcluirTrechos` precisou aprender
+> a IGNORAR drones: sem o filtro, a chegada de um cairia no fluxo de entrega de carga.
+
+> **`exit 137` de novo — e desta vez a cura foi a dieta do Chrome.** O e2e morreu de OOM duas vezes
+> na mesma tarde (4 GB, sem swap, MariaDB de produção na mesma máquina). `--js-flags=
+> --max-old-space-size=256`, `--renderer-process-limit=2` e `--disable-gpu` no puppeteer bastaram.
+> ⚠️ **O servidor continua sem swap nenhum**: num pico, o OOM killer escolhe uma vítima — e a maior
+> da máquina é o `mariadbd`. Um swapfile de 2 GB é a proteção barata; fica anotado como recomendação.
+
+> **Um e2e que corre atrás de um recibo lê o número velho.** A tela mostra "comprado!" ANTES de
+> recarregar os contadores (o `agir` põe o recibo e então refaz o fetch). O teste lia a prateleira
+> nesse vão e via 2 onde já era 1 — no servidor, provado por teste PHP, o número estava certo. O
+> e2e agora ESPERA o contador mudar (`waitForFunction`) em vez de lê-lo no impulso. E dois testes da
+> Capital ainda afirmavam o Furgão SEM teto (o aditivo 14 morto no D-73) — o e2e não tinha rodado no
+> D-73, e a dívida apareceu no D-74.

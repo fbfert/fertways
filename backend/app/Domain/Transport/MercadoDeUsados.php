@@ -59,6 +59,19 @@ class MercadoDeUsados
             throw new DomainRuleException('preco_invalido', 'O preço tem de ser positivo.');
         }
 
+        /*
+         * ⚠️ O Drone é "vendável" (§16.1), mas SEM ÂNCORA ele seria a reabertura do buraco que o
+         * D-73 acabou de fechar: teto de revenda nulo = preço livre = lavagem de Fert$ entre duas
+         * contas, agora por Drone em vez de Furgão. Fica fora do mercado até ganhar uma âncora —
+         * decisão registrada no D-74, não esquecimento.
+         */
+        if ($veiculo->type === \App\Domain\Drone\DroneSpecs::TIPO) {
+            throw new DomainRuleException(
+                'drone_sem_ancora_de_revenda',
+                'O Drone ainda não tem teto de revenda — e vendê-lo sem teto reabriria a brecha que o D-73 fechou.',
+            );
+        }
+
         $teto = $this->conservacao->tetoDeRevendaMicro($veiculo);
 
         if ($teto !== null && $precoMicro > $teto) {
