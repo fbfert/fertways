@@ -386,6 +386,8 @@ class PainelController extends Controller
             'resumo' => $this->resumo(),
             // Com a colônia de cada uma, para o operador ver de onde ela sai antes de escolher o destino.
             'colonias' => Colony::with('user:id,nickname')->orderBy('id')->get(),
+            // Os valores de XP por ato (D-75) — e o marco de cada colônia sai da lista acima.
+            'marco' => \App\Models\MilestoneSetting::singleton(),
         ]);
     }
 

@@ -37,6 +37,9 @@ class OcuparZonaNeutraTest extends TestCase
             $colony->resources()->where('resource_type', $r)->update(['amount' => $q]);
         }
         $colony->update(['fert_micro' => 1000 * 1_000_000]);
+        // Desbravador: ocupar zona exige o marco 20 desde o D-75 (20.000 XP na curva 50×N²).
+        // `forceFill`: xp NÃO é fillable de propósito — só o ConcederXp o escreve no jogo real.
+        $colony->forceFill(['xp' => 20_000])->save();
 
         return $colony->fresh();
     }

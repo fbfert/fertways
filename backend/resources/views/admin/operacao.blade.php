@@ -79,4 +79,52 @@
         </form>
     </div>
 
+    {{-- ── O Marco (§03/§05; D-75): os cinco valores de XP por ato ── --}}
+    <h2 class="secao">Marco de colonização</h2>
+    <div class="cartao">
+        <p class="mut pequeno">
+            O Marco anda por <b>atos</b>, e cada ato vale o que está aqui. A <b>curva é fixa</b>
+            (50 × N² de XP acumulado — marco 5 = 1.250, marco 20 = 20.000): mudá-la reescalaria o
+            marco de todo mundo, e isso é arbitragem, não balanceamento. Mudanças valem para atos
+            <b>novos</b> — o ledger de XP nunca é reescrito. Os gates vivos: <b>marco 10</b> fabrica
+            Drone nível 2+; <b>marco 20</b> ocupa zona neutra. O Mercado <b>não</b> tem gate
+            (contradição consciente com o §05 — o §03 promete o primeiro lote ao recém-chegado).
+        </p>
+
+        <form method="POST" action="{{ route('admin.marco.parametros') }}" class="linha-form" style="margin-top:8px">
+            @csrf
+            <div style="flex:0">
+                <label>Obra (XP/nível)</label>
+                <input type="number" min="0" max="100000" name="xp_obra_por_nivel"
+                       value="{{ $marco->xp_obra_por_nivel }}" required>
+            </div>
+            <div style="flex:0">
+                <label>Zona ocupada</label>
+                <input type="number" min="0" max="100000" name="xp_zona_ocupada"
+                       value="{{ $marco->xp_zona_ocupada }}" required>
+            </div>
+            <div style="flex:0">
+                <label>Combate vencido</label>
+                <input type="number" min="0" max="100000" name="xp_combate_vencido"
+                       value="{{ $marco->xp_combate_vencido }}" required>
+            </div>
+            <div style="flex:0">
+                <label>Acordo executado</label>
+                <input type="number" min="0" max="100000" name="xp_acordo_executado"
+                       value="{{ $marco->xp_acordo_executado }}" required>
+            </div>
+            <div style="flex:0">
+                <label>Mercado executado</label>
+                <input type="number" min="0" max="100000" name="xp_mercado_executado"
+                       value="{{ $marco->xp_mercado_executado }}" required>
+            </div>
+            <div style="flex:0"><label>&nbsp;</label><button data-salvar-marco>Salvar</button></div>
+        </form>
+        <p class="mut pequeno">
+            Zerar um valor <b>desliga</b> aquela fonte. Acordo e Mercado só rendem acima do piso de
+            500 Fert$ (o anti-farm do D-43, herdado). O retroativo se recalcula com
+            <code>artisan fertways:marco --aplicar</code> — os valores acima também valem lá.
+        </p>
+    </div>
+
 @endsection

@@ -27,6 +27,13 @@ class OcuparZonaNeutra
 
     public function handle(Colony $colony, NeutralZone $zona): NeutralZone
     {
+        /*
+         * O gate do §05, vivo desde o D-75: zonas neutras são do marco 20 (Desbravador). Fica FORA
+         * da transação de propósito — barrar não precisa de lock. E é AQUISIÇÃO: quem já tem zona
+         * continua com ela (posse preservada); só ocupar OUTRA passa por aqui.
+         */
+        app(\App\Domain\Marco\ExigirMarco::class)->exigir($colony, 20, 'Ocupar uma zona neutra');
+
         return DB::transaction(function () use ($colony, $zona) {
             // Trava a zona e a colônia: duas requisições não podem tomar a mesma zona nem gastar
             // o mesmo recurso. Reconfere a ocupação sob a trava.
@@ -58,6 +65,9 @@ class OcuparZonaNeutra
                 // A extração é creditada a partir daqui: nada rende durante o estabelecimento.
                 'last_extraction_at' => $produtiva,
             ]);
+
+            // Desbravador de fato: ocupar rende XP (D-75) — dentro da transação, com o resto.
+            app(\App\Domain\Marco\ConcederXp::class)->handle($colony->id, 'zona_ocupada', "zona:{$zona->id}");
 
             /*
              * A guarnição são 20 Robôs Mineradores — e desde o D-66 eles são LINHAS, não um

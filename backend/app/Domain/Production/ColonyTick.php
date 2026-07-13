@@ -98,6 +98,12 @@ class ColonyTick
         // ocupar a posição 1 de novo, sem colidir no índice único. Ver D-53.
         $item->update(['status' => 'done', 'position' => null]);
 
+        // O Marco anda por atos (D-75), e concluir um nível de obra é o mais comum deles. Um
+        // `concluir` = um nível — a fila nunca pula degrau.
+        app(\App\Domain\Marco\ConcederXp::class)->handle(
+            $colony->id, 'obra_concluida', "build:{$building->type}:n{$item->target_level}",
+        );
+
         // §24.7: "o ledger registra subsídio de 100% no momento de concluir".
         // Quem foi subsidiado não pagou nada no enfileiramento (D-15); o lançamento aqui é
         // o registro contábil do que o Governo Central custeou.

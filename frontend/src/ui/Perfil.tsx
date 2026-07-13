@@ -92,6 +92,19 @@ export function Perfil({ aoFechar, aoSalvar }: { aoFechar: () => void; aoSalvar:
           <div>
             <div className="text-rust eyebrow">Colono</div>
             <h2 className="text-2xl font-black">{p?.name ?? 'Perfil'}</h2>
+            {/* O Marco é identidade (§03) — mora junto do nome, não numa aba. */}
+            {p?.marco && (
+              <p className="text-ink-soft mt-1 text-sm" data-marco={p.marco.numero}>
+                Marco <strong>{p.marco.numero}</strong> — <strong>{p.marco.titulo}</strong>
+                {p.marco.xp_do_proximo !== null ? (
+                  <span className="text-ink-soft/70">
+                    {' '}· {p.marco.xp} / {p.marco.xp_do_proximo} XP para o próximo
+                  </span>
+                ) : (
+                  <span className="text-ink-soft/70"> · o teto do planeta</span>
+                )}
+              </p>
+            )}
           </div>
           <button
             onClick={aoFechar}

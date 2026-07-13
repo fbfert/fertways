@@ -3046,3 +3046,70 @@ deprecia (§16).
 > e2e agora ESPERA o contador mudar (`waitForFunction`) em vez de lê-lo no impulso. E dois testes da
 > Capital ainda afirmavam o Furgão SEM teto (o aditivo 14 morto no D-73) — o e2e não tinha rodado no
 > D-73, e a dívida apareceu no D-74.
+
+---
+
+## D-75 — O Marco sai do congelador: XP por atos, e os primeiros gates do §05.
+**Data:** 2026-07-13 · **Status:** arbitrado pelo usuário (4 decisões) · **GDD §03, §05, §06**
+
+O GDD nomeia os oito marcos (1 Sobrevivente … 100 Lenda de Fertways), publica os desbloqueios de
+cada um (§03 e §05), manda as missões pagarem "XP" (§06) — e **nunca publica a fórmula**. O
+`colonies.milestone` estava congelado desde o D-38, e os gates do §05, suspensos desde o D-52
+("quando o Marco existir, o gate volta"). Ele existe agora. As quatro arbitragens:
+
+**1. XP por atos, em ledger próprio** (`xp_entries`, append-only — XP não nasce sem história, a
+mesma regra do ledger de recursos). As fontes vivas: **obra concluída** (por nível; a fundação vale
+os 5 das essenciais), **zona ocupada**, **combate vencido** (conquista, defesa que segura, cerco
+rompido — sabotagem detectada não conta: rotina da Torre não é batalha), **acordo executado** (os
+dois lados) e **execução no Mercado Central** (os dois lados). Quando as missões do §06 nascerem,
+pagam por aqui.
+
+⚠️ **Acordo e Mercado herdam o piso do D-43** (500 Fert$): abaixo dele, nada de XP — senão duas
+contas fariam volume de mentira a 1 unidade por vez. O anti-farm da reputação e o do Marco são o
+mesmo, de propósito.
+
+**2. A curva: 50 × N² de XP acumulado** — marco 5 = 1.250, 10 = 5.000, 20 = 20.000, 100 = 500.000.
+Quadrática porque as curvas publicadas do GDD (1,5×/1,65×) são para 5 níveis e explodem em 100. O
+começo anda rápido (retenção, o título do §05); a Lenda é projeto de temporada. **A curva é
+constante de código, não painel**: mudá-la reescala o marco de todo mundo — arbitragem, não
+balanceamento.
+
+**3. Posse preservada + XP retroativo.** O gate barra a **aquisição nova**, nunca o que já se tem:
+zona ocupada antes do D-75 continua do dono; ocupar OUTRA exige marco 20. E `fertways:marco
+--aplicar` credita o retroativo lido do histórico (níveis de pé, zonas, vitórias em `combats`,
+acordos executados, vendas em `tax_events`) — quem jogou muito acorda no marco certo. Idempotente
+por reescrita (linhas `retro:*`), e **desconta o que o ledger vivo já pagou**.
+
+**4. Os valores por ato são do operador**, no painel (aba Operação): obra 100, zona 500, combate
+400, acordo 150, mercado 50. Zero desliga a fonte. Mudanças valem para atos novos — o ledger nunca
+é reescrito.
+
+### Os gates vivos, e os que ficam esperando
+
+- **Marco 10 (Pioneiro):** fabricar **Drone nível 2+**. Pela precedência (§05 > §03 na mesma
+  parte), o Marco 10 destrava o drone *nível 2* — o nível 1 nunca teve gate, e o D-74 não
+  contradisse nada.
+- **Marco 20 (Desbravador):** **ocupar zona neutra.**
+- ⚠️ **O Mercado Central NÃO tem gate, e isso contraria o §05 de propósito** (que o põe no marco 5).
+  O §03 promete ao recém-chegado "a compra do primeiro lote de Ligas Metálicas no Mercado Central
+  antes de existir produção própria" — os 50 Fert$ iniciais existem para isso. Contradição
+  consciente: **não a "conserte"**.
+- Cargueiro, mineração profunda, federação, voto, peças de reputação: ganham gate quando os
+  sistemas existirem.
+
+`colonies.milestone` (o varchar do D-38) **fica intocado, dormindo** — o Marco deriva de
+`colonies.xp` pela curva. O Perfil mostra número, título e o XP até o próximo; o payload da colônia
+também. O Diário do Colono (§03) continua não existindo; quando existir, os marcos são entradas.
+
+### O que se aprendeu construindo
+
+> **O `$fillable` mordeu o próprio autor no mesmo dia.** `xp` não é fillable no `Colony` — de
+> propósito, só o `ConcederXp` escreve — e o meu próprio teste fez `update(['xp' => 20000])` e viu
+> o valor ser descartado em silêncio. A mensagem de erro do gate ("faltam 19.500") foi o que
+> entregou. É a terceira vez que este silêncio aparece (D-70, D-73); a defesa continua a mesma:
+> testes que afirmam o efeito, não o gesto.
+
+> **O dobro-pagamento do retroativo apareceu num teste antes de aparecer em produção.** Colônia
+> fundada DEPOIS do D-75 já tem os 5 níveis no ledger vivo — e o retro, que conta níveis de pé, os
+> contaria de novo. O retro agora desconta, ação por ação, o que o ledger vivo já pagou. Aproximado
+> se o operador mudar valores no meio; aproximar para MENOS é o lado certo do erro.

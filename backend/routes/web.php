@@ -44,6 +44,7 @@ Route::prefix('admin')->group(function () {
         Route::get('/transportes', [PainelController::class, 'transportes'])->name('admin.transportes');
         Route::get('/auditoria', [PainelController::class, 'auditoria'])->name('admin.auditoria');
         Route::get('/operacao', [PainelController::class, 'operacao'])->name('admin.operacao');
+        Route::post('/operacao/marco', [AcoesController::class, 'marco'])->name('admin.marco.parametros');
 
         // Ministério
         Route::post('/reports/{report}/julgar', [AcoesController::class, 'julgar'])->name('admin.julgar');

@@ -53,6 +53,14 @@ class ProfileController extends Controller
             'limiar_bloqueio' => AcordoSpecs::LIMIAR_MERCADO,
 
             'conciliador' => $user->conciliador_desde !== null,
+
+            // O Marco (§03 o chama de "Identidade"; D-75). Null para quem ainda não fundou.
+            'marco' => $colony ? [
+                'numero' => $n = \App\Domain\Marco\Curva::marco((int) $colony->xp),
+                'titulo' => \App\Domain\Marco\Curva::titulo($n),
+                'xp' => (int) $colony->xp,
+                'xp_do_proximo' => $n >= 100 ? null : \App\Domain\Marco\Curva::xpDoMarco($n + 1),
+            ] : null,
         ]);
     }
 

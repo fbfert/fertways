@@ -76,6 +76,14 @@ class CreateColony
                 'last_tick_at' => $agora,
             ]);
 
+            /*
+             * Sobrevivente de verdade: as cinco essenciais valem 5 níveis de obra no ledger de XP
+             * (D-75). Sem isto, quem funda nasceria com XP zero enquanto o vizinho ganhou pelos
+             * mesmos cinco prédios — e o recálculo retroativo (que conta níveis DE PÉ) divergiria
+             * do ledger vivo.
+             */
+            app(\App\Domain\Marco\ConcederXp::class)->handle($colony->id, 'obra_concluida', 'fundacao', vezes: 5);
+
             // As cinco essenciais, já no nível 1, cada uma no seu slot do miolo (D-59). Só elas:
             // o resto dos 21 slots nasce vazio, e uma construção só ganha linha quando o colono
             // escolhe o slot dela.

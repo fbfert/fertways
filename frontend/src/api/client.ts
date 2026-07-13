@@ -48,6 +48,15 @@ async function req<T>(path: string, init: RequestInit = {}): Promise<T> {
 
 export type Sessao = { token: string; user: { id: number; nickname: string } }
 
+/** O Marco de colonização (§03/§05; D-75): a curva é 50×N², e os títulos são os oito publicados. */
+export type Marco = {
+  numero: number
+  titulo: string
+  xp: number
+  /** null no 100: a Lenda é o teto, e não se promete um 101. */
+  xp_do_proximo: number | null
+}
+
 export type Colonia = {
   id: number
   name: string
@@ -57,6 +66,7 @@ export type Colonia = {
   last_tick_at?: string
   buildings: { type: string; level: number }[]
   resources: Record<string, number>
+  marco: Marco
 }
 
 /**
@@ -297,6 +307,8 @@ export type Perfil = {
   /** Abaixo disto, a Confiança Comercial bloqueia o acesso ao Mercado (§26.2, D-43). */
   limiar_bloqueio: number
   conciliador: boolean
+  /** O Marco (§03/§05; D-75). Null para quem ainda não fundou colônia. */
+  marco: Marco | null
 }
 
 /** Uma zona minha, como a barra lateral da colônia a lista (D-69). */

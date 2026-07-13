@@ -169,6 +169,17 @@ class ExecutarOrdem
         DB::table('colonies')->where('id', $vendedorId)->increment('fert_micro', $liquido);
         $this->lancar($vendedorId, 'venda_mercado', $liquido, null, $chave);
 
+        /*
+         * O Marco anda com o comércio (D-75) — e com o MESMO piso do D-43 que protege a reputação:
+         * execução abaixo de 500 Fert$ não rende XP, senão duas contas fariam volume de mentira a
+         * 1 unidade por vez (a taxa de 3% tornaria o farm caro, mas caro não é impossível).
+         */
+        if ($valor >= \App\Domain\Trade\AcordoSpecs::PISO_REPUTACAO_MICRO) {
+            $xp = app(\App\Domain\Marco\ConcederXp::class);
+            $xp->handle($vendedorId, 'mercado_executado', $chave);
+            $xp->handle($compradorId, 'mercado_executado', $chave);
+        }
+
         if ($taxa > 0) {
             $this->lancar($vendedorId, 'tributo', -$taxa, null, $chave);
             $this->tesouro->creditarFert($taxa);

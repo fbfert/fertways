@@ -217,7 +217,7 @@ O MVP tem, funcionando e no ar em `https://fertways.tars.art.br`:
   - **Fora de escopo, de propósito:** o **Cargueiro Interplanetário** e o seu aluguel. Dependem do
     Espaçoporto e dos planetas NPC, que não existem.
 
-**467 testes PHP (3526 asserções) + 7 e2e, verdes.** O cron do tick está instalado (crontab do usuário
+**478 testes PHP (3565 asserções) + 7 e2e, verdes.** O cron do tick está instalado (crontab do usuário
 `fertways`, log em `/home/fertways/logs/fertways-tick.log`) e roda o `artisan` **da cópia de
 deploy** — o mundo avança sozinho. O tick faz: produção, upgrades, proteções, trechos de viagem,
 acordos vencidos, **casos reatribuídos, janelas de apelação fechadas e a folha do Ministério**.
@@ -771,7 +771,11 @@ ida→vigia→volta), sem tabela nova além de `drone_sightings` (as fotos).
      `estufa-lumen`, `centro-cerco-kraken`, `terminal-aduaneiro-vetor`, `camara-escrow-prisma` —
      as opções de cada uma estão no D-72). Há também ~10 entidades **sem imagem candidata
      nenhuma** — encomenda ao artista, não vínculo.
-   - **O Marco do §03** e o **serviço logístico público do §07** — os dois precisam de arbitragem.
+   - ~~O Marco do §03~~ — **no ar (D-75)**: XP por atos (ledger `xp_entries`), curva 50×N², posse
+     preservada + retroativo (`fertways:marco --aplicar`), valores no painel (aba Operação). Gates
+     vivos: marco 10 = Drone nível 2+; marco 20 = ocupar zona. **O Mercado NÃO tem gate** —
+     contradição consciente com o §05 (o §03 promete o primeiro lote ao recém-chegado). Não reabra.
+   - **O serviço logístico público do §07** — precisa de arbitragem.
 
    ⚠️ **O "segundo admin dono" SAIU da lista, e a lição de por quê vale mais do que a tarefa.** Ele
    **já existia** — a pendência estava velha. Mas conferir o caminho de emergência inteiro (D-71)
@@ -802,9 +806,9 @@ ida→vigia→volta), sem tabela nova além de `drone_sightings` (as fotos).
      existem** (mesma inércia do D-44). O cerco **se rompe** desde o D-70, mas só **pelo dono da
      zona**: é a metade do §28.10 que dava para entregar sem inventar um sistema inteiro.
 
-3. **O Marco do GDD** (§03) continua congelado em `colonizacao_inicial`. O GDD nomeia os marcos
-   (1 Sobrevivente … 100 Lenda de Fertways) e **não publica a fórmula**. Ver D-38 — o
-   `building_levels_sum` do diretório é um proxy e **não** deve virar o Marco.
+3. ~~O Marco do GDD (§03)~~ — **existe desde o D-75** (XP por atos, curva 50×N²; ver a lista de
+   frentes acima). O varchar `colonies.milestone` do D-38 segue intocado, dormindo: o Marco deriva
+   de `colonies.xp`. O `building_levels_sum` continua sendo só o porte do diretório.
 
 4. **Serviço logístico público** (§07): o GDD o cita como alternativa ao veículo próprio na
    retirada, e ele não existe. Hoje o comprador precisa de Furgão ou Caminhão. Sem preço nem prazo

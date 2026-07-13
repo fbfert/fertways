@@ -328,6 +328,10 @@ class ResolverCombates
         // O exército vencedor volta para casa, ferido (§27.6). Os mortos ficam no campo.
         $this->recolherSobreviventes($combate);
 
+        // Conquistar uma zona é o ato de guerra que o Marco premia (D-75).
+        app(\App\Domain\Marco\ConcederXp::class)
+            ->handle($combate->attacker_colony_id, 'combate_vencido', "combate:{$combate->id}");
+
         $combate->status = 'vitoria_atacante';
         $combate->proxima_rodada_at = null;
         $combate->resultado = array_merge($combate->resultado, [
@@ -343,6 +347,11 @@ class ResolverCombates
     private function exercitoRepelido(Combat $combate): void
     {
         $this->recolherSobreviventes($combate);
+
+        // Segurar a zona também é vencer (D-75). O Infiltrador/Predador visto NÃO passa por aqui —
+        // detectar um sabotador é rotina da Torre, não uma batalha vencida.
+        app(\App\Domain\Marco\ConcederXp::class)
+            ->handle($combate->defender_colony_id, 'combate_vencido', "combate:{$combate->id}");
 
         $combate->status = 'repelido';
         $combate->proxima_rodada_at = null;
@@ -475,6 +484,10 @@ class ResolverCombates
         ]);
 
         $this->recolherSobreviventes($ruptura);
+
+        // Romper um cerco é a vitória mais difícil do jogo — o sitiado saiu a campo aberto (D-75).
+        app(\App\Domain\Marco\ConcederXp::class)
+            ->handle($ruptura->attacker_colony_id, 'combate_vencido', "ruptura:{$ruptura->id}");
 
         $ruptura->status = 'vitoria_atacante';
         $ruptura->proxima_rodada_at = null;

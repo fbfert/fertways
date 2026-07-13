@@ -57,6 +57,15 @@ class FabricarDrone
                 );
             }
 
+            /*
+             * O §05 destrava "drone nível 2" no marco 10 (Pioneiro) — o nível 1 nunca teve gate
+             * (D-74/D-75, com a precedência do §05 sobre o §03). Depois das checagens da Oficina:
+             * "construa a Oficina" explica o que fazer melhor do que "suba de marco".
+             */
+            if ($nivel >= 2) {
+                app(\App\Domain\Marco\ExigirMarco::class)->exigir($colony, 10, 'Fabricar Drone nível 2 ou maior');
+            }
+
             $estoque = $colony->resources()->lockForUpdate()->get()->keyBy('resource_type');
 
             foreach (DroneSpecs::CUSTO[$nivel] as $recurso => $qtd) {

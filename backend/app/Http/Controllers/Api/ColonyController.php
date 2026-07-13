@@ -79,6 +79,8 @@ class ColonyController extends Controller
             'last_tick_at' => $colony->last_tick_at,
             'buildings' => $colony->buildings->map(fn ($b) => ['type' => $b->type, 'level' => $b->level]),
             'resources' => $colony->resources->pluck('amount', 'resource_type'),
+            // O Marco do §03/§05 (D-75): número, título publicado, e quanto falta para o próximo.
+            'marco' => $this->marco($colony),
         ]);
     }
 
@@ -195,5 +197,20 @@ class ColonyController extends Controller
             'founder_slots' => $slots,
             'colonias' => $ocupadas,
         ]);
+    }
+
+    /** @return array{numero: int, titulo: string, xp: int, xp_do_proximo: int|null} */
+    private function marco(\App\Models\Colony $colony): array
+    {
+        $xp = (int) $colony->xp;
+        $numero = \App\Domain\Marco\Curva::marco($xp);
+
+        return [
+            'numero' => $numero,
+            'titulo' => \App\Domain\Marco\Curva::titulo($numero),
+            'xp' => $xp,
+            // No 100 não há próximo: a Lenda é o teto, e a tela não deve prometer um 101.
+            'xp_do_proximo' => $numero >= 100 ? null : \App\Domain\Marco\Curva::xpDoMarco($numero + 1),
+        ];
     }
 }

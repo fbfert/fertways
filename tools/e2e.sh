@@ -77,6 +77,12 @@ $c->resources()->where("resource_type", "componentes_eletronicos")->update(["amo
 $c->update(["fert_micro" => 1000 * 1000000]);
 
 /*
+ * Desbravador (D-75): o teste de zonas OCUPA uma zona, e ocupar exige o marco 20 (20.000 XP na
+ * curva 50xN2). forceFill porque xp nao e fillable de proposito - so o ConcederXp escreve no jogo.
+ */
+$c->forceFill(["xp" => 20000])->save();
+
+/*
  * D-59: as duas PORTAS. A colônia nasce só com o miolo (as 5 essenciais), e desde o D-59 a Frota
  * vive dentro da Central de Transportes e os Acordos dentro do Mercado Local. Sem estas duas
  * erguidas, as duas telas não teriam por onde ser abertas — e os testes delas não teriam como

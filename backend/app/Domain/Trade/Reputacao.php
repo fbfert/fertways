@@ -53,6 +53,18 @@ class Reputacao
                 ? $this->premiarTodos($acordo)
                 : $this->punir($penalizadas);
 
+            /*
+             * O XP do Marco anda junto da reputação, e HERDA o piso do D-43 acima — de propósito:
+             * as duas moedas premiam o mesmo ato, e um acordo pequeno demais para mover reputação
+             * é pequeno demais para subir marco (D-75). Só o acordo CUMPRIDO rende; o quebrado já
+             * paga na reputação.
+             */
+            if ($status === 'executado' && $penalizadas === []) {
+                $xp = app(\App\Domain\Marco\ConcederXp::class);
+                $xp->handle($acordo->colony_a_id, 'acordo_executado', "acordo:{$acordo->id}");
+                $xp->handle($acordo->colony_b_id, 'acordo_executado', "acordo:{$acordo->id}");
+            }
+
             return true;
         });
     }

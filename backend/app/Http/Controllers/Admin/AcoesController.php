@@ -367,6 +367,36 @@ class AcoesController extends Controller
         });
     }
 
+    /** Os cinco valores de XP do Marco (D-75). A CURVA (50×N²) não está aqui: é arbitragem, não balanceamento. */
+    public function marco(Request $request): RedirectResponse
+    {
+        $dados = $request->validate([
+            // Zero DESLIGA a fonte (nenhuma linha entra no ledger) — é permitido de propósito:
+            // o operador pode decidir que mercado não sobe marco, por exemplo.
+            'xp_obra_por_nivel' => ['required', 'integer', 'min:0', 'max:100000'],
+            'xp_zona_ocupada' => ['required', 'integer', 'min:0', 'max:100000'],
+            'xp_combate_vencido' => ['required', 'integer', 'min:0', 'max:100000'],
+            'xp_acordo_executado' => ['required', 'integer', 'min:0', 'max:100000'],
+            'xp_mercado_executado' => ['required', 'integer', 'min:0', 'max:100000'],
+        ]);
+
+        $config = \App\Models\MilestoneSetting::singleton();
+        $antes = $config->only(array_keys($dados));
+
+        return $this->tentar('marco.parametros', function () use ($dados, $config, $antes) {
+            $config->update($dados);
+
+            $mudou = collect($dados)
+                ->reject(fn ($v, $k) => (int) $v === (int) $antes[$k])
+                ->map(fn ($v, $k) => "{$k}: {$antes[$k]} → {$v}")
+                ->implode('; ');
+
+            return 'Valores de XP do Marco atualizados. '
+                .($mudou !== '' ? $mudou : 'Nada mudou.')
+                .' Valem para os atos NOVOS: o ledger de XP não é reescrito.';
+        });
+    }
+
     // ── Jogadores (D-61) ─────────────────────────────────────────────────────
 
     /**
