@@ -239,7 +239,21 @@ compartilham o andaime de `e2e/comum.mjs` **e o mesmo banco efêmero**, então *
 > (Runtime.getProperties): Target closed`. Verde nas outras três. Se reprovar assim, rode de novo
 > antes de investigar — mas se virar hábito, é bug de verdade.
 
-**Publicado no GitHub e no ar.** O último deploy é de **2026-07-13**, no commit `27fa4dc` — **a gestão
+**Publicado no GitHub e no ar.** O último deploy é de **2026-07-13**, no commit `bf2fc7b` — **a arte
+na Capital**. As áreas (Endurance, Mercado e Pátio, Espaçoporto) e os slots do Governo Central passam
+a mostrar o prédio. **Só frontend: sem migration e sem passo à mão.**
+
+> ⚠️ **A CapitalScene nunca fora avisada da arte** — os vínculos estavam no banco, a API os devolvia,
+> e a cena não sabia. É o D-63 outra vez, **na mesma tela**: os sete e2e passavam porque os cliques
+> funcionavam e só o desenho estava vazio. **Foi preciso fotografar e olhar.** Ao mexer em cena de
+> Phaser: `E2E_FOTOS=1 ./tools/e2e.sh`.
+
+> Os slots **1, 4, 5, 7 e 8** da Capital continuam **sem arte** — de propósito. Sobraram cinco imagens
+> na categoria `capital` da biblioteca (`torre-axiom`, `cofre-meridian`, `forum-concordia`,
+> `terminal-atlas`, `bastiao-aegis`) e **eu não sei qual é qual**. O usuário as vincula pelo painel,
+> vendo a miniatura. Chutar poria arte errada num ministério.
+
+Antes dele, `27fa4dc` — **a gestão
 de imagens (D-68)**: o jogo ganhou rosto. **UM passo à mão:** `artisan fertways:importar-imagens
 --aplicar` no `fertwaysbd`. Os arquivos moram em `/home/fertways/media` (fora da árvore de deploy),
 servidos pelo symlink `public_html/media` — que precisa ser do **`fertways`**, senão o Apache dá 403
