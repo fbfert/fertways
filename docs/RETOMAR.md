@@ -201,7 +201,7 @@ O MVP tem, funcionando e no ar em `https://fertways.tars.art.br`:
   - **Fora de escopo, de propósito:** o **Cargueiro Interplanetário** e o seu aluguel. Dependem do
     Espaçoporto e dos planetas NPC, que não existem.
 
-**414 testes PHP (3286 asserções) + 7 e2e, verdes.** O cron do tick está instalado (crontab do usuário
+**423 testes PHP (3330 asserções) + 7 e2e, verdes.** O cron do tick está instalado (crontab do usuário
 `fertways`, log em `/home/fertways/logs/fertways-tick.log`) e roda o `artisan` **da cópia de
 deploy** — o mundo avança sozinho. O tick faz: produção, upgrades, proteções, trechos de viagem,
 acordos vencidos, **casos reatribuídos, janelas de apelação fechadas e a folha do Ministério**.
@@ -239,7 +239,22 @@ compartilham o andaime de `e2e/comum.mjs` **e o mesmo banco efêmero**, então *
 > (Runtime.getProperties): Target closed`. Verde nas outras três. Se reprovar assim, rode de novo
 > antes de investigar — mas se virar hábito, é bug de verdade.
 
-**Publicado no GitHub e no ar.** O último deploy é de **2026-07-13**, no commit `bf2fc7b` — **a arte
+**Publicado no GitHub e no ar.** O último deploy é de **2026-07-13**, no commit `8d409b3` — **o card
+vira popup, o colono ganha PERFIL, e as zonas saem do esconderijo (D-69)**. **Sem migration e sem
+passo à mão.**
+
+> ⚠️ **O colono não podia trocar a própria senha.** Descoberto ao implementar: ele podia fundar
+> colônia, guerrear, comerciar e ocupar território — e não podia mudar **nada** da conta. A única
+> saída era pedir a um operador. Agora há `/perfil`: nome, nickname, e-mail, senha e nome da colônia.
+>
+> **Trocar o e-mail exige a senha atual; trocar o nome, não.** O e-mail é com o que se entra, e **não
+> há recuperação de conta em Fertways**. E **trocar a senha REVOGA as outras sessões** — senão uma
+> senha nova não expulsa o invasor, porque o token do Sanctum não expira (lição do D-53).
+>
+> Os quatro índices de reputação aparecem e **não se editam**: seria o colono apagar as próprias
+> condenações.
+
+Antes dele, `bf2fc7b` — **a arte
 na Capital**. As áreas (Endurance, Mercado e Pátio, Espaçoporto) e os slots do Governo Central passam
 a mostrar o prédio. **Só frontend: sem migration e sem passo à mão.**
 
