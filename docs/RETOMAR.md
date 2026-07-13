@@ -201,7 +201,7 @@ O MVP tem, funcionando e no ar em `https://fertways.tars.art.br`:
   - **Fora de escopo, de propósito:** o **Cargueiro Interplanetário** e o seu aluguel. Dependem do
     Espaçoporto e dos planetas NPC, que não existem.
 
-**404 testes PHP (3247 asserções) + 7 e2e, verdes.** O cron do tick está instalado (crontab do usuário
+**414 testes PHP (3286 asserções) + 7 e2e, verdes.** O cron do tick está instalado (crontab do usuário
 `fertways`, log em `/home/fertways/logs/fertways-tick.log`) e roda o `artisan` **da cópia de
 deploy** — o mundo avança sozinho. O tick faz: produção, upgrades, proteções, trechos de viagem,
 acordos vencidos, **casos reatribuídos, janelas de apelação fechadas e a folha do Ministério**.
@@ -239,7 +239,32 @@ compartilham o andaime de `e2e/comum.mjs` **e o mesmo banco efêmero**, então *
 > (Runtime.getProperties): Target closed`. Verde nas outras três. Se reprovar assim, rode de novo
 > antes de investigar — mas se virar hábito, é bug de verdade.
 
-**Publicado no GitHub e no ar.** O último deploy é de **2026-07-13**, no commit `c791cd2` — **a zona
+**Publicado no GitHub e no ar.** O último deploy é de **2026-07-13**, no commit `27fa4dc` — **a gestão
+de imagens (D-68)**: o jogo ganhou rosto. **UM passo à mão:** `artisan fertways:importar-imagens
+--aplicar` no `fertwaysbd`. Os arquivos moram em `/home/fertways/media` (fora da árvore de deploy),
+servidos pelo symlink `public_html/media` — que precisa ser do **`fertways`**, senão o Apache dá 403
+(`SymLinksIfOwnerMatch`).
+
+> ⚠️⚠️ **O MEU PRÓPRIO TESTE APAGOU UMA IMAGEM DE PRODUÇÃO, e o `curl` de conferência mentiu.**
+>
+> `Biblioteca::RAIZ` era uma constante apontando para `/home/fertways/media`. O `ImagensTest`
+> exercita o botão de apagar; o `apagar()` chama `unlink()` no caminho real; e o teste, que cria um
+> registro chamado `reator-helios.png`, **destruiu o arquivo de verdade**. A suíte passou verde.
+>
+> E o `curl` que eu usei para conferir devolveu **200** — porque, antes daquele deploy, `/media` não
+> estava excluído do fallback do SPA, e o Apache respondia com o `index.html`. Eu vi 200 e segui.
+>
+> **A correção não é lembrar de não fazer isso.** A raiz vem da config, o `phpunit.xml` a aponta para
+> uma pasta temporária, e a `Biblioteca` **recusa-se a rodar** se um teste mirar a pasta real — com um
+> teste que prova que a trava dispara. É a família de defesa do D-27.
+>
+> **Se for mexer em código que apaga arquivo, pergunte primeiro qual pasta o teste vai usar.**
+
+> Conferido por leitura depois: 46 imagens, 18 vínculos, o Reator de Energia com a arte de volta. As
+> imagens servem `200 image/png` e uma inexistente dá **404** — não mais o SPA. O painel responde 302
+> e `/central/images` responde 401.
+
+Antes dele, `c791cd2` — **a zona
 vira lugar e as telas viram telas (D-67)**. Migration `a_zona_vira_lugar` (canteiro de obras, fila de
 obras da zona, Refinaria, aviso da Torre). **UM passo à mão:** `artisan db:seed
 --class=BuildingSpecSeeder --force` no `fertwaysbd`.
