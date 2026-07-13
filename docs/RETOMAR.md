@@ -5,7 +5,7 @@
 > e então **faça ao usuário as perguntas da seção "Perguntas em aberto"** antes de escolher
 > o que fazer. Atualize este arquivo ao fim de cada sessão.
 
-**Última atualização:** 2026-07-13 · **Branch:** `main`
+**Última atualização:** 2026-07-14 · **Branch:** `main`
 
 > O commit não é anotado aqui de propósito: ele fica velho a cada sessão e a página passa a
 > mentir. Rode `git log --oneline -1`.
@@ -725,6 +725,37 @@ esta seção listava. **A guerra está inteira.**
   pontos na rodada 12. Curado: **o dano sai da força INICIAL**. E isso **reproduz exatamente** a
   estimativa do próprio GDD no cenário equilibrado (12 rodadas, 120 min) — quem escreveu a tabela
   calculou assim e escreveu "atual" no texto.
+
+## As Missões (§06, D-78) — **no ar** (2026-07-14), commit `c916329`
+
+O §06 publica os ciclos (Tutoria, Diária, Semanal, Federação, Guerra, Evento, Conquista) e cala os
+valores. Leia **D-78** em `docs/decisoes.md` antes de mexer — três arbitragens do usuário e o
+aditivo de gestão que veio depois, todos ali.
+
+**O que está ligado:** Tutoria (5 missões, entregues na fundação, 3 dias de prazo — **recompensa
+mas não trava** o subsídio das essenciais, contradição consciente com o §03), Diárias (3 por dia,
+sorteadas de um pool de 33 no primeiro pedido da janela, 1 rejeição/dia) e Semanal (1 por semana,
+qua 07h → ter 23h59). Recompensas **generosas** por decisão do usuário — e são **emissão**: o
+painel é o torniquete se o Fert$ inflar.
+
+**13 ganchos** espalhados pelo domínio inteiro escutam o jogo (obra, zona, combate, acordo,
+mercado, ordem, despacho, unidade, drone, nióbio, chat, frete, manutenção) e chamam
+`Progresso::registrar()`. Concluir **paga na hora**, sem botão de resgate.
+
+**O CRUD (aditivo do mesmo dia):** o usuário pediu "quero que essas missões sejam gerenciáveis no
+backend" — o painel ganhou **aba própria** (Missões): criar, editar, ligar/desligar e apagar
+(só se o molde nunca foi sorteado — a FK é `cascadeOnDelete`, e apagar um molde usado destruiria o
+histórico de uma recompensa que já saiu do Tesouro). `App\Domain\Missoes\Acoes::TODAS` é a lista
+canônica das 13 ações — o formulário só oferece essas, então não dá para criar uma missão
+impossível (ação que nenhum gancho dispara). ⚠️ Editar `ação`/`meta` só vale para o próximo
+sorteio; editar o **prêmio** vale também para quem já tem a missão na mão — de propósito.
+
+⚠️ **`deploy.sh` não roda seeders.** Depois do deploy, `MissionTemplateSeeder` foi rodado à mão em
+produção (`sudo -u fertways php84 artisan db:seed --class=MissionTemplateSeeder --force`) — 46
+moldes (5 tutoria + 33 diárias + 8 semanais), conferidos por leitura. Se um dia o catálogo sumir
+(banco novo, rollback), é este comando que o repõe — idempotente por `chave`.
+
+**528 testes PHP (3775 asserções) + 7 e2e, verdes** no momento do deploy.
 
 ## O trabalho anterior: zonas neutras + Drone (D-52)
 
