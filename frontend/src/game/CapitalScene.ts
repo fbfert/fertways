@@ -1,4 +1,5 @@
 import Phaser from 'phaser'
+import { carregarArte, carregarTexturas, chaveDeTextura } from './arte'
 import { CORES } from './ColonyScene'
 import { transformar, VISTA_INICIAL, type Vista } from './vista'
 
@@ -133,6 +134,20 @@ export class CapitalScene extends Phaser.Scene {
     this.raiz = this.add.container(0, 0)
     this.desenhar()
     this.scale.on('resize', () => this.desenhar())
+
+    /*
+     * A arte (D-68). **A Capital ficou sem ela na primeira entrega**, e o defeito foi exatamente o
+     * do D-63: os vínculos existiam no banco, a API os devolvia, e a CENA nunca era avisada. Os
+     * sete e2e passavam — porque os cliques funcionavam e só o desenho estava vazio.
+     */
+    void carregarArte()
+      .then((arte) => (this.viva() ? carregarTexturas(this, arte) : undefined))
+      .then(() => this.viva() && this.desenhar())
+  }
+
+  /** A cena ainda existe? O React em modo estrito a destrói e a arte chega depois. Ver ColonyScene. */
+  private viva(): boolean {
+    return Boolean(this.raiz?.scene && this.sys?.isActive())
   }
 
   atualizar(slots: SlotDaCapital[], vista: Vista) {
@@ -191,6 +206,23 @@ export class CapitalScene extends Phaser.Scene {
     g.strokeRoundedRect(-a.w / 2, -a.h / 2, a.w, a.h, 8)
     c.add(g)
 
+    /*
+     * A arte da área (D-68). O Oeste é a Endurance, o Leste o Mercado e o Pátio, o Sul o Espaçoporto.
+     *
+     * `contain` e não `cover`: as áreas são retângulos largos e o sprite é quadrado. Esticá-lo para
+     * preencher deformaria o prédio; recortá-lo cortaria a antena. Cabe inteiro, centrado, e o resto
+     * é o terreno da área — que é o que ele é.
+     */
+    const chaveArea = chaveDeTextura(`capital:area:${a.id}`)
+
+    if (this.textures.exists(chaveArea)) {
+      const img = this.add.image(0, a.h * 0.06, chaveArea)
+      const lado = Math.min(a.w * 0.86, a.h * 0.82)
+      img.setDisplaySize(lado, lado)
+      img.setOrigin(0.5, 0.5)
+      c.add(img)
+    }
+
     // O rótulo da área vai no alto dela; o do Norte, acima dos hexágonos.
     c.add(
       this.add
@@ -206,9 +238,18 @@ export class CapitalScene extends Phaser.Scene {
         .setAlpha(0.85),
     )
 
-    if (a.id === 'oeste') this.desenharEndurance(c, a.w, a.h)
-    if (a.id === 'leste') this.desenharPatio(c, a.w, a.h)
-    if (a.id === 'sul') this.desenharEspacoporto(c, a.w, a.h)
+    /*
+     * Os croquis vetoriais — a carcaça da Endurance, os caminhões do Pátio, a torre do Espaçoporto —
+     * eram o que a área tinha para mostrar antes de haver arte. **Com imagem de verdade eles somem**:
+     * senão seriam riscos desenhados POR CIMA do prédio, e a área ficaria pior do que estava.
+     *
+     * São o mesmo fallback do hexágono da colônia. A área sem arte continua exatamente como era.
+     */
+    if (!this.textures.exists(chaveArea)) {
+      if (a.id === 'oeste') this.desenharEndurance(c, a.w, a.h)
+      if (a.id === 'leste') this.desenharPatio(c, a.w, a.h)
+      if (a.id === 'sul') this.desenharEspacoporto(c, a.w, a.h)
+    }
 
     return c
   }
@@ -275,7 +316,15 @@ export class CapitalScene extends Phaser.Scene {
 
     const estado = slot?.estado ?? 'vago'
 
-    if (estado === 'ativo') {
+    // A arte do slot (D-68). Só os ativos a mostram: um slot vago com prédio seria uma promessa falsa.
+    const chaveSlot = chaveDeTextura(`capital:slot:${n}`)
+    const temArte = estado === 'ativo' && this.textures.exists(chaveSlot)
+
+    if (temArte) {
+      // Com arte, o hexágono vira só o contorno do lugar — o prédio é o que se vê.
+      g.fillStyle(CORES.sandLight, 0.4)
+      g.lineStyle(realce ? 3 : 1.5, realce ? CORES.rustBright : CORES.rust, realce ? 1 : 0.4)
+    } else if (estado === 'ativo') {
       g.fillStyle(realce ? CORES.rustBright : CORES.rust, 1)
       g.lineStyle(realce ? 3 : 2, CORES.ember, 1)
     } else if (estado === 'em_breve') {
@@ -292,13 +341,28 @@ export class CapitalScene extends Phaser.Scene {
     g.strokePoints(pontos, true)
     c.add(g)
 
+    if (temArte) {
+      // Transborda o hexágono, como na colônia: um prédio pousado no terreno, não um selo colado.
+      const img = this.add.image(0, r * 0.12, chaveSlot)
+      img.setDisplaySize(r * 1.7, r * 1.7)
+      img.setOrigin(0.5, 0.58)
+      c.add(img)
+    }
+
+    /*
+     * ⚠️ **Com arte, o número vai para o TOPO** — a mesma correção da colônia, pela mesma razão: no
+     * centro do hexágono ele cairia em cima da cúpula do prédio. Isso só se descobre **olhando**;
+     * nenhum e2e o pegaria, porque o clique funciona e o texto está lá (D-63).
+     */
     c.add(
       this.add
-        .text(0, 0, String(n), {
+        .text(0, temArte ? -r * 0.62 : 0, String(n), {
           fontFamily: 'Archivo, Inter, sans-serif',
-          fontSize: `${Math.max(9, Math.round(r * 0.62))}px`,
+          fontSize: `${Math.max(9, Math.round(r * (temArte ? 0.4 : 0.62)))}px`,
           fontStyle: 'bold',
-          color: estado === 'ativo' ? '#fdf0e2' : '#372f27',
+          color: temArte ? '#b4450b' : estado === 'ativo' ? '#fdf0e2' : '#372f27',
+          stroke: temArte ? '#fdf0e2' : undefined,
+          strokeThickness: temArte ? 4 : 0,
         })
         .setOrigin(0.5)
         .setAlpha(estado === 'ativo' || estado === 'em_breve' ? 1 : 0.4),
