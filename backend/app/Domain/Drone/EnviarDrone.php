@@ -66,6 +66,8 @@ class EnviarDrone
                 'arrives_at' => $agora->copy()->addSeconds(DroneSpecs::segundosDoVoo($distancia)),
             ])->save();
 
+            app(\App\Domain\Missoes\Progresso::class)->registrar($colony->id, 'missao_drone');
+
             return $drone->fresh();
         });
     }

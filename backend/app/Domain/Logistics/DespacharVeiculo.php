@@ -485,6 +485,11 @@ class DespacharVeiculo
      */
     private function emRota(Vehicle $veiculo, string $destinoTipo, ?int $destinoId, string $proposito, int $distancia, ?int $volta, array $carga, CarbonInterface $agora, ?int $acordoId = null): Vehicle
     {
+        // Toda viagem nasce aqui — é o ponto único que as missões de logística escutam (D-78).
+        if ($veiculo->colony_id) {
+            app(\App\Domain\Missoes\Progresso::class)->registrar($veiculo->colony_id, 'despacho');
+        }
+
         $veiculo->forceFill([
             'status' => 'em_rota',
             'leg' => 'ida',

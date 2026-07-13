@@ -7,6 +7,7 @@ import { Frota } from './ui/Frota'
 import { Fundacao } from './ui/Fundacao'
 import { Login } from './ui/Login'
 import { Chat } from './ui/Chat'
+import { Missoes } from './ui/Missoes'
 import { Mapa } from './ui/Mapa'
 import { Marca } from './ui/Marca'
 import { Route, Routes, useNavigate, useParams } from 'react-router-dom'
@@ -164,6 +165,7 @@ export default function App() {
    * card já cumpriu o papel dele — quem atravessou a porta não precisa mais dela aberta.
    */
   const [chatAberto, setChatAberto] = useState(false)
+  const [missoesAbertas, setMissoesAbertas] = useState(false)
   const [chatPendente, setChatPendente] = useState(0)
 
   /*
@@ -243,6 +245,17 @@ export default function App() {
             </button>
           )}
 
+          {/* As Missões do §06 (D-78): a mão do dia, a semanal e a tutoria. */}
+          {colonia && (
+            <button
+              onClick={() => setMissoesAbertas((v) => !v)}
+              data-abrir-missoes
+              className="painel bg-sand-light text-rust hover:text-rust-bright eyebrow px-5"
+            >
+              Missões
+            </button>
+          )}
+
           {/* O rádio do planeta (§10, D-77). Fechado, não custa um request. */}
           {colonia && (
             <button
@@ -293,6 +306,7 @@ export default function App() {
       </header>
 
       {chatAberto && colonia && <Chat aoFechar={() => setChatAberto(false)} />}
+      {missoesAbertas && !chatAberto && colonia && <Missoes aoFechar={() => setMissoesAbertas(false)} />}
 
 
       {colonia && (

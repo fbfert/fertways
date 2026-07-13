@@ -103,6 +103,11 @@ class EnviarMensagem
         // A citação (@nickname) só existe na praça: na privada o aviso é o próprio não-lido.
         if ($destinatario === null) {
             app(Avisos::class)->citar($mensagem);
+
+            // A missão de "participar da conversa" só ouve a PRAÇA — privada não é presença.
+            if ($colony = $autor->colony()->first()) {
+                app(\App\Domain\Missoes\Progresso::class)->registrar($colony->id, 'chat_mensagem');
+            }
         }
 
         return $mensagem;

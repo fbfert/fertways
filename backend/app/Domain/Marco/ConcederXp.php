@@ -38,9 +38,17 @@ class ConcederXp
     public function handle(int $colonyId, string $acao, ?string $ref = null, int $vezes = 1): void
     {
         $porVez = (int) MilestoneSetting::singleton()->{self::CAMPO[$acao]};
-        $xp = $porVez * max(1, $vezes);
 
-        // Zerar um valor no painel DESLIGA a fonte — sem linhas vazias sujando o ledger.
+        $this->direto($colonyId, $acao, $porVez * max(1, $vezes), $ref);
+    }
+
+    /**
+     * XP com valor EXPLÍCITO — a porta das missões (D-78): elas pagam o que o catálogo diz, não o
+     * que a tabela de atos do D-75 diz. Continua sendo a única forma de XP nascer: com linha.
+     */
+    public function direto(int $colonyId, string $acao, int $xp, ?string $ref = null): void
+    {
+        // Zerar um valor DESLIGA a fonte — sem linhas vazias sujando o ledger.
         if ($xp <= 0) {
             return;
         }

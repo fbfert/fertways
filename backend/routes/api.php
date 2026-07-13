@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\ColonyController;
 use App\Http\Controllers\Api\DroneController;
 use App\Http\Controllers\Api\ImagesController;
 use App\Http\Controllers\Api\MarketController;
+use App\Http\Controllers\Api\MissoesController;
 use App\Http\Controllers\Api\MinistryController;
 use App\Http\Controllers\Api\NeutralZoneController;
 use App\Http\Controllers\Api\TradeController;
@@ -98,6 +99,10 @@ Route::middleware('auth:sanctum')->group(function () {
     // O Sistema de Mensagens (§10, D-77): polling, 4 canais vivos (federação espera federações).
     Route::get('/chat', [ChatController::class, 'canais']);
     Route::get('/chat/pendencias', [ChatController::class, 'pendencias']);
+
+    // As Missões do §06 (D-78): a mão do dia nasce no primeiro pedido; 1 rejeição diária.
+    Route::get('/missions', [MissoesController::class, 'index']);
+    Route::post('/missions/{assignment}/reject', [MissoesController::class, 'rejeitar']);
     Route::get('/chat/conversas', [ChatController::class, 'conversas']);
     Route::get('/chat/privada/{user}', [ChatController::class, 'privada']);
     Route::post('/chat/privada/{user}', [ChatController::class, 'falarPrivado']);

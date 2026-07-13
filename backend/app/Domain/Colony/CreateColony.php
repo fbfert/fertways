@@ -129,11 +129,16 @@ class CreateColony
             $this->registrarMioloSubsidiado($colony, $agora);
             $this->concederRarosDoKit($colony, $agora);
 
-            // Stub: as cinco missões de tutoria ("cinco missões nos três primeiros dias")
-            // estão fora do MVP. Sem isto o subsídio de §24.7 nunca destrava e o colono não
-            // constrói nada. Note que o corpo de §24.7 sequer menciona tutoria — só a tabela
-            // de onboarding a exige. Remover quando as missões existirem. Ver D-18.
+            /*
+             * As 5 missões de tutoria EXISTEM desde o D-78 — e o auto-completar continua, agora
+             * por DECISÃO e não por stub: o usuário arbitrou que a tutoria recompensa mas não
+             * trava o subsídio (contradição consciente com o §03, que diz "mediante conclusão
+             * da tutoria"; registrada no D-78 — não a "conserte"). O bilhete do D-18 morreu.
+             */
             $user->forceFill(['tutorial_completed_at' => $agora])->save();
+
+            // A mão de missões da tutoria (§06: "5 missões — dias 1 a 3"). Elas pagam; não travam.
+            app(\App\Domain\Missoes\Atribuir::class)->tutoria($colony);
 
             return $colony->fresh(['buildings', 'resources', 'vehicles']);
         });

@@ -137,6 +137,8 @@ class FretePublico
             $agora = now();
             $distancia = (int) $orcamento['distancia_slots'];
 
+            app(\App\Domain\Missoes\Progresso::class)->registrar($colony->id, 'frete_publico');
+
             $caminhao->forceFill([
                 'status' => 'em_rota',
                 'leg' => 'ida',

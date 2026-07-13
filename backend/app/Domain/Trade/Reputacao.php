@@ -63,6 +63,10 @@ class Reputacao
                 $xp = app(\App\Domain\Marco\ConcederXp::class);
                 $xp->handle($acordo->colony_a_id, 'acordo_executado', "acordo:{$acordo->id}");
                 $xp->handle($acordo->colony_b_id, 'acordo_executado', "acordo:{$acordo->id}");
+
+                $missoes = app(\App\Domain\Missoes\Progresso::class);
+                $missoes->registrar($acordo->colony_a_id, 'acordo_executado');
+                $missoes->registrar($acordo->colony_b_id, 'acordo_executado');
             }
 
             return true;

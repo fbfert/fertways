@@ -49,6 +49,7 @@ Route::prefix('admin')->group(function () {
         Route::get('/auditoria', [PainelController::class, 'auditoria'])->name('admin.auditoria');
         Route::get('/operacao', [PainelController::class, 'operacao'])->name('admin.operacao');
         Route::post('/operacao/marco', [AcoesController::class, 'marco'])->name('admin.marco.parametros');
+        Route::post('/missoes/{template}/alternar', [AcoesController::class, 'missaoAlternar'])->name('admin.missao.alternar');
 
         // Ministério
         Route::post('/reports/{report}/julgar', [AcoesController::class, 'julgar'])->name('admin.julgar');

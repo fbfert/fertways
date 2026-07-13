@@ -331,6 +331,7 @@ class ResolverCombates
         // Conquistar uma zona é o ato de guerra que o Marco premia (D-75).
         app(\App\Domain\Marco\ConcederXp::class)
             ->handle($combate->attacker_colony_id, 'combate_vencido', "combate:{$combate->id}");
+        app(\App\Domain\Missoes\Progresso::class)->registrar($combate->attacker_colony_id, 'combate_vencido');
 
         $combate->status = 'vitoria_atacante';
         $combate->proxima_rodada_at = null;
@@ -352,6 +353,7 @@ class ResolverCombates
         // detectar um sabotador é rotina da Torre, não uma batalha vencida.
         app(\App\Domain\Marco\ConcederXp::class)
             ->handle($combate->defender_colony_id, 'combate_vencido', "combate:{$combate->id}");
+        app(\App\Domain\Missoes\Progresso::class)->registrar($combate->defender_colony_id, 'combate_vencido');
 
         $combate->status = 'repelido';
         $combate->proxima_rodada_at = null;
@@ -488,6 +490,7 @@ class ResolverCombates
         // Romper um cerco é a vitória mais difícil do jogo — o sitiado saiu a campo aberto (D-75).
         app(\App\Domain\Marco\ConcederXp::class)
             ->handle($ruptura->attacker_colony_id, 'combate_vencido', "ruptura:{$ruptura->id}");
+        app(\App\Domain\Missoes\Progresso::class)->registrar($ruptura->attacker_colony_id, 'combate_vencido');
 
         $ruptura->status = 'vitoria_atacante';
         $ruptura->proxima_rodada_at = null;

@@ -86,6 +86,8 @@ class ComprarNiobio
                 'created_at' => now(),
             ]);
 
+            app(\App\Domain\Missoes\Progresso::class)->registrar($colony->id, 'niobio_comprado');
+
             return $quantidade;
         });
     }

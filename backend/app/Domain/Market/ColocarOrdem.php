@@ -116,6 +116,8 @@ class ColocarOrdem
 
             $this->lancar($colonia->id, 'escrow_mercado', -$qtd, $recurso, $ref);
 
+            app(\App\Domain\Missoes\Progresso::class)->registrar($colonia->id, 'ordem_colocada');
+
             return MarketOrder::create([
                 'colony_id' => $colonia->id, 'resource_type' => $recurso, 'side' => 'sell',
                 'price_micro' => $precoMicro, 'qty' => $qtd,
@@ -140,6 +142,8 @@ class ColocarOrdem
 
         // Fert$ não é recurso do catálogo: `resource_type` fica nulo e o valor é em micro-Fert$.
         $this->lancar($colonia->id, 'escrow_mercado', -$custo, null, $ref);
+
+        app(\App\Domain\Missoes\Progresso::class)->registrar($colonia->id, 'ordem_colocada');
 
         return MarketOrder::create([
             'colony_id' => $colonia->id, 'resource_type' => $recurso, 'side' => 'buy',

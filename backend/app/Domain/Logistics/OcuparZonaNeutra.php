@@ -68,6 +68,7 @@ class OcuparZonaNeutra
 
             // Desbravador de fato: ocupar rende XP (D-75) — dentro da transação, com o resto.
             app(\App\Domain\Marco\ConcederXp::class)->handle($colony->id, 'zona_ocupada', "zona:{$zona->id}");
+            app(\App\Domain\Missoes\Progresso::class)->registrar($colony->id, 'zona_ocupada');
 
             /*
              * A guarnição são 20 Robôs Mineradores — e desde o D-66 eles são LINHAS, não um

@@ -102,6 +102,8 @@ class Manutencao
                 'manutencoes' => (int) $veiculo->manutencoes + 1,
             ])->save();
 
+            app(\App\Domain\Missoes\Progresso::class)->registrar($colony->id, 'manutencao');
+
             return $veiculo;
         });
     }

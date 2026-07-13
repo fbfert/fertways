@@ -399,6 +399,8 @@ class PainelController extends Controller
             'colonias' => Colony::with('user:id,nickname')->orderBy('id')->get(),
             // Os valores de XP por ato (D-75) — e o marco de cada colônia sai da lista acima.
             'marco' => \App\Models\MilestoneSetting::singleton(),
+            // O catálogo de missões (§06, D-78): liga/desliga sem deploy; valores no seeder.
+            'missoes' => \App\Models\MissionTemplate::orderBy('categoria')->orderBy('chave')->get(),
         ]);
     }
 

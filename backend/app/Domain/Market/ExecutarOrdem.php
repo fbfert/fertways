@@ -178,6 +178,11 @@ class ExecutarOrdem
             $xp = app(\App\Domain\Marco\ConcederXp::class);
             $xp->handle($vendedorId, 'mercado_executado', $chave);
             $xp->handle($compradorId, 'mercado_executado', $chave);
+
+            // A missão de mercado herda o MESMO piso (D-43/D-75): negócio de mentira não progride.
+            $missoes = app(\App\Domain\Missoes\Progresso::class);
+            $missoes->registrar($vendedorId, 'mercado_executado');
+            $missoes->registrar($compradorId, 'mercado_executado');
         }
 
         if ($taxa > 0) {

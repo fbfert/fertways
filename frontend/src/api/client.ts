@@ -311,6 +311,19 @@ export type Perfil = {
   marco: Marco | null
 }
 
+/** Uma missão na sua mão (§06; D-78). Concluir paga na hora — não há botão de resgate. */
+export type Missao = {
+  id: number
+  categoria: 'tutoria' | 'diaria' | 'semanal'
+  titulo: string
+  descricao: string
+  progresso: number
+  meta: number
+  status: 'ativa' | 'concluida' | 'rejeitada' | 'expirada'
+  expira_em: string | null
+  recompensa: { fert: number; xp: number; recursos: Record<string, number> | null }
+}
+
 /** Uma fala no rádio do planeta (§10; D-77). */
 export type MensagemDeChat = {
   id: number
@@ -1029,6 +1042,17 @@ export const api = {
     req<{ bloqueado: string }>(`/chat/bloquear/${userId}`, { method: 'POST' }),
   chatDesbloquear: (userId: number) =>
     req<{ desbloqueado: string }>(`/chat/bloquear/${userId}`, { method: 'DELETE' }),
+
+  // ── As Missões do §06 (D-78): a mão do dia nasce no primeiro pedido; 1 rejeição diária. ──
+  missoes: () =>
+    req<{
+      missoes: Missao[]
+      rejeicoes_restantes: number
+      dia_vira_em: string
+      semana_vira_em: string
+    }>('/missions'),
+  rejeitarMissao: (id: number) =>
+    req<{ rejeitada: number }>(`/missions/${id}/reject`, { method: 'POST' }),
 
   conta: () => req<ContaDoMercado>('/market/account'),
 

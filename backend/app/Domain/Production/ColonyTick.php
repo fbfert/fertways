@@ -103,6 +103,7 @@ class ColonyTick
         app(\App\Domain\Marco\ConcederXp::class)->handle(
             $colony->id, 'obra_concluida', "build:{$building->type}:n{$item->target_level}",
         );
+        app(\App\Domain\Missoes\Progresso::class)->registrar($colony->id, 'obra_concluida');
 
         // §24.7: "o ledger registra subsídio de 100% no momento de concluir".
         // Quem foi subsidiado não pagou nada no enfileiramento (D-15); o lançamento aqui é

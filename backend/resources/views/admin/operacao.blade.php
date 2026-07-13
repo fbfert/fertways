@@ -127,4 +127,37 @@
         </p>
     </div>
 
+    {{-- ── As Missões do §06 (D-78): o catálogo, com liga/desliga ── --}}
+    <h2 class="secao">Missões — o catálogo</h2>
+    <div class="cartao">
+        <p class="mut pequeno">
+            Tutoria (5, dias 1–3), diárias (3/dia do pool, 1 rejeição) e semanais (qua 07h → ter
+            23h59). <b>Recompensa de missão é EMISSÃO</b> (§06) — se o Fert$ inflar, o torniquete é
+            aqui: desligue moldes generosos ou reajuste o seeder. Concluir paga na hora; desligar um
+            molde não afeta missões já entregues.
+        </p>
+        <table style="margin-top:8px">
+            <tr><th>Molde</th><th>Pede</th><th class="num">Meta</th><th>Paga</th><th></th></tr>
+            @foreach ($missoes as $m)
+                <tr data-molde="{{ $m->chave }}" @if(!$m->ativa) style="opacity:.45" @endif>
+                    <td class="pequeno"><b>{{ $m->titulo }}</b>
+                        <div class="mut" style="font-size:.58rem">{{ $m->categoria }} · {{ $m->chave }}</div></td>
+                    <td class="pequeno">{{ $m->descricao }}</td>
+                    <td class="num">{{ $m->meta }}</td>
+                    <td class="pequeno">
+                        @if ($m->recompensa_fert_micro > 0) {{ number_format($m->recompensa_fert_micro / 1000000, 0) }} F$ @endif
+                        @if ($m->recompensa_xp > 0) {{ $m->recompensa_xp }} XP @endif
+                        @foreach ($m->recompensa_recursos ?? [] as $r => $q) {{ $q }} {{ str_replace('_', ' ', $r) }} @endforeach
+                    </td>
+                    <td>
+                        <form method="POST" action="{{ route('admin.missao.alternar', $m) }}" class="inline">
+                            @csrf
+                            <button class="pequeno" data-alternar="{{ $m->chave }}">{{ $m->ativa ? 'desligar' : 'ligar' }}</button>
+                        </form>
+                    </td>
+                </tr>
+            @endforeach
+        </table>
+    </div>
+
 @endsection

@@ -43,6 +43,7 @@ class Ledger extends Model
         'fabricar_unidade',   // Sentinela, Infiltrador, Predador, Robô — feitos no Quartel (§27.1)
         'fabricar_drone',     // o Drone de Exploração — feito na OFICINA (§21.4, D-74)
         'frete_publico',      // o Fert$ do serviço logístico público (§07, D-76) — vai ao Tesouro
+        'recompensa_missao',  // Fert$/recursos de missão (§06, D-78) — emissão publicada, como o salário
         /*
          * §17.4 (D-67): o material que sai da colônia num veículo rumo ao CANTEIRO de uma zona.
          * As obras da zona exigem entrega física — e é este lançamento que prova de onde veio o

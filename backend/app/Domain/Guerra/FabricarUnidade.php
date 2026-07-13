@@ -109,6 +109,8 @@ class FabricarUnidade
 
             $agora = now();
 
+            app(\App\Domain\Missoes\Progresso::class)->registrar($colony->id, 'fabricar_unidade', $quantidade);
+
             Unit::insert(array_fill(0, $quantidade, [
                 'colony_id' => $colony->id,
                 'zone_id' => null,

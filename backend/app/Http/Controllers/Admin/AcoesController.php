@@ -508,6 +508,17 @@ class AcoesController extends Controller
         return redirect()->route('admin.chat', ['privada_a' => $a->id, 'privada_b' => $b->id]);
     }
 
+    /** Liga/desliga um molde de missão do §06 (D-78): o template com defeito sai do baralho sem deploy. */
+    public function missaoAlternar(\App\Models\MissionTemplate $template): RedirectResponse
+    {
+        return $this->tentar('missao.alternar', function () use ($template) {
+            $template->update(['ativa' => ! $template->ativa]);
+
+            return "Missão «{$template->titulo}» ({$template->chave}) "
+                .($template->ativa ? 'voltou ao baralho.' : 'saiu do baralho — as já entregues seguem valendo.');
+        }, "missao:{$template->id}");
+    }
+
     // ── Jogadores (D-61) ─────────────────────────────────────────────────────
 
     /**

@@ -3251,3 +3251,47 @@ chamado é meio chat. Fechado antes do primeiro deploy:
 > prazo (`Punishment`, escopo `vigente()`) — só nunca houve porta em que bater. O chat perguntou
 > "há silêncio vigente?" e três anos de arquitetura respondida em uma consulta. Guardar estado
 > completo de sistemas futuros (D-44: "passa a morder sozinho no dia em que existirem") pagou.
+
+---
+
+## D-78 — As Missões do §06: o jogo que chama de volta.
+**Data:** 2026-07-13 · **Status:** arbitrado pelo usuário · **GDD §06, §03**
+
+O §06 publica os ciclos e cala os valores. As três arbitragens (2026-07-13):
+
+**1. Escopo: Tutoria + Diárias + Semanais.** As 5 da tutoria (dias 1–3, entregues na fundação), as
+3 diárias do pool de 30+ (o catálogo nasceu com 33) com a **1 rejeição publicada**, e a semanal na
+janela textual (qua 07h → ter 23h59). As missões de guerra viraram tipos do pool; Narrativa,
+Federação, Evento e Conquistas esperam os seus sistemas.
+
+**2. Recompensas GENEROSAS** (2× a proposta modesta): diária ~6 F$ OU ~300 XP OU recursos (cada
+molde paga UMA classe — é o "Fert$, recursos ou XP" do §06); semanal ~40 F$ + 1.000 XP; tutoria
+~30 F$ + recursos no total. ⚠️ **Recompensa de missão é EMISSÃO** (o §06 a lista entre as entradas
+de Fert$, como o salário do conciliador) — se o Fert$ inflar, o torniquete é o catálogo: o painel
+(Operação) desliga moldes sem deploy, e o seeder reajusta valores por chave (`updateOrCreate`).
+
+**3. A tutoria RECOMPENSA e não trava.** O §03 diz "subsídio mediante conclusão da tutoria"; o
+usuário manteve o subsídio automático — **contradição consciente, não a "conserte"**. O stub do
+D-18 morreu como stub e renasceu como decisão: o comentário no `CreateColony` agora cita esta.
+
+### O desenho
+
+- **A mão nasce LAZY**: as diárias são sorteadas no primeiro pedido da janela (quem não abre a tela
+  não ganha linha no banco), sem repetir molde na mesma janela; a rejeição repõe do pool. O "dia de
+  missão" corre de **07h a 07h** — a régua veio da semanal publicada (leitura registrada).
+- **Concluir PAGA na hora**, sem botão de resgate: Fert$/recursos com ledger (`recompensa_missao`),
+  XP pelo ledger do Marco com o valor DO MOLDE (`ConcederXp::direto` — o catálogo manda, não a
+  tabela de atos do D-75).
+- **13 ações escutadas** pelos mesmos ganchos do XP mais oito novos: obra, zona, combate, acordo,
+  mercado (com o MESMO piso anti-farm do D-43), ordem colocada, despacho (no `emRota`, o ponto
+  único por onde toda viagem nasce), fabricar unidade, missão de drone, nióbio, chat público,
+  frete público e manutenção.
+- **Tela própria** (botão Missões no HUD): barras de progresso, prêmio, "trocar" na diária.
+  **Painel**: o catálogo inteiro na aba Operação, com liga/desliga auditado.
+
+### O que se aprendeu construindo
+
+> **O gancho funcionou "bem demais" no primeiro teste**: o despacho do cenário completou também a
+> missão de tutoria da colônia recém-fundada, e a asserção de valores exatos quebrou. Não era bug —
+> era o sistema inteiro ligado. Testes de valor exato agora limpam a mão de missões antes; e ficou
+> a prova viva de que fundar uma colônia já entrega a tutoria funcionando.

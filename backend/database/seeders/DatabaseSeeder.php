@@ -21,6 +21,8 @@ class DatabaseSeeder extends Seeder
             // Depende de resource_types. Em produção (banco já migrado) rode-o à mão após o deploy.
             TreasurySeeder::class,
             TransportSettingSeeder::class,
+            // O catálogo de missões do §06 (D-78) — o baralho das diárias e a tutoria.
+            MissionTemplateSeeder::class,
         ]);
     }
 }
