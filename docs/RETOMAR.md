@@ -862,7 +862,7 @@ existe no catálogo depois disso (idempotente, upsert por `type`+`level`: repeti
 por leitura depois: as 5 linhas do catálogo (custo, tempo, taxa) e as três colunas/tabela novas, todas
 no ar.
 
-## A receita de Ligas e Compostos (D-83) — **ainda NÃO publicado** (2026-07-15)
+## A receita de Ligas e Compostos (D-83) — **no ar** (2026-07-15)
 
 Fechou a lacuna 5 do D-52: "o GDD publica a taxa (30/h) e nunca a receita" de Ligas Metálicas
 (Oficina) e Compostos Químicos (Refinaria Química), inertes desde o D-19.
@@ -883,9 +883,10 @@ Sem migration — só `production.json` (reseedado via `BuildingSpecSeeder`) e l
 verdes, a mesma falha pré-existente e não relacionada de Missões. Não mexe em nada visível ao e2e
 (nenhum arquivo constrói Oficina/Refinaria Química ou verifica esses dois recursos).
 
-⚠️ **Ainda não publicado nem comitado.** Falta: `git add`/commit (como `fertways`), `git push`,
-`sudo ./tools/deploy.sh` e o passo à mão do `BuildingSpecSeeder` (mesmo de sempre, pra pegar as
-novas taxas de `production.json`).
+**Publicado** no commit `291fed3`. **Um passo à mão** no `fertwaysbd`: `artisan db:seed
+--class=BuildingSpecSeeder --force` (mesmo do D-82, idempotente) — sem ele, `production.json`
+muda mas o `building_specs` semeado continua com a taxa velha. Conferido por leitura depois: a
+Oficina sem `ligas_metalicas` no JSON, e a Refinaria Química com 2/3/5/7/10.
 
 ## O trabalho anterior: zonas neutras + Drone (D-52)
 
