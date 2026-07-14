@@ -144,6 +144,12 @@ $v = App\Models\User::create([
 ]);
 $cv = app(App\Domain\Colony\CreateColony::class)->handle($v, "Colônia vizinha", 0, 6);
 
+// D-81: uma fala da vizinha no Global, para o e2e do Chat ter um nick alheio em que clicar.
+// ChatMessage não tem timestamps automáticos ($timestamps = false) — created_at é à mão.
+App\Models\ChatMessage::create([
+    "user_id" => $v->id, "channel" => "global", "body" => "Alguém compra Água?", "created_at" => now(),
+]);
+
 /*
  * D-58. Uma oferta da **vizinha** na vitrine das Ofertas Globais, e outra no mural entre colonos.
  * São elas que provam o que o D-58 veio consertar: sem uma oferta alheia, o e2e só veria as suas
@@ -263,6 +269,9 @@ cd "$RAIZ/frontend"
 # despacha o terceiro. O da Fundação vem por último: funda uma quinta colônia, que mudaria as
 # contagens de colônias das telas anteriores.
 E2E_URL="http://127.0.0.1:$PORTA_WEB" node e2e/telas.e2e.mjs
+# O Chat não mexe em veículo nem em recurso — só em mensagens — e por isso cabe em qualquer ponto
+# da ordem. Fica aqui, cedo, por não depender de nada que as telas seguintes ainda vão montar.
+E2E_URL="http://127.0.0.1:$PORTA_WEB" node e2e/chat.e2e.mjs
 # A Capital SUBIU na ordem no D-60, e não por gosto: a tela do Ministério dos Transportes precisa de
 # um veículo **no pátio** para reparar e sucatear, e o botão de manutenção só existe para veículo
 # ocioso. Depois do Mercado e do Acordo os três furgões estão em rota, e não haveria em que clicar.

@@ -229,19 +229,21 @@ Nunca toca produção nem o MariaDB. A **receita da Oficina não tem e2e**: o pa
 clique num hexágono do Phaser, e acertá-lo por coordenada quebraria ao primeiro ajuste de layout. A
 API dela é coberta em PHP.
 
-Os **sete** arquivos (`e2e/{telas,capital,mercado,acordos,ministerio,zonas,fundacao}.e2e.mjs`)
+Os **oito** arquivos (`e2e/{telas,chat,capital,mercado,acordos,ministerio,zonas,fundacao}.e2e.mjs`)
 compartilham o andaime de `e2e/comum.mjs` **e o mesmo banco efêmero**, então **a ordem em que
 `e2e.sh` os chama importa** e não é arbitrária:
 
 1. **Mapa e Frota** — espera os **três furgões ociosos**, no pátio.
-2. **Capital** — **subiu de posição no D-60**, e por um motivo concreto: a tela do Ministério dos
+2. **Chat (D-81)** — não mexe em veículo nem recurso, só em mensagens; cabe em qualquer ponto da
+   ordem, e fica cedo por não depender de nada que as telas seguintes ainda vão montar.
+3. **Capital** — **subiu de posição no D-60**, e por um motivo concreto: a tela do Ministério dos
    Transportes precisa de um veículo **no pátio** para reparar e sucatear, e o botão de manutenção só
    existe para veículo ocioso. Rodando depois do Mercado, os três furgões já estão em rota e não há
    em que clicar.
-3. **Mercado** — deixa dois furgões em rota. É também onde vive o e2e do **mercado de usados**, no fim.
-4. **Acordo** — despacha o terceiro.
-5. **Ministério** das Reputações, e **Zonas**.
-6. **Fundação, por último**: registra um colono e funda uma quinta colônia — rodar antes bagunçaria
+4. **Mercado** — deixa dois furgões em rota. É também onde vive o e2e do **mercado de usados**, no fim.
+5. **Acordo** — despacha o terceiro.
+6. **Ministério** das Reputações, e **Zonas**.
+7. **Fundação, por último**: registra um colono e funda uma quinta colônia — rodar antes bagunçaria
    as contagens de todas as telas anteriores.
 
 > O seeder do e2e **gasta um dos furgões de propósito** (62% de conservação): sem desgaste, o botão
@@ -254,6 +256,12 @@ compartilham o andaime de `e2e/comum.mjs` **e o mesmo banco efêmero**, então *
 > **Instabilidade conhecida:** o do Mercado falhou uma vez em quatro com `Protocol error
 > (Runtime.getProperties): Target closed`. Verde nas outras três. Se reprovar assim, rode de novo
 > antes de investigar — mas se virar hábito, é bug de verdade.
+>
+> **Segunda variante (2026-07-14, D-81):** o Mercado também já falhou com `HTTP 401 em
+> .../central/chat/pendencias` no console, com **todas as asserções verdes** — não é o teste que
+> erra, é uma corrida: o HUD faz *polling* de `chatPendencias` a cada ~30 s **mesmo com o chat
+> fechado** (D-77), e se o tique cair no instante do `Logout` do teste, ele usa o token que acabou
+> de ser revogado. Rodou de novo e deu tudo verde. Mesma receita: reprovou assim, rode de novo.
 
 **Publicado no GitHub e no ar.** O último deploy é de **2026-07-13**, no commit `8d409b3` — **o card
 vira popup, o colono ganha PERFIL, e as zonas saem do esconderijo (D-69)**. **Sem migration e sem
@@ -777,11 +785,13 @@ moldes (5 tutoria + 33 diárias + 8 semanais), conferidos por leitura. Se um dia
 
 **528 testes PHP (3775 asserções) + 7 e2e, verdes** no momento do deploy.
 
-## A sessão de 2026-07-14: D-79, D-80 e o `trip_purpose` — **no ar**
+## A sessão de 2026-07-14: D-79, D-80, D-81 e o `trip_purpose` — **no ar**
 
-Três trabalhos, um deploy. **529+ testes PHP** — pré-existente e não relacionada segue **1 falha em
-Missões** (`MissoesTest::a_semanal_e_uma_por_semana_e_persiste`, confirmada com `git stash` antes de
-qualquer edição desta sessão — não investigada, não bloqueia). e2e de Zonas passa inteiro.
+Quatro trabalhos, dois deploys. **536 testes PHP** — pré-existente e não relacionada segue **1 falha
+em Missões** (`MissoesTest::a_semanal_e_uma_por_semana_e_persiste`, confirmada com `git stash` antes
+de qualquer edição desta sessão — não investigada, não bloqueia). **e2e: oito arquivos, todos
+verdes** (Chat é o novo; Mercado tem duas variantes de flake conhecidas — ver "Instabilidade
+conhecida" na Verificação rápida —, reproduza de novo antes de investigar).
 
 **D-79 — as três últimas estruturas de zona.** Estrutura de Extração, Central de Comunicação e
 Plataforma de Pouso (da zona) — que o D-67 tinha deixado fora de escopo — ganham custo e tempo,
@@ -804,6 +814,13 @@ que cobre isso sempre passou, porque roda em SQLite, que não aplica largura de 
 por leitura em produção: zero compras de Caminhão bem-sucedidas desde sempre** (`Ledger` de
 `compra_veiculo` em zero). Corrigido: coluna para `VARCHAR(32)`. Ver a "Lição registrada
 (2026-07-14)" na Verificação rápida, logo abaixo da do D-59 — é a mesma família de bug.
+
+**D-81 — o nick vira porta.** No canal público, clicar no nick de outro colono abre uma privada com
+ele. Na privada, clicar no nick abre um popup: colônia, posição, porte e as zonas que ele ocupa —
+mesma régua de privacidade do diretório (D-37), sem recursos, saldo, frota, reputação nem guarnição
+e depósito de zona (a névoa do Drone, D-74, protege isso também aqui). A lupa ao lado de "Privadas"
+busca por nickname entre colonos com colônia fundada; clicar num resultado abre o mesmo popup. Sem
+migration — só leitura do que já é público em `GET /colonies`. e2e novo (`chat.e2e.mjs`).
 
 Todas as migrations ensaiadas nos dois sentidos no `fertwaysdev` (MariaDB) antes de publicar.
 

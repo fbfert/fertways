@@ -11,6 +11,7 @@ use App\Http\Controllers\Api\MarketController;
 use App\Http\Controllers\Api\MissoesController;
 use App\Http\Controllers\Api\MinistryController;
 use App\Http\Controllers\Api\NeutralZoneController;
+use App\Http\Controllers\Api\PlayerController;
 use App\Http\Controllers\Api\TradeController;
 use App\Http\Controllers\Api\TransportController;
 use App\Http\Controllers\Api\VehicleController;
@@ -37,6 +38,9 @@ Route::middleware('auth:sanctum')->group(function () {
     // Diretório de destinos possíveis para um despacho. Sem ele, `destination_type = colonia`
     // é inalcançável pela UI: o jogador não tem como descobrir o `id` de ninguém.
     Route::get('/colonies', [ColonyController::class, 'index']);
+
+    // O card "quem é esse colono" (D-81): do Chat privado e do diretório de colônias.
+    Route::get('/players/{user}/info', [PlayerController::class, 'info']);
 
     // O mapa para o seletor de fundação (D-51): geometria + slots de founder + células ocupadas.
     // Não exige colônia — é o que o colono vê para escolher onde fundar.

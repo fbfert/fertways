@@ -10,6 +10,7 @@ import type {
   ZonaNeutra,
 } from '../api/client'
 import { CelulaSobOCursor, Faixas, Grade, Planeta, Reguas } from './Grade'
+import { InfoJogador } from './InfoJogador'
 import {
   JANELA_PADRAO,
   LADO_SVG,
@@ -80,6 +81,7 @@ export function Mapa({ aoFechar, aoAbrirCapital }: { aoFechar: () => void; aoAbr
   const [frota, setFrota] = useState<Veiculo[]>([])
   const [erro, setErro] = useState<string | null>(null)
   const [selecao, setSelecao] = useState<Selecao>(null)
+  const [infoAberta, setInfoAberta] = useState<number | null>(null)
 
   // Nasce nula: o enquadramento inicial depende de onde é a sua colônia, e isso só se sabe quando
   // o diretório chega.
@@ -231,7 +233,8 @@ export function Mapa({ aoFechar, aoAbrirCapital }: { aoFechar: () => void; aoAbr
   }
 
   return (
-    <div className="bg-sand fixed inset-0 z-20 overflow-y-auto">
+    <>
+      <div className="bg-sand fixed inset-0 z-20 overflow-y-auto">
       <div className="bg-sand-light mx-auto min-h-screen w-full max-w-5xl p-6">
         <header className="flex items-start justify-between">
           <div>
@@ -303,7 +306,9 @@ export function Mapa({ aoFechar, aoAbrirCapital }: { aoFechar: () => void; aoAbr
             <div>
               <Legenda />
 
-              {selecao?.tipo === 'colonia' && <PainelColonia c={selecao.c} />}
+              {selecao?.tipo === 'colonia' && (
+                <PainelColonia c={selecao.c} aoVerInfo={() => setInfoAberta(selecao.c.user_id)} />
+              )}
 
               {selecao?.tipo === 'zona' && (
                 <PainelZona
@@ -378,7 +383,12 @@ export function Mapa({ aoFechar, aoAbrirCapital }: { aoFechar: () => void; aoAbr
           </div>
         )}
       </div>
-    </div>
+      </div>
+
+      {infoAberta !== null && (
+        <InfoJogador userId={infoAberta} aoFechar={() => setInfoAberta(null)} />
+      )}
+    </>
   )
 }
 
@@ -570,7 +580,7 @@ function corDaZona(z: ZonaNeutra, selecao: Selecao): string {
   return 'var(--color-ink-soft)'
 }
 
-function PainelColonia({ c }: { c: ColoniaVizinha }) {
+function PainelColonia({ c, aoVerInfo }: { c: ColoniaVizinha; aoVerInfo: () => void }) {
   return (
     <div className="border-rust/25 bg-sand mt-4 border p-3">
       <div className="text-rust eyebrow">{c.nickname}</div>
@@ -583,6 +593,9 @@ function PainelColonia({ c }: { c: ColoniaVizinha }) {
       <p className="text-ink-soft/70 mt-2 text-xs">
         Porte é a soma dos níveis das construções — não é o Marco do GDD.
       </p>
+      <button onClick={aoVerInfo} data-ver-info={c.user_id} className="text-rust hover:text-rust-bright mt-2 text-xs">
+        Ver zonas neutras ocupadas
+      </button>
     </div>
   )
 }

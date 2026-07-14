@@ -149,7 +149,9 @@ class DiretorioDeColoniasTest extends TestCase
         $vizinho = $this->listar($eu)[0];
 
         $this->assertSame(
-            ['building_levels_sum', 'distance', 'id', 'name', 'nickname', 'x', 'y'],
+            // 'user_id' entrou no D-81: chave do card "quem é esse colono" — não vaza nada, é só
+            // o identificador que já estava público via 'nickname' e 'name'.
+            ['building_levels_sum', 'distance', 'id', 'name', 'nickname', 'user_id', 'x', 'y'],
             collect(array_keys($vizinho))->sort()->values()->all(),
         );
     }

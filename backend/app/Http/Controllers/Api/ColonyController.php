@@ -116,6 +116,8 @@ class ColonyController extends Controller
             ->get()
             ->map(fn (Colony $c) => [
                 'id' => $c->id,
+                // O card de informações do colono (D-81) é chaveado por USER, não por colônia.
+                'user_id' => $c->user_id,
                 'name' => $c->name,
                 'nickname' => $c->user->nickname,
                 'x' => $c->x,

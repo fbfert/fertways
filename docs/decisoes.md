@@ -3410,3 +3410,41 @@ mexe em regra de jogo — são todas de clareza da tela:
 
 Todos os quatro itens: testes PHP (4 novos) e e2e (o de renomear) verdes. Migrations ensaiadas nos
 dois sentidos no `fertwaysdev` (MariaDB).
+
+## D-81 — O nick vira porta: privada do Global, informações da privada, e a lupa busca.
+**Data:** 2026-07-14 · **Status:** arbitrado pelo usuário · **GDD: não fala de nada disto — é UI**
+
+Pedido do usuário: poder clicar no nick de quem fala no Chat. Duas ações, e cada uma no lugar certo:
+
+1. **No canal público** (Global, Região, Vizinhança), clicar no nick de outro colono abre uma
+   privada com ele — troca a aba para "Privadas" e já entra na conversa. O próprio nick continua
+   texto puro, sem botão: não faz sentido mandar privada pra si mesmo.
+2. **Na privada**, clicar no nick do outro abre um **popup de informações**: colônia, posição,
+   porte e as zonas neutras que ele ocupa. Mesma régua de privacidade do diretório de colônias
+   (D-37): nada de recursos, saldo, frota ou reputação — isso nunca é exposto a terceiros em lugar
+   nenhum do jogo, e o card não abre exceção. As zonas trazem só o que `GET /zones` já publica
+   (posição, distrito, mineral, nível) — guarnição e depósito continuam atrás da névoa do Drone
+   (D-74) para qualquer olhar de fora, inclusive este.
+3. **A lupa**, ao lado da aba "Privadas": abre uma busca por nickname, **dentro da aba Privadas**,
+   acima da lista de conversas. Busca entre colonos com colônia fundada — o mesmo diretório do
+   Mapa, sem endpoint novo, só filtrado no cliente por nickname. Clicar num resultado abre o mesmo
+   popup de informações do item 2, não uma conversa nova.
+
+### O que mudou no código
+
+- `PlayerController::info()` novo, `GET /players/{user}/info`: nickname, colônia (nome, posição,
+  distância, porte) e zonas — tudo já público em algum canto do jogo hoje.
+- `ColonyController::index()` ganha `user_id` por linha — chave do card, que é por USER, e não por
+  colônia. Teste de privacidade do diretório (`nao_vaza_recursos_saldo_nem_frota_do_vizinho`)
+  atualizado para incluir a chave nova na lista esperada — continua garantindo que nada sensível
+  vaza.
+- `InfoJogador.tsx`: o popup, reaproveitando o `Popup` do D-69 (mesma razão: olhar de relance, sem
+  sair de onde se estava — do Chat ou do Mapa).
+- `Chat.tsx`: o estado da conversa aberta e da busca subiu para o componente `Chat` — um clique
+  numa mensagem PÚBLICA precisa abrir a privada, e `Canal` é irmão de `Privadas`, não filho.
+- Sem migration: nenhuma coluna nova, só leitura do que já existe.
+- e2e novo (`chat.e2e.mjs`), oitavo arquivo da suíte — cobre as duas portas do nick e a lupa,
+  inclusive a checagem de que guarnição/depósito/saldo/reputação não aparecem no popup. Precisou de
+  uma fala semeada da vizinha no Global (`tools/e2e.sh`) — e `ChatMessage` não tem timestamps
+  automáticos (`$timestamps = false`), então o `created_at` do seed é à mão; esquecê-lo derruba o
+  resto do seeder em cascata (fica registrado na Verificação rápida também).

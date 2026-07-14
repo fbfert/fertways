@@ -78,12 +78,41 @@ export type Colonia = {
  */
 export type ColoniaVizinha = {
   id: number
+  /** Chave do card de informações do colono (D-81) — é por USER, não por colônia. */
+  user_id: number
   name: string
   nickname: string
   x: number
   y: number
   distance: number
   building_levels_sum: number
+}
+
+/**
+ * O card "quem é esse colono" (D-81). Mesma régua de privacidade do diretório (D-37): nada de
+ * recursos, saldo, frota ou reputação. As zonas trazem só o que já é público em `GET /zones`.
+ */
+export type JogadorInfo = {
+  id: number
+  nickname: string
+  colony: {
+    id: number
+    name: string
+    x: number
+    y: number
+    distance: number | null
+    building_levels_sum: number
+  } | null
+  zones: {
+    id: number
+    name: string | null
+    x: number
+    y: number
+    district: string
+    mineral: string
+    level: number
+    status: string
+  }[]
 }
 
 /**
@@ -1052,6 +1081,9 @@ export const api = {
     req<{ bloqueado: string }>(`/chat/bloquear/${userId}`, { method: 'POST' }),
   chatDesbloquear: (userId: number) =>
     req<{ desbloqueado: string }>(`/chat/bloquear/${userId}`, { method: 'DELETE' }),
+
+  /** O card "quem é esse colono" (D-81): do Chat privado e do diretório de colônias. */
+  jogador: (userId: number) => req<JogadorInfo>(`/players/${userId}/info`),
 
   // ── As Missões do §06 (D-78): a mão do dia nasce no primeiro pedido; 1 rejeição diária. ──
   missoes: () =>
