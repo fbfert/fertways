@@ -42,6 +42,8 @@ class NeutralZoneController extends Controller
 
                 return [
                     'id' => $z->id,
+                    // Público, como o nome da colônia — quem passa o mouse na zona sabe de quem é.
+                    'name' => $z->name,
                     'x' => $z->x,
                     'y' => $z->y,
                     'district' => $z->district,

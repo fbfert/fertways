@@ -387,6 +387,82 @@ class ZonaLugarTest extends TestCase
         $this->actingAs($outro->user)->getJson("/zones/{$zona->id}")->assertForbidden();
     }
 
+    /**
+     * O colono pode nomear a zona, como já nomeia a colônia — sem regra no GDD, é conveniência
+     * de UI. Vazia nasce, e a ficha mostra `name: null` até que alguém a batize.
+     */
+    public function test_a_zona_pode_ser_nomeada(): void
+    {
+        $colono = $this->colono();
+        $zona = $this->zonaDe($colono);
+
+        $this->actingAs($colono->user)
+            ->getJson("/zones/{$zona->id}")
+            ->assertOk()
+            ->assertJsonPath('name', null);
+
+        $this->actingAs($colono->user)
+            ->patchJson("/zones/{$zona->id}/name", ['name' => 'Posto Sentinela'])
+            ->assertOk()
+            ->assertJsonPath('name', 'Posto Sentinela');
+
+        $this->assertSame('Posto Sentinela', $zona->fresh()->name);
+
+        // Vazio volta a mostrar as coordenadas — não é erro, é "tirar o nome".
+        $this->actingAs($colono->user)
+            ->patchJson("/zones/{$zona->id}/name", ['name' => ''])
+            ->assertOk()
+            ->assertJsonPath('name', null);
+
+        $this->assertNull($zona->fresh()->name);
+    }
+
+    /** Nomear a zona de outro colono é tão proibido quanto abrir a ficha dela. */
+    public function test_nao_se_nomeia_a_zona_alheia(): void
+    {
+        $dono = $this->colono();
+        $outro = app(CreateColony::class)->handle(User::factory()->create(), 'Outro', 25, 25);
+        $zona = $this->zonaDe($dono);
+
+        $this->actingAs($outro->user)
+            ->patchJson("/zones/{$zona->id}/name", ['name' => 'Roubada'])
+            ->assertForbidden();
+
+        $this->assertNull($zona->fresh()->name);
+    }
+
+    /** Mais de 120 caracteres é rejeitado — a mesma regra do nome da colônia. */
+    public function test_o_nome_da_zona_tem_teto_de_120_caracteres(): void
+    {
+        $colono = $this->colono();
+        $zona = $this->zonaDe($colono);
+
+        $this->actingAs($colono->user)
+            ->patchJson("/zones/{$zona->id}/name", ['name' => str_repeat('a', 121)])
+            ->assertUnprocessable();
+    }
+
+    /**
+     * A entrega de material diz QUAL veículo partiu — tipo e placa — e não só "um veículo". Numa
+     * colônia com dois ou três Furgões, "um veículo a caminho" não dizia qual.
+     */
+    public function test_a_entrega_de_material_diz_qual_veiculo_partiu(): void
+    {
+        $colono = $this->colono();
+        $zona = $this->zonaDe($colono);
+        $veiculo = $colono->vehicles()->first();
+
+        $this->actingAs($colono->user)
+            ->postJson("/zones/{$zona->id}/material", [
+                'vehicle_id' => $veiculo->id,
+                'cargo' => ['metal_bruto' => 400],
+            ])
+            ->assertCreated()
+            ->assertJsonPath('type', $veiculo->type)
+            ->assertJsonPath('plate', $veiculo->plate)
+            ->assertJsonStructure(['id', 'type', 'plate', 'status', 'arrives_at']);
+    }
+
     public function test_o_endpoint_constroi_a_partir_do_canteiro(): void
     {
         $colono = $this->colono();

@@ -49,7 +49,7 @@ class NeutralZone extends Model
     public const OCUPACAO_HORAS = 12;
 
     protected $fillable = [
-        'x', 'y', 'district', 'mineral', 'level',
+        'x', 'y', 'name', 'district', 'mineral', 'level',
         'owner_colony_id', 'status', 'occupied_at', 'protected_until',
         'command_post_level', 'productive_at',
         'deposit_level', 'deposit_amount', 'last_extraction_at',

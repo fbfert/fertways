@@ -55,6 +55,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/zones/{zone}', [ZoneController::class, 'show']);
     Route::post('/zones/{zone}/build', [ZoneController::class, 'construir']);
     Route::post('/zones/{zone}/material', [ZoneController::class, 'entregarMaterial']);
+    Route::patch('/zones/{zone}/name', [ZoneController::class, 'renomear']);
 
     // A guerra (§27, §28.10; D-66). O exército, a fábrica do Quartel, o Nióbio do governo — sem o
     // qual a Sentinela é inalcançável —, os quatro ataques, e as batalhas em curso.

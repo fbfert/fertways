@@ -3385,3 +3385,28 @@ real ou "nenhuma, de propósito e por decisão do usuário", nunca silêncio.
 - `tools/gdd-v36.php`: a linha da seção 10 que dizia "9 estruturas restantes" já estava desatualizada
   desde o D-67 (era estático, não gerado) — corrigida para refletir que as 12 têm custo e tempo, e que
   só o teto de zonas por jogador e o upgrade de zona continuam em aberto.
+
+## D-80 — A zona ganha nome, e três queixas de UX viram tela melhor.
+**Data:** 2026-07-14 · **Status:** arbitrado pelo usuário · **GDD: não fala de nada disto — é UI**
+
+Ao usar a Zona Neutra pela primeira vez, o usuário trouxe quatro queixas concretas. Nenhuma delas
+mexe em regra de jogo — são todas de clareza da tela:
+
+1. **A mensagem de despacho de material não dizia qual veículo, com o quê, nem quando chegava** —
+   só "Veículo a caminho da zona com o material." Numa colônia com dois ou três Furgões, isso não
+   dizia nada. `POST /zones/{id}/material` passou a devolver `type` e `plate` do veículo (já existia
+   `arrives_at`); a mensagem agora lê "Furgão de Comércio FW-00003-F a caminho da zona com 400 Metal
+   Bruto — chega 14/07 16:20."
+2. **"Já há uma obra em curso" aparecia sem dizer QUAL** — a informação já existia (seção Canteiro,
+   mais abaixo na mesma tela), mas não no ponto onde a dúvida nasce, que é o botão desabilitado. Uma
+   linha (`{obra.nome} nível {N} — pronta {data}`) foi acrescentada logo abaixo do botão.
+3. ~~"Já há uma obra em curso" sem nada em obra~~ — **investigado e não é bug**: em produção havia
+   mesmo uma obra real (Estacionamento da Zona, zona 1, iniciada 12:18 UTC, 4h de prazo) — só não
+   estava visível de onde o usuário olhava. É o item 2 acima, não um defeito do domínio.
+4. **Nome da zona, como já se nomeia a colônia.** Mesma regra: texto livre, opcional, até 120
+   caracteres, sem exigir ser único, editável a qualquer momento. `PATCH /zones/{id}/name`; vazio
+   volta a mostrar as coordenadas. Público, como o nome da colônia — aparece no mapa, no popup da
+   zona e na barra lateral "Minhas zonas". Migration `nome_da_zona_neutra`, coluna `name` nullable.
+
+Todos os quatro itens: testes PHP (4 novos) e e2e (o de renomear) verdes. Migrations ensaiadas nos
+dois sentidos no `fertwaysdev` (MariaDB).

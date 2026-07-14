@@ -481,7 +481,7 @@ function Desenho({
             onClick={() => aoSelecionar(() => aoEscolher({ tipo: 'zona', z }))}
           >
             <title>
-              Zona {DISTRITO[z.district]} ({z.x}, {z.y}) — {MINERAL[z.mineral] ?? z.mineral}
+              {z.name ?? `Zona ${DISTRITO[z.district]}`} ({z.x}, {z.y}) — {MINERAL[z.mineral] ?? z.mineral}
               {z.owner ? ` · ${z.owner.name}` : ' · livre'}
             </title>
           </rect>
@@ -675,7 +675,7 @@ function PainelZona({
 
   return (
     <div className="border-rust/25 bg-sand mt-4 border p-3" data-painel-zona>
-      <div className="text-rust eyebrow">Zona {DISTRITO[z.district]}</div>
+      <div className="text-rust eyebrow">{z.name ?? `Zona ${DISTRITO[z.district]}`}</div>
       <div className="text-ink font-black">{MINERAL[z.mineral] ?? z.mineral}</div>
       <dl className="text-ink-soft mt-2 space-y-1 text-sm">
         <Linha termo="Posição" valor={`(${z.x}, ${z.y})`} />

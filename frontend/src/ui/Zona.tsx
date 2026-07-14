@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { api, ApiError } from '../api/client'
 import type { Veiculo, ZonaDetalhe } from '../api/client'
-import { dataHumana, nomeRecurso } from './recursos'
+import { dataHumana, nomeRecurso, nomeVeiculo } from './recursos'
 
 /**
  * A zona neutra como LUGAR (GDD §17.4; docs/decisoes.md D-67).
@@ -71,6 +71,7 @@ export function Zona({ aoFechar }: { aoFechar: () => void }) {
   const [recibo, setRecibo] = useState<string | null>(null)
   const [ocupado, setOcupado] = useState(false)
   const [envio, setEnvio] = useState<Record<string, number>>({})
+  const [nome, setNome] = useState('')
 
   const carregar = useCallback(async () => {
     try {
@@ -86,6 +87,13 @@ export function Zona({ aoFechar }: { aoFechar: () => void }) {
   useEffect(() => {
     void carregar()
   }, [carregar])
+
+  // Só sincroniza ao TROCAR de zona — carregar() roda de novo a cada ação (construir, despachar),
+  // e ressincronizar sempre apagaria o que o colono estivesse digitando no campo de nome.
+  useEffect(() => {
+    setNome(z?.name ?? '')
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [z?.id])
 
   async function agir(acao: () => Promise<string>) {
     setOcupado(true)
@@ -107,9 +115,45 @@ export function Zona({ aoFechar }: { aoFechar: () => void }) {
         <div className="mb-4 flex items-start justify-between">
           <div>
             <div className="text-rust eyebrow">Zona Neutra</div>
-            <h2 className="text-2xl font-black">
-              {z ? `(${z.x}, ${z.y}) — ${nomeRecurso(z.mineral)}` : 'Carregando…'}
-            </h2>
+            {z ? (
+              <>
+                <div className="flex flex-wrap items-center gap-2">
+                  <input
+                    type="text"
+                    value={nome}
+                    onChange={(e) => setNome(e.target.value)}
+                    placeholder={`(${z.x}, ${z.y})`}
+                    maxLength={120}
+                    data-nome-zona
+                    className="text-ink border-rust/25 focus:border-rust bg-transparent border-b text-2xl font-black outline-none"
+                  />
+                  {nome.trim() !== (z.name ?? '') && (
+                    <button
+                      className="botao text-xs"
+                      data-salvar-nome-zona
+                      disabled={ocupado}
+                      onClick={() =>
+                        void agir(async () => {
+                          const r = await api.renomearZona(z.id, nome.trim())
+                          setNome(r.name ?? '')
+
+                          return r.name
+                            ? `Zona renomeada para "${r.name}".`
+                            : 'Nome removido — a zona volta a mostrar as coordenadas.'
+                        })
+                      }
+                    >
+                      Salvar nome
+                    </button>
+                  )}
+                </div>
+                <div className="text-ink-soft text-sm">
+                  ({z.x}, {z.y}) — {nomeRecurso(z.mineral)}
+                </div>
+              </>
+            ) : (
+              <h2 className="text-2xl font-black">Carregando…</h2>
+            )}
           </div>
           <button
             onClick={aoFechar}
@@ -296,6 +340,16 @@ export function Zona({ aoFechar }: { aoFechar: () => void }) {
                           ? 'Falta material no canteiro'
                           : 'Construir'}
                   </button>
+
+                  {/*
+                    Sem isto, o colono via só "Já há uma obra em curso" e tinha de procurar no
+                    Canteiro, lá embaixo, para descobrir O QUÊ — a mesma pergunta que gerou a queixa.
+                  */}
+                  {z.obra && (
+                    <p className="text-ink-soft mt-1 text-xs" data-obra-em-curso>
+                      {z.obra.nome} nível {z.obra.target_level} — pronta {dataHumana(z.obra.finishes_at)}.
+                    </p>
+                  )}
                 </div>
               ) : (
                 <p className="text-ink-soft mt-3 text-xs">No nível máximo.</p>
@@ -376,7 +430,7 @@ export function Zona({ aoFechar }: { aoFechar: () => void }) {
           <p className="text-ink-soft mt-3 text-xs">Nenhum veículo ocioso para levar material.</p>
         ) : (
           <div className="mt-3">
-            <div className="text-ink eyebrow">Enviar material (de {ociosos[0].type})</div>
+            <div className="text-ink eyebrow">Enviar material (de {nomeVeiculo(ociosos[0].type)})</div>
             <div className="mt-1 grid gap-2 sm:grid-cols-3">
               {['metal_bruto', 'ligas_metalicas', 'componentes_eletronicos'].map((r) => (
                 <label key={r} className="text-sm">
@@ -404,10 +458,18 @@ export function Zona({ aoFechar }: { aoFechar: () => void }) {
                   const carga = Object.fromEntries(
                     Object.entries(envio).filter(([, q]) => q > 0),
                   )
-                  await api.entregarMaterial(z.id, ociosos[0].id, carga)
+                  const v = await api.entregarMaterial(z.id, ociosos[0].id, carga)
                   setEnvio({})
 
-                  return 'Veículo a caminho da zona com o material.'
+                  // Sem tipo, placa, carga e chegada, a mensagem só dizia "um veículo" — e numa
+                  // colônia com dois ou três Furgões, o colono não tinha como saber QUAL partiu,
+                  // levando O QUÊ, nem QUANDO chega.
+                  const cargaTexto = Object.entries(carga)
+                    .map(([r, q]) => `${q} ${nomeRecurso(r)}`)
+                    .join(', ')
+                  const chegada = v.arrives_at ? ` — chega ${dataHumana(v.arrives_at)}` : ''
+
+                  return `${nomeVeiculo(v.type)} ${v.plate} a caminho da zona com ${cargaTexto}${chegada}.`
                 })
               }
             >

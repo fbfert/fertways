@@ -57,8 +57,9 @@ export function MinhasZonas() {
               }`}
             >
               <div className="text-ink text-sm font-bold">
-                ({z.x}, {z.y}){' '}
+                {z.name ?? `(${z.x}, ${z.y})`}{' '}
                 <span className="text-ink-soft text-xs font-normal">
+                  {z.name && `(${z.x}, ${z.y}) · `}
                   {nomeRecurso(z.mineral)}
                 </span>
               </div>

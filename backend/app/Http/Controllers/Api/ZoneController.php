@@ -47,6 +47,7 @@ class ZoneController extends Controller
 
                 return [
                     'id' => $z->id,
+                    'name' => $z->name,
                     'x' => $z->x,
                     'y' => $z->y,
                     'mineral' => $z->mineral,
@@ -83,6 +84,7 @@ class ZoneController extends Controller
 
         return response()->json([
             'id' => $zone->id,
+            'name' => $zone->name,
             'x' => $zone->x,
             'y' => $zone->y,
             'district' => $zone->district,
@@ -167,9 +169,37 @@ class ZoneController extends Controller
 
         return response()->json([
             'id' => $v->id,
+            // Tipo e placa: sem eles, a tela só podia dizer "um veículo" — o colono tem de
+            // adivinhar QUAL, com dois ou três Furgões numa colônia (D-79, aditivo de UX).
+            'type' => $v->type,
+            'plate' => $v->plate,
             'status' => $v->status,
             'arrives_at' => $v->arrives_at,
         ], 201);
+    }
+
+    /**
+     * Renomeia a zona, como o colono já nomeia a colônia (D-79, aditivo de UX). Sem regra no GDD —
+     * é conveniência, não muda função nenhuma. Vazio volta a mostrar as coordenadas.
+     */
+    public function renomear(Request $request, NeutralZone $zone): JsonResponse
+    {
+        $colony = $request->user()->colony()->firstOrFail();
+
+        if ($zone->owner_colony_id !== $colony->id) {
+            return response()->json([
+                'message' => 'Esta zona não é sua.',
+                'code' => 'zona_nao_e_sua',
+            ], 403);
+        }
+
+        $dados = $request->validate([
+            'name' => ['nullable', 'string', 'max:120'],
+        ]);
+
+        $zone->update(['name' => $dados['name'] !== '' ? ($dados['name'] ?? null) : null]);
+
+        return response()->json(['name' => $zone->name]);
     }
 
     /**

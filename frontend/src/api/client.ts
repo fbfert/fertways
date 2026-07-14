@@ -203,6 +203,8 @@ export type MapaFundacao = {
 /** Uma zona neutra, como `GET /zones` a publica (D-52). */
 export type ZonaNeutra = {
   id: number
+  /** Como o nome da colônia: público, opcional. Sem nome, a tela mostra as coordenadas. */
+  name: string | null
   x: number
   y: number
   district: string
@@ -335,6 +337,7 @@ export type MensagemDeChat = {
 /** Uma zona minha, como a barra lateral da colônia a lista (D-69). */
 export type MinhaZona = {
   id: number
+  name: string | null
   x: number
   y: number
   mineral: string
@@ -846,9 +849,16 @@ export const api = {
 
   /** Despacha um veículo com material de obra até o canteiro da zona. A entrega é FÍSICA (D-67). */
   entregarMaterial: (id: number, vehicleId: number, cargo: Record<string, number>) =>
-    req<{ id: number; status: string; arrives_at: string | null }>(`/zones/${id}/material`, {
-      method: 'POST',
-      body: JSON.stringify({ vehicle_id: vehicleId, cargo }),
+    req<{ id: number; type: string; plate: string; status: string; arrives_at: string | null }>(
+      `/zones/${id}/material`,
+      { method: 'POST', body: JSON.stringify({ vehicle_id: vehicleId, cargo }) },
+    ),
+
+  /** Nomeia a zona, como já se nomeia a colônia. Vazio volta a mostrar as coordenadas. */
+  renomearZona: (id: number, name: string) =>
+    req<{ name: string | null }>(`/zones/${id}/name`, {
+      method: 'PATCH',
+      body: JSON.stringify({ name }),
     }),
 
   /**
@@ -1106,6 +1116,7 @@ export type EstruturaDaZona = {
 
 export type ZonaDetalhe = {
   id: number
+  name: string | null
   x: number
   y: number
   district: string

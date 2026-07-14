@@ -76,6 +76,21 @@ try {
   checar(await esperarTexto(page, /Zona Neutra/), 'a zona abre como tela própria')
   checar(!!(await page.$('[data-tela="zona"]')), 'e é uma TELA, não um popup por cima do jogo')
 
+  // O colono pode nomear a zona, como já nomeia a colônia. Sem botão de salvar até digitar algo.
+  console.log('\nNomear a zona')
+  checar(!(await page.$('[data-salvar-nome-zona]')), 'sem mudança no campo, não há botão de salvar')
+  await page.type('[data-nome-zona]', 'Posto Sentinela')
+  await page.click('[data-salvar-nome-zona]')
+  await assentar()
+  checar(
+    await esperarTexto(page, /Zona renomeada para "Posto Sentinela"/),
+    'salvar o nome confirma com o nome escolhido',
+  )
+  checar(
+    (await page.$eval('[data-nome-zona]', (el) => el.value)) === 'Posto Sentinela',
+    'e o campo mostra o nome salvo, não mais o placeholder das coordenadas',
+  )
+
   // A planta: as áreas existem e são clicáveis.
   for (const area of ['muralha_de_perimetro', 'torre_de_vigia', 'deposito_de_zona_neutra']) {
     checar(!!(await page.$(`[data-area="${area}"]`)), `a planta tem a área "${area}"`)
