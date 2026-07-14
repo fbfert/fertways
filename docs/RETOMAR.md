@@ -824,7 +824,7 @@ migration — só leitura do que já é público em `GET /colonies`. e2e novo (`
 
 Todas as migrations ensaiadas nos dois sentidos no `fertwaysdev` (MariaDB) antes de publicar.
 
-## A Indústria Siderúrgica (D-82) — **ainda NÃO publicado** (2026-07-15)
+## A Indústria Siderúrgica (D-82) — **no ar** (2026-07-15)
 
 Construção nova, pedida pelo usuário — **não está no GDD**. Existe na colônia e na zona neutra:
 processa Metal Bruto em Ligas Metálicas e nos cinco minerais eletrônicos, a cada 1000 processado:
@@ -856,8 +856,11 @@ sentidos no `fertwaysdev` (MariaDB), inclusive as duas juntas em sequência. **5
 549 verdes, a mesma falha pré-existente e não relacionada de Missões. **e2e: os oito arquivos,
 todos verdes**, com a Indústria Siderúrgica coberta em `zonas.e2e.mjs`.
 
-⚠️ **Ainda não publicado nem comitado.** Falta: `git add`/commit (como `fertways`, não como root),
-`git push`, e `sudo ./tools/deploy.sh`.
+**Publicado** no commit `c65a162`. **Um passo à mão** no `fertwaysbd`: `artisan db:seed
+--class=BuildingSpecSeeder --force` — o `deploy.sh` não roda seeders, e a Indústria Siderúrgica só
+existe no catálogo depois disso (idempotente, upsert por `type`+`level`: repetir é seguro). Conferido
+por leitura depois: as 5 linhas do catálogo (custo, tempo, taxa) e as três colunas/tabela novas, todas
+no ar.
 
 ## O trabalho anterior: zonas neutras + Drone (D-52)
 
