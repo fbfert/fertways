@@ -125,14 +125,17 @@ class TickColoniesTest extends TestCase
      * fabricados. Aqui a colônia não tem minerais, então também não saem; a cobertura da
      * fabricação está em ComponentRecipesTest.
      */
-    public function test_ligas_e_compostos_nunca_sao_produzidos(): void
+    /**
+     * A Oficina nunca produz Ligas Metálicas — desde o D-83, só a Indústria Siderúrgica as
+     * produz (D-82). Fartura de minério não muda isso: não é falta de receita, é a fonte ter
+     * mudado de construção.
+     */
+    public function test_ligas_metalicas_nunca_saem_da_oficina(): void
     {
         $user = $this->colono();
         $this->erguer($user, 'oficina', 1);
-        $this->erguer($user, 'refinaria_quimica', 1);
         $this->erguer($user, 'reator_de_energia', 5);
 
-        // Minerais de sobra: se as Ligas tivessem receita implícita, sairiam aqui.
         $user->colony->resources()
             ->whereIn('resource_type', ['estanho', 'cobre', 'silicio', 'aluminio', 'agua', 'metal_bruto'])
             ->update(['amount' => 100_000]);
@@ -141,10 +144,57 @@ class TickColoniesTest extends TestCase
         $this->tick($user, now());
 
         $this->assertSame(0, $this->estoque($user, 'ligas_metalicas'));
-        $this->assertSame(0, $this->estoque($user, 'compostos_quimicos'));
 
-        // Componentes saem: 15/h × 5 h.
+        // Componentes continuam saindo normalmente: 15/h × 5 h.
         $this->assertSame(75, $this->estoque($user, 'componentes_eletronicos'));
+    }
+
+    /**
+     * A Refinaria Química converte pela receita do D-83: 1 Metal Bruto + 10 Água + 5 Biomassa +
+     * 6 Energia por Composto. Com insumo de sobra, produz na taxa cheia do nível.
+     */
+    public function test_refinaria_quimica_converte_pela_receita_do_d83(): void
+    {
+        $user = $this->colono();
+        // Sem o miolo, ninguém mais mexe em Metal Bruto/Água/Biomassa/Energia neste tick —
+        // senão a Captação, a Fazenda e o Reator repunham por fora e o delta exato não bateria.
+        $this->zerarMiolo($user->colony);
+        $this->erguer($user, 'refinaria_quimica', 1);
+
+        $user->colony->resources()
+            ->whereIn('resource_type', ['metal_bruto', 'agua', 'biomassa', 'energia'])
+            ->update(['amount' => 100_000]);
+
+        $user->colony->update(['last_tick_at' => now()->subHour()]);
+        $this->tick($user, now());
+
+        // 2 Compostos/h no nível 1 (D-83) — 1 Metal Bruto + 10 Água + 5 Biomassa + 6 Energia cada.
+        $this->assertSame(2, $this->estoque($user, 'compostos_quimicos'));
+        $this->assertSame(100_000 - 2, $this->estoque($user, 'metal_bruto'));
+        $this->assertSame(100_000 - 20, $this->estoque($user, 'agua'));
+        $this->assertSame(100_000 - 10, $this->estoque($user, 'biomassa'));
+    }
+
+    /**
+     * Faltando um dos quatro insumos, a Refinaria Química produz o MÁXIMO que ele permite —
+     * mesmo padrão da Destilaria (`converter()` é a mesma função para as duas).
+     */
+    public function test_refinaria_quimica_para_quando_falta_insumo(): void
+    {
+        $user = $this->colono();
+        $this->zerarMiolo($user->colony);   // sem a Fazenda repondo Biomassa por fora
+        $this->erguer($user, 'refinaria_quimica', 1);
+        $user->colony->resources()->where('resource_type', 'metal_bruto')->update(['amount' => 100_000]);
+        $user->colony->resources()->where('resource_type', 'agua')->update(['amount' => 100_000]);
+        $user->colony->resources()->where('resource_type', 'energia')->update(['amount' => 100_000]);
+        // 15 Biomassa ÷ 5 por Composto = no máximo 3 — bem menos que os 20 que 10 h a 2/h dariam.
+        $user->colony->resources()->where('resource_type', 'biomassa')->update(['amount' => 15]);
+
+        $user->colony->update(['last_tick_at' => now()->subHours(10)]);
+        $this->tick($user, now());
+
+        $this->assertSame(3, $this->estoque($user, 'compostos_quimicos'));
+        $this->assertSame(0, $this->estoque($user, 'biomassa'));
     }
 
     /** "2 Biomassas + 3 Energias em 1 Biocombustível" (§18.2), limitado pelo insumo. */

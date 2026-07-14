@@ -73,18 +73,24 @@ class Funcoes
             'frase' => 'Produção de ligas metálicas.',
             'fonte' => '§17.2',
             'efeito' => 'converte',
-            // A meia-verdade mais antiga do projeto (D-19), e a que mais confunde: a Oficina
-            // aparece na tabela de produção com DUAS saídas, e só uma delas existe.
+            // A meia-verdade mais antiga do projeto (D-19) — resolvida no D-83, mas não do jeito
+            // que a frase do GDD sugere: a Oficina não passou a produzir Ligas, ela deixou de
+            // constar entre as fontes possíveis.
             'nota' => 'Fabrica Componentes Eletrônicos pelas três receitas do §24.5 — escolha a '
-                . 'receita no painel. As Ligas Metálicas do §19.3 NÃO são produzidas: o GDD '
-                . 'publica a taxa mas nunca a receita, e creditá-las criaria recurso do nada (D-19).',
+                . 'receita no painel. As Ligas Metálicas do §19.3 NÃO são produzidas AQUI: desde o '
+                . 'D-83, só a Indústria Siderúrgica as produz (D-82), que já converte Metal Bruto '
+                . 'numa proporção real. Duas fontes de "Metal Bruto vira Ligas" com regras '
+                . 'diferentes seria confuso, não redundante.',
         ],
         'refinaria_quimica' => [
             'frase' => 'Produz Compostos Químicos a partir de minerais e água.',
             'fonte' => '§17.2',
-            'efeito' => 'nenhum',
-            'nota' => 'O GDD publica a taxa (30/h no nível 1) mas nunca a receita — quais minerais, '
-                . 'quanta água. Sem ela, nada é creditado: a Refinaria hoje só consome energia (D-19).',
+            'efeito' => 'converte',
+            'nota' => 'Converte Metal Bruto, Água, Biomassa e Energia em Compostos Químicos (D-83) '
+                . '— 1 Metal Bruto + 10 Água + 5 Biomassa + 6 Energia por Composto. O GDD nunca '
+                . 'publica a receita, só a taxa (30/h no nível 1); nessa proporção ela pediria 300 '
+                . 'Água/h contra os 80/h que a Captação nível 1 produz, então a taxa em vigor é '
+                . 'outra e bem menor (2/h no nível 1) — calibrada para caber com folga.',
         ],
         'mina_local' => [
             'frase' => 'A fonte individual de Metal Bruto no slot principal. Complementa a oferta '

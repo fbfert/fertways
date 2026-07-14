@@ -3537,3 +3537,55 @@ saíram exatos, sem arredondamento fracionário.
 
 Migrations ensaiadas nos dois sentidos no `fertwaysdev` (MariaDB) antes de publicar. e2e estendido
 (`zonas.e2e.mjs`) para a área nova.
+
+## D-83 — A receita de Ligas e Compostos: uma vira Siderúrgica, a outra ganha receita.
+**Data:** 2026-07-15 · **Status:** arbitrado pelo usuário · **GDD: §17.2/§19.3 publicam a taxa, nunca a receita**
+
+Pedido do usuário: fechar a lacuna 5 do D-52 (`Domain\Building\Funcoes` já a documentava desde o
+D-59) — "o GDD publica a taxa (30/h) e nunca a receita" de Ligas Metálicas (Oficina) e Compostos
+Químicos (Refinaria Química), inertes desde o D-19 para não creditar recurso do nada.
+
+### Ligas Metálicas: não ganhou receita — perdeu a fonte
+
+O GDD diz "Metal Bruto é extraído, Ligas são transformadas" (§4.3) e nunca a proporção. Em vez de
+arbitrar uma receita nova pela Oficina, a decisão foi **abandonar essa fonte**: Ligas Metálicas só
+nascem da **Indústria Siderúrgica** (D-82), que já converte Metal Bruto numa proporção real. Duas
+fontes de "Metal Bruto vira Ligas" com regras diferentes seria confuso, não redundante.
+`ligas_metalicas` saiu de `production.json` da Oficina (nunca era lido de qualquer forma — o laço
+de `ColonyTick` só extrai `componentes_eletronicos` de lá). A Oficina continua fabricando
+Componentes Eletrônicos pelas três receitas do §24.5, normalmente.
+
+### Compostos Químicos: receita nova, e a taxa publicada foi abandonada junto
+
+O GDD diz "produz Compostos Químicos a partir de minerais e água" (§17.2) — os dois juntos, ao
+contrário da zona, onde Água OU Oxigênio bastam sozinhos (por distrito, D-67). Arbitragem do
+usuário: **1 Metal Bruto + 10 Água + 5 Biomassa + 6 Energia → 1 Composto Químico**, pesos
+relativos 5:50:25:30 simplificados para 1:10:5:6.
+
+⚠️ **A taxa publicada (30/h no nível 1, §19.3) foi testada contra essa proporção e não coube.**
+30 Compostos/h × 10 Água cada = 300 Água/h — a Captação de Água nível 1 produz 80/h. A Refinaria
+nunca chegaria perto da capacidade nominal; ficaria "faminta" por design, não por falta de
+investimento do jogador. **A saída, confirmada pelo usuário: reduzir a taxa junto, mantendo a
+proporção da receita.** Nova taxa: **2 → 3 → 5 → 7 → 10** Compostos/h (nível 1 a 5) — era
+30 → 45 → 68 → 101 → 152. No nível 1, consome 2 Metal Bruto + 20 Água + 10 Biomassa + 12 Energia
+por hora, com folga confortável contra os 15/80/60/~88 dos essenciais do mesmo nível.
+
+`resource_types.compostos_quimicos.producao_max_hora` continua em 152 — é o número que o GDD
+publicou, e fica como registro histórico do documento, como o v35 inteiro fica. Nada em runtime lê
+esse campo para `compostos_quimicos` (só a fórmula de preço derivado de Metal Bruto o usa, e
+Compostos tem preço fixo — `preco_base_derivado: false`). Não precisou mudar.
+
+### O que mudou no código
+
+- `production.json`: `oficina` perde `ligas_metalicas`; `refinaria_quimica.compostos_quimicos`
+  vira `2,3,5,7,10`.
+- `ColonyTick::RECEITA_COMPOSTOS` nova; novo branch para `refinaria_quimica` no laço de produção,
+  reaproveitando o `converter()` que já existe (mesma função da Destilaria). A Refinaria roda
+  **antes** da Indústria Siderúrgica na ordem do laço — as duas disputam o mesmo Metal Bruto da
+  colônia, e o consumo da Refinaria é pequeno perto do da Siderúrgica.
+- `SAIDAS_SEM_RECEITA` removida — era um filtro defensivo que, com o catálogo atual, nunca
+  disparava (nenhuma construção em `PRODUCAO_SEM_INSUMO` jamais produziu Ligas ou Compostos).
+- `Domain\Building\Funcoes`: fichas da Oficina e da Refinaria Química atualizadas com o novo
+  `efeito: 'converte'` e a explicação de cada mudança.
+- Sem migration — nenhuma coluna nova, só dado de seed (`production.json`, reseedado via
+  `BuildingSpecSeeder`) e lógica de domínio.

@@ -35,14 +35,27 @@ class ColonyTick
     private const RECEITA_DESTILARIA = ['biomassa' => 2, 'energia' => 3];
 
     /**
-     * Saídas cuja RECEITA o GDD nunca publica, embora publique a taxa em §19.3:
-     * Ligas Metálicas ("Metal Bruto é extraído, Ligas são transformadas" — sem proporção) e
-     * Compostos Químicos (nada). Creditá-las sem debitar insumo criaria recurso do nada.
-     * Ver docs/decisoes.md D-19.
+     * A receita da Refinaria Química (docs/decisoes.md D-83). O §19.3 publica a taxa e nunca a
+     * receita; o texto do §17.2 só diz "a partir de minerais e água" — o resto é arbitragem do
+     * usuário, pesos relativos 1:10:5:6 entre os quatro insumos.
      *
-     * Componentes Eletrônicos NÃO estão aqui: §24.5 publica as três receitas.
+     * ⚠️ A taxa publicada (30/h no nível 1) foi ABANDONADA de propósito: nessa proporção, ela
+     * pediria 300 Água/h contra os 80/h que a Captação nível 1 produz — a Refinaria nunca
+     * rodaria perto da capacidade nominal. A taxa em `production.json` é outra, menor (2/h no
+     * nível 1), calibrada para caber com folga na produção dos essenciais do mesmo nível.
      */
-    private const SAIDAS_SEM_RECEITA = ['ligas_metalicas', 'compostos_quimicos'];
+    private const RECEITA_COMPOSTOS = [
+        'metal_bruto' => 1, 'agua' => 10, 'biomassa' => 5, 'energia' => 6,
+    ];
+
+    /**
+     * Ligas Metálicas: o GDD publica a taxa da Oficina (§19.3, "Metal Bruto é extraído, Ligas
+     * são transformadas") e nunca a receita. Diferente dos Compostos, a saída não é arbitrar uma
+     * receita — é ABANDONAR a produção pela Oficina: Ligas Metálicas agora só nascem da
+     * Indústria Siderúrgica (D-82), que já converte Metal Bruto numa proporção real. Duas fontes
+     * de "Metal Bruto vira Ligas" com regras diferentes seria confuso, não redundante — por isso
+     * `ligas_metalicas` nem consta mais em `production.json` da Oficina.
+     */
 
     /** Receita usada pela Oficina quando o jogador não escolheu nenhuma. */
     public const RECEITA_PADRAO = 'basica';
@@ -160,6 +173,7 @@ class ColonyTick
         $consumoEnergia = 0;
         $taxaDestilaria = 0;
         $taxaSiderurgica = 0;
+        $taxaCompostos = 0;
         // Componentes por receita: cada Oficina escolhe a sua (§24.5), e duas Oficinas com
         // receitas diferentes consomem insumos diferentes. Somar as taxas antes de saber a
         // receita misturaria as duas contas.
@@ -186,8 +200,14 @@ class ColonyTick
                 continue;
             }
 
+            if ($tipo === 'refinaria_quimica') {
+                $taxaCompostos += $producao['compostos_quimicos'] ?? 0;
+                continue;
+            }
+
             if ($tipo === 'oficina') {
-                // Ligas ficam de fora (sem receita); Componentes entram via §24.5.
+                // Ligas Metálicas não estão mais no JSON da Oficina (D-83): só a Indústria
+                // Siderúrgica as produz agora. Só Componentes entram via §24.5.
                 $taxa = $producao['componentes_eletronicos'] ?? 0;
                 $taxaComponentes[$recipe] = ($taxaComponentes[$recipe] ?? 0) + $taxa;
                 continue;
@@ -195,9 +215,7 @@ class ColonyTick
 
             if (in_array($tipo, self::PRODUCAO_SEM_INSUMO, true)) {
                 foreach ($producao as $recurso => $qtd) {
-                    if (! in_array($recurso, self::SAIDAS_SEM_RECEITA, true)) {
-                        $taxas[$recurso] = ($taxas[$recurso] ?? 0) + $qtd;
-                    }
+                    $taxas[$recurso] = ($taxas[$recurso] ?? 0) + $qtd;
                 }
             }
         }
@@ -217,6 +235,16 @@ class ColonyTick
         // Destilaria acabou de produzir neste mesmo segmento.
         if ($taxaDestilaria > 0) {
             $this->converter($estoque, $taxaDestilaria * $segundos, self::RECEITA_DESTILARIA, 'biocombustivel');
+        }
+
+        /*
+         * A Refinaria Química (D-83) e a Indústria Siderúrgica (D-82) DISPUTAM o mesmo Metal
+         * Bruto da colônia — a ordem entre as duas decide quem come primeiro quando ele escasseia.
+         * A Refinaria vem antes: o consumo dela é pequeno (1 por Composto) perto do da Siderúrgica,
+         * então processá-la primeiro raramente falta a vez da outra.
+         */
+        if ($taxaCompostos > 0) {
+            $this->converter($estoque, $taxaCompostos * $segundos, self::RECEITA_COMPOSTOS, 'compostos_quimicos');
         }
 
         if ($taxaSiderurgica > 0) {

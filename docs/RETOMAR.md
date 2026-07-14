@@ -862,6 +862,31 @@ existe no catálogo depois disso (idempotente, upsert por `type`+`level`: repeti
 por leitura depois: as 5 linhas do catálogo (custo, tempo, taxa) e as três colunas/tabela novas, todas
 no ar.
 
+## A receita de Ligas e Compostos (D-83) — **ainda NÃO publicado** (2026-07-15)
+
+Fechou a lacuna 5 do D-52: "o GDD publica a taxa (30/h) e nunca a receita" de Ligas Metálicas
+(Oficina) e Compostos Químicos (Refinaria Química), inertes desde o D-19.
+
+**Ligas Metálicas não ganhou receita — perdeu a fonte.** Em vez de arbitrar uma proporção nova pela
+Oficina, a decisão foi abandonar essa fonte: Ligas só nascem da **Indústria Siderúrgica** (D-82),
+que já converte Metal Bruto de verdade. `ligas_metalicas` saiu de `production.json` da Oficina —
+nunca era lido mesmo (o laço de `ColonyTick` só extraía `componentes_eletronicos` de lá).
+
+**Compostos Químicos ganhou receita: 1 Metal Bruto + 10 Água + 5 Biomassa + 6 Energia → 1
+Composto.** ⚠️ Mas a taxa publicada (30/h) não coube nessa proporção — pediria 300 Água/h contra
+os 80/h que a Captação nível 1 produz. **A taxa foi reduzida junto, mantendo a proporção da
+receita**, confirmado pelo usuário: agora é **2 → 3 → 5 → 7 → 10** Compostos/h (nível 1 a 5), era
+30 → 45 → 68 → 101 → 152. Ver **D-83** em `docs/decisoes.md` para o raciocínio completo.
+
+Sem migration — só `production.json` (reseedado via `BuildingSpecSeeder`) e lógica de domínio
+(`ColonyTick`, reaproveitando o `converter()` que a Destilaria já usava). **552 testes PHP** — 551
+verdes, a mesma falha pré-existente e não relacionada de Missões. Não mexe em nada visível ao e2e
+(nenhum arquivo constrói Oficina/Refinaria Química ou verifica esses dois recursos).
+
+⚠️ **Ainda não publicado nem comitado.** Falta: `git add`/commit (como `fertways`), `git push`,
+`sudo ./tools/deploy.sh` e o passo à mão do `BuildingSpecSeeder` (mesmo de sempre, pra pegar as
+novas taxas de `production.json`).
+
 ## O trabalho anterior: zonas neutras + Drone (D-52)
 
 Leia **D-52**. Sequência decidida: Fatia 1 = o núcleo (ocupar/extrair/retirar); Fatia 2 = a guerra

@@ -100,23 +100,18 @@
   "oficina": {
     "producao": {
       "1": {
-        "ligas_metalicas": 40,
         "componentes_eletronicos": 15
       },
       "2": {
-        "ligas_metalicas": 60,
         "componentes_eletronicos": 22
       },
       "3": {
-        "ligas_metalicas": 90,
         "componentes_eletronicos": 34
       },
       "4": {
-        "ligas_metalicas": 135,
         "componentes_eletronicos": 51
       },
       "5": {
-        "ligas_metalicas": 202,
         "componentes_eletronicos": 76
       }
     },
@@ -131,19 +126,19 @@
   "refinaria_quimica": {
     "producao": {
       "1": {
-        "compostos_quimicos": 30
+        "compostos_quimicos": 2
       },
       "2": {
-        "compostos_quimicos": 45
+        "compostos_quimicos": 3
       },
       "3": {
-        "compostos_quimicos": 68
+        "compostos_quimicos": 5
       },
       "4": {
-        "compostos_quimicos": 101
+        "compostos_quimicos": 7
       },
       "5": {
-        "compostos_quimicos": 152
+        "compostos_quimicos": 10
       }
     },
     "consumo_energia": {
