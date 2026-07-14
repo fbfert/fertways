@@ -840,7 +840,9 @@ ob_start();
   </tr>
   <tr>
     <td><b>Zonas neutras</b></td>
-    <td>Custo e tempo das <b>9 estruturas restantes</b>; <b>teto de zonas por jogador</b>; <b>upgrade de zona</b></td>
+    <td>Custo e tempo de todas as 12 estruturas está resolvido (D-52, D-66, D-67, D-79 — as três
+      últimas ficaram INERTES de propósito). Falta: <b>teto de zonas por jogador</b>;
+      <b>upgrade de zona</b></td>
     <td>A profundidade do território (hoje a zona é sempre nível 1)</td>
   </tr>
   <tr>

@@ -129,10 +129,22 @@ try {
     'o Cemitério de Robôs diz que não faz nada — o próprio GDD o declara decorativo',
   )
 
-  // E o que o GDD lista e o jogo não tem aparece como buraco marcado, com o porquê.
+  // As três últimas do §17.4 (D-79): custeadas, mas também INERTES — sem sistema que as acione.
+  await page.click('[data-area="central_de_comunicacao"]')
+  await assentar()
   checar(
-    await esperarTexto(page, /Central de Comunicação/),
-    'a tela admite o que o §17.4 promete e o jogo não entrega',
+    await esperarTexto(page, /apenas visual|não faz nada/),
+    'a Central de Comunicação também diz que não faz nada — sem Federação, não há o que avisar',
+  )
+  checar(
+    !!(await page.$('[data-construir="central_de_comunicacao"]')),
+    'e mesmo inerte, oferece o botão de construir — é gosto e futuro, não função (D-79)',
+  )
+
+  // E não sobra nenhum "buraco" do §17.4: as 12 estruturas de zona têm custo e função declarados.
+  checar(
+    !(await page.$('[data-secao="ausentes"]')),
+    'a seção "o que ainda não existe" some — o D-79 fechou a última pendência de custo/tempo',
   )
 
   // ═══════════════════════════════════════════════════ o LINK DIRETO (D-67)

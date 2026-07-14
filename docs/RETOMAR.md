@@ -757,6 +757,33 @@ moldes (5 tutoria + 33 diárias + 8 semanais), conferidos por leitura. Se um dia
 
 **528 testes PHP (3775 asserções) + 7 e2e, verdes** no momento do deploy.
 
+## As três últimas estruturas de zona (D-79) — **ainda NÃO publicado** (2026-07-14)
+
+Ao retomar a sessão, o usuário escolheu fechar a última pendência de custo/tempo da zona: **Estrutura
+de Extração, Central de Comunicação e Plataforma de Pouso (da zona)** — as três que o D-67 tinha
+deixado fora de escopo por falta de sistema que as acionasse. Decisão: custear mesmo assim, **inertes**
+de propósito, como o Cemitério de Robôs — erguem-se, custam, não fazem nada até Federação ou Nave de
+Transporte Planetária existirem. Ver **D-79** em `docs/decisoes.md` para o raciocínio completo e a
+tabela de custo/tempo.
+
+`Estruturas::AUSENTES` fica **vazio**: as 12 estruturas de zona (Posto de Comando, Depósito, as 4 de
+defesa do D-66, e as 6 de produção/logística do D-67+D-79) têm todas custo e função declarados.
+
+⚠️ **Colisão de nome**: a "Plataforma de Pouso" da zona é uma entidade diferente da Plataforma de
+Pouso do slot principal da colônia (que já existia, com custo publicado). Ganhou o slug
+`plataforma_de_pouso_da_zona`.
+
+**Migration `2026_07_14_120000_as_tres_ultimas_estruturas_da_zona.php`**, três colunas em
+`neutral_zones`, ensaiada nos dois sentidos no `fertwaysdev` (MariaDB) — idempotente, sem passo à mão.
+**529 testes PHP (3870 asserções)** — **528 verdes** (mais 1 teste novo) **e 1 falha pré-existente e
+não relacionada** (`MissoesTest::a_semanal_e_uma_por_semana_e_persiste`, confirmada com `git stash`
+antes de qualquer edição desta sessão — não investigada, não bloqueia). O e2e de Zonas passa inteiro,
+inclusive as três novas áreas. O GDD v36 foi regerado; a linha da
+seção 10 que dizia "9 estruturas restantes" desde antes do D-67 foi corrigida.
+
+⚠️ **Ainda não publicado nem comitado.** Falta: `git add`/commit (como `fertways`, não como root — ver
+a lição do D-71 sobre posse de arquivo), `git push`, e `sudo ./tools/deploy.sh`.
+
 ## O trabalho anterior: zonas neutras + Drone (D-52)
 
 Leia **D-52**. Sequência decidida: Fatia 1 = o núcleo (ocupar/extrair/retirar); Fatia 2 = a guerra
@@ -827,10 +854,13 @@ ida→vigia→volta), sem tabela nova além de `drone_sightings` (as fotos).
      8 slots/min, raio 6×1,5 por nível, persistência = os dois modos do §21.4 (foto datada /
      vigilância até a bateria publicada acabar — nenhum número inventado), fábrica = Oficina.
      **Não reabra.** E a névoa que o D-37 anotou entrou no D-74, só no interior de zona alheia.
-   - **Custo/tempo das 6 estruturas de zona restantes** (Estrutura de Extração, Refinaria de Campo,
-     Central de Comunicação, Plataforma de Pouso, Estacionamento, Cemitério de Robôs). O Posto de
-     Comando saiu no D-52; a Muralha, a Torre de Vigia, o Bastião e o Abrigo de Robôs, no D-66.
-     **Nenhuma das seis é exigida pela guerra.**
+   - ~~Custo/tempo das 6 estruturas de zona restantes~~ — **fechado (D-67 + D-79).** O D-67 já tinha
+     custeado Refinaria de Campo, Estacionamento e Cemitério; o D-79 (2026-07-14) fechou as três
+     últimas — Estrutura de Extração, Central de Comunicação e Plataforma de Pouso (da zona,
+     `plataforma_de_pouso_da_zona` — cuidado, é homônima da construção do slot principal) —,
+     **inertes de propósito**, como o Cemitério: erguem-se, custam, não fazem nada até o sistema de
+     que dependem (Federação, Nave de Transporte Planetária) existir. **As 12 estruturas de zona têm
+     custo e função declarados. Não reabra.**
    - **Teto de zonas por jogador** e **upgrade de zona** (a Fatia 1 fixou nível 1).
    - **Fabricar unidade é instantâneo hoje** — o Robô Minerador, o Infiltrador e o Predador já eram
      assim, e a Sentinela seguiu a regra da casa. O freio do exército é o **Nióbio**, não o relógio.
@@ -845,9 +875,9 @@ ida→vigia→volta), sem tabela nova além de `drone_sightings` (as fotos).
    frentes acima). O varchar `colonies.milestone` do D-38 segue intocado, dormindo: o Marco deriva
    de `colonies.xp`. O `building_levels_sum` continua sendo só o porte do diretório.
 
-4. **Serviço logístico público** (§07): o GDD o cita como alternativa ao veículo próprio na
-   retirada, e ele não existe. Hoje o comprador precisa de Furgão ou Caminhão. Sem preço nem prazo
-   publicados — precisaria de arbitragem.
+4. ~~Serviço logístico público~~ (§07) — **estava desatualizado nesta mesma página**: já é D-76,
+   citado acima ("Onde o projeto está"). A Garagem do Governo resolveu isso em 2026-07-13. Este item
+   ficou esquecido quando o D-76 fechou; corrigido em 2026-07-14, ao retomar a sessão.
 
 ## Pendências conhecidas, sem bloquear
 

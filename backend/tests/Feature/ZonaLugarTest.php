@@ -365,8 +365,17 @@ class ZonaLugarTest extends TestCase
             // O Cemitério é declarado INERTE pelo próprio GDD, e a tela tem de dizê-lo.
             ->assertJsonPath('estruturas.8.type', 'cemiterio_de_robos')
             ->assertJsonPath('estruturas.8.inerte', true)
-            // E as que o GDD lista e o jogo não tem aparecem como buraco marcado, com o porquê.
-            ->assertJsonPath('ausentes.central_de_comunicacao.nome', 'Central de Comunicação');
+            // As três últimas do §17.4 (D-79): custeadas, construíveis, e também INERTES — nenhuma
+            // tem sistema que a acione ainda (extração já funciona sem ferramenta; sem Federação;
+            // sem Nave de Transporte Planetária).
+            ->assertJsonPath('estruturas.9.type', 'estrutura_de_extracao')
+            ->assertJsonPath('estruturas.9.inerte', true)
+            ->assertJsonPath('estruturas.10.type', 'central_de_comunicacao')
+            ->assertJsonPath('estruturas.10.inerte', true)
+            ->assertJsonPath('estruturas.11.type', 'plataforma_de_pouso_da_zona')
+            ->assertJsonPath('estruturas.11.inerte', true)
+            // E não sobrou nada do §17.4 marcado como "buraco" — o D-79 fechou a lista.
+            ->assertJsonPath('ausentes', []);
     }
 
     public function test_a_zona_alheia_nao_se_abre(): void
@@ -390,6 +399,38 @@ class ZonaLugarTest extends TestCase
             ->assertCreated();
 
         $this->assertTrue($zona->fresh()->obraEmCurso());
+    }
+
+    /**
+     * As três últimas do §17.4 (D-79) — a lacuna nunca foi de função, e continua não sendo: são
+     * INERTES de propósito, como o Cemitério, mas agora têm custo e se erguem pelo canteiro.
+     */
+    public function test_as_tres_ultimas_estruturas_se_erguem_e_sao_inertes(): void
+    {
+        $colono = $this->colono();
+        $zona = $this->zonaDe($colono);
+
+        // Dá para o canteiro pagar as três seguidas (800 MB, 330 Ligas, 70 Componentes ao todo).
+        $this->encherCanteiro($zona, [
+            'metal_bruto' => 1000, 'ligas_metalicas' => 500, 'componentes_eletronicos' => 200,
+        ]);
+
+        foreach (
+            ['estrutura_de_extracao', 'central_de_comunicacao', 'plataforma_de_pouso_da_zona']
+            as $estrutura
+        ) {
+            $this->assertContains($estrutura, Estruturas::CONSTRUIVEIS);
+            $this->assertTrue(Estruturas::de($estrutura)['inerte']);
+
+            app(ConstruirNaZona::class)->handle($colono, $zona, $estrutura);
+
+            // A mais lenta (Plataforma de Pouso) leva 6 h — 7 h basta para qualquer uma das três.
+            $this->travelTo(now()->addHours(7));
+            app(ConcluirObrasDaZona::class)->handle();
+
+            $coluna = Estruturas::COLUNA[$estrutura];
+            $this->assertSame(1, $zona->fresh()->{$coluna});
+        }
     }
 
     /** O Posto de Comando nasce com a ocupação e **não se ergue** — não está entre as construíveis. */

@@ -55,6 +55,7 @@ class NeutralZone extends Model
         'deposit_level', 'deposit_amount', 'last_extraction_at',
         'wall_level', 'watchtower_level', 'bastion_level', 'shelter_level',
         'refinery_level', 'parking_level', 'cemetery_level',
+        'extraction_level', 'communication_level', 'landing_pad_level',
         'refined_amount', 'last_refine_at',
         'sieged_at', 'modules_offline',
     ];
@@ -82,6 +83,9 @@ class NeutralZone extends Model
         'refinery_level' => 0,
         'parking_level' => 0,
         'cemetery_level' => 0,
+        'extraction_level' => 0,
+        'communication_level' => 0,
+        'landing_pad_level' => 0,
         'refined_amount' => 0,
     ];
 
@@ -103,6 +107,9 @@ class NeutralZone extends Model
         'refinery_level' => 'integer',
         'parking_level' => 'integer',
         'cemetery_level' => 'integer',
+        'extraction_level' => 'integer',
+        'communication_level' => 'integer',
+        'landing_pad_level' => 'integer',
         'refined_amount' => 'integer',
         'last_refine_at' => 'datetime',
         'sieged_at' => 'datetime',

@@ -27,6 +27,9 @@ class Estruturas
         'refinaria_de_campo' => 'refinery_level',
         'estacionamento_da_zona' => 'parking_level',
         'cemiterio_de_robos' => 'cemetery_level',
+        'estrutura_de_extracao' => 'extraction_level',
+        'central_de_comunicacao' => 'communication_level',
+        'plataforma_de_pouso_da_zona' => 'landing_pad_level',
     ];
 
     /**
@@ -44,6 +47,9 @@ class Estruturas
         'refinaria_de_campo',
         'estacionamento_da_zona',
         'cemiterio_de_robos',
+        'estrutura_de_extracao',
+        'central_de_comunicacao',
+        'plataforma_de_pouso_da_zona',
     ];
 
     /**
@@ -177,28 +183,50 @@ class Estruturas
                 .'declara assim. Mostra os seus mortos.',
             'inerte' => true,
         ],
+
+        /*
+         * As três últimas do §17.4 (D-79). O D-67 as tinha deixado FORA de escopo — nenhuma tem
+         * função possível hoje, porque a função que o GDD promete depende de um sistema que não
+         * existe (extração territorial já funciona sem ferramenta própria; Federação; Nave de
+         * Transporte Planetária). O usuário reabriu a decisão de propósito: quer poder ERGUÊ-las,
+         * mesmo inertes, como o Cemitério — não é lacuna que falta fechar, é gosto e futuro.
+         */
+        'estrutura_de_extracao' => [
+            'nome' => 'Estrutura de Extração',
+            'gdd' => 'Varia conforme o tipo de recurso da zona: perfuratriz para minerais, escavadeira '
+                .'para cristais.',
+            'hoje' => 'Nada. A zona já extrai sem ela desde a Fatia 1 (D-52) — travar a extração a uma '
+                .'ferramenta agora puniria as zonas que já rendem. Ergue-se por gosto, como o Cemitério.',
+            'inerte' => true,
+        ],
+
+        'central_de_comunicacao' => [
+            'nome' => 'Central de Comunicação',
+            'gdd' => 'Permite que membros da federação vejam o status da zona em tempo real e recebam '
+                .'alertas de ataque mesmo sem abrir o slot principal.',
+            'hoje' => 'Nada. Só serve à Federação, que não existe no jogo (mesma inércia do D-44). Fica '
+                .'pronta para quando a Federação existir.',
+            'inerte' => true,
+        ],
+
+        'plataforma_de_pouso_da_zona' => [
+            'nome' => 'Plataforma de Pouso',
+            // ⚠️ Homônima da Plataforma de Pouso do slot da colônia — entidades e custos diferentes.
+            'gdd' => 'Permite o pouso de Naves de Transporte Planetária para retirada direta de robôs e '
+                .'mercadorias da zona, sem depender de via terrestre hostil.',
+            'hoje' => 'Nada. Só serve à Nave de Transporte Planetária, que está no catálogo e não no jogo '
+                .'— é uma fatia inteira (§17.5): voo, placa, robôs transportados entre zonas.',
+            'inerte' => true,
+        ],
     ];
 
     /**
      * As que o §17.4 lista e o jogo **não tem**, e por quê. A tela as mostra como buraco marcado, em
      * vez de fingir que não existem — é o padrão do Gagarin e do Espaçoporto (D-55, D-63).
+     *
+     * **Vazia desde o D-79.** As três últimas (Extração, Comunicação, Plataforma de Pouso da zona)
+     * foram custeadas como inertes — ver `TABELA` acima. Não é lacuna fechada por função: é a decisão
+     * do usuário de erguê-las mesmo sem função, como sempre foi o caso do Cemitério.
      */
-    public const AUSENTES = [
-        'estrutura_de_extracao' => [
-            'nome' => 'Estrutura de Extração',
-            'porque' => 'O GDD dá a ela o papel de extrair ("perfuratriz para minerais, escavadeira para '
-                .'cristais") — mas a zona já extrai sem ela desde a Fatia 1. Lacuna declarada: travar a '
-                .'extração agora puniria as zonas que já rendem.',
-        ],
-        'central_de_comunicacao' => [
-            'nome' => 'Central de Comunicação',
-            'porque' => 'Só serve à FEDERAÇÃO — "alertas de ataque aos membros da federação". Federações '
-                .'não existem no jogo.',
-        ],
-        'plataforma_de_pouso' => [
-            'nome' => 'Plataforma de Pouso',
-            'porque' => 'Só serve à NAVE DE TRANSPORTE PLANETÁRIA, que está no catálogo e não no jogo. '
-                .'Ela é uma fatia inteira (§17.5): voo, placa, robôs transportados entre zonas.',
-        ],
-    ];
+    public const AUSENTES = [];
 }

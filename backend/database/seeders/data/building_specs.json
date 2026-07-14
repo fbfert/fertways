@@ -1859,6 +1859,157 @@
         ]
     },
     {
+        "type": "estrutura_de_extracao",
+        "nome": "Estrutura de Extração",
+        "max_level": 5,
+        "levels": [
+            {
+                "level": 1,
+                "build_time_seconds": 10800,
+                "cost": {
+                    "metal_bruto": 250,
+                    "ligas_metalicas": 80
+                }
+            },
+            {
+                "level": 2,
+                "build_time_seconds": 16200,
+                "cost": {
+                    "metal_bruto": 413,
+                    "ligas_metalicas": 132
+                }
+            },
+            {
+                "level": 3,
+                "build_time_seconds": 24300,
+                "cost": {
+                    "metal_bruto": 681,
+                    "ligas_metalicas": 218
+                }
+            },
+            {
+                "level": 4,
+                "build_time_seconds": 36480,
+                "cost": {
+                    "metal_bruto": 1123,
+                    "ligas_metalicas": 359
+                }
+            },
+            {
+                "level": 5,
+                "build_time_seconds": 54660,
+                "cost": {
+                    "metal_bruto": 1853,
+                    "ligas_metalicas": 593
+                }
+            }
+        ]
+    },
+    {
+        "type": "central_de_comunicacao",
+        "nome": "Central de Comunicação",
+        "max_level": 5,
+        "levels": [
+            {
+                "level": 1,
+                "build_time_seconds": 18000,
+                "cost": {
+                    "metal_bruto": 200,
+                    "ligas_metalicas": 100,
+                    "componentes_eletronicos": 40
+                }
+            },
+            {
+                "level": 2,
+                "build_time_seconds": 27000,
+                "cost": {
+                    "metal_bruto": 330,
+                    "ligas_metalicas": 165,
+                    "componentes_eletronicos": 66
+                }
+            },
+            {
+                "level": 3,
+                "build_time_seconds": 40500,
+                "cost": {
+                    "metal_bruto": 545,
+                    "ligas_metalicas": 272,
+                    "componentes_eletronicos": 109
+                }
+            },
+            {
+                "level": 4,
+                "build_time_seconds": 60720,
+                "cost": {
+                    "metal_bruto": 898,
+                    "ligas_metalicas": 449,
+                    "componentes_eletronicos": 180
+                }
+            },
+            {
+                "level": 5,
+                "build_time_seconds": 91140,
+                "cost": {
+                    "metal_bruto": 1482,
+                    "ligas_metalicas": 741,
+                    "componentes_eletronicos": 296
+                }
+            }
+        ]
+    },
+    {
+        "type": "plataforma_de_pouso_da_zona",
+        "nome": "Plataforma de Pouso",
+        "max_level": 5,
+        "levels": [
+            {
+                "level": 1,
+                "build_time_seconds": 21600,
+                "cost": {
+                    "metal_bruto": 350,
+                    "ligas_metalicas": 150,
+                    "componentes_eletronicos": 30
+                }
+            },
+            {
+                "level": 2,
+                "build_time_seconds": 32400,
+                "cost": {
+                    "metal_bruto": 578,
+                    "ligas_metalicas": 248,
+                    "componentes_eletronicos": 50
+                }
+            },
+            {
+                "level": 3,
+                "build_time_seconds": 48600,
+                "cost": {
+                    "metal_bruto": 953,
+                    "ligas_metalicas": 408,
+                    "componentes_eletronicos": 82
+                }
+            },
+            {
+                "level": 4,
+                "build_time_seconds": 72900,
+                "cost": {
+                    "metal_bruto": 1572,
+                    "ligas_metalicas": 674,
+                    "componentes_eletronicos": 135
+                }
+            },
+            {
+                "level": 5,
+                "build_time_seconds": 109320,
+                "cost": {
+                    "metal_bruto": 2594,
+                    "ligas_metalicas": 1112,
+                    "componentes_eletronicos": 222
+                }
+            }
+        ]
+    },
+    {
         "type": "cemiterio_de_robos",
         "nome": "Cemitério de Robôs",
         "max_level": 5,

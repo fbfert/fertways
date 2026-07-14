@@ -53,6 +53,11 @@ const AREAS: Record<string, { x: number; y: number; w: number; h: number; rotulo
   // A logística e a memória, à margem.
   estacionamento_da_zona: { x: 30, y: 115, w: 60, h: 50, rotulo: 'Pátio' },
   cemiterio_de_robos: { x: 310, y: 115, w: 60, h: 50, rotulo: 'Cemitério' },
+  // As três últimas do §17.4 (D-79) — inertes, sem sistema que as acione ainda. Faixa de cima,
+  // entre as duas torres, onde havia espaço vazio na planta.
+  estrutura_de_extracao: { x: 100, y: 30, w: 58, h: 60, rotulo: 'Extração' },
+  central_de_comunicacao: { x: 171, y: 30, w: 58, h: 60, rotulo: 'Antena' },
+  plataforma_de_pouso_da_zona: { x: 242, y: 30, w: 58, h: 60, rotulo: 'Pouso' },
 }
 
 export function Zona({ aoFechar }: { aoFechar: () => void }) {
@@ -426,21 +431,23 @@ export function Zona({ aoFechar }: { aoFechar: () => void }) {
       </section>
 
       {/* ── o que o GDD promete e o jogo não tem ────────────────────────────────────────── */}
-      <section data-secao="ausentes">
-        <h3 className="font-bold">O que ainda não existe</h3>
-        <p className="text-ink-soft mt-1 text-xs">
-          O §17.4 lista estas estruturas. O jogo não as tem — e dizer isso é melhor do que fingir
-          que elas não foram prometidas.
-        </p>
-        <ul className="mt-2 space-y-2">
-          {Object.entries(z.ausentes).map(([k, a]) => (
-            <li key={k} className="text-sm" data-ausente={k}>
-              <strong>{a.nome}</strong>{' '}
-              <span className="text-ink-soft text-xs">— {a.porque}</span>
-            </li>
-          ))}
-        </ul>
-      </section>
+      {Object.keys(z.ausentes).length > 0 && (
+        <section data-secao="ausentes">
+          <h3 className="font-bold">O que ainda não existe</h3>
+          <p className="text-ink-soft mt-1 text-xs">
+            O §17.4 lista estas estruturas. O jogo não as tem — e dizer isso é melhor do que fingir
+            que elas não foram prometidas.
+          </p>
+          <ul className="mt-2 space-y-2">
+            {Object.entries(z.ausentes).map(([k, a]) => (
+              <li key={k} className="text-sm" data-ausente={k}>
+                <strong>{a.nome}</strong>{' '}
+                <span className="text-ink-soft text-xs">— {a.porque}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       {erro && <p className="text-rust text-sm font-bold">{erro}</p>}
       {recibo && <p className="text-sm font-bold">{recibo}</p>}

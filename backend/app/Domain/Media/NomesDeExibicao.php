@@ -54,7 +54,7 @@ class NomesDeExibicao
             'destilaria' => 'Destilaria',
             'tanque_de_combustivel' => 'Tanque de Combustível',
 
-            // As estruturas da zona neutra (§17.4, D-66 e D-67).
+            // As estruturas da zona neutra (§17.4, D-66, D-67 e D-79).
             'posto_de_comando' => 'Posto de Comando',
             'deposito_de_zona_neutra' => 'Depósito de Zona Neutra',
             'muralha_de_perimetro' => 'Muralha de Perímetro',
@@ -64,6 +64,9 @@ class NomesDeExibicao
             'refinaria_de_campo' => 'Refinaria de Campo',
             'estacionamento_da_zona' => 'Estacionamento da Zona',
             'cemiterio_de_robos' => 'Cemitério de Robôs',
+            'estrutura_de_extracao' => 'Estrutura de Extração',
+            'central_de_comunicacao' => 'Central de Comunicação',
+            'plataforma_de_pouso_da_zona' => 'Plataforma de Pouso (Zona)',
 
             // Veículos e unidades.
             'furgao_de_comercio' => 'Furgão de Comércio',

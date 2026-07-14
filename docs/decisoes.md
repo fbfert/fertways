@@ -3319,3 +3319,69 @@ formulário de criar/editar é grande demais para um card da Operação.
 > missão de tutoria da colônia recém-fundada, e a asserção de valores exatos quebrou. Não era bug —
 > era o sistema inteiro ligado. Testes de valor exato agora limpam a mão de missões antes; e ficou
 > a prova viva de que fundar uma colônia já entrega a tutoria funcionando.
+
+## D-79 — As três últimas do §17.4 saem da geladeira, mesmo sem função.
+**Data:** 2026-07-14 · **Status:** arbitrado pelo usuário · **GDD: §17.4 descreve tudo; cala o custo**
+
+O D-67 tinha deixado **Estrutura de Extração**, **Central de Comunicação** e **Plataforma de Pouso**
+(da zona) FORA de escopo — nenhuma tinha função possível, porque o que o GDD promete para elas
+depende de um sistema que não existe:
+
+| Estrutura | O que o GDD promete (§17.4) | Por que ficou de fora no D-67 |
+|---|---|---|
+| Estrutura de Extração | *"Varia conforme o tipo de recurso da zona: perfuratriz para minerais, escavadeira para cristais."* | A zona já extrai sem ela desde a Fatia 1 (D-52) — travar a extração a uma ferramenta agora puniria as zonas que já rendem |
+| Central de Comunicação | *"Permite que membros da federação vejam o status da zona em tempo real e recebam alertas de ataque mesmo sem abrir o slot principal."* | Só serve à Federação, que não existe (mesma inércia do D-44) |
+| Plataforma de Pouso (zona) | *"Permite o pouso de Naves de Transporte Planetária para retirada direta de robôs e mercadorias da zona, sem depender de via terrestre hostil."* | Só serve à Nave de Transporte Planetária, que é uma fatia inteira (§17.5) e não existe no jogo |
+
+**O usuário reabriu a decisão de propósito.** Ao retomar a sessão, ele escolheu custear as três mesmo
+assim — **inertes**, exatamente como o Cemitério de Robôs já era: ergue-se por gosto, sem função
+mecânica, até o dia em que o sistema dependente (Federação, Nave de Transporte Planetária) exista. Não
+é lacuna que se fechou por função — é a decisão de que o colono pode gastar recurso em algo que hoje
+não faz nada, se quiser.
+
+⚠️ **Colisão de nome.** A "Plataforma de Pouso" já existe como construção do slot principal da colônia
+(hangar, com custo publicado no §4.2/v3.4: 120 Ligas + 60 Componentes + 25 Energia + 3 Gelo de Metano
+no nível 1), já em `building_specs.json` com o slug `plataforma_de_pouso`. A da zona é uma entidade
+diferente — mesmo nome no GDD, coisas distintas no jogo. Ganhou o slug `plataforma_de_pouso_da_zona`,
+no mesmo padrão de `estacionamento_da_zona`.
+
+### Custo e tempo — mesma curva do D-52/D-66/D-67
+
+Nenhum número vem do GDD (ele não publica nada para as três). A base de cada uma foi arbitrada por
+analogia às zonas já custeadas — mais barata que as estruturas funcionais (Refinaria, Estacionamento),
+mais cara que o Cemitério puro (que não tem sequer Ligas), porque estas três têm ao menos um gesto de
+função futura, ainda que hoje inertes. Os níveis 2–5 saem sozinhos da curva 1,65× de custo (half-up) e
+1,50× de tempo (half-even, em minutos) — a mesma fórmula do D-52 (`docs/decisoes.md` linha 33-45),
+calculada direto da base, sem compor arredondamento de nível em nível:
+
+| Estrutura | Custo (nível 1) | Tempo |
+|---|---|---|
+| Estrutura de Extração | 250 Metal Bruto + 80 Ligas | 3 h |
+| Central de Comunicação | 200 Metal Bruto + 100 Ligas + 40 Componentes | 5 h |
+| Plataforma de Pouso (zona) | 350 Metal Bruto + 150 Ligas + 30 Componentes | 6 h |
+
+Todas continuam **inertes** — `Estruturas::TABELA[...]['inerte'] = true`, como o Cemitério. `Estruturas::
+AUSENTES` fica **vazio**: não sobra nada do §17.4 marcado como buraco. As 12 estruturas de zona (Posto de
+Comando + Depósito + as 4 de defesa do D-66 + as 6 do D-67/D-79) têm custo e função declarados — função
+real ou "nenhuma, de propósito e por decisão do usuário", nunca silêncio.
+
+### O que mudou no código
+
+- `Estruturas.php`: as três saem de `AUSENTES` e entram em `TABELA`, `COLUNA` e `CONSTRUIVEIS`.
+- Migration `2026_07_14_120000_as_tres_ultimas_estruturas_da_zona.php`: três colunas em `neutral_zones`
+  (`extraction_level`, `communication_level`, `landing_pad_level`), idempotente, ensaiada nos dois
+  sentidos no `fertwaysdev` (MariaDB) antes de publicar — a lição do D-59.
+- ⚠️ **A mesma pegadinha do model, pela terceira vez** (o próprio `NeutralZone.php` já se avisava
+  disso): as três colunas novas tinham de entrar em `$fillable`, `$attributes` (o default em PHP, não
+  só no banco — `create()` não relê o que o banco aplicou) e `$casts`. Esquecer qualquer um dos três
+  faz o nível nascer `null` e o `ConcluirObrasDaZona` gravar `max(null, 1)` — que o PHP aceita e
+  produz um resultado errado em silêncio. O teste novo (`test_as_tres_ultimas_estruturas_se_erguem_e_
+  sao_inertes`) pegou isso na hora.
+- `building_specs.json`: três blocos novos, 5 níveis cada.
+- `NomesDeExibicao::mapa()`: os três nomes, para o painel de vínculo de imagem e o gerador do GDD.
+- Frontend (`Zona.tsx`): três áreas novas na planta SVG, na faixa de cima que estava vazia entre as
+  duas torres. A seção "O que ainda não existe" passa a se esconder quando `ausentes` está vazio — sem
+  isso, a tela mentiria dizendo que falta algo que não falta mais.
+- `tools/gdd-v36.php`: a linha da seção 10 que dizia "9 estruturas restantes" já estava desatualizada
+  desde o D-67 (era estático, não gerado) — corrigida para refletir que as 12 têm custo e tempo, e que
+  só o teto de zonas por jogador e o upgrade de zona continuam em aberto.
