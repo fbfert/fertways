@@ -180,6 +180,82 @@ class TickColoniesTest extends TestCase
         $this->assertSame(0, $this->estoque($user, 'biomassa'));
     }
 
+    // ---- Indústria Siderúrgica (D-82) ----
+
+    /**
+     * A um lote exato: 15 Metal Bruto/h (nível 1) × 240.000 s = exatos 1.000 processados.
+     * As seis saídas simultâneas do D-82, e nada de resto — o lote fechou redondo.
+     */
+    public function test_a_siderurgica_processa_um_lote_exato_de_1000(): void
+    {
+        $user = $this->colono();
+        $this->erguer($user, 'industria_siderurgica', 1);
+        $user->colony->resources()->where('resource_type', 'metal_bruto')->update(['amount' => 2000]);
+
+        $user->colony->update(['last_tick_at' => now()->subSeconds(240_000)]);
+        $this->tick($user, now());
+
+        $this->assertSame(1000, $this->estoque($user, 'metal_bruto'));
+        $this->assertSame(350, $this->estoque($user, 'ligas_metalicas'));
+        $this->assertSame(35, $this->estoque($user, 'aluminio'));
+        $this->assertSame(30, $this->estoque($user, 'cobre'));
+        $this->assertSame(20, $this->estoque($user, 'estanho'));
+        $this->assertSame(4, $this->estoque($user, 'ouro'));
+        $this->assertSame(1, $this->estoque($user, 'tungstenio'));
+        $this->assertSame(0, $user->colony->fresh()->siderurgica_lote_remainder);
+    }
+
+    /**
+     * Um tick de 1 minuto processa só 0,25 Metal Bruto — bem menos que um lote. NADA é creditado
+     * ainda, mas o progresso não se perde: fica em `siderurgica_lote_remainder`, não descartado.
+     * Sem isto, uma taxa de 0,015 Tungstênio/h nunca acumularia Tungstênio nenhum.
+     */
+    public function test_a_siderurgica_guarda_o_progresso_sem_lote_fechado(): void
+    {
+        $user = $this->colono();
+        $this->erguer($user, 'industria_siderurgica', 1);
+        $user->colony->resources()->where('resource_type', 'metal_bruto')->update(['amount' => 5000]);
+
+        $user->colony->update(['last_tick_at' => now()->subMinute()]);
+        $this->tick($user, now());
+
+        $this->assertSame(0, $this->estoque($user, 'ligas_metalicas'));
+        $this->assertSame(0, $this->estoque($user, 'tungstenio'));
+        // 15/h × 60s = 0,25 Metal Bruto, em numerador de 1/3600: 900.
+        $this->assertSame(900, $user->colony->fresh()->siderurgica_lote_remainder);
+        $this->assertSame(4999, $this->estoque($user, 'metal_bruto'));
+    }
+
+    /** Sem Metal Bruto no estoque, a Siderúrgica fica ociosa — não inventa insumo do nada. */
+    public function test_a_siderurgica_para_sem_metal_bruto(): void
+    {
+        $user = $this->colono();
+        $this->erguer($user, 'industria_siderurgica', 1);
+        $user->colony->resources()->where('resource_type', 'metal_bruto')->update(['amount' => 0]);
+
+        $user->colony->update(['last_tick_at' => now()->subSeconds(240_000)]);
+        $this->tick($user, now());
+
+        $this->assertSame(0, $this->estoque($user, 'metal_bruto'));
+        $this->assertSame(0, $this->estoque($user, 'ligas_metalicas'));
+        $this->assertSame(0, $user->colony->fresh()->siderurgica_lote_remainder);
+    }
+
+    /** Repetível como a Mina (D-59): duas cópias somam a taxa de processamento. */
+    public function test_duas_siderurgicas_somam_a_taxa(): void
+    {
+        $user = $this->colono();
+        $this->erguer($user, 'industria_siderurgica', 1);
+        $this->erguer($user, 'industria_siderurgica', 1); // uma segunda cópia — é repetível (D-59)
+        $user->colony->resources()->where('resource_type', 'metal_bruto')->update(['amount' => 5000]);
+
+        // 30 Metal Bruto/h (15+15) × 120.000 s = exatos 1.000.
+        $user->colony->update(['last_tick_at' => now()->subSeconds(120_000)]);
+        $this->tick($user, now());
+
+        $this->assertSame(350, $this->estoque($user, 'ligas_metalicas'));
+    }
+
     // ---- Conclusão de upgrades ----
 
     public function test_conclui_upgrade_e_lanca_subsidio_no_ledger(): void

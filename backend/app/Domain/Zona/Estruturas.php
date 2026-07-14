@@ -30,6 +30,7 @@ class Estruturas
         'estrutura_de_extracao' => 'extraction_level',
         'central_de_comunicacao' => 'communication_level',
         'plataforma_de_pouso_da_zona' => 'landing_pad_level',
+        'industria_siderurgica' => 'industry_level',
     ];
 
     /**
@@ -50,6 +51,7 @@ class Estruturas
         'estrutura_de_extracao',
         'central_de_comunicacao',
         'plataforma_de_pouso_da_zona',
+        'industria_siderurgica',
     ];
 
     /**
@@ -217,6 +219,21 @@ class Estruturas
             'hoje' => 'Nada. Só serve à Nave de Transporte Planetária, que está no catálogo e não no jogo '
                 .'— é uma fatia inteira (§17.5): voo, placa, robôs transportados entre zonas.',
             'inerte' => true,
+        ],
+
+        /*
+         * Construção nova, pedida pelo usuário — NÃO está no GDD (D-82). Existe também na colônia
+         * (`Domain\Building\Funcoes`), com a mesma receita e a mesma tabela de custo.
+         */
+        'industria_siderurgica' => [
+            'nome' => 'Indústria Siderúrgica',
+            'gdd' => 'Não está no GDD — construção nova, pedida pelo usuário (D-82).',
+            'hoje' => 'Processa Metal Bruto em Ligas Metálicas e nos cinco minerais eletrônicos que, na '
+                .'Temporada 1, só o governo extrai (§4.3) — arbitragem consciente. Só funciona em zonas '
+                .'de Metal Bruto, disputando o mesmo depósito que a Refinaria de Campo: quem chegar '
+                .'primeiro no tick leva. A cada 1000 Metal Bruto processado: 350 Ligas, 35 Alumínio, 30 '
+                .'Cobre, 20 Estanho, 4 Ouro, 1 Tungstênio — só em lotes inteiros.',
+            'inerte' => false,
         ],
     ];
 

@@ -13,6 +13,7 @@ use App\Models\Combat;
 use App\Models\NeutralZone;
 use App\Models\Unit;
 use App\Models\User;
+use App\Models\ZoneMineral;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -261,6 +262,41 @@ class GuerraTest extends TestCase
             $antes + 500,
             $atacante->fresh()->resources()->where('resource_type', 'metal_bruto')->value('amount'),
         );
+    }
+
+    /**
+     * Os minerais da Indústria Siderúrgica (D-82) são butim como tudo o mais no Depósito — a
+     * repartição do saque agora conta MAIS de dois potes.
+     */
+    public function test_o_saque_leva_os_minerais_da_siderurgica_tambem(): void
+    {
+        $atacante = $this->colono('Atacante');
+        $defensor = $this->colono('Defensor');
+
+        // 500 protegidos (cap do nível 1); 500 bruto + 100 ouro = 600, então 100 expostos.
+        $zona = $this->zonaDe($defensor, 500);
+        ZoneMineral::create(['zone_id' => $zona->id, 'resource_type' => 'ouro', 'amount' => 100]);
+        $zona->refresh();
+
+        $antesOuro = $atacante->resources()->where('resource_type', 'ouro')->value('amount');
+
+        $ids = $this->sentinelas($atacante, 20);
+        $fim = $this->correrAte(app(Atacar::class)->handle($atacante, $zona, 'invasao', $ids));
+
+        $this->assertSame('vitoria_atacante', $fim->status);
+        // 50% de 100 expostos = 50 no total — repartido proporcional ao que há de cada POTE no
+        // estoque inteiro (600): ouro é 100/600 dele, então leva intdiv(50×100, 600) = 8; o
+        // bruto absorve o resto (42), por valer menos.
+        $this->assertSame(50, $fim->resultado['saque']);
+        $this->assertSame(42, $fim->resultado['saque_bruto']);
+        $this->assertSame(['ouro' => 8], $fim->resultado['saque_minerais']);
+
+        $this->assertSame(
+            $antesOuro + 8,
+            $atacante->fresh()->resources()->where('resource_type', 'ouro')->value('amount'),
+        );
+        $this->assertSame(92, $zona->fresh()->minerais()->where('resource_type', 'ouro')->value('amount'));
+        $this->assertSame(458, $zona->fresh()->deposit_amount);
     }
 
     /** Zona com o depósito dentro da capacidade: tudo protegido, saque ZERO. */

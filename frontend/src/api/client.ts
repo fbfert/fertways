@@ -789,7 +789,7 @@ export const api = {
 
   /** Despacha um veículo para retirar o mineral extraído no Depósito da zona. */
   retirarDeZona: (id: number, vehicleId: number, cargo: Record<string, number>) =>
-    req<{ id: number; status: string; arrives_at: string | null }>(
+    req<{ id: number; type: string; plate: string; status: string; arrives_at: string | null }>(
       `/zones/${id}/withdraw`,
       { method: 'POST', body: JSON.stringify({ vehicle_id: vehicleId, cargo }) },
     ),
@@ -1162,6 +1162,8 @@ export type ZonaDetalhe = {
     /** O que a Refinaria de Campo já converteu. Ocupa o mesmo Depósito. */
     refinado: number
     refinado_recurso: string | null
+    /** Os minerais da Indústria Siderúrgica (D-82) — mesmo Depósito. Só os com saldo aparecem. */
+    minerais: { resource_type: string; amount: number }[]
     capacidade: number
     /** O que cabe no Depósito está a salvo do saque; o que transborda é butim (D-66). */
     protegido: number

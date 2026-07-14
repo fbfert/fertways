@@ -112,6 +112,10 @@ class NeutralZoneController extends Controller
 
         return response()->json([
             'id' => $veiculo->id,
+            // Tipo e placa: mesma razão do D-80 na entrega de material — "um veículo a caminho"
+            // não diz QUAL, numa colônia com mais de um Furgão.
+            'type' => $veiculo->type,
+            'plate' => $veiculo->plate,
             'status' => $veiculo->status,
             'leg' => $veiculo->leg,
             'trip_purpose' => $veiculo->trip_purpose,

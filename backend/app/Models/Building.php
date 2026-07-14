@@ -53,6 +53,8 @@ class Building extends Model
         // ficara de fora do MVP, sem motivo registrado. Entra no D-59, agora que há slot para
         // ela. Custo e tempo já estavam semeados em `building_specs`.
         'tanque_de_combustivel',
+        // Não está no GDD — construção nova, pedida pelo usuário (D-82).
+        'industria_siderurgica',
     ];
 
     public const MVP = [...self::ESSENCIAIS, ...self::PROGRESSAO];
@@ -76,6 +78,9 @@ class Building extends Model
         'oficina',
         'refinaria_quimica',
         'destilaria',
+        // A Indústria Siderúrgica é da mesma família — produtora de progressão, com produção/h
+        // publicada (aqui, arbitrada — D-82) e sem GDD que a torne única.
+        'industria_siderurgica',
     ];
 
     public function podeRepetir(): bool

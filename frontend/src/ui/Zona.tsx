@@ -58,6 +58,8 @@ const AREAS: Record<string, { x: number; y: number; w: number; h: number; rotulo
   estrutura_de_extracao: { x: 100, y: 30, w: 58, h: 60, rotulo: 'Extração' },
   central_de_comunicacao: { x: 171, y: 30, w: 58, h: 60, rotulo: 'Antena' },
   plataforma_de_pouso_da_zona: { x: 242, y: 30, w: 58, h: 60, rotulo: 'Pouso' },
+  // Construção nova, não está no GDD (D-82). Vaga entre o Comando e o Cemitério.
+  industria_siderurgica: { x: 245, y: 115, w: 60, h: 50, rotulo: 'Siderurgia' },
 }
 
 export function Zona({ aoFechar }: { aoFechar: () => void }) {
@@ -71,6 +73,7 @@ export function Zona({ aoFechar }: { aoFechar: () => void }) {
   const [recibo, setRecibo] = useState<string | null>(null)
   const [ocupado, setOcupado] = useState(false)
   const [envio, setEnvio] = useState<Record<string, number>>({})
+  const [retirar, setRetirar] = useState<Record<string, number>>({})
   const [nome, setNome] = useState('')
 
   const carregar = useCallback(async () => {
@@ -377,6 +380,13 @@ export function Zona({ aoFechar }: { aoFechar: () => void }) {
               </span>
             </div>
           )}
+          {/* Os minerais da Indústria Siderúrgica (D-82) — mesmo Depósito, mesma capacidade. */}
+          {z.deposito.minerais.map((m) => (
+            <div key={m.resource_type}>
+              {nomeRecurso(m.resource_type)}:{' '}
+              <strong data-mineral={m.resource_type}>{m.amount}</strong>
+            </div>
+          ))}
         </div>
 
         <div className="mt-3 text-sm">
@@ -394,6 +404,78 @@ export function Zona({ aoFechar }: { aoFechar: () => void }) {
           salvo. Suba o Depósito para proteger mais — ou retire a carga antes que alguém venha
           buscá-la.
         </p>
+
+        {/* Retirar — qualquer coisa que esteja no Depósito: bruto, refinado, ou os minerais da
+            Siderúrgica (D-82). Sem isto, o que a Refinaria e a Siderúrgica produzem ficaria preso
+            na zona para sempre — a mesma armadilha que o D-67 já tinha evitado para o refinado. */}
+        {(() => {
+          const disponiveis = [
+            { recurso: z.mineral, tem: z.deposito.bruto },
+            ...(z.deposito.refinado_recurso
+              ? [{ recurso: z.deposito.refinado_recurso, tem: z.deposito.refinado }]
+              : []),
+            ...z.deposito.minerais.map((m) => ({ recurso: m.resource_type, tem: m.amount })),
+          ].filter((r) => r.tem > 0)
+
+          if (disponiveis.length === 0) return null
+
+          return (
+            <div className="border-rust/20 mt-3 border-t pt-3">
+              {ociosos.length === 0 ? (
+                <p className="text-ink-soft text-xs">Nenhum veículo ocioso para retirar carga.</p>
+              ) : (
+                <>
+                  <div className="text-ink eyebrow">Retirar (com {nomeVeiculo(ociosos[0].type)})</div>
+                  <div className="mt-1 grid gap-2 sm:grid-cols-3">
+                    {disponiveis.map(({ recurso, tem }) => (
+                      <label key={recurso} className="text-sm">
+                        {nomeRecurso(recurso)}
+                        <input
+                          type="number"
+                          min={0}
+                          max={Math.min(tem, ociosos[0].capacity_efetiva)}
+                          value={retirar[recurso] ?? 0}
+                          onChange={(e) =>
+                            setRetirar((v) => ({
+                              ...v,
+                              [recurso]: Math.max(0, Math.min(tem, Number(e.target.value))),
+                            }))
+                          }
+                          data-retirar={recurso}
+                          className="border-rust/25 bg-sand-light focus:border-rust mt-1 w-full border px-2 py-1 outline-none"
+                        />
+                      </label>
+                    ))}
+                  </div>
+
+                  <button
+                    className="botao mt-2 w-full"
+                    disabled={ocupado || z.cercada || Object.values(retirar).every((q) => !q)}
+                    data-retirar-deposito
+                    onClick={() =>
+                      void agir(async () => {
+                        const carga = Object.fromEntries(
+                          Object.entries(retirar).filter(([, q]) => q > 0),
+                        )
+                        const v = await api.retirarDeZona(z.id, ociosos[0].id, carga)
+                        setRetirar({})
+
+                        const cargaTexto = Object.entries(carga)
+                          .map(([r, q]) => `${q} ${nomeRecurso(r)}`)
+                          .join(', ')
+                        const chegada = v.arrives_at ? ` — chega ${dataHumana(v.arrives_at)}` : ''
+
+                        return `${nomeVeiculo(v.type)} ${v.plate} a caminho de casa com ${cargaTexto}${chegada}.`
+                      })
+                    }
+                  >
+                    {z.cercada ? 'Não se retira sob sítio' : 'Retirar'}
+                  </button>
+                </>
+              )}
+            </div>
+          )
+        })()}
       </section>
 
       {/* ── o canteiro de obras ─────────────────────────────────────────────────────────── */}

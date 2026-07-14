@@ -2050,5 +2050,52 @@
                 }
             }
         ]
+    },
+    {
+        "type": "industria_siderurgica",
+        "nome": "Indústria Siderúrgica",
+        "max_level": 5,
+        "levels": [
+            {
+                "level": 1,
+                "build_time_seconds": 1050,
+                "cost": {
+                    "ligas_metalicas": 38,
+                    "compostos_quimicos": 13
+                }
+            },
+            {
+                "level": 2,
+                "build_time_seconds": 1575,
+                "cost": {
+                    "ligas_metalicas": 63,
+                    "compostos_quimicos": 21
+                }
+            },
+            {
+                "level": 3,
+                "build_time_seconds": 2400,
+                "cost": {
+                    "ligas_metalicas": 103,
+                    "compostos_quimicos": 35
+                }
+            },
+            {
+                "level": 4,
+                "build_time_seconds": 3525,
+                "cost": {
+                    "ligas_metalicas": 171,
+                    "compostos_quimicos": 58
+                }
+            },
+            {
+                "level": 5,
+                "build_time_seconds": 5325,
+                "cost": {
+                    "ligas_metalicas": 282,
+                    "compostos_quimicos": 96
+                }
+            }
+        ]
     }
 ]

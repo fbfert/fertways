@@ -4,6 +4,7 @@ namespace App\Domain\Logistics;
 
 use App\Domain\Admin\Suspender;
 use App\Domain\Market\Deposito;
+use App\Domain\Production\Siderurgica;
 use App\Domain\Trade\AcessoAoMercado;
 use App\Exceptions\DomainRuleException;
 use App\Domain\Transport\Conservacao;
@@ -16,6 +17,7 @@ use App\Models\ResourceType;
 use App\Models\TradeAgreement;
 use App\Models\Vehicle;
 use App\Models\VehicleListing;
+use App\Models\ZoneMineral;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\DB;
 
@@ -315,14 +317,20 @@ class DespacharVeiculo
         $this->validarCarga($veiculo, $pedido);
 
         /*
-         * Desde o D-67 a zona pode ter **duas** coisas para levar: o minério que ela extrai e o
-         * secundário em que a **Refinaria de Campo** já o converteu. Retirar só o bruto tornaria a
-         * Refinaria uma armadilha — o colono a construiria e o produto ficaria preso na zona.
+         * Desde o D-67 a zona pode ter até três POTES para levar: o minério que ela extrai, o
+         * secundário em que a Refinaria de Campo já o converteu, e (D-82) os minerais eletrônicos
+         * que a Indústria Siderúrgica extraiu. Retirar só o bruto tornaria as outras duas uma
+         * armadilha — o colono as construiria e o produto ficaria preso na zona.
          */
         $refinado = $zona->recursoRefinado();
 
         foreach ($pedido as $recurso => $qtd) {
-            if ($recurso !== $zona->mineral && ! ($refinado !== null && $recurso === $refinado && $zona->refinery_level >= 1)) {
+            $ehBruto = $recurso === $zona->mineral;
+            $ehRefinado = $refinado !== null && $recurso === $refinado && $zona->refinery_level >= 1;
+            $ehMineral = in_array($recurso, Siderurgica::SAIDAS_MINERAIS, true)
+                && $zona->industry_level >= 1;
+
+            if (! $ehBruto && ! $ehRefinado && ! $ehMineral) {
                 throw new DomainRuleException(
                     'recurso_nao_e_da_zona',
                     "Esta zona rende {$zona->mineral}"
@@ -340,6 +348,12 @@ class DespacharVeiculo
             $ref = $this->partir($origem, $veiculo, $energia, $agora);
 
             foreach ($pedido as $recurso => $qtd) {
+                if (in_array($recurso, Siderurgica::SAIDAS_MINERAIS, true)) {
+                    $this->debitarMineralDaZona($zona, $recurso, $qtd);
+
+                    continue;
+                }
+
                 // Cada um sai da sua coluna: o bruto do `deposit_amount`, o refinado do `refined_amount`.
                 $coluna = $recurso === $zona->mineral ? 'deposit_amount' : 'refined_amount';
                 $this->debitarDeposito($zona, $qtd, $ref, $coluna);
@@ -411,6 +425,25 @@ class DespacharVeiculo
             throw new DomainRuleException(
                 'deposito_insuficiente',
                 "O Depósito da zona não tem {$qtd} de {$que}.",
+            );
+        }
+    }
+
+    /**
+     * Os cinco minerais da Indústria Siderúrgica (D-82) não vivem numa coluna — vivem em
+     * `zone_minerals`, uma linha por recurso. Mesma guarda atômica de `debitarDeposito()`.
+     */
+    private function debitarMineralDaZona(NeutralZone $zona, string $recurso, int $qtd): void
+    {
+        $afetadas = ZoneMineral::where('zone_id', $zona->id)
+            ->where('resource_type', $recurso)
+            ->where('amount', '>=', $qtd)
+            ->decrement('amount', $qtd);
+
+        if ($afetadas === 0) {
+            throw new DomainRuleException(
+                'deposito_insuficiente',
+                "O Depósito da zona não tem {$qtd} de {$recurso}.",
             );
         }
     }

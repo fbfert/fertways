@@ -17,7 +17,19 @@ class Colony extends Model
     /** 1 Fert$ = 1.000.000 µF$. Preços do GDD têm 4 casas (Energia = 0,0033). */
     public const MICRO_POR_FERT = 1_000_000;
 
-    protected $fillable = ['user_id', 'name', 'x', 'y', 'founded_at', 'milestone', 'fert_micro', 'last_tick_at'];
+    protected $fillable = [
+        'user_id', 'name', 'x', 'y', 'founded_at', 'milestone', 'fert_micro', 'last_tick_at',
+        'siderurgica_lote_remainder',
+    ];
+
+    /**
+     * ⚠️ O default tem de estar AQUI também, não só no banco — `create()` não relê o que o banco
+     * aplicou, e um `Colony::create()` devolveria `siderurgica_lote_remainder` nulo. É a mesma
+     * pegadinha que já mordeu `Vehicle`, `WarSetting` e `NeutralZone` (ver o comentário de lá).
+     */
+    protected $attributes = [
+        'siderurgica_lote_remainder' => 0,
+    ];
 
     protected $casts = [
         'x' => 'integer',
@@ -25,6 +37,7 @@ class Colony extends Model
         'founded_at' => 'datetime',
         'last_tick_at' => 'datetime',
         'fert_micro' => 'integer',
+        'siderurgica_lote_remainder' => 'integer',
     ];
 
     public function user(): BelongsTo

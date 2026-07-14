@@ -162,6 +162,22 @@ try {
     'a seção "o que ainda não existe" some — o D-79 fechou a última pendência de custo/tempo',
   )
 
+  // A Indústria Siderúrgica (D-82): construção nova, não está no GDD, mas É FUNCIONAL.
+  await page.click('[data-area="industria_siderurgica"]')
+  await assentar()
+  checar(
+    await esperarTexto(page, /Não está no GDD/),
+    'a Indústria Siderúrgica admite que é construção nova, fora do GDD',
+  )
+  checar(
+    await esperarTexto(page, /350 Ligas.*35 Alumínio|Alumínio.*Cobre.*Estanho/),
+    'e diz a receita: 1000 Metal Bruto vira Ligas e os minerais eletrônicos',
+  )
+  checar(
+    !!(await page.$('[data-construir="industria_siderurgica"]')),
+    'oferece o botão de construir — ao contrário do Cemitério, ela FAZ algo',
+  )
+
   // ═══════════════════════════════════════════════════ o LINK DIRETO (D-67)
   console.log('\nA URL da zona funciona sozinha — é metade do motivo do D-67')
   const url = page.url()

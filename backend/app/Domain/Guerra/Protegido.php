@@ -47,14 +47,15 @@ class Protegido
     }
 
     /**
-     * O butim de um saque, repartido entre o minério bruto e o refinado.
+     * O butim de um saque, repartido entre o minério bruto, o refinado e os minerais da Indústria
+     * Siderúrgica (D-82) — todos no mesmo Depósito desde o D-82.
      *
      * A repartição é **proporcional ao que há de cada um**: quem invade uma zona metade refinada leva
      * metade de cada. O contrário — levar primeiro o refinado, que vale mais — premiaria o atacante
      * por uma escolha do defensor, e ninguém decidiu isso.
      *
      * @param  int  $bps  5000 na Invasão Direta (§27.8), 3000 no Cerco (§28.10).
-     * @return array{bruto: int, refinado: int, total: int}
+     * @return array{bruto: int, refinado: int, minerais: array<string,int>, total: int}
      */
     public function saqueDetalhado(NeutralZone $zona, int $bps): array
     {
@@ -62,15 +63,33 @@ class Protegido
         $estoque = $zona->estoqueTotal();
 
         if ($total <= 0 || $estoque <= 0) {
-            return ['bruto' => 0, 'refinado' => 0, 'total' => 0];
+            return ['bruto' => 0, 'refinado' => 0, 'minerais' => [], 'total' => 0];
         }
 
-        // Proporcional, e o bruto absorve o arredondamento: o refinado é o que vale mais, e o
-        // atacante não deve ganhar uma unidade a mais dele por um resto de divisão.
-        $refinado = min($zona->refined_amount, intdiv($total * $zona->refined_amount, $estoque));
-        $bruto = min($zona->deposit_amount, $total - $refinado);
+        // Proporcional a cada pote, do mais valioso ao menos — cada um absorve o arredondamento
+        // do que vem depois, e o bruto (o menos valioso) absorve o resto de todos. O atacante não
+        // deve ganhar uma unidade a mais do que vale mais por um resto de divisão.
+        $restante = $total;
+        $minerais = [];
 
-        return ['bruto' => $bruto, 'refinado' => $refinado, 'total' => $bruto + $refinado];
+        foreach ($zona->minerais as $m) {
+            $levado = min($m->amount, intdiv($total * $m->amount, $estoque));
+            if ($levado > 0) {
+                $minerais[$m->resource_type] = $levado;
+            }
+            $restante -= $levado;
+        }
+
+        $refinado = min($zona->refined_amount, intdiv($total * $zona->refined_amount, $estoque));
+        $restante -= $refinado;
+        $bruto = min($zona->deposit_amount, $restante);
+
+        return [
+            'bruto' => $bruto,
+            'refinado' => $refinado,
+            'minerais' => $minerais,
+            'total' => $bruto + $refinado + array_sum($minerais),
+        ];
     }
 
     /** O butim total, em unidades. Atalho de `saqueDetalhado()`. */

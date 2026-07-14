@@ -93,6 +93,17 @@ class Funcoes
             'efeito' => 'produz',
             'nota' => 'Pode ser repetida em mais de um slot: duas Minas produzem o dobro (D-59).',
         ],
+        'industria_siderurgica' => [
+            'frase' => 'Não está no GDD — construção nova, pedida pelo usuário (D-82).',
+            'fonte' => '—',
+            'efeito' => 'converte',
+            'nota' => 'Processa Metal Bruto em Ligas Metálicas e nos cinco minerais eletrônicos que, '
+                . 'na Temporada 1, só o governo extrai (§4.3) — arbitragem consciente, não lacuna. A '
+                . 'cada 1000 Metal Bruto: 350 Ligas, 35 Alumínio, 30 Cobre, 20 Estanho, 4 Ouro, 1 '
+                . 'Tungstênio. Só credita em lotes inteiros de 1000; o resto fica guardado para o '
+                . 'próximo tick. Taxa de processamento igual à Mina Local, nível a nível. Pode ser '
+                . 'repetida em mais de um slot (D-59): duas somam produção.',
+        ],
         'destilaria' => [
             'frase' => 'Converte 2 Biomassas + 3 Energias em 1 Biocombustível. A conversão não tem '
                 . 'receita alternativa: a taxa é fixa.',

@@ -99,6 +99,10 @@ class ZoneController extends Controller
                 // O que a Refinaria de Campo já converteu. Ocupa o mesmo Depósito (D-67).
                 'refinado' => $zone->refined_amount,
                 'refinado_recurso' => $zone->recursoRefinado(),
+                // Os cinco minerais eletrônicos da Indústria Siderúrgica (D-82) — mesmo Depósito,
+                // mesma capacidade, mesmo saque. Só os que já têm alguma coisa aparecem.
+                'minerais' => $zone->minerais()->where('amount', '>', 0)
+                    ->orderBy('resource_type')->get(['resource_type', 'amount']),
                 'capacidade' => $zone->capacidadeDeposito(),
                 // ⚠️ O que a guerra pode levar. Só o que EXCEDE a capacidade é saqueável (D-66):
                 // o Depósito é o cofre, e o que transborda é butim.

@@ -8,6 +8,7 @@ use App\Domain\Logistics\ConcluirTrechos;
 use App\Domain\Zona\ConcluirObrasDaZona;
 use App\Domain\Zona\ConstruirNaZona;
 use App\Domain\Zona\Estruturas;
+use App\Domain\Zona\ProcessarSiderurgicaNaZona;
 use App\Domain\Zona\RefinarNaZona;
 use App\Exceptions\DomainRuleException;
 use App\Models\Colony;
@@ -305,6 +306,137 @@ class ZonaLugarTest extends TestCase
         $this->assertSame(200, $zona->fresh()->refined_amount);
     }
 
+    /** Os minerais da Indústria Siderúrgica (D-82) também podem ser retirados por veículo. */
+    public function test_os_minerais_da_siderurgica_podem_ser_retirados_da_zona(): void
+    {
+        $colono = $this->colono();
+        $zona = $this->zonaDe($colono, ['industry_level' => 1]);
+        \App\Models\ZoneMineral::create(['zone_id' => $zona->id, 'resource_type' => 'ouro', 'amount' => 10]);
+
+        app(\App\Domain\Logistics\DespacharVeiculo::class)->retirarDeZona(
+            $colono, $colono->vehicles()->first(), $zona, ['ouro' => 6],
+        );
+
+        $this->assertSame(4, $zona->fresh()->minerais()->where('resource_type', 'ouro')->value('amount'));
+    }
+
+    /** Sem Indústria Siderúrgica na zona, os minerais dela não são um recurso retirável. */
+    public function test_nao_se_retira_mineral_sem_a_siderurgica(): void
+    {
+        $colono = $this->colono();
+        $zona = $this->zonaDe($colono);   // industry_level = 0
+
+        $this->expectException(DomainRuleException::class);
+        $this->expectExceptionMessageMatches('/não há ouro/');
+
+        app(\App\Domain\Logistics\DespacharVeiculo::class)->retirarDeZona(
+            $colono, $colono->vehicles()->first(), $zona, ['ouro' => 1],
+        );
+    }
+
+    // ── a Indústria Siderúrgica (D-82) — construção nova, não está no GDD ─────────────────────────
+
+    /** Um lote exato: o depósito tinha exatamente 1000, e os seis produtos saem redondos. */
+    public function test_a_siderurgica_da_zona_processa_um_lote_exato(): void
+    {
+        $colono = $this->colono();
+        $zona = $this->zonaDe($colono, [
+            'industry_level' => 1, 'deposit_amount' => 1000,
+            'occupied_at' => now()->subDays(30), 'productive_at' => now()->subDays(20),
+        ]);
+
+        app(ProcessarSiderurgicaNaZona::class)->handle(now());
+
+        $zona = $zona->fresh();
+        $this->assertSame(0, $zona->deposit_amount);
+        $this->assertSame(350, $zona->refined_amount);   // Ligas — o MESMO pote da Refinaria
+
+        $minerais = $zona->minerais->keyBy('resource_type');
+        $this->assertSame(35, $minerais['aluminio']->amount);
+        $this->assertSame(30, $minerais['cobre']->amount);
+        $this->assertSame(20, $minerais['estanho']->amount);
+        $this->assertSame(4, $minerais['ouro']->amount);
+        $this->assertSame(1, $minerais['tungstenio']->amount);
+    }
+
+    /** Só zonas de Metal Bruto (Nordeste) — noutro distrito, fica inerte mesmo com nível. */
+    public function test_a_siderurgica_so_processa_zona_de_metal_bruto(): void
+    {
+        $colono = $this->colono();
+        $zona = $this->zonaDe($colono, [
+            'district' => 'SE', 'mineral' => 'agua',
+            'industry_level' => 1, 'deposit_amount' => 5000,
+            'occupied_at' => now()->subDays(30), 'productive_at' => now()->subDays(20),
+        ]);
+
+        app(ProcessarSiderurgicaNaZona::class)->handle(now());
+
+        $zona = $zona->fresh();
+        $this->assertSame(5000, $zona->deposit_amount);
+        $this->assertSame(0, $zona->refined_amount);
+        $this->assertCount(0, $zona->minerais);
+    }
+
+    /**
+     * Convive com a Refinaria de Campo, disputando o MESMO depósito — decisão do usuário. As duas
+     * rodam no mesmo tick (`TickColonies`), e a ordem decide quem leva mais.
+     */
+    public function test_a_siderurgica_convive_com_a_refinaria_no_mesmo_deposito(): void
+    {
+        $colono = $this->colono();
+        $zona = $this->zonaDe($colono, [
+            'refinery_level' => 1, 'industry_level' => 1, 'deposit_amount' => 3000,
+            'occupied_at' => now()->subDays(30), 'productive_at' => now()->subDays(20),
+            'last_refine_at' => now()->subDays(30),
+        ]);
+
+        // A Refinaria primeiro (mesma ordem do TickColonies): 50/h × 30 dias satura, limitada pelo
+        // depósito. 2 primários por secundário — consome tudo que puder em pares.
+        app(RefinarNaZona::class)->handle(now());
+        $apósRefinaria = $zona->fresh()->deposit_amount;
+        $this->assertLessThan(3000, $apósRefinaria, 'a Refinaria já deve ter consumido parte');
+
+        app(ProcessarSiderurgicaNaZona::class)->handle(now());
+        $zona = $zona->fresh();
+
+        // A Siderúrgica só teve o que sobrou depois da Refinaria — o depósito não pode ter subido.
+        $this->assertLessThanOrEqual($apósRefinaria, $zona->deposit_amount);
+        // Ligas vieram das DUAS: a Refinaria (2:1) e a Siderúrgica (350 por lote) somam no mesmo pote.
+        $this->assertGreaterThan(0, $zona->refined_amount);
+    }
+
+    /** A Indústria Siderúrgica se ergue pelo canteiro, como qualquer outra estrutura de zona. */
+    public function test_a_siderurgica_se_ergue_pelo_canteiro(): void
+    {
+        $colono = $this->colono();
+        $zona = $this->zonaDe($colono);
+
+        $this->encherCanteiro($zona, ['ligas_metalicas' => 38, 'compostos_quimicos' => 13]);
+
+        $this->actingAs($colono->user)
+            ->postJson("/zones/{$zona->id}/build", ['structure' => 'industria_siderurgica'])
+            ->assertCreated();
+
+        $this->assertTrue($zona->fresh()->obraEmCurso());
+    }
+
+    /** Cercada, a Siderúrgica para junto com o depósito — mesma regra da Refinaria de Campo. */
+    public function test_a_siderurgica_para_sob_cerco(): void
+    {
+        $colono = $this->colono();
+        $zona = $this->zonaDe($colono, [
+            'industry_level' => 1, 'deposit_amount' => 2000,
+            'occupied_at' => now()->subDays(30), 'productive_at' => now()->subDays(20),
+            'sieged_at' => now()->subHour(),
+        ]);
+
+        app(ProcessarSiderurgicaNaZona::class)->handle(now());
+
+        $zona = $zona->fresh();
+        $this->assertSame(2000, $zona->deposit_amount);
+        $this->assertSame(0, $zona->refined_amount);
+    }
+
     // ── a Torre de Vigia avisa ──────────────────────────────────────────────────────────────────
 
     /**
@@ -376,6 +508,23 @@ class ZonaLugarTest extends TestCase
             ->assertJsonPath('estruturas.11.inerte', true)
             // E não sobrou nada do §17.4 marcado como "buraco" — o D-79 fechou a lista.
             ->assertJsonPath('ausentes', []);
+    }
+
+    /** A ficha da zona publica os minerais da Indústria Siderúrgica junto do resto do depósito. */
+    public function test_a_ficha_da_zona_publica_os_minerais(): void
+    {
+        $colono = $this->colono();
+        $zona = $this->zonaDe($colono);
+        \App\Models\ZoneMineral::create(['zone_id' => $zona->id, 'resource_type' => 'ouro', 'amount' => 7]);
+        \App\Models\ZoneMineral::create(['zone_id' => $zona->id, 'resource_type' => 'cobre', 'amount' => 0]);
+
+        $this->actingAs($colono->user)
+            ->getJson("/zones/{$zona->id}")
+            ->assertOk()
+            // Só o que tem alguma coisa aparece — cobre, com zero, fica de fora.
+            ->assertJsonCount(1, 'deposito.minerais')
+            ->assertJsonPath('deposito.minerais.0.resource_type', 'ouro')
+            ->assertJsonPath('deposito.minerais.0.amount', 7);
     }
 
     public function test_a_zona_alheia_nao_se_abre(): void

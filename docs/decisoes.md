@@ -3448,3 +3448,92 @@ Pedido do usuário: poder clicar no nick de quem fala no Chat. Duas ações, e c
   uma fala semeada da vizinha no Global (`tools/e2e.sh`) — e `ChatMessage` não tem timestamps
   automáticos (`$timestamps = false`), então o `created_at` do seed é à mão; esquecê-lo derruba o
   resto do seeder em cascata (fica registrado na Verificação rápida também).
+
+## D-82 — A Indústria Siderúrgica: construção nova, não está no GDD.
+**Data:** 2026-07-15 · **Status:** arbitrado pelo usuário · **GDD: não fala dela — é adição pura**
+
+Pedido do usuário: uma construção nova, na colônia e na zona neutra, que processa Metal Bruto em
+Ligas Metálicas e nos cinco minerais eletrônicos — a cada 1000 Metal Bruto: 350 Ligas, 35 Alumínio,
+30 Cobre, 20 Estanho, 4 Ouro, 1 Tungstênio. Taxa de processamento no nível 1 igual à Mina Local
+nível 1; custo 25% maior que a Mina, em cada nível.
+
+### A contradição, e a decisão de propósito
+
+O §4.3 do GDD é explícito: Alumínio, Cobre, Estanho, Ouro e Tungstênio são "minerais eletrônicos
+(governo inicial)" — oito frentes de mineração **governamentais**, uma por mineral, com oferta
+pública no Mercado, e "**na Temporada 1, jogadores não extraem esses minerais**". A Indústria
+Siderúrgica faz exatamente isso. **O usuário confirmou: quebra essa regra de propósito** — é a
+mesma família de arbitragem do tributo (D-32) e do Ministério dos Transportes (D-60): o texto diz
+uma coisa, o jogo faz outra, e a divergência fica registrada, não escondida.
+
+### As arbitragens de mecânica (nenhuma no GDD — tudo decisão)
+
+1. **Só lotes inteiros de 1000.** A receita tem seis saídas simultâneas; um lote fracionado
+   deixaria alguma delas sem unidade pra creditar (a taxa do nível 1, 15 Metal Bruto/h, dá só
+   0,015 Tungstênio/h — em qualquer tick isolado, sempre zero). A solução: o excedente que não
+   fecha lote fica guardado — `colonies.siderurgica_lote_remainder` na colônia (mesmo padrão de
+   `production_remainder`, mas rastreando progresso rumo ao próximo lote, não fração de recurso);
+   o relógio próprio da zona (`last_industry_at`, avança só pelo tempo que o gasto consumiu) na
+   zona, mesmo padrão da `RefinarNaZona` (D-67).
+2. **Repetível, como a Mina** (D-59): mais de uma cópia, na colônia ou na zona, soma a taxa de
+   processamento.
+3. **Só zonas de Metal Bruto (Nordeste).** Nas outras (Água, Oxigênio, Biomassa), fica inerte —
+   não há Metal Bruto para processar ali. Buildable em qualquer zona, como as três do D-79; a
+   inércia vem da receita, não de uma trava nova por distrito.
+4. **Convive com a Refinaria de Campo, disputando o MESMO depósito.** As duas leem e escrevem
+   `deposit_amount`, cada uma com o seu relógio; quem chegar primeiro no tick leva. O
+   `TickColonies` roda a Refinaria antes, de propósito — a ordem em que aparecem ali é a ordem em
+   que competem.
+5. **Ligas Metálicas vai para `refined_amount`** — o MESMO pote da Refinaria de Campo, porque é o
+   mesmo recurso. Os cinco minerais precisaram de armazenamento novo: nasce `zone_minerals`
+   (zone_id, resource_type, amount), mesmo padrão de `zone_materials` (o canteiro, D-67).
+6. **Mesmo Depósito, mesma capacidade, mesmo saque** (decisão do usuário): os minerais contam no
+   MESMO teto de `capacidadeDeposito()` que tudo o mais na zona, e ficam expostos ao mesmo saque de
+   guerra. `Protegido::estoqueTotal()`/`saqueDetalhado()` passam a somar `zone_minerals` também —
+   a repartição do butim agora é proporcional a QUALQUER número de potes (bruto, refinado, cada
+   mineral), do mais valioso ao menos, cada um absorvendo o arredondamento do que vem depois.
+
+### O custo — derivado da Mina, mas pela regra da CURVA, não por multiplicação nível a nível
+
+⚠️ **Achado ao rodar os testes:** `GddSpecsTest` exige que o custo de TODA construção siga
+`half-up(base_do_nível_1 × 1,65^(nível−1))` — um invariante estrutural do projeto, não específico
+de nenhuma tabela do GDD. Calcular "o custo de cada nível da Mina × 1,25" independentemente
+(arredondando cada nível à parte) **não** reproduz essa curva a partir de uma base única — os dois
+métodos divergem em até 1 unidade em alguns níveis (Compostos Químicos nível 3: 34 pela primeira
+conta, 35 pela curva). A correção: só a BASE do nível 1 é `half-up(Mina_nível1 × 1,25)`; os níveis
+2–5 saem da curva padrão a partir dessa base — como toda outra construção do jogo. Tempo de
+construção segue à parte (não está em `build_time_bases.json`, então o teste de curva de tempo não
+a alcança): é `half-up(tempo_da_Mina × 1,25)` nível a nível, direto — todos os cinco valores
+saíram exatos, sem arredondamento fracionário.
+
+| Nível | Taxa (Metal Bruto/h) | Custo | Tempo |
+|---|---|---|---|
+| 1 | 15 | 38 Ligas + 13 Compostos | 17,5 min |
+| 2 | 22 | 63 Ligas + 21 Compostos | 26,25 min |
+| 3 | 34 | 103 Ligas + 35 Compostos | 40 min |
+| 4 | 51 | 171 Ligas + 58 Compostos | 58,75 min |
+| 5 | 76 | 282 Ligas + 96 Compostos | 88,75 min |
+
+### O que mudou no código
+
+- `App\Domain\Production\Siderurgica`: as constantes da receita (insumo, base, saídas), namespace
+  compartilhado entre a colônia e a zona — uma fonte só.
+- Colônia: migration `industria_siderurgica_na_colonia` (`colonies.siderurgica_lote_remainder`);
+  `ColonyTick::processarSiderurgica()`; `industria_siderurgica` entra em `Building::PROGRESSAO` e
+  `Building::REPETIVEIS`.
+- Zona: migration `industria_siderurgica_na_zona` (`neutral_zones.industry_level`,
+  `last_industry_at`; tabela `zone_minerals`); `App\Domain\Zona\ProcessarSiderurgicaNaZona`; entra
+  em `Estruturas::COLUNA`/`CONSTRUIVEIS`/`TABELA` (com `'gdd' => 'Não está no GDD...'`, seguindo o
+  mesmo padrão honesto do D-79/D-81).
+- `DespacharVeiculo::retirarDeZona()` aceita os cinco minerais como recurso retirável quando a zona
+  tem Indústria Siderúrgica; `ZoneController::show()` publica `deposito.minerais`.
+- `ResolverCombates::saquear()` credita os minerais saqueados na colônia atacante e debita de
+  `zone_minerals` — mesmo padrão do bruto/refinado.
+- Frontend: nova área na planta da Zona; o Depósito lista os minerais presentes; formulário de
+  retirada generalizado para QUALQUER recurso disponível no Depósito (bruto, refinado, minerais) —
+  antes só existia para o refinado ficar preso, sem forma de retirá-lo pela tela; agora os três
+  saem juntos. `entregarMaterial`/`retirarDeZona` passam a devolver tipo e placa do veículo, mesma
+  razão do D-80.
+
+Migrations ensaiadas nos dois sentidos no `fertwaysdev` (MariaDB) antes de publicar. e2e estendido
+(`zonas.e2e.mjs`) para a área nova.

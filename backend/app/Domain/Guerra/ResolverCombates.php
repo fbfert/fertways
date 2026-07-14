@@ -339,6 +339,7 @@ class ResolverCombates
             'saque' => $butim['total'],
             'saque_bruto' => $butim['bruto'],
             'saque_refinado' => $butim['refinado'],
+            'saque_minerais' => $butim['minerais'],
             'mineral' => $zona->mineral,
             'rodadas' => $combate->rodada,
         ]);
@@ -543,6 +544,7 @@ class ResolverCombates
             'saque' => $butim['total'],
             'saque_bruto' => $butim['bruto'],
             'saque_refinado' => $butim['refinado'],
+            'saque_minerais' => $butim['minerais'],
             'mineral' => $zona->mineral,
             'rodadas' => $combate->rodada,
         ]);
@@ -653,14 +655,15 @@ class ResolverCombates
     /**
      * O butim, creditado na colônia do atacante e debitado da zona.
      *
-     * **Dois recursos, não um** (D-67): o minério bruto e o que a Refinaria de Campo já converteu. Os
-     * dois estão no mesmo Depósito e os dois são butim — refinar torna a carga mais valiosa, não mais
-     * segura. A repartição é proporcional ao que há de cada um.
+     * **Vários recursos, não um** (D-67, D-82): o minério bruto, o que a Refinaria de Campo já
+     * converteu, e os minerais que a Indústria Siderúrgica extraiu. Todos no mesmo Depósito, todos
+     * butim — refinar ou processar torna a carga mais valiosa, não mais segura. A repartição é
+     * proporcional ao que há de cada um.
      *
      * O exército carrega. Não exigimos veículo, e não cobramos tributo: saque não é entrega comercial,
      * e o §25.2 tributa comércio.
      *
-     * @return array{bruto: int, refinado: int, total: int}
+     * @return array{bruto: int, refinado: int, minerais: array<string,int>, total: int}
      */
     private function saquear(Combat $combate, NeutralZone $zona, int $bps, string $ref): array
     {
@@ -694,6 +697,25 @@ class ResolverCombates
             ]);
 
             $zona->decrement($coluna, $qtd);
+        }
+
+        foreach ($butim['minerais'] as $recurso => $qtd) {
+            if ($qtd <= 0) {
+                continue;
+            }
+
+            $atacante->resources()->where('resource_type', $recurso)->increment('amount', $qtd);
+
+            Ledger::create([
+                'colony_id' => $atacante->id,
+                'type' => 'saque_de_guerra',
+                'amount' => $qtd,
+                'resource_type' => $recurso,
+                'ref' => "zona:{$zona->id}:{$ref}",
+                'created_at' => now(),
+            ]);
+
+            $zona->minerais()->where('resource_type', $recurso)->decrement('amount', $qtd);
         }
 
         return $butim;

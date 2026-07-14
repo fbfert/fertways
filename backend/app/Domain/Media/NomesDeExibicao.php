@@ -53,6 +53,8 @@ class NomesDeExibicao
             'mina_local' => 'Mina Local',
             'destilaria' => 'Destilaria',
             'tanque_de_combustivel' => 'Tanque de Combustível',
+            // Não está no GDD — construção nova, pedida pelo usuário (D-82).
+            'industria_siderurgica' => 'Indústria Siderúrgica',
 
             // As estruturas da zona neutra (§17.4, D-66, D-67 e D-79).
             'posto_de_comando' => 'Posto de Comando',

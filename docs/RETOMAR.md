@@ -824,6 +824,41 @@ migration — só leitura do que já é público em `GET /colonies`. e2e novo (`
 
 Todas as migrations ensaiadas nos dois sentidos no `fertwaysdev` (MariaDB) antes de publicar.
 
+## A Indústria Siderúrgica (D-82) — **ainda NÃO publicado** (2026-07-15)
+
+Construção nova, pedida pelo usuário — **não está no GDD**. Existe na colônia e na zona neutra:
+processa Metal Bruto em Ligas Metálicas e nos cinco minerais eletrônicos, a cada 1000 processado:
+350 Ligas, 35 Alumínio, 30 Cobre, 20 Estanho, 4 Ouro, 1 Tungstênio. Taxa de processamento igual à
+Mina Local, nível a nível; custo 25% maior que a Mina, em cada nível; repetível como a Mina (D-59).
+
+⚠️ **Quebra de propósito o §4.3 do GDD**, que reserva esses cinco minerais só ao governo na
+Temporada 1 ("jogadores não extraem esses minerais"). **Confirmado pelo usuário** — mesma família
+de arbitragem do tributo (D-32) e do Ministério dos Transportes (D-60). Ver **D-82** em
+`docs/decisoes.md` para o raciocínio completo, a tabela de custo/taxa por nível, e a lição sobre a
+curva de custo (`GddSpecsTest` exige `half-up(base × 1,65^n)` a partir de uma base única — "Mina ×
+1,25 nível a nível" diverge da curva em até 1 unidade em alguns níveis; a base do nível 1 é que
+leva o ×1,25, e o resto sai da curva padrão).
+
+Na zona, só funciona em Metal Bruto (Nordeste) e **disputa o mesmo depósito que a Refinaria de
+Campo** — decisão do usuário, quem chegar primeiro no tick leva. Ligas vai para `refined_amount`
+(o mesmo pote da Refinaria); os cinco minerais precisaram de armazenamento novo (`zone_minerals`),
+porque a zona só tinha lugar para dois recursos. Contam no MESMO teto de capacidade e ficam
+expostos ao MESMO saque de tudo o mais — `Protegido` agora reparte butim entre qualquer número de
+potes, não só dois.
+
+De quebra, a retirada por veículo (Mapa/Zona) que só sabia buscar o minério bruto agora busca
+qualquer coisa que esteja no Depósito — bruto, refinado, minerais —, o que também destravou uma
+lacuna antiga: o refinado da Refinaria de Campo não tinha como sair da zona pela tela. E
+`entregarMaterial`/`retirarDeZona` passam a dizer tipo e placa do veículo, mesma razão do D-80.
+
+Migrations `industria_siderurgica_na_colonia` e `industria_siderurgica_na_zona`, ensaiadas nos dois
+sentidos no `fertwaysdev` (MariaDB), inclusive as duas juntas em sequência. **550 testes PHP** —
+549 verdes, a mesma falha pré-existente e não relacionada de Missões. **e2e: os oito arquivos,
+todos verdes**, com a Indústria Siderúrgica coberta em `zonas.e2e.mjs`.
+
+⚠️ **Ainda não publicado nem comitado.** Falta: `git add`/commit (como `fertways`, não como root),
+`git push`, e `sudo ./tools/deploy.sh`.
+
 ## O trabalho anterior: zonas neutras + Drone (D-52)
 
 Leia **D-52**. Sequência decidida: Fatia 1 = o núcleo (ocupar/extrair/retirar); Fatia 2 = a guerra

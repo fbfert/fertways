@@ -57,6 +57,7 @@ class NeutralZone extends Model
         'refinery_level', 'parking_level', 'cemetery_level',
         'extraction_level', 'communication_level', 'landing_pad_level',
         'refined_amount', 'last_refine_at',
+        'industry_level', 'last_industry_at',
         'sieged_at', 'modules_offline',
     ];
 
@@ -87,6 +88,7 @@ class NeutralZone extends Model
         'communication_level' => 0,
         'landing_pad_level' => 0,
         'refined_amount' => 0,
+        'industry_level' => 0,
     ];
 
     protected $casts = [
@@ -112,6 +114,8 @@ class NeutralZone extends Model
         'landing_pad_level' => 'integer',
         'refined_amount' => 'integer',
         'last_refine_at' => 'datetime',
+        'industry_level' => 'integer',
+        'last_industry_at' => 'datetime',
         'sieged_at' => 'datetime',
         'modules_offline' => 'array',
     ];
@@ -154,6 +158,15 @@ class NeutralZone extends Model
         return $this->hasMany(ZoneBuild::class, 'zone_id');
     }
 
+    /**
+     * Os cinco minerais eletrônicos que a Indústria Siderúrgica produz (D-82). Ligas Metálicas
+     * NÃO está aqui — vai para `refined_amount`, o mesmo pote da Refinaria de Campo.
+     */
+    public function minerais(): HasMany
+    {
+        return $this->hasMany(ZoneMineral::class, 'zone_id');
+    }
+
     public function obraEmCurso(): bool
     {
         return $this->obras()->exists();
@@ -188,9 +201,14 @@ class NeutralZone extends Model
      * Os dois ocupam o **mesmo** Depósito, e é sobre este total que a capacidade decide o que está
      * protegido do saque (D-66). Refinar não esconde recurso do inimigo — só o torna mais valioso.
      */
+    /**
+     * O bruto, o refinado (Refinaria de Campo) e os cinco minerais da Indústria Siderúrgica
+     * (D-82) — todos no MESMO Depósito, mesma capacidade, mesmo saque. `zone_minerals` é onde os
+     * minerais moram; sem eles, `sum()` de uma coleção vazia já dá 0 (não precisa de `?? 0`).
+     */
     public function estoqueTotal(): int
     {
-        return $this->deposit_amount + $this->refined_amount;
+        return $this->deposit_amount + $this->refined_amount + $this->minerais->sum('amount');
     }
 
     /** A zona está cercada? O cerco fecha a entrada e a saída de carga (§28.10, D-66). */

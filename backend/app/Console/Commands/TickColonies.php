@@ -7,6 +7,7 @@ use App\Domain\Logistics\ConcluirTrechos;
 use App\Domain\Guerra\ChegarReforcos;
 use App\Domain\Guerra\ResolverCombates;
 use App\Domain\Zona\ConcluirObrasDaZona;
+use App\Domain\Zona\ProcessarSiderurgicaNaZona;
 use App\Domain\Zona\RefinarNaZona;
 use App\Domain\Logistics\ExtrairZonasNeutras;
 use App\Domain\Transport\FabricarCaminhoes;
@@ -50,6 +51,7 @@ class TickColonies extends Command
         ResolverCombates $combates,
         ChegarReforcos $reforcos,
         RefinarNaZona $refinarias,
+        ProcessarSiderurgicaNaZona $siderurgicas,
         ConcluirObrasDaZona $obras,
         \App\Domain\Drone\ConcluirMissoes $drones,
         \App\Domain\Chat\PurgarMensagens $chat,
@@ -158,7 +160,15 @@ class TickColonies extends Command
         $obrasFeitas = $obras->handle($agora);
         $refinadas = $refinarias->handle($agora);
 
-        $this->info("tick: {$processadas} colônias, {$falhas} falhas, {$zonas} proteções expiradas, {$extraidas} zonas extraídas, {$entregas} trechos concluídos, {$vencidos} acordos vencidos, {$reatribuidos} casos reatribuídos, {$encerrados} casos encerrados, {$salarios} salários pagos, {$prontos} caminhões prontos, {$encomendados} encomendados, {$cobrados} horas de pátio cobradas, {$rebocados} rebocados, {$batalhas} batalhas, {$chegaram} reforços chegados, {$obrasFeitas} obras de zona, {$refinadas} zonas refinaram, {$missoes} pernas de drone, {$purgadas} mensagens purgadas");
+        /*
+         * A Indústria Siderúrgica (D-82, construção nova, não está no GDD) **disputa o mesmo
+         * depósito** que a Refinaria acabou de consumir — decisão do usuário: quem chegar primeiro
+         * no tick leva. Roda DEPOIS da Refinaria, de propósito: a ordem em que as duas aparecem
+         * aqui é a ordem em que competem pelo Metal Bruto restante.
+         */
+        $processadasSiderurgica = $siderurgicas->handle($agora);
+
+        $this->info("tick: {$processadas} colônias, {$falhas} falhas, {$zonas} proteções expiradas, {$extraidas} zonas extraídas, {$entregas} trechos concluídos, {$vencidos} acordos vencidos, {$reatribuidos} casos reatribuídos, {$encerrados} casos encerrados, {$salarios} salários pagos, {$prontos} caminhões prontos, {$encomendados} encomendados, {$cobrados} horas de pátio cobradas, {$rebocados} rebocados, {$batalhas} batalhas, {$chegaram} reforços chegados, {$obrasFeitas} obras de zona, {$refinadas} zonas refinaram, {$processadasSiderurgica} zonas com siderúrgica, {$missoes} pernas de drone, {$purgadas} mensagens purgadas");
 
         return $falhas > 0 ? self::FAILURE : self::SUCCESS;
     }

@@ -159,6 +159,7 @@ class ColonyTick
         $taxas = [];
         $consumoEnergia = 0;
         $taxaDestilaria = 0;
+        $taxaSiderurgica = 0;
         // Componentes por receita: cada Oficina escolhe a sua (§24.5), e duas Oficinas com
         // receitas diferentes consomem insumos diferentes. Somar as taxas antes de saber a
         // receita misturaria as duas contas.
@@ -175,6 +176,13 @@ class ColonyTick
 
             if ($tipo === 'destilaria') {
                 $taxaDestilaria += $producao['biocombustivel'];
+                continue;
+            }
+
+            if ($tipo === 'industria_siderurgica') {
+                // O JSON reaproveita a chave `metal_bruto` da Mina, mas aqui é o que ela
+                // PROCESSA por hora, não o que produz (D-82) — por isso o tratamento à parte.
+                $taxaSiderurgica += $producao[Siderurgica::INSUMO] ?? 0;
                 continue;
             }
 
@@ -209,6 +217,10 @@ class ColonyTick
         // Destilaria acabou de produzir neste mesmo segmento.
         if ($taxaDestilaria > 0) {
             $this->converter($estoque, $taxaDestilaria * $segundos, self::RECEITA_DESTILARIA, 'biocombustivel');
+        }
+
+        if ($taxaSiderurgica > 0) {
+            $this->processarSiderurgica($colony, $estoque, $taxaSiderurgica, $segundos);
         }
 
         // Uma conversão por receita em uso. Duas Oficinas na mesma receita entram somadas; em
@@ -276,6 +288,51 @@ class ColonyTick
         }
 
         $this->acumular($estoque[$saida], $possivel);
+    }
+
+    /**
+     * A Indústria Siderúrgica processa Metal Bruto em Ligas Metálicas e nos cinco minerais
+     * eletrônicos (D-82) — mas só em LOTES INTEIROS de `Siderurgica::BASE` (1000): a receita tem
+     * seis saídas simultâneas, e um lote fracionado deixaria alguma delas sem unidade inteira
+     * pra creditar.
+     *
+     * Por isso não é `converter()` comum: o excedente que não fecha um lote fica guardado em
+     * `colonies.siderurgica_lote_remainder` — como o `production_remainder` de cada recurso, só
+     * que o que se acumula aqui é PROGRESSO RUMO AO PRÓXIMO LOTE, não uma fração de unidade. Sem
+     * isto, uma taxa de 15 Metal Bruto/h (0,015 Tungstênio/h) nunca acumularia Tungstênio nenhum:
+     * cada tick isolado processa bem menos que os 1000 de um lote.
+     */
+    private function processarSiderurgica(Colony $colony, $estoque, int $taxaPorHora, int $segundos): void
+    {
+        if (! isset($estoque[Siderurgica::INSUMO])) {
+            return;
+        }
+
+        $insumo = $estoque[Siderurgica::INSUMO];
+        $desejado = $taxaPorHora * $segundos;
+        $disponivel = $insumo->amount * 3600 + $insumo->production_remainder;
+        $possivel = min($desejado, $disponivel);
+
+        if ($possivel <= 0) {
+            return;
+        }
+
+        $this->acumular($insumo, -$possivel);
+
+        $loteNumerador = Siderurgica::BASE * 3600;
+        $total = $possivel + $colony->siderurgica_lote_remainder;
+        $lotes = intdiv($total, $loteNumerador);
+        $colony->siderurgica_lote_remainder = $total % $loteNumerador;
+
+        if ($lotes <= 0) {
+            return;
+        }
+
+        foreach (Siderurgica::SAIDAS as $recurso => $porLote) {
+            if (isset($estoque[$recurso])) {
+                $this->acumular($estoque[$recurso], $lotes * $porLote * 3600);
+            }
+        }
     }
 
     /**

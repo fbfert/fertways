@@ -293,5 +293,25 @@
       }
     },
     "consumo_energia": {}
+  },
+  "industria_siderurgica": {
+    "producao": {
+      "1": {
+        "metal_bruto": 15
+      },
+      "2": {
+        "metal_bruto": 22
+      },
+      "3": {
+        "metal_bruto": 34
+      },
+      "4": {
+        "metal_bruto": 51
+      },
+      "5": {
+        "metal_bruto": 76
+      }
+    },
+    "consumo_energia": {}
   }
 }
