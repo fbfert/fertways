@@ -492,6 +492,26 @@ concêntrico do D-51** (`2a71a1c`), o `fix` da fila do D-53 e as telas do D-54.)
 > de verdade — `artisan migrate` e `artisan migrate:rollback`, os dois. Está na Verificação rápida.
 > O verde do `artisan test` **não é evidência** sobre DDL.
 
+> **Lição registrada (2026-07-14) — a mesma doença do D-59, em nova roupa: largura de coluna, não
+> ordem de índice.** O usuário reportou "Server Error" ao clicar "Comprar" no Ministério dos
+> Transportes. Causa: `vehicles.trip_purpose` nasceu `VARCHAR(12)` em 09/07 (só existiam `entrega` e
+> `retirada`); o D-60 (12/07) passou a gravar `entrega_de_fabrica` — **19 caracteres** — e ninguém
+> alargou a coluna. Em produção (MariaDB, modo estrito), a gravação é recusada
+> (`1406 Data too long for column`), a transação sofre rollback (limpo: nenhum Fert$ perdido, nenhum
+> caminhão fantasma) e o colono só vê "Server Error".
+>
+> **`test_comprar_debita_o_fert_e_o_caminhao_vem_dirigindo` passava, e sempre passou**, incluindo
+> `assertSame('entrega_de_fabrica', $caminhao->trip_purpose)` — porque roda em SQLite, que não aplica
+> largura de `VARCHAR`. **Ninguém em produção jamais comprou um Caminhão de Carga com sucesso**: o
+> `Ledger` de `compra_veiculo` está em zero desde que o Ministério foi ao ar (conferido por leitura,
+> 2026-07-14).
+>
+> Corrigido: migration `trip_purpose_estava_curto_demais`, coluna para `VARCHAR(32)` (mesma largura
+> de `structure`/`resource_type`), ensaiada nos dois sentidos no `fertwaysdev`. **A regra do D-59 vale
+> de novo, mais ampla:** o SQLite dos testes não aplica FK-antes-de-índice **nem largura de coluna**.
+> Qualquer valor de string novo que um domínio passe a gravar merece conferir a largura da coluna no
+> MariaDB — não só rodar a migration.
+
 > **Lição registrada (2026-07-10).** Ao conferir o D-53 em produção, enfileirei uma construção de
 > teste na colônia 4 pelo `EnqueueUpgrade`. Funcionou, mas escrever no banco de produção "para ver
 > com os próprios olhos" deixou resíduo: item de fila, marca de upgrade na Oficina e **seis
@@ -757,32 +777,35 @@ moldes (5 tutoria + 33 diárias + 8 semanais), conferidos por leitura. Se um dia
 
 **528 testes PHP (3775 asserções) + 7 e2e, verdes** no momento do deploy.
 
-## As três últimas estruturas de zona (D-79) — **ainda NÃO publicado** (2026-07-14)
+## A sessão de 2026-07-14: D-79, D-80 e o `trip_purpose` — **no ar**
 
-Ao retomar a sessão, o usuário escolheu fechar a última pendência de custo/tempo da zona: **Estrutura
-de Extração, Central de Comunicação e Plataforma de Pouso (da zona)** — as três que o D-67 tinha
-deixado fora de escopo por falta de sistema que as acionasse. Decisão: custear mesmo assim, **inertes**
-de propósito, como o Cemitério de Robôs — erguem-se, custam, não fazem nada até Federação ou Nave de
-Transporte Planetária existirem. Ver **D-79** em `docs/decisoes.md` para o raciocínio completo e a
-tabela de custo/tempo.
+Três trabalhos, um deploy. **529+ testes PHP** — pré-existente e não relacionada segue **1 falha em
+Missões** (`MissoesTest::a_semanal_e_uma_por_semana_e_persiste`, confirmada com `git stash` antes de
+qualquer edição desta sessão — não investigada, não bloqueia). e2e de Zonas passa inteiro.
 
-`Estruturas::AUSENTES` fica **vazio**: as 12 estruturas de zona (Posto de Comando, Depósito, as 4 de
-defesa do D-66, e as 6 de produção/logística do D-67+D-79) têm todas custo e função declarados.
+**D-79 — as três últimas estruturas de zona.** Estrutura de Extração, Central de Comunicação e
+Plataforma de Pouso (da zona) — que o D-67 tinha deixado fora de escopo — ganham custo e tempo,
+**inertes** de propósito, como o Cemitério de Robôs. `Estruturas::AUSENTES` fica **vazio**: as 12
+estruturas de zona têm todas custo e função declarados. ⚠️ Colisão de nome: a Plataforma de Pouso da
+zona é entidade diferente da do slot principal da colônia — slug `plataforma_de_pouso_da_zona`.
+Migration `as_tres_ultimas_estruturas_da_zona`, três colunas em `neutral_zones`.
 
-⚠️ **Colisão de nome**: a "Plataforma de Pouso" da zona é uma entidade diferente da Plataforma de
-Pouso do slot principal da colônia (que já existia, com custo publicado). Ganhou o slug
-`plataforma_de_pouso_da_zona`.
+**D-80 — a zona ganha nome, e três queixas de UX.** A mensagem de despacho de material passa a dizer
+qual veículo (tipo + placa), o que ele leva e quando chega — antes só dizia "um veículo". O botão
+"Já há uma obra em curso" ganhou uma linha dizendo QUAL e QUANDO — a informação já existia lá embaixo,
+no Canteiro, só não estava onde a dúvida nasce. E a zona pode ser nomeada, como a colônia (`PATCH
+/zones/{id}/name`, texto livre, opcional, sem unicidade) — aparece no mapa, no popup e em "Minhas
+zonas". Migration `nome_da_zona_neutra`.
 
-**Migration `2026_07_14_120000_as_tres_ultimas_estruturas_da_zona.php`**, três colunas em
-`neutral_zones`, ensaiada nos dois sentidos no `fertwaysdev` (MariaDB) — idempotente, sem passo à mão.
-**529 testes PHP (3870 asserções)** — **528 verdes** (mais 1 teste novo) **e 1 falha pré-existente e
-não relacionada** (`MissoesTest::a_semanal_e_uma_por_semana_e_persiste`, confirmada com `git stash`
-antes de qualquer edição desta sessão — não investigada, não bloqueia). O e2e de Zonas passa inteiro,
-inclusive as três novas áreas. O GDD v36 foi regerado; a linha da
-seção 10 que dizia "9 estruturas restantes" desde antes do D-67 foi corrigida.
+⚠️ **`trip_purpose` estava curto demais, e quebrava TODA compra de Caminhão em produção desde o
+D-60 (12/07).** `VARCHAR(12)` não cabia `entrega_de_fabrica` (19 caracteres); o MariaDB recusava a
+gravação, a transação sofria rollback (limpo — nada perdido), e o colono via "Server Error". O teste
+que cobre isso sempre passou, porque roda em SQLite, que não aplica largura de coluna. **Confirmado
+por leitura em produção: zero compras de Caminhão bem-sucedidas desde sempre** (`Ledger` de
+`compra_veiculo` em zero). Corrigido: coluna para `VARCHAR(32)`. Ver a "Lição registrada
+(2026-07-14)" na Verificação rápida, logo abaixo da do D-59 — é a mesma família de bug.
 
-⚠️ **Ainda não publicado nem comitado.** Falta: `git add`/commit (como `fertways`, não como root — ver
-a lição do D-71 sobre posse de arquivo), `git push`, e `sudo ./tools/deploy.sh`.
+Todas as migrations ensaiadas nos dois sentidos no `fertwaysdev` (MariaDB) antes de publicar.
 
 ## O trabalho anterior: zonas neutras + Drone (D-52)
 
