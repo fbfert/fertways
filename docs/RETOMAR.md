@@ -888,48 +888,72 @@ verdes, a mesma falha pré-existente e não relacionada de Missões. Não mexe e
 muda mas o `building_specs` semeado continua com a taxa velha. Conferido por leitura depois: a
 Oficina sem `ligas_metalicas` no JSON, e a Refinaria Química com 2/3/5/7/10.
 
-## CI básica no GitHub Actions — **PR aberto, NÃO mesclado, NÃO publicado** (2026-07-14)
+## CI básica no GitHub Actions — **mesclada e no ar** (2026-07-15), commit `9915bef`
 
-Antes disto, o projeto não tinha nenhuma validação automática: cada mudança só era conferida à
-mão, do jeito descrito na "Verificação rápida" abaixo. Agora existe `.github/workflows/ci.yml`,
-branch **`chore/ci-basica`**, **PR #1 em modo draft** contra `main`
-(`https://github.com/fbfert/fertways/pull/1`) — **ninguém apertou "mesclar" ainda**.
+Existe `.github/workflows/ci.yml`, três jobs (`Backend / SQLite`, `Backend / MariaDB`,
+`Frontend / Lint e build`), documentados em `docs/ci.md`. PR #1
+(`https://github.com/fbfert/fertways/pull/1`) foi mesclado (squash) em `main` e publicado por
+`sudo ./tools/deploy.sh`.
 
-**Três jobs, `ubuntu-latest`, `permissions: contents: read`:**
+**O primeiro run real encontrou três bugs de produção de verdade** — o job MariaDB nunca tinha
+chegado a rodar até o fim antes disto (morria antes, ver abaixo), então a suíte nunca havia
+executado contra o banco que a produção de fato usa. Todos os quatro, corrigidos no mesmo commit
+que fechou o PR (`18aa7d4`, dentro do #1):
 
-- **Backend / SQLite** — `composer validate --strict` + `php artisan test` exatamente como já
-  roda hoje, via `backend/phpunit.xml` sem nenhuma alteração.
-- **Backend / MariaDB** — sobe `mariadb:10.5` como serviço (produção é `10.5.29`; não existe tag
-  oficial nesse patch exato, `10.5` é a mesma família e os mesmos defaults de `sql_mode`/
-  `explicit_defaults_for_timestamp` — sem override em `/etc/my.cnf.d` no VPS, conferido por
-  leitura). Banco **efêmero e descartável** `fertways_ci`/`fertways_ci` — **nada a ver com
-  `fertwaysbd` nem `fertwaysdev`**. Antes de qualquer comando destrutivo, **confere
-  mecanicamente** a conexão efetiva do Laravel (`database.default`, banco e host resolvidos em
-  runtime); só então roda `migrate:fresh` → `migrate:rollback` → `migrate` (prova o round-trip)
-  e a suíte inteira. Existe porque SQLite já escondeu bug real antes (D-08).
-- **Frontend / Lint e build** — `npm ci`, `npm run lint` (oxlint), `npm run build` (`tsc -b` +
-  Vite, typecheck de verdade).
+1. **`migrate:rollback` completo quebrava** em
+   `2026_07_12_120000_ministerio_dos_transportes.php`: o `down()` apagava a frota do governo via
+   `Vehicle::delete()` (Eloquent), que grava em `deleted_at`; numa rollback completa essa coluna
+   já tinha sido derrubada, porque a migration que deu `SoftDeletes` a `Vehicle` é posterior e
+   desfaz primeiro (ordem inversa). Só afetava rollback do zero — nunca aconteceu em produção,
+   que nunca reverte migrations. Trocado para `DB::table('vehicles')`, cru.
+2. **`GET /recipes` estava fora do ar em produção** (`BuildingController::recipes()`):
+   `orderBy('id')` num `component_recipes` cuja chave é `code`, sem coluna `id` nenhuma. SQLite
+   tolera a coluna inexistente nesta consulta; MariaDB — o banco real — não. Como a produção
+   sempre foi MariaDB, **este endpoint vinha devolvendo 500 desde que existe**, e ninguém tinha
+   notado porque nada no jogo chama `/recipes` num caminho óbvio de smoke test.
+3. **A ficha do jogador no painel de admin também estava quebrada em produção**
+   (`PainelController::jogador()`): a lista de denúncias consultava colunas `reporter_id`/
+   `accused_id`, que nunca existiram — o schema real é `reporter_colony_id`/`accused_colony_id`
+   (chave da colônia, não do usuário). Mesma causa: SQLite deixa passar, MariaDB recusa.
+   `/admin/jogadores/{id}` vinha dando 500 no operador desde o D-44 ou antes.
+4. Dois testes eram frágeis contra MariaDB por diferença real de motor, não por bug de app:
+   `AdminPortaTest` assumia `admin:1` (o `auto_increment` do MariaDB não recua com o rollback do
+   `RefreshDatabase` entre testes, o do SQLite recua) e `MissoesTest` chamava
+   `Janela::proximoDia()` sem congelar o relógio (perto da virada real de terça-noite/quarta-07h
+   o "dia seguinte" podia cair numa semana nova). Os dois passaram a pinar o estado real em vez
+   de assumi-lo.
 
-**O que NÃO faz, de propósito:** não roda `tools/e2e.sh` (caminhos fixos do VPS — `PHP_BINARY`
-e o `PATH` do Node do script não são parametrizáveis ainda; fase futura, documentada em
-`docs/ci.md`), não chama `tools/deploy.sh`, não usa runner self-hosted, não toca no VPS nem em
-segredo nenhum de produção. Detalhes completos, inclusive como diagnosticar um run vermelho, em
-`docs/ci.md`.
+**Validado antes de mesclar:** os quatro achados foram reproduzidos e corrigidos contra um
+`mariadb:10.5` **efêmero, em container local** (não o MySQL compartilhado de produção — ver
+[[fertways-nao-escrever-em-producao-para-testar]]) — round-trip completo
+`migrate:fresh`/`migrate:rollback`/`migrate` limpo, e as 552 tentativas de teste passando tanto
+contra esse MariaDB quanto contra SQLite. Depois de mesclado, os três jobs do Actions rodaram
+verdes no PR (`https://github.com/fbfert/fertways/actions/runs/29435326666`).
 
-**Validado localmente:** `composer validate --strict` OK; `php artisan test` (SQLite) — 551
-passaram, a mesma falha pré-existente e já conhecida de `MissoesTest` (não desta mudança);
-`npm ci && npm run lint && npm run build` OK; `git diff --check` limpo. **Não testado
-localmente**, de propósito: o job MariaDB (container de serviço, o *gate* de conexão, o
-round-trip de migrations) — este servidor só enxerga o MySQL compartilhado de produção (o mesmo
-onde vivem `fertwaysbd`/`fertwaysdev` e bancos de outros clientes), e criar até um banco
-descartável ali para "testar" seria escrever em infraestrutura compartilhada para verificar
-correção — a mesma armadilha de [[fertways-nao-escrever-em-producao-para-testar]]. Isso só se
-confirma no primeiro run real do Actions.
+**Para retomar isto:** não há mais pendência — é o estado normal do repositório agora. Qualquer
+push para `main` ou PR contra ela roda os três jobs automaticamente.
 
-**Para retomar isto:** olhe o PR #1 no GitHub — se os três jobs estiverem verdes (especialmente
-o gate de conexão e o round-trip de migrations do job MariaDB), está pronto para mesclar; se
-algum vier vermelho, `docs/ci.md` tem o guia de diagnóstico. **Ninguém pediu merge nem deploy
-ainda** — só abrir o PR draft.
+## O rótulo COMPRA/VENDE da vitrine do Mercado Central — **no ar** (2026-07-15), commit `9f4f149`
+
+Queixa do usuário: "quero comprar um recurso ofertado, e se eu não tenho nada no depósito central
+não me deixa comprar". A regra de negócio nunca esteve errada — comprar sempre exigiu só Fert$ e
+espaço no depósito para *receber* (nunca saldo do recurso); só vender exige que o lote já esteja
+lá (`ExecutarOrdem::comprarDaOferta` vs `venderParaOferta`, confirmado por leitura de todo o
+`Domain/Market` e por um teste já existente cobrindo compra com saldo zero). O bug era só na
+tela: `LinhaDaVitrine`, em `Mercado.tsx`, pintava o rótulo grande "COMPRA" na mesma cor
+(`text-rust`) que a interface inteira usa para botões clicáveis — então "COMPRA" (dizendo que
+**outro** colono quer comprar) lia como um convite para *você* comprar, quando clicar naquela
+linha na verdade te faz **vender**, entregando do seu depósito. Daí o erro que o usuário via ser
+exatamente a recusa de venda (`saldo_mercado_insuficiente`).
+
+**A correção:** o rótulo VENDE/COMPRA virou neutro (`text-ink`, não é mais um falso botão), e uma
+linha nova, em primeira pessoa e na cor de ação, diz o que o clique realmente faz: "Você compra:
+paga Fert$ e recebe no seu depósito" ou "Você vende: entrega do seu depósito e recebe Fert$".
+Textos e classes que o e2e ancora (`/VENDE/`, `/^Comprar$/` em `frontend/e2e/mercado.e2e.mjs`)
+foram preservados sem mudança.
+
+**Validado:** lint, `npm run build`, e o e2e completo (8 arquivos, incluindo o cenário exato de
+comprar do zero na vitrine) — todos verdes antes de mesclar.
 
 ## O trabalho anterior: zonas neutras + Drone (D-52)
 
