@@ -6,6 +6,12 @@
  *
  *     /usr/bin/php84 tools/gdd-v36.php > ../../FERTWAYS_GDD_v36_CONSOLIDADO.html
  *
+ * Atualizado até o D-83 (2026-07-15) — guerra (D-66/D-70), Drone (D-74), Marco (D-75),
+ * Missões (D-78), Chat (D-77), a Capital em quatro áreas (D-63), os dois mercados (D-65),
+ * Indústria Siderúrgica e a receita de Ligas/Compostos (D-82/D-83). Os D-84 a D-86 (teto e
+ * upgrade de zona, manutenção territorial, kit inicial novo, histórico da zona) estão prontos
+ * mas em PR aberto — ver a nota na seção 0.
+ *
  * ---
  *
  * **Por que isto é um gerador, e não um arquivo escrito à mão.**
@@ -202,8 +208,8 @@ ob_start();
 </p>
 
 <p>
-  Das <b>62 decisões</b> que este projeto registrou até hoje, <b>metade existe porque o GDD se
-  contradiz ou é omisso</b>. Este v36 resolve isso de raiz:
+  Das <b>83 decisões</b> já mescladas que este projeto registrou até hoje, boa parte existe
+  porque o GDD se contradiz ou é omisso. Este v36 resolve isso de raiz:
 </p>
 
 <ul>
@@ -242,6 +248,26 @@ ob_start();
   a cada regra. Este documento é a <b>fonte única</b>: o que vale. As referências <span class="d">D-nn</span>
   apontam para lá.
 </p>
+
+<div class="nota">
+  <b>Três decisões recentes ainda não estão aqui por completo: D-84, D-85 e D-86.</b> Estão
+  <b>prontas, testadas, em PR aberto — não mescladas, não publicadas.</b> Este gerador lê o
+  código ao vivo, e este documento foi gerado a partir do que já está em <code>main</code>; as
+  tabelas não podem mostrar números de código que ainda não existe ali. Em resumo, para quando
+  mesclarem:
+  <ul style="margin:8px 0 0">
+    <li><b>D-84</b> — teto de 5 zonas por jogador, upgrade de nível de zona (1 a 5, curva 1,65×
+        de custo e guarnição, 1,5× de tempo) e manutenção territorial do §27.12 ativada de
+        verdade pela primeira vez (decai a defesa 5%/dia sem pagar, abandona a zona em 72h).</li>
+    <li><b>D-85</b> — o kit inicial vira uma tabela só: <b>100 Fert$</b> e um valor fixo para os
+        26 recursos do catálogo, substituindo os 50 F$ do GDD, os raros calculados do D-17 e o
+        kit fixo do D-57. Quebra o "muro de progressão" de propósito para Nióbio e Quartzo — só
+        se consegue com o governo.</li>
+    <li><b>D-86</b> — a zona vira cinco abas (identidade+planta+upgrade, Depósito, Canteiro,
+        Guarnição, Histórico), o Canteiro pergunta a obra antes do recurso, e o chat privado
+        abre a partir do nome do dono no mapa.</li>
+  </ul>
+</div>
 
 <nav class="indice">
   <b>Índice</b>
@@ -286,9 +312,32 @@ ob_start();
   transporte. <span class="d">D-51</span>
 </div>
 
-<h3>1.2 A Capital — os slots institucionais</h3>
+<h3>1.2 A Capital — quatro áreas e uma praça <span class="d">D-63</span></h3>
 
-<p>O §2.1 do v35 lista 20 slots. Este é o estado real de cada um:</p>
+<div class="nota grave">
+  <b>Isto não está no GDD.</b> O §2.1 trata a Capital como uma <b>lista plana de 20 slots</b>,
+  sem geografia nenhuma — nada de "praça", "quadrante" ou pontos cardeais. A planta é
+  <b>arbitragem do usuário</b>, e é a terceira vez que uma premissa "isto está no GDD" não
+  estava (ver D-60, o caminhão da Central de Transportes).
+</div>
+
+<p>
+  Desde o D-63, a Capital é uma <b>cena de Phaser</b> — mesmo motor, mesmo clique em hexágono,
+  mesma câmera da colônia — organizada em quatro áreas ao redor de uma praça central
+  <b>decorativa</b> (não clica, não faz nada; é o marco que dá à Capital cara de cidade, e o
+  espaço guardado para quando houver evento, chat público ou monumento).
+</p>
+
+<table>
+  <tr><th>Área</th><th>O que tem</th><th>Estado</th></tr>
+  <tr><td><b>Norte</b></td><td>Governo Central — a grade dos 19 slots institucionais (1–5, 7–8, 9–20; o 9–20 aparece <b>visível e travado</b>, expansão futura)</td><td><?= entregue() ?></td></tr>
+  <tr><td><b>Oeste</b></td><td>Os destroços da <b>Endurance</b> — conta a própria história e admite honestamente o que ainda não existe (as missões narrativas)</td><td><?= entregue() ?></td></tr>
+  <tr><td><b>Leste</b></td><td>O <b>slot 6 inteiro</b>: Mercado Central + Pátio Logístico, juntos. Clicar abre o Mercado</td><td><?= entregue() ?> <span class="d">D-65</span></td></tr>
+  <tr><td><b>Sul</b></td><td>O futuro <b>Espaçoporto</b> — mostra os 5 planetas do §23 com distância e risco, e diz que ninguém viaja ainda</td><td><?= promessa() ?></td></tr>
+  <tr><td><b>Centro</b></td><td>A praça — 1 slot de tamanho, decorativa</td><td><?= entregue() ?></td></tr>
+</table>
+
+<p><b>O Norte, slot a slot:</b></p>
 
 <table>
   <tr><th>#</th><th>Instituição</th><th>Função</th><th>Estado</th></tr>
@@ -296,10 +345,9 @@ ob_start();
   <tr><td>2</td><td>Central de Tributos</td><td>Painel de taxas e o <b>caixa real</b> do Tesouro</td><td><?= entregue() ?> <span class="d">D-57</span></td></tr>
   <tr><td>3</td><td>Central de Pesquisas e Notícias</td><td>Mural de comunicados; Gagarin</td><td><?= entregue() ?></td></tr>
   <tr><td>4</td><td>Secretaria de Finanças</td><td>Preços de referência, intervenção de preço</td><td><?= entregue() ?> <span class="d">D-35</span></td></tr>
-  <tr><td>5</td><td>Ministério da Segurança e Guerra</td><td>Conflitos, tratados, auditoria de combate</td><td><?= promessa('Fatia 2 do D-52') ?></td></tr>
-  <tr><td>6</td><td>Pátio Logístico Público</td><td>Docas públicas — abriga o <b>Mercado Central</b></td><td><?= entregue() ?></td></tr>
+  <tr><td>5</td><td>Ministério da Segurança e Guerra</td><td>Conflitos, tratados, auditoria de combate</td><td><?= entregue() ?> <span class="d">D-66</span></td></tr>
   <tr><td>7</td><td>Ministério das Reputações</td><td>Denúncias, conciliação, recursos</td><td><?= entregue() ?></td></tr>
-  <tr><td>8</td><td><b>Ministério dos Transportes</b></td><td>Fábrica de caminhões, registro de placas, oficina</td><td><?= entregue() ?> <span class="d">D-60</span></td></tr>
+  <tr><td>8</td><td><b>Ministério dos Transportes</b></td><td>Fábrica de caminhões, registro de placas, oficina, e a Garagem do frete público</td><td><?= entregue() ?> <span class="d">D-60, D-76</span></td></tr>
   <tr><td>9</td><td>Embaixada Interplanetária</td><td>—</td><td><?= promessa('Fora do MVP') ?></td></tr>
   <tr><td>10–20</td><td>Expansão controlada</td><td>—</td><td><?= promessa('Fora do MVP') ?></td></tr>
 </table>
@@ -308,6 +356,9 @@ ob_start();
   <b>O slot 8 contraria o v35 de propósito.</b> O §2.1 o reservava para o <i>Quartel de Alianças</i>.
   O Ministério dos Transportes (§16) tinha uma seção inteira no GDD e <b>nenhum slot na Capital</b> —
   o documento lhe dava seis atribuições e nenhum endereço. Pusemos ele no 8. <span class="d">D-60</span>
+  <br><br>
+  <b>O slot 6 não aparece no Norte</b> — ele <i>é</i> o Leste. Uma coisa, um lugar: nada aparece
+  duas vezes na tela.
 </div>
 
 <!-- ══════════════════════════════════════════════════════════════ 2 -->
@@ -384,6 +435,52 @@ ob_start();
 
 <p>O v35 <b>não fala em demolição</b>, nem na palavra nem no conceito. <?= arbitrado('tudo acima') ?></p>
 
+<h3>2.4 O Marco <span class="d">D-75, §03/§05</span></h3>
+
+<p>
+  O v35 nomeia os oito marcos e nunca diz como se sobe. A fórmula: <b>XP acumulado = 50 × N²</b>
+  — curva quadrática, porque as curvas publicadas do GDD (1,5×/1,65×) são para 5 níveis e
+  explodem muito antes do marco 100.
+</p>
+
+<table>
+  <tr><th>Marco</th><th>Título</th><th class="num">XP</th></tr>
+  <tr><td>1</td><td>Sobrevivente</td><td class="num">50</td></tr>
+  <tr><td>5</td><td>Colono</td><td class="num">1.250</td></tr>
+  <tr><td>10</td><td>Pioneiro</td><td class="num">5.000</td></tr>
+  <tr><td>20</td><td>Desbravador</td><td class="num">20.000</td></tr>
+  <tr><td>35</td><td>Construtor</td><td class="num">61.250</td></tr>
+  <tr><td>50</td><td>Arquiteto</td><td class="num">125.000</td></tr>
+  <tr><td>75</td><td>Guardião</td><td class="num">281.250</td></tr>
+  <tr><td>100</td><td>Lenda de Fertways</td><td class="num">500.000</td></tr>
+</table>
+
+<p>
+  Ganha XP: obra concluída (por nível), zona ocupada, combate vencido, Acordo executado, ordem
+  executada no Mercado Central — tudo em <code>xp_entries</code>, append-only, valores do
+  operador (painel Operação). <b>Dois portões vivos</b>: marco 10 libera Drone nível 2+; marco
+  20 libera ocupar zona neutra. <b>O Mercado Central não tem portão</b> — contradição consciente
+  com o §05, para que o §03 ("compra o primeiro lote de Ligas com os 50 F$") continue verdadeiro.
+  Posse anterior ao gate é sempre preservada; <code>fertways:marco --aplicar</code> credita XP
+  retroativo, idempotente.
+</p>
+
+<h3>2.5 As Missões <span class="d">D-78, §06</span></h3>
+
+<table>
+  <tr><th>Categoria</th><th>Quantas</th><th>Janela</th></tr>
+  <tr><td>Tutoria</td><td>5, entregues na fundação</td><td>dias 1–3</td></tr>
+  <tr><td>Diária</td><td>3, sorteadas de um pool de 30+</td><td><b>07h → 07h</b> — a régua da semanal, aplicada ao dia inteiro</td></tr>
+  <tr><td>Semanal</td><td>1</td><td>quarta 07h → terça 23h59, textual do GDD</td></tr>
+</table>
+
+<p>
+  <b>1 rejeição por dia</b> nas diárias, publicado. Pagamento é <b>instantâneo</b> na conclusão —
+  sem botão de resgate —, generoso por arbitragem (2× a proposta modesta original). <b>A tutoria
+  recompensa e não trava</b> o subsídio: contradição deliberada com o §03 ("mediante conclusão da
+  tutoria"), porque o tutorial já é auto-completo na fundação desde antes das Missões existirem.
+</p>
+
 <!-- ══════════════════════════════════════════════════════════════ 3 -->
 <h2 id="s3">3. Recursos e economia</h2>
 
@@ -426,6 +523,16 @@ ob_start();
 </p>
 
 <p>Todo colono começa com <b><?= n(Colony::SALDO_INICIAL_MICRO / Colony::MICRO_POR_FERT) ?> F$</b>, mais um kit fixo de recursos <span class="d">D-57</span>.</p>
+
+<div class="nota">
+  <b>Isto está prestes a mudar (D-85, PR aberto).</b> O kit inicial vira uma tabela só — 100 F$
+  e um valor fixo para os 26 recursos do catálogo — substituindo de vez os 50 F$ acima, os raros
+  calculados do "muro de progressão" (D-17) e o kit fixo do D-57. A nova tabela dá <b>0 Nióbio
+  Alienígena</b> e <b>2 Quartzo Piezoelétrico</b> de propósito: nenhum dos dois é produzível no
+  jogo, e a Torre de Defesa + Quartel (juntas, 5 Nióbio) e uma das duas entre Refinaria
+  Química/Antena de Comunicação (juntas, 3 Quartzo) ficam trancadas até o colono comprar do
+  governo — decisão confirmada, não lacuna. Só vale para quem funda depois do deploy.
+</div>
 
 <h3>3.3 O ledger — a regra de ouro</h3>
 
@@ -555,7 +662,7 @@ ob_start();
     <td class="num">3 kW/h por min</td>
     <td><?= entregue() ?> — comprado no Ministério</td>
   </tr>
-  <tr><td>Drone de Exploração</td><td class="num">não carrega</td><td class="num"><?= lacuna() ?></td><td class="num"><?= lacuna() ?></td><td><?= promessa('Fatia 3 do D-52') ?></td></tr>
+  <tr><td>Drone de Exploração</td><td class="num">não carrega</td><td class="num">8 slots/min</td><td class="num">bateria, não energia</td><td><?= entregue() ?> <span class="d">D-74</span></td></tr>
   <tr><td>Nave de Transporte Planetária</td><td class="num">4.000 un.</td><td class="num">10 slots/min</td><td class="num">Gelo de Metano</td><td><?= promessa('Fora do MVP') ?></td></tr>
   <tr><td>Cargueiro Interplanetário</td><td class="num">—</td><td class="num">—</td><td class="num">—</td><td><?= promessa('Depende do Espaçoporto') ?></td></tr>
 </table>
@@ -638,8 +745,40 @@ ob_start();
   redistribuição do §2.1 passa a ter consequência.
 </div>
 
+<h3>5.6 O serviço logístico público (§07) <span class="d">D-76</span></h3>
+
+<p>
+  O v35 cita o frete público como alternativa a ter veículo próprio e <b>nunca publica preço nem
+  prazo</b>. Resolvido pela <b>Garagem do Governo</b>: 10 caminhões iniciais, sem dono, que o
+  operador expande pelo painel ("Encomendar +1"), <b>só da doca do Mercado Central até a própria
+  colônia</b> — zona neutra continua exigindo veículo próprio.
+</p>
+
+<table>
+  <tr><th>Regra</th><th>Valor</th><th>Origem</th></tr>
+  <tr><td>Preço</td><td><b>1 F$ + 0,02 F$/slot</b> de distância</td><td><?= arbitrado('deliberadamente perto de subsídio') ?></td></tr>
+  <tr><td>Carga máxima por viagem</td><td>30.000 unidades</td><td><?= arbitrado('') ?></td></tr>
+  <tr><td>Tributo</td><td><b>Incide na chegada</b>, como qualquer entrega física</td><td>D-32 — frete não é rota de fuga</td></tr>
+  <tr><td>Receita</td><td>Vai ao <b>Tesouro</b></td><td>—</td></tr>
+  <tr><td>Desgaste</td><td><b>A frota pública não desgasta</b> — a viagem de frete é isenta do §16.4</td><td><?= arbitrado('') ?></td></tr>
+</table>
+
 <!-- ══════════════════════════════════════════════════════════════ 6 -->
 <h2 id="s6">6. O Mercado e o comércio</h2>
+
+<h3>6.0 Duas telas, dois donos <span class="d">D-65</span></h3>
+
+<table>
+  <tr><th>Tela</th><th>Onde</th><th>Faz</th></tr>
+  <tr><td><b>Mercado Local</b></td><td>Construção do colono, tela própria</td><td>Enviar carga ao depósito da Capital, ofertar a outros colonos, ver as ofertas deles</td></tr>
+  <tr><td><b>Mercado Central</b></td><td>Governo — Leste da Capital, slot 6</td><td>Ofertar no Mercado Central, ver as ofertas globais, o Pátio e o depósito</td></tr>
+</table>
+
+<p>
+  Só a <b>entrega ao depósito</b> é alcançável pelas duas telas — de propósito: a colônia nasce
+  sem Mercado Local erguido, e o depósito precisa continuar alcançável mesmo assim. Negociar com
+  outros colonos exige a construção.
+</p>
 
 <h3>6.1 A regra dos dois estoques <span class="d">D-58</span></h3>
 
@@ -683,6 +822,21 @@ ob_start();
   <b>o excedente volta na carroceria, sem tributo</b>: o que não entrou não foi entregue.
 </p>
 
+<h3>6.3.1 O Pátio Logístico <span class="d">D-65</span></h3>
+
+<p>
+  Todo veículo que entrega no depósito da Capital <b>fica estacionado</b> no Pátio — não volta
+  sozinho. Dali ele parte para a própria colônia ou direto para outro colono.
+</p>
+
+<table>
+  <tr><th>Regra</th><th>Valor</th></tr>
+  <tr><td>Cobrança</td><td><b>0,005 F$/hora</b>, por veículo, hora cheia, sem limite de vagas — vai ao Tesouro</td></tr>
+  <tr><td>Sem Fert$ para pagar</td><td>O veículo é <b>rebocado de graça</b> para casa — nunca fica refém</td></tr>
+  <tr><td>Sobra de carga (depósito lotou)</td><td>O veículo volta na hora com o excedente, sem estacionar</td></tr>
+  <tr><td>Energia da ida só</td><td><b>Metade</b> da viagem normal — ele não faz a volta</td></tr>
+</table>
+
 <h3>6.4 Acordo de Troca <span class="d">D-40, D-41, D-42, D-43</span></h3>
 
 <table>
@@ -707,12 +861,14 @@ ob_start();
   ficam retidos, o veículo <b>dirige-se sozinho</b> até ele, e o <b>vendedor só recebe na chegada</b>.
 </p>
 
-<div class="nota grave">
-  <b>O Furgão não tem teto de revenda</b>, e isso é um risco conhecido e aceito. O teto é
-  <code>preço de fábrica × teto de conservação</code>, e o Furgão <b>não tem preço de fábrica</b> (o
-  Ministério não o vende). Consequência: um Furgão sucateado pode ser anunciado por 5.000 F$ — e duas
-  contas do mesmo jogador podem <b>lavar Fert$</b> por aí, sem tributo. <b>Se o multi-conta virar
-  problema, é aqui que ele aparece primeiro</b>, e a cura é dar um teto ao Furgão.
+<div class="nota">
+  <b>O teto de revenda do Furgão foi fechado</b> <span class="d">D-73</span>. Ele não tem preço
+  de fábrica (o Ministério não o vende), então o risco era real: um Furgão sucateado podia ser
+  anunciado por 5.000 F$, e duas contas do mesmo jogador lavarem Fert$ por aí, sem tributo. A
+  correção: uma <b>âncora de 60 F$</b>, parâmetro do operador (proporcional à capacidade — o
+  Furgão carrega 1/5 do Caminhão, cuja âncora é 300 F$), editável no painel dos Transportes sem
+  deploy. O teto de revenda passa a ser <code>âncora × conservação</code>, igual a qualquer
+  outro veículo.
 </div>
 
 <!-- ══════════════════════════════════════════════════════════════ 7 -->
@@ -730,7 +886,7 @@ ob_start();
   <tr><td>Confiança Comercial</td><td>Cumprir ou calotear Acordos de Troca</td></tr>
   <tr><td>Conduta Social</td><td>Comportamento; alimentado pelas denúncias</td></tr>
   <tr><td>Status Cívico</td><td>Cargos e serviço público</td></tr>
-  <tr><td>Honra Militar-Diplomática</td><td>Guerra e tratados <?= promessa('inerte até a guerra existir') ?></td></tr>
+  <tr><td>Honra Militar-Diplomática</td><td>Guerra e tratados <?= promessa('a guerra existe (D-66); tratados, não') ?></td></tr>
 </table>
 
 <h3>7.2 O rito <span class="d">D-44, D-49</span></h3>
@@ -750,11 +906,31 @@ ob_start();
 </div>
 
 <div class="nota">
-  <b>Metade do Ministério está inerte, por decisão.</b> O silêncio precisa de chat; o bloqueio de
-  leilões precisa de leilões; o impedimento por federação precisa de federações. <b>Tudo grava com
-  índice e prazo, e passa a morder sozinho</b> no dia em que esses sistemas existirem. A única punição
-  que morde hoje é a <b>restrição comercial</b>: fecha a saída de carga por 7 dias.
-  <span class="d">D-44, D-50</span>
+  <b>Parte do Ministério segue inerte, por decisão.</b> O bloqueio de leilões precisa de leilões;
+  o impedimento por federação precisa de federações. <b>Tudo grava com índice e prazo, e passa a
+  morder sozinho</b> no dia em que esses sistemas existirem. Duas punições já mordem: a
+  <b>restrição comercial</b> (fecha a saída de carga por 7 dias) e, desde o D-77, o
+  <b>silêncio</b> — fecha os canais públicos do Chat pelo prazo; a privada continua.
+  <span class="d">D-44, D-50, D-77</span>
+</div>
+
+<h3>7.3 O Chat <span class="d">D-77</span></h3>
+
+<p>O rádio do planeta. Cinco canais, publicados no §10:</p>
+
+<table>
+  <tr><th>Canal</th><th>Escopo</th><th>Retenção</th></tr>
+  <tr><td>Global</td><td>Todo o planeta</td><td>180 dias</td></tr>
+  <tr><td>Região</td><td>4 quadrantes (D-52) + o Núcleo — 5 regiões, pela posição da colônia</td><td>180 dias</td></tr>
+  <tr><td>Vizinhança</td><td><b>Um raio, não uma sala.</b> A mensagem carrega a posição de quem falou; cada leitor vê quem está a N slots <span class="d">operador</span> DELE, não de quem falou</td><td>90 dias</td></tr>
+  <tr><td>Privada</td><td>1 a 1</td><td><b>Indefinida</b></td></tr>
+  <tr><td>Federação</td><td>Existe no esquema, dormente</td><td><?= promessa('federações não existem, D-44') ?></td></tr>
+</table>
+
+<div class="nota">
+  <b>O silêncio "cala a praça, não a boca".</b> A punição do §9.4 fecha Global, Região e
+  Vizinhança; a privada segue funcionando. É a mesma tabela de penas do D-49, só que com um
+  canal de verdade para morder agora.
 </div>
 
 <!-- ══════════════════════════════════════════════════════════════ 8 -->
@@ -775,15 +951,137 @@ ob_start();
   <b>Extração:</b> 100/h. <?= arbitrado('todos estes números') ?> — o v35 não publica nenhum deles.
 </p>
 
-<div class="nota grave">
-  <b>A guerra (§27) não existe.</b> É a maior lacuna do jogo, e ela trava duas coisas: o
-  <b>"estoque protegido"</b> (o saque de 50% depende de saber o que ele é) e os <b>bônus defensivos</b>
-  de Muralha e Torre de Vigia. <?= lacuna('ambos') ?>
-  <br><br>
-  Enquanto isso: o <b>Quartel</b> não recruta, a <b>Torre de Defesa</b> defende um slot que o §01
-  declara <b>inviolável</b> (o v35 se contradiz aqui e nós não resolvemos, porque não há guerra para
-  resolver), e a <b>Honra Militar-Diplomática</b> nunca se move.
+<h3>8.1 A guerra <span class="d">D-66, D-70</span></h3>
+
+<p>
+  <b>Existe por inteiro.</b> Era a maior lacuna do jogo; o D-66 fechou as oito lacunas do §27 de
+  uma vez, e o D-70 deu ao defensor as duas mãos que faltavam. Quatro tipos de ataque, todos sobre
+  o mesmo motor de <b>rodadas de 10 minutos</b> (§27.5).
+</p>
+
+<table>
+  <tr><th>Ataque</th><th>Faz</th></tr>
+  <tr><td><b>Invasão Direta</b></td><td>Zera a defesa e toma a zona. Vencendo, saqueia <b>50% do exposto</b> (§27.8) — o resto fica, não é destruído (a v3.2 corrige a v3.0)</td></tr>
+  <tr><td><b>Cerco</b></td><td>Bloqueia tudo que entra e sai. Após 30 min (3 rodadas) o Depósito para de aceitar — a extração continua e se <b>perde</b>. O defensor tem 48h para <b>romper</b> (mandar Sentinelas) ou <b>render-se</b> (entrega 30% do exposto)</td></tr>
+  <tr><td><b>Sabotagem (Infiltrador)</b></td><td>60% de chance por rodada, se não detectado. A Torre de Vigia detecta a <b>15% × nível</b> por rodada (nível 5 = 75%). Sucesso: a estrutura-alvo perde capacidade proporcional ao nível do Infiltrador</td></tr>
+  <tr><td><b>Apreensão de Módulos (Predador)</b></td><td>Desliga uma estrutura até resgate. Chance = <b>50% + 10% × (nível do Predador − nível do Abrigo de Robôs)</b>, entre 10% e 90%. Estruturas sob um <b>Bastião</b> são imunes</td></tr>
+</table>
+
+<div class="nota">
+  <b>"Estoque protegido" é o que cabe no Depósito</b> (§19.6) — arbitrado no D-66. O que excede
+  fica exposto na zona, sem proteção nenhuma; é isso que dá sentido a subir o Depósito.
 </div>
+
+<h3>8.2 Força ofensiva e defensiva <span class="d">D-66, §27.3</span></h3>
+
+<table>
+  <tr><th>Fórmula</th><th>Valor</th></tr>
+  <tr><td>Força Ofensiva</td><td>Σ ataque das Sentinelas enviadas, vivas</td></tr>
+  <tr><td>Força Defensiva</td><td>Σ defesa das unidades na zona × bônus de construção</td></tr>
+  <tr><td>Dano por rodada</td><td>(Força própria / Total) × <b>15%</b> × Força do outro lado, sobre a força <b>inicial</b> do combate <?= arbitrado('não a "atual" — a redação literal do §27.5 não termina') ?></td></tr>
+  <tr><td>Combate equilibrado (1000 vs 800)</td><td><b>12 rodadas</b> (120 min) — bate com o exemplo publicado no GDD</td></tr>
+  <tr><td>Reforço chegando</td><td>Recongela a força — novo dano constante a partir da chegada</td></tr>
+</table>
+
+<p><b>Bônus de construção</b> (aditivo, escala <b>linear</b> pelo nível — um bônus fixo tornaria os níveis 2–5 decorativos):</p>
+
+<table>
+  <tr><th>Estrutura</th><th class="num">Bônus no nível 1</th></tr>
+  <tr><td>Muralha de Perímetro</td><td class="num">+20%</td></tr>
+  <tr><td>Torre de Vigia</td><td class="num">+30%</td></tr>
+  <tr><td>Bastião</td><td class="num">+50%</td></tr>
+</table>
+
+<p>
+  As três juntas dobram a defesa. O <b>Abrigo de Robôs não dá bônus</b> — é onde os sobreviventes
+  se recolhem (§27.6) e o que o Predador precisa vencer (§28.10). Defensor genuinamente offline
+  ganha <b>+20%</b>, negado se ele saiu do ar <i>depois</i> de saber do ataque.
+</p>
+
+<h3>8.3 As unidades <span class="d">§27.1, §27.2</span></h3>
+
+<p>
+  <b>Sentinela</b> — única unidade ofensiva, fabricada no Quartel. Defesa <code>100 150 225 338 506</code>,
+  Ataque <code>80 120 180 270 405</code> (níveis 1–5, curva 1,65×). Custa Nióbio Alienígena
+  (<code>3 5 8 13 22</code>) — e <b>nada no jogo produz Nióbio</b>: o planeta nasce com 20
+  unidades (5 por colônia fundadora), e o <b>governo vende</b> a ~3,16 F$/unidade
+  (Secretaria de Finanças, preço do operador). Sem isto a Sentinela seria inalcançável.
+  <br><br>
+  <b>Robô Minerador</b> defende a própria zona onde já trabalha, improvisado (§27.2): defesa
+  <b>25% da Sentinela</b>, ataque zero. <b>Infiltrador</b> e <b>Predador</b> têm custo publicado,
+  sem Nióbio.
+</p>
+
+<h3>8.4 Reforço e ruptura de cerco <span class="d">D-70</span></h3>
+
+<div class="nota">
+  <b>A tela já prometia isto antes de existir.</b> O Quartel dizia ao defensor "ainda dá tempo de
+  reforçar" e não havia botão nem rota. O motor de combate já contava reforços desde o D-66 (é o
+  que faz "reforços tardios podem mudar o resultado" ser verdade) — só faltava mandá-los.
+</div>
+
+<p>
+  Reforço marcha <b>1,3× mais devagar</b> que civil (§27.4) e só conta ao <b>chegar</b> —
+  marchando, não defende nada. <b>Não exige combate em curso</b>: guarnecer em paz é a mesma coisa
+  que socorrer sob ataque. <b>Zona cercada não recebe reforço</b> — "nada entra nem sai" alcança a
+  tropa; a única saída é <b>romper o cerco</b>, mandando Sentinelas para lutar fora da zona (sem
+  Muralha, Torre ou Bastião). Vencendo, o cerco cai; perdendo, as 48h continuam.
+</p>
+
+<table>
+  <tr><th>Regra</th><th>Valor</th></tr>
+  <tr><td>Cooldown do mesmo atacante contra a mesma zona</td><td><b>48h</b> — outros atacantes não esperam</td></tr>
+  <tr><td>Proteção de novato</td><td><b>8 dias completos</b> desde a primeira ocupação</td></tr>
+</table>
+
+<h3>8.5 O Drone de Exploração <span class="d">D-74</span></h3>
+
+<p>
+  Fabricado na <b>Oficina</b> (não no Quartel — o Quartel só guarda e recarrega, §21.4), até o
+  nível dela. Velocidade fixa em <b>8 slots/min</b> em todos os níveis; o que sobe é o alcance e a
+  bateria.
+</p>
+
+<table>
+  <tr><th>Nível</th><th class="num">Raio de revelação</th><th class="num">Bateria</th></tr>
+  <tr><td>1</td><td class="num">6 slots</td><td class="num">24 h</td></tr>
+  <tr><td>2</td><td class="num">9 slots</td><td class="num">36 h</td></tr>
+  <tr><td>3</td><td class="num">13 slots</td><td class="num">54 h</td></tr>
+  <tr><td>4</td><td class="num">20 slots</td><td class="num">81 h</td></tr>
+  <tr><td>5</td><td class="num">30 slots</td><td class="num">122 h</td></tr>
+</table>
+
+<p><b>Duas missões</b> (§21.4):</p>
+<ul>
+  <li><b>Foto</b> — ida e volta; a imagem fica <b>datada</b> e permanente ("vista há 3h") — envelhece honestamente, nunca finge ser atual.</li>
+  <li><b>Vigilância</b> — ida simples; transmite ao vivo até a bateria acabar, tira uma última foto e volta sozinho.</li>
+</ul>
+
+<div class="nota">
+  <b>A névoa do interior alheio nasceu com o Drone.</b> O que qualquer um calcula (posição,
+  mineral, dono, nível, status) sempre foi público. O que só se sabe por dentro — guarnição e o
+  que está no Depósito — vem <code>null</code> (não zero) para quem não mandou um Drone: zero é
+  um fato ("está indefesa"), <code>null</code> é honestidade de não saber. Zona livre não tem o
+  que esconder — só quem já foi ocupada guarda segredo.
+</div>
+
+<h3>8.6 Upgrade de nível e manutenção territorial <span class="d">D-84, PR aberto</span></h3>
+
+<div class="nota">
+  <b>Pronto, testado, ainda não mesclado.</b> Fecha as duas últimas lacunas da Fatia 1 (D-52):
+  teto de zonas por jogador e upgrade de nível. Resumo — os números completos estão na nota da
+  seção 0.
+</div>
+
+<ul>
+  <li><b>Teto de 5 zonas por jogador</b> <?= arbitrado('o GDD não publica número') ?>.</li>
+  <li><b>Upgrade de 1 a 5</b>: sobe a extração (já seguia a curva do §19.1) e a capacidade do
+      Depósito. Custo debitado direto da colônia, como a ocupação — não do canteiro.</li>
+  <li><b>Manutenção territorial (§27.12) ativada pela primeira vez</b>: custo diário por nível,
+      cobrado da colônia. Sem pagar 24h, a Força Defensiva decai 5%/dia; sem pagar 72h, a zona é
+      <b>abandonada automaticamente</b> — reset completo, para não abrir lavagem de zona entre
+      contas do mesmo jogador.</li>
+</ul>
 
 <!-- ══════════════════════════════════════════════════════════════ 9 -->
 <h2 id="s9">9. Operação e administração</h2>
@@ -826,49 +1124,24 @@ ob_start();
   que alguém o decida — é a regra de ouro do projeto aplicada ao próprio GDD.
 </p>
 
+<p>
+  <b>Fechados desde a última revisão</b> (não aparecem mais aqui): a guerra inteira (D-66, D-70),
+  o Drone (D-74), o Marco (D-75), as Missões (D-78), o Chat (D-77), a receita de Ligas e
+  Compostos (D-83), o serviço logístico público (D-76), o teto de revenda do Furgão (D-73). O
+  teto e o upgrade de zona também já foram decididos — D-84, na seção 0, PR aberto.
+</p>
+
 <table>
   <tr><th>Assunto</th><th>O que falta</th><th>O que ele trava</th></tr>
-  <tr>
-    <td><b>Guerra (§27)</b></td>
-    <td>O que é <b>"estoque protegido"</b>; os <b>bônus defensivos</b> de Muralha e Torre de Vigia</td>
-    <td>Todo o combate. O Quartel, a Torre e a Honra Militar</td>
-  </tr>
-  <tr>
-    <td><b>Drone de Exploração</b></td>
-    <td><b>Velocidade</b>, <b>raio de revelação</b>, <b>persistência</b> e <b>onde é fabricado</b>. O custo já está publicado (§4.3 do v3.4)</td>
-    <td>A revelação de mapa</td>
-  </tr>
-  <tr>
-    <td><b>Zonas neutras</b></td>
-    <td>Custo e tempo de todas as 12 estruturas está resolvido (D-52, D-66, D-67, D-79 — as três
-      últimas ficaram INERTES de propósito). Falta: <b>teto de zonas por jogador</b>;
-      <b>upgrade de zona</b></td>
-    <td>A profundidade do território (hoje a zona é sempre nível 1)</td>
-  </tr>
   <tr>
     <td><b>Árvore de pesquisa</b></td>
     <td><b>Tudo.</b> O v35 diz "pesquisa tecnológica" e nunca publica tecnologia, custo, tempo ou árvore</td>
     <td>O Laboratório, que hoje só consome energia</td>
   </tr>
   <tr>
-    <td><b>Ligas e Compostos</b></td>
-    <td>A <b>receita</b>. O v35 publica a taxa (30/h) e nunca os insumos</td>
-    <td>A Refinaria Química, inerte. Creditá-la criaria recurso do nada <span class="d">D-19</span></td>
-  </tr>
-  <tr>
     <td><b>População</b></td>
     <td>Quantos colonos a Estrutura de Sobrevivência abriga, e <b>o que a população faz</b></td>
     <td>A Estrutura, que hoje só consome energia</td>
-  </tr>
-  <tr>
-    <td><b>Marco (§03)</b></td>
-    <td>A <b>fórmula</b>. O v35 nomeia os marcos (1 Sobrevivente … 100 Lenda) e nunca diz como se sobe</td>
-    <td>A progressão. Congelado em <code>colonizacao_inicial</code> <span class="d">D-38</span></td>
-  </tr>
-  <tr>
-    <td><b>Serviço logístico público (§07)</b></td>
-    <td><b>Preço e prazo.</b> O v35 o cita como alternativa ao veículo próprio e nunca o especifica</td>
-    <td>Quem não tem veículo não retira do Mercado</td>
   </tr>
   <tr>
     <td><b>Teto de estoque</b></td>
@@ -884,6 +1157,16 @@ ob_start();
     <td><b>Cargueiro Interplanetário</b></td>
     <td>O <b>Espaçoporto</b> e os 5 planetas NPC</td>
     <td>A 5ª atribuição do Ministério dos Transportes</td>
+  </tr>
+  <tr>
+    <td><b>Federação</b></td>
+    <td><b>Não existe.</b> O §28.10 diz que uma federação aliada pode romper um cerco por outro; hoje só o dono rompe</td>
+    <td>Metade do Ministério (impedimento por federação), a Central de Comunicação da zona, o canal Federação do Chat</td>
+  </tr>
+  <tr>
+    <td><b>Ranking de guerras (§27.13)</b></td>
+    <td>O GDD publica percentis e pesos por inteiro — <b>não existe sistema de ranking nenhum</b></td>
+    <td>Nada trava; é um painel a mais que ninguém pediu ainda</td>
   </tr>
 </table>
 
