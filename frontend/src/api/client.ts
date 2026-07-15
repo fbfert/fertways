@@ -394,6 +394,14 @@ export type MinhaZona = {
   cercada: boolean
   produtiva: boolean
   obra: { nome: string; nivel: number; termina_at: string } | null
+  /** Nível da zona e upgrade em curso, se houver (D-84/D-88). */
+  level: number
+  upgrade: { target: number; finishes_at: string } | null
+  guarnicao: { robos: number; sentinelas: number; defesa: number }
+  /** Manutenção territorial (D-84/D-88) — `inadimplente_desde` nulo é dia em dia. */
+  manutencao: { inadimplente_desde: string | null; penalidade_bps: number }
+  /** O que já chegou de veículo, esperando virar a próxima obra (D-88). */
+  canteiro: { resource_type: string; amount: number }[]
 }
 
 export type ItemDaFila = {

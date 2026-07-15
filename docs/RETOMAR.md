@@ -995,6 +995,30 @@ foram preservados sem mudança.
 **Validado:** lint, `npm run build`, e o e2e completo (8 arquivos, incluindo o cenário exato de
 comprar do zero na vitrine) — todos verdes antes de mesclar.
 
+## Sair vira ícone, a lateral troca de ordem, o card da zona ganha corpo (D-88) — **PR aberto, NÃO mesclado, NÃO publicado** (2026-07-15)
+
+Pedido de visual do usuário, três partes, empilhado sobre o D-84 (precisa dos campos de nível/
+upgrade/manutenção que aquele PR introduz):
+
+1. **Sair** saiu do canto inferior esquerdo (texto solto) e virou ícone ao lado do perfil, no
+   canto superior direito — com confirmação "Sim/Não" antes de sair de verdade (o mesmo padrão
+   que `Transportes.tsx` já usa para sucatear um veículo; **não** `window.confirm()`, que não
+   existe em nenhum lugar do projeto).
+2. **A lateral inverteu a ordem**: Fila de Construção primeiro, Zonas Neutras depois — a Fila é o
+   que o colono acabou de mexer, e antes as Zonas (quando existiam) empurravam a Fila para baixo.
+3. **O card de cada zona, na lateral**, ganhou nível/upgrade em andamento, guarnição e defesa,
+   manutenção em atraso e o que já chegou ao canteiro — as quatro opções que o usuário escolheu
+   quando perguntado, tudo que antes só aparecia abrindo a zona.
+
+Ver o **D-88** completo em `docs/decisoes.md`.
+
+**Validado antes de abrir o PR:** 562 testes de backend, `npx tsc -b`/lint/build limpos, e2e
+completo (8 arquivos) — incluindo o fluxo de logout reescrito (`mercado.e2e.mjs`) clicando
+`[data-sair]` e depois `[data-confirmar-sair]`.
+
+**Para retomar isto:** depende do D-84 (branch base é `feat/zona-teto-upgrade-manutencao`) — os
+dois mesclam juntos. Depois de mesclar, `sudo ./tools/deploy.sh` publica os dois de uma vez.
+
 ## O trabalho anterior: zonas neutras + Drone (D-52)
 
 Leia **D-52**. Sequência decidida: Fatia 1 = o núcleo (ocupar/extrair/retirar); Fatia 2 = a guerra

@@ -24,7 +24,7 @@ use Illuminate\Validation\Rule;
 class ZoneController extends Controller
 {
     /**
-     * As MINHAS zonas, com o que exige ação (docs/decisoes.md D-69).
+     * As MINHAS zonas, com o que exige ação (docs/decisoes.md D-69, D-88).
      *
      * É o que a barra lateral da colônia lista. Cada linha traz o que decide se o colono precisa
      * largar o que está fazendo:
@@ -33,13 +33,16 @@ class ZoneController extends Controller
      *    uma zona com 3.000 expostos é um convite pendurado no mapa.
      *  - **cercada** — nada entra nem sai, e o que se extrai se perde (§28.10). É a urgência maior.
      *  - **obra** — o que está sendo erguido, e quando fica pronto.
+     *  - **guarnição, canteiro, nível/upgrade, manutenção** (D-88) — o card ganhou mais informação
+     *    de propósito: antes, para saber se a defesa estava fraca ou a manutenção atrasada, era
+     *    preciso abrir a zona. É a mesma zona da tela cheia (`show()`), resumida para a lateral.
      */
     public function minhas(Request $request, Protegido $protegido): JsonResponse
     {
         $colony = $request->user()->colony()->firstOrFail();
 
         $zonas = NeutralZone::where('owner_colony_id', $colony->id)
-            ->with('obras')
+            ->with('obras', 'materiais')
             ->orderBy('id')
             ->get()
             ->map(function (NeutralZone $z) use ($protegido) {
@@ -62,6 +65,28 @@ class ZoneController extends Controller
                         'nivel' => $obra->target_level,
                         'termina_at' => $obra->finishes_at,
                     ] : null,
+
+                    'level' => $z->level,
+                    'upgrade' => $z->level_target ? [
+                        'target' => $z->level_target,
+                        'finishes_at' => $z->level_upgrade_finishes_at,
+                    ] : null,
+
+                    'guarnicao' => [
+                        'robos' => $z->guarnicao(),
+                        'sentinelas' => $z->units()->where('type', 'sentinela')->where('hp_bps', '>', 0)->count(),
+                        'defesa' => Unit::where('zone_id', $z->id)->where('hp_bps', '>', 0)->get()
+                            ->sum(fn (Unit $u) => $u->defesa()),
+                    ],
+
+                    'manutencao' => [
+                        'inadimplente_desde' => $z->maintenance_unpaid_since,
+                        'penalidade_bps' => $z->penalidadeManutencaoBps(),
+                    ],
+
+                    'canteiro' => $z->materiais->where('amount', '>', 0)
+                        ->map(fn ($m) => ['resource_type' => $m->resource_type, 'amount' => $m->amount])
+                        ->values(),
                 ];
             });
 
