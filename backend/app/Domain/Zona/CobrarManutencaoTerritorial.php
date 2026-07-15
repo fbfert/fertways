@@ -134,6 +134,13 @@ class CobrarManutencaoTerritorial
     {
         Unit::where('zone_id', $zona->id)->delete();
 
+        // Histórico da zona (D-86): a última linha antes de o dono sumir daqui — por isso o
+        // evento registra QUEM perdeu, já que depois deste update `owner_colony_id` é nulo.
+        \App\Models\ZoneEvent::create([
+            'zone_id' => $zona->id, 'type' => 'abandonada', 'colony_id' => $zona->owner_colony_id,
+            'created_at' => now(),
+        ]);
+
         $zona->update([
             'owner_colony_id' => null,
             'status' => 'livre',

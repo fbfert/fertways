@@ -64,6 +64,37 @@ try {
   checar(!(await page.$('[data-popup]')), 'o popup fecha')
   checar(await esperarTexto(page, /Vendo Ligas, quer trocar/), 'e a conversa continua aberta atrás dele')
 
+  // ═══════════════════════════════════════════════════ do MAPA para o chat (D-86)
+  console.log('\nFecha o Chat e abre o Mapa')
+  await page.click('[data-fechar-chat]')
+  await assentar()
+  await (await acharPorTexto(page, 'button', /^Mapa$/)).click()
+  checar(await esperarTexto(page, /Fertways/), 'o painel do Mapa abre')
+
+  console.log('\nClica na vizinha no diretório do mapa')
+  const vizinhaNoMapa = await acharPorTexto(page, 'button', /Colônia vizinha/)
+  checar(!!vizinhaNoMapa, 'a vizinha aparece no diretório')
+  await vizinhaNoMapa.click()
+  await assentar()
+
+  const nickNoPainel = await page.$('[data-abrir-info]')
+  checar(!!nickNoPainel, 'o nick dela no painel da colônia é clicável')
+  await nickNoPainel.click()
+  await assentar()
+  checar(!!(await page.$('[data-popup]')), 'a ficha da vizinha abre')
+
+  console.log('\n"Conversar" sai do mapa e abre o chat já na privada dela')
+  const conversar = await page.$('[data-conversar]')
+  checar(!!conversar, 'o botão "Conversar" existe na ficha')
+  await conversar.click()
+  await assentar()
+  checar(!(await page.$('[data-tela="zona"], svg[data-mapa]')), 'saiu do mapa')
+  checar(!!(await page.$('[data-tela="chat"]')), 'o Chat abriu')
+  checar(
+    !!(await page.$('input[placeholder^="Para vizinha"]')),
+    'já na privada com a vizinha, sem precisar buscar de novo',
+  )
+
   // ═══════════════════════════════════════════════════ a LUPA (D-81, aditivo)
   console.log('\nVolta às conversas e abre a busca de jogadores')
   await (await acharPorTexto(page, 'button', /← conversas/)).click()

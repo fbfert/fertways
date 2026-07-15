@@ -17,7 +17,16 @@ type Aba = 'global' | 'regiao' | 'vizinhanca' | 'privadas'
 
 const RITMO_MS = 5_000
 
-export function Chat({ aoFechar }: { aoFechar: () => void }) {
+export function Chat({
+  aoFechar,
+  conversaInicial,
+  aoConsumirConversaInicial,
+}: {
+  aoFechar: () => void
+  /** Uma privada pedida de FORA do Chat (o "Conversar" da ficha do jogador, aberta do Mapa). */
+  conversaInicial?: { id: number; nickname: string } | null
+  aoConsumirConversaInicial?: () => void
+}) {
   const [aba, setAba] = useState<Aba>('global')
   const [regiao, setRegiao] = useState<string | null>(null)
   const [silenciadoAte, setSilenciadoAte] = useState<string | null>(null)
@@ -47,6 +56,15 @@ export function Chat({ aoFechar }: { aoFechar: () => void }) {
     setAba('privadas')
     setBuscaAberta(true)
   }
+
+  // Chegou pedida de fora (Mapa → InfoJogador → "Conversar"): abre e avisa o pai que já consumiu,
+  // para um `conversaInicial` velho não reabrir a mesma privada se o Chat fechar e reabrir.
+  useEffect(() => {
+    if (!conversaInicial) return
+    abrirPrivada(conversaInicial.id, conversaInicial.nickname)
+    aoConsumirConversaInicial?.()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [conversaInicial])
 
   return (
     <>
@@ -112,7 +130,14 @@ export function Chat({ aoFechar }: { aoFechar: () => void }) {
       </div>
 
       {infoAberta !== null && (
-        <InfoJogador userId={infoAberta} aoFechar={() => setInfoAberta(null)} />
+        <InfoJogador
+          userId={infoAberta}
+          aoFechar={() => setInfoAberta(null)}
+          aoConversar={(id, nickname) => {
+            setInfoAberta(null)
+            abrirPrivada(id, nickname)
+          }}
+        />
       )}
     </>
   )

@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { api, ApiError } from '../api/client'
-import type { Veiculo, ZonaDetalhe } from '../api/client'
+import type { EstadoDaGuerra, EventoDaZona, Veiculo, ZonaDetalhe } from '../api/client'
 import { dataHumana, nomeRecurso, nomeVeiculo } from './recursos'
 
 /**
- * A zona neutra como LUGAR (GDD §17.4; docs/decisoes.md D-67).
+ * A zona neutra como LUGAR (GDD §17.4; docs/decisoes.md D-67, D-84, D-86).
  *
  * **Planta com áreas, e não colmeia de slots** — a decisão é do usuário, e tem razão de ser: uma
  * muralha *deve* estar no perímetro, e uma grade de hexágonos não sabe disso. É o idioma da Capital
@@ -17,12 +17,17 @@ import { dataHumana, nomeRecurso, nomeVeiculo } from './recursos'
  * preço: os sete ministérios saíram **pálidos** na tela e os sete e2e passaram, porque os cliques
  * funcionavam e só o desenho mentia. Um SVG é DOM: o e2e o vê, o clica, e lê o que está escrito nele.
  *
- * Três coisas que o colono não tem como adivinhar, e que a tela existe para dizer:
+ * **Cinco abas (D-86, reorganização pedida pelo usuário)** — antes era uma coluna só, longa demais
+ * para achar qualquer coisa: **Zona Neutra** (identidade, planta, upgrade de nível), **Depósito**,
+ * **Canteiro de obras**, **Guarnição** e **Histórico**. Três coisas que o colono não tem como
+ * adivinhar, e que a tela existe para dizer:
  *
  *  1. **Só o que EXCEDE o Depósito é saqueável.** O que cabe nele está a salvo (D-66). Uma zona bem
  *     cuidada não tem butim nenhum — e é subindo o Depósito que se protege mais.
  *  2. **O material da obra tem de CHEGAR DE VEÍCULO.** O canteiro não se enche do estoque de casa:
- *     ele se enche de caminhão. Quem clica em "Construir" sem ter despachado nada leva um erro.
+ *     ele se enche de caminhão. A aba Canteiro agora pergunta PARA QUAL obra, e já mostra o que
+ *     falta — antes o colono tinha de adivinhar entre três recursos fixos, quisesse a obra outra
+ *     coisa ou não.
  *  3. **O Cemitério de Robôs não faz nada** — e é o próprio GDD que o declara "apenas visual".
  */
 
@@ -62,10 +67,21 @@ const AREAS: Record<string, { x: number; y: number; w: number; h: number; rotulo
   industria_siderurgica: { x: 245, y: 115, w: 60, h: 50, rotulo: 'Siderurgia' },
 }
 
+type Aba = 'zona' | 'deposito' | 'canteiro' | 'guarnicao' | 'historico'
+
+const ABAS: { id: Aba; rotulo: string }[] = [
+  { id: 'zona', rotulo: 'Zona Neutra' },
+  { id: 'deposito', rotulo: 'Depósito' },
+  { id: 'canteiro', rotulo: 'Canteiro de obras' },
+  { id: 'guarnicao', rotulo: 'Guarnição' },
+  { id: 'historico', rotulo: 'Histórico' },
+]
+
 export function Zona({ aoFechar }: { aoFechar: () => void }) {
   const { id } = useParams()
   const zonaId = Number(id)
 
+  const [aba, setAba] = useState<Aba>('zona')
   const [z, setZ] = useState<ZonaDetalhe | null>(null)
   const [frota, setFrota] = useState<Veiculo[]>([])
   const [sel, setSel] = useState<string | null>(null)
@@ -73,8 +89,17 @@ export function Zona({ aoFechar }: { aoFechar: () => void }) {
   const [recibo, setRecibo] = useState<string | null>(null)
   const [ocupado, setOcupado] = useState(false)
   const [envio, setEnvio] = useState<Record<string, number>>({})
+  const [envioVeiculoId, setEnvioVeiculoId] = useState<number | null>(null)
   const [retirar, setRetirar] = useState<Record<string, number>>({})
   const [nome, setNome] = useState('')
+
+  // Guarnição: os defensores em casa, para o reforço (D-70, trazido para dentro da zona no D-86).
+  const [guerra, setGuerra] = useState<EstadoDaGuerra | null>(null)
+  const [reforcoQtd, setReforcoQtd] = useState(1)
+
+  // Histórico (D-86): carregado só quando a aba abre — é a única que pede um segundo request.
+  const [eventos, setEventos] = useState<EventoDaZona[] | null>(null)
+  const [carregandoHistorico, setCarregandoHistorico] = useState(false)
 
   const carregar = useCallback(async () => {
     try {
@@ -97,6 +122,23 @@ export function Zona({ aoFechar }: { aoFechar: () => void }) {
     setNome(z?.name ?? '')
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [z?.id])
+
+  useEffect(() => {
+    if (aba === 'guarnicao' && !guerra) {
+      void api.guerra().then(setGuerra).catch(() => {})
+    }
+  }, [aba, guerra])
+
+  useEffect(() => {
+    if (aba === 'historico' && eventos === null && !carregandoHistorico) {
+      setCarregandoHistorico(true)
+      api
+        .historicoDaZona(zonaId)
+        .then((r) => setEventos(r.eventos))
+        .catch((e) => setErro(e instanceof ApiError ? e.message : 'Falha ao carregar o histórico.'))
+        .finally(() => setCarregandoHistorico(false))
+    }
+  }, [aba, eventos, carregandoHistorico, zonaId])
 
   async function agir(acao: () => Promise<string>) {
     setOcupado(true)
@@ -151,7 +193,7 @@ export function Zona({ aoFechar }: { aoFechar: () => void }) {
                   )}
                 </div>
                 <div className="text-ink-soft text-sm">
-                  ({z.x}, {z.y}) — {nomeRecurso(z.mineral)}
+                  ({z.x}, {z.y}) — {nomeRecurso(z.mineral)} · nível {z.level}
                 </div>
               </>
             ) : (
@@ -166,6 +208,24 @@ export function Zona({ aoFechar }: { aoFechar: () => void }) {
             ×
           </button>
         </div>
+
+        {z && (
+          <div className="border-rust/20 mb-4 flex flex-wrap gap-1 border-b text-sm">
+            {ABAS.map((a) => (
+              <button
+                key={a.id}
+                onClick={() => setAba(a.id)}
+                data-aba-zona={a.id}
+                className={`px-3 py-2 font-bold ${
+                  aba === a.id ? 'border-rust text-rust border-b-2' : 'text-ink-soft hover:text-rust'
+                }`}
+              >
+                {a.rotulo}
+              </button>
+            ))}
+          </div>
+        )}
+
         {dentro}
       </div>
     </div>
@@ -200,352 +260,431 @@ export function Zona({ aoFechar }: { aoFechar: () => void }) {
         </div>
       )}
 
-      {/* ── a planta ──────────────────────────────────────────────────────────────────────── */}
-      <div className="grid gap-6 lg:grid-cols-[400px_1fr]">
-        <svg viewBox="0 0 400 280" className="w-full" role="group" aria-label="Planta da zona">
-          <rect x="0" y="0" width="400" height="280" fill="var(--color-sand)" />
+      {z.manutencao.inadimplente_desde && (
+        <div className="border-rust bg-rust/10 border-l-4 p-3" data-manutencao-atrasada>
+          <strong className="text-rust">Manutenção territorial em atraso</strong>
+          <p className="text-sm">
+            Desde {dataHumana(z.manutencao.inadimplente_desde)}
+            {z.manutencao.penalidade_bps > 0 &&
+              ` — defesa reduzida em ${z.manutencao.penalidade_bps / 100}%`}
+            . Sem pagar por 72 h a zona é abandonada automaticamente.
+          </p>
+        </div>
+      )}
 
-          {/*
-            A parede. **Desenho puro, sem eventos**: ela engrossa conforme a Muralha sobe, e é o que
-            se vê de longe — mas quem recebe o clique é o portão, lá embaixo. Um `<rect>` sem
-            preenchimento só é clicável na borda, e um transparente engoliria tudo o que está dentro.
-          */}
-          <rect
-            x={10}
-            y={10}
-            width={380}
-            height={260}
-            rx={6}
-            fill="none"
-            stroke={nivelMuralha > 0 ? 'var(--color-rust)' : 'var(--color-ink-soft)'}
-            strokeWidth={nivelMuralha > 0 ? 2 + nivelMuralha * 1.5 : 1}
-            strokeDasharray={nivelMuralha > 0 ? undefined : '5 4'}
-            className="pointer-events-none"
-          />
+      {/* ══════════════════════════════════════════════════════ Zona Neutra ═══ */}
+      {aba === 'zona' && (
+        <div className="space-y-6" data-aba="zona">
+          <div className="grid gap-6 lg:grid-cols-[400px_1fr]">
+            <svg viewBox="0 0 400 280" className="w-full" role="group" aria-label="Planta da zona">
+              <rect x="0" y="0" width="400" height="280" fill="var(--color-sand)" />
 
-          {Object.entries(AREAS).map(([tipo, a]) => {
-            const e = porTipo.get(tipo)
-            const erguida = (e?.level ?? 0) > 0
+              {/*
+                A parede. **Desenho puro, sem eventos**: ela engrossa conforme a Muralha sobe, e é o
+                que se vê de longe — mas quem recebe o clique é o portão, lá embaixo. Um `<rect>`
+                sem preenchimento só é clicável na borda, e um transparente engoliria tudo dentro.
+              */}
+              <rect
+                x={10}
+                y={10}
+                width={380}
+                height={260}
+                rx={6}
+                fill="none"
+                stroke={nivelMuralha > 0 ? 'var(--color-rust)' : 'var(--color-ink-soft)'}
+                strokeWidth={nivelMuralha > 0 ? 2 + nivelMuralha * 1.5 : 1}
+                strokeDasharray={nivelMuralha > 0 ? undefined : '5 4'}
+                className="pointer-events-none"
+              />
 
-            return (
-              <g key={tipo}>
-                <rect
-                  x={a.x}
-                  y={a.y}
-                  width={a.w}
-                  height={a.h}
-                  rx={4}
-                  // `transparent` e não `none`: um `fill="none"` não recebe clique no interior.
-                  fill={erguida ? 'var(--color-ember)' : 'transparent'}
-                  stroke={erguida ? 'var(--color-rust)' : 'var(--color-ink-soft)'}
-                  strokeWidth={1.5}
-                  strokeDasharray={erguida ? undefined : '4 3'}
-                  opacity={e?.offline ? 0.35 : 1}
-                  className="cursor-pointer"
-                  onClick={() => setSel(tipo)}
-                  data-area={tipo}
-                />
-                <text
-                  x={a.x + a.w / 2}
-                  y={a.y + a.h / 2 + 4}
-                  textAnchor="middle"
-                  className="pointer-events-none select-none text-[10px] font-bold"
-                  fill={erguida ? 'var(--color-ink)' : 'var(--color-ink-soft)'}
-                >
-                  {a.rotulo}
-                  {erguida ? ` ${e?.level}` : ''}
-                </text>
-              </g>
-            )
-          })}
-        </svg>
+              {Object.entries(AREAS).map(([tipo, a]) => {
+                const e = porTipo.get(tipo)
+                const erguida = (e?.level ?? 0) > 0
 
-        {/* ── o painel da estrutura escolhida ─────────────────────────────────────────────── */}
-        <div>
-          {!escolhida ? (
-            <p className="text-ink-soft text-sm">
-              Clique numa área da planta. As de traço interrompido ainda não foram erguidas.
-            </p>
-          ) : (
-            <div className="painel bg-sand p-4" data-painel-estrutura={escolhida.type}>
-              <h3 className="text-lg font-black">
-                {escolhida.nome}{' '}
-                <span className="text-ink-soft text-sm font-normal">
-                  {escolhida.level > 0 ? `nível ${escolhida.level}` : 'não erguida'}
-                </span>
-              </h3>
+                return (
+                  <g key={tipo}>
+                    <rect
+                      x={a.x}
+                      y={a.y}
+                      width={a.w}
+                      height={a.h}
+                      rx={4}
+                      // `transparent` e não `none`: um `fill="none"` não recebe clique no interior.
+                      fill={erguida ? 'var(--color-ember)' : 'transparent'}
+                      stroke={erguida ? 'var(--color-rust)' : 'var(--color-ink-soft)'}
+                      strokeWidth={1.5}
+                      strokeDasharray={erguida ? undefined : '4 3'}
+                      opacity={e?.offline ? 0.35 : 1}
+                      className="cursor-pointer"
+                      onClick={() => setSel(tipo)}
+                      data-area={tipo}
+                    />
+                    <text
+                      x={a.x + a.w / 2}
+                      y={a.y + a.h / 2 + 4}
+                      textAnchor="middle"
+                      className="pointer-events-none select-none text-[10px] font-bold"
+                      fill={erguida ? 'var(--color-ink)' : 'var(--color-ink-soft)'}
+                    >
+                      {a.rotulo}
+                      {erguida ? ` ${e?.level}` : ''}
+                    </text>
+                  </g>
+                )
+              })}
+            </svg>
 
-              {escolhida.offline && (
-                <p className="text-rust mt-1 text-sm font-bold">
-                  ⚠ Fora de operação — sabotada ou apreendida. Precisa de reparo.
+            {/* ── o painel da estrutura escolhida ───────────────────────────────────────────── */}
+            <div>
+              {!escolhida ? (
+                <p className="text-ink-soft text-sm">
+                  Clique numa área da planta. As de traço interrompido ainda não foram erguidas.
                 </p>
-              )}
+              ) : (
+                <div className="painel bg-sand p-4" data-painel-estrutura={escolhida.type}>
+                  <h3 className="text-lg font-black">
+                    {escolhida.nome}{' '}
+                    <span className="text-ink-soft text-sm font-normal">
+                      {escolhida.level > 0 ? `nível ${escolhida.level}` : 'não erguida'}
+                    </span>
+                  </h3>
 
-              {/* As duas camadas, e elas não se confundem: o que o GDD promete e o que o jogo faz. */}
-              <p className="text-ink-soft mt-2 text-xs italic">GDD: {escolhida.gdd}</p>
-              <p className="mt-2 text-sm">{escolhida.hoje}</p>
-
-              {escolhida.inerte && (
-                <p className="text-ink-soft mt-2 text-xs">
-                  Esta construção <strong>não faz nada</strong>, e é o próprio GDD que o diz. Erga-a
-                  se quiser — é a única do jogo que se ergue só por gosto.
-                </p>
-              )}
-
-              {!escolhida.construivel ? (
-                <p className="text-ink-soft mt-3 text-xs">
-                  Nasce com a ocupação e não se ergue nem se demole.
-                </p>
-              ) : escolhida.proximo ? (
-                <div className="mt-3">
-                  <div className="text-ink eyebrow">
-                    Erguer ao nível {escolhida.proximo.level} — do canteiro
-                  </div>
-                  <ul className="text-ink-soft mt-1 text-sm">
-                    {Object.entries(escolhida.proximo.custo).map(([r, q]) => {
-                      const tem = z.canteiro.find((c) => c.resource_type === r)?.amount ?? 0
-
-                      return (
-                        <li key={r} className={tem < q ? 'text-rust' : ''}>
-                          {nomeRecurso(r)}: {q} <span className="text-xs">(no canteiro: {tem})</span>
-                        </li>
-                      )
-                    })}
-                  </ul>
-                  <p className="text-ink-soft mt-1 text-xs">
-                    Leva {Math.round(escolhida.proximo.segundos / 3600)} h.
-                  </p>
-
-                  {/*
-                    O botão **não se oferece quando o canteiro não paga** — e isso não é enfeite.
-                    Antes, clicar sem material mandava a requisição, o servidor devolvia 422, e o
-                    colono levava um erro que a tela já sabia de antemão. A guarda do domínio continua
-                    lá (é ela que vale contra requisição forjada); esta só evita prometer o que não
-                    se pode cumprir.
-                  */}
-                  <button
-                    className="botao mt-2 w-full"
-                    disabled={ocupado || z.obra !== null || z.cercada || !canteiroPaga(escolhida)}
-                    data-construir={escolhida.type}
-                    onClick={() =>
-                      void agir(async () => {
-                        await api.construirNaZona(z.id, escolhida.type)
-
-                        return `${escolhida.nome} em obra.`
-                      })
-                    }
-                  >
-                    {z.obra
-                      ? 'Já há uma obra em curso'
-                      : z.cercada
-                        ? 'Não se constrói sob sítio'
-                        : !canteiroPaga(escolhida)
-                          ? 'Falta material no canteiro'
-                          : 'Construir'}
-                  </button>
-
-                  {/*
-                    Sem isto, o colono via só "Já há uma obra em curso" e tinha de procurar no
-                    Canteiro, lá embaixo, para descobrir O QUÊ — a mesma pergunta que gerou a queixa.
-                  */}
-                  {z.obra && (
-                    <p className="text-ink-soft mt-1 text-xs" data-obra-em-curso>
-                      {z.obra.nome} nível {z.obra.target_level} — pronta {dataHumana(z.obra.finishes_at)}.
+                  {escolhida.offline && (
+                    <p className="text-rust mt-1 text-sm font-bold">
+                      ⚠ Fora de operação — sabotada ou apreendida. Precisa de reparo.
                     </p>
                   )}
+
+                  {/* As duas camadas, e elas não se confundem: o que o GDD promete e o que o jogo faz. */}
+                  <p className="text-ink-soft mt-2 text-xs italic">GDD: {escolhida.gdd}</p>
+                  <p className="mt-2 text-sm">{escolhida.hoje}</p>
+
+                  {escolhida.inerte && (
+                    <p className="text-ink-soft mt-2 text-xs">
+                      Esta construção <strong>não faz nada</strong>, e é o próprio GDD que o diz. Erga-a
+                      se quiser — é a única do jogo que se ergue só por gosto.
+                    </p>
+                  )}
+
+                  {!escolhida.construivel ? (
+                    <p className="text-ink-soft mt-3 text-xs">
+                      Nasce com a ocupação e não se ergue nem se demole.
+                    </p>
+                  ) : escolhida.proximo ? (
+                    <div className="mt-3">
+                      <div className="text-ink eyebrow">
+                        Erguer ao nível {escolhida.proximo.level} — do canteiro
+                      </div>
+                      <ul className="text-ink-soft mt-1 text-sm">
+                        {Object.entries(escolhida.proximo.custo).map(([r, q]) => {
+                          const tem = z.canteiro.find((c) => c.resource_type === r)?.amount ?? 0
+
+                          return (
+                            <li key={r} className={tem < q ? 'text-rust' : ''}>
+                              {nomeRecurso(r)}: {q} <span className="text-xs">(no canteiro: {tem})</span>
+                            </li>
+                          )
+                        })}
+                      </ul>
+                      <p className="text-ink-soft mt-1 text-xs">
+                        Leva {Math.round(escolhida.proximo.segundos / 3600)} h.
+                      </p>
+
+                      {!canteiroPaga(escolhida) && (
+                        <button
+                          className="border-rust/40 text-rust hover:border-rust mt-2 w-full border py-1.5 text-xs font-bold"
+                          onClick={() => setAba('canteiro')}
+                          data-ir-ao-canteiro
+                        >
+                          Ir ao Canteiro para enviar o material
+                        </button>
+                      )}
+
+                      {/*
+                        O botão **não se oferece quando o canteiro não paga** — e isso não é enfeite.
+                        Antes, clicar sem material mandava a requisição, o servidor devolvia 422, e o
+                        colono levava um erro que a tela já sabia de antemão. A guarda do domínio
+                        continua lá (é ela que vale contra requisição forjada); esta só evita prometer
+                        o que não se pode cumprir.
+                      */}
+                      <button
+                        className="botao mt-2 w-full"
+                        disabled={ocupado || z.obra !== null || z.cercada || !canteiroPaga(escolhida)}
+                        data-construir={escolhida.type}
+                        onClick={() =>
+                          void agir(async () => {
+                            await api.construirNaZona(z.id, escolhida.type)
+
+                            return `${escolhida.nome} em obra.`
+                          })
+                        }
+                      >
+                        {z.obra
+                          ? 'Já há uma obra em curso'
+                          : z.cercada
+                            ? 'Não se constrói sob sítio'
+                            : !canteiroPaga(escolhida)
+                              ? 'Falta material no canteiro'
+                              : 'Construir'}
+                      </button>
+
+                      {/*
+                        Sem isto, o colono via só "Já há uma obra em curso" e tinha de procurar no
+                        Canteiro, numa aba à parte, para descobrir O QUÊ.
+                      */}
+                      {z.obra && (
+                        <p className="text-ink-soft mt-1 text-xs" data-obra-em-curso>
+                          {z.obra.nome} nível {z.obra.target_level} — pronta {dataHumana(z.obra.finishes_at)}.
+                        </p>
+                      )}
+                    </div>
+                  ) : (
+                    <p className="text-ink-soft mt-3 text-xs">No nível máximo.</p>
+                  )}
                 </div>
-              ) : (
-                <p className="text-ink-soft mt-3 text-xs">No nível máximo.</p>
               )}
             </div>
+          </div>
+
+          {/* ── upgrade de nível da zona (D-84) ──────────────────────────────────────────────── */}
+          <section className="painel bg-sand p-4" data-secao="upgrade">
+            <h3 className="font-bold">Nível da zona</h3>
+            <p className="text-ink-soft mt-1 text-sm">
+              O nível decide quanto a zona extrai por hora — sobe de 1 a 5, e cada nível custa mais
+              que o anterior. Diferente das construções: o custo sai direto do estoque de casa, como
+              a ocupação (não do canteiro).
+            </p>
+
+            {z.upgrade.target ? (
+              <p className="mt-2 text-sm" data-upgrade-em-curso>
+                Upgrade para o nível {z.upgrade.target} em curso
+                {z.upgrade.finishes_at && ` — pronto ${dataHumana(z.upgrade.finishes_at)}`}.
+              </p>
+            ) : z.upgrade.proximo_custo ? (
+              <div className="mt-2">
+                <p className="text-ink-soft text-sm">
+                  Subir ao nível {z.level + 1}: {z.upgrade.proximo_custo.metal_bruto} Metal Bruto +{' '}
+                  {z.upgrade.proximo_custo.fert} Fert$, guarnição até {z.upgrade.proxima_guarnicao} robôs.
+                </p>
+                <button
+                  className="botao mt-2"
+                  disabled={ocupado || z.cercada}
+                  data-upar-zona
+                  onClick={() =>
+                    void agir(async () => {
+                      await api.upgradeZona(z.id)
+
+                      return `Upgrade para o nível ${z.level + 1} iniciado.`
+                    })
+                  }
+                >
+                  Upgrade para o nível {z.level + 1}
+                </button>
+              </div>
+            ) : (
+              <p className="text-ink-soft mt-2 text-sm">Nível máximo (5).</p>
+            )}
+          </section>
+
+          {/* ── o que o GDD promete e o jogo não tem ─────────────────────────────────────────── */}
+          {Object.keys(z.ausentes).length > 0 && (
+            <section data-secao="ausentes">
+              <h3 className="font-bold">O que ainda não existe</h3>
+              <p className="text-ink-soft mt-1 text-xs">
+                O §17.4 lista estas estruturas. O jogo não as tem — e dizer isso é melhor do que
+                fingir que elas não foram prometidas.
+              </p>
+              <ul className="mt-2 space-y-2">
+                {Object.entries(z.ausentes).map(([k, a]) => (
+                  <li key={k} className="text-sm" data-ausente={k}>
+                    <strong>{a.nome}</strong>{' '}
+                    <span className="text-ink-soft text-xs">— {a.porque}</span>
+                  </li>
+                ))}
+              </ul>
+            </section>
           )}
         </div>
-      </div>
+      )}
 
-      {/* ── o depósito, e o que a guerra pode levar ─────────────────────────────────────── */}
-      <section className="painel bg-sand p-4" data-secao="deposito">
-        <h3 className="font-bold">Depósito</h3>
-        <div className="mt-2 grid gap-2 text-sm sm:grid-cols-2">
-          <div>
-            {nomeRecurso(z.mineral)}: <strong data-bruto>{z.deposito.bruto}</strong>
-            <span className="text-ink-soft text-xs"> · extrai {z.extracao_hora}/h</span>
-          </div>
-          {z.deposito.refinado_recurso && (
+      {/* ══════════════════════════════════════════════════════ Depósito ══════ */}
+      {aba === 'deposito' && (
+        <section className="painel bg-sand p-4" data-aba="deposito" data-secao="deposito">
+          <h3 className="font-bold">Depósito</h3>
+          <div className="mt-2 grid gap-2 text-sm sm:grid-cols-2">
             <div>
-              {nomeRecurso(z.deposito.refinado_recurso)}:{' '}
-              <strong data-refinado>{z.deposito.refinado}</strong>
-              <span className="text-ink-soft text-xs">
-                {' '}
-                · {z.refino_hora > 0 ? `refina ${z.refino_hora}/h` : 'sem Refinaria'}
-              </span>
+              {nomeRecurso(z.mineral)}: <strong data-bruto>{z.deposito.bruto}</strong>
+              <span className="text-ink-soft text-xs"> · extrai {z.extracao_hora}/h</span>
             </div>
-          )}
-          {/* Os minerais da Indústria Siderúrgica (D-82) — mesmo Depósito, mesma capacidade. */}
-          {z.deposito.minerais.map((m) => (
-            <div key={m.resource_type}>
-              {nomeRecurso(m.resource_type)}:{' '}
-              <strong data-mineral={m.resource_type}>{m.amount}</strong>
-            </div>
-          ))}
-        </div>
-
-        <div className="mt-3 text-sm">
-          <div>
-            Protegido do saque: <strong>{z.deposito.protegido}</strong> de{' '}
-            {z.deposito.capacidade} de capacidade
-          </div>
-          <div className={z.deposito.exposto > 0 ? 'text-rust font-bold' : 'text-ink-soft'}>
-            Exposto ao saque: <span data-exposto>{z.deposito.exposto}</span>
-          </div>
-        </div>
-
-        <p className="text-ink-soft mt-2 text-xs">
-          <strong>Só o que EXCEDE o Depósito pode ser saqueado.</strong> O que cabe nele está a
-          salvo. Suba o Depósito para proteger mais — ou retire a carga antes que alguém venha
-          buscá-la.
-        </p>
-
-        {/* Retirar — qualquer coisa que esteja no Depósito: bruto, refinado, ou os minerais da
-            Siderúrgica (D-82). Sem isto, o que a Refinaria e a Siderúrgica produzem ficaria preso
-            na zona para sempre — a mesma armadilha que o D-67 já tinha evitado para o refinado. */}
-        {(() => {
-          const disponiveis = [
-            { recurso: z.mineral, tem: z.deposito.bruto },
-            ...(z.deposito.refinado_recurso
-              ? [{ recurso: z.deposito.refinado_recurso, tem: z.deposito.refinado }]
-              : []),
-            ...z.deposito.minerais.map((m) => ({ recurso: m.resource_type, tem: m.amount })),
-          ].filter((r) => r.tem > 0)
-
-          if (disponiveis.length === 0) return null
-
-          return (
-            <div className="border-rust/20 mt-3 border-t pt-3">
-              {ociosos.length === 0 ? (
-                <p className="text-ink-soft text-xs">Nenhum veículo ocioso para retirar carga.</p>
-              ) : (
-                <>
-                  <div className="text-ink eyebrow">Retirar (com {nomeVeiculo(ociosos[0].type)})</div>
-                  <div className="mt-1 grid gap-2 sm:grid-cols-3">
-                    {disponiveis.map(({ recurso, tem }) => (
-                      <label key={recurso} className="text-sm">
-                        {nomeRecurso(recurso)}
-                        <input
-                          type="number"
-                          min={0}
-                          max={Math.min(tem, ociosos[0].capacity_efetiva)}
-                          value={retirar[recurso] ?? 0}
-                          onChange={(e) =>
-                            setRetirar((v) => ({
-                              ...v,
-                              [recurso]: Math.max(0, Math.min(tem, Number(e.target.value))),
-                            }))
-                          }
-                          data-retirar={recurso}
-                          className="border-rust/25 bg-sand-light focus:border-rust mt-1 w-full border px-2 py-1 outline-none"
-                        />
-                      </label>
-                    ))}
-                  </div>
-
-                  <button
-                    className="botao mt-2 w-full"
-                    disabled={ocupado || z.cercada || Object.values(retirar).every((q) => !q)}
-                    data-retirar-deposito
-                    onClick={() =>
-                      void agir(async () => {
-                        const carga = Object.fromEntries(
-                          Object.entries(retirar).filter(([, q]) => q > 0),
-                        )
-                        const v = await api.retirarDeZona(z.id, ociosos[0].id, carga)
-                        setRetirar({})
-
-                        const cargaTexto = Object.entries(carga)
-                          .map(([r, q]) => `${q} ${nomeRecurso(r)}`)
-                          .join(', ')
-                        const chegada = v.arrives_at ? ` — chega ${dataHumana(v.arrives_at)}` : ''
-
-                        return `${nomeVeiculo(v.type)} ${v.plate} a caminho de casa com ${cargaTexto}${chegada}.`
-                      })
-                    }
-                  >
-                    {z.cercada ? 'Não se retira sob sítio' : 'Retirar'}
-                  </button>
-                </>
-              )}
-            </div>
-          )
-        })()}
-      </section>
-
-      {/* ── o canteiro de obras ─────────────────────────────────────────────────────────── */}
-      <section className="painel bg-sand p-4" data-secao="canteiro">
-        <h3 className="font-bold">Canteiro de obras</h3>
-        <p className="text-ink-soft mt-1 text-sm">
-          <strong>O material das obras chega de veículo.</strong> Não sai do estoque de casa por
-          mágica — a zona fica a {' '}
-          <em>slots</em> de distância, e tudo o que é físico viaja. A sobra fica no canteiro para a
-          próxima obra.
-        </p>
-
-        {z.canteiro.length === 0 ? (
-          <p className="text-ink-soft mt-2 text-sm">Vazio. Despache um veículo com material.</p>
-        ) : (
-          <ul className="mt-2 text-sm">
-            {z.canteiro.map((c) => (
-              <li key={c.resource_type} data-canteiro={c.resource_type}>
-                {nomeRecurso(c.resource_type)}: <strong>{c.amount}</strong>
-              </li>
+            {z.deposito.refinado_recurso && (
+              <div>
+                {nomeRecurso(z.deposito.refinado_recurso)}:{' '}
+                <strong data-refinado>{z.deposito.refinado}</strong>
+                <span className="text-ink-soft text-xs">
+                  {' '}
+                  · {z.refino_hora > 0 ? `refina ${z.refino_hora}/h` : 'sem Refinaria'}
+                </span>
+              </div>
+            )}
+            {/* Os minerais da Indústria Siderúrgica (D-82) — mesmo Depósito, mesma capacidade. Esta
+                lista é genérica de propósito (D-86): quando uma zona passar a produzir mais do que
+                bruto + refinado, ela aparece aqui sozinha, sem mexer em código nenhum. */}
+            {z.deposito.minerais.map((m) => (
+              <div key={m.resource_type}>
+                {nomeRecurso(m.resource_type)}:{' '}
+                <strong data-mineral={m.resource_type}>{m.amount}</strong>
+              </div>
             ))}
-          </ul>
-        )}
+          </div>
 
-        {z.obra && (
-          <p className="mt-2 text-sm">
-            Em obra: <strong>{z.obra.nome}</strong> nível {z.obra.target_level} — pronta{' '}
-            {dataHumana(z.obra.finishes_at)}.
-          </p>
-        )}
-
-        {/* Enviar material */}
-        {ociosos.length === 0 ? (
-          <p className="text-ink-soft mt-3 text-xs">Nenhum veículo ocioso para levar material.</p>
-        ) : (
-          <div className="mt-3">
-            <div className="text-ink eyebrow">Enviar material (de {nomeVeiculo(ociosos[0].type)})</div>
-            <div className="mt-1 grid gap-2 sm:grid-cols-3">
-              {['metal_bruto', 'ligas_metalicas', 'componentes_eletronicos'].map((r) => (
-                <label key={r} className="text-sm">
-                  {nomeRecurso(r)}
-                  <input
-                    type="number"
-                    min={0}
-                    value={envio[r] ?? 0}
-                    onChange={(e) =>
-                      setEnvio((v) => ({ ...v, [r]: Math.max(0, Number(e.target.value)) }))
-                    }
-                    data-enviar={r}
-                    className="border-rust/25 bg-sand-light focus:border-rust mt-1 w-full border px-2 py-1 outline-none"
-                  />
-                </label>
-              ))}
+          <div className="mt-3 text-sm">
+            <div>
+              Protegido do saque: <strong>{z.deposito.protegido}</strong> de {z.deposito.capacidade}{' '}
+              de capacidade
             </div>
+            <div className={z.deposito.exposto > 0 ? 'text-rust font-bold' : 'text-ink-soft'}>
+              Exposto ao saque: <span data-exposto>{z.deposito.exposto}</span>
+            </div>
+          </div>
 
-            <button
-              className="botao mt-2 w-full"
-              disabled={ocupado || z.cercada || Object.values(envio).every((q) => !q)}
-              data-despachar-material
-              onClick={() =>
+          <p className="text-ink-soft mt-2 text-xs">
+            <strong>Só o que EXCEDE o Depósito pode ser saqueado.</strong> O que cabe nele está a
+            salvo. Suba o Depósito para proteger mais — ou retire a carga antes que alguém venha
+            buscá-la.
+          </p>
+
+          {/* Retirar — qualquer coisa que esteja no Depósito, genericamente (D-86: bruto, refinado,
+              ou qualquer mineral futuro). Sem isto, o que a Refinaria e a Siderúrgica produzem
+              ficaria preso na zona para sempre — a mesma armadilha que o D-67 já tinha evitado. */}
+          {(() => {
+            const disponiveis = [
+              { recurso: z.mineral, tem: z.deposito.bruto },
+              ...(z.deposito.refinado_recurso
+                ? [{ recurso: z.deposito.refinado_recurso, tem: z.deposito.refinado }]
+                : []),
+              ...z.deposito.minerais.map((m) => ({ recurso: m.resource_type, tem: m.amount })),
+            ].filter((r) => r.tem > 0)
+
+            if (disponiveis.length === 0) return null
+
+            return (
+              <div className="border-rust/20 mt-3 border-t pt-3">
+                {ociosos.length === 0 ? (
+                  <p className="text-ink-soft text-xs">Nenhum veículo ocioso para retirar carga.</p>
+                ) : (
+                  <>
+                    <div className="text-ink eyebrow">Retirar (com {nomeVeiculo(ociosos[0].type)})</div>
+                    <div className="mt-1 grid gap-2 sm:grid-cols-3">
+                      {disponiveis.map(({ recurso, tem }) => (
+                        <label key={recurso} className="text-sm">
+                          {nomeRecurso(recurso)}
+                          <input
+                            type="number"
+                            min={0}
+                            max={Math.min(tem, ociosos[0].capacity_efetiva)}
+                            value={retirar[recurso] ?? 0}
+                            onChange={(e) =>
+                              setRetirar((v) => ({
+                                ...v,
+                                [recurso]: Math.max(0, Math.min(tem, Number(e.target.value))),
+                              }))
+                            }
+                            data-retirar={recurso}
+                            className="border-rust/25 bg-sand-light focus:border-rust mt-1 w-full border px-2 py-1 outline-none"
+                          />
+                        </label>
+                      ))}
+                    </div>
+
+                    <button
+                      className="botao mt-2 w-full"
+                      disabled={ocupado || z.cercada || Object.values(retirar).every((q) => !q)}
+                      data-retirar-deposito
+                      onClick={() =>
+                        void agir(async () => {
+                          const carga = Object.fromEntries(
+                            Object.entries(retirar).filter(([, q]) => q > 0),
+                          )
+                          const v = await api.retirarDeZona(z.id, ociosos[0].id, carga)
+                          setRetirar({})
+
+                          const cargaTexto = Object.entries(carga)
+                            .map(([r, q]) => `${q} ${nomeRecurso(r)}`)
+                            .join(', ')
+                          const chegada = v.arrives_at ? ` — chega ${dataHumana(v.arrives_at)}` : ''
+
+                          return `${nomeVeiculo(v.type)} ${v.plate} a caminho de casa com ${cargaTexto}${chegada}.`
+                        })
+                      }
+                    >
+                      {z.cercada ? 'Não se retira sob sítio' : 'Retirar'}
+                    </button>
+                  </>
+                )}
+              </div>
+            )
+          })()}
+        </section>
+      )}
+
+      {/* ══════════════════════════════════════════════════════ Canteiro ══════ */}
+      {aba === 'canteiro' && (
+        <section className="painel bg-sand p-4" data-aba="canteiro" data-secao="canteiro">
+          <h3 className="font-bold">Canteiro de obras</h3>
+          <p className="text-ink-soft mt-1 text-sm">
+            <strong>O material das obras chega de veículo.</strong> Não sai do estoque de casa por
+            mágica — a zona fica a <em>slots</em> de distância, e tudo o que é físico viaja. A sobra
+            fica no canteiro para a próxima obra.
+          </p>
+
+          {z.canteiro.length === 0 ? (
+            <p className="text-ink-soft mt-2 text-sm">Vazio. Despache um veículo com material.</p>
+          ) : (
+            <ul className="mt-2 text-sm">
+              {z.canteiro.map((c) => (
+                <li key={c.resource_type} data-canteiro={c.resource_type}>
+                  {nomeRecurso(c.resource_type)}: <strong>{c.amount}</strong>
+                </li>
+              ))}
+            </ul>
+          )}
+
+          {z.obra && (
+            <p className="mt-2 text-sm">
+              Em obra: <strong>{z.obra.nome}</strong> nível {z.obra.target_level} — pronta{' '}
+              {dataHumana(z.obra.finishes_at)}.
+            </p>
+          )}
+
+          {/*
+            ── Enviar material ─────────────────────────────────────────────────────────────────
+            Redesenhado no D-86: antes o formulário sempre usava o primeiro veículo ocioso sem
+            dizer qual, e oferecia sempre os mesmos três recursos (Metal Bruto, Ligas,
+            Componentes) mesmo quando a obra pedia outra coisa — o colono não tinha como saber O
+            QUE enviar nem QUANTO. Agora se escolhe a obra primeiro, e o formulário só pergunta o
+            que ELA precisa, já com o que falta pré-preenchido.
+          */}
+          {ociosos.length === 0 ? (
+            <p className="text-ink-soft mt-3 text-xs">Nenhum veículo ocioso para levar material.</p>
+          ) : (
+            <EnviarMaterial
+              zona={z}
+              porTipo={porTipo}
+              sel={sel}
+              aoEscolherObra={setSel}
+              ociosos={ociosos}
+              envio={envio}
+              setEnvio={setEnvio}
+              envioVeiculoId={envioVeiculoId}
+              setEnvioVeiculoId={setEnvioVeiculoId}
+              ocupado={ocupado}
+              onDespachar={(veiculoId, carga) =>
                 void agir(async () => {
-                  const carga = Object.fromEntries(
-                    Object.entries(envio).filter(([, q]) => q > 0),
-                  )
-                  const v = await api.entregarMaterial(z.id, ociosos[0].id, carga)
+                  const v = await api.entregarMaterial(z.id, veiculoId, carga)
                   setEnvio({})
 
                   // Sem tipo, placa, carga e chegada, a mensagem só dizia "um veículo" — e numa
-                  // colônia com dois ou três Furgões, o colono não tinha como saber QUAL partiu,
-                  // levando O QUÊ, nem QUANDO chega.
+                  // colônia com dois ou três Furgões, o colono não tinha como saber QUAL partiu.
                   const cargaTexto = Object.entries(carga)
                     .map(([r, q]) => `${q} ${nomeRecurso(r)}`)
                     .join(', ')
@@ -554,47 +693,316 @@ export function Zona({ aoFechar }: { aoFechar: () => void }) {
                   return `${nomeVeiculo(v.type)} ${v.plate} a caminho da zona com ${cargaTexto}${chegada}.`
                 })
               }
-            >
-              Despachar material
-            </button>
-          </div>
-        )}
-      </section>
+            />
+          )}
+        </section>
+      )}
 
-      {/* ── a guarnição ─────────────────────────────────────────────────────────────────── */}
-      <section className="painel bg-sand p-4" data-secao="guarnicao">
-        <h3 className="font-bold">Guarnição</h3>
-        <p className="mt-1 text-sm">
-          {z.guarnicao.robos} Robôs Mineradores · {z.guarnicao.sentinelas} Sentinelas ·{' '}
-          <strong>{z.guarnicao.defesa}</strong> pontos de defesa
-        </p>
-        <p className="text-ink-soft mt-1 text-xs">
-          O bônus da Muralha, da Torre e do Bastião multiplica isto. Sem eles, a zona defende com o
-          que tem, e nada mais.
-        </p>
-      </section>
-
-      {/* ── o que o GDD promete e o jogo não tem ────────────────────────────────────────── */}
-      {Object.keys(z.ausentes).length > 0 && (
-        <section data-secao="ausentes">
-          <h3 className="font-bold">O que ainda não existe</h3>
-          <p className="text-ink-soft mt-1 text-xs">
-            O §17.4 lista estas estruturas. O jogo não as tem — e dizer isso é melhor do que fingir
-            que elas não foram prometidas.
+      {/* ══════════════════════════════════════════════════════ Guarnição ═════ */}
+      {aba === 'guarnicao' && (
+        <section className="painel bg-sand p-4" data-aba="guarnicao" data-secao="guarnicao">
+          <h3 className="font-bold">Guarnição</h3>
+          <p className="mt-1 text-sm">
+            {z.guarnicao.robos} Robôs Mineradores · {z.guarnicao.sentinelas} Sentinelas ·{' '}
+            <strong>{z.guarnicao.defesa}</strong> pontos de defesa
           </p>
-          <ul className="mt-2 space-y-2">
-            {Object.entries(z.ausentes).map(([k, a]) => (
-              <li key={k} className="text-sm" data-ausente={k}>
-                <strong>{a.nome}</strong>{' '}
-                <span className="text-ink-soft text-xs">— {a.porque}</span>
-              </li>
-            ))}
-          </ul>
+          <p className="text-ink-soft mt-1 text-xs">
+            O bônus da Muralha, da Torre e do Bastião multiplica isto. Sem eles, a zona defende com o
+            que tem, e nada mais.
+          </p>
+
+          {/* Reforço (§27.5, D-70) — trazido para dentro da zona no D-86. Não exige combate em
+              curso: guarnecer em paz é a mesma coisa que socorrer sob ataque. */}
+          <div className="border-rust/20 mt-3 border-t pt-3">
+            <div className="text-ink eyebrow">Reforçar com Sentinelas</div>
+            {!guerra ? (
+              <p className="text-ink-soft mt-1 text-xs">Carregando…</p>
+            ) : (
+              <ReforcarZona
+                zona={z}
+                sentinelasEmCasa={guerra.unidades.filter((u) => u.type === 'sentinela')}
+                quantas={reforcoQtd}
+                setQuantas={setReforcoQtd}
+                ocupado={ocupado}
+                onReforcar={(ids) =>
+                  void agir(async () => {
+                    const r = await api.reforcar(z.id, ids)
+                    setGuerra(null)
+
+                    return `${r.marcharam} Sentinela(s) a caminho da zona.`
+                  })
+                }
+              />
+            )}
+          </div>
+        </section>
+      )}
+
+      {/* ══════════════════════════════════════════════════════ Histórico ═════ */}
+      {aba === 'historico' && (
+        <section className="painel bg-sand p-4" data-aba="historico" data-secao="historico">
+          <h3 className="font-bold">Histórico</h3>
+          <p className="text-ink-soft mt-1 text-xs">
+            Posse (ocupação, abandono, conquista), o que a zona custou e o que a guerra fez com ela.
+            Só você vê isto.
+          </p>
+
+          {carregandoHistorico && <p className="text-ink-soft mt-2 text-sm">Carregando…</p>}
+
+          {eventos && eventos.length === 0 && (
+            <p className="text-ink-soft mt-2 text-sm">Nada ainda.</p>
+          )}
+
+          {eventos && eventos.length > 0 && (
+            <ul className="mt-2 space-y-2 text-sm">
+              {eventos.map((ev, i) => (
+                <li key={i} className="border-rust/15 border-b pb-2" data-evento={ev.categoria}>
+                  <div className="text-ink-soft text-xs">{dataHumana(ev.em)}</div>
+                  <div>
+                    {ev.categoria === 'posse' && <LinhaDePosse ev={ev} />}
+                    {ev.categoria === 'financeiro' && <LinhaFinanceira ev={ev} />}
+                    {ev.categoria === 'guerra' && <LinhaDeGuerra ev={ev} />}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
         </section>
       )}
 
       {erro && <p className="text-rust text-sm font-bold">{erro}</p>}
       {recibo && <p className="text-sm font-bold">{recibo}</p>}
     </div>,
+  )
+}
+
+function LinhaDePosse({ ev }: { ev: EventoDaZona }) {
+  const ROTULO: Record<string, string> = {
+    ocupada: 'Ocupada',
+    abandonada: 'Abandonada por manutenção não paga',
+    conquistada: 'Conquistada na guerra',
+  }
+
+  return (
+    <span>
+      <strong>{ROTULO[ev.tipo] ?? ev.tipo}</strong>
+      {ev.colonia && ` — ${ev.colonia}`}
+    </span>
+  )
+}
+
+function LinhaFinanceira({ ev }: { ev: EventoDaZona }) {
+  const ROTULO: Record<string, string> = {
+    custo_ocupacao: 'Custo de ocupação',
+    custo_upgrade_zona: 'Custo de upgrade de nível',
+    manutencao_territorial: 'Manutenção territorial',
+    saque_de_guerra: 'Saque de guerra',
+  }
+  const qtd = ev.quantidade ?? 0
+
+  return (
+    <span>
+      <strong>{ROTULO[ev.tipo] ?? ev.tipo}</strong>
+      {ev.recurso ? ` — ${nomeRecurso(ev.recurso)}` : ' — Fert$'}:{' '}
+      <span className={qtd < 0 ? 'text-rust' : ''}>{qtd}</span>
+    </span>
+  )
+}
+
+function LinhaDeGuerra({ ev }: { ev: EventoDaZona }) {
+  return (
+    <span>
+      <strong>{ev.tipo}</strong> — {ev.atacante} atacou, {ev.defensor} defendeu ({ev.status})
+    </span>
+  )
+}
+
+/**
+ * O formulário de envio de material (D-86). Pergunta a obra ANTES do recurso — é o que faz a
+ * mecânica ficar legível: o colono escolhe "o que estou construindo", e a tela responde "isto é o
+ * que falta".
+ */
+function EnviarMaterial({
+  zona,
+  porTipo,
+  sel,
+  aoEscolherObra,
+  ociosos,
+  envio,
+  setEnvio,
+  envioVeiculoId,
+  setEnvioVeiculoId,
+  ocupado,
+  onDespachar,
+}: {
+  zona: ZonaDetalhe
+  porTipo: Map<string, ZonaDetalhe['estruturas'][number]>
+  sel: string | null
+  aoEscolherObra: (tipo: string) => void
+  ociosos: Veiculo[]
+  envio: Record<string, number>
+  setEnvio: (fn: (v: Record<string, number>) => Record<string, number>) => void
+  envioVeiculoId: number | null
+  setEnvioVeiculoId: (id: number | null) => void
+  ocupado: boolean
+  onDespachar: (veiculoId: number, carga: Record<string, number>) => void
+}) {
+  const obras = zona.estruturas.filter((e) => e.construivel && e.proximo)
+  const escolhida = sel ? porTipo.get(sel) : null
+  const alvo = escolhida?.proximo ? escolhida : null
+
+  const veiculo = ociosos.find((v) => v.id === envioVeiculoId) ?? ociosos[0]
+
+  const noCanteiro = (r: string) => zona.canteiro.find((c) => c.resource_type === r)?.amount ?? 0
+  const total = Object.values(envio).reduce((s, q) => s + (q || 0), 0)
+
+  return (
+    <div className="mt-3">
+      <label className="text-ink eyebrow block">Para qual obra?</label>
+      <select
+        value={sel ?? ''}
+        onChange={(e) => aoEscolherObra(e.target.value)}
+        data-obra-do-canteiro
+        className="border-rust/25 bg-sand-light focus:border-rust mt-1 w-full border px-2 py-1 text-sm outline-none"
+      >
+        <option value="" disabled>
+          Escolha uma obra…
+        </option>
+        {obras.map((o) => (
+          <option key={o.type} value={o.type}>
+            {o.nome} → nível {o.proximo!.level}
+          </option>
+        ))}
+      </select>
+
+      {ociosos.length > 1 && (
+        <div className="mt-2">
+          <label className="text-ink eyebrow block">Com qual veículo?</label>
+          <select
+            value={veiculo?.id ?? ''}
+            onChange={(e) => setEnvioVeiculoId(Number(e.target.value))}
+            data-veiculo-do-canteiro
+            className="border-rust/25 bg-sand-light focus:border-rust mt-1 w-full border px-2 py-1 text-sm outline-none"
+          >
+            {ociosos.map((v) => (
+              <option key={v.id} value={v.id}>
+                {nomeVeiculo(v.type)} #{v.id} — {v.capacity_efetiva} un
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+
+      {!alvo ? (
+        <p className="text-ink-soft mt-2 text-xs">
+          {obras.length === 0
+            ? 'Nenhuma obra disponível para erguer agora.'
+            : 'Escolha uma obra para ver o que falta enviar.'}
+        </p>
+      ) : (
+        <>
+          <div className="mt-2 grid gap-2 sm:grid-cols-3">
+            {Object.entries(alvo.proximo!.custo).map(([r, q]) => {
+              const tem = noCanteiro(r)
+              const falta = Math.max(0, q - tem)
+
+              return (
+                <label key={r} className="text-sm">
+                  {nomeRecurso(r)}{' '}
+                  <span className="text-ink-soft text-xs">(falta {falta} de {q})</span>
+                  <input
+                    type="number"
+                    min={0}
+                    max={veiculo?.capacity_efetiva ?? 0}
+                    value={envio[r] ?? Math.min(falta, veiculo?.capacity_efetiva ?? 0)}
+                    onChange={(e) =>
+                      setEnvio((v) => ({
+                        ...v,
+                        [r]: Math.max(0, Math.min(veiculo?.capacity_efetiva ?? 0, Number(e.target.value))),
+                      }))
+                    }
+                    data-enviar={r}
+                    className="border-rust/25 bg-sand-light focus:border-rust mt-1 w-full border px-2 py-1 outline-none"
+                  />
+                </label>
+              )
+            })}
+          </div>
+
+          <p className="text-ink-soft mt-1 text-xs">
+            {total} de {veiculo?.capacity_efetiva ?? 0} de capacidade do veículo.
+          </p>
+
+          <button
+            className="botao mt-2 w-full"
+            disabled={ocupado || zona.cercada || !veiculo || total === 0}
+            data-despachar-material
+            onClick={() => {
+              if (!veiculo) return
+              const carga = Object.fromEntries(
+                Object.entries(alvo.proximo!.custo)
+                  .map(([r]) => [r, envio[r] ?? Math.min(Math.max(0, alvo.proximo!.custo[r] - noCanteiro(r)), veiculo.capacity_efetiva)])
+                  .filter(([, q]) => (q as number) > 0),
+              )
+              onDespachar(veiculo.id, carga)
+            }}
+          >
+            {zona.cercada ? 'Não se entrega sob sítio' : 'Despachar material'}
+          </button>
+        </>
+      )}
+    </div>
+  )
+}
+
+/** O formulário de reforço (§27.5, D-70/D-86): quantas Sentinelas mandar para guarnecer a zona. */
+function ReforcarZona({
+  zona,
+  sentinelasEmCasa,
+  quantas,
+  setQuantas,
+  ocupado,
+  onReforcar,
+}: {
+  zona: ZonaDetalhe
+  sentinelasEmCasa: { id: number; ataque: number }[]
+  quantas: number
+  setQuantas: (n: number) => void
+  ocupado: boolean
+  onReforcar: (ids: number[]) => void
+}) {
+  const max = sentinelasEmCasa.length
+  const n = Math.min(Math.max(1, quantas), Math.max(1, max))
+  const escolhidas = sentinelasEmCasa.slice(0, n)
+
+  if (max === 0) {
+    return (
+      <p className="text-ink-soft mt-1 text-xs">
+        Nenhuma Sentinela em casa. Fabrique-as no Quartel para poder reforçar esta zona.
+      </p>
+    )
+  }
+
+  return (
+    <div className="mt-2 flex flex-wrap items-center gap-2">
+      <input
+        type="number"
+        min={1}
+        max={max}
+        value={quantas}
+        onChange={(e) => setQuantas(Math.max(1, Number(e.target.value)))}
+        data-quantas-reforco
+        className="border-rust/25 bg-sand-light focus:border-rust w-20 border px-2 py-1 text-sm outline-none"
+      />
+      <span className="text-ink-soft text-xs">de {max} em casa</span>
+      <button
+        className="botao"
+        disabled={ocupado || zona.cercada}
+        data-reforcar-zona
+        onClick={() => onReforcar(escolhidas.map((u) => u.id))}
+      >
+        {zona.cercada ? 'Cercada: reforço não passa' : 'Despachar reforço'}
+      </button>
+    </div>
   )
 }

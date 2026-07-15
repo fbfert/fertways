@@ -15,7 +15,16 @@ import { nomeRecurso } from './recursos'
  * **Popup, não tela** (D-69): faz sentido olhar de relance, sem sair de onde se estava — do Chat
  * ou do Mapa.
  */
-export function InfoJogador({ userId, aoFechar }: { userId: number; aoFechar: () => void }) {
+export function InfoJogador({
+  userId,
+  aoFechar,
+  aoConversar,
+}: {
+  userId: number
+  aoFechar: () => void
+  /** Abre o chat privado com este jogador — omitido, o botão "Conversar" nem aparece. */
+  aoConversar?: (id: number, nickname: string) => void
+}) {
   const [info, setInfo] = useState<JogadorInfo | null>(null)
   const [erro, setErro] = useState<string | null>(null)
 
@@ -35,6 +44,16 @@ export function InfoJogador({ userId, aoFechar }: { userId: number; aoFechar: ()
   return (
     <Popup titulo={info?.nickname ?? 'Carregando…'} eyebrow="Colono" aoFechar={aoFechar}>
       {erro && <p className="text-rust text-sm">{erro}</p>}
+
+      {info && aoConversar && (
+        <button
+          onClick={() => aoConversar(userId, info.nickname)}
+          data-conversar={userId}
+          className="botao mb-3 w-full"
+        >
+          Conversar
+        </button>
+      )}
 
       {info && (
         <div className="space-y-3 text-sm" data-info-jogador>

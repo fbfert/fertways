@@ -58,6 +58,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // "minhas". É a mesma armadilha do `/buildings/catalogo`, e ela já mordeu uma vez.
     Route::get('/zones/minhas', [ZoneController::class, 'minhas']);
     Route::get('/zones/{zone}', [ZoneController::class, 'show']);
+    Route::get('/zones/{zone}/historico', [ZoneController::class, 'historico']);
     Route::post('/zones/{zone}/build', [ZoneController::class, 'construir']);
     Route::post('/zones/{zone}/material', [ZoneController::class, 'entregarMaterial']);
     Route::patch('/zones/{zone}/name', [ZoneController::class, 'renomear']);

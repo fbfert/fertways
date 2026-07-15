@@ -7,9 +7,12 @@ use App\Domain\Logistics\DespacharVeiculo;
 use App\Domain\Zona\ConstruirNaZona;
 use App\Domain\Zona\Estruturas;
 use App\Http\Controllers\Controller;
+use App\Models\Combat;
+use App\Models\Ledger;
 use App\Models\NeutralZone;
 use App\Models\Unit;
 use App\Models\Vehicle;
+use App\Models\ZoneEvent;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -119,6 +122,25 @@ class ZoneController extends Controller
             'productive_at' => $zone->productive_at,
             'protected_until' => $zone->protected_until,
 
+            // Upgrade de nível e manutenção territorial (D-84).
+            'level' => $zone->level,
+            'upgrade' => [
+                'target' => $zone->level_target,
+                'finishes_at' => $zone->level_upgrade_finishes_at,
+                'proximo_custo' => $zone->level < \App\Models\NeutralZone::NIVEL_MAXIMO
+                    ? \App\Models\NeutralZone::custoDeUpgrade($zone->level + 1)
+                    : null,
+                'proxima_guarnicao' => $zone->level < \App\Models\NeutralZone::NIVEL_MAXIMO
+                    ? \App\Models\NeutralZone::guarnicaoAlvo($zone->level + 1)
+                    : null,
+            ],
+            'manutencao' => [
+                'custo_diario' => $zone->custoDeManutencao(),
+                'proximo_vencimento' => $zone->maintenance_next_due_at,
+                'inadimplente_desde' => $zone->maintenance_unpaid_since,
+                'penalidade_bps' => $zone->penalidadeManutencaoBps(),
+            ],
+
             'deposito' => [
                 'bruto' => $zone->deposit_amount,
                 // O que a Refinaria de Campo já converteu. Ocupa o mesmo Depósito (D-67).
@@ -160,6 +182,73 @@ class ZoneController extends Controller
 
             'modules_offline' => $zone->modules_offline ?? [],
         ]);
+    }
+
+    /**
+     * O Histórico da zona (docs/decisoes.md D-86). Só o dono a vê — mesma régua do `show()`.
+     *
+     * Três fontes, normalizadas numa linha do tempo só:
+     *  - **financeiro**: `Ledger` cujo `ref` começa em `zona:{id}:` (ocupação, upgrade,
+     *    manutenção, saque/cerco). O material entregue ao canteiro (`custo_obra_zona`) fica de
+     *    fora: o ledger dele é indexado pela viagem do veículo, não pela zona — não há como
+     *    filtrar por zona sem um JOIN que este histórico não vale a pena pagar.
+     *  - **guerra**: `Combat` desta zona — invasões, cercos, sabotagens, apreensões.
+     *  - **posse**: `ZoneEvent` — ocupação, abandono por manutenção, conquista.
+     */
+    public function historico(Request $request, NeutralZone $zone): JsonResponse
+    {
+        $colony = $request->user()->colony()->firstOrFail();
+
+        if ($zone->owner_colony_id !== $colony->id) {
+            return response()->json([
+                'message' => 'Esta zona não é sua.',
+                'code' => 'zona_nao_e_sua',
+            ], 403);
+        }
+
+        $financeiro = Ledger::where('ref', 'like', "zona:{$zone->id}:%")
+            ->orderByDesc('id')
+            ->get()
+            ->map(fn (Ledger $l) => [
+                'categoria' => 'financeiro',
+                'em' => $l->created_at,
+                'tipo' => $l->type,
+                'recurso' => $l->resource_type,
+                'quantidade' => $l->amount,
+                'ref' => $l->ref,
+            ]);
+
+        $guerra = Combat::where('zone_id', $zone->id)
+            ->with(['attacker:id,name', 'defender:id,name'])
+            ->orderByDesc('id')
+            ->get()
+            ->map(fn (Combat $c) => [
+                'categoria' => 'guerra',
+                'em' => $c->updated_at,
+                'tipo' => $c->tipo,
+                'status' => $c->status,
+                'atacante' => $c->attacker?->name,
+                'defensor' => $c->defender?->name,
+                'resultado' => $c->resultado,
+            ]);
+
+        $posse = ZoneEvent::where('zone_id', $zone->id)
+            ->with('colony:id,name')
+            ->orderByDesc('id')
+            ->get()
+            ->map(fn (ZoneEvent $e) => [
+                'categoria' => 'posse',
+                'em' => $e->created_at,
+                'tipo' => $e->type,
+                'colonia' => $e->colony?->name,
+                'meta' => $e->meta,
+            ]);
+
+        $linha = $financeiro->concat($guerra)->concat($posse)
+            ->sortByDesc('em')
+            ->values();
+
+        return response()->json(['eventos' => $linha]);
     }
 
     /**

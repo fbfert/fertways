@@ -1144,6 +1144,42 @@ testes de backend. Sem migration nem mudança de frontend — só o controller e
 
 **Para retomar isto:** não há mais pendência.
 
+## A zona vira cinco abas, o Canteiro pergunta a obra, e nasce o Histórico (D-86) — **mesclado e no ar** (2026-07-16)
+
+Pedidos pontuais do usuário:
+
+1. **Clicar no nome do dono (colônia ou zona), no mapa, abre a ficha do jogador — e é DENTRO dela
+   que mora o botão "Conversar" novo**, que leva ao chat privado. A ponte entre o Mapa (rota
+   própria) e o Chat (estado local de `App.tsx`, só existe dentro de `/`) é um `conversaAlvo`
+   levantado até `App.tsx`.
+2. **`Zona.tsx` virou cinco abas**: Zona Neutra (identidade + planta + upgrade de nível),
+   Depósito, Canteiro de obras, Guarnição, Histórico (novo).
+3. **O Canteiro foi redesenhado**: perguntava sempre os mesmos três recursos fixos e usava sempre
+   o primeiro veículo ocioso, em silêncio — o colono não tinha como saber o que a obra realmente
+   pedia. Agora pergunta **a obra primeiro**, e só então mostra o que falta enviar, com veículo
+   escolhível quando há mais de um ocioso.
+4. **O Depósito não precisou de mecânica nova** — já era genérico (bruto + refinado + minerais da
+   Siderúrgica, sem nome hardcoded); só ganhou aba própria, pronto para quando uma zona produzir
+   mais recursos.
+5. **A Guarnição ganhou o Reforço** (`Domain\Guerra\Reforcar`, D-70) — antes só existia atrelado a
+   um combate ativo, no Quartel; agora dá para reforçar uma zona em paz, direto da aba dela.
+6. **Histórico é feature nova**: tabela `zone_events` (posse — ocupação/abandono/conquista) +
+   `Ledger` filtrado por `zona:{id}:%` (financeiro) + `Combat` da zona (guerra), mesclados numa
+   linha do tempo. Só o dono vê.
+
+Ver **D-86** em `docs/decisoes.md` para o raciocínio completo de cada item.
+
+**Validado antes de abrir o PR:** suíte de backend inteira (566 testes, incluindo
+`HistoricoDaZonaTest` novo), lint, build, e2e completo — `zonas.e2e.mjs` cobre as cinco abas e o
+Histórico mostrando a ocupação recém-feita; `chat.e2e.mjs` cobre o fluxo Mapa → ficha do jogador
+→ Conversar → Chat já na privada certa.
+
+Mesclado (squash, PR #5, rebaseado sobre `main` — a base original, `feat/zona-teto-upgrade-
+manutencao`, já tinha ido para `main` como D-84) e publicado por `sudo ./tools/deploy.sh`, a
+pedido do usuário.
+
+**Para retomar isto:** não há mais pendência — é o estado normal da tela da zona agora.
+
 ## O trabalho anterior: zonas neutras + Drone (D-52)
 
 Leia **D-52**. Sequência decidida: Fatia 1 = o núcleo (ocupar/extrair/retirar); Fatia 2 = a guerra

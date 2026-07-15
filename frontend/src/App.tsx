@@ -170,6 +170,9 @@ export default function App() {
   // O "Sim/Não" do ícone de Sair (D-88) — fecha sozinho depois de confirmar, porque `sair()`
   // já tira `colonia` da tela e o dropdown não teria mais onde se ancorar.
   const [confirmandoSaida, setConfirmandoSaida] = useState(false)
+  // Uma privada pedida de FORA da colônia (D-86): o Mapa está numa rota própria, e o Chat só
+  // existe dentro da rota "/" — este é o que atravessa a troca de rota entre os dois.
+  const [conversaAlvo, setConversaAlvo] = useState<{ id: number; nickname: string } | null>(null)
 
   /*
    * O selo do rádio (D-77, aditivo): sem isto, uma privada só era vista se o colono abrisse a aba
@@ -353,7 +356,13 @@ export default function App() {
         )}
       </header>
 
-      {chatAberto && colonia && <Chat aoFechar={() => setChatAberto(false)} />}
+      {chatAberto && colonia && (
+        <Chat
+          aoFechar={() => setChatAberto(false)}
+          conversaInicial={conversaAlvo}
+          aoConsumirConversaInicial={() => setConversaAlvo(null)}
+        />
+      )}
       {missoesAbertas && !chatAberto && colonia && <Missoes aoFechar={() => setMissoesAbertas(false)} />}
 
 
@@ -421,7 +430,17 @@ export default function App() {
 
       <Route
         path="/mapa"
-        element={<Mapa aoFechar={voltar} aoAbrirCapital={() => navegar('/capital')} />}
+        element={
+          <Mapa
+            aoFechar={voltar}
+            aoAbrirCapital={() => navegar('/capital')}
+            aoAbrirChatPrivado={(id, nickname) => {
+              setConversaAlvo({ id, nickname })
+              setChatAberto(true)
+              navegar('/')
+            }}
+          />
+        }
       />
 
       <Route path="/frota" element={<Frota aoFechar={voltar} />} />
