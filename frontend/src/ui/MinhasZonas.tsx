@@ -91,6 +91,29 @@ export function MinhasZonas() {
                   obra: {z.obra.nome} n{z.obra.nivel} · {dataHumana(z.obra.termina_at)}
                 </div>
               )}
+
+              <div className="text-ink-soft text-xs">
+                nível {z.level}
+                {z.upgrade && ` → ${z.upgrade.target} (pronto ${dataHumana(z.upgrade.finishes_at)})`}
+                {' · '}
+                {z.guarnicao.robos} robôs
+                {z.guarnicao.sentinelas > 0 && ` + ${z.guarnicao.sentinelas} sentinelas`}
+                {' · '}
+                {z.guarnicao.defesa} defesa
+              </div>
+
+              {z.manutencao.inadimplente_desde && (
+                <div className="text-rust text-xs font-bold">
+                  manutenção atrasada desde {dataHumana(z.manutencao.inadimplente_desde)}
+                  {z.manutencao.penalidade_bps > 0 && ` · −${z.manutencao.penalidade_bps / 100}% defesa`}
+                </div>
+              )}
+
+              {z.canteiro.length > 0 && (
+                <div className="text-ink-soft text-xs">
+                  canteiro: {z.canteiro.map((c) => `${c.amount} ${nomeRecurso(c.resource_type)}`).join(', ')}
+                </div>
+              )}
             </Link>
           </li>
         ))}

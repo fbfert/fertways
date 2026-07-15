@@ -167,6 +167,9 @@ export default function App() {
   const [chatAberto, setChatAberto] = useState(false)
   const [missoesAbertas, setMissoesAbertas] = useState(false)
   const [chatPendente, setChatPendente] = useState(0)
+  // O "Sim/Não" do ícone de Sair (D-88) — fecha sozinho depois de confirmar, porque `sair()`
+  // já tira `colonia` da tela e o dropdown não teria mais onde se ancorar.
+  const [confirmandoSaida, setConfirmandoSaida] = useState(false)
 
   /*
    * O selo do rádio (D-77, aditivo): sem isto, uma privada só era vista se o colono abrisse a aba
@@ -301,6 +304,51 @@ export default function App() {
                 <path d="M4 21c0-4 3.6-6 8-6s8 2 8 6" strokeLinecap="round" />
               </svg>
             </button>
+
+            {/*
+              Sair virou ícone ao lado do perfil (D-88) — morava sozinho no canto inferior
+              esquerdo, longe de onde o colono já olha para se ver. Ícone é mais fácil de clicar
+              sem querer do que o botão de texto que havia antes, então pede confirmação: mesmo
+              toggle "Sim/Não" que o resto do jogo já usa para ações que não voltam sozinhas
+              (`Transportes.tsx`, sucatear veículo) — sair é reversível (basta entrar de novo),
+              mas o clique tem de ser de propósito.
+            */}
+            <div className="relative">
+              <button
+                onClick={() => setConfirmandoSaida((v) => !v)}
+                aria-label="Sair"
+                title="Sair"
+                data-sair
+                className="painel bg-sand-light text-rust hover:bg-sand flex w-14 items-center justify-center"
+              >
+                <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" strokeLinecap="round" strokeLinejoin="round" />
+                  <polyline points="16 17 21 12 16 7" strokeLinecap="round" strokeLinejoin="round" />
+                  <line x1="21" y1="12" x2="9" y2="12" strokeLinecap="round" />
+                </svg>
+              </button>
+
+              {confirmandoSaida && (
+                <div className="painel bg-sand-light border-rust/30 absolute right-0 top-full z-10 mt-2 w-48 border p-3 text-right">
+                  <p className="text-ink text-xs font-bold">Sair da conta?</p>
+                  <div className="mt-2 flex justify-end gap-2">
+                    <button
+                      onClick={() => setConfirmandoSaida(false)}
+                      className="text-ink-soft hover:text-ink px-2 py-1 text-xs"
+                    >
+                      Não
+                    </button>
+                    <button
+                      onClick={() => void sair()}
+                      data-confirmar-sair
+                      className="bg-rust text-sand-light px-3 py-1 text-xs font-bold"
+                    >
+                      Sim
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         )}
       </header>
@@ -318,11 +366,13 @@ export default function App() {
       {/*
         A DIREITA deixou de ser o lugar do detalhe (D-69). O card da construção virou POPUP — por
         cima da colônia, que é o que lhe dá contexto —, e a barra lateral ficou para o que o colono
-        precisa ver SEM clicar: as zonas dele e a fila de obras.
+        precisa ver SEM clicar: a fila de obras e as zonas dele.
+        A fila vem primeiro (D-88): é o que o colono acabou de mexer, e as zonas — que só aparecem
+        quando ele tem alguma — empurravam a fila pra baixo da dobra em quem tinha várias.
       */}
       <div className="absolute top-24 right-5 w-64 space-y-4">
-        <MinhasZonas />
         {fila && <FilaDeObras fila={fila} />}
+        <MinhasZonas />
       </div>
 
       {/*
@@ -352,12 +402,6 @@ export default function App() {
         />
       )}
 
-      <button
-        onClick={() => void sair()}
-        className="painel bg-sand-light text-ink-soft hover:text-rust hover:bg-sand eyebrow absolute bottom-4 left-5 px-4 py-2"
-      >
-        Sair
-      </button>
     </div>
   )
 

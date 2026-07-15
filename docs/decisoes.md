@@ -3688,3 +3688,47 @@ para quem acabou de chegar.
   tick, cobrança bem e mal-sucedida, decaimento, abandono aos 72h, integração com `Forcas`.
 - Validado: 562 testes (SQLite e MariaDB efêmero em container), round-trip de migrations limpo,
   lint, build, e2e completo (8 arquivos, 252 asserções) — todos verdes antes do deploy.
+
+## D-88 — Sair vira ícone com confirmação, a lateral troca de ordem, e o card da zona ganha corpo.
+**Data:** 2026-07-15 · **Status:** arbitrado pelo usuário · **Ajustes pontuais de UX, não do GDD**
+
+Três pedidos pontuais do usuário sobre a tela da colônia:
+
+1. **O botão Sair** morava sozinho no canto inferior esquerdo, longe de onde o colono já olha
+   para se ver (o card do saldo/perfil, canto superior direito). Virou ícone ao lado do perfil.
+   Confirmado com o usuário: como ícone é mais fácil de clicar sem querer do que o antigo botão
+   de texto, pede confirmação — o mesmo toggle "Sim/Não" que `Transportes.tsx` já usa para
+   sucatear um veículo, não um `window.confirm()` nativo (que não existe em lugar nenhum do
+   projeto) nem o gate "escreva a palavra" da demolição (reservado para o que não se desfaz —
+   sair é reversível, basta entrar de novo).
+2. **A ordem da lateral** — Zonas Neutras vinha antes da Fila de Construção. Confirmado:
+   inverter. A Fila é o que o colono acabou de mexer; as Zonas (que só aparecem quando ele tem
+   alguma) empurravam a Fila para baixo da dobra em quem tinha várias.
+3. **O card de cada zona, na lateral, ganhou corpo.** Antes mostrava só nome/posição/mineral,
+   cercada, "estabelecendo", depósito/capacidade, exposto e a obra em curso. Confirmado com o
+   usuário (escolheu as quatro opções oferecidas): agora também mostra **nível da zona e upgrade
+   em andamento** (D-84), **guarnição e pontos de defesa**, **manutenção territorial em atraso**
+   (D-84) e **o que já chegou ao canteiro** de obras.
+
+### A dependência do D-84
+
+Nível, upgrade e manutenção só existem porque o D-84 (teto/upgrade/manutenção de zona) já foi
+implementado — este commit está empilhado sobre aquele branch, e só pode ser mesclado depois
+dele (ou junto).
+
+### O que mudou no código
+
+- `ZoneController::minhas()` ganha `level`, `upgrade` (nulo se não há upgrade em curso),
+  `guarnicao` (robôs/sentinelas/defesa) e `manutencao` (inadimplente_desde/penalidade), além do
+  `canteiro` (o que já chegou de veículo) — os mesmos dados que `show()` já publicava para a
+  tela cheia da zona, resumidos para a lateral.
+- `App.tsx`: o ícone de Sair (SVG de porta com seta, mesmo estilo do ícone de perfil), estado
+  `confirmandoSaida`, e a troca de ordem na `<div>` da lateral. O botão de texto antigo, no
+  rodapé, foi removido — não duplicado.
+- `MinhasZonas.tsx`: as quatro linhas novas no card, condicionais (upgrade só aparece se houver
+  um em curso; manutenção só se estiver inadimplente; canteiro só se tiver algo).
+- `frontend/e2e/mercado.e2e.mjs`: o teste de logout clica `[data-sair]` e depois
+  `[data-confirmar-sair]`, em vez de um botão de texto "Sair" que não existe mais.
+- `tests/Feature/PerfilTest.php`: `test_a_lista_das_minhas_zonas` estendido com guarnição e
+  canteiro na zona de teste, e asserções para os quatro campos novos do payload.
+- Validado: 562 testes de backend, lint, build e e2e completo do frontend.

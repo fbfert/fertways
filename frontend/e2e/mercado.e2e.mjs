@@ -255,7 +255,9 @@ try {
   checar(!!guardado, 'o token está no localStorage enquanto a sessão vive')
 
   await (await acharPorTexto(page, 'button', /^×$/)).click()
-  await (await acharPorTexto(page, 'button', /^Sair$/)).click()
+  // Sair virou ícone ao lado do perfil, com confirmação (D-88): abre o "Sim/Não" antes de sair.
+  await page.click('[data-sair]')
+  await page.click('[data-confirmar-sair]')
   await page.waitForNetworkIdle({ idleTime: 800 })
 
   checar(await esperarTexto(page, /entrar|login|e-mail/i), 'sair devolve à tela de login')

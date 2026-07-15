@@ -224,6 +224,16 @@ class PerfilTest extends TestCase
             'target_level' => 1, 'finishes_at' => now()->addHours(4),
         ]);
 
+        // Guarnição e canteiro (D-88): o card da lateral também passou a mostrar isto.
+        \App\Models\Unit::insert(array_fill(0, 3, [
+            'zone_id' => $minha->id, 'colony_id' => null, 'type' => 'robo_minerador', 'level' => 1,
+            'hp_bps' => \App\Models\Unit::INTEIRA, 'status' => 'na_zona',
+            'created_at' => now(), 'updated_at' => now(),
+        ]));
+        \App\Models\ZoneMaterial::create([
+            'zone_id' => $minha->id, 'resource_type' => 'metal_bruto', 'amount' => 250,
+        ]);
+
         // A do vizinho: NÃO pode aparecer na minha lista.
         NeutralZone::create([
             'x' => 48, 'y' => 48, 'district' => 'NE', 'mineral' => 'metal_bruto', 'level' => 1,
@@ -238,7 +248,14 @@ class PerfilTest extends TestCase
             ->assertJsonPath('zones.0.id', $minha->id)
             ->assertJsonPath('zones.0.exposto', 400)     // é isto que um invasor leva
             ->assertJsonPath('zones.0.cercada', true)    // e isto é a urgência maior
-            ->assertJsonPath('zones.0.obra.nome', 'Muralha de Perímetro');
+            ->assertJsonPath('zones.0.obra.nome', 'Muralha de Perímetro')
+            // D-88: mais informação no card, sem precisar abrir a zona.
+            ->assertJsonPath('zones.0.level', 1)
+            ->assertJsonPath('zones.0.upgrade', null)
+            ->assertJsonPath('zones.0.guarnicao.robos', 3)
+            ->assertJsonPath('zones.0.manutencao.inadimplente_desde', null)
+            ->assertJsonPath('zones.0.canteiro.0.resource_type', 'metal_bruto')
+            ->assertJsonPath('zones.0.canteiro.0.amount', 250);
     }
 
     /** `/zones/minhas` não pode ser confundido com uma zona de id "minhas" — a armadilha da rota. */
