@@ -64,6 +64,8 @@ class Ledger extends Model
         'venda_veiculo',       // §16.4: o vendedor recebe, quando o usado chega ao comprador (D-60)
         'manutencao_veiculo',  // §16.4: recursos gastos na Central de Transportes para reparar (D-60)
         'estacionamento',      // §2.1, slot 6: a hora do Pátio Logístico da Capital (D-65)
+        'custo_upgrade_zona',   // §07: Metal Bruto/Fert$/Robôs para subir o nível de uma zona (D-84)
+        'manutencao_territorial', // §27.12: custo diário por nível de zona ocupada (D-84)
         // Correção de estado feita pelo operador (D-61). É a ÚNICA coisa no jogo que cria valor sem
         // origem econômica — e por isso ela é obrigada a passar por aqui, com motivo escrito. O
         // `amount` é o delta, com sinal: uma correção também pode TIRAR o que um bug deu de graça.

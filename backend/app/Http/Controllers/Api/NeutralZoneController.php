@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Domain\Logistics\DespacharVeiculo;
 use App\Domain\Logistics\OcuparZonaNeutra;
+use App\Domain\Zona\SubirNivelDaZona;
 use App\Http\Controllers\Controller;
 use App\Models\NeutralZone;
 use App\Models\Vehicle;
@@ -40,6 +41,8 @@ class NeutralZoneController extends Controller
                         ? ['intel' => 'livre', 'garrison' => $z->guarnicao(), 'deposit_amount' => (int) $z->deposit_amount, 'visto_em' => null]
                         : ['intel' => 'nenhuma', 'garrison' => null, 'deposit_amount' => null, 'visto_em' => null]);
 
+                $mine = $minha && $z->owner_colony_id === $minha->id;
+
                 return [
                     'id' => $z->id,
                     // Público, como o nome da colônia — quem passa o mouse na zona sabe de quem é.
@@ -51,7 +54,7 @@ class NeutralZoneController extends Controller
                     'level' => $z->level,
                     'status' => $z->status,
                     'owner' => $z->owner ? ['id' => $z->owner->id, 'name' => $z->owner->name] : null,
-                    'mine' => $minha && $z->owner_colony_id === $minha->id,
+                    'mine' => $mine,
                     // Derivados do nível, que é público — esconder seria teatro: qualquer um calcula.
                     'deposit_cap' => $z->capacidadeDeposito(),
                     'extraction_per_hour' => $z->extracaoPorHora(),
@@ -61,6 +64,25 @@ class NeutralZoneController extends Controller
                     'garrison' => $visto['garrison'],
                     'intel' => $visto['intel'],
                     'intel_em' => $visto['visto_em'],
+                    // Upgrade e manutenção territorial (D-84) — só o dono vê o extrato financeiro;
+                    // o EFEITO da manutenção em atraso (Pontos de Defesa perdidos) é real para
+                    // qualquer atacante, mesmo sem ver o motivo.
+                    'upgrade' => $mine ? [
+                        'target' => $z->level_target,
+                        'finishes_at' => $z->level_upgrade_finishes_at,
+                        'proximo_custo' => $z->level < \App\Models\NeutralZone::NIVEL_MAXIMO
+                            ? \App\Models\NeutralZone::custoDeUpgrade($z->level + 1)
+                            : null,
+                        'proxima_guarnicao' => $z->level < \App\Models\NeutralZone::NIVEL_MAXIMO
+                            ? \App\Models\NeutralZone::guarnicaoAlvo($z->level + 1)
+                            : null,
+                    ] : null,
+                    'manutencao' => $mine ? [
+                        'custo_diario' => $z->custoDeManutencao(),
+                        'proximo_vencimento' => $z->maintenance_next_due_at,
+                        'inadimplente_desde' => $z->maintenance_unpaid_since,
+                        'penalidade_bps' => $z->penalidadeManutencaoBps(),
+                    ] : null,
                 ];
             });
 
@@ -86,6 +108,25 @@ class NeutralZoneController extends Controller
             'garrison' => $zona->guarnicao(),
             'productive_at' => $zona->productive_at,
             'protected_until' => $zona->protected_until,
+        ], 201);
+    }
+
+    /** Sobe o nível da zona (D-84): custo e guarnição na hora, o nível sobe no tick seguinte. */
+    public function upgrade(Request $request, NeutralZone $zone, SubirNivelDaZona $subir): JsonResponse
+    {
+        $colony = $request->user()->colony()->first();
+
+        if (! $colony) {
+            return response()->json(['message' => 'Funde uma colônia antes de investir numa zona.'], 422);
+        }
+
+        $zona = $subir->handle($colony, $zone);
+
+        return response()->json([
+            'id' => $zona->id,
+            'level' => $zona->level,
+            'level_target' => $zona->level_target,
+            'level_upgrade_finishes_at' => $zona->level_upgrade_finishes_at,
         ], 201);
     }
 

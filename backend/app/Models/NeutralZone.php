@@ -48,11 +48,103 @@ class NeutralZone extends Model
     /** Tempo de ocupação antes de a zona extrair — *inventado* (lacuna 3). */
     public const OCUPACAO_HORAS = 12;
 
+    // --- Upgrade de zona e manutenção territorial (D-84, GDD §27.12). O `level` da Fatia 1
+    //     (D-52) estava preso em 1 "para uma fatia posterior" — é esta.
+
+    /** Teto de zonas por jogador — arbitrado no D-84. O GDD nunca publica um teto de posse. */
+    public const TETO_ZONAS_POR_COLONIA = 5;
+
+    public const NIVEL_MAXIMO = 5;
+
+    /**
+     * Custo e guarnição do upgrade seguem a curva 1,65× do catálogo (Muralha/Torre/Bastião/Drone,
+     * D-66/D-74) a partir da base do Posto de Comando — não a 1,5× do §19.1, que é para produção
+     * e capacidade, não para custo. O tempo segue a curva 1,5× que o próprio catálogo usa para
+     * `build_time` (Bastião etc., proporção observada, não publicada em §19.1). Ver D-84.
+     */
+    public const UPGRADE_CURVA_CUSTO = 1.65;
+
+    public const UPGRADE_CURVA_TEMPO = 1.5;
+
+    /**
+     * Guarnição-alvo por nível, arbitrada no D-84 sobre a âncora do §16.1: "quantidade necessária
+     * varia por nível da zona (20 a 150+)". `round(20 × 1,65^(N−1))` dá 20/33/54/90/148 — a mesma
+     * curva do custo, e a ponta (148) cai dentro do "150+" do GDD sem forçar a mão.
+     */
+    public static function guarnicaoAlvo(int $nivel): int
+    {
+        return (int) round(self::GUARNICAO_INICIAL * self::UPGRADE_CURVA_CUSTO ** ($nivel - 1));
+    }
+
+    /** Metal Bruto e Fert$ para alcançar `$nivel` (2 a 5) a partir do nível anterior. */
+    public static function custoDeUpgrade(int $nivel): array
+    {
+        return [
+            'metal_bruto' => (int) round(self::POSTO_METAL_BRUTO * self::UPGRADE_CURVA_CUSTO ** ($nivel - 1)),
+            'fert' => (int) round(self::POSTO_FERT * self::UPGRADE_CURVA_CUSTO ** ($nivel - 1)),
+        ];
+    }
+
+    /** Horas de obra para alcançar `$nivel` (2 a 5). */
+    public static function horasDeUpgrade(int $nivel): int
+    {
+        return (int) round(self::POSTO_HORAS * self::UPGRADE_CURVA_TEMPO ** ($nivel - 1));
+    }
+
+    /**
+     * A manutenção territorial do §27.12, por nível — nunca implementada antes do D-84, nem para
+     * zona de nível 1. Custo publicado verbatim (a tabela do GDD, não arbitragem); o decaimento e
+     * o abandono automático seguem a correção já feita no D-52 (Parte I corrige a Parte II: 5% por
+     * DIA de inadimplência, não por hora; abandono em 72 h, não 48 h).
+     *
+     * @return array<string,int>
+     */
+    public function custoDeManutencao(): array
+    {
+        return match (true) {
+            $this->level <= 1 => ['biomassa' => 50, 'energia' => 30],
+            $this->level <= 3 => ['biomassa' => 100, 'energia' => 60, 'ligas_metalicas' => 20],
+            default => ['biomassa' => 200, 'energia' => 120, 'ligas_metalicas' => 50, 'componentes_eletronicos' => 10],
+        };
+    }
+
+    /** Grau de atraso, em basis points de Pontos de Defesa perdidos (§27.12, corrigido no D-52). */
+    public const MANUTENCAO_CARENCIA_HORAS = 24;
+
+    public const MANUTENCAO_DECAIMENTO_BPS_POR_DIA = 500;   // 5%/dia
+
+    public const MANUTENCAO_ABANDONO_HORAS = 72;
+
+    /** 0% durante a carência de 24 h; 5%/dia de atraso depois disso, até o abandono em 72 h. */
+    public function penalidadeManutencaoBps(): int
+    {
+        if ($this->maintenance_unpaid_since === null) {
+            return 0;
+        }
+
+        $atraso = $this->maintenance_unpaid_since->diffInHours(now());
+
+        if ($atraso < self::MANUTENCAO_CARENCIA_HORAS) {
+            return 0;
+        }
+
+        $dias = intdiv($atraso - self::MANUTENCAO_CARENCIA_HORAS, 24) + 1;
+
+        return min(10_000, $dias * self::MANUTENCAO_DECAIMENTO_BPS_POR_DIA);
+    }
+
+    public function deveSerAbandonada(): bool
+    {
+        return $this->maintenance_unpaid_since !== null
+            && $this->maintenance_unpaid_since->diffInHours(now()) >= self::MANUTENCAO_ABANDONO_HORAS;
+    }
+
     protected $fillable = [
-        'x', 'y', 'name', 'district', 'mineral', 'level',
+        'x', 'y', 'name', 'district', 'mineral', 'level', 'level_target', 'level_upgrade_finishes_at',
         'owner_colony_id', 'status', 'occupied_at', 'protected_until',
         'command_post_level', 'productive_at',
         'deposit_level', 'deposit_amount', 'last_extraction_at',
+        'maintenance_next_due_at', 'maintenance_unpaid_since',
         'wall_level', 'watchtower_level', 'bastion_level', 'shelter_level',
         'refinery_level', 'parking_level', 'cemetery_level',
         'extraction_level', 'communication_level', 'landing_pad_level',
@@ -95,6 +187,10 @@ class NeutralZone extends Model
         'x' => 'integer',
         'y' => 'integer',
         'level' => 'integer',
+        'level_target' => 'integer',
+        'level_upgrade_finishes_at' => 'datetime',
+        'maintenance_next_due_at' => 'datetime',
+        'maintenance_unpaid_since' => 'datetime',
         'command_post_level' => 'integer',
         'deposit_level' => 'integer',
         'deposit_amount' => 'integer',

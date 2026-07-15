@@ -656,6 +656,19 @@ function PainelZona({
     }
   }
 
+  async function upar() {
+    setErro(null)
+    setEnviando(true)
+    try {
+      await api.upgradeZona(z.id)
+      await aoAgir()
+    } catch (e) {
+      setErro(e instanceof ApiError ? e.message : 'Falha ao investir no upgrade.')
+    } finally {
+      setEnviando(false)
+    }
+  }
+
   async function reconhecer(modo: 'foto' | 'vigilancia') {
     if (!drones[0]) return
     setErro(null)
@@ -694,6 +707,7 @@ function PainelZona({
         <Linha termo="Posição" valor={`(${z.x}, ${z.y})`} />
         <Linha termo="Distância" valor={`${dist} slots`} />
         <Linha termo="Dono" valor={z.owner ? (z.mine ? 'você' : z.owner.name) : 'livre'} />
+        {z.mine && <Linha termo="Nível" valor={`${z.level}${z.upgrade?.target ? ` → ${z.upgrade.target}` : ''}`} />}
         {z.mine && <Linha termo="Depósito" valor={`${deposito} / ${z.deposit_cap}`} />}
         {z.mine && <Linha termo="Extração" valor={`${z.extraction_per_hour}/h`} />}
       </dl>
@@ -774,6 +788,44 @@ function PainelZona({
         >
           Abrir a zona
         </Link>
+      )}
+
+      {/* Sua: upgrade de nível (D-84) — custo e guarnição na hora, o nível sobe no tick. */}
+      {z.mine && z.upgrade && (
+        <div className="border-rust/20 mt-3 border-t pt-2" data-upgrade-zona>
+          {z.upgrade.target ? (
+            <p className="text-ink-soft text-xs">
+              Upgrade para o nível {z.upgrade.target} em curso
+              {z.upgrade.finishes_at && `, pronto em ${new Date(z.upgrade.finishes_at).toLocaleString('pt-BR')}`}.
+            </p>
+          ) : z.upgrade.proximo_custo ? (
+            <>
+              <p className="text-ink-soft/80 text-xs">
+                Subir ao nível {z.level + 1} custa {z.upgrade.proximo_custo.metal_bruto} Metal Bruto +{' '}
+                {z.upgrade.proximo_custo.fert} Fert$, guarnição até {z.upgrade.proxima_guarnicao} robôs.
+              </p>
+              <button
+                onClick={() => void upar()}
+                disabled={enviando}
+                data-upar
+                className="border-rust/40 text-rust hover:border-rust mt-2 w-full border py-1.5 text-xs font-bold disabled:opacity-40"
+              >
+                {enviando ? 'Investindo…' : `Upgrade para o nível ${z.level + 1}`}
+              </button>
+            </>
+          ) : (
+            <p className="text-ink-soft/60 text-xs">Nível máximo (5).</p>
+          )}
+        </div>
+      )}
+
+      {/* Sua: manutenção territorial (§27.12, D-84) — sem pagar, a defesa decai; 72h, abandona. */}
+      {z.mine && z.manutencao && z.manutencao.inadimplente_desde && (
+        <p className="text-rust mt-2 text-xs font-bold" data-manutencao-atrasada>
+          Manutenção em atraso desde {new Date(z.manutencao.inadimplente_desde).toLocaleString('pt-BR')}
+          {z.manutencao.penalidade_bps > 0 && ` — defesa reduzida em ${z.manutencao.penalidade_bps / 100}%`}.
+          Sem pagar por 72 h a zona é abandonada.
+        </p>
       )}
 
       {/* Sua: estabelecendo, ou produzindo e pronta para retirar. */}

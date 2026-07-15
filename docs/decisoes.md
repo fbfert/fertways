@@ -3589,3 +3589,102 @@ Compostos tem preço fixo — `preco_base_derivado: false`). Não precisou mudar
   `efeito: 'converte'` e a explicação de cada mudança.
 - Sem migration — nenhuma coluna nova, só dado de seed (`production.json`, reseedado via
   `BuildingSpecSeeder`) e lógica de domínio.
+
+## D-84 — Teto de zonas, upgrade de nível e manutenção territorial: as três lacunas do D-52 que sobraram.
+**Data:** 2026-07-15 · **Status:** arbitrado pelo usuário · **GDD: §07, §16.1, §27.12 — números ausentes ou contraditórios**
+
+O D-52 (Fatia 1) tinha deixado dois itens abertos de propósito ("upgrade de zona fica para uma
+fatia posterior") e um terceiro nunca chegou a ser posto em código: a manutenção territorial do
+§27.12, que nunca cobrou nada de nenhuma zona, nem a de nível 1. As três, arbitradas juntas porque
+uma dá sentido à outra — upgrade sem manutenção seria pagar uma vez por um nível alto de graça
+para sempre.
+
+### O teto de zonas por jogador
+
+O GDD não publica número nenhum — só o Bastião cita "zonas defendidas simultaneamente 1–3", e o
+D-52 já havia registrado que isso não é um teto de posse (lacuna 9, D-66, D-79). **Arbitrado: 5
+zonas por colônia.** Verificado em `OcuparZonaNeutra`, sob a mesma trava da colônia que já debita
+os recursos — uma corrida rara entre duas ocupações simultâneas poderia, em tese, deixar uma
+colônia com 6; não vale a complexidade de uma trava global só para fechar essa fresta.
+
+### O upgrade de zona
+
+`neutral_zones.level` nasceu preso em 1 (D-52). Sobe agora, de 1 a 5, por uma ação nova
+(`SubirNivelDaZona`, `POST /zones/{id}/upgrade`) que **debita direto da colônia, como a ocupação —
+não do canteiro** que `ConstruirNaZona` (D-67) usa para as outras estruturas. A diferença é
+deliberada: "a ocupação é o ato de chegar, as obras são o ato de investir" (D-67) — e o upgrade não
+é uma estrutura entre outras, é o Posto de Comando crescendo, o mesmo ato da ocupação, mais tarde.
+O nível só sobe de fato no tick seguinte (`ConcluirUpgradeDaZona`), no mesmo relógio que
+`ConcluirObrasDaZona` já usa para as estruturas — custo pago na hora, efeito no tick.
+
+As curvas, todas derivadas de números que já existiam, nenhuma inventada do zero:
+
+- **Custo** (Metal Bruto e Fert$): curva **1,65×** sobre a base do Posto de Comando (800 MB + 300
+  F$, D-52) — a mesma convenção de Muralha/Torre/Bastião/Drone (D-66/D-74), não a 1,5× do §19.1,
+  que é para produção e capacidade, não para custo. Nível 2: 1.320 MB + 495 F$. Nível 5: 5.930 MB +
+  2.224 F$.
+- **Guarnição-alvo**: `round(20 × 1,65^(N−1))` = 20/33/54/90/148. Âncora no próprio §16.1: "quantidade
+  necessária varia por nível da zona (20 a 150+)" — 148 cai dentro do "150+" sem forçar a mão, e é
+  a mesma curva do custo, não um número novo. O upgrade compra a diferença de Robôs Mineradores na
+  hora, como a ocupação compra os 20 iniciais — não existe uma ação separada de "recrutar".
+- **Tempo**: curva **1,5×** sobre as 8h do Posto — a proporção que o próprio catálogo já usa para
+  `build_time` (observada em Muralha/Torre/Bastião, não publicada em §19.1 por nome). Nível 2: 12h.
+  Nível 5: 41h.
+- **Extração e capacidade do Depósito**: já escalavam pela curva do §19.1 desde sempre
+  (`extracaoPorHora()`); só faltava alguém escrever um nível diferente de 1 no banco. Nível 2:
+  150/h (era 100).
+
+### A manutenção territorial (§27.12)
+
+Nunca implementada — nem para zona de nível 1. O custo diário é o publicado, verbatim: nível 1, 50
+Biomassa + 30 Energia; níveis 2–3, +20 Ligas; níveis 4–5, 200/120/50 + 10 Componentes. Cobrada da
+colônia (não do Depósito da zona — são recursos diferentes), no tick, uma vez por zona por dia
+(`CobrarManutencaoTerritorial`).
+
+O decaimento e o abandono **não seguem o texto cru do §27.12** ("5%/hora, abandono em 48h") — o
+D-52 já havia corrigido esses dois números pela precedência da seção 0 (a Parte I corrige a Parte
+II): **5% de Pontos de Defesa por DIA de atraso, depois de 24h de carência; abandono automático em
+72h.** A penalidade incide na Força Defensiva (`Forcas::defensiva()`), sobre a base de unidades,
+antes do bônus de construção — a muralha não fica mais fraca por falta de pagamento, os robôs é que
+lutam pior.
+
+**O abandono não tem precedente no código para reaproveitar.** Conquista por guerra sempre
+TRANSFERE a zona (`ResolverCombates::vitoriaDoAtacante`), nunca a esvazia — nada no jogo hoje
+zera `owner_colony_id`. Decisão nova: abandono é reset completo ao estado de zona nunca ocupada —
+todos os níveis a zero (Posto, Depósito, Muralha, Torre, Bastião, Refinaria, Siderúrgica, as três
+inertes), guarnição apagada, dono nulo. **Não um "congelamento" com os níveis preservados**: do
+contrário, abandonar de propósito uma zona nível 5 para outra conta do mesmo jogador ocupar de
+graça viraria a lavagem que o D-73 já fechou para o Furgão, só que para zonas. O relógio da
+manutenção é do DONO, não da zona: uma conquista (guerra) ou reocupação (depois de abandono) sempre
+nasce com 24h de trégua antes da primeira cobrança — a inadimplência do derrotado não é herança
+para quem acabou de chegar.
+
+### O que mudou no código
+
+- Migration `2026_07_15_180000_teto_upgrade_e_manutencao_de_zona`: `neutral_zones` ganha
+  `level_target`, `level_upgrade_finishes_at`, `maintenance_next_due_at`,
+  `maintenance_unpaid_since`. Quem já tinha zona ganha 24h de trégua no backfill, em vez de cobrança
+  retroativa ou inadimplência no instante do deploy.
+- `NeutralZone`: `TETO_ZONAS_POR_COLONIA`, `custoDeUpgrade()`, `guarnicaoAlvo()`,
+  `horasDeUpgrade()`, `custoDeManutencao()`, `penalidadeManutencaoBps()`, `deveSerAbandonada()`.
+- Domínio novo: `Zona\SubirNivelDaZona` (pede o upgrade), `Zona\ConcluirUpgradeDaZona` (fecha no
+  tick, padrão `ConcluirObrasDaZona`), `Zona\CobrarManutencaoTerritorial` (cobra, marca
+  inadimplência, abandona).
+- `OcuparZonaNeutra`: teto de 5 zonas antes de debitar; arma o relógio da manutenção com 24h de
+  trégua a partir de `productive_at`.
+- `ResolverCombates::vitoriaDoAtacante`: zera o relógio da manutenção para o novo dono.
+- `Guerra\Forcas::defensiva()`: aplica a penalidade de manutenção à base, antes do bônus de
+  construção.
+- `TickColonies`: dois passos novos — manutenção (logo depois de expirar proteções, antes da
+  extração e do combate: uma zona abandonada neste minuto não pode render nem ser defendida) e
+  conclusão de upgrade (junto das obras de estrutura).
+- `Ledger::TIPOS`: `custo_upgrade_zona`, `manutencao_territorial`.
+- `NeutralZoneController`: `POST /zones/{id}/upgrade`; `GET /zones` publica `upgrade` e
+  `manutencao` só para o dono — o EFEITO da manutenção em atraso (defesa reduzida) é real para
+  qualquer atacante, mesmo sem ver o extrato.
+- Frontend (`Mapa.tsx`, `PainelZona`): nível da zona, botão de upgrade com custo/guarnição do
+  próximo nível, aviso de manutenção em atraso com a penalidade e o prazo de abandono.
+- `tests/Feature/UpgradeDeZonaTest.php`: teto, custo/guarnição/relógio do upgrade, conclusão no
+  tick, cobrança bem e mal-sucedida, decaimento, abandono aos 72h, integração com `Forcas`.
+- Validado: 562 testes (SQLite e MariaDB efêmero em container), round-trip de migrations limpo,
+  lint, build, e2e completo (8 arquivos, 252 asserções) — todos verdes antes do deploy.

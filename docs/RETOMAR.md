@@ -888,6 +888,46 @@ verdes, a mesma falha pré-existente e não relacionada de Missões. Não mexe e
 muda mas o `building_specs` semeado continua com a taxa velha. Conferido por leitura depois: a
 Oficina sem `ligas_metalicas` no JSON, e a Refinaria Química com 2/3/5/7/10.
 
+## Teto de zonas, upgrade de nível e manutenção territorial (D-84) — **PR aberto, NÃO mesclado, NÃO publicado** (2026-07-15)
+
+Fecha as duas últimas lacunas do D-52 ("teto de zonas por jogador" e "upgrade de zona fica para
+uma fatia posterior") e liga pela primeira vez a manutenção territorial do §27.12, que nunca tinha
+cobrado nada de nenhuma zona — nem a de nível 1.
+
+- **Teto: 5 zonas por colônia.** Arbitrado — o GDD não publica número. `OcuparZonaNeutra` recusa a
+  sexta.
+- **Upgrade de 1 a 5**, por `POST /zones/{id}/upgrade`: debita Metal Bruto + Fert$ (curva 1,65×
+  sobre a base do Posto, 800/300) e a diferença de Robôs Mineradores até a guarnição-alvo (também
+  1,65×: 20/33/54/90/148 — dentro do "20 a 150+" do §16.1) direto da colônia, **não do canteiro**
+  (decisão: o upgrade é o Posto crescendo, o mesmo ato da ocupação, não uma obra de estrutura). O
+  nível sobe no tick seguinte, depois de `horasDeUpgrade()` (curva 1,5×: 12h/18h/27h/41h).
+- **Manutenção territorial ativada de verdade**: custo diário por nível (o publicado no §27.12,
+  verbatim), cobrado da colônia no tick. Sem pagar 24h, a Força Defensiva decai 5%/dia
+  (`Forcas::defensiva()`); sem pagar 72h, a zona é **abandonada automaticamente** — reset completo
+  ao estado nunca-ocupado (não um congelamento: preservar níveis abriria lavagem de zona entre
+  contas do mesmo jogador, a mesma brecha que o D-73 fechou para o Furgão). Os números de
+  decaimento/abandono são os já corrigidos no D-52 (5%/DIA, 72h — não o "5%/hora, 48h" do texto cru
+  do §27.12, que a precedência da seção 0 substitui).
+- Quem já tem zona ganha **24h de trégua** no backfill da migration antes da primeira cobrança.
+
+Ver o **D-84** completo em `docs/decisoes.md` para as curvas, o raciocínio do abandono (sem
+precedente no código — conquista por guerra sempre TRANSFERE, nunca esvazia) e a lista de arquivos.
+
+**Validado antes de abrir o PR:** 562 testes (SQLite e um `mariadb:10.5` efêmero em container
+local — não o MySQL compartilhado de produção, [[fertways-nao-escrever-em-producao-para-testar]]),
+round-trip de migrations limpo nos dois, `npm run lint`/`build` OK, e2e completo (8 arquivos, 252
+asserções, incluindo o fluxo de ocupar zona que este PR toca). Um teste novo,
+`tests/Feature/UpgradeDeZonaTest.php` (10 casos), cobre teto, custo/guarnição do upgrade, conclusão
+no tick, cobrança bem e mal-sucedida, decaimento, abandono aos 72h e a integração com `Forcas`.
+
+⚠️ **Impacto econômico real, para quem já tem zona ocupada em produção**: a manutenção passa a
+cobrar de verdade — 50 Biomassa + 30 Energia/dia no nível 1, subindo com o nível. Não é um número
+pequeno para colônias que nunca esperaram esse custo. Vale avisar antes de mesclar, não só
+documentar depois.
+
+**Para retomar isto:** olhe o PR no GitHub — se os três jobs da CI vierem verdes, está pronto para
+mesclar. **Ninguém pediu merge nem deploy ainda.**
+
 ## CI básica no GitHub Actions — **mesclada e no ar** (2026-07-15), commit `9915bef`
 
 Existe `.github/workflows/ci.yml`, três jobs (`Backend / SQLite`, `Backend / MariaDB`,
@@ -1032,7 +1072,10 @@ ida→vigia→volta), sem tabela nova além de `drone_sightings` (as fotos).
      **inertes de propósito**, como o Cemitério: erguem-se, custam, não fazem nada até o sistema de
      que dependem (Federação, Nave de Transporte Planetária) existir. **As 12 estruturas de zona têm
      custo e função declarados. Não reabra.**
-   - **Teto de zonas por jogador** e **upgrade de zona** (a Fatia 1 fixou nível 1).
+   - ~~Teto de zonas por jogador~~ e ~~upgrade de zona~~ — **fechados no D-84** (2026-07-15): teto
+     de 5 zonas por colônia, upgrade de 1 a 5 pela curva 1,65× (custo/guarnição) e 1,5× (tempo), e a
+     manutenção territorial do §27.12 ativada de verdade pela primeira vez (nunca tinha cobrado nada
+     de nenhuma zona). Ver "Onde o projeto está" e o D-84 em `docs/decisoes.md`. **Não reabra.**
    - **Fabricar unidade é instantâneo hoje** — o Robô Minerador, o Infiltrador e o Predador já eram
      assim, e a Sentinela seguiu a regra da casa. O freio do exército é o **Nióbio**, não o relógio.
      Ninguém decidiu isso: foi consistência. **Se ele quiser um tempo de fábrica, é decisão dele.**

@@ -318,6 +318,11 @@ class ResolverCombates
             'productive_at' => $produtiva,
             'last_extraction_at' => $produtiva,
             'sieged_at' => null,
+            // Manutenção territorial (D-84): o relógio é do DONO, não da zona — a inadimplência do
+            // derrotado não pode virar herança envenenada para quem acabou de conquistar. 24 h de
+            // trégua, como qualquer ocupação nova.
+            'maintenance_next_due_at' => $produtiva->copy()->addHours(24),
+            'maintenance_unpaid_since' => null,
         ]);
 
         // A guarnição do derrotado que sobreviveu é destruída com a zona: ela não tem para onde
