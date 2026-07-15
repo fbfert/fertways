@@ -222,6 +222,12 @@ class MissoesTest extends TestCase
 
     public function test_a_semanal_e_uma_por_semana_e_persiste_o_dia_virar(): void
     {
+        // Pina numa quinta-feira ao meio-dia: sem isto, `Janela::proximoDia()` mais abaixo usa o
+        // relógio real, e rodar perto da virada de terça-noite/quarta-07h faz o "dia seguinte"
+        // cair numa semana nova — aí a semanal muda por decisão do calendário, não por bug, e o
+        // teste fica instável (falha só quando a CI roda perto dessa fronteira).
+        $this->travelTo(Carbon::parse('2026-07-16 12:00'));
+
         $user = $this->colono();
 
         $semana1 = collect($this->actingAs($user)->getJson('/missions')->json('missoes'))

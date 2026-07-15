@@ -123,8 +123,10 @@ class PainelController extends Controller
             'conservacao' => app(Conservacao::class),
 
             'punicoes' => $colony ? Punishment::where('user_id', $user->id)->orderByDesc('id')->limit(10)->get() : collect(),
-            'denuncias' => Report::where('reporter_id', $user->id)->orWhere('accused_id', $user->id)
-                ->orderByDesc('id')->limit(10)->get(),
+            'denuncias' => $colony
+                ? Report::where('reporter_colony_id', $colony->id)->orWhere('accused_colony_id', $colony->id)
+                    ->orderByDesc('id')->limit(10)->get()
+                : collect(),
             'acordos' => $colony
                 ? TradeAgreement::where('colony_a_id', $colony->id)->orWhere('colony_b_id', $colony->id)
                     ->orderByDesc('id')->limit(10)->get()
