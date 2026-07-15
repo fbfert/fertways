@@ -7,6 +7,8 @@ use App\Domain\Logistics\ConcluirTrechos;
 use App\Domain\Guerra\ChegarReforcos;
 use App\Domain\Guerra\ResolverCombates;
 use App\Domain\Zona\ConcluirObrasDaZona;
+use App\Domain\Zona\ConcluirUpgradeDaZona;
+use App\Domain\Zona\CobrarManutencaoTerritorial;
 use App\Domain\Zona\ProcessarSiderurgicaNaZona;
 use App\Domain\Zona\RefinarNaZona;
 use App\Domain\Logistics\ExtrairZonasNeutras;
@@ -53,6 +55,8 @@ class TickColonies extends Command
         RefinarNaZona $refinarias,
         ProcessarSiderurgicaNaZona $siderurgicas,
         ConcluirObrasDaZona $obras,
+        ConcluirUpgradeDaZona $upgrades,
+        CobrarManutencaoTerritorial $manutencao,
         \App\Domain\Drone\ConcluirMissoes $drones,
         \App\Domain\Chat\PurgarMensagens $chat,
     ): int {
@@ -79,6 +83,14 @@ class TickColonies extends Command
             });
 
         $zonas = $this->expirarProtecoes($agora);
+
+        /*
+         * Manutenção territorial (§27.12, D-84). ANTES da extração e do combate, de propósito: uma
+         * zona abandonada por inadimplência neste minuto não pode render extração para um dono que
+         * já não é dela, nem ser defendida em um combate que este mesmo tick resolveria contra um
+         * dono que já não existe mais.
+         */
+        ['cobradas' => $manutencaoCobrada, 'abandonadas' => $zonasAbandonadas] = $manutencao->handle($agora);
 
         // Extração das zonas neutras ocupadas — fora do laço por colônia, como as entregas: a zona
         // rende por delta próprio, sem relação com o `last_tick_at` de ninguém (§07, D-52).
@@ -158,6 +170,8 @@ class TickColonies extends Command
          * levou o que tinha de levar — refinar o que o inimigo carregou embora seria refinar o nada.
          */
         $obrasFeitas = $obras->handle($agora);
+        // O upgrade de nível (D-84) segue o mesmo relógio das obras de estrutura — fecha junto.
+        $upgradesFeitos = $upgrades->handle($agora);
         $refinadas = $refinarias->handle($agora);
 
         /*
@@ -168,7 +182,7 @@ class TickColonies extends Command
          */
         $processadasSiderurgica = $siderurgicas->handle($agora);
 
-        $this->info("tick: {$processadas} colônias, {$falhas} falhas, {$zonas} proteções expiradas, {$extraidas} zonas extraídas, {$entregas} trechos concluídos, {$vencidos} acordos vencidos, {$reatribuidos} casos reatribuídos, {$encerrados} casos encerrados, {$salarios} salários pagos, {$prontos} caminhões prontos, {$encomendados} encomendados, {$cobrados} horas de pátio cobradas, {$rebocados} rebocados, {$batalhas} batalhas, {$chegaram} reforços chegados, {$obrasFeitas} obras de zona, {$refinadas} zonas refinaram, {$processadasSiderurgica} zonas com siderúrgica, {$missoes} pernas de drone, {$purgadas} mensagens purgadas");
+        $this->info("tick: {$processadas} colônias, {$falhas} falhas, {$zonas} proteções expiradas, {$manutencaoCobrada} manutenções cobradas, {$zonasAbandonadas} zonas abandonadas, {$extraidas} zonas extraídas, {$entregas} trechos concluídos, {$vencidos} acordos vencidos, {$reatribuidos} casos reatribuídos, {$encerrados} casos encerrados, {$salarios} salários pagos, {$prontos} caminhões prontos, {$encomendados} encomendados, {$cobrados} horas de pátio cobradas, {$rebocados} rebocados, {$batalhas} batalhas, {$chegaram} reforços chegados, {$obrasFeitas} obras de zona, {$upgradesFeitos} upgrades de zona, {$refinadas} zonas refinaram, {$processadasSiderurgica} zonas com siderúrgica, {$missoes} pernas de drone, {$purgadas} mensagens purgadas");
 
         return $falhas > 0 ? self::FAILURE : self::SUCCESS;
     }

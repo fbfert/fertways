@@ -57,6 +57,14 @@ class Forcas
             ->get()
             ->sum(fn (Unit $u) => $u->defesa());
 
+        /*
+         * Manutenção territorial em atraso (§27.12, D-84): "as unidades começam a perder Pontos de
+         * Defesa progressivamente". Incide sobre a base, ANTES do bônus de construção — a muralha
+         * não fica mais fraca por falta de pagamento, os robôs é que lutam pior.
+         */
+        $penalidade = self::CHEIO - $zona->penalidadeManutencaoBps();
+        $base = intdiv($base * $penalidade, self::CHEIO);
+
         $bonus = self::CHEIO + $this->bonusDeConstrucao($zona);
 
         if ($defensorOffline) {

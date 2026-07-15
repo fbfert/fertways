@@ -45,6 +45,15 @@ class OcuparZonaNeutra
 
             $colony = Colony::whereKey($colony->id)->lockForUpdate()->firstOrFail();
 
+            // Teto de zonas por jogador — arbitrado no D-84. O GDD não publica número nenhum.
+            $possuidas = NeutralZone::where('owner_colony_id', $colony->id)->count();
+            if ($possuidas >= NeutralZone::TETO_ZONAS_POR_COLONIA) {
+                throw new DomainRuleException(
+                    'teto_de_zonas',
+                    'Você já ocupa o máximo de '.NeutralZone::TETO_ZONAS_POR_COLONIA.' zonas neutras.',
+                );
+            }
+
             $custo = $this->custoDeRecursos();
             $this->debitarRecursos($colony, $custo, $zona);
             $this->debitarFert($colony, NeutralZone::POSTO_FERT, $zona);
@@ -64,6 +73,11 @@ class OcuparZonaNeutra
                 'deposit_amount' => 0,
                 // A extração é creditada a partir daqui: nada rende durante o estabelecimento.
                 'last_extraction_at' => $produtiva,
+                // Manutenção territorial (D-84): a primeira cobrança vence 24 h depois de a zona
+                // ficar produtiva, não 24 h depois de ocupar — quem ainda está se estabelecendo
+                // não deve o primeiro dia de manutenção antes mesmo de extrair qualquer coisa.
+                'maintenance_next_due_at' => $produtiva->copy()->addHours(24),
+                'maintenance_unpaid_since' => null,
             ]);
 
             // Desbravador de fato: ocupar rende XP (D-75) — dentro da transação, com o resto.

@@ -49,6 +49,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // Zonas neutras (§07, §24.4; D-52). Listar e ocupar; extração é no tick, retirada é logística.
     Route::get('/zones', [NeutralZoneController::class, 'index']);
     Route::post('/zones/{zone}/occupy', [NeutralZoneController::class, 'occupy']);
+    Route::post('/zones/{zone}/upgrade', [NeutralZoneController::class, 'upgrade']);
     Route::post('/zones/{zone}/withdraw', [NeutralZoneController::class, 'withdraw']);
 
     // A zona como LUGAR (§17.4, D-67): a ficha dela, as obras, e a entrega física do material.

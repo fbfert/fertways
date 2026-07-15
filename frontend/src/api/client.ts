@@ -255,6 +255,23 @@ export type ZonaNeutra = {
   intel: 'dona' | 'livre' | 'ao_vivo' | 'foto' | 'nenhuma'
   /** A data da foto, quando intel === 'foto' — informação que envelhece é informação honesta. */
   intel_em: string | null
+  /** Upgrade de nível (D-84). Só o dono vê — nulo para qualquer outra colônia. */
+  upgrade: {
+    target: number | null
+    finishes_at: string | null
+    proximo_custo: { metal_bruto: number; fert: number } | null
+    proxima_guarnicao: number | null
+  } | null
+  /**
+   * Manutenção territorial (D-84). Só o dono vê o extrato — o EFEITO (Pontos de Defesa perdidos)
+   * é real para qualquer atacante, mesmo sem ver o motivo.
+   */
+  manutencao: {
+    custo_diario: Record<string, number>
+    proximo_vencimento: string | null
+    inadimplente_desde: string | null
+    penalidade_bps: number
+  } | null
 }
 
 /** Um Drone de Exploração no hangar do Quartel (§21.4; D-74). */
@@ -786,6 +803,13 @@ export const api = {
   /** Ocupa uma zona livre: Posto de Comando + 20 Robôs Mineradores + tempo de ocupação (§07). */
   ocuparZona: (id: number) =>
     req<ZonaNeutra>(`/zones/${id}/occupy`, { method: 'POST' }),
+
+  /** Sobe o nível da zona (D-84): custo e guarnição cobrados na hora, o nível sobe no tick. */
+  upgradeZona: (id: number) =>
+    req<{ id: number; level: number; level_target: number; level_upgrade_finishes_at: string }>(
+      `/zones/${id}/upgrade`,
+      { method: 'POST' },
+    ),
 
   /** Despacha um veículo para retirar o mineral extraído no Depósito da zona. */
   retirarDeZona: (id: number, vehicleId: number, cargo: Record<string, number>) =>
