@@ -24,7 +24,7 @@ use Tests\TestCase;
  *
  * O Mercado casa ordens; não compra nem vende. Metal Bruto é primário: taxa de 3% (§8.3),
  * cobrada em Fert$ sobre o valor do negócio, e paga pelo vendedor ("crédito líquido ao
- * vendedor", §07). Saldo inicial de cada colônia: 50 Fert$ = 50.000.000 micro.
+ * vendedor", §07). Saldo inicial de cada colônia: `Colony::SALDO_INICIAL_MICRO` (D-85).
  */
 class LivroDeOfertasTest extends TestCase
 {
@@ -44,6 +44,8 @@ class LivroDeOfertasTest extends TestCase
         $user = User::factory()->create(['email' => "{$nick}@t.test", 'nickname' => $nick]);
         // O colono escolhe a célula (D-51). Coords de periferia, fundáveis.
         $colony = app(CreateColony::class)->handle($user, "Colônia {$nick}", $x, $y);
+        // O Mercado é testado com saldo próprio de cada cenário, não o kit inicial (D-85).
+        $colony->resources()->update(['amount' => 0]);
 
         return $colony->fresh();
     }
@@ -101,7 +103,10 @@ class LivroDeOfertasTest extends TestCase
         $ordem = app(ColocarOrdem::class)->handle($b, 'buy', 'metal_bruto', 100, 60_000);
 
         $this->assertSame(6_000_000, $ordem->escrow_fert_micro);
-        $this->assertSame(44_000_000, $this->fert($b), '50 Fert$ menos os 6 reservados');
+        $this->assertSame(
+            Colony::SALDO_INICIAL_MICRO - 6_000_000, $this->fert($b),
+            'saldo inicial menos os 6 reservados',
+        );
     }
 
     #[Test]
@@ -109,9 +114,9 @@ class LivroDeOfertasTest extends TestCase
     {
         [, $b] = $this->vendedorEComprador();
 
-        // 1.000 × 60.000 micro = 60 Fert$, acima dos 50 do onboarding.
+        // 2.000 × 60.000 micro = 120 Fert$, acima do saldo inicial (D-85).
         $this->expectExceptionMessage('Fert$ insuficiente');
-        app(ColocarOrdem::class)->handle($b, 'buy', 'metal_bruto', 1_000, 60_000);
+        app(ColocarOrdem::class)->handle($b, 'buy', 'metal_bruto', 2_000, 60_000);
     }
 
     /**
@@ -143,9 +148,9 @@ class LivroDeOfertasTest extends TestCase
         app(ExecutarOrdem::class)->handle($b, $venda->id, 100);
 
         // Valor = 100 × 50.000 = 5 Fert$. Taxa de 3% (primário) = 150.000. O vendedor recebe 4.850.000.
-        $this->assertSame(50_000_000 + 4_850_000, $this->fert($a));
+        $this->assertSame(Colony::SALDO_INICIAL_MICRO + 4_850_000, $this->fert($a));
         // O tomador paga o preço da oferta, e só ele: não há escrow dele nem devolução.
-        $this->assertSame(50_000_000 - 5_000_000, $this->fert($b));
+        $this->assertSame(Colony::SALDO_INICIAL_MICRO - 5_000_000, $this->fert($b));
 
         // §25.8: o recurso comprado entra no depósito do comprador, não no estoque.
         $this->assertSame(100, $this->naDoca($b));
@@ -168,9 +173,9 @@ class LivroDeOfertasTest extends TestCase
         app(ExecutarOrdem::class)->handle($a, $compra->id, 100);
 
         // Valor = 6 Fert$; taxa de 3% = 180.000; o vendedor recebe 5.820.000.
-        $this->assertSame(50_000_000 + 5_820_000, $this->fert($a));
+        $this->assertSame(Colony::SALDO_INICIAL_MICRO + 5_820_000, $this->fert($a));
         // O comprador já pagara ao anunciar, no escrow: nada sai do bolso dele agora.
-        $this->assertSame(50_000_000 - 6_000_000, $this->fert($b));
+        $this->assertSame(Colony::SALDO_INICIAL_MICRO - 6_000_000, $this->fert($b));
         $this->assertSame(900, $this->naDoca($a), 'saiu do depósito de quem executou');
         $this->assertSame(100, $this->naDoca($b));
     }
@@ -244,7 +249,7 @@ class LivroDeOfertasTest extends TestCase
         $compra = app(ColocarOrdem::class)->handle($b, 'buy', 'metal_bruto', 100, 60_000);
         app(CancelarOrdem::class)->handle($b, $compra);
 
-        $this->assertSame(50_000_000, $this->fert($b), 'o escrow inteiro voltou');
+        $this->assertSame(Colony::SALDO_INICIAL_MICRO, $this->fert($b), 'o escrow inteiro voltou');
     }
 
     #[Test]
@@ -285,7 +290,7 @@ class LivroDeOfertasTest extends TestCase
         $taxa = DB::table('tax_events')->where('kind', 'mercado_venda')->first();
         $this->assertSame(100, (int) $taxa->tax_bps, 'raro: 1%');
         $this->assertSame(50_000, (int) $taxa->tax_amount, '1% de 5 Fert$');
-        $this->assertSame(50_000_000 + 4_950_000, $this->fert($a));
+        $this->assertSame(Colony::SALDO_INICIAL_MICRO + 4_950_000, $this->fert($a));
     }
 
     #[Test]

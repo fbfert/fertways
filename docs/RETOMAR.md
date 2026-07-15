@@ -1184,6 +1184,41 @@ pedido do usuário.
 
 **Para retomar isto:** não há mais pendência — é o estado normal da tela da zona agora.
 
+## O kit inicial vira uma tabela só (D-85) — **PR aberto, NÃO mesclado, NÃO publicado, em extensão** (2026-07-15)
+
+Pedido do usuário: uma tabela única, 100 Fert$ + um valor fixo para os 26 recursos do catálogo,
+substituindo as **três fontes separadas** que a fundação juntava até aqui — os 50 Fert$ do GDD, os
+raros calculados do "muro de progressão" (D-17) e o kit fixo de cinco recursos do D-57. As três
+morreram; `Domain\Colony\KitInicial` é a única fonte agora. Ver **D-85** em `docs/decisoes.md`
+para a tabela completa e o raciocínio.
+
+⚠️ **Duas coisas para saber antes de mesclar:**
+
+1. **O "muro de progressão" quebra de propósito.** A tabela nova dá 0 Nióbio Alienígena e 2
+   Quartzo Piezoelétrico — nenhum dos dois é produzível no jogo. Torre de Defesa + Quartel (juntas,
+   5 Nióbio) e uma das duas entre Refinaria Química/Antena de Comunicação (juntas, 3 Quartzo) ficam
+   **trancadas** para quem funda depois deste deploy, até comprar do governo. **Confirmado com o
+   usuário — não é lacuna, é decisão.** Não reabra sem perguntar.
+2. **Só vale para quem funda depois do deploy.** Colônias que já existem não são tocadas — ao
+   contrário do D-57, não há comando de backfill.
+
+**O que mudou no código:** `Domain\Colony\KitInicial` (tabela nova); `Colony::SALDO_INICIAL_MICRO`
+dobrou (50→100 Fert$); `CreateColony` grava o kit direto nas linhas de `resources` na fundação;
+`Domain\Colony\KitInicialDeRecursos` (D-57) e o comando `fertways:kit-recursos` foram **deletados**
+— código morto depois da troca, não uma migração incremental. Nove arquivos de teste de
+produção/logística ganharam um reset de estoque no helper de criação de colônia, porque a colônia
+agora nasce com recursos e essas contas eram sobre delta de produção, não sobre o kit.
+
+**Validado:** suíte de backend inteira (os 40 testes que a mudança invalidou de verdade foram
+corrigidos, não ignorados), lint e build do frontend, e2e completo (252 asserções).
+
+**2026-07-16 — em extensão, ainda no mesmo PR/branch:** o usuário pediu uma tela em
+`/central/admin` (aba Operação) para arbitrar o kit sem precisar editar código — incluindo
+quantos veículos cada colônia nova recebe. A tabela fixa (`KitInicial::RECURSOS`, const em PHP)
+está virando linhas em banco, editáveis pelo admin. Ver a atualização do **D-85** em
+`docs/decisoes.md` (ou um D-NN novo, se o usuário decidir separar) assim que a extensão fechar.
+**Ninguém pediu merge nem deploy ainda — nem da base, nem da extensão.**
+
 ## O trabalho anterior: zonas neutras + Drone (D-52)
 
 Leia **D-52**. Sequência decidida: Fatia 1 = o núcleo (ocupar/extrair/retirar); Fatia 2 = a guerra

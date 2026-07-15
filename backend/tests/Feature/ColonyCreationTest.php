@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Domain\Colony\CreateColony;
+use App\Domain\Colony\KitInicial;
 use App\Domain\Colony\Slots;
 use App\Models\Building;
 use App\Models\Colony;
@@ -28,8 +29,8 @@ class ColonyCreationTest extends TestCase
         parent::setUp();
         $this->seed(\Database\Seeders\ResourceTypeSeeder::class);
         $this->seed(\Database\Seeders\ComponentRecipeSeeder::class);
-        // O kit de raros é somado de building_specs, então o catálogo de construções
-        // também é pré-requisito para fundar colônia. Ver D-17.
+        // As cinco essenciais nascem erguidas no nível 1 (D-59), com custo somado de
+        // building_specs — o catálogo de construções é pré-requisito para fundar colônia.
         $this->seed(\Database\Seeders\BuildingSpecSeeder::class);
     }
 
@@ -52,9 +53,9 @@ class ColonyCreationTest extends TestCase
         $this->assertSame(0, $colony->x);
         $this->assertSame(1, $colony->y);
 
-        // 50 Fert$ de saldo inicial (GDD, onboarding).
+        // 100 Fert$ de saldo inicial (D-85 — era 50, do GDD, até dobrar no kit novo).
         $this->assertSame(Colony::SALDO_INICIAL_MICRO, $colony->fert_micro);
-        $this->assertSame(50.0, (float) $resposta->json('fert'));
+        $this->assertSame(100.0, (float) $resposta->json('fert'));
 
         // D-59: só as CINCO essenciais existem, e já erguidas no nível 1, cada uma no seu slot do
         // miolo. As de progressão não têm linha nenhuma — construção não erguida não ocupa slot.
@@ -65,30 +66,13 @@ class ColonyCreationTest extends TestCase
             $this->assertSame($slot, $colony->buildings->firstWhere('type', $tipo)->slot, $tipo);
         }
 
-        // Uma linha por recurso do catálogo.
+        // Uma linha por recurso do catálogo — exatamente os 26 do kit inicial (D-85).
         $this->assertCount(count(Resource::daColonia()), $colony->resources);
+        $this->assertSame(count(KitInicial::RECURSOS), count(Resource::daColonia()));
 
-        // Kit fixo de recursos (D-57), concedido na fundação pelo endpoint (emissão do governo).
-        $kit = \App\Domain\Colony\KitInicialDeRecursos::KIT;
-        foreach ($kit as $recurso => $qtd) {
+        foreach (KitInicial::RECURSOS as $recurso => $qtd) {
             $this->assertSame($qtd, $colony->resources->firstWhere('resource_type', $recurso)->amount, $recurso);
         }
-
-        // O que não é raro nem entra no kit segue zerado.
-        $raros = \App\Models\ResourceType::where('tax_class', 'raro')->pluck('code');
-        $semConcessao = $colony->resources
-            ->whereNotIn('resource_type', $raros)
-            ->whereNotIn('resource_type', array_keys($kit));
-        $this->assertTrue($semConcessao->every(fn ($r) => $r->amount === 0));
-
-        // Kit de raros (D-17): exatamente a soma dos custos de nível 1 das 16 construções.
-        $esperado = ['ferro_vermelho' => 1, 'gelo_de_metano' => 3, 'niobio_alienigena' => 5,
-            'quartzo_piezoeletrico' => 3, 'resina_organica' => 3];
-        foreach ($esperado as $codigo => $qtd) {
-            $this->assertSame($qtd, $colony->resources->firstWhere('resource_type', $codigo)->amount, $codigo);
-        }
-        // Os demais raros do catálogo não entram no kit.
-        $this->assertSame(0, $colony->resources->firstWhere('resource_type', 'plasma_fossilizado')->amount);
 
         // "Todo colono começa com um" Furgão (GDD, kit inicial). 6 m³ = 6.000 un (§25.4).
         $this->assertCount(1, $colony->vehicles);
@@ -115,9 +99,11 @@ class ColonyCreationTest extends TestCase
         $this->assertCount(1, $saldo);
         $this->assertSame(Colony::SALDO_INICIAL_MICRO, $saldo->first()->amount);
 
-        // O kit de raros também é auditável: cinco lançamentos, um por raro concedido.
+        // O kit inicial também é auditável: um lançamento por recurso concedido de fato — os
+        // zerados do kit (D-85) não geram linha, não houve concessão para auditar.
+        $concedidos = count(array_filter(KitInicial::RECURSOS, fn ($qtd) => $qtd > 0));
         $kit = Ledger::where(['colony_id' => $user->colony->id, 'type' => 'kit_inicial'])->get();
-        $this->assertCount(5, $kit);
+        $this->assertCount($concedidos, $kit);
         $this->assertTrue($kit->every(fn ($l) => $l->amount > 0 && $l->resource_type !== null));
     }
 

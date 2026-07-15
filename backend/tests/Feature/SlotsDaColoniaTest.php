@@ -37,7 +37,9 @@ class SlotsDaColoniaTest extends TestCase
     private function colono(): User
     {
         $user = User::factory()->create(['tutorial_completed_at' => now()]);
-        app(CreateColony::class)->handle($user, 'Nova Aurora', 10 + $this->proximoSlot++, 20);
+        $colony = app(CreateColony::class)->handle($user, 'Nova Aurora', 10 + $this->proximoSlot++, 20);
+        // Estoque limpo, não o kit inicial (D-85) — quem precisar de recursos usa `darRecursos()`.
+        $colony->resources()->update(['amount' => 0]);
 
         return $user->fresh();
     }
@@ -155,7 +157,7 @@ class SlotsDaColoniaTest extends TestCase
      */
     public function test_obra_que_nao_paga_nao_deixa_predio_fantasma_no_slot(): void
     {
-        $user = $this->colono();   // sem recursos, fora os raros do kit
+        $user = $this->colono();   // sem recursos nenhum
 
         $this->actingAs($user)->postJson('/buildings', ['type' => 'mina_local', 'slot' => 0])
             ->assertStatus(422)

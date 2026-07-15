@@ -11,7 +11,7 @@ use Illuminate\Console\Command;
  *
  * Os novos já nascem registrados — o Furgão do kit no `CreateColony`, o Caminhão do governo na
  * linha de montagem. Este comando é só para os que vieram de antes do Ministério existir. Passo à
- * parte do deploy, como o `fertways:kit-recursos` (D-57) e o `fertways:slots` (D-59).
+ * parte do deploy, como o `fertways:slots` (D-59).
  *
  *     artisan fertways:placas            # simula
  *     artisan fertways:placas --aplicar  # emite de verdade

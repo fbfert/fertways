@@ -49,6 +49,9 @@ class LogisticaTest extends TestCase
         // O colono escolhe a célula (D-51): as coordenadas entram na fundação, não são
         // sorteadas e depois sobrescritas. As usadas nos testes são de periferia — fundáveis.
         $colony = app(CreateColony::class)->handle($user, "Colônia {$nick}", $x, $y);
+        // A logística é testada com carga própria de cada cenário (`abastecer()`), não o kit
+        // inicial (D-85).
+        $colony->resources()->update(['amount' => 0]);
 
         return $colony->fresh();
     }

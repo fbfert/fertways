@@ -32,6 +32,8 @@ class RetirarDeZonaTest extends TestCase
     private function colonia(): Colony
     {
         $colony = app(CreateColony::class)->handle(User::factory()->create(), 'Base', 20, 20);
+        // Estoque limpo (não o kit inicial, D-85): só energia, do jeito que o cenário pede.
+        $colony->resources()->update(['amount' => 0]);
         $colony->resources()->where('resource_type', 'energia')->update(['amount' => 100000]);
 
         return $colony->fresh();

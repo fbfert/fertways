@@ -11,8 +11,12 @@ class Colony extends Model
 {
     use HasFactory;
 
-    /** 50 Fert$ de saldo inicial (GDD, onboarding), em micro-Fert$. */
-    public const SALDO_INICIAL_MICRO = 50_000_000;
+    /**
+     * 100 Fert$ de saldo inicial, em micro-Fert$. Era 50 (GDD, "todo colono recebe 50 Fert$ ao
+     * chegar em Fertways"); o D-85 (2026-07-15) dobrou o valor como parte do kit inicial novo —
+     * decisão do usuário, não do GDD. Ver `Domain\Colony\KitInicial`.
+     */
+    public const SALDO_INICIAL_MICRO = 100_000_000;
 
     /** 1 Fert$ = 1.000.000 µF$. Preços do GDD têm 4 casas (Energia = 0,0033). */
     public const MICRO_POR_FERT = 1_000_000;

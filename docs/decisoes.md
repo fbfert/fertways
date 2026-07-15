@@ -3965,3 +3965,67 @@ zona é dela).
   a ocupação recém-feita; `chat.e2e.mjs` cobre o fluxo novo — Mapa → ficha do jogador → Conversar
   → Chat já na privada certa.
 - Validado: suíte de backend inteira, lint, build, e2e completo.
+
+## D-85 — O kit inicial vira uma tabela só: 100 Fert$ e um valor fixo para os 26 recursos.
+**Data:** 2026-07-15 · **Status:** arbitrado pelo usuário · **Decisão de balanceamento, não do GDD**
+
+Pedido do usuário: substituir o que a colônia recebe ao fundar por uma tabela única, com um valor
+por recurso do catálogo inteiro. Antes disto, a fundação juntava recursos de **três fontes
+separadas**, cada uma com sua própria história:
+
+1. **50 Fert$** — o único número do próprio GDD ("todo colono recebe 50 Fert$ ao chegar").
+2. **Raros calculados** (D-17, "muro de progressão"): `CreateColony::concederRarosDoKit()` somava,
+   de `building_specs`, o custo de raro de nível 1 de cada construção de progressão — dava
+   exatamente o bastante para erguer cada uma **uma vez** (Ferro Vermelho ×1, Gelo de Metano ×3,
+   Nióbio Alienígena ×5, Quartzo Piezoelétrico ×3, Resina Orgânica ×3).
+3. **Kit fixo separado** (D-57, `KitInicialDeRecursos`, na fronteira do `ColonyController::store`,
+   não dentro de `CreateColony` — de propósito, "para a primitiva de domínio nascer com estoque
+   limpo"): 1000 Metal Bruto, 1000 Ligas Metálicas, 500 Compostos Químicos, 300 Biocombustível,
+   500 Componentes Eletrônicos, emissão do governo, sem debitar do Tesouro.
+
+**Resolução: as três morrem, e a `Domain\Colony\KitInicial` (D-85) vira a única fonte.** 100 Fert$
+(dobrou) e um número fixo para cada um dos 26 recursos do catálogo — a tabela completa está no
+arquivo. `CreateColony` grava os valores direto nas linhas de `resources` na fundação (não mais em
+duas visitas separadas), e cada recurso concedido vira um lançamento `kit_inicial` auditável (os
+zerados do kit não geram linha — não houve concessão para auditar).
+
+### O "muro de progressão" quebra de propósito, confirmado com o usuário
+
+A nova tabela dá **0 Nióbio Alienígena** e **2 Quartzo Piezoelétrico**. Nenhum dos dois é
+produzível no jogo — só o governo vende (Nióbio pelo `POST /war/niobio`; Quartzo não tem fonte
+nenhuma no MVP). A Torre de Defesa + Quartel juntas exigem **5** Nióbio no nível 1; a Refinaria
+Química + Antena de Comunicação juntas exigem **3** Quartzo. Com a tabela nova, **uma colônia
+recém-fundada não consegue erguer nenhuma das duas sem antes comprar do governo** — quebra
+exatamente a garantia que o D-17 existia para dar.
+
+Perguntado diretamente, o usuário confirmou: **é proposital.** Defesa militar (Torre + Quartel) e
+uma das duas construções de comunicação ficam trancadas até o colono negociar. **Não "conserte"
+sem perguntar** — é a mesma família de decisão consciente do tributo (D-32) e do Ministério dos
+Transportes (D-60).
+
+### Outras confirmações do usuário
+
+- **Só colônias novas.** Quem já tem colônia hoje não é tocado — sem backfill, ao contrário do
+  D-57 (que tinha `artisan fertways:kit-recursos --aplicar` para as existentes). Se um dia quiser
+  nivelar quem já joga, é uma decisão nova, não uma consequência automática desta.
+- **O Furgão de Comércio nasce igual.** A tabela é só de Fert$ e recursos; o veículo do kit inicial
+  não muda.
+
+### O que mudou no código
+
+- `Domain\Colony\KitInicial` (novo): a tabela única, `RECURSOS` (26 entradas).
+- `Colony::SALDO_INICIAL_MICRO`: 50.000.000 → 100.000.000 micro-Fert$.
+- `CreateColony`: grava o kit direto na criação das linhas de `resources`; `concederRarosDoKit()`
+  morreu, virou `lancarKitInicial()` (só audita no ledger o que a tabela já gravou).
+- `Domain\Colony\KitInicialDeRecursos` (D-57) e `app/Console/Commands/KitRecursos.php`:
+  **deletados**. `ColonyController::store` não chama mais nada depois de `CreateColony::handle()`.
+- `Ledger::TIPOS`: `kit_recursos` fica na lista, comentado como descontinuado — é ledger,
+  append-only, e colônias fundadas antes do D-85 têm lançamentos de verdade com esse tipo.
+- Testes: `ColonyCreationTest` e `TesouroTest` reescritos para a tabela nova (as duas provas do
+  kit fixo do D-57 foram removidas — testavam uma classe que não existe mais). Nove arquivos de
+  teste que mediam produção/logística por delta ganharam um reset explícito de estoque no helper
+  de criação de colônia (`$colony->resources()->update(['amount' => 0])`), porque agora a colônia
+  nasce com recursos e essas contas eram sobre a produção, não sobre o kit.
+- Frontend: `Fundacao.tsx` (o texto "Você chega com 50 Fert$..." → 100 Fert$ + kit de recursos).
+- Validado: suíte inteira sem os 40 testes que a mudança de fato invalidou (agora corrigidos),
+  lint e build do frontend, e2e completo.

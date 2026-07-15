@@ -30,7 +30,9 @@ class TickColoniesTest extends TestCase
     {
         $user = User::factory()->create();
         // Célula de periferia, uma por colônia (D-51: o colono escolhe; aqui o teste escolhe por ele).
-        app(CreateColony::class)->handle($user, 'Nova Aurora', 10 + $this->proximoSlot++, 20);
+        $colony = app(CreateColony::class)->handle($user, 'Nova Aurora', 10 + $this->proximoSlot++, 20);
+        // Estes testes medem produção do tick por delta, não o kit inicial (D-85) — estoque limpo.
+        $colony->resources()->update(['amount' => 0]);
 
         return $user->fresh();
     }
@@ -444,7 +446,8 @@ class TickColoniesTest extends TestCase
     {
         $a = $this->colono();
         $b = User::factory()->create();
-        app(CreateColony::class)->handle($b, 'Segunda', 10 + $this->proximoSlot++, 20);
+        $colonyB = app(CreateColony::class)->handle($b, 'Segunda', 10 + $this->proximoSlot++, 20);
+        $colonyB->resources()->update(['amount' => 0]);
 
         foreach ([$a, $b->fresh()] as $u) {
             $this->erguer($u, 'gerador_de_atmosfera', 1);
