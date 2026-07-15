@@ -1056,9 +1056,14 @@ function LinhaDaVitrine({
     <div className="border-rust/15 border p-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="text-sm">
-          <span className={`font-bold ${vende ? 'text-ink' : 'text-rust'}`}>
-            {vende ? 'VENDE' : 'COMPRA'}
-          </span>{' '}
+          {/*
+           * A etiqueta diz o que O ANUNCIANTE quer — não é um botão, é a descrição da oferta dele.
+           * Por isso fica em tom neutro: colori-la de rust (a cor de toda ação clicável na tela)
+           * fazia "COMPRA" parecer um convite para comprar, quando na verdade significa que É VOCÊ
+           * quem venderia, entregando do seu depósito. A frase de baixo, essa sim em rust, é que diz
+           * a ação de quem está lendo.
+           */}
+          <span className="text-ink font-bold">{vende ? 'VENDE' : 'COMPRA'}</span>{' '}
           <span className="text-ink font-bold">{nomeRecurso(oferta.resource_type)}</span>
           <span className="text-ink-soft">
             {' · '}
@@ -1070,6 +1075,13 @@ function LinhaDaVitrine({
             {' · total '}
             {fert(oferta.qty * oferta.price_micro, 2)} Fert$
           </div>
+          {!oferta.minha && (
+            <div className="text-rust mt-0.5 text-xs font-bold">
+              {vende
+                ? 'Você compra: paga Fert$ e recebe no seu depósito.'
+                : 'Você vende: entrega do seu depósito e recebe Fert$.'}
+            </div>
+          )}
         </div>
 
         {oferta.minha ? (
