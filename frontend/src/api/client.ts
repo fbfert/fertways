@@ -489,8 +489,11 @@ export type OfertaGlobal = {
   side: 'buy' | 'sell'
   price_micro: number
   qty: number
-  colony_id: number
+  /** Nulo é o Governo (D-87) — mesmo padrão da frota pública. `colonia` já vem "Governo". */
+  colony_id: number | null
   colonia: string | null
+  /** O Governo vende no Mercado Central (D-87), ao lado das ofertas dos colonos. */
+  e_governo: boolean
   /** A própria oferta não se executa (§26.4): a UI troca "Comprar" por "Cancelar". */
   minha: boolean
 }

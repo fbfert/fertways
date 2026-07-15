@@ -137,6 +137,50 @@ class AcoesController extends Controller
         );
     }
 
+    // ── Mercado do Governo (D-87) ────────────────────────────────────────────
+
+    /**
+     * Salva a lista inteira de uma vez — o formulário manda os 26 recursos, um por linha, e o
+     * salvar reconcilia cada um com o que já está na vitrine (`OfertarComoGoverno::definir`).
+     */
+    public function mercadoGoverno(Request $request, \App\Domain\Market\OfertarComoGoverno $ofertar): RedirectResponse
+    {
+        $dados = $request->validate([
+            'qtd' => ['required', 'array'],
+            'qtd.*' => ['nullable', 'integer', 'min:0'],
+            'preco' => ['required', 'array'],
+            'preco.*' => ['nullable', 'numeric', 'min:0'],
+        ]);
+
+        return $this->tentar('mercado.governo', function () use ($ofertar, $dados) {
+            $alterados = 0;
+            $erros = [];
+
+            foreach ($dados['qtd'] as $recurso => $qtd) {
+                $qtd = (int) ($qtd ?? 0);
+                $precoMicro = (int) round(((float) ($dados['preco'][$recurso] ?? 0)) * Colony::MICRO_POR_FERT);
+
+                try {
+                    $ofertar->definir($recurso, $qtd, $precoMicro);
+                    $alterados++;
+                } catch (DomainRuleException $e) {
+                    $erros[] = $e->getMessage();
+                }
+            }
+
+            if ($erros !== []) {
+                // O que não deu erro já foi salvo — cada recurso é a sua própria transação. Só se
+                // avisa do que falhou, sem fingir que nada mudou.
+                throw new DomainRuleException(
+                    'mercado_governo_parcial',
+                    "{$alterados} recurso(s) salvo(s). Falharam: ".implode(' ', $erros),
+                );
+            }
+
+            return "Mercado do Governo atualizado: {$alterados} recurso(s).";
+        });
+    }
+
     // ── Notícias ─────────────────────────────────────────────────────────────
 
     public function noticiaPublicar(Request $request, PublicarNoticia $publicar): RedirectResponse

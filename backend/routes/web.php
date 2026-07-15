@@ -76,6 +76,8 @@ Route::prefix('admin')->group(function () {
         Route::post('/noticias/{news}/inativar', [AcoesController::class, 'noticiaInativar'])->name('admin.noticia.inativar');
         // Ministério do Tesouro (D-57)
         Route::post('/tesouro/distribuir', [AcoesController::class, 'distribuir'])->name('admin.tesouro.distribuir');
+        // O Governo no Mercado Central (D-87): a lista de ofertas em pé, salva de uma vez.
+        Route::post('/mercado/governo', [AcoesController::class, 'mercadoGoverno'])->name('admin.mercado.governo');
 
         // O Painel do Ministério dos Transportes (§16, D-60): os quatro números que o GDD manda o
         // operador configurar e nunca publica.

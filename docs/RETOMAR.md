@@ -1026,6 +1026,48 @@ o D-84 no mesmo `sudo ./tools/deploy.sh`, a pedido explícito do usuário.
 
 **Para retomar isto:** não há mais pendência — é o estado normal da tela da colônia agora.
 
+## O GDD v36 atualizado até o D-83 (docs/gdd-v36-atualizacao) — **PR aberto, NÃO mesclado** (2026-07-15)
+
+Pedido do usuário: um GDD novo, "de acordo com tudo que já construímos". Já existia a
+infraestrutura certa para isto (D-62): `tools/gdd-v36.php` é um **gerador**, não um documento
+escrito à mão — as tabelas numéricas vêm ao vivo de `building_specs`/`resource_types`. Só que
+não era regenerado desde o D-79; 24 decisões de conteúdo real (guerra, Drone, Marco, Missões,
+Chat, a Capital em áreas, os dois mercados) ficaram de fora ou continuavam como lacuna aberta
+mesmo já implementadas.
+
+Reescrito até o D-83 (o que já está em `main`); as decisões ainda em PR noutros branches
+(teto/upgrade de zona, kit inicial, zona em abas) ficam resumidas numa nota da seção 0, não nas
+tabelas — o gerador só lê o que já está mesclado. Regenerado em
+`/home/fertways/FERTWAYS_GDD_v36_CONSOLIDADO.html` (fora do git). O commit deste PR, em
+`docs/decisoes.md`, tem o detalhe de tudo que foi reescrito. Validado: `tests/Gdd/*`
+(23 testes) continuam batendo com o que o jogo lê.
+
+## O Governo vende no Mercado Central (feat/mercado-do-governo) — **PR aberto, NÃO mesclado** (2026-07-15)
+
+Pedido do usuário: a aba Economia do painel de admin virou quatro sub-abas (Finanças, Tesouro,
+Enviar Recursos, **Mercado** — nova), e nesta última o Governo lista recursos do Tesouro à
+venda no Mercado Central, na mesma vitrine dos colonos.
+
+**A lacuna que isso expôs:** `market_orders.colony_id` era obrigatório — o Mercado não sabia
+lidar com um vendedor que não fosse uma colônia de verdade. Fechada com `colony_id` nulo = o
+Governo, mesmo padrão que a frota pública já usa (`vehicles.colony_id` nulo, D-60) — evita
+inventar uma colônia sintética que apareceria (por engano) no mapa, no diretório e como alvo de
+guerra.
+
+**A semântica do formulário:** o número digitado por recurso é quanto deve estar **disponível
+agora** — não soma ao que já está anunciado. Subir reserva mais do Tesouro; descer devolve;
+zerar cancela. Trava no saldo real do Tesouro (não deixa prometer o que não tem). Um card na
+visão geral avisa quando algum dos 26 recursos está sem oferta ativa — inclusive os que nunca
+foram anunciados.
+
+Ver **D-87** em `docs/decisoes.md` para o raciocínio completo (inclusive como o dinheiro da
+venda do Governo é creditado sem duplicar líquido/taxa).
+
+**Validado:** 560 testes de backend (SQLite e MariaDB 10.5 efêmero em container local),
+round-trip de migrations limpo nos dois, lint, build e e2e completo do frontend (o tipo
+`OfertaGlobal` mudou, então revalidei o fluxo do Mercado inteiro). 8 casos novos em
+`MercadoDoGovernoTest.php`. **Ninguém pediu merge nem deploy ainda.**
+
 ## O trabalho anterior: zonas neutras + Drone (D-52)
 
 Leia **D-52**. Sequência decidida: Fatia 1 = o núcleo (ocupar/extrair/retirar); Fatia 2 = a guerra

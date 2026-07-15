@@ -58,6 +58,8 @@ class PainelController extends Controller
             // O que aconteceu no painel ultimamente. É o primeiro lugar onde se olha quando algo
             // parece errado, e por isso vem na visão geral em vez de só na aba da auditoria.
             'ultimosAtos' => AuditEntry::orderByDesc('id')->limit(8)->get(),
+            // O Governo no Mercado Central (D-87): o que falta anunciar ou repor.
+            'recursosSemOfertaDoGoverno' => $this->recursosSemOfertaDoGoverno(),
         ]);
     }
 
@@ -188,9 +190,15 @@ class PainelController extends Controller
         ]);
     }
 
-    public function economia(): View
+    public function economia(Request $request): View
     {
+        $abas = ['financas', 'tesouro', 'enviar', 'mercado'];
+        $aba = in_array($request->query('aba'), $abas, true) ? $request->query('aba') : 'financas';
+
+        $ofertasDoGoverno = app(\App\Domain\Market\OfertarComoGoverno::class)->ofertas();
+
         return view('admin.economia', [
+            'aba' => $aba,
             'colonias' => Colony::orderBy('id')->get(),
             'recursos' => ResourceType::orderBy('tax_class')->orderBy('nome')->get(['code', 'nome', 'tax_class']),
             'intervencoes' => PriceIntervention::query()->vigentes()->orderBy('resource_type')->get(),
@@ -200,6 +208,9 @@ class PainelController extends Controller
                 ->get(['treasury_holdings.resource_type as code', 'resource_types.nome', 'treasury_holdings.amount']),
             'tesouroFert' => app(Tesouro::class)->saldoFertMicro(),
             'FERT' => Tesouro::FERT,
+            // O Governo no Mercado Central (D-87): a oferta de hoje, por recurso — o formulário
+            // pré-preenche com isto, e quem não está na lista simplesmente nunca foi anunciado.
+            'ofertasDoGoverno' => $ofertasDoGoverno,
             // As notícias saíram daqui: viraram aba própria (2026-07-13). Elas não são economia, e
             // estavam ali só porque a Central de Notícias é vizinha do Tesouro na Capital.
         ]);
@@ -507,5 +518,19 @@ class PainelController extends Controller
             'veiculos_ociosos' => Vehicle::where('status', 'ocioso')->count(),
             'zonas_ocupadas' => NeutralZone::whereNotNull('owner_colony_id')->count(),
         ];
+    }
+
+    /**
+     * Recursos sem oferta ativa do Governo no Mercado Central (D-87) — inclusive os que nunca
+     * foram anunciados, não só os que zeraram: é a lista do que falta preencher, não só repor.
+     */
+    private function recursosSemOfertaDoGoverno(): \Illuminate\Support\Collection
+    {
+        $comOferta = DB::table('market_orders')
+            ->whereNull('colony_id')
+            ->whereIn('status', ['aberta', 'parcial'])
+            ->pluck('resource_type');
+
+        return ResourceType::whereNotIn('code', $comOferta)->orderBy('nome')->pluck('nome');
     }
 }

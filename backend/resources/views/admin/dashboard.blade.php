@@ -21,6 +21,21 @@
         <div class="tile"><b>{{ $resumo['zonas_ocupadas'] }}</b><span>Zonas ocupadas</span></div>
     </div>
 
+    {{--
+        O Mercado do Governo (D-87): quem não está à venda agora. Aparece só quando há algo a
+        fazer — nenhum card vazio "está tudo bem" ocupando espaço.
+    --}}
+    @if ($recursosSemOfertaDoGoverno->isNotEmpty())
+        <h2 class="secao">Mercado do Governo — sem oferta</h2>
+        <div class="cartao" data-alerta-mercado-governo>
+            <p class="mut pequeno">
+                <b>{{ $recursosSemOfertaDoGoverno->count() }}</b> recurso(s) sem oferta ativa no
+                Mercado Central: {{ $recursosSemOfertaDoGoverno->implode(', ') }}.
+            </p>
+            <a href="{{ route('admin.economia', ['aba' => 'mercado']) }}" class="pequeno">Preencher no Mercado →</a>
+        </div>
+    @endif
+
 
     {{--
         Os últimos atos do painel (D-61).

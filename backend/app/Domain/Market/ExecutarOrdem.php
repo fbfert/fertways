@@ -134,9 +134,15 @@ class ExecutarOrdem
      * é em Fert$ e recai sobre **quem vende** — confirmado pelo usuário no D-58, para não a apagar
      * por omissão. Ela não some: vai ao Ministério do Tesouro (§2.1, D-57).
      *
+     * ⚠️ **`$vendedorId` nulo é o Governo** (D-87, uma oferta sem colônia dona). Não há colônia
+     * para lançar no ledger nem XP a conceder a "quem vendeu" — e não há por que separar líquido de
+     * taxa: os dois terminam no mesmo Tesouro, então credita-se o `$valor` inteiro de uma vez. O
+     * `tax_events` ainda é gravado (com a alíquota real, para o relatório de tributo bater), porque
+     * é ele que impede a mesma execução de ser processada duas vezes.
+     *
      * @return string a chave do fato econômico, usada como `ref` no ledger
      */
-    private function fechar(MarketOrder $ordem, int $vendedorId, int $compradorId, string $recurso, int $qtd, int $valor): string
+    private function fechar(MarketOrder $ordem, ?int $vendedorId, int $compradorId, string $recurso, int $qtd, int $valor): string
     {
         /*
          * "Lote não pode ser vendido duas vezes" é critério de aceite do MVP (§16). A oferta e o
@@ -166,26 +172,36 @@ class ExecutarOrdem
         }
 
         $liquido = $valor - $taxa;
-        DB::table('colonies')->where('id', $vendedorId)->increment('fert_micro', $liquido);
-        $this->lancar($vendedorId, 'venda_mercado', $liquido, null, $chave);
+
+        if ($vendedorId === null) {
+            // O Governo vendeu (D-87): líquido e taxa terminam no mesmo Tesouro — credita tudo
+            // de uma vez, sem colônia nenhuma para lançar no ledger.
+            $this->tesouro->creditarFert($valor);
+        } else {
+            DB::table('colonies')->where('id', $vendedorId)->increment('fert_micro', $liquido);
+            $this->lancar($vendedorId, 'venda_mercado', $liquido, null, $chave);
+        }
 
         /*
          * O Marco anda com o comércio (D-75) — e com o MESMO piso do D-43 que protege a reputação:
          * execução abaixo de 500 Fert$ não rende XP, senão duas contas fariam volume de mentira a
-         * 1 unidade por vez (a taxa de 3% tornaria o farm caro, mas caro não é impossível).
+         * 1 unidade por vez (a taxa de 3% tornaria o farm caro, mas caro não é impossível). O
+         * Governo não é colônia: sem XP nem missão para o lado dele, só para quem comprou.
          */
         if ($valor >= \App\Domain\Trade\AcordoSpecs::PISO_REPUTACAO_MICRO) {
             $xp = app(\App\Domain\Marco\ConcederXp::class);
-            $xp->handle($vendedorId, 'mercado_executado', $chave);
-            $xp->handle($compradorId, 'mercado_executado', $chave);
-
-            // A missão de mercado herda o MESMO piso (D-43/D-75): negócio de mentira não progride.
             $missoes = app(\App\Domain\Missoes\Progresso::class);
-            $missoes->registrar($vendedorId, 'mercado_executado');
+
+            if ($vendedorId !== null) {
+                $xp->handle($vendedorId, 'mercado_executado', $chave);
+                $missoes->registrar($vendedorId, 'mercado_executado');
+            }
+
+            $xp->handle($compradorId, 'mercado_executado', $chave);
             $missoes->registrar($compradorId, 'mercado_executado');
         }
 
-        if ($taxa > 0) {
+        if ($taxa > 0 && $vendedorId !== null) {
             $this->lancar($vendedorId, 'tributo', -$taxa, null, $chave);
             $this->tesouro->creditarFert($taxa);
         }
