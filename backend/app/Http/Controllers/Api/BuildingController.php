@@ -172,7 +172,7 @@ class BuildingController extends Controller
     public function recipes(): JsonResponse
     {
         return response()->json(
-            DB::table('component_recipes')->orderBy('id')->get()->map(fn ($r) => [
+            DB::table('component_recipes')->orderBy('code')->get()->map(fn ($r) => [
                 'code' => $r->code,
                 'nome' => $r->nome,
                 'contexto' => $r->contexto,

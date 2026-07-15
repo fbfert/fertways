@@ -188,7 +188,7 @@ class AdminPortaTest extends TestCase
     /** E promove — o caminho de volta quando o painel ficou sem dono capaz de entrar. */
     public function test_a_cli_promove_um_operador_a_dono(): void
     {
-        Admin::create([
+        $op = Admin::create([
             'name' => 'Op', 'email' => 'op@fertways.test',
             'password' => Hash::make(self::SENHA), 'role' => Admin::OPERADOR,
         ]);
@@ -197,7 +197,10 @@ class AdminPortaTest extends TestCase
             ->assertSuccessful();
 
         $this->assertSame(Admin::DONO, Admin::where('email', 'op@fertways.test')->first()->role);
-        $this->assertDatabaseHas('audit_log', ['acao' => 'admin.editar', 'alvo' => 'admin:1']);
+        // Não `admin:1`: o auto_increment do MariaDB não recua com o rollback do RefreshDatabase
+        // entre testes (o do SQLite, sim) — o id real depende de quantos admins os testes
+        // anteriores já criaram na mesma conexão.
+        $this->assertDatabaseHas('audit_log', ['acao' => 'admin.editar', 'alvo' => "admin:{$op->id}"]);
     }
 
     /**

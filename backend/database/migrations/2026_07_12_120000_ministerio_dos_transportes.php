@@ -53,7 +53,12 @@ return new class extends Migration
         // Os veículos do governo não têm para onde voltar: `colony_id` vai voltar a ser obrigatório
         // e eles não têm dono. Somem — são patrimônio do Estado, não de ninguém, e não há colono a
         // quem entregá-los.
-        \App\Models\Vehicle::whereNull('colony_id')->delete();
+        //
+        // Consulta crua, não o Eloquent: `Vehicle` ganhou SoftDeletes numa migration posterior
+        // (D-60, frota_envelhece_e_usados), então num rollback completo o `down()` dela roda ANTES
+        // deste (as migrations desfazem na ordem inversa) e já derrubou a coluna `deleted_at` —
+        // `Vehicle::delete()` tentaria gravar nela e quebraria com "Column not found".
+        \Illuminate\Support\Facades\DB::table('vehicles')->whereNull('colony_id')->delete();
 
         Schema::table('vehicles', function (Blueprint $table) {
             $table->dropUnique(['plate']);
