@@ -888,7 +888,7 @@ verdes, a mesma falha pré-existente e não relacionada de Missões. Não mexe e
 muda mas o `building_specs` semeado continua com a taxa velha. Conferido por leitura depois: a
 Oficina sem `ligas_metalicas` no JSON, e a Refinaria Química com 2/3/5/7/10.
 
-## Teto de zonas, upgrade de nível e manutenção territorial (D-84) — **PR aberto, NÃO mesclado, NÃO publicado** (2026-07-15)
+## Teto de zonas, upgrade de nível e manutenção territorial (D-84) — **mesclado e no ar** (2026-07-15), commit `73f46dc`
 
 Fecha as duas últimas lacunas do D-52 ("teto de zonas por jogador" e "upgrade de zona fica para
 uma fatia posterior") e liga pela primeira vez a manutenção territorial do §27.12, que nunca tinha
@@ -925,8 +925,13 @@ cobrar de verdade — 50 Biomassa + 30 Energia/dia no nível 1, subindo com o n�
 pequeno para colônias que nunca esperaram esse custo. Vale avisar antes de mesclar, não só
 documentar depois.
 
-**Para retomar isto:** olhe o PR no GitHub — se os três jobs da CI vierem verdes, está pronto para
-mesclar. **Ninguém pediu merge nem deploy ainda.**
+Mesclado (squash, PR #3) em `main` e publicado por `sudo ./tools/deploy.sh`, junto com o D-88
+(veja abaixo) na mesma sessão — o usuário pediu explicitamente para publicar as duas mudanças
+depois de prontas. A migration rodou em produção sem erro; quem já tinha zona ocupada entrou na
+trégua de 24h do backfill antes da primeira cobrança de manutenção.
+
+**Para retomar isto:** não há mais pendência — é o estado normal do jogo agora. Zonas cobram
+manutenção de verdade, têm teto de 5 por colônia, e podem ser upadas de nível.
 
 ## CI básica no GitHub Actions — **mesclada e no ar** (2026-07-15), commit `9915bef`
 
@@ -995,7 +1000,7 @@ foram preservados sem mudança.
 **Validado:** lint, `npm run build`, e o e2e completo (8 arquivos, incluindo o cenário exato de
 comprar do zero na vitrine) — todos verdes antes de mesclar.
 
-## Sair vira ícone, a lateral troca de ordem, o card da zona ganha corpo (D-88) — **PR aberto, NÃO mesclado, NÃO publicado** (2026-07-15)
+## Sair vira ícone, a lateral troca de ordem, o card da zona ganha corpo (D-88) — **mesclado e no ar** (2026-07-15), commit `9acaccf`
 
 Pedido de visual do usuário, três partes, empilhado sobre o D-84 (precisa dos campos de nível/
 upgrade/manutenção que aquele PR introduz):
@@ -1016,8 +1021,10 @@ Ver o **D-88** completo em `docs/decisoes.md`.
 completo (8 arquivos) — incluindo o fluxo de logout reescrito (`mercado.e2e.mjs`) clicando
 `[data-sair]` e depois `[data-confirmar-sair]`.
 
-**Para retomar isto:** depende do D-84 (branch base é `feat/zona-teto-upgrade-manutencao`) — os
-dois mesclam juntos. Depois de mesclar, `sudo ./tools/deploy.sh` publica os dois de uma vez.
+Mesclado (squash, PR #8, rebaseado sobre `main` depois que o D-84/#3 entrou) e publicado junto com
+o D-84 no mesmo `sudo ./tools/deploy.sh`, a pedido explícito do usuário.
+
+**Para retomar isto:** não há mais pendência — é o estado normal da tela da colônia agora.
 
 ## O trabalho anterior: zonas neutras + Drone (D-52)
 
