@@ -1108,7 +1108,7 @@ tocar código) e revalidado depois: 571 testes, CI verde, e2e completo (8 arquiv
 **Para retomar isto:** não há mais pendência — o painel da Siderúrgica mostra "Processa por
 hora" para o Metal Bruto, não mais "Produz".
 
-## Chamar o veículo de volta do Pátio, vazio, e a Capital avisa pelo rádio (D-91) — **PR aberto, NÃO mesclado, NÃO publicado** (2026-07-16)
+## Chamar o veículo de volta do Pátio, vazio, e a Capital avisa pelo rádio (D-91) — **mesclado e no ar** (2026-07-16), commit `d883151`
 
 Dois pedidos do usuário sobre o Pátio da Capital (D-65): não havia como chamar de volta um
 veículo parado lá sem carga, e ninguém avisava que ele estava ali, comendo Fert$ hora a hora.
@@ -1127,8 +1127,22 @@ round-trip de migrations limpo nos dois, lint, build, e2e completo (regressão �
 tick, então o fluxo novo só é observável pelos testes de domínio: `PatioDaCapitalTest` +3 casos,
 `AvisoDoPatioTest` novo com 5 casos).
 
-**Para retomar isto:** olhe o PR no GitHub — se a CI vier verde, está pronto para mesclar e
-publicar.
+Mesclado (squash, PR #10) em `main` e publicado por `sudo ./tools/deploy.sh`, junto com a coluna
+Preço Base do admin (PR #11), a pedido do usuário.
+
+**Para retomar isto:** não há mais pendência — é o estado normal do Pátio agora.
+
+## A aba Mercado da Economia ganha a coluna "Preço Base" — **mesclado e no ar** (2026-07-16), commit `fefbff9`
+
+Pedido do usuário: em `/central/admin/economia?aba=mercado`, entre "No Tesouro" e "À venda
+agora", uma coluna com o preço de referência do §06 (`resource_types.preco_base_micro`) — o
+mesmo que a Secretaria de Finanças já publica para o jogador. Sem ela, o operador não tinha como
+julgar se o preço que está anunciando pelo Governo estava caro ou barato perto da base.
+
+**Validado:** teste novo em `AdminPainel2Test.php` (ordem das colunas + valor formatado), 572
+testes de backend. Sem migration nem mudança de frontend — só o controller e a view Blade.
+
+**Para retomar isto:** não há mais pendência.
 
 ## O trabalho anterior: zonas neutras + Drone (D-52)
 
