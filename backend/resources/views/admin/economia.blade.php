@@ -132,7 +132,7 @@
                         <tr data-linha-recurso="{{ $r->code }}">
                             <td>{{ $r->nome }}</td>
                             <td class="num mut">{{ number_format($noTesouro, 0, ',', '.') }}</td>
-                            <td class="num mut">{{ $fert($r->preco_base_micro) }}</td>
+                            <td class="num mut">{{ number_format(((int) $r->preco_base_micro) / 1000000, 4, ',', '.') }}</td>
                             <td class="num">
                                 <input type="number" min="0" name="qtd[{{ $r->code }}]"
                                        value="{{ $oferta->qty ?? 0 }}" style="width:100px;text-align:right">

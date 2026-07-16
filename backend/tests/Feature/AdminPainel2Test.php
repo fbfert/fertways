@@ -370,7 +370,8 @@ class AdminPainel2Test extends TestCase
         $this->seed(\Database\Seeders\TreasurySeeder::class);
 
         $r = \App\Models\ResourceType::where('preco_base_derivado', false)->firstOrFail();
-        $precoBase = number_format(((int) $r->preco_base_micro) / 1_000_000, 2, ',', '.');
+        // 4 casas — a mesma precisão do campo "Preço/un." ao lado, não as 2 do resto da tela.
+        $precoBase = number_format(((int) $r->preco_base_micro) / 1_000_000, 4, ',', '.');
 
         $this->actingAs($this->operador(), 'admin')
             ->get('/admin/economia?aba=mercado')
