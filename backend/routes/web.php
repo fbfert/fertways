@@ -51,6 +51,13 @@ Route::prefix('admin')->group(function () {
         Route::post('/operacao/marco', [AcoesController::class, 'marco'])->name('admin.marco.parametros');
         Route::post('/operacao/kit-inicial', [AcoesController::class, 'kitInicial'])->name('admin.kit_inicial.parametros');
 
+        // Bugs/Melhorias (D-95): o jogador manda pelo jogo; o admin lê, responde (o rádio avisa,
+        // D-91) e marca como feito. Aba própria — mistura CRUD com o dashboard não caberia num card.
+        Route::get('/feedback', [PainelController::class, 'feedback'])->name('admin.feedback');
+        Route::post('/feedback/{feedback}/lida', [AcoesController::class, 'feedbackLida'])->name('admin.feedback.lida');
+        Route::post('/feedback/{feedback}/responder', [AcoesController::class, 'feedbackResponder'])->name('admin.feedback.responder');
+        Route::post('/feedback/{feedback}/feito', [AcoesController::class, 'feedbackFeito'])->name('admin.feedback.feito');
+
         // O catálogo de missões (§06, D-78): aba própria — o CRUD é grande demais para um card.
         Route::get('/missoes', [PainelController::class, 'missoes'])->name('admin.missoes');
         Route::post('/missoes', [AcoesController::class, 'missaoCriar'])->name('admin.missao.criar');

@@ -139,6 +139,7 @@
                 'admin.transportes' => 'Transportes',
                 'admin.auditoria' => 'Auditoria',
                 'admin.operacao' => 'Operação',
+                'admin.feedback' => 'Bugs/Melhorias',
             ];
 
             if (auth('admin')->user()->ehDono()) {

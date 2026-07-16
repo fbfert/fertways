@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\CapitalController;
 use App\Http\Controllers\Api\ChatController;
 use App\Http\Controllers\Api\ColonyController;
 use App\Http\Controllers\Api\DroneController;
+use App\Http\Controllers\Api\FeedbackController;
 use App\Http\Controllers\Api\ImagesController;
 use App\Http\Controllers\Api\MarketController;
 use App\Http\Controllers\Api\MissoesController;
@@ -107,6 +108,10 @@ Route::middleware('auth:sanctum')->group(function () {
     // O Sistema de Mensagens (§10, D-77): polling, 4 canais vivos (federação espera federações).
     Route::get('/chat', [ChatController::class, 'canais']);
     Route::get('/chat/pendencias', [ChatController::class, 'pendencias']);
+
+    // Bugs/Melhorias (D-95): o jogador manda, o admin responde pelo painel — a resposta chega
+    // pelo rádio (D-91).
+    Route::post('/feedback', [FeedbackController::class, 'store']);
 
     // As Missões do §06 (D-78): a mão do dia nasce no primeiro pedido; 1 rejeição diária.
     Route::get('/missions', [MissoesController::class, 'index']);

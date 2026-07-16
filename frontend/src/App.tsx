@@ -7,6 +7,7 @@ import { Extrato } from './ui/Extrato'
 import { Frota } from './ui/Frota'
 import { Fundacao } from './ui/Fundacao'
 import { Login } from './ui/Login'
+import { BugsMelhorias } from './ui/BugsMelhorias'
 import { Chat } from './ui/Chat'
 import { Missoes } from './ui/Missoes'
 import { Mapa } from './ui/Mapa'
@@ -167,6 +168,7 @@ export default function App() {
    */
   const [chatAberto, setChatAberto] = useState(false)
   const [missoesAbertas, setMissoesAbertas] = useState(false)
+  const [bugsAbertos, setBugsAbertos] = useState(false)
   const [chatPendente, setChatPendente] = useState(0)
   // O "Sim/Não" do ícone de Sair (D-88) — fecha sozinho depois de confirmar, porque `sair()`
   // já tira `colonia` da tela e o dropdown não teria mais onde se ancorar.
@@ -292,6 +294,17 @@ export default function App() {
               )}
             </button>
           )}
+
+          {/* Bugs/Melhorias (D-95): ao lado do Chat — o mesmo lugar de onde se pede ajuda. */}
+          {colonia && (
+            <button
+              onClick={() => setBugsAbertos((v) => !v)}
+              data-abrir-bugs-melhorias
+              className="painel bg-sand-light text-rust hover:text-rust-bright eyebrow px-5"
+            >
+              Bugs/Melhorias
+            </button>
+          )}
         </div>
 
         {colonia && (
@@ -398,6 +411,9 @@ export default function App() {
       )}
       {missoesAbertas && !chatAberto && colonia && <Missoes aoFechar={() => setMissoesAbertas(false)} />}
       {extratoAberto && colonia && <Extrato aoFechar={() => setExtratoAberto(false)} />}
+      {bugsAbertos && !chatAberto && !missoesAbertas && colonia && (
+        <BugsMelhorias aoFechar={() => setBugsAbertos(false)} />
+      )}
 
 
       {colonia && (

@@ -22,6 +22,20 @@
     </div>
 
     {{--
+        Bugs/Melhorias (D-95): aparece só quando há mensagem não lida — mesmo princípio do card
+        do Mercado do Governo, abaixo: nenhum card vazio "está tudo bem" ocupando espaço.
+    --}}
+    @if ($resumo['feedback_nao_lido'] > 0)
+        <h2 class="secao">Bugs/Melhorias — mensagens novas</h2>
+        <div class="cartao" data-alerta-feedback>
+            <p class="mut pequeno">
+                <b>{{ $resumo['feedback_nao_lido'] }}</b> mensagem(ns) não lida(s) de jogadores.
+            </p>
+            <a href="{{ route('admin.feedback', ['estado' => 'nao_lida']) }}" class="pequeno">Ver as mensagens →</a>
+        </div>
+    @endif
+
+    {{--
         O Mercado do Governo (D-87): quem não está à venda agora. Aparece só quando há algo a
         fazer — nenhum card vazio "está tudo bem" ocupando espaço.
     --}}
