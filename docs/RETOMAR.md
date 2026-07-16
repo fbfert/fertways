@@ -1142,9 +1142,13 @@ julgar se o preço que está anunciando pelo Governo estava caro ou barato perto
 **Validado:** teste novo em `AdminPainel2Test.php` (ordem das colunas + valor formatado), 572
 testes de backend. Sem migration nem mudança de frontend — só o controller e a view Blade.
 
+Ajuste do usuário logo depois: a coluna nasceu com 2 casas decimais (o padrão do resto da tela),
+e precisava de 4 — a mesma precisão do campo "Preço/un." ao lado. Corrigido e publicado junto
+(PR #12, commit `f3d47ab`).
+
 **Para retomar isto:** não há mais pendência.
 
-## A zona vira cinco abas, o Canteiro pergunta a obra, e nasce o Histórico (D-86) — **mesclado e no ar** (2026-07-16)
+## A zona vira cinco abas, o Canteiro pergunta a obra, e nasce o Histórico (D-86) — **mesclado e no ar** (2026-07-16), commit `80ae7e5`
 
 Pedidos pontuais do usuário:
 
