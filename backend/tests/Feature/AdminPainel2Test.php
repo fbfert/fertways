@@ -359,6 +359,26 @@ class AdminPainel2Test extends TestCase
             ->assertDontSee('Central de Notícias');
     }
 
+    /**
+     * A aba Mercado (D-87) só dizia quanto o Governo tinha no Tesouro e por quanto estava
+     * vendendo — faltava o preço BASE (§06), sem o qual o operador não tinha como julgar se o
+     * preço anunciado estava caro ou barato perto da referência do jogo.
+     */
+    public function test_a_aba_mercado_mostra_o_preco_base_do_recurso(): void
+    {
+        $this->seed(\Database\Seeders\ResourceTypeSeeder::class);
+        $this->seed(\Database\Seeders\TreasurySeeder::class);
+
+        $r = \App\Models\ResourceType::where('preco_base_derivado', false)->firstOrFail();
+        $precoBase = number_format(((int) $r->preco_base_micro) / 1_000_000, 2, ',', '.');
+
+        $this->actingAs($this->operador(), 'admin')
+            ->get('/admin/economia?aba=mercado')
+            ->assertOk()
+            ->assertSeeInOrder(['No Tesouro', 'Preço Base', 'À venda agora'])
+            ->assertSee($precoBase);
+    }
+
     // ── transportes: os cinco parâmetros gravam (D-73) ─────────────────────────────────────────
 
     /**

@@ -123,7 +123,7 @@
             <form method="POST" action="{{ route('admin.mercado.governo') }}" style="margin-top:12px">
                 @csrf
                 <table>
-                    <tr><th>Recurso</th><th class="num">No Tesouro</th><th class="num">À venda agora</th><th class="num">Preço/un. (Fert$)</th></tr>
+                    <tr><th>Recurso</th><th class="num">No Tesouro</th><th class="num">Preço Base (Fert$)</th><th class="num">À venda agora</th><th class="num">Preço/un. (Fert$)</th></tr>
                     @foreach ($recursos as $r)
                         @php
                             $oferta = $ofertasDoGoverno[$r->code] ?? null;
@@ -132,6 +132,7 @@
                         <tr data-linha-recurso="{{ $r->code }}">
                             <td>{{ $r->nome }}</td>
                             <td class="num mut">{{ number_format($noTesouro, 0, ',', '.') }}</td>
+                            <td class="num mut">{{ $fert($r->preco_base_micro) }}</td>
                             <td class="num">
                                 <input type="number" min="0" name="qtd[{{ $r->code }}]"
                                        value="{{ $oferta->qty ?? 0 }}" style="width:100px;text-align:right">
