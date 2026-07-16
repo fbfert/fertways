@@ -200,7 +200,10 @@ class PainelController extends Controller
         return view('admin.economia', [
             'aba' => $aba,
             'colonias' => Colony::orderBy('id')->get(),
-            'recursos' => ResourceType::orderBy('tax_class')->orderBy('nome')->get(['code', 'nome', 'tax_class']),
+            // `preco_base_micro` alimenta a coluna "Preço Base" da aba Mercado (o mesmo preço de
+            // referência do §06 que a Secretaria de Finanças já publica para o jogador).
+            'recursos' => ResourceType::orderBy('tax_class')->orderBy('nome')
+                ->get(['code', 'nome', 'tax_class', 'preco_base_micro']),
             'intervencoes' => PriceIntervention::query()->vigentes()->orderBy('resource_type')->get(),
             'tesouro' => DB::table('treasury_holdings')
                 ->join('resource_types', 'treasury_holdings.resource_type', '=', 'resource_types.code')
