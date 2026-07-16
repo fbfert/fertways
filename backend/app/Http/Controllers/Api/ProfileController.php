@@ -3,7 +3,9 @@
 namespace App\Http\Controllers\Api;
 
 use App\Domain\Trade\AcordoSpecs;
+use App\Exceptions\DomainRuleException;
 use App\Http\Controllers\Controller;
+use App\Models\Ledger;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -61,6 +63,41 @@ class ProfileController extends Controller
                 'xp' => (int) $colony->xp,
                 'xp_do_proximo' => $n >= 100 ? null : \App\Domain\Marco\Curva::xpDoMarco($n + 1),
             ] : null,
+        ]);
+    }
+
+    /**
+     * O extrato bancário: só os lançamentos em Fert$ (`resource_type IS NULL`) — não o ledger
+     * inteiro da colônia, que também tem uma linha por unidade de recurso movimentada. "Extrato
+     * bancário" pede dinheiro, não estoque.
+     *
+     * Clicar no card de Fert$ do HUD abre isto — antes não havia nenhuma tela para o colono ver de
+     * onde veio ou para onde foi o próprio saldo; só o admin tinha essa visão (`PainelController`).
+     */
+    public function extrato(Request $request): JsonResponse
+    {
+        $colony = $request->user()->colony()->first();
+
+        if (! $colony) {
+            throw new DomainRuleException('sem_colonia', 'Funde uma colônia primeiro.');
+        }
+
+        $pagina = Ledger::where('colony_id', $colony->id)
+            ->whereNull('resource_type')
+            ->orderByDesc('id')
+            ->paginate(30);
+
+        return response()->json([
+            'lancamentos' => collect($pagina->items())->map(fn (Ledger $l) => [
+                'id' => $l->id,
+                'tipo' => $l->type,
+                'fert' => $l->amount / 1_000_000,
+                'ref' => $l->ref,
+                'quando' => $l->created_at,
+            ])->values(),
+            'pagina_atual' => $pagina->currentPage(),
+            'ultima_pagina' => $pagina->lastPage(),
+            'total' => $pagina->total(),
         ]);
     }
 

@@ -267,4 +267,75 @@ class PerfilTest extends TestCase
             ->assertOk()
             ->assertJsonStructure(['zones']);
     }
+
+    // ── o extrato bancário ──────────────────────────────────────────────────────────────────────
+
+    /**
+     * Só Fert$ — não o ledger inteiro. `saldo_inicial` (resource_type nulo) entra;
+     * `kit_inicial` de um recurso qualquer (resource_type preenchido) fica de fora.
+     */
+    public function test_o_extrato_so_traz_lancamentos_em_fert(): void
+    {
+        $c = $this->colono();
+
+        \App\Models\Ledger::create([
+            'colony_id' => $c->id, 'type' => 'venda_mercado', 'amount' => 5_000_000,
+            'resource_type' => null, 'ref' => 'mercado:1', 'created_at' => now(),
+        ]);
+        \App\Models\Ledger::create([
+            'colony_id' => $c->id, 'type' => 'kit_inicial', 'amount' => 500,
+            'resource_type' => 'metal_bruto', 'ref' => 'onboarding:kit_inicial', 'created_at' => now(),
+        ]);
+
+        $resposta = $this->actingAs($c->user)->getJson('/profile/extrato')->assertOk();
+
+        // saldo_inicial (da fundação) + venda_mercado lançada acima — nunca o kit_inicial de recurso.
+        $tipos = collect($resposta->json('lancamentos'))->pluck('tipo');
+        $this->assertTrue($tipos->contains('saldo_inicial'));
+        $this->assertTrue($tipos->contains('venda_mercado'));
+        $this->assertFalse($tipos->contains('kit_inicial'));
+    }
+
+    public function test_o_extrato_converte_micro_fert_para_fert(): void
+    {
+        $c = $this->colono();
+
+        $resposta = $this->actingAs($c->user)->getJson('/profile/extrato')->assertOk();
+
+        $saldoInicial = collect($resposta->json('lancamentos'))->firstWhere('tipo', 'saldo_inicial');
+        // PHP devolve int quando a divisão é exata (100_000_000 / 1_000_000) — o JSON não distingue.
+        $this->assertEquals(100, $saldoInicial['fert']);
+    }
+
+    /** Mais novo primeiro, e paginado — o extrato só cresce. */
+    public function test_o_extrato_vem_paginado_do_mais_novo_para_o_mais_velho(): void
+    {
+        $c = $this->colono();
+
+        foreach (range(1, 35) as $i) {
+            \App\Models\Ledger::create([
+                'colony_id' => $c->id, 'type' => 'venda_mercado', 'amount' => $i * 1_000_000,
+                'resource_type' => null, 'ref' => "mercado:{$i}", 'created_at' => now()->addSeconds($i),
+            ]);
+        }
+
+        $resposta = $this->actingAs($c->user)->getJson('/profile/extrato')->assertOk();
+
+        $lancamentos = $resposta->json('lancamentos');
+        $this->assertCount(30, $lancamentos, '30 por página');
+        $this->assertSame(2, $resposta->json('ultima_pagina'));
+        // 36 no total: os 35 de cima + o saldo_inicial da fundação.
+        $this->assertSame(36, $resposta->json('total'));
+        $this->assertSame('venda_mercado', $lancamentos[0]['tipo']);
+        $this->assertEquals(35, $lancamentos[0]['fert'], 'o mais recente vem primeiro');
+    }
+
+    public function test_o_extrato_exige_colonia(): void
+    {
+        $user = User::factory()->create();
+
+        $this->actingAs($user)->getJson('/profile/extrato')
+            ->assertStatus(422)
+            ->assertJsonPath('code', 'sem_colonia');
+    }
 }

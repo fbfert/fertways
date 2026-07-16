@@ -3,6 +3,7 @@ import { api, ApiError, token } from './api/client'
 import type { Catalogo, Colonia, Fila, Spec } from './api/client'
 import { ColonyCanvas } from './game/ColonyCanvas'
 import { Capital } from './ui/Capital'
+import { Extrato } from './ui/Extrato'
 import { Frota } from './ui/Frota'
 import { Fundacao } from './ui/Fundacao'
 import { Login } from './ui/Login'
@@ -170,6 +171,8 @@ export default function App() {
   // O "Sim/Não" do ícone de Sair (D-88) — fecha sozinho depois de confirmar, porque `sair()`
   // já tira `colonia` da tela e o dropdown não teria mais onde se ancorar.
   const [confirmandoSaida, setConfirmandoSaida] = useState(false)
+  // O extrato bancário (D-93), aberto clicando o valor/palavra "Fert$" do card do HUD.
+  const [extratoAberto, setExtratoAberto] = useState(false)
   // Uma privada pedida de FORA da colônia (D-86): o Mapa está numa rota própria, e o Chat só
   // existe dentro da rota "/" — este é o que atravessa a troca de rota entre os dois.
   const [conversaAlvo, setConversaAlvo] = useState<{ id: number; nickname: string } | null>(null)
@@ -307,10 +310,17 @@ export default function App() {
 
             <div className="painel bg-sand-light px-5 py-3 text-right">
               <div className="text-rust eyebrow">{colonia.name}</div>
-              <div className="text-ink text-xl font-black tabular-nums">
+              {/* O valor e a palavra "Fert$" abrem o extrato bancário — o resto do card (o nome
+                  da colônia) não é clicável, de propósito: só o saldo tem extrato para ver. */}
+              <button
+                onClick={() => setExtratoAberto(true)}
+                data-abrir-extrato
+                title="Ver extrato"
+                className="text-ink hover:text-rust text-xl font-black tabular-nums"
+              >
                 {colonia.fert.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}{' '}
                 <span className="text-rust text-sm">Fert$</span>
-              </div>
+              </button>
             </div>
 
             {/*
@@ -387,6 +397,7 @@ export default function App() {
         />
       )}
       {missoesAbertas && !chatAberto && colonia && <Missoes aoFechar={() => setMissoesAbertas(false)} />}
+      {extratoAberto && colonia && <Extrato aoFechar={() => setExtratoAberto(false)} />}
 
 
       {colonia && (
