@@ -2,6 +2,7 @@
 
 namespace App\Domain\Logistics;
 
+use App\Domain\Capital\AvisoDoPatio;
 use App\Domain\Market\Deposito;
 use App\Domain\Trade\CreditarEntrega;
 use App\Domain\Transport\Conservacao;
@@ -37,6 +38,7 @@ class ConcluirTrechos
         private CreditarEntrega $creditarEntrega,
         private Conservacao $conservacao,
         private MercadoDeUsados $usados,
+        private AvisoDoPatio $avisoDoPatio,
     ) {}
 
     /**
@@ -238,6 +240,9 @@ class ConcluirTrechos
         $chegada = $v->arrives_at->copy();
 
         $this->terminarViagem($v, Vehicle::NO_PATIO, $chegada);
+
+        // D-91: a Capital avisa pelo rádio assim que o relógio da tarifa começa a correr.
+        $this->avisoDoPatio->estacionou($v->fresh());
     }
 
     /** Fim de viagem: o veículo para, onde quer que seja, e esquece tudo o que era da viagem. */

@@ -20,7 +20,7 @@ class Vehicle extends Model
         'conservacao_bps', 'teto_conservacao_bps', 'manutencoes', 'uso_ativo_seg',
         'origin_id', 'destination_type', 'destination_id', 'leg', 'trip_purpose', 'distance_slots',
         'return_distance_slots', 'departs_at', 'arrives_at', 'parked_at', 'patio_cobrado_ate',
-        'ready_at', 'cargo_json',
+        'patio_aviso_enviado_em', 'ready_at', 'cargo_json',
     ];
 
     /**
@@ -53,6 +53,7 @@ class Vehicle extends Model
         'arrives_at' => 'datetime',
         'parked_at' => 'datetime',
         'patio_cobrado_ate' => 'datetime',
+        'patio_aviso_enviado_em' => 'datetime',
         // Só a frota do governo o usa: quando o caminhão sai da linha de montagem (D-60).
         'ready_at' => 'datetime',
         'cargo_json' => 'array',

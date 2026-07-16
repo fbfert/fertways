@@ -137,16 +137,27 @@ class DespacharVeiculo
 
         $this->exigirSemRestricaoComercial($dona);
 
-        // Tirar carga do depósito é usar o Mercado Central (§25.8), como a retirada.
-        AcessoAoMercado::exigir($dona);
-
         $destino = Colony::find($destinoId);
 
         if (! $destino) {
             throw new DomainRuleException('destino_inexistente', 'Colônia de destino não encontrada.');
         }
 
-        $this->validarCarga($veiculo, $carga);
+        /*
+         * D-91: chamar de volta um veículo VAZIO, para a PRÓPRIA colônia, não é usar o Mercado —
+         * é resgatar um bem seu, do mesmo jeito que o reboque automático (`Patio::rebocar`) já
+         * resgata de graça quem não pode pagar a hora. Só este caso escapa da trava de Confiança
+         * Comercial e da exigência de carga: qualquer carga de verdade, mesmo que também vá para
+         * casa, continua sendo "usar o Mercado" como sempre foi.
+         */
+        $vazioParaCasa = $carga === [] && $destino->id === $dona->id;
+
+        if (! $vazioParaCasa) {
+            // Tirar carga do depósito é usar o Mercado Central (§25.8), como a retirada.
+            AcessoAoMercado::exigir($dona);
+
+            $this->validarCarga($veiculo, $carga);
+        }
 
         // Para casa, o acordo não faz sentido (ninguém promete a si mesmo); para outro colono, é a
         // mesma regra de sempre — a carga só abate o acordo que ela aponta (D-41).
@@ -540,7 +551,9 @@ class DespacharVeiculo
             'arrives_at' => $agora->copy()->addSeconds(
                 $this->conservacao->segundosDoTrecho($veiculo, $distancia),
             ),
-            'cargo_json' => $carga,
+            // `[]` viraria um array JS truísta na tela sem nada dentro (D-91: só a volta vazia do
+            // Pátio chega aqui com carga vazia — as outras já barram em `validarCarga`).
+            'cargo_json' => $carga === [] ? null : $carga,
             'trade_agreement_id' => $acordoId,
         ])->save();
 

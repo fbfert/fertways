@@ -6,6 +6,7 @@ use App\Domain\Admin\CorrigirEstado;
 use App\Domain\Admin\RealocarColonia;
 use App\Domain\Admin\Suspender;
 use App\Domain\Building\Funcoes;
+use App\Domain\Chat\ContaSistema;
 use App\Domain\Media\Biblioteca;
 use App\Domain\Media\Vinculaveis;
 use App\Domain\Ministry\PunicaoSpecs;
@@ -72,6 +73,9 @@ class PainelController extends Controller
 
         $jogadores = User::query()
             ->with('colony')
+            // "Capital" (D-91) é uma conta de sistema, não um jogador — sem colônia, sem senha
+            // utilizável, e nada aqui deveria poder suspendê-la ou editá-la como se fosse gente.
+            ->where('email', '!=', ContaSistema::EMAIL_CAPITAL)
             ->when($q !== '', function ($query) use ($q) {
                 /*
                  * A busca aceita as quatro coisas que alguém tem à mão quando reclama de algo: o

@@ -88,7 +88,10 @@ class VehicleController extends Controller
         $dados = $request->validate([
             'destination_type' => ['required', 'string', 'in:colonia,mercado_central'],
             'destination_id' => ['nullable', 'integer'],
-            'cargo' => ['required', 'array', 'min:1'],
+            // Vazio só é aceito na volta do Pátio para a própria colônia (D-91) — `DespacharVeiculo`
+            // é quem decide isso, com contexto de origem que esta validação não tem. Qualquer outra
+            // combinação continua recusando carga vazia em `validarCarga()`.
+            'cargo' => ['present', 'array'],
             'cargo.*' => ['integer', 'min:1'],
             // Opcional: amarra esta carga a um Acordo de Troca (D-41). Sem ele, o despacho é
             // comércio informal puro, e nada abate promessa nenhuma.

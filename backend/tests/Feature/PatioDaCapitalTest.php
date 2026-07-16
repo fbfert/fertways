@@ -326,6 +326,72 @@ class PatioDaCapitalTest extends TestCase
         Carbon::setTestNow();
     }
 
+    // ------------------------------------------------------------------ chamar de volta vazio (D-91)
+
+    /**
+     * Resgatar o próprio veículo vazio não é usar o Mercado (D-91): mesmo com Confiança Comercial
+     * abaixo do limiar — que fecharia qualquer outro despacho do Pátio — o colono chama de volta.
+     * Paga a energia da perna, como qualquer despacho: só a exigência de carga e a trava de
+     * Confiança são dispensadas, não o custo.
+     */
+    #[Test]
+    public function chamar_de_volta_vazio_nao_exige_confianca_comercial_e_paga_energia(): void
+    {
+        $c = $this->colonia();
+        $this->abastecer($c, ['energia' => 100]);
+        $c->user->forceFill(['confianca_comercial' => 0])->save(); // abaixo do limiar de 200
+        $v = $this->estacionar($c);
+
+        app(DespacharVeiculo::class)->handle($c, $v, 'colonia', $c->id, []);
+
+        $this->assertSame(92, $this->estoque($c, 'energia'), 'uma perna: Capital → casa, mesmo vazio');
+        $this->assertNull($v->fresh()->cargo_json, 'vazio grava null, não um array vazio');
+
+        Carbon::setTestNow(now()->addMinutes(8));
+        app(ConcluirTrechos::class)->handle();
+
+        $v = $v->fresh();
+        $this->assertSame('ocioso', $v->status);
+        $this->assertSame(Vehicle::EM_CASA, $v->local);
+
+        Carbon::setTestNow();
+    }
+
+    /** Com carga de verdade, a trava de Confiança Comercial continua valendo — só a volta VAZIA escapa dela. */
+    #[Test]
+    public function com_carga_de_verdade_a_trava_de_confianca_comercial_continua(): void
+    {
+        $c = $this->colonia();
+        $this->abastecer($c, ['energia' => 100]);
+        MarketAccount::create(['colony_id' => $c->id, 'resource_type' => 'metal_bruto', 'amount' => 1_000]);
+        $c->user->forceFill(['confianca_comercial' => 0])->save();
+        $v = $this->estacionar($c);
+
+        try {
+            app(DespacharVeiculo::class)->handle($c, $v, 'colonia', $c->id, ['metal_bruto' => 1_000]);
+            $this->fail('despachou carga com Confiança Comercial abaixo do limiar');
+        } catch (\App\Exceptions\DomainRuleException $e) {
+            $this->assertSame('confianca_comercial_baixa', $e->codigo);
+        }
+    }
+
+    /** Vazio só é isenção para a PRÓPRIA colônia — para outro colono continua sendo "o veículo não sai vazio". */
+    #[Test]
+    public function vazio_nao_se_despacha_para_outro_colono(): void
+    {
+        $c = $this->colonia();
+        $vizinha = $this->colonia('vizinha', 0, 10);
+        $this->abastecer($c, ['energia' => 100]);
+        $v = $this->estacionar($c);
+
+        try {
+            app(DespacharVeiculo::class)->handle($c, $v, 'colonia', $vizinha->id, []);
+            $this->fail('despachou vazio para outro colono');
+        } catch (\App\Exceptions\DomainRuleException $e) {
+            $this->assertSame('carga_vazia', $e->codigo);
+        }
+    }
+
     #[Test]
     public function veiculo_em_rota_nao_paga_a_hora_do_patio(): void
     {
