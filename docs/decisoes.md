@@ -3806,3 +3806,68 @@ visão geral quando há algo a fazer; card vazio "está tudo bem" não ocupa esp
   "Governo".
 - Validado: 560 testes (SQLite e MariaDB 10.5 efêmero em container local), round-trip de
   migrations limpo nos dois, lint, build, e2e completo.
+
+## D-91 — Chamar o veículo de volta do Pátio, vazio, e a Capital avisa pelo rádio.
+**Data:** 2026-07-16 · **Status:** arbitrado pelo usuário · **Ajuste de UX sobre o D-65, não do GDD**
+
+Dois problemas do mesmo lugar, o Pátio Logístico da Capital (D-65): um veículo que descarregasse
+lá **não tinha como voltar vazio** — só saía do Pátio levando carga de verdade, ou esperando o
+reboque automático (`Patio::rebocar`) quando a colônia não tinha Fert$ para a hora. E ninguém
+avisava que ele estava lá: a tarifa (0,005 Fert$/h) só aparecia para quem abrisse a tela do
+Mercado por conta própria — um veículo podia ficar parado por dias, comendo Fert$ hora a hora, em
+silêncio.
+
+### Chamar de volta, vazio
+
+Confirmado com o usuário: a volta vazia **cobra como um despacho normal** — a energia da
+distância, a mesma que qualquer viagem já paga — mas **não exige Confiança Comercial** (o limiar
+de 200/1000 que fecha o resto do Pátio, D-65). O raciocínio: resgatar o próprio veículo não é
+"usar o Mercado", é reaver um bem seu — a mesma lógica que já isenta o reboque automático de
+qualquer trava. Só esta combinação exata (vazio, para a PRÓPRIA colônia) ganha a isenção; carga
+de verdade, mesmo indo para casa, continua sendo Mercado como sempre foi, e vazio para OUTRO
+colono continua sendo recusado (`carga_vazia` — não faz sentido nenhum).
+
+### O aviso da Capital
+
+Pedido do usuário: um aviso no chat, remetente "Capital", quando o veículo estaciona e a cada 24h
+que continuar lá. O chat (D-77) nunca teve um remetente que não fosse jogador — `user_id` é
+`NOT NULL`, e mandar mensagem sempre exigiu passar por silêncio, filtro de termos e bloqueio,
+regras pensadas para conter jogador, não para um aviso do próprio jogo.
+
+**Confirmado com o usuário: uma conta de sistema de verdade**, não uma mudança de schema. Uma
+migration reserva o nickname "Capital" (checado antes: nenhum jogador o tinha) — reservar por
+migration, não sob demanda em código, fecha a janela em que um jogador de carne e osso poderia
+tomá-lo primeiro. `EnviarMensagem::sistema()` grava a mensagem privada direto, pulando as três
+checagens de jogador — nenhuma delas protege alguém de um aviso do sistema.
+
+A conta "Capital" não é um jogador: `PainelController::jogadores()` a exclui da lista de
+colonos do admin (ela não tem colônia, e nada ali deveria poder suspendê-la ou editá-la como se
+fosse gente).
+
+### O que mudou no código
+
+- Migration `2026_07_16_120000_aviso_do_patio_e_conta_capital`: `vehicles.patio_aviso_enviado_em`
+  (nullable) e a conta `capital@fertways.sistema`, nickname "Capital", sem colônia.
+- `Domain\Chat\ContaSistema::capital()`: resolve a conta reservada pela migration.
+- `EnviarMensagem::sistema()`: grava uma mensagem privada pulando silêncio/filtro/bloqueio — só
+  para o próprio jogo usar, nunca para um jogador.
+- `Domain\Capital\AvisoDoPatio`: `estacionou()` (chamado por `ConcluirTrechos::estacionar()`) e
+  `lembrarSeDevido()` (chamado por `Patio::handle()`, só manda depois de 24h do último aviso, e
+  nunca para quem acabou de ser rebocado).
+- `DespacharVeiculo::doPatio()`: `$vazioParaCasa` pula `AcessoAoMercado::exigir()` e
+  `validarCarga()` só quando `$carga === []` e o destino é a própria colônia.
+- `VehicleController::despachar()`: `cargo` vira `present` em vez de `required`+`min:1` — quem
+  decide se vazio é válido é o domínio, com o contexto de origem que a validação HTTP não tem.
+- `emRota()`: `cargo_json` grava `null` em vez de `[]` quando a carga é vazia — um array vazio
+  chegava truísta em JS e a tela desenhava um " · " sem nada depois.
+- `Mercado.tsx` (`LinhaVeiculo`): botão "Chamar de volta (vazio)" para todo veículo ocioso no
+  Pátio, chamando `api.enviarAColonia(v.id, colonia.id, {})`.
+- `PainelController::jogadores()`: exclui a conta "Capital" da lista de jogadores do admin.
+- `tests/Feature/PatioDaCapitalTest.php` (+3 casos) e `tests/Feature/AvisoDoPatioTest.php`
+  (novo, 5 casos): a volta vazia sem Confiança, a trava intacta para carga de verdade, vazio
+  recusado para outro colono, o aviso ao estacionar, o lembrete de 24h, sem lembrete antes disso,
+  e sem lembrete para quem foi rebocado.
+- Validado: 579 testes (SQLite e MariaDB 10.5 efêmero em container local), round-trip de
+  migrations limpo nos dois, lint, build. E2e completo, mas só como regressão — o e2e não roda o
+  tick (`tools/e2e.sh` é explícito sobre isto), então nenhum veículo chega a estacionar de
+  verdade numa corrida de e2e; o comportamento novo só é observável pelos testes de domínio.

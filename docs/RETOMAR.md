@@ -1108,6 +1108,28 @@ tocar código) e revalidado depois: 571 testes, CI verde, e2e completo (8 arquiv
 **Para retomar isto:** não há mais pendência — o painel da Siderúrgica mostra "Processa por
 hora" para o Metal Bruto, não mais "Produz".
 
+## Chamar o veículo de volta do Pátio, vazio, e a Capital avisa pelo rádio (D-91) — **PR aberto, NÃO mesclado, NÃO publicado** (2026-07-16)
+
+Dois pedidos do usuário sobre o Pátio da Capital (D-65): não havia como chamar de volta um
+veículo parado lá sem carga, e ninguém avisava que ele estava ali, comendo Fert$ hora a hora.
+
+- **Volta vazia**: cobra energia como qualquer despacho, mas não exige Confiança Comercial — é
+  resgatar o próprio veículo, não usar o Mercado (mesma lógica do reboque automático). Só o caso
+  exato "vazio, para a própria colônia" ganha a isenção.
+- **Aviso da Capital**: uma conta de sistema de verdade (`capital@fertways.sistema`, nickname
+  "Capital", reservada por migration), mandando mensagem privada de verdade pelo chat — ao
+  estacionar, e a cada 24h que o veículo continuar lá.
+
+Ver **D-91** completo em `docs/decisoes.md`.
+
+**Validado antes de abrir o PR:** 579 testes (SQLite e MariaDB 10.5 efêmero em container local),
+round-trip de migrations limpo nos dois, lint, build, e2e completo (regressão — o e2e não roda o
+tick, então o fluxo novo só é observável pelos testes de domínio: `PatioDaCapitalTest` +3 casos,
+`AvisoDoPatioTest` novo com 5 casos).
+
+**Para retomar isto:** olhe o PR no GitHub — se a CI vier verde, está pronto para mesclar e
+publicar.
+
 ## O trabalho anterior: zonas neutras + Drone (D-52)
 
 Leia **D-52**. Sequência decidida: Fatia 1 = o núcleo (ocupar/extrair/retirar); Fatia 2 = a guerra

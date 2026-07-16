@@ -29,7 +29,10 @@ class Patio
     /** 0,005 Fert$ por hora parada, em micro-Fert$ (D-65). */
     public const TARIFA_MICRO_HORA = 5_000;
 
-    public function __construct(private readonly Conservacao $conservacao) {}
+    public function __construct(
+        private readonly Conservacao $conservacao,
+        private readonly AvisoDoPatio $avisoDoPatio,
+    ) {}
 
     /**
      * Cobra a hora de quem está parado no Pátio. Chamado pelo tick.
@@ -78,7 +81,12 @@ class Patio
             if ($desfecho === 'sem_saldo') {
                 $this->rebocar($veiculo->fresh());
                 $rebocados++;
+
+                continue;
             }
+
+            // D-91: rebocado não recebe lembrete — já está a caminho de casa.
+            $this->avisoDoPatio->lembrarSeDevido($veiculo->fresh(), $agora);
         }
 
         return ['cobrados' => $cobrados, 'rebocados' => $rebocados];

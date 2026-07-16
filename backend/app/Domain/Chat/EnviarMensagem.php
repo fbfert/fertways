@@ -70,6 +70,18 @@ class EnviarMensagem
         };
     }
 
+    /**
+     * Um aviso do PRÓPRIO JOGO, não de um jogador — "Capital" avisando sobre o Pátio (D-91).
+     *
+     * Pula toda regra pensada para conter JOGADORES: silêncio, filtro de termos e bloqueio não
+     * protegem ninguém de um aviso do sistema, e a Capital não tem colônia para o `handle()`
+     * exigir. É por isso que este método grava direto, sem passar pelas checagens de cima.
+     */
+    public function sistema(User $remetente, User $destinatario, string $corpo): ChatMessage
+    {
+        return $this->gravar($remetente, 'privada', $corpo, destinatario: $destinatario->id);
+    }
+
     private function privada(User $autor, ?User $destinatario, string $corpo): ChatMessage
     {
         if (! $destinatario || $destinatario->id === $autor->id) {

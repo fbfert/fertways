@@ -352,7 +352,7 @@ function PatioEDeposito({
         ) : (
           <div className="mt-2 space-y-2">
             {noPatio.map((v) => (
-              <LinhaVeiculo key={v.id} v={v} vizinhas={vizinhas} />
+              <LinhaVeiculo key={v.id} v={v} vizinhas={vizinhas} colonia={colonia} agir={agir} />
             ))}
           </div>
         )}
@@ -407,7 +407,17 @@ function PatioEDeposito({
   )
 }
 
-function LinhaVeiculo({ v, vizinhas }: { v: Veiculo; vizinhas: ColoniaVizinha[] }) {
+function LinhaVeiculo({
+  v,
+  vizinhas,
+  colonia,
+  agir,
+}: {
+  v: Veiculo
+  vizinhas: ColoniaVizinha[]
+  colonia?: Colonia
+  agir?: (a: () => Promise<unknown>) => Promise<void>
+}) {
   const restam = segundosRestantes(v.arrives_at)
 
   /*
@@ -465,6 +475,17 @@ function LinhaVeiculo({ v, vizinhas }: { v: Veiculo; vizinhas: ColoniaVizinha[] 
           <span className="text-ink-soft/70"> (de {v.capacity.toLocaleString('pt-BR')}, desgaste)</span>
         )}
       </div>
+
+      {/* Vazio, de volta para casa (D-91): paga a energia da distância, mas não exige carga nem
+          Confiança Comercial — é resgatar o próprio veículo, não usar o Mercado. */}
+      {v.status === 'ocioso' && v.local === 'capital' && colonia && agir && (
+        <button
+          onClick={() => agir(() => api.enviarAColonia(v.id, colonia.id, {}))}
+          className="text-rust hover:text-rust/70 mt-1.5 text-xs font-bold"
+        >
+          Chamar de volta (vazio)
+        </button>
+      )}
     </div>
   )
 }
