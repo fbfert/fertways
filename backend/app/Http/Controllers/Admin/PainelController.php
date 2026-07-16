@@ -609,13 +609,70 @@ class PainelController extends Controller
      * A aba Missões (§06; D-78) — o CRUD do catálogo. Ganhou aba própria porque o formulário de
      * criar/editar é grande demais para caber num card da Operação sem afogar o resto da tela.
      */
-    public function missoes(): View
+    public function missoes(Request $request): View
     {
-        return view('admin.missoes', [
-            'missoes' => \App\Models\MissionTemplate::withCount('assignments')
-                ->orderBy('categoria')->orderBy('chave')->get(),
+        $abas = ['catalogo', 'criar', 'baralho'];
+        $aba = in_array($request->query('aba'), $abas, true) ? $request->query('aba') : 'catalogo';
+
+        $dados = [
+            'aba' => $aba,
             'acoes' => \App\Domain\Missoes\Acoes::TODAS,
-        ]);
+            'nomeCategoria' => \App\Models\MissionTemplate::CATEGORIAS,
+        ];
+
+        /*
+         * A visão geral do catálogo (D-96): por molde, quantas vezes foi sorteada e como terminou —
+         * concluída, rejeitada, ainda ativa (vigente ou já vencida sem ninguém ter voltado a olhar).
+         * Sem isto o operador só via "sorteada: N×" e não tinha como saber se o molde estava
+         * funcionando (concluída na maioria) ou era ignorado/expirava sem ninguém tocar.
+         */
+        if ($aba === 'catalogo') {
+            $porMolde = \App\Models\MissionAssignment::selectRaw('template_id, status, count(*) as total')
+                ->groupBy('template_id', 'status')
+                ->get()
+                ->groupBy('template_id');
+
+            $ativasVigentes = \App\Models\MissionAssignment::ativa()
+                ->selectRaw('template_id, count(*) as total')
+                ->groupBy('template_id')
+                ->pluck('total', 'template_id');
+
+            $ultimaSorteada = \App\Models\MissionAssignment::selectRaw('template_id, max(created_at) as ultima')
+                ->groupBy('template_id')
+                ->pluck('ultima', 'template_id');
+
+            $dados['catalogo'] = \App\Models\MissionTemplate::withCount('assignments')
+                ->orderBy('categoria')->orderBy('chave')->get()
+                ->map(function ($t) use ($porMolde, $ativasVigentes, $ultimaSorteada) {
+                    $porStatus = ($porMolde[$t->id] ?? collect())->pluck('total', 'status');
+                    $vigentes = (int) ($ativasVigentes[$t->id] ?? 0);
+                    $ativasTotal = (int) ($porStatus['ativa'] ?? 0);
+
+                    return [
+                        'template' => $t,
+                        'sorteada' => $t->assignments_count,
+                        'concluida' => (int) ($porStatus['concluida'] ?? 0),
+                        'rejeitada' => (int) ($porStatus['rejeitada'] ?? 0),
+                        'ativa_vigente' => $vigentes,
+                        'ativa_vencida' => max(0, $ativasTotal - $vigentes),
+                        'ultima_sorteada' => $ultimaSorteada[$t->id] ?? null,
+                    ];
+                });
+        }
+
+        // O baralho, com sub-abas por categoria (D-96) — a lista crescia sem parar numa página só.
+        if ($aba === 'baralho') {
+            $categorias = array_keys(\App\Models\MissionTemplate::CATEGORIAS);
+            $cat = (string) $request->query('cat', '');
+            $cat = in_array($cat, $categorias, true) ? $cat : $categorias[0];
+
+            $dados['catAtual'] = $cat;
+            $dados['missoes'] = \App\Models\MissionTemplate::withCount('assignments')
+                ->where('categoria', $cat)
+                ->orderBy('chave')->get();
+        }
+
+        return view('admin.missoes', $dados);
     }
 
     /** A aba Chat (§10; D-77): o rádio do planeta pelos olhos do moderador. */

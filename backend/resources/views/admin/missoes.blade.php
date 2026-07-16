@@ -2,106 +2,167 @@
 
 @php
     $fert = fn ($micro) => number_format(((int) $micro) / 1000000, 2, ",", ".");
+    $quando = fn ($d) => $d ? \Illuminate\Support\Carbon::parse($d)->format("d/m H:i") : "—";
     // O textarea de recursos edita no MESMO formato "recurso:quantidade" que ele lê ao salvar.
     $paraTexto = fn (?array $recursos) => collect($recursos ?? [])
         ->map(fn ($q, $r) => "{$r}:{$q}")->implode("\n");
-    $nomeCategoria = ['tutoria' => 'Tutoria', 'diaria' => 'Diária', 'semanal' => 'Semanal'];
+    $abas = [
+        "catalogo" => "Missões Catálogo",
+        "criar" => "Criar um Molde",
+        "baralho" => "O Baralho",
+    ];
 @endphp
 
 @section("content")
 
-    <h2 class="secao">Missões — o catálogo (§06)</h2>
-    <div class="cartao">
-        <p class="mut pequeno">
-            Tutoria (5, dias 1–3), diárias (3/dia de um pool, com a 1 rejeição do §06) e semanais
-            (qua 07h → ter 23h59). <b>Recompensa de missão é EMISSÃO</b> — o §06 a lista entre as
-            entradas de Fert$, como o salário do conciliador. Se o Fert$ inflar, o torniquete é
-            aqui: edite o prêmio ou desligue o molde, sem deploy.
-        </p>
-        <p class="mut pequeno">
-            ⚠️ <b>Editar <code>ação</code> e <code>meta</code> só vale para missões sorteadas daqui
-            em diante</b> — quem já está com a missão na mão guarda o que tinha quando foi sorteada.
-            <b>O prêmio é diferente, de propósito:</b> editar Fert$/XP/recursos vale também para
-            quem já tem a missão na mão e ainda não completou — é o torniquete valendo hoje, não só
-            amanhã.
-        </p>
-    </div>
+    <nav class="abas" style="background:transparent;padding:0;margin-bottom:16px">
+        @foreach ($abas as $slug => $rotulo)
+            <a href="{{ route('admin.missoes', ['aba' => $slug]) }}"
+               data-aba-missoes="{{ $slug }}"
+               style="color:{{ $aba === $slug ? 'var(--rust)' : 'var(--ink-soft)' }};
+                      background:{{ $aba === $slug ? 'var(--sand-light)' : 'transparent' }};
+                      border:1px solid rgba(180,69,11,.2)">
+                {{ $rotulo }}
+            </a>
+        @endforeach
+    </nav>
 
-    {{-- ─────────────────────────────────────────────── criar ── --}}
-    <h2 class="secao">Criar um molde</h2>
-    <div class="cartao">
-        <form method="POST" action="{{ route('admin.missao.criar') }}">
-            @csrf
-            <div class="linha-form">
-                <div style="flex:0">
-                    <label>Chave (única, sem espaço)</label>
-                    <input type="text" name="chave" maxlength="40" placeholder="dia_exemplo_1" required
-                           pattern="[A-Za-z0-9_-]+" style="width:170px">
-                </div>
-                <div style="flex:0">
-                    <label>Categoria</label>
-                    <select name="categoria" required>
-                        @foreach ($nomeCategoria as $v => $r)
-                            <option value="{{ $v }}">{{ $r }}</option>
-                        @endforeach
-                    </select>
-                </div>
-                <div>
-                    <label>Título</label>
-                    <input type="text" name="titulo" maxlength="80" required>
-                </div>
-            </div>
-            <div style="margin-top:8px">
-                <label class="pequeno mut">Descrição (o que o colono lê na tela)</label>
-                <input type="text" name="descricao" maxlength="200" required style="width:100%">
-            </div>
-            <div class="linha-form" style="margin-top:8px">
-                <div>
-                    <label>Ação escutada</label>
-                    <select name="acao" required style="width:100%">
-                        @foreach ($acoes as $chave => $rotulo)
-                            <option value="{{ $chave }}">{{ $rotulo }} ({{ $chave }})</option>
-                        @endforeach
-                    </select>
-                </div>
-                <div style="flex:0">
-                    <label>Meta (quantas vezes)</label>
-                    <input type="number" name="meta" min="1" max="999" value="1" required style="width:90px">
-                </div>
-            </div>
-            <div class="linha-form" style="margin-top:8px">
-                <div style="flex:0">
-                    <label>Recompensa em Fert$</label>
-                    <input type="number" step="0.01" min="0" max="1000" name="recompensa_fert" value="0" style="width:110px">
-                </div>
-                <div style="flex:0">
-                    <label>Recompensa em XP</label>
-                    <input type="number" min="0" max="100000" name="recompensa_xp" value="0" style="width:110px">
-                </div>
-                <div>
-                    <label>Recompensa em recursos — uma linha <code>recurso:quantidade</code></label>
-                    <textarea name="recompensa_recursos" rows="2" placeholder="ligas_metalicas:200" style="width:100%"></textarea>
-                </div>
-            </div>
-            <div style="margin-top:8px"><button data-criar-missao>Criar molde</button></div>
-        </form>
-    </div>
+    {{-- ─────────────────────────────────────────────── Missões Catálogo (visão geral) ── --}}
+    @if ($aba === "catalogo")
+        <h2 class="secao">Missões — o catálogo (§06)</h2>
+        <div class="cartao">
+            <p class="mut pequeno">
+                Tutoria (5, dias 1–3), diárias (3/dia de um pool, com a 1 rejeição do §06), semanais
+                (qua 07h → ter 23h59) e eventuais (fora do ciclo — evento, sazonal, sem sorteio
+                automático). <b>Recompensa de missão é EMISSÃO</b> — o §06 a lista entre as entradas
+                de Fert$, como o salário do conciliador.
+            </p>
+            <p class="mut pequeno">
+                Por molde: quantas vezes foi sorteada e como terminou — é o que diz se um molde
+                funciona (concluída na maioria) ou é ignorado (fica vencendo sem ninguém tocar).
+            </p>
+            <table style="margin-top:8px">
+                <tr>
+                    <th>Molde</th><th>Categoria</th><th class="num">Sorteada</th>
+                    <th class="num">Concluída</th><th class="num">Rejeitada</th>
+                    <th class="num">Ativa (vigente)</th><th class="num">Ativa (vencida)</th>
+                    <th>Última vez</th>
+                </tr>
+                @forelse ($catalogo as $linha)
+                    @php $t = $linha['template']; @endphp
+                    <tr data-catalogo-molde="{{ $t->chave }}" @if(!$t->ativa) style="opacity:.45" @endif>
+                        <td class="pequeno">
+                            <b>{{ $t->titulo }}</b>
+                            <div class="mut" style="font-size:.58rem">{{ $t->chave }}{{ $t->ativa ? '' : ' · desligada' }}</div>
+                        </td>
+                        <td class="pequeno">{{ $nomeCategoria[$t->categoria] ?? $t->categoria }}</td>
+                        <td class="num">{{ $linha['sorteada'] }}</td>
+                        <td class="num">{{ $linha['concluida'] }}</td>
+                        <td class="num">{{ $linha['rejeitada'] }}</td>
+                        <td class="num">{{ $linha['ativa_vigente'] }}</td>
+                        <td class="num">{{ $linha['ativa_vencida'] }}</td>
+                        <td class="mut pequeno">{{ $quando($linha['ultima_sorteada']) }}</td>
+                    </tr>
+                @empty
+                    <tr><td colspan="8" class="mut pequeno">Nenhum molde no catálogo ainda — crie um na aba «Criar um Molde».</td></tr>
+                @endforelse
+            </table>
+        </div>
+    @endif
 
-    {{-- ─────────────────────────────────────────────── o baralho ── --}}
-    <h2 class="secao">O baralho</h2>
+    {{-- ─────────────────────────────────────────────── Criar um Molde ── --}}
+    @if ($aba === "criar")
+        <h2 class="secao">Criar um molde</h2>
+        <div class="cartao">
+            <p class="mut pequeno">
+                ⚠️ <b>Editar <code>ação</code> e <code>meta</code> só vale para missões sorteadas daqui
+                em diante</b> — quem já está com a missão na mão guarda o que tinha quando foi sorteada.
+                <b>O prêmio é diferente, de propósito:</b> editar Fert$/XP/recursos vale também para
+                quem já tem a missão na mão e ainda não completou — é o torniquete valendo hoje, não só
+                amanhã.
+            </p>
+            <form method="POST" action="{{ route('admin.missao.criar') }}">
+                @csrf
+                <div class="linha-form">
+                    <div style="flex:0">
+                        <label>Chave (única, sem espaço)</label>
+                        <input type="text" name="chave" maxlength="40" placeholder="dia_exemplo_1" required
+                               pattern="[A-Za-z0-9_-]+" style="width:170px">
+                    </div>
+                    <div style="flex:0">
+                        <label>Categoria</label>
+                        <select name="categoria" required>
+                            @foreach ($nomeCategoria as $v => $r)
+                                <option value="{{ $v }}">{{ $r }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div>
+                        <label>Título</label>
+                        <input type="text" name="titulo" maxlength="80" required>
+                    </div>
+                </div>
+                <div style="margin-top:8px">
+                    <label class="pequeno mut">Descrição (o que o colono lê na tela)</label>
+                    <input type="text" name="descricao" maxlength="200" required style="width:100%">
+                </div>
+                <div class="linha-form" style="margin-top:8px">
+                    <div>
+                        <label>Ação escutada</label>
+                        <select name="acao" required style="width:100%">
+                            @foreach ($acoes as $chave => $rotulo)
+                                <option value="{{ $chave }}">{{ $rotulo }} ({{ $chave }})</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div style="flex:0">
+                        <label>Meta (quantas vezes)</label>
+                        <input type="number" name="meta" min="1" max="999" value="1" required style="width:90px">
+                    </div>
+                </div>
+                <div class="linha-form" style="margin-top:8px">
+                    <div style="flex:0">
+                        <label>Recompensa em Fert$</label>
+                        <input type="number" step="0.01" min="0" max="1000" name="recompensa_fert" value="0" style="width:110px">
+                    </div>
+                    <div style="flex:0">
+                        <label>Recompensa em XP</label>
+                        <input type="number" min="0" max="100000" name="recompensa_xp" value="0" style="width:110px">
+                    </div>
+                    <div>
+                        <label>Recompensa em recursos — uma linha <code>recurso:quantidade</code></label>
+                        <textarea name="recompensa_recursos" rows="2" placeholder="ligas_metalicas:200" style="width:100%"></textarea>
+                    </div>
+                </div>
+                <div style="margin-top:8px"><button data-criar-missao>Criar molde</button></div>
+            </form>
+        </div>
+    @endif
 
-    @foreach ($nomeCategoria as $cat => $rotuloCat)
-        @php $doGrupo = $missoes->where('categoria', $cat); @endphp
-        @continue($doGrupo->isEmpty())
+    {{-- ─────────────────────────────────────────────── O Baralho, por categoria ── --}}
+    @if ($aba === "baralho")
+        <h2 class="secao">O baralho</h2>
 
-        <div class="cartao" style="margin-top:10px">
-            <b class="pequeno">{{ $rotuloCat }} ({{ $doGrupo->count() }})</b>
+        <nav class="abas" style="background:transparent;padding:0;margin-bottom:16px">
+            @foreach ($nomeCategoria as $slug => $rotulo)
+                <a href="{{ route('admin.missoes', ['aba' => 'baralho', 'cat' => $slug]) }}"
+                   data-subaba-baralho="{{ $slug }}"
+                   style="color:{{ $catAtual === $slug ? 'var(--rust)' : 'var(--ink-soft)' }};
+                          background:{{ $catAtual === $slug ? 'var(--sand-light)' : 'transparent' }};
+                          border:1px solid rgba(180,69,11,.2)">
+                    {{ $rotulo }}
+                </a>
+            @endforeach
+        </nav>
+
+        <div class="cartao">
+            <b class="pequeno">{{ $nomeCategoria[$catAtual] ?? $catAtual }} ({{ $missoes->count() }})</b>
             <table style="margin-top:6px">
                 <tr>
                     <th>Molde</th><th>Ação</th><th class="num">Meta</th><th>Paga</th>
                     <th class="num">Sorteada</th><th></th>
                 </tr>
-                @foreach ($doGrupo as $m)
+                @forelse ($missoes as $m)
                     <tr data-molde="{{ $m->chave }}" @if(!$m->ativa) style="opacity:.45" @endif>
                         <td class="pequeno">
                             <b>{{ $m->titulo }}</b>
@@ -200,9 +261,11 @@
                             </form>
                         </td>
                     </tr>
-                @endforeach
+                @empty
+                    <tr><td colspan="6" class="mut pequeno">Nenhum molde nesta categoria ainda.</td></tr>
+                @endforelse
             </table>
         </div>
-    @endforeach
+    @endif
 
 @endsection
