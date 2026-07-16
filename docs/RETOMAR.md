@@ -1026,7 +1026,7 @@ o D-84 no mesmo `sudo ./tools/deploy.sh`, a pedido explícito do usuário.
 
 **Para retomar isto:** não há mais pendência — é o estado normal da tela da colônia agora.
 
-## O GDD v36 atualizado até o D-92 (docs/gdd-v36-atualizacao) — **PR aberto, NÃO mesclado** (2026-07-15/16)
+## O GDD v36 atualizado até o D-92 (docs/gdd-v36-atualizacao) — **mesclado e no ar** (2026-07-15/16), commit `8e8088a`
 
 Pedido do usuário: um GDD novo, "de acordo com tudo que já construímos". Já existia a
 infraestrutura certa para isto (D-62): `tools/gdd-v36.php` é um **gerador**, não um documento
@@ -1063,8 +1063,10 @@ Regenerado em `/home/fertways/FERTWAYS_GDD_v36_CONSOLIDADO.html` (fora do git, c
 o que o jogo lê; suíte de backend inteira (588 testes) — nenhum arquivo além de
 `tools/gdd-v36.php` mudou, então nada mais tinha por que quebrar.
 
-**Para retomar isto:** olhe o PR no GitHub — se a CI vier verde, está pronto para mesclar e
-publicar (publicar aqui é só atualizar o `.html` fora do git — o `tools/deploy.sh` não o toca).
+Mesclado (squash, PR #6) em `main`. Sem deploy: o `.html` gerado (fora do git) já estava
+atualizado desde a regeneração, e nenhum código do jogo mudou.
+
+**Para retomar isto:** não há mais pendência — o v36 reflete tudo que está em `main` até o D-92.
 
 ## O Governo vende no Mercado Central (feat/mercado-do-governo) — **mesclado e no ar** (2026-07-15), commit `c92e218`
 
