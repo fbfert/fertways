@@ -350,8 +350,9 @@ class AdminPainel2Test extends TestCase
     {
         $this->seed(\Database\Seeders\TreasurySeeder::class);
 
+        // Economia virou sub-abas no D-87 — "Enviar Recursos" é uma delas agora.
         $this->actingAs($this->operador(), 'admin')
-            ->get('/admin/economia')
+            ->get('/admin/economia?aba=enviar')
             ->assertOk()
             ->assertSee('Enviar recursos')
             // E as notícias saíram daqui: viraram aba própria.

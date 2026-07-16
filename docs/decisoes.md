@@ -3732,3 +3732,77 @@ dele (ou junto).
 - `tests/Feature/PerfilTest.php`: `test_a_lista_das_minhas_zonas` estendido com guarnição e
   canteiro na zona de teste, e asserções para os quatro campos novos do payload.
 - Validado: 562 testes de backend, lint, build e e2e completo do frontend.
+
+## D-87 — O Governo vende no Mercado Central, e a Economia do admin vira sub-abas.
+**Data:** 2026-07-15 · **Status:** arbitrado pelo usuário · **Decisão de produto, não do GDD**
+
+Pedido do usuário: separar a aba Economia do painel de admin (que empilhava Finanças,
+Ministério do Tesouro e Enviar Recursos numa página só) em sub-abas, e criar uma sub-aba
+**Mercado** nova, onde o Governo lista recursos do Tesouro à venda no Mercado Central — a mesma
+vitrine que os colonos já usam.
+
+### A lacuna que isso expôs: `market_orders.colony_id` era obrigatório
+
+O Mercado Central só sabia lidar com colônias de verdade — `colony_id` era `NOT NULL`, com FK
+`cascadeOnDelete`, e `ColocarOrdem`/`ExecutarOrdem` exigiam um `Colony` real. Não havia como o
+Governo ser vendedor sem inventar uma colônia falsa.
+
+**Resolução, confirmada com o usuário: `colony_id` nulo é o Governo.** Mesmo padrão que
+`vehicles.colony_id` nulo já usa para a frota pública (D-60) — a oferta é uma linha real na
+mesma tabela, na mesma vitrine, sem precisar esconder uma colônia sintética do mapa, do
+diretório e da guerra (o risco real de uma "colônia Governo" de verdade: ela apareceria como
+alvo atacável e como vizinha no diretório de todo mundo).
+
+`tax_events.colony_id` também virou nullable — é ele que segura a proteção contra execução
+dupla (`economic_event_key`), então a venda do Governo continua passando pelo mesmo gate.
+
+### A semântica do formulário: "isto é o que deve estar à venda agora"
+
+Confirmado com o usuário: o número que o admin digita por recurso **não soma** ao que já está
+anunciado — ele **define o total disponível neste instante**. Subir o número reserva mais do
+Tesouro; descer devolve a diferença; zerar cancela a oferta. Isso significa reconciliar, não
+criar: `OfertarComoGoverno::definir()` encontra a oferta aberta do recurso (se houver), calcula
+o delta contra o valor novo, e ajusta o Tesouro e a `MarketOrder` juntos, na mesma transação.
+
+**O admin não pode anunciar mais do que o Tesouro tem agora** (confirmado) — mesma regra de
+qualquer venda no jogo: só se oferta o que já está na doca. Recusa e diz quanto há disponível.
+
+### O dinheiro, quando o Governo vende
+
+`ExecutarOrdem::fechar()` sempre separou o líquido (para o vendedor) da taxa (para o Tesouro).
+Quando o vendedor É o Tesouro, separar não faz sentido — as duas partes terminam no mesmo lugar.
+A correção: quando `colony_id` da oferta é nulo, credita-se o `$valor` inteiro de uma vez, sem
+lançamento de ledger (não há colônia) e sem XP para "quem vendeu" — só o comprador ganha XP e
+progresso de missão, como em qualquer execução.
+
+### O card de alerta
+
+Confirmado com o usuário: mostra **qualquer recurso sem oferta ativa** — não só os que já
+venderam tudo. É lista de "o que falta preencher", não só "o que falta repor". Só aparece na
+visão geral quando há algo a fazer; card vazio "está tudo bem" não ocupa espaço.
+
+### O que mudou no código
+
+- Migration `2026_07_15_210000_market_orders_colony_id_nulo_para_governo`: `market_orders` e
+  `tax_events` ganham `colony_id` nullable.
+- `Tesouro`: `debitar()`/`creditar()` públicos, genéricos (o `ajustar()` privado por trás de
+  `distribuir`/`creditarRecurso`/`creditarFert` continua intocado).
+- `Domain\Market\OfertarComoGoverno` (novo): `definir()` reconcilia a oferta contra o alvo;
+  `ofertas()` lista o que já está anunciado, para o formulário pré-preencher.
+- `ExecutarOrdem::fechar()`/`comprarDaOferta()`: aceitam vendedor nulo (Governo) — crédito
+  direto ao Tesouro, sem ledger nem XP do lado do vendedor.
+- `MarketController::livro()`: `colonia` mostra "Governo" para oferta sem dono; `e_governo` novo
+  no payload.
+- `PainelController::economia()`: sub-abas por query string (`?aba=`), mesmo padrão que
+  `admin.imagens` já usava; `dashboard()` ganha o card de alerta.
+- `AcoesController::mercadoGoverno()` + rota `POST /admin/mercado/governo`: salva os 26 recursos
+  de uma vez, cada um sua própria transação — o que não falhar fica salvo mesmo se outro falhar.
+- `economia.blade.php` reescrita em quatro sub-abas; `dashboard.blade.php` ganha o card.
+- Frontend: `OfertaGlobal.colony_id` passa a admitir `null`, e ganha `e_governo` — o texto
+  "Governo" já aparecia de graça pelo fallback que a tela já tinha (`oferta.colonia`), sem
+  precisar de nenhuma mudança visual.
+- `tests/Feature/MercadoDoGovernoTest.php` (8 casos): reconciliação (subir/descer/zerar),
+  trava no saldo do Tesouro, execução por um colono, o endpoint do admin, e a vitrine mostrando
+  "Governo".
+- Validado: 560 testes (SQLite e MariaDB 10.5 efêmero em container local), round-trip de
+  migrations limpo nos dois, lint, build, e2e completo.

@@ -60,7 +60,9 @@ class MarketController extends Controller
                 'price_micro' => (int) $o->price_micro,
                 'qty' => (int) $o->qty,
                 'colony_id' => $o->colony_id,
-                'colonia' => $o->colony?->name,
+                // `colony_id` nulo é o Governo (D-87) — mesma leitura que a frota pública já usa.
+                'colonia' => $o->colony_id === null ? 'Governo' : $o->colony?->name,
+                'e_governo' => $o->colony_id === null,
                 // A UI usa isto para trocar "Comprar" por "Cancelar": a própria oferta não se executa
                 // (§26.4 trata conta-alternativa como fraude).
                 'minha' => $o->colony_id === $colony->id,

@@ -129,6 +129,27 @@ class Tesouro
         return true;
     }
 
+    /**
+     * Reserva `$qtd` do Tesouro (D-87: o escrow de uma oferta do Governo no Mercado Central).
+     * `false` sem debitar nada se não houver saldo — mesma guarda de `gastar`/`distribuir`.
+     */
+    public function debitar(string $recurso, int $qtd): bool
+    {
+        if ($qtd <= 0) {
+            return true;
+        }
+
+        return TreasuryHolding::whereKey($recurso)->where('amount', '>=', $qtd)->decrement('amount', $qtd) > 0;
+    }
+
+    /** Devolve `$qtd` ao Tesouro — o lado inverso de `debitar`, sem guarda (somar nunca falha). */
+    public function creditar(string $recurso, int $qtd): void
+    {
+        if ($qtd > 0) {
+            $this->ajustar($recurso, $qtd);
+        }
+    }
+
     /** Cria a linha se faltar e soma o delta. */
     private function ajustar(string $chave, int $delta): void
     {
