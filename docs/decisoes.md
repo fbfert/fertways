@@ -4153,3 +4153,61 @@ que todo lançamento em Fert$ já usa desde sempre (`saldo_inicial`, `estacionam
 - `telas.e2e.mjs`: o fluxo completo — clicar no Fert$, ver o saldo inicial traduzido e positivo,
   fechar.
 - Validado: 592 testes de backend, `npx tsc -b`/lint/build limpos, e2e completo.
+
+## D-95 — Bugs/Melhorias: o jogador manda, o Governo lê e responde pelo rádio.
+**Data:** 2026-07-16 · **Status:** arbitrado pelo usuário · **Feature nova, não do GDD**
+
+Pedido do usuário: um formulário ao lado do Chat para o jogador mandar bugs, sugestões de
+melhoria ou dúvidas — com os dados do jogador/colônia/e-mail anexados automaticamente —, e uma
+aba nova em `/central/admin` para o Governo ler, responder e marcar como feito. Um card na Visão
+Geral avisa quando há mensagem nova.
+
+### Como o jogador fica sabendo da resposta
+
+Confirmado com o usuário: **só pelo rádio** (chat), remetente "Capital" — a mesma conta de
+sistema que o D-91 já usa para avisar sobre o Pátio. Nada de tela "minhas mensagens": o jogador
+manda, recebe a confirmação de envio na hora, e se o Governo responder, o aviso chega pelo canal
+que ele já olha. Isso reusa `EnviarMensagem::sistema()` e `ContaSistema::capital()` sem mudar
+nenhum dos dois — a "Capital" já era genérica o bastante para um segundo motivo de falar com o
+jogador.
+
+### O instantâneo, não o vínculo ao vivo
+
+`email`/`colony_name`/`nickname` são gravados no momento do envio, não um `join` com
+`users`/`colonies` — a mesma razão pela qual `AuditEntry` guarda o "antes": um colono pode trocar
+o e-mail ou o nome da colônia depois de escrever, e o ticket tem de continuar dizendo o que era
+verdade quando ele mandou. `user_id`/`colony_id` também ficam, para o admin navegar até a ficha
+de verdade e para o aviso saber para quem mandar.
+
+### Três estados independentes, não uma máquina de estados
+
+Confirmado pela forma como o usuário pediu ("permita marcar como lida/não lida, responder e uma
+opção de registrar como FEITO"): `lida_at`, `respondida_at` e `feito_at` são três timestamps
+nulos independentes, não uma progressão linear. Dá para marcar como feito sem ter respondido
+(um bug que o admin já sabia e corrigiu sem precisar avisar o jogador específico que mandou), ou
+responder sem nunca marcar como feito (uma dúvida, que não tem "feito" nenhum a fazer).
+
+### O que mudou no código
+
+- Migration `2026_07_16_140000_create_feedbacks_table`: tabela `feedback` (singular — `Feedback`
+  é um dos substantivos que o Eloquent NÃO pluraliza; a migration original tentou `feedbacks` e
+  todos os testes falharam com "no such table" até o nome baterem).
+- `App\Models\Feedback` (novo): `TIPOS` (bug/melhoria/duvida/outro), `lida()`/`respondida()`/`feita()`.
+- `FeedbackController::store()` + `POST /feedback`: valida e cria, anexando usuário/colônia/e-mail
+  do request autenticado — nada disso vem do formulário.
+- `PainelController::feedback()`: lista com os mesmos filtros que `noticias()` já usa (busca,
+  estado, tipo) — é a mesma forma de problema, uma fila que só cresce.
+- `AcoesController::feedbackLida()/feedbackResponder()/feedbackFeito()`: os três alternam ou
+  gravam; `feedbackResponder()` é quem chama `EnviarMensagem::sistema()` e marca lida junto —
+  seria estranho responder algo que a tela ainda mostra como não lido.
+- `resumo()`/`dashboard.blade.php`: `feedback_nao_lido`, um card que só aparece quando há alguma
+  mensagem não lida — mesmo princípio do card do Mercado do Governo (D-87), ao lado.
+- `admin/feedback.blade.php` (novo) + aba "Bugs/Melhorias" no menu do admin.
+- Frontend: `BugsMelhorias.tsx` (novo) — painel flutuante ao lado do Chat no cabeçalho, mesma
+  posição fixa que Chat/Missões já usam (mutuamente exclusivos); formulário tipo/assunto/mensagem,
+  confirmação de envio, sem histórico de mensagens anteriores (decisão do usuário, ver acima).
+- `tests/Feature/FeedbackTest.php` (novo, 9 casos): o jogador manda e os dados batem, validação
+  de tipo/tamanho, filtros da lista, os três estados alternando, e o teste que mais importa —
+  responder grava, marca lida E manda o aviso pelo rádio com o remetente certo.
+- Validado: 597 testes (SQLite e MariaDB 10.5 efêmero em container local), round-trip de
+  migrations limpo nos dois, lint, build, e2e completo (inclui o fluxo de envio em `telas.e2e.mjs`).

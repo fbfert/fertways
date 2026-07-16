@@ -962,6 +962,13 @@ export const api = {
   /** O extrato bancário: só Fert$. Aberto ao clicar no card de saldo do HUD. */
   extrato: (pagina = 1) => req<Extrato>(`/profile/extrato?page=${pagina}`),
 
+  /** Bugs/Melhorias (D-95): dados do jogador/colônia/e-mail são anexados pelo servidor. */
+  enviarFeedback: (tipo: string, assunto: string, mensagem: string) =>
+    req<{ ok: boolean }>('/feedback', {
+      method: 'POST',
+      body: JSON.stringify({ tipo, assunto, mensagem }),
+    }),
+
   /** Trocar o e-mail exige a senha atual: é com ele que se entra, e não há recuperação de conta. */
   salvarPerfil: (dados: {
     name: string

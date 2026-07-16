@@ -264,6 +264,39 @@ class PainelController extends Controller
     }
 
     /**
+     * Bugs/Melhorias (D-95): o que os jogadores mandaram, com os mesmos filtros que a lista de
+     * notícias já usa (estado, tipo, busca) — é a mesma forma de problema: uma fila que só cresce.
+     */
+    public function feedback(Request $request): View
+    {
+        $q = trim((string) $request->query('q'));
+        $estado = (string) $request->query('estado', '');
+        $tipo = (string) $request->query('tipo', '');
+
+        $feedback = \App\Models\Feedback::query()
+            ->when($q !== '', fn ($w) => $w->where(fn ($s) => $s
+                ->where('assunto', 'like', "%{$q}%")
+                ->orWhere('mensagem', 'like', "%{$q}%")
+                ->orWhere('nickname', 'like', "%{$q}%")
+                ->orWhere('colony_name', 'like', "%{$q}%")))
+            ->when($estado === 'nao_lida', fn ($w) => $w->whereNull('lida_at'))
+            ->when($estado === 'lida', fn ($w) => $w->whereNotNull('lida_at'))
+            ->when($estado === 'respondida', fn ($w) => $w->whereNotNull('respondida_at'))
+            ->when($estado === 'feita', fn ($w) => $w->whereNotNull('feito_at'))
+            ->when($estado === 'pendente', fn ($w) => $w->whereNull('feito_at'))
+            ->when($tipo !== '', fn ($w) => $w->where('tipo', $tipo))
+            ->orderByDesc('id')
+            ->paginate(25)
+            ->withQueryString();
+
+        return view('admin.feedback', [
+            'feedback' => $feedback,
+            'filtros' => compact('q', 'estado', 'tipo'),
+            'tipos' => \App\Models\Feedback::TIPOS,
+        ]);
+    }
+
+    /**
      * A gestão de imagens (D-68).
      *
      * Uma aba por categoria. Em cada uma: a biblioteca (miniaturas, envio, exclusão) e as coisas do
@@ -539,6 +572,8 @@ class PainelController extends Controller
             'veiculos_em_rota' => Vehicle::where('status', 'em_rota')->count(),
             'veiculos_ociosos' => Vehicle::where('status', 'ocioso')->count(),
             'zonas_ocupadas' => NeutralZone::whereNotNull('owner_colony_id')->count(),
+            // Bugs/Melhorias (D-95): o card de "tem coisa nova" na Visão Geral.
+            'feedback_nao_lido' => \App\Models\Feedback::whereNull('lida_at')->count(),
         ];
     }
 

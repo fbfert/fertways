@@ -282,6 +282,76 @@ class AcoesController extends Controller
         );
     }
 
+    // ── Bugs/Melhorias (D-95) ────────────────────────────────────────────────
+
+    /** Marca lida/não lida — o mesmo alternar de `noticiaOcultar`, sem julgar o conteúdo. */
+    public function feedbackLida(\App\Models\Feedback $feedback): RedirectResponse
+    {
+        $voltando = $feedback->lida();
+
+        $feedback->forceFill(['lida_at' => $voltando ? null : now()])->save();
+
+        return $this->ok(
+            $voltando ? 'feedback.marcar_nao_lida' : 'feedback.marcar_lida',
+            $voltando
+                ? "Feedback #{$feedback->id} marcado como não lido. «{$feedback->assunto}»"
+                : "Feedback #{$feedback->id} marcado como lido. «{$feedback->assunto}»",
+            "feedback:{$feedback->id}",
+        );
+    }
+
+    /**
+     * Responder AVISA o jogador pelo rádio (D-91) — mesma conta "Capital" que já avisa sobre o
+     * Pátio. Sem isto, o admin escreveria a resposta e o jogador só a veria se voltasse a esta
+     * mensagem por conta própria, o que ele não tem motivo nenhum para fazer.
+     *
+     * Responder também marca como lida — seria estranho responder algo que o painel ainda
+     * mostra como "não lido".
+     */
+    public function feedbackResponder(
+        Request $request,
+        \App\Models\Feedback $feedback,
+        \App\Domain\Chat\EnviarMensagem $chat,
+    ): RedirectResponse {
+        $dados = $request->validate([
+            'resposta' => ['required', 'string', 'min:1', 'max:2000'],
+        ]);
+
+        return $this->tentar('feedback.responder', function () use ($feedback, $dados, $chat) {
+            $agora = now();
+
+            $feedback->forceFill([
+                'resposta' => $dados['resposta'],
+                'respondida_at' => $agora,
+                'lida_at' => $feedback->lida_at ?? $agora,
+            ])->save();
+
+            $chat->sistema(
+                \App\Domain\Chat\ContaSistema::capital(),
+                $feedback->user,
+                "Resposta ao seu \"{$feedback->assunto}\": {$dados['resposta']}",
+            );
+
+            return "Resposta enviada para #{$feedback->id} «{$feedback->assunto}», e avisada pelo rádio.";
+        }, "feedback:{$feedback->id}");
+    }
+
+    /** FEITO — o registro de que aquele bug foi corrigido ou aquela sugestão foi implementada. */
+    public function feedbackFeito(\App\Models\Feedback $feedback): RedirectResponse
+    {
+        $desfazendo = $feedback->feita();
+
+        $feedback->forceFill(['feito_at' => $desfazendo ? null : now()])->save();
+
+        return $this->ok(
+            $desfazendo ? 'feedback.desmarcar_feito' : 'feedback.marcar_feito',
+            $desfazendo
+                ? "Feedback #{$feedback->id} voltou a pendente. «{$feedback->assunto}»"
+                : "Feedback #{$feedback->id} marcado como feito. «{$feedback->assunto}»",
+            "feedback:{$feedback->id}",
+        );
+    }
+
     // ── Ministério do Tesouro (D-57) ─────────────────────────────────────────
 
     public function distribuir(Request $request, Tesouro $tesouro): RedirectResponse

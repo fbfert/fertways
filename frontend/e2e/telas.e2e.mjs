@@ -54,6 +54,26 @@ try {
   await page.click('[data-fechar-popup]')
   checar(!(await page.$('[data-popup]')), 'o extrato fecha')
 
+  // ---------------------------------------------------------------- Bugs/Melhorias (D-95)
+  console.log('\nBugs/Melhorias: manda uma mensagem')
+  await page.click('[data-abrir-bugs-melhorias]')
+  checar(await esperarTexto(page, /Bugs\/Melhorias/), 'o painel abre')
+
+  await page.select('[data-feedback-tipo]', 'bug')
+  await page.type('[data-feedback-assunto]', 'A Muralha não constrói')
+  await page.type('[data-feedback-mensagem]', 'Cliquei em construir e nada acontece, sem erro nenhum.')
+
+  const enviar = await page.$('[data-enviar-feedback]')
+  checar(await enviar.evaluate((b) => !b.disabled), 'o botão de enviar habilita com os campos preenchidos')
+  await enviar.click()
+  await page.waitForNetworkIdle({ idleTime: 800 })
+
+  checar(await esperarTexto(page, /Enviado/), 'confirma o envio')
+  checar(await esperarTexto(page, /um aviso pelo rádio/), 'e diz que a resposta chega pelo rádio, não aqui')
+
+  await page.click('[data-fechar-bugs-melhorias]')
+  checar(!(await page.$('[data-tela="bugs-melhorias"]')), 'o painel fecha')
+
   // ---------------------------------------------------------------- Mapa
   console.log('\nAbre o Mapa')
   await (await acharPorTexto(page, 'button', /^Mapa$/)).click()
