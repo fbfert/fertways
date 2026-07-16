@@ -136,7 +136,7 @@ class Patio
         ]);
 
         // A hora do estacionamento é receita do governo, como o tributo (§2.1, D-57).
-        app(Tesouro::class)->creditarFert($devido);
+        app(Tesouro::class)->creditarFert($devido, "patio:{$v->id}");
 
         return true;
     }

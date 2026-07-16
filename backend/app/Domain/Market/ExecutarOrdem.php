@@ -176,7 +176,7 @@ class ExecutarOrdem
         if ($vendedorId === null) {
             // O Governo vendeu (D-87): líquido e taxa terminam no mesmo Tesouro — credita tudo
             // de uma vez, sem colônia nenhuma para lançar no ledger.
-            $this->tesouro->creditarFert($valor);
+            $this->tesouro->creditarFert($valor, "venda_mercado_governo:{$chave}");
         } else {
             DB::table('colonies')->where('id', $vendedorId)->increment('fert_micro', $liquido);
             $this->lancar($vendedorId, 'venda_mercado', $liquido, null, $chave);
@@ -203,7 +203,7 @@ class ExecutarOrdem
 
         if ($taxa > 0 && $vendedorId !== null) {
             $this->lancar($vendedorId, 'tributo', -$taxa, null, $chave);
-            $this->tesouro->creditarFert($taxa);
+            $this->tesouro->creditarFert($taxa, "tributo_mercado:{$chave}");
         }
 
         return $chave;

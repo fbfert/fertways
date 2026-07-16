@@ -22,6 +22,7 @@ use App\Models\Combat;
 use App\Models\ImageBinding;
 use App\Models\MediaAsset;
 use App\Models\Ledger;
+use App\Models\MarketOrder;
 use App\Models\NeutralZone;
 use App\Models\News;
 use App\Models\PriceIntervention;
@@ -30,6 +31,7 @@ use App\Models\Report;
 use App\Models\ResourceType;
 use App\Models\TradeAgreement;
 use App\Models\TransportSetting;
+use App\Models\TreasuryLedger;
 use App\Models\Unit;
 use App\Models\User;
 use App\Models\Vehicle;
@@ -196,12 +198,12 @@ class PainelController extends Controller
 
     public function economia(Request $request): View
     {
-        $abas = ['financas', 'tesouro', 'enviar', 'mercado'];
+        $abas = ['financas', 'tesouro', 'enviar', 'mercado', 'ofertas_globais', 'extrato_governo', 'extrato_colonos'];
         $aba = in_array($request->query('aba'), $abas, true) ? $request->query('aba') : 'financas';
 
         $ofertasDoGoverno = app(\App\Domain\Market\OfertarComoGoverno::class)->ofertas();
 
-        return view('admin.economia', [
+        $dados = [
             'aba' => $aba,
             'colonias' => Colony::orderBy('id')->get(),
             // `preco_base_micro` alimenta a coluna "Preço Base" da aba Mercado (o mesmo preço de
@@ -220,7 +222,84 @@ class PainelController extends Controller
             'ofertasDoGoverno' => $ofertasDoGoverno,
             // As notícias saíram daqui: viraram aba própria (2026-07-13). Elas não são economia, e
             // estavam ali só porque a Central de Notícias é vizinha do Tesouro na Capital.
-        ]);
+        ];
+
+        // ── Ofertas Globais (D-96): o livro do Mercado Central inteiro, colono a colono, e o Governo
+        // junto — sem o filtro `aberta/parcial` que a aba Mercado usa só para as ofertas do Governo.
+        if ($aba === 'ofertas_globais') {
+            $q = trim((string) $request->query('q'));
+            $status = (string) $request->query('status', '');
+            $side = (string) $request->query('side', '');
+            $recurso = (string) $request->query('recurso', '');
+
+            $dados['ofertasGlobais'] = MarketOrder::query()
+                ->with('colony:id,name')
+                ->when($q !== '', fn ($w) => $w->where(function ($s) use ($q) {
+                    $s->where('resource_type', 'like', "%{$q}%")
+                        ->orWhereHas('colony', fn ($c) => $c->where('name', 'like', "%{$q}%"));
+                    if (str_contains('governo', mb_strtolower($q))) {
+                        $s->orWhereNull('colony_id');
+                    }
+                }))
+                ->when($status !== '', fn ($w) => $w->where('status', $status))
+                ->when($side !== '', fn ($w) => $w->where('side', $side))
+                ->when($recurso !== '', fn ($w) => $w->where('resource_type', $recurso))
+                ->orderByDesc('id')
+                ->paginate(30)
+                ->withQueryString();
+            $dados['filtrosOfertas'] = compact('q', 'status', 'side', 'recurso');
+        }
+
+        // ── Extrato do Governo (D-96): o `treasury_ledger` — todo crédito, débito e distribuição
+        // que já passou pelo caixa do Tesouro, o espelho administrativo do extrato de um colono.
+        if ($aba === 'extrato_governo') {
+            $q = trim((string) $request->query('q'));
+            $tipo = (string) $request->query('tipo', '');
+            $recurso = (string) $request->query('recurso', '');
+            $de = (string) $request->query('de', '');
+            $ate = (string) $request->query('ate', '');
+
+            $dados['extratoGoverno'] = TreasuryLedger::query()
+                ->when($q !== '', fn ($w) => $w->where('ref', 'like', "%{$q}%"))
+                ->when($tipo !== '', fn ($w) => $w->where('type', $tipo))
+                ->when($recurso === 'fert', fn ($w) => $w->whereNull('resource_type'))
+                ->when($recurso !== '' && $recurso !== 'fert', fn ($w) => $w->where('resource_type', $recurso))
+                ->when($de !== '', fn ($w) => $w->whereDate('created_at', '>=', $de))
+                ->when($ate !== '', fn ($w) => $w->whereDate('created_at', '<=', $ate))
+                ->orderByDesc('id')
+                ->paginate(30)
+                ->withQueryString();
+            $dados['filtrosGoverno'] = compact('q', 'tipo', 'recurso', 'de', 'ate');
+            $dados['tiposGoverno'] = TreasuryLedger::TIPOS;
+        }
+
+        // ── Extrato Colonos (D-96): o `ledger` de TODAS as colônias — o mesmo que a ficha de um
+        // jogador já mostra sozinha, aqui juntado, com busca por nome de colônia.
+        if ($aba === 'extrato_colonos') {
+            $q = trim((string) $request->query('q'));
+            $tipo = (string) $request->query('tipo', '');
+            $recurso = (string) $request->query('recurso', '');
+            $de = (string) $request->query('de', '');
+            $ate = (string) $request->query('ate', '');
+
+            $dados['extratoColonos'] = Ledger::query()
+                ->with('colony:id,name,user_id')
+                ->when($q !== '', fn ($w) => $w->where(fn ($s) => $s
+                    ->where('ref', 'like', "%{$q}%")
+                    ->orWhereHas('colony', fn ($c) => $c->where('name', 'like', "%{$q}%"))))
+                ->when($tipo !== '', fn ($w) => $w->where('type', $tipo))
+                ->when($recurso === 'fert', fn ($w) => $w->whereNull('resource_type'))
+                ->when($recurso !== '' && $recurso !== 'fert', fn ($w) => $w->where('resource_type', $recurso))
+                ->when($de !== '', fn ($w) => $w->whereDate('created_at', '>=', $de))
+                ->when($ate !== '', fn ($w) => $w->whereDate('created_at', '<=', $ate))
+                ->orderByDesc('id')
+                ->paginate(30)
+                ->withQueryString();
+            $dados['filtrosColonos'] = compact('q', 'tipo', 'recurso', 'de', 'ate');
+            $dados['tiposColonos'] = Ledger::TIPOS;
+        }
+
+        return view('admin.economia', $dados);
     }
 
     /**

@@ -51,7 +51,7 @@ class OfertarComoGoverno
             $delta = $qtdAlvo - $atual;
 
             if ($delta > 0) {
-                if (! $this->tesouro->debitar($recurso, $delta)) {
+                if (! $this->tesouro->debitar($recurso, $delta, "oferta_governo:{$recurso}")) {
                     $saldo = (int) (TreasuryHolding::whereKey($recurso)->value('amount') ?? 0);
 
                     throw new DomainRuleException(
@@ -60,7 +60,7 @@ class OfertarComoGoverno
                     );
                 }
             } elseif ($delta < 0) {
-                $this->tesouro->creditar($recurso, -$delta);
+                $this->tesouro->creditar($recurso, -$delta, "oferta_governo:{$recurso}");
             }
 
             if ($qtdAlvo === 0) {

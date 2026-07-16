@@ -54,7 +54,7 @@ class ComprarNiobio
             }
 
             // O Tesouro é a fonte, e ele pode secar — como a linha de montagem do D-60.
-            if (! $this->tesouro->gastar([self::RECURSO => $quantidade])) {
+            if (! $this->tesouro->gastar([self::RECURSO => $quantidade], "venda_niobio:{$colony->id}")) {
                 throw new DomainRuleException(
                     'tesouro_sem_niobio',
                     'O Tesouro não tem Nióbio suficiente. Aguarde uma reposição do governo.',
@@ -62,7 +62,7 @@ class ComprarNiobio
             }
 
             $colony->decrement('fert_micro', $total);
-            $this->tesouro->creditarFert($total);
+            $this->tesouro->creditarFert($total, "venda_niobio:{$colony->id}");
 
             $colony->resources()
                 ->where('resource_type', self::RECURSO)
