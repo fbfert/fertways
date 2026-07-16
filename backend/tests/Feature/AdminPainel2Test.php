@@ -255,14 +255,69 @@ class AdminPainel2Test extends TestCase
 
         $admin = $this->operador();
 
-        $this->actingAs($admin, 'admin')->get('/admin/transportes')
+        // A frota do planeta virou sub-aba no D-96 — "Ministério dos Transportes" é o padrão.
+        $this->actingAs($admin, 'admin')->get('/admin/transportes?aba=frota')
             ->assertOk()->assertSee('FW-00042-F')->assertSee('Frota do planeta');
 
-        $this->actingAs($admin, 'admin')->get('/admin/transportes?placa=00042')
+        $this->actingAs($admin, 'admin')->get('/admin/transportes?aba=frota&placa=00042')
             ->assertOk()->assertSee('FW-00042-F');
 
-        $this->actingAs($admin, 'admin')->get('/admin/transportes?placa=99999')
-            ->assertOk()->assertSee('Nenhum veículo com placa');
+        $this->actingAs($admin, 'admin')->get('/admin/transportes?aba=frota&placa=99999')
+            ->assertOk()->assertSee('Nenhum veículo com esses filtros');
+    }
+
+    /** As três abas do D-96: separar o painel inteiro de configuração da lista da frota. */
+    public function test_transportes_tem_tres_abas(): void
+    {
+        $admin = $this->operador();
+
+        $this->actingAs($admin, 'admin')->get('/admin/transportes')
+            ->assertOk()->assertSee('Ministério dos Transportes')->assertDontSee('Frota do planeta');
+
+        $this->actingAs($admin, 'admin')->get('/admin/transportes?aba=garagem')
+            ->assertOk()->assertSee('Garagem do Governo');
+
+        $this->actingAs($admin, 'admin')->get('/admin/transportes?aba=frota')
+            ->assertOk()->assertSee('Frota do planeta')->assertDontSee('Referência do Furgão');
+    }
+
+    public function test_a_frota_do_planeta_busca_por_dono(): void
+    {
+        $dono1 = User::factory()->create();
+        $c1 = app(CreateColony::class)->handle($dono1, 'Colônia do Ozzy', 21, 21);
+        $c1->vehicles()->first()->update(['plate' => 'FW-00001-F']);
+
+        $dono2 = User::factory()->create();
+        $c2 = app(CreateColony::class)->handle($dono2, 'Base de Marina', 22, 22);
+        $c2->vehicles()->first()->update(['plate' => 'FW-00002-F']);
+
+        $this->actingAs($this->operador(), 'admin')
+            ->get('/admin/transportes?aba=frota&dono=Ozzy')
+            ->assertOk()
+            ->assertSee('FW-00001-F')
+            ->assertDontSee('FW-00002-F');
+    }
+
+    public function test_a_frota_do_planeta_ordena_pelos_cabecalhos(): void
+    {
+        $dono1 = User::factory()->create();
+        $c1 = app(CreateColony::class)->handle($dono1, 'Alfa', 23, 23);
+        $c1->vehicles()->first()->update(['plate' => 'FW-00010-F']);
+
+        $dono2 = User::factory()->create();
+        $c2 = app(CreateColony::class)->handle($dono2, 'Beta', 24, 24);
+        $c2->vehicles()->first()->update(['plate' => 'FW-00020-F']);
+
+        $resp = $this->actingAs($this->operador(), 'admin')
+            ->get('/admin/transportes?aba=frota&sort=placa&dir=desc')
+            ->assertOk();
+
+        // Em ordem decrescente de placa, o 20 vem antes do 10.
+        $pos20 = strpos($resp->getContent(), 'FW-00020-F');
+        $pos10 = strpos($resp->getContent(), 'FW-00010-F');
+        $this->assertNotFalse($pos20);
+        $this->assertNotFalse($pos10);
+        $this->assertLessThan($pos10, $pos20);
     }
 
     // ── operação: a realocação ──────────────────────────────────────────────────────────────────
