@@ -6,6 +6,7 @@ use App\Exceptions\DomainRuleException;
 use App\Models\Colony;
 use App\Models\Ledger;
 use App\Models\TreasuryHolding;
+use App\Models\TreasuryLedger;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
@@ -35,18 +36,20 @@ class Tesouro
     }
 
     /** Tributo de transporte: recurso retido na entrega entra no Tesouro (§8.3, §2.1). */
-    public function creditarRecurso(string $recurso, int $qtd): void
+    public function creditarRecurso(string $recurso, int $qtd, ?string $ref = null): void
     {
         if ($qtd > 0) {
             $this->ajustar($recurso, $qtd);
+            $this->lancarTesouro('credito', $qtd, $recurso, $ref ?? 'credito_recurso');
         }
     }
 
     /** Tributo de mercado: Fert$ retido na venda entra no Tesouro. */
-    public function creditarFert(int $micro): void
+    public function creditarFert(int $micro, ?string $ref = null): void
     {
         if ($micro > 0) {
             $this->ajustar(self::FERT, $micro);
+            $this->lancarTesouro('credito', $micro, null, $ref ?? 'credito_fert');
         }
     }
 
@@ -73,9 +76,11 @@ class Tesouro
             if ($recurso === self::FERT) {
                 DB::table('colonies')->where('id', $destino->id)->increment('fert_micro', $qtd);
                 $this->lancar($destino->id, $qtd, null, $ref);
+                $this->lancarTesouro('distribuicao', -$qtd, null, $ref);
             } else {
                 $destino->resources()->where('resource_type', $recurso)->increment('amount', $qtd);
                 $this->lancar($destino->id, $qtd, $recurso, $ref);
+                $this->lancarTesouro('distribuicao', -$qtd, $recurso, $ref);
             }
         });
     }
@@ -91,10 +96,10 @@ class Tesouro
      * @param  array<string,int>  $custo  recurso => quantidade
      * @return bool false se o Tesouro não tinha tudo — e então **nada** foi debitado
      */
-    public function gastar(array $custo): bool
+    public function gastar(array $custo, ?string $ref = null): bool
     {
         try {
-            DB::transaction(function () use ($custo) {
+            DB::transaction(function () use ($custo, $ref) {
                 foreach ($custo as $recurso => $qtd) {
                     if ($qtd <= 0) {
                         continue;
@@ -108,6 +113,8 @@ class Tesouro
                         // os três recursos, ou não gastou nenhum.
                         throw new TesouroSemSaldo;
                     }
+
+                    $this->lancarTesouro('debito', -$qtd, $recurso, $ref ?? 'gasto');
                 }
             });
 
@@ -133,20 +140,27 @@ class Tesouro
      * Reserva `$qtd` do Tesouro (D-87: o escrow de uma oferta do Governo no Mercado Central).
      * `false` sem debitar nada se não houver saldo — mesma guarda de `gastar`/`distribuir`.
      */
-    public function debitar(string $recurso, int $qtd): bool
+    public function debitar(string $recurso, int $qtd, ?string $ref = null): bool
     {
         if ($qtd <= 0) {
             return true;
         }
 
-        return TreasuryHolding::whereKey($recurso)->where('amount', '>=', $qtd)->decrement('amount', $qtd) > 0;
+        $baixou = TreasuryHolding::whereKey($recurso)->where('amount', '>=', $qtd)->decrement('amount', $qtd) > 0;
+
+        if ($baixou) {
+            $this->lancarTesouro('debito', -$qtd, $recurso, $ref ?? 'debito');
+        }
+
+        return $baixou;
     }
 
     /** Devolve `$qtd` ao Tesouro — o lado inverso de `debitar`, sem guarda (somar nunca falha). */
-    public function creditar(string $recurso, int $qtd): void
+    public function creditar(string $recurso, int $qtd, ?string $ref = null): void
     {
         if ($qtd > 0) {
             $this->ajustar($recurso, $qtd);
+            $this->lancarTesouro('credito', $qtd, $recurso, $ref ?? 'credito');
         }
     }
 
@@ -162,6 +176,18 @@ class Tesouro
         Ledger::create([
             'colony_id' => $colonyId,
             'type' => 'transferencia_tesouro',
+            'amount' => $valor,
+            'resource_type' => $recurso,
+            'ref' => $ref,
+            'created_at' => now(),
+        ]);
+    }
+
+    /** O extrato do Governo (D-96): o espelho de `lancar`, mas do lado do próprio Tesouro. */
+    private function lancarTesouro(string $tipo, int $valor, ?string $recurso, string $ref): void
+    {
+        TreasuryLedger::create([
+            'type' => $tipo,
             'amount' => $valor,
             'resource_type' => $recurso,
             'ref' => $ref,

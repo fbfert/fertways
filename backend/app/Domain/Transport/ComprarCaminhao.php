@@ -76,7 +76,7 @@ class ComprarCaminhao
             }
 
             $colony->decrement('fert_micro', Ministerio::PRECO_MICRO);
-            $this->tesouro->creditarFert(Ministerio::PRECO_MICRO);
+            $this->tesouro->creditarFert(Ministerio::PRECO_MICRO, "venda_caminhao:{$caminhao->id}");
 
             Ledger::create([
                 'colony_id' => $colony->id,

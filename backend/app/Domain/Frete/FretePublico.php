@@ -108,7 +108,7 @@ class FretePublico
             ]);
 
             // Receita de serviço público: o Tesouro, como as taxas (§07 e D-57).
-            $this->tesouro->creditarFert($preco);
+            $this->tesouro->creditarFert($preco, "frete_publico:caminhao:{$caminhao->id}");
 
             // A carga sai do depósito AGORA: reservada no embarque, como na retirada própria.
             foreach ($carga as $recurso => $qtd) {

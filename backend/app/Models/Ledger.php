@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use RuntimeException;
 
 /**
@@ -75,6 +76,11 @@ class Ledger extends Model
         'ajuste_admin',
         'estorno',
     ];
+
+    public function colony(): BelongsTo
+    {
+        return $this->belongsTo(Colony::class);
+    }
 
     protected static function booted(): void
     {
