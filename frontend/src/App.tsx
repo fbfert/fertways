@@ -251,6 +251,17 @@ export default function App() {
             </button>
           )}
 
+          {/* Atalho para a Capital — antes só se chegava lá abrindo o Mapa e clicando no
+              losango do Governo Central. */}
+          {colonia && (
+            <button
+              onClick={() => navegar('/capital')}
+              className="painel bg-sand-light text-rust hover:text-rust-bright eyebrow px-5"
+            >
+              Capital
+            </button>
+          )}
+
           {/* As Missões do §06 (D-78): a mão do dia, a semanal e a tutoria. */}
           {colonia && (
             <button
@@ -282,6 +293,18 @@ export default function App() {
 
         {colonia && (
           <div className="pointer-events-auto flex items-stretch gap-3">
+            {/* O Marco (§03/§05, D-75), ao lado do saldo — o colono já tinha esse número no
+                Perfil, mas o progresso é algo que se olha de relance, não algo que se busca. */}
+            <div className="painel bg-sand-light px-5 py-3 text-right" data-marco={colonia.marco.numero}>
+              <div className="text-rust eyebrow">Marco {colonia.marco.numero}</div>
+              <div className="text-ink text-sm font-bold">{colonia.marco.titulo}</div>
+              <div className="text-ink-soft text-xs tabular-nums">
+                {colonia.marco.xp_do_proximo !== null
+                  ? `${colonia.marco.xp.toLocaleString('pt-BR')} / ${colonia.marco.xp_do_proximo.toLocaleString('pt-BR')} XP`
+                  : `${colonia.marco.xp.toLocaleString('pt-BR')} XP · máximo`}
+              </div>
+            </div>
+
             <div className="painel bg-sand-light px-5 py-3 text-right">
               <div className="text-rust eyebrow">{colonia.name}</div>
               <div className="text-ink text-xl font-black tabular-nums">
@@ -316,7 +339,7 @@ export default function App() {
               (`Transportes.tsx`, sucatear veículo) — sair é reversível (basta entrar de novo),
               mas o clique tem de ser de propósito.
             */}
-            <div className="relative">
+            <div className="relative flex">
               <button
                 onClick={() => setConfirmandoSaida((v) => !v)}
                 aria-label="Sair"
