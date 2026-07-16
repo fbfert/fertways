@@ -316,7 +316,11 @@ export function Mapa({
               <Legenda />
 
               {selecao?.tipo === 'colonia' && (
-                <PainelColonia c={selecao.c} aoVerInfo={() => setInfoAberta(selecao.c.user_id)} />
+                <PainelColonia
+                  c={selecao.c}
+                  aoVerInfo={() => setInfoAberta(selecao.c.user_id)}
+                  aoConversar={aoAbrirChatPrivado}
+                />
               )}
 
               {selecao?.tipo === 'zona' && (
@@ -594,7 +598,16 @@ function corDaZona(z: ZonaNeutra, selecao: Selecao): string {
   return 'var(--color-ink-soft)'
 }
 
-function PainelColonia({ c, aoVerInfo }: { c: ColoniaVizinha; aoVerInfo: () => void }) {
+function PainelColonia({
+  c,
+  aoVerInfo,
+  aoConversar,
+}: {
+  c: ColoniaVizinha
+  aoVerInfo: () => void
+  /** Abre o chat privado direto daqui — sem passar pela ficha do jogador primeiro. */
+  aoConversar?: (id: number, nickname: string) => void
+}) {
   return (
     <div className="border-rust/25 bg-sand mt-4 border p-3">
       <button
@@ -616,6 +629,18 @@ function PainelColonia({ c, aoVerInfo }: { c: ColoniaVizinha; aoVerInfo: () => v
       <button onClick={aoVerInfo} data-ver-info={c.user_id} className="text-rust hover:text-rust-bright mt-2 text-xs">
         Ver zonas neutras ocupadas
       </button>
+      {aoConversar && (
+        <button
+          onClick={() => aoConversar(c.user_id, c.nickname)}
+          // "-direto": não é a mesma marca do botão de `InfoJogador.tsx` (`data-conversar`) — os
+          // dois convivem na tela ao mesmo tempo (o painel da colônia fica atrás da ficha aberta),
+          // e um seletor `[data-conversar]` ambíguo pegava o elemento errado.
+          data-conversar-direto={c.user_id}
+          className="botao mt-2 w-full"
+        >
+          Conversar
+        </button>
+      )}
     </div>
   )
 }

@@ -293,7 +293,14 @@ function Privadas({
   }
 
   const termo = busca.trim().toLowerCase()
-  const encontrados = termo ? jogadores.filter((j) => j.nickname.toLowerCase().includes(termo)) : []
+  // Nick OU nome da colônia: antes só batia nick, mas a linha do resultado já mostra os dois
+  // (`{j.nickname} — {j.name}`), então quem digitasse o nome da colônia via o resultado na
+  // tela e mesmo assim levava "ninguém com esse nick".
+  const encontrados = termo
+    ? jogadores.filter(
+        (j) => j.nickname.toLowerCase().includes(termo) || j.name.toLowerCase().includes(termo),
+      )
+    : []
 
   return (
     <div className="flex-1 overflow-y-auto px-3 py-2 text-sm" data-conversas>
@@ -303,7 +310,7 @@ function Privadas({
             <input
               value={busca}
               onChange={(e) => setBusca(e.target.value)}
-              placeholder="Buscar por nickname…"
+              placeholder="Buscar por nickname ou nome da colônia…"
               autoFocus
               data-buscar-texto
               className="border-rust/30 bg-sand-light text-ink min-w-0 flex-1 border px-2 py-1 text-sm outline-none"
@@ -323,7 +330,7 @@ function Privadas({
           {termo && (
             <ul className="mt-2 space-y-1" data-resultados-busca>
               {encontrados.length === 0 ? (
-                <li className="text-ink-soft/60 text-xs">Ninguém com esse nick.</li>
+                <li className="text-ink-soft/60 text-xs">Ninguém com esse nick ou colônia.</li>
               ) : (
                 encontrados.map((j) => (
                   <li key={j.user_id}>

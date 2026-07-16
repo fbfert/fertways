@@ -614,7 +614,13 @@ function FormularioDeCarga({
   rotuloBotao: string
   aoEnviar: (veiculo: number, carga: Record<string, number>, destino?: number) => Promise<void>
 }) {
-  const [linhas, setLinhas] = useState<Linha[]>([{ codigo: '', qtd: '' }])
+  // Três linhas de saída, não uma: o colono quase sempre carrega mais de um recurso na mesma
+  // viagem, e descobrir o "+ outro recurso" clicando era um passo a mais toda vez.
+  const [linhas, setLinhas] = useState<Linha[]>([
+    { codigo: '', qtd: '' },
+    { codigo: '', qtd: '' },
+    { codigo: '', qtd: '' },
+  ])
   const [veiculoId, setVeiculoId] = useState<number | null>(null)
   const [destinoId, setDestinoId] = useState<number | null>(null)
 
