@@ -30,8 +30,8 @@ class Ledger extends Model
         'venda_mercado',
         'compra_mercado',
         'transferencia',
-        'saldo_inicial',      // 50 Fert$ de onboarding
-        'kit_inicial',        // raros concedidos na fundação — decisão de design, D-17
+        'saldo_inicial',      // 100 Fert$ de onboarding (era 50 — D-85)
+        'kit_inicial',        // recursos do kit inicial na fundação (D-85; era só raros, D-17)
         /*
          * §27.8 e §28.10 (D-66): o butim de uma invasão (50% do exposto) ou de um cerco vencido
          * (30%). É a única entrada de recurso que não tem contrapartida econômica nenhuma — não se
@@ -58,7 +58,10 @@ class Ledger extends Model
         'bonus_conciliador',   // §26.7: +3 F$ por decisão que sobrevive à apelação
         'custo_ocupacao',      // §07: Posto de Comando + Robôs Mineradores para ocupar zona (D-52)
         'transferencia_tesouro', // Ministério do Tesouro: distribuição do governo ao colono (D-57)
-        'kit_recursos',        // kit fixo de recursos por colônia, emissão do governo (D-57)
+        // Descontinuado no D-85: o kit fixo do D-57 morreu, substituído pelo `kit_inicial` único.
+        // Fica na lista porque é ledger — append-only, não se apaga lançamento — e colônias
+        // fundadas antes do D-85 têm linhas de verdade com este tipo.
+        'kit_recursos',
         'devolucao_deposito',  // carga que não coube no teto do depósito e voltou no veículo (D-58)
         'compra_veiculo',      // §16: Caminhão comprado do Ministério, ou um usado de outro colono (D-60)
         'venda_veiculo',       // §16.4: o vendedor recebe, quando o usado chega ao comprador (D-60)

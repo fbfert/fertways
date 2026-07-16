@@ -43,6 +43,8 @@ class MercadoCentralTest extends TestCase
         $user = User::factory()->create(['email' => 'm@t.test', 'nickname' => 'mercante']);
         // (30,0): 30 slots exatos até a Capital, agora em (0,0) (D-51). Periferia, fundável.
         $colony = app(CreateColony::class)->handle($user, 'Colônia mercante', 30, 0);
+        // A conta na doca é testada com carga própria de cada cenário, não o kit inicial (D-85).
+        $colony->resources()->update(['amount' => 0]);
 
         return $colony->fresh();
     }

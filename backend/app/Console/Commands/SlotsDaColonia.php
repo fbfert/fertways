@@ -12,7 +12,7 @@ use Illuminate\Support\Facades\DB;
 
 /**
  * Backfill dos 21 slots (D-59) para as colônias que já existem. As novas já nascem certas, no
- * `CreateColony`. Passo à parte do deploy, como o `fertways:kit-recursos` (D-57).
+ * `CreateColony`. Passo à parte do deploy, como o `fertways:placas` (D-60).
  *
  *   artisan fertways:slots            # simula: mostra o que faria em cada colônia
  *   artisan fertways:slots --aplicar  # migra de verdade

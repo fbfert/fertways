@@ -31,7 +31,9 @@ class ComponentRecipesTest extends TestCase
     {
         $user = User::factory()->create();
         // Periferia, uma célula por colônia (D-51).
-        app(CreateColony::class)->handle($user, 'Nova Aurora', 10 + $this->proximoSlot++, 20);
+        $colony = app(CreateColony::class)->handle($user, 'Nova Aurora', 10 + $this->proximoSlot++, 20);
+        // Estes testes medem produção pela receita, não o kit inicial (D-85) — estoque limpo.
+        $colony->resources()->update(['amount' => 0]);
 
         return $user->fresh();
     }

@@ -23,8 +23,8 @@ export const NOME_RECURSO: Record<string, string> = {
   tantalo: 'Tântalo',
   tungstenio: 'Tungstênio',
 
-  // Raros. Não há fonte deles no MVP fora do kit inicial (D-17): as fontes da Temporada 1
-  // (eventos, zonas profundas, contratos do governo) ainda não existem.
+  // Raros. Não há fonte deles no MVP fora do kit inicial (D-85, era D-17): as fontes da
+  // Temporada 1 (eventos, zonas profundas, contratos do governo) ainda não existem.
   bioenergia_curativa: 'Bioenergia Curativa',
   cristal_de_helio_3: 'Cristal de Hélio-3',
   ferro_vermelho: 'Ferro Vermelho',

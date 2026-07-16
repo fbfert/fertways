@@ -9,7 +9,6 @@ use App\Models\Building;
 use App\Models\Colony;
 use App\Models\Ledger;
 use App\Models\Resource;
-use App\Models\ResourceType;
 use App\Models\User;
 use App\Models\Vehicle;
 use Illuminate\Support\Facades\DB;
@@ -18,15 +17,14 @@ use Illuminate\Support\Facades\DB;
  * Fundação de uma colônia no slot principal.
  *
  * Tudo numa transação: cria a colônia, as **cinco essenciais já erguidas no nível 1** no miolo
- * dos 21 slots, as linhas de recurso zeradas, o Furgão do kit inicial e o lançamento dos 50
- * Fert$. Se qualquer passo falhar, nada persiste — senão um jogador poderia ficar com colônia
- * sem recursos ou sem veículo, estados que nenhuma parte do jogo sabe consertar.
+ * dos 21 slots, as linhas de recurso já com o kit inicial (D-85), a frota do kit e o lançamento
+ * do saldo em Fert$. Se qualquer passo falhar, nada persiste — senão um jogador poderia ficar com
+ * colônia sem recursos ou sem veículo, estados que nenhuma parte do jogo sabe consertar.
  *
- * Regras do GDD aplicadas aqui:
- *  - Saldo inicial de 50 Fert$ ("Todo colono recebe 50 Fert$ ao chegar em Fertways").
- *  - Furgão de Comércio no kit inicial ("todo colono começa com um").
- *  - Recursos começam em 0. O colono usa os 50 Fert$ para comprar o primeiro lote de
- *    Ligas Metálicas no Mercado Central (§24.7).
+ * Regras aplicadas aqui:
+ *  - Saldo, recursos e frota iniciais: `Domain\Colony\KitInicial` (D-85, editável pelo admin
+ *    desde o D-92) — substitui de vez os 50 Fert$ do GDD, os raros calculados do D-17 e o kit
+ *    fixo separado do D-57.
  *
  * **Onde isto vai além do GDD (D-59, revisa o D-13).** O §24.7 subsidia o CUSTO das cinco
  * essenciais até o nível 3 — "o custo aparece normalmente na interface, mas junto com a mensagem
@@ -72,7 +70,7 @@ class CreateColony
                 'y' => $y,
                 'founded_at' => $agora,
                 'milestone' => 'colonizacao_inicial',
-                'fert_micro' => Colony::SALDO_INICIAL_MICRO,
+                'fert_micro' => KitInicial::fertMicro(),
                 'last_tick_at' => $agora,
             ]);
 
@@ -94,40 +92,48 @@ class CreateColony
                 ),
             );
 
+            $recursosDoKit = KitInicial::recursos();
+
             $colony->resources()->createMany(
                 array_map(fn (string $r) => [
                     'resource_type' => $r,
-                    'amount' => 0,
+                    'amount' => $recursosDoKit[$r] ?? 0,
                     // NULL: o GDD não define teto de armazenamento do slot principal.
                     'storage_cap' => null,
                 ], Resource::daColonia()),
             );
 
-            $furgao = $colony->vehicles()->create([
-                'type' => 'furgao_de_comercio',
-                'level' => 1,
-                'status' => 'ocioso',
-                'capacity' => Vehicle::CAPACIDADE['furgao_de_comercio'],
-            ]);
+            // A frota do kit (D-85/D-92): quantos veículos de cada tipo, arbitrado pelo admin —
+            // hoje 1 Furgão e 0 Caminhões, mas o painel pode mudar isso a qualquer momento.
+            foreach (KitInicial::frota() as $tipo => $quantidade) {
+                for ($i = 0; $i < $quantidade; $i++) {
+                    $veiculo = $colony->vehicles()->create([
+                        'type' => $tipo,
+                        'level' => 1,
+                        'status' => 'ocioso',
+                        'capacity' => Vehicle::CAPACIDADE[$tipo],
+                    ]);
 
-            // §16.3: "todo veículo civil recebe registro obrigatório no Ministério dos Transportes
-            // ao ser construído ou adquirido". O Furgão do kit não é exceção — ele é o primeiro
-            // veículo do colono e o primeiro registro dele no Ministério (D-60).
-            app(Placas::class)->registrar($furgao);
+                    // §16.3: "todo veículo civil recebe registro obrigatório no Ministério dos
+                    // Transportes ao ser construído ou adquirido". Nenhum veículo do kit é exceção
+                    // (D-60).
+                    app(Placas::class)->registrar($veiculo);
+                }
+            }
 
             // O saldo entra como lançamento, não como número mudo na coluna: o ledger é a
             // fonte auditável, e `colonies.fert_micro` é só a projeção do saldo corrente.
             Ledger::create([
                 'colony_id' => $colony->id,
                 'type' => 'saldo_inicial',
-                'amount' => Colony::SALDO_INICIAL_MICRO,
+                'amount' => $colony->fert_micro,
                 'resource_type' => null,
                 'ref' => 'onboarding:saldo_inicial',
                 'created_at' => $agora,
             ]);
 
             $this->registrarMioloSubsidiado($colony, $agora);
-            $this->concederRarosDoKit($colony, $agora);
+            $this->lancarKitInicial($colony, $agora);
 
             /*
              * As 5 missões de tutoria EXISTEM desde o D-78 — e o auto-completar continua, agora
@@ -172,51 +178,24 @@ class CreateColony
     }
 
     /**
-     * Concede os recursos raros necessários para erguer uma vez, no nível 1, cada construção que
-     * o colono AINDA precisa erguer — ou seja, as de progressão. A quantidade NÃO é digitada: é
-     * somada de `building_specs`, que vem do GDD. Assim o kit acompanha o documento em vez de
-     * virar constante mágica.
-     *
-     * Por que existe: várias construções exigem raros no nível 1, e as fontes de raros da
-     * Temporada 1 (eventos, zonas profundas, contratos do governo) estão fora do MVP. Sem o
-     * kit, o jogador para logo depois das cinco essenciais. É decisão de design, não do GDD.
-     * Ver docs/decisoes.md D-17.
-     *
-     * Desde o D-59 a soma é sobre `PROGRESSAO`, não sobre `MVP`: as essenciais já nascem erguidas,
-     * então os raros do nível 1 delas deixaram de ser necessários — dá-los seria dar duas vezes.
-     * Uma cópia extra de uma repetível (segunda Mina) não é coberta: o kit ergue cada construção
-     * **uma** vez, como sempre.
+     * O ledger do kit inicial (D-85): os recursos já foram gravados na criação das linhas de
+     * `resources`, acima — aqui só se audita, um lançamento por recurso que o kit de fato deu
+     * (os zerados, como Fungo Bioluminescente e Nióbio Alienígena, não geram linha: não houve
+     * concessão nenhuma para auditar).
      */
-    private function concederRarosDoKit(Colony $colony, $agora): void
+    private function lancarKitInicial(Colony $colony, $agora): void
     {
-        // Somado em PHP de propósito. Um JOIN com json_extract exigiria concatenação de
-        // string, e `||` é concat no SQLite mas OR no MariaDB: passaria nos testes e
-        // quebraria em produção.
-        $codigosRaros = ResourceType::where('tax_class', 'raro')->pluck('code')->flip();
-
-        $especificacoes = DB::table('building_specs')
-            ->where('level', 1)
-            ->whereIn('building_type', Building::PROGRESSAO)
-            ->pluck('cost_json');
-
-        $total = [];
-        foreach ($especificacoes as $json) {
-            foreach (json_decode($json, true) as $recurso => $qtd) {
-                if ($codigosRaros->has($recurso)) {
-                    $total[$recurso] = ($total[$recurso] ?? 0) + $qtd;
-                }
+        foreach (KitInicial::recursos() as $codigo => $qtd) {
+            if ($qtd <= 0) {
+                continue;
             }
-        }
-
-        foreach ($total as $codigo => $qtd) {
-            $colony->resources()->where('resource_type', $codigo)->update(['amount' => $qtd]);
 
             Ledger::create([
                 'colony_id' => $colony->id,
                 'type' => 'kit_inicial',
                 'amount' => $qtd,
                 'resource_type' => $codigo,
-                'ref' => 'onboarding:kit_raros',
+                'ref' => 'onboarding:kit_inicial',
                 'created_at' => $agora,
             ]);
         }

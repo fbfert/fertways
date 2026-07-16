@@ -79,8 +79,8 @@ export function Fundacao({ aoFundar }: { aoFundar: () => Promise<void> }) {
         <div className="text-rust eyebrow">Fundação</div>
         <h1 className="text-ink text-2xl font-black">Escolha onde fundar.</h1>
         <p className="text-ink-soft mt-1 text-sm">
-          Você chega com 50 Fert$ e um Furgão de Comércio. Perto do Mercado se viaja menos; a
-          periferia é vasta e livre.
+          Você chega com 100 Fert$, um kit de recursos e um Furgão de Comércio. Perto do Mercado
+          se viaja menos; a periferia é vasta e livre.
         </p>
 
         {erro && <p className="text-rust mt-3 text-sm">{erro}</p>}

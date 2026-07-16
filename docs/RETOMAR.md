@@ -1184,6 +1184,39 @@ pedido do usuário.
 
 **Para retomar isto:** não há mais pendência — é o estado normal da tela da zona agora.
 
+## O kit inicial vira uma tabela só, e depois vira tela de admin (D-85 + D-92) — **PR aberto, NÃO mesclado, NÃO publicado** (2026-07-15/16)
+
+Pedido do usuário (D-85): uma tabela única, Fert$ + um valor fixo para os 26 recursos do catálogo,
+substituindo as **três fontes separadas** que a fundação juntava até aqui — os 50 Fert$ do GDD, os
+raros calculados do "muro de progressão" (D-17) e o kit fixo de cinco recursos do D-57.
+
+No dia seguinte, o usuário pediu para não precisar mais editar código para mudar esses números
+(D-92): a `const RECURSOS` virou `kit_inicial_recursos`/`kit_inicial_settings` no banco, editáveis
+em `/central/admin` → aba Operação → **Kit inicial**. A frota entrou no kit pela primeira vez —
+antes o Furgão era hardcoded em `CreateColony`; agora é só mais uma quantidade arbitrável (hoje 1
+Furgão, 0 Caminhões, igual ao que já existia).
+
+⚠️ **Duas coisas para saber antes de mesclar (do D-85, ainda valem):**
+
+1. **O "muro de progressão" quebra de propósito.** O kit dá 0 Nióbio Alienígena e 2 Quartzo
+   Piezoelétrico — nenhum dos dois é produzível no jogo. Torre de Defesa + Quartel (juntas, 5
+   Nióbio) e uma das duas entre Refinaria Química/Antena de Comunicação (juntas, 3 Quartzo) ficam
+   **trancadas** para quem funda depois deste deploy, até comprar do governo. **Confirmado com o
+   usuário — não é lacuna, é decisão.** A tela do admin agora AVISA (não trava) se alguém subir
+   esses dois números além do limiar que reabre o muro — mas o aviso é novo no D-92, a decisão de
+   trancar é do D-85.
+2. **Só vale para quem funda depois do deploy.** Colônias que já existem não são tocadas — ao
+   contrário do D-57, não há comando de backfill, e o D-92 manteve essa regra também para as
+   edições pelo painel.
+
+Ver **D-85** e **D-92** completos em `docs/decisoes.md`.
+
+**Validado:** 588 testes (SQLite e MariaDB 10.5 efêmero em container local), round-trip de
+migrations limpo nos dois, lint, build, e2e completo.
+
+**Para retomar isto:** olhe o PR no GitHub — se a CI vier verde, está pronto para mesclar e
+publicar.
+
 ## O trabalho anterior: zonas neutras + Drone (D-52)
 
 Leia **D-52**. Sequência decidida: Fatia 1 = o núcleo (ocupar/extrair/retirar); Fatia 2 = a guerra

@@ -43,8 +43,11 @@ class PatioDaCapitalTest extends TestCase
     private function colonia(string $nick = 'patio', int $x = 30, int $y = 0): Colony
     {
         $user = User::factory()->create(['email' => "{$nick}@t.test", 'nickname' => $nick]);
+        $colony = app(CreateColony::class)->handle($user, "Colônia {$nick}", $x, $y);
+        // O Pátio é testado com carga própria de cada cenário, não o kit inicial (D-85).
+        $colony->resources()->update(['amount' => 0]);
 
-        return app(CreateColony::class)->handle($user, "Colônia {$nick}", $x, $y)->fresh();
+        return $colony->fresh();
     }
 
     private function abastecer(Colony $c, array $recursos): void

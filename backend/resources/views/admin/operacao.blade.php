@@ -127,4 +127,61 @@
         </p>
     </div>
 
+    {{-- ── O kit inicial (D-85), editável pelo admin (D-92) ── --}}
+    <h2 class="secao">Kit inicial</h2>
+    <div class="cartao">
+        <p class="mut pequeno">
+            O que toda colônia nova recebe ao fundar: Fert$, um valor por recurso do catálogo, e a
+            frota. <b>Só vale para quem funda DEPOIS de salvar</b> — colônias que já existem não
+            são tocadas, sem backfill.
+        </p>
+
+        <form method="POST" action="{{ route('admin.kit_inicial.parametros') }}" style="margin-top:10px">
+            @csrf
+
+            <div class="linha-form">
+                <div style="flex:0">
+                    <label>Fert$ inicial</label>
+                    <input type="number" step="0.000001" min="0" name="fert"
+                           value="{{ number_format($kitSettings->fert_micro / 1000000, 6, '.', '') }}" required>
+                </div>
+                @foreach ($kitVeiculos as $tipo => $capacidade)
+                    <div style="flex:0">
+                        <label>{{ $tipo === 'caminhao_de_carga' ? 'Caminhões de Carga' : 'Furgões de Comércio' }}</label>
+                        <input type="number" min="0" max="255"
+                               name="{{ $tipo === 'caminhao_de_carga' ? 'caminhoes' : 'furgoes' }}"
+                               value="{{ $tipo === 'caminhao_de_carga' ? $kitSettings->caminhoes : $kitSettings->furgoes }}"
+                               required style="width:80px">
+                    </div>
+                @endforeach
+            </div>
+
+            <table style="margin-top:12px">
+                <tr><th>Recurso</th><th class="num">Quantidade</th></tr>
+                @foreach ($kitRecursos as $r)
+                    <tr data-linha-kit="{{ $r->code }}">
+                        <td>
+                            {{ $r->nome }}
+                            @if ($r->code === 'niobio_alienigena')
+                                <span class="mut pequeno" style="color:#8a6d00">
+                                    — {{ $kitMuroNiobio }}+ reabre Torre de Defesa + Quartel sem negociar (D-85)
+                                </span>
+                            @elseif ($r->code === 'quartzo_piezoeletrico')
+                                <span class="mut pequeno" style="color:#8a6d00">
+                                    — {{ $kitMuroQuartzo }}+ reabre Refinaria Química + Antena de Comunicação sem negociar (D-85)
+                                </span>
+                            @endif
+                        </td>
+                        <td class="num">
+                            <input type="number" min="0" name="recursos[{{ $r->code }}]"
+                                   value="{{ $r->amount }}" style="width:100px;text-align:right">
+                        </td>
+                    </tr>
+                @endforeach
+            </table>
+
+            <div style="margin-top:10px"><button>Salvar kit inicial</button></div>
+        </form>
+    </div>
+
 @endsection

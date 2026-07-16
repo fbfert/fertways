@@ -3,7 +3,6 @@
 namespace Tests\Feature;
 
 use App\Domain\Colony\CreateColony;
-use App\Domain\Colony\KitInicialDeRecursos;
 use App\Domain\Treasury\Tesouro;
 use App\Exceptions\DomainRuleException;
 use App\Models\Colony;
@@ -19,8 +18,10 @@ use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 /**
- * Ministério do Tesouro (D-57): a dotação, o crédito pelo tributo, a distribuição do admin, e o kit
- * fixo de recursos por colônia.
+ * Ministério do Tesouro (D-57): a dotação, o crédito pelo tributo, a distribuição do admin.
+ *
+ * O kit fixo de recursos por colônia que o D-57 também criava morreu no D-85 — substituído pelo
+ * kit inicial único de `Domain\Colony\KitInicial`, coberto em `ColonyCreationTest`.
  */
 class TesouroTest extends TestCase
 {
@@ -119,31 +120,5 @@ class TesouroTest extends TestCase
         $this->expectException(DomainRuleException::class);
         $this->expectExceptionMessage('não tem esse saldo');
         app(Tesouro::class)->distribuir($c, 'metal_bruto', 20_000); // só há 10 mil
-    }
-
-    // ── Kit fixo de recursos ─────────────────────────────────────────────────
-
-    #[Test]
-    public function o_kit_fixo_concede_os_cinco_recursos(): void
-    {
-        $c = $this->colonia('nova'); // a primitiva de domínio nasce limpa; o kit é passo à parte
-
-        $this->assertTrue(app(KitInicialDeRecursos::class)->conceder($c));
-        $c->refresh();
-
-        $this->assertSame(1000, $this->estoque($c, 'metal_bruto'));
-        $this->assertSame(1000, $this->estoque($c, 'ligas_metalicas'));
-        $this->assertSame(500, $this->estoque($c, 'compostos_quimicos'));
-        $this->assertSame(300, $this->estoque($c, 'biocombustivel'));
-        $this->assertSame(500, $this->estoque($c, 'componentes_eletronicos'));
-    }
-
-    #[Test]
-    public function o_kit_e_idempotente(): void
-    {
-        $c = $this->colonia('repetida');
-        $this->assertTrue(app(KitInicialDeRecursos::class)->conceder($c));
-        $this->assertFalse(app(KitInicialDeRecursos::class)->conceder($c), 'segunda concessão não repete');
-        $this->assertSame(1000, $this->estoque($c->fresh(), 'metal_bruto'));
     }
 }

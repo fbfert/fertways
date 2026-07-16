@@ -32,7 +32,10 @@ class BuildQueueTest extends TestCase
     {
         $user = User::factory()->create($attrs + ['tutorial_completed_at' => now()]);
         // Periferia, uma célula por colônia (D-51).
-        app(CreateColony::class)->handle($user, 'Nova Aurora', 10 + $this->proximoSlot++, 20);
+        $colony = app(CreateColony::class)->handle($user, 'Nova Aurora', 10 + $this->proximoSlot++, 20);
+        // Estes testes são sobre a fila de obras, não sobre o kit inicial (D-85) — volta ao
+        // estoque limpo, e quem precisar de recursos os pede pelo helper `darRecursos()`.
+        $colony->resources()->update(['amount' => 0]);
 
         return $user->fresh();
     }
@@ -103,22 +106,22 @@ class BuildQueueTest extends TestCase
      * O kit inicial cobre exatamente o custo de nível 1 de cada construção. Sem ele, a
      * Oficina — única fonte de Ligas Metálicas — seria inconstruível.
      */
-    public function test_kit_inicial_de_raros_destrava_a_oficina(): void
+    public function test_kit_inicial_destrava_a_oficina(): void
     {
-        $user = $this->colono();
-        $colony = $user->colony;
-
-        $this->assertSame(1, $colony->resources->firstWhere('resource_type', 'ferro_vermelho')->amount);
-
-        // Dá os não-raros; os raros vêm do kit.
-        $colony->resources()->whereIn('resource_type', ['biomassa', 'ligas_metalicas', 'compostos_quimicos', 'agua', 'energia'])
+        $user = User::factory()->create(['tutorial_completed_at' => now()]);
+        $colony = app(CreateColony::class)->handle($user, 'Nova Aurora', 10 + $this->proximoSlot++, 20);
+        // Sem zerar: é o próprio kit inicial (D-85) que dá o Ferro Vermelho da Oficina.
+        $colony->resources()->whereIn('resource_type', ['ligas_metalicas', 'compostos_quimicos'])
             ->update(['amount' => 1000]);
+
+        $antes = $colony->resources->firstWhere('resource_type', 'ferro_vermelho')->amount;
 
         $this->actingAs($user)->postJson('/buildings/' . $this->predio($user, 'oficina')->id . '/upgrade')
             ->assertCreated();
 
-        // O Ferro Vermelho foi consumido: o kit dá o suficiente para exatamente uma vez.
-        $this->assertSame(0, $colony->fresh()->resources->firstWhere('resource_type', 'ferro_vermelho')->amount);
+        // Consumiu 1 Ferro Vermelho — o kit (5) sobra, ao contrário do antigo kit de raros do
+        // D-17, que dava exatamente o bastante para uma vez só.
+        $this->assertSame($antes - 1, $colony->fresh()->resources->firstWhere('resource_type', 'ferro_vermelho')->amount);
     }
 
     public function test_construcao_de_progressao_nunca_e_subsidiada(): void

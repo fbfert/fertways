@@ -49,6 +49,7 @@ Route::prefix('admin')->group(function () {
         Route::get('/auditoria', [PainelController::class, 'auditoria'])->name('admin.auditoria');
         Route::get('/operacao', [PainelController::class, 'operacao'])->name('admin.operacao');
         Route::post('/operacao/marco', [AcoesController::class, 'marco'])->name('admin.marco.parametros');
+        Route::post('/operacao/kit-inicial', [AcoesController::class, 'kitInicial'])->name('admin.kit_inicial.parametros');
 
         // O catálogo de missões (§06, D-78): aba própria — o CRUD é grande demais para um card.
         Route::get('/missoes', [PainelController::class, 'missoes'])->name('admin.missoes');
