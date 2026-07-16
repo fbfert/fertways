@@ -51,19 +51,36 @@ use Illuminate\View\View;
 class PainelController extends Controller
 {
     /** Visão geral: os números de topo e o que exige atenção agora. */
-    public function dashboard(): View
+    public function dashboard(Request $request): View
     {
-        return view('admin.dashboard', [
-            'resumo' => $this->resumo(),
-            'colonias' => Colony::with('user:id,nickname')->orderBy('id')->get(),
-            'obras' => BuildQueue::query()->ativos()->with('colony:id,name')->orderBy('finishes_at')->get(),
-            'zonas' => NeutralZone::with('owner:id,name')->whereNotNull('owner_colony_id')->orderBy('id')->get(),
-            // O que aconteceu no painel ultimamente. É o primeiro lugar onde se olha quando algo
-            // parece errado, e por isso vem na visão geral em vez de só na aba da auditoria.
-            'ultimosAtos' => AuditEntry::orderByDesc('id')->limit(8)->get(),
+        $abas = ['panorama', 'atos', 'colonias', 'logistica'];
+        $aba = in_array($request->query('aba'), $abas, true) ? $request->query('aba') : 'panorama';
+
+        $dados = ['aba' => $aba];
+
+        // O panorama e os alertas: o primeiro lugar que o operador olha, por isso é o padrão.
+        if ($aba === 'panorama') {
+            $dados['resumo'] = $this->resumo();
             // O Governo no Mercado Central (D-87): o que falta anunciar ou repor.
-            'recursosSemOfertaDoGoverno' => $this->recursosSemOfertaDoGoverno(),
-        ]);
+            $dados['recursosSemOfertaDoGoverno'] = $this->recursosSemOfertaDoGoverno();
+        }
+
+        // O que aconteceu no painel ultimamente — o primeiro lugar onde se olha quando algo parece
+        // errado, e por isso é aba própria em vez de enterrado dentro do Panorama.
+        if ($aba === 'atos') {
+            $dados['ultimosAtos'] = AuditEntry::orderByDesc('id')->limit(20)->get();
+        }
+
+        if ($aba === 'colonias') {
+            $dados['colonias'] = Colony::with('user:id,nickname')->orderBy('id')->get();
+        }
+
+        if ($aba === 'logistica') {
+            $dados['obras'] = BuildQueue::query()->ativos()->with('colony:id,name')->orderBy('finishes_at')->get();
+            $dados['zonas'] = NeutralZone::with('owner:id,name')->whereNotNull('owner_colony_id')->orderBy('id')->get();
+        }
+
+        return view('admin.dashboard', $dados);
     }
 
     // ─────────────────────────────────────────────────────────── Jogadores
