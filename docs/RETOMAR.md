@@ -1286,6 +1286,52 @@ e cada merge exigia resolver o próximo contra o `main` que acabara de mudar.
 **Para retomar isto:** não há mais pendência — os seis ajustes, o extrato e o Bugs/Melhorias são
 o estado normal do jogo agora.
 
+## Economia, Transportes, Visão Geral e Missões ganham abas; o Tesouro ganha extrato (D-96/D-97/D-98/D-99) — **mesclados e no ar** (2026-07-16), commit `517ba8e`
+
+Cinco itens pedidos numa leva só ("Mais funcionalidades"), com uma instrução explícita do
+usuário: construir tudo sem perguntas, seguindo minhas próprias recomendações, e só publicar
+(mesclar + `deploy.sh`) quando os cinco estivessem prontos — diferente da leva anterior
+(D-93/94/95), que publicou incrementalmente. Cada item ganhou seu próprio branch e PR; os quatro
+PRs (#16–#19) foram mesclados em sequência só depois que os cinco itens estavam prontos, e o
+deploy e este registro vieram por último.
+
+**D-96, PR #16** — Economia ganha três abas: Ofertas Globais (o livro do Mercado Central
+inteiro — todo colono e o Governo — paginado/filtrado/buscável), Extrato do Governo e Extrato
+Colonos. O Tesouro nunca tinha histórico, só saldo (`treasury_holdings`) — uma tabela nova,
+`treasury_ledger`, resolve isso sem tocar na constraint `NOT NULL` de `ledger.colony_id` (que
+levaria a alterar uma tabela "regra de ouro" já em produção, e o Laravel nem tem `doctrine/dbal`
+instalado para o `->nullable()->change()`). `Tesouro.php` ganha um `lancarTesouro()` privado, e
+os 12 pontos de chamada que mexem no caixa passam a anotar um `$ref` de contexto.
+
+**D-97, PR #17** — Transportes ganha três abas (Ministério dos Transportes, Garagem do Governo,
+Frota do Planeta), e a Frota ganha busca por Dono e ordenação por clique no cabeçalho (Placa,
+Tipo, Dono, Situação, Conservação, Teto, Manut., Uso) — via `leftJoin` com `colonies`, porque
+"dono" só existe do lado de lá e `orderBy` num relacionamento Eloquent não alcança SQL.
+
+**D-98, PR #18** — Visão Geral ganha quatro abas: Panorama (números de topo + os dois cards de
+alerta), Últimos atos, Colônias, Logística. Escolha própria do agrupamento — o pedido não
+especificou.
+
+**D-99, PR #19** — Missões ganha três abas: Missões Catálogo (nova — visão geral por molde:
+sorteada/concluída/rejeitada/ativa vigente/ativa vencida, o que "sorteada: N×" sozinho não
+dizia), Criar um Molde (com a categoria "eventuais" nova) e O Baralho (com sub-abas por
+categoria). A lista de categorias, que vivia solta em três lugares (a tela, a validação, e
+nenhum enum no banco), virou `MissionTemplate::CATEGORIAS`, fonte única.
+
+**Item 4 (link de mensagem privada no card de busca do Chat) não precisou de código** —
+investigação confirmou que `Chat.tsx`/`Mapa.tsx` já passavam `aoConversar` para `InfoJogador`,
+que já renderizava o botão. O pedido já estava implementado.
+
+Ver **D-96** a **D-99** completos em `docs/decisoes.md`.
+
+**Validado antes de cada merge:** suíte de backend completa (601 → 604/605/607/611 testes,
+conforme o branch), migração do D-96 testada num MariaDB 11 efêmero em container local (up +
+rollback limpos — os outros três não mudam schema), `npx tsc -b`/lint/build limpos, e2e completo
+(8 arquivos) rodado uma vez no `main` já com os quatro branches mesclados, antes do deploy.
+
+**Para retomar isto:** não há mais pendência — os cinco itens são o estado normal do painel
+agora.
+
 ## O trabalho anterior: zonas neutras + Drone (D-52)
 
 Leia **D-52**. Sequência decidida: Fatia 1 = o núcleo (ocupar/extrair/retirar); Fatia 2 = a guerra

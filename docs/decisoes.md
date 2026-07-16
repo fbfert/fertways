@@ -4211,3 +4211,167 @@ responder sem nunca marcar como feito (uma dúvida, que não tem "feito" nenhum 
   responder grava, marca lida E manda o aviso pelo rádio com o remetente certo.
 - Validado: 597 testes (SQLite e MariaDB 10.5 efêmero em container local), round-trip de
   migrations limpo nos dois, lint, build, e2e completo (inclui o fluxo de envio em `telas.e2e.mjs`).
+
+## D-96 — Economia: Ofertas Globais, Extrato do Governo e Extrato Colonos.
+**Data:** 2026-07-16 · **Status:** arbitrado pelo usuário · **Feature nova, não do GDD**
+
+Pedido do usuário: em `/central/admin` → Economia, três abas novas — Ofertas Globais (o livro do
+Mercado Central inteiro, todo colono e o Governo, com paginação/filtro/busca), Extrato do Governo
+(log das operações financeiras do Governo em Fert$ e recursos) e Extrato Colonos (o mesmo log,
+mas de todos os jogadores juntos). "Siga as suas recomendações" — sem perguntas.
+
+### O Tesouro não tinha histórico. Uma tabela nova, não `ledger.colony_id` nullable.
+
+Investigação: `Tesouro` (`app/Domain/Treasury/Tesouro.php`) só guardava o SALDO corrente em
+`treasury_holdings` — nenhuma das suas seis operações que mexem no caixa (`distribuir`,
+`creditarFert`, `creditarRecurso`, `gastar`, `debitar`, `creditar`) escrevia um lançamento do
+lado do Tesouro. `distribuir()` já lançava no `ledger` da colônia DESTINO, mas nunca do lado de
+quem mandou.
+
+Duas formas de resolver: (a) imitar o D-87 (que tornou `market_orders.colony_id` nullable para
+representar "o Governo") e fazer `ledger.colony_id` aceitar null; (b) uma tabela nova,
+`treasury_ledger`, sem dimensão de colônia nenhuma — o Tesouro é um singleton, exatamente como
+`treasury_holdings` e `kit_inicial_settings` já são.
+
+**Escolhida (b).** `ledger.colony_id` é `NOT NULL` numa tabela "regra de ouro" (append-only,
+`cascadeOnDelete`) já em produção com histórico real — alterar essa constraint ao vivo carrega um
+risco de migração que o problema não pede, e o Laravel nem tem `doctrine/dbal` instalado para um
+`->nullable()->change()` sem dor. Uma tabela nova isola o risco a zero: se algo saísse errado, é
+uma tabela vazia nova, não um `ALTER` numa tabela viva.
+
+### O que mudou no código
+
+- Migration `2026_07_16_150000_create_treasury_ledger_table`: `id`, `type`
+  (credito/debito/distribuicao), `amount` (assinado), `resource_type` nullable (null = Fert$,
+  mesma convenção do `ledger`), `ref`, `created_at` — sem `updated_at`, sem FK.
+- `App\Models\TreasuryLedger` (novo): mesmo guarda append-only do `Ledger` (bloqueia
+  `update`/`delete` no `booted()`).
+- `Tesouro.php`: cada método que move o caixa (`creditarRecurso`, `creditarFert`, `gastar`,
+  `debitar`, `creditar`, e o lado do Tesouro em `distribuir`) ganha um `?string $ref = null`
+  opcional e grava no `treasury_ledger` via um novo `lancarTesouro()` privado — espelho do
+  `lancar()` que já existia, mas do lado de quem tem o caixa. Todo call site (venda no Mercado,
+  tributo de mercado e de transporte, tarifa do Pátio, fabricação/venda de caminhão, frete
+  público, compra de Nióbio, oferta do Governo) passa um `$ref` com o contexto — 12 pontos de
+  chamada tocados, nenhum quebrado (parâmetro é opcional, comportamento anterior sobrevive).
+- `PainelController::economia()`: três `if ($aba === ...)` novos, mesmo padrão `?aba=` das outras
+  telas do admin — Ofertas Globais lê `MarketOrder::query()` sem o filtro `aberta/parcial` que a
+  aba Mercado usa (aqui é o livro inteiro), Extrato do Governo lê `TreasuryLedger`, Extrato
+  Colonos lê `Ledger::query()->with('colony')` — precisou de um `Ledger::colony(): BelongsTo`
+  novo, que a classe nunca tinha (só o `colony_id` cru).
+- `economia.blade.php`: três seções novas, filtros por texto/tipo/recurso/data, paginação
+  (`->paginate(30)->withQueryString()`), mesma convenção visual das abas existentes.
+- `tests/Feature/AdminEconomiaExtratosTest.php` (novo, 6 casos).
+- Validado: 607 testes de backend (SQLite), migração testada num MariaDB 11 efêmero em container
+  local (up + rollback limpos), e2e completo.
+
+## D-97 — Transportes: 3 sub-abas, busca por Dono e ordenação na Frota do Planeta.
+**Data:** 2026-07-16 · **Status:** arbitrado pelo usuário · **Feature nova, não do GDD**
+
+Pedido do usuário: em `/central/main` (leia-se `/central/admin`, mesma tela) → Transportes,
+separar em abas — Ministério dos Transportes, Garagem do Governo, Frota do Planeta — e na Frota
+do Planeta, buscar por Dono e ordenar clicando no cabeçalho da tabela (Placa, Tipo, Dono,
+Situação, Conservação, Teto, Manut., Uso).
+
+### A busca e a ordenação por Dono exigem `JOIN`, não `with()`
+
+`Vehicle belongsTo Colony`, mas o "dono" só existe do lado de `colonies.name` — um `orderBy` num
+relacionamento Eloquent não alcança SQL nenhum (`with()` resolve depois, em memória, tarde demais
+para paginar). `PainelController::transportes()` faz `leftJoin('colonies', ...)` (`leftJoin`, não
+`join`: veículo sem dono — a Frota Governamental — tem de continuar aparecendo) e usa
+`select('vehicles.*')` para não colidir colunas homônimas entre as duas tabelas.
+
+### A ordenação por cabeçalho é opt-in, não substitui o padrão
+
+Sem `?sort=`, a lista continua ordenada como sempre foi — placa, sem placa por último. Cada
+cabeçalho de coluna é um link que, clicado, ordena por aquela coluna; clicado de novo, inverte a
+direção. O mapa `coluna slug → coluna SQL` é uma whitelist (`$ordenaveis`), não a string do
+usuário direto num `orderBy` — nunca houve intenção de expor SQL injection por querystring, mas a
+whitelist também documenta exatamente o que é ordenável.
+
+### O que mudou no código
+
+- `PainelController::transportes()`: `?aba=` com `ministerio`/`garagem`/`frota`, cada um só busca
+  os dados que a própria aba precisa (a config do Ministério não carrega a frota inteira, e
+  vice-versa). A Frota ganha `?dono=`, `?sort=`, `?dir=`.
+- `transportes.blade.php`: nav de abas (mesmo padrão de `economia.blade.php`), cabeçalhos da
+  Frota viram links (`$ordenarPor()`), com seta ▲/▼ indicando a coluna e direção atuais.
+- `tests/Feature/AdminPainel2Test.php`: os testes de frota que assumiam a página antiga (sem
+  `aba`) foram ajustados para `?aba=frota`; +3 casos novos (as três abas existem, busca por dono,
+  ordenação por cabeçalho).
+- Validado: 604 testes de backend. Sem mudança de schema — sem round-trip de migration.
+
+## D-98 — Visão Geral: separa em abas.
+**Data:** 2026-07-16 · **Status:** arbitrado pelo usuário · **Feature nova, não do GDD**
+
+Pedido do usuário: em `/central/main` → Visão Geral, separar por abas também — sem indicar o
+agrupamento. Escolha própria: Panorama (os números de topo + os dois cards de alerta — feedback
+não lido do D-95, recurso sem oferta do Governo do D-87 — porque é o primeiro lugar que se olha),
+Últimos atos, Colônias, Logística (fila de obras + zonas ocupadas).
+
+A página crescia sem parar a cada seção nova que entrava (D-87, D-95...) e empurrava tudo para
+baixo da dobra — o mesmo problema que já tinha motivado o D-61 a quebrar o painel inteiro em
+telas por seção. Os últimos atos, sem mais o limite de 8 pensado para caber ao lado de tudo mais
+numa página só, sobem para 20 — agora tem aba própria, com espaço de sobra.
+
+### O que mudou no código
+
+- `PainelController::dashboard()`: `?aba=` com `panorama`/`atos`/`colonias`/`logistica`, cada
+  aba só monta os dados que usa.
+- `dashboard.blade.php`: nav de abas; os dois cards de alerta continuam condicionais (só aparecem
+  quando há algo a fazer), mas agora só dentro do Panorama.
+- `tests/Feature/AdminDashboardAbasTest.php` (novo, 3 casos).
+- Validado: 605 testes de backend. Sem mudança de schema.
+
+## D-99 — Missões: 3 sub-abas, categoria Eventuais e visão geral do catálogo.
+**Data:** 2026-07-16 · **Status:** arbitrado pelo usuário · **Feature nova, não do GDD**
+
+Pedido do usuário: em `/central/main` → Missões, separar em abas — Missões Catálogo (com uma
+visão geral "com o máximo de informações possíveis"), Criar um Molde (com a categoria Eventuais
+nova) e O Baralho (este, em sub-abas por categoria).
+
+### A categoria vivia solta em três lugares — agora é uma só
+
+`categoria` de missão não tinha enum nenhum no banco (`string(10)`, sem constraint) e a lista de
+valores válidos existia em três lugares independentes: o array `$nomeCategoria` de
+`missoes.blade.php`, o `Rule::in(['tutoria', 'diaria', 'semanal'])` de
+`AcoesController::validarMissao()`, e nenhum terceiro lugar formal — mas era fácil editar um sem
+lembrar do outro. `MissionTemplate::CATEGORIAS` (novo, `slug => rótulo`) é agora a única fonte;
+os outros dois passam a ler dali. "Eventuais" (9 caracteres, cabe no `string(10)` sem migration)
+é para o que não tem ciclo — evento, sazonal, lançamento — e não entra no sorteio automático
+(`Atribuir::tutoria()`/`garantir()` continuam só olhando tutoria/diaria/semanal); um molde
+eventual existe para atribuição manual/futura, não para o pool diário.
+
+### A visão geral do catálogo: o que "sorteada: N×" não dizia
+
+Antes, o baralho só mostrava quantas vezes um molde tinha sido sorteado — não como aquilo tinha
+terminado. Missões Catálogo (aba nova) agrupa `MissionAssignment` por `template_id` e `status`,
+e soma à parte quantas atribuições `ativa` ainda estão dentro do prazo (`scopeAtiva`) contra
+quantas já venceram sem ninguém ter voltado a olhar — a diferença entre um molde que funciona
+(concluída na maioria) e um que é ignorado.
+
+### O que mudou no código
+
+- `App\Models\MissionTemplate::CATEGORIAS` (novo const).
+- `AcoesController::validarMissao()`: `Rule::in(array_keys(MissionTemplate::CATEGORIAS))`.
+- `PainelController::missoes()`: `?aba=` com `catalogo`/`criar`/`baralho`; `baralho` ganha
+  `?cat=` para a sub-aba de categoria; `catalogo` monta os agregados por status.
+- `missoes.blade.php`: nav de abas, sub-nav dentro de O Baralho, tabela nova em Missões Catálogo.
+- `tests/Feature/MissoesAdminTest.php`: +4 casos (as três abas existem, "eventuais" é categoria
+  válida, o baralho separa por categoria, a visão geral aparece).
+- Validado: 611 testes de backend. Sem mudança de schema.
+
+### O item 4 (Chat: link de mensagem privada no card de busca) não precisou de código
+
+Investigação: `Chat.tsx` e `Mapa.tsx` já passavam `aoConversar` para `InfoJogador`, que já
+renderiza o botão de conversa direta sempre que `info` e `aoConversar` existem — o pedido já
+estava implementado (o link de "Conversar" no popup de busca do Chat já existia). Nenhuma
+alteração de código foi necessária; confirmado por leitura direta, não por suposição.
+
+### O batch inteiro
+
+Os cinco itens vieram numa instrução só, com uma ordem explícita: **construir tudo sem
+perguntas, publicar tudo só ao final**. Cada item ganhou seu próprio branch/PR (D-96 a D-99,
+mais o item 4 sem branch — não havia o que mudar), mas o merge dos quatro branches, o deploy
+(`sudo ./tools/deploy.sh`) e este mesmo registro só aconteceram depois que os cinco estavam
+prontos — a publicação incremental de D-93/94/95 (a leva anterior) foi a exceção, não a regra
+daqui em diante quando o pedido disser isso explicitamente.
