@@ -760,7 +760,7 @@ class AcoesController extends Controller
     {
         $dados = $request->validate([
             'chave' => ['required', 'string', 'max:40', 'alpha_dash', Rule::unique('mission_templates', 'chave')->ignore($ignorarId)],
-            'categoria' => ['required', Rule::in(['tutoria', 'diaria', 'semanal'])],
+            'categoria' => ['required', Rule::in(array_keys(\App\Models\MissionTemplate::CATEGORIAS))],
             'titulo' => ['required', 'string', 'max:80'],
             'descricao' => ['required', 'string', 'max:200'],
             'acao' => ['required', Rule::in(array_keys(\App\Domain\Missoes\Acoes::TODAS))],

@@ -247,6 +247,66 @@ class MissoesAdminTest extends TestCase
         $this->actingAs($this->operador(), 'admin')->get('/admin/missoes')
             ->assertOk()
             ->assertSee('Missões — o catálogo')
-            ->assertSee('Criar um molde');
+            ->assertDontSee('Criar um molde');
+    }
+
+    // ---------------------------------------------------------------- as abas (D-96)
+
+    public function test_as_tres_abas_existem(): void
+    {
+        $admin = $this->operador();
+
+        $this->actingAs($admin, 'admin')->get('/admin/missoes?aba=criar')
+            ->assertOk()->assertSee('Criar um molde');
+
+        $this->actingAs($admin, 'admin')->get('/admin/missoes?aba=baralho')
+            ->assertOk()->assertSee('O baralho');
+    }
+
+    public function test_eventuais_e_uma_categoria_valida(): void
+    {
+        $this->actingAs($this->operador(), 'admin')->post('/admin/missoes', [
+            'chave' => 'evento_lancamento', 'categoria' => 'eventuais', 'titulo' => 'Evento',
+            'descricao' => 'Missão de lançamento.', 'acao' => 'despacho', 'meta' => 1,
+        ])->assertRedirect();
+
+        $this->assertDatabaseHas('mission_templates', ['chave' => 'evento_lancamento', 'categoria' => 'eventuais']);
+    }
+
+    public function test_o_baralho_separa_por_categoria(): void
+    {
+        $this->molde(['chave' => 'diaria_x', 'categoria' => 'diaria', 'titulo' => 'Diária X']);
+        $this->molde(['chave' => 'semanal_x', 'categoria' => 'semanal', 'titulo' => 'Semanal X']);
+
+        $resp = $this->actingAs($this->operador(), 'admin')
+            ->get('/admin/missoes?aba=baralho&cat=diaria')
+            ->assertOk()
+            ->assertSee('Diária X')
+            ->assertDontSee('Semanal X');
+    }
+
+    public function test_a_visao_geral_do_catalogo_conta_por_status(): void
+    {
+        $m = $this->molde();
+        $colonyA = $this->colonia();
+        $colonyB = $this->colonia();
+
+        MissionAssignment::create([
+            'colony_id' => $colonyA->id, 'template_id' => $m->id, 'categoria' => 'diaria',
+            'acao' => $m->acao, 'progresso' => 1, 'meta' => 1, 'status' => 'concluida',
+            'expires_at' => now()->addDay(), 'concluded_at' => now(), 'created_at' => now(),
+        ]);
+        MissionAssignment::create([
+            'colony_id' => $colonyB->id, 'template_id' => $m->id, 'categoria' => 'diaria',
+            'acao' => $m->acao, 'progresso' => 0, 'meta' => 1, 'status' => 'ativa',
+            'expires_at' => now()->addDay(), 'created_at' => now(),
+        ]);
+
+        $resp = $this->actingAs($this->operador(), 'admin')
+            ->get('/admin/missoes?aba=catalogo')
+            ->assertOk();
+
+        $conteudo = $resp->getContent();
+        $this->assertStringContainsString('data-catalogo-molde="teste_molde"', $conteudo);
     }
 }
