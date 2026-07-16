@@ -1077,6 +1077,33 @@ publicar.
 
 **Para retomar isto:** não há mais pendência — é o estado normal do painel de admin agora.
 
+## O painel da Indústria Siderúrgica dizia "Produz por hora: Metal Bruto" — **PR aberto, NÃO mesclado, NÃO publicado** (2026-07-16)
+
+Queixa do usuário: a Indústria Siderúrgica parecia estar **produzindo** Metal Bruto, quando ela
+deveria **consumi-lo** para produzir Ligas Metálicas e os cinco minerais eletrônicos (D-82). A
+regra de negócio nunca esteve errada — `TickColoniesTest`/`ZonaLugarTest` já cobriam, e continuam
+cobrindo, que o tick debita Metal Bruto e credita as seis saídas em lotes de 1000 — o bug era só
+na tela, e só nela: `ColonyTick.php` reaproveita a chave `metal_bruto` de `producao_hora_json`
+(a mesma da Mina Local) para guardar a taxa de **processamento** da Siderúrgica, não uma
+produção. `BuildingController::specs()` devolvia esse JSON verbatim como `producao_hora` para
+qualquer construção, sem saber da diferença — e o painel (`OQueFaz` em `Hud.tsx`) lia esse campo e
+escrevia "Produz por hora: Metal Bruto: 15", o oposto do que a nota logo abaixo, no mesmo painel,
+já dizia em prosa.
+
+**A correção:** `BuildingController::specs()` agora zera `producao_hora` e move o número para um
+campo novo, `insumo_hora`, quando o tipo é `industria_siderurgica`. `OQueFaz` ganha uma seção
+"Processa por hora" para `insumo_hora`, ao lado (não no lugar) de "Produz por hora" — as duas
+podem coexistir no futuro, se algum dia uma construção produzir E consumir insumo ao mesmo tempo.
+
+**Validado:** teste novo, `SlotsDaColoniaTest::test_a_siderurgica_nao_aparece_como_produtora_de_metal_bruto`,
+crava `producao_hora` nulo e `insumo_hora.metal_bruto = 15` no nível 1. Suíte completa (563
+testes), `npx tsc -b`/lint/build e e2e completo — todos verdes antes de abrir o PR. Nenhum teste
+existente (backend ou e2e) assumia o texto antigo — o painel da zona (onde a Siderúrgica também
+pode existir) usa só a `nota` estática, nunca `producao_hora`, então não foi tocado.
+
+**Para retomar isto:** olhe o PR no GitHub — se a CI vier verde, está pronto para mesclar e
+publicar.
+
 ## O trabalho anterior: zonas neutras + Drone (D-52)
 
 Leia **D-52**. Sequência decidida: Fatia 1 = o núcleo (ocupar/extrair/retirar); Fatia 2 = a guerra

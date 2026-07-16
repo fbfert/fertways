@@ -205,6 +205,8 @@ function ReceitaDaOficina({ spec, aoAtualizar }: { spec: Spec; aoAtualizar: () =
 function OQueFaz({ funcao, atual, proximo }: { funcao: Funcao; atual: Efeito | null; proximo: Efeito | null }) {
   const producao = atual?.producao_hora ?? null
   const proxima = proximo?.producao_hora ?? null
+  const insumo = atual?.insumo_hora ?? null
+  const proximoInsumo = proximo?.insumo_hora ?? null
 
   return (
     <>
@@ -225,6 +227,29 @@ function OQueFaz({ funcao, atual, proximo }: { funcao: Funcao; atual: Efeito | n
                   {v.toLocaleString('pt-BR')}
                   {proxima?.[c] !== undefined && proxima[c] !== v && (
                     <span className="text-rust text-xs"> → {proxima[c].toLocaleString('pt-BR')}</span>
+                  )}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* O que ela PROCESSA (consome como insumo), não produz — a Siderúrgica (D-82). */}
+      {insumo && (
+        <div className="mt-3">
+          <div className="text-ink-soft eyebrow">Processa por hora</div>
+          <div className="mt-1">
+            {Object.entries(insumo).map(([c, v]) => (
+              <div
+                key={c}
+                className="border-rust/10 flex items-center justify-between border-b py-1.5 last:border-0"
+              >
+                <span className="text-ink-soft text-sm">{nomeRecurso(c)}</span>
+                <span className="text-ink font-bold tabular-nums">
+                  {v.toLocaleString('pt-BR')}
+                  {proximoInsumo?.[c] !== undefined && proximoInsumo[c] !== v && (
+                    <span className="text-rust text-xs"> → {proximoInsumo[c].toLocaleString('pt-BR')}</span>
                   )}
                 </span>
               </div>
