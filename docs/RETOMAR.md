@@ -1250,6 +1250,42 @@ estado normal do painel agora.
 **Para retomar isto:** olhe o PR no GitHub — se a CI vier verde, está pronto para mesclar e
 publicar.
 
+## Seis ajustes no HUD e no Mapa, o extrato bancário, e Bugs/Melhorias (D-93/D-94/D-95) — **mesclados e no ar** (2026-07-16)
+
+Três PRs pequenos, pedidos na mesma leva ("Correções Visuais e Funcionais"), mesclados e
+publicados juntos.
+
+**D-93, commit `4c8416a`** — Sair do mesmo tamanho do Perfil (o wrapper do dropdown de
+confirmação não estava esticando o botão dentro dele); card do Marco ao lado do Fert$; atalho
+para a Capital ao lado do Mapa; busca do Chat casando nome de colônia, não só nickname;
+"Conversar" direto no painel da colônia do Mapa; `FormularioDeCarga` do Mercado com 3 linhas por
+padrão. Um bug de e2e no caminho: o botão "Conversar" novo usava `data-conversar`, a mesma marca
+que `InfoJogador.tsx` já usava — os dois convivem na tela ao mesmo tempo, e o seletor virou
+ambíguo. Renomeado para `data-conversar-direto`.
+
+**D-94, commit `ec78207`** — o extrato bancário: clicar no valor/palavra "Fert$" do card do HUD
+abre um popup com os lançamentos em Fert$ da colônia (`resource_type IS NULL` no ledger, não o
+ledger inteiro). `GET /profile/extrato`, paginado, mais recente primeiro.
+
+**D-95, commit `cc9a035`** — Bugs/Melhorias: formulário ao lado do Chat (tipo, assunto,
+mensagem), dados do jogador/colônia/e-mail anexados pelo servidor. Aba nova em
+`/central/admin` → Bugs/Melhorias: lista com filtros, marcar lida/não lida, responder (avisa o
+jogador pelo rádio, remetente "Capital" — reusa o D-91), marcar como FEITO. Card na Visão Geral
+quando há mensagem não lida. Um bug pego pelos testes: a migration criou `feedbacks` (plural),
+mas `Feedback` é um dos substantivos que o Eloquent NÃO pluraliza — o model procurava `feedback`
+(singular). Corrigido antes de qualquer teste passar.
+
+Ver **D-93**, **D-94** e **D-95** completos em `docs/decisoes.md`.
+
+**Validado antes de cada merge:** suíte de backend completa (588 → 592 → 597 → 601 testes, ao
+longo dos três), round-trip de migrations limpo em SQLite e MariaDB 10.5 efêmero (container
+local), `npx tsc -b`/lint/build limpos, e2e completo (8 arquivos) em cada um — com rebase e
+revalidação completa a cada merge anterior, porque os três tocavam `App.tsx`/`docs/decisoes.md`
+e cada merge exigia resolver o próximo contra o `main` que acabara de mudar.
+
+**Para retomar isto:** não há mais pendência — os seis ajustes, o extrato e o Bugs/Melhorias são
+o estado normal do jogo agora.
+
 ## O trabalho anterior: zonas neutras + Drone (D-52)
 
 Leia **D-52**. Sequência decidida: Fatia 1 = o núcleo (ocupar/extrair/retirar); Fatia 2 = a guerra
