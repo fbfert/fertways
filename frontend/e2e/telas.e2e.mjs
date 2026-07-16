@@ -42,6 +42,18 @@ try {
     'o HUD não tem mais botão de Frota: ela mudou para dentro da Central de Transportes (D-59)',
   )
 
+  // ---------------------------------------------------------------- o extrato bancário (D-94)
+  console.log('\nClicar no Fert$ do HUD abre o extrato bancário')
+  await page.click('[data-abrir-extrato]')
+  checar(await esperarTexto(page, /Extrato bancário/), 'o popup do extrato abre')
+  checar(
+    await esperarTexto(page, /Saldo inicial/),
+    'o saldo inicial da fundação aparece, traduzido — não o slug cru',
+  )
+  checar(await esperarTexto(page, /\+100,00/), 'o saldo inicial mostra +100,00, positivo')
+  await page.click('[data-fechar-popup]')
+  checar(!(await page.$('[data-popup]')), 'o extrato fecha')
+
   // ---------------------------------------------------------------- Mapa
   console.log('\nAbre o Mapa')
   await (await acharPorTexto(page, 'button', /^Mapa$/)).click()

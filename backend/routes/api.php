@@ -29,6 +29,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // O perfil do colono (D-69). Ele podia guerrear e não podia trocar a própria senha.
     Route::get('/profile', [ProfileController::class, 'show']);
+    Route::get('/profile/extrato', [ProfileController::class, 'extrato']);
     Route::patch('/profile', [ProfileController::class, 'update']);
     Route::post('/profile/password', [ProfileController::class, 'password']);
 

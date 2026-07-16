@@ -361,6 +361,22 @@ export type Perfil = {
   marco: Marco | null
 }
 
+/** Uma linha do extrato bancário — só Fert$, nunca recurso (o card de Fert$ do HUD abre isto). */
+export type Lancamento = {
+  id: number
+  tipo: string
+  fert: number
+  ref: string
+  quando: string
+}
+
+export type Extrato = {
+  lancamentos: Lancamento[]
+  pagina_atual: number
+  ultima_pagina: number
+  total: number
+}
+
 /** Uma missão na sua mão (§06; D-78). Concluir paga na hora — não há botão de resgate. */
 export type Missao = {
   id: number
@@ -942,6 +958,9 @@ export const api = {
   // ── o perfil do colono (D-69) ───────────────────────────────────────────────────────────────
 
   perfil: () => req<Perfil>('/profile'),
+
+  /** O extrato bancário: só Fert$. Aberto ao clicar no card de saldo do HUD. */
+  extrato: (pagina = 1) => req<Extrato>(`/profile/extrato?page=${pagina}`),
 
   /** Trocar o e-mail exige a senha atual: é com ele que se entra, e não há recuperação de conta. */
   salvarPerfil: (dados: {

@@ -4124,3 +4124,32 @@ para `data-conversar-direto`.
   eram ignoradas na montagem da carga — nada mudou na validação.
 - Validado: `npx tsc -b`/lint/build limpos, e2e completo (8 arquivos) — vermelho nas duas
   primeiras corridas pelo bug do `data-conversar` acima, verde na terceira.
+
+## D-94 — O extrato bancário: só Fert$, aberto pelo card do HUD.
+**Data:** 2026-07-16 · **Status:** arbitrado pelo usuário · **Feature nova, não do GDD**
+
+Pedido do usuário: clicar no valor ou na palavra "Fert$" do card do HUD abre um extrato das
+transações do jogador. Não existia nenhuma tela de extrato para o colono — só o admin tinha essa
+visão, na ficha do jogador (`PainelController::jogador()`).
+
+**Escopo confirmado com o usuário: só Fert$, não o ledger inteiro da colônia.** O ledger também
+tem uma linha por unidade de recurso movimentada (produção, kit inicial, obras, comércio) — uma
+lista bem mais longa e menos "bancária". O filtro é `resource_type IS NULL`, a mesma convenção
+que todo lançamento em Fert$ já usa desde sempre (`saldo_inicial`, `estacionamento`,
+`venda_mercado`/`compra_mercado`, etc.) — nenhuma coluna nova, nenhuma migration.
+
+### O que mudou no código
+
+- `ProfileController::extrato()` + rota `GET /profile/extrato`: pagina (30 por página, mais
+  recente primeiro) o ledger da colônia filtrado por `resource_type IS NULL`, convertendo
+  `amount` de micro-Fert$ para Fert$ antes de responder — a mesma conversão que `ColonyController`
+  já faz para `colonia.fert`.
+- Frontend: `Extrato.tsx` (novo) — popup com a lista, paginação, e um mapa de rótulos humanos por
+  tipo de lançamento (`venda_mercado` → "Venda no Mercado"), com fallback para o slug
+  humanizado quando um tipo não está no mapa. `App.tsx`: o valor/palavra "Fert$" do card vira
+  botão que abre o popup — o resto do card (nome da colônia) continua sem clique, de propósito.
+- `tests/Feature/PerfilTest.php` (+4 casos): só Fert$ entra (recurso fica de fora), a conversão
+  micro→Fert$, a paginação (mais novo primeiro), e a exigência de colônia.
+- `telas.e2e.mjs`: o fluxo completo — clicar no Fert$, ver o saldo inicial traduzido e positivo,
+  fechar.
+- Validado: 592 testes de backend, `npx tsc -b`/lint/build limpos, e2e completo.
