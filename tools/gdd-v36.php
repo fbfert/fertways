@@ -6,11 +6,12 @@
  *
  *     /usr/bin/php84 tools/gdd-v36.php > ../../FERTWAYS_GDD_v36_CONSOLIDADO.html
  *
- * Atualizado até o D-83 (2026-07-15) — guerra (D-66/D-70), Drone (D-74), Marco (D-75),
+ * Atualizado até o D-92 (2026-07-16) — guerra (D-66/D-70), Drone (D-74), Marco (D-75),
  * Missões (D-78), Chat (D-77), a Capital em quatro áreas (D-63), os dois mercados (D-65),
- * Indústria Siderúrgica e a receita de Ligas/Compostos (D-82/D-83). Os D-84 a D-86 (teto e
- * upgrade de zona, manutenção territorial, kit inicial novo, histórico da zona) estão prontos
- * mas em PR aberto — ver a nota na seção 0.
+ * Indústria Siderúrgica e a receita de Ligas/Compostos (D-82/D-83), teto/upgrade/manutenção de
+ * zona (D-84), o kit inicial em tabela única e depois editável pelo admin (D-85/D-92), a zona em
+ * cinco abas com Histórico (D-86), o Governo vendendo no Mercado Central (D-87), e o Pátio
+ * chamando o veículo de volta vazio com aviso da Capital (D-91).
  *
  * ---
  *
@@ -36,6 +37,8 @@ $app = require __DIR__.'/../backend/bootstrap/app.php';
 $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
 
 use App\Domain\Building\Funcoes;
+use App\Domain\Capital\Patio;
+use App\Domain\Colony\KitInicial;
 use App\Domain\Colony\Slots;
 use App\Domain\Logistics\MapaFertways;
 use App\Domain\Logistics\VeiculoSpecs;
@@ -45,6 +48,7 @@ use App\Domain\Transport\Ministerio;
 use App\Models\Building;
 use App\Models\Colony;
 use App\Models\TransportSetting;
+use App\Models\Vehicle;
 use Illuminate\Support\Facades\DB;
 
 // ─────────────────────────────────────────────────────────────── helpers de marcação
@@ -108,6 +112,10 @@ function humano(string $slug): string
 $recursos = DB::table('resource_types')->orderBy('tax_class')->orderBy('nome')->get();
 $specs = DB::table('building_specs')->orderBy('building_type')->orderBy('level')->get();
 $config = TransportSetting::singleton();
+// O kit inicial (D-85) é editável pelo admin desde o D-92 — lido ao vivo, como o resto.
+$kitFertMicro = KitInicial::fertMicro();
+$kitRecursos = KitInicial::recursos();
+$kitFrota = KitInicial::frota();
 
 /*
  * Falha ALTO se uma construção nova não tiver nome próprio no mapa acima.
@@ -250,23 +258,13 @@ ob_start();
 </p>
 
 <div class="nota">
-  <b>Três decisões recentes ainda não estão aqui por completo: D-84, D-85 e D-86.</b> Estão
-  <b>prontas, testadas, em PR aberto — não mescladas, não publicadas.</b> Este gerador lê o
-  código ao vivo, e este documento foi gerado a partir do que já está em <code>main</code>; as
-  tabelas não podem mostrar números de código que ainda não existe ali. Em resumo, para quando
-  mesclarem:
-  <ul style="margin:8px 0 0">
-    <li><b>D-84</b> — teto de 5 zonas por jogador, upgrade de nível de zona (1 a 5, curva 1,65×
-        de custo e guarnição, 1,5× de tempo) e manutenção territorial do §27.12 ativada de
-        verdade pela primeira vez (decai a defesa 5%/dia sem pagar, abandona a zona em 72h).</li>
-    <li><b>D-85</b> — o kit inicial vira uma tabela só: <b>100 Fert$</b> e um valor fixo para os
-        26 recursos do catálogo, substituindo os 50 F$ do GDD, os raros calculados do D-17 e o
-        kit fixo do D-57. Quebra o "muro de progressão" de propósito para Nióbio e Quartzo — só
-        se consegue com o governo.</li>
-    <li><b>D-86</b> — a zona vira cinco abas (identidade+planta+upgrade, Depósito, Canteiro,
-        Guarnição, Histórico), o Canteiro pergunta a obra antes do recurso, e o chat privado
-        abre a partir do nome do dono no mapa.</li>
-  </ul>
+  <b>Duas decisões recentes não mudam regra de jogo — mudam só a tela — e por isso não têm
+  seção própria neste documento</b>, que descreve mecânica, não interface: o ícone de Sair e a
+  ordem da lateral da colônia (D-88), e o painel da Indústria Siderúrgica deixar de dizer que
+  "produz" o Metal Bruto que na verdade processa (correção de exibição, sem D-nn). O D-86 (zona
+  em cinco abas, Canteiro que pergunta a obra, Histórico novo) é, na maior parte, a mesma
+  história — é UI —, mas o Histórico é conteúdo de jogo novo (uma linha do tempo da zona que não
+  existia) e está registrado em <span class="d">§8.6</span>.
 </div>
 
 <nav class="indice">
@@ -522,16 +520,46 @@ ob_start();
   valor a cada transação. <span class="d">D-07</span> <?= entregue() ?>
 </p>
 
-<p>Todo colono começa com <b><?= n(Colony::SALDO_INICIAL_MICRO / Colony::MICRO_POR_FERT) ?> F$</b>, mais um kit fixo de recursos <span class="d">D-57</span>.</p>
+<h3>3.2.1 O kit inicial <span class="d">D-85, D-92</span></h3>
+
+<p>
+  Toda colônia nova recebe <b><?= n($kitFertMicro / Colony::MICRO_POR_FERT) ?> F$</b>, um valor
+  fixo por recurso do catálogo, e a frota abaixo. Uma tabela única, substituindo de vez os 50 F$
+  do GDD, os raros calculados do "muro de progressão" (D-17) e o kit fixo do D-57.
+</p>
+
+<table>
+  <tr><th>Recurso</th><th>Classe</th><th class="num">Quantidade no kit</th></tr>
+  <?php foreach ($recursos as $r): ?>
+  <tr>
+    <td><?= e($r->nome) ?></td>
+    <td><?= e($r->tax_class) ?></td>
+    <td class="num"><?= n($kitRecursos[$r->code] ?? 0) ?></td>
+  </tr>
+  <?php endforeach; ?>
+</table>
+
+<p style="margin-top:10px">
+  Frota do kit:
+  <?php foreach ($kitFrota as $tipo => $qtd): ?>
+    <b><?= n($qtd) ?>× <?= e(humano($tipo)) ?></b><?= $tipo !== array_key_last($kitFrota) ? ', ' : '' ?>
+  <?php endforeach; ?>.
+</p>
+
+<div class="nota grave">
+  <b>O muro de progressão quebra de propósito</b> <span class="d">D-85</span>. Nióbio Alienígena e
+  Quartzo Piezoelétrico não são produzíveis no jogo — só o governo vende —, e o kit dá menos do
+  que a Torre de Defesa + Quartel (juntas, 5 Nióbio) e a Refinaria Química + Antena de Comunicação
+  (juntas, 3 Quartzo) exigem. As duas ficam trancadas para quem acabou de fundar, até negociar com
+  o governo. Decisão confirmada, não lacuna.
+</div>
 
 <div class="nota">
-  <b>Isto está prestes a mudar (D-85, PR aberto).</b> O kit inicial vira uma tabela só — 100 F$
-  e um valor fixo para os 26 recursos do catálogo — substituindo de vez os 50 F$ acima, os raros
-  calculados do "muro de progressão" (D-17) e o kit fixo do D-57. A nova tabela dá <b>0 Nióbio
-  Alienígena</b> e <b>2 Quartzo Piezoelétrico</b> de propósito: nenhum dos dois é produzível no
-  jogo, e a Torre de Defesa + Quartel (juntas, 5 Nióbio) e uma das duas entre Refinaria
-  Química/Antena de Comunicação (juntas, 3 Quartzo) ficam trancadas até o colono comprar do
-  governo — decisão confirmada, não lacuna. Só vale para quem funda depois do deploy.
+  <b>Este kit é editável pelo admin, sem deploy</b> <span class="d">D-92</span>, em
+  <code>/central/admin</code> → Operação → Kit inicial — Fert$, os 26 recursos e a quantidade de
+  cada veículo. Os números acima são os que estão valendo <b>agora</b> (o gerador lê o banco ao
+  vivo), mas podem ter mudado desde a última vez que este documento foi gerado. Só vale para quem
+  funda DEPOIS de uma mudança — sem backfill, mesma regra desde o D-85.
 </div>
 
 <h3>3.3 O ledger — a regra de ouro</h3>
@@ -653,14 +681,14 @@ ob_start();
     <td class="num"><?= n(VeiculoSpecs::CAPACIDADE['furgao_de_comercio']) ?> un. (6 m³)</td>
     <td class="num">4 slots/min</td>
     <td class="num">1 kW/h por min</td>
-    <td><?= entregue() ?> — vem no kit inicial</td>
+    <td><?= entregue() ?> — <?= n($kitFrota['furgao_de_comercio'] ?? 0) ?>× no kit inicial <span class="d">D-92</span></td>
   </tr>
   <tr>
     <td><b>Caminhão de Carga</b></td>
     <td class="num"><?= n(VeiculoSpecs::CAPACIDADE['caminhao_de_carga']) ?> un. (30 m³)</td>
     <td class="num">1,5 slots/min</td>
     <td class="num">3 kW/h por min</td>
-    <td><?= entregue() ?> — comprado no Ministério</td>
+    <td><?= entregue() ?> — <?= n($kitFrota['caminhao_de_carga'] ?? 0) ?>× no kit, comprado no Ministério <span class="d">D-92</span></td>
   </tr>
   <tr><td>Drone de Exploração</td><td class="num">não carrega</td><td class="num">8 slots/min</td><td class="num">bateria, não energia</td><td><?= entregue() ?> <span class="d">D-74</span></td></tr>
   <tr><td>Nave de Transporte Planetária</td><td class="num">4.000 un.</td><td class="num">10 slots/min</td><td class="num">Gelo de Metano</td><td><?= promessa('Fora do MVP') ?></td></tr>
@@ -801,6 +829,23 @@ ob_start();
   Trocamos a descoberta de preço pela visibilidade, conscientemente. <?= entregue() ?>
 </p>
 
+<h3>6.2.1 O Governo vende, na mesma vitrine <span class="d">D-87</span></h3>
+
+<p>
+  O Tesouro pode ofertar recursos direto na vitrine do Mercado Central, ao lado dos colonos — a
+  aba <b>Mercado</b> de <code>/central/admin</code> → Economia. O número que o admin digita por
+  recurso não <i>soma</i> ao que já está anunciado: <b>é quanto deve estar à venda AGORA</b>. Subir
+  reserva mais do Tesouro; descer devolve a diferença; zerar cancela a oferta. O admin não pode
+  ofertar mais do que o Tesouro de fato tem.
+</p>
+
+<p>
+  Não existe uma "colônia do Governo" fingida no mapa — a oferta é uma linha comum de
+  <code>market_orders</code> com dono nulo, e a vitrine mostra "Governo" no lugar do nome. Uma
+  colônia sintética apareceria (por engano) como alvo de guerra e como vizinha no diretório de
+  todo mundo; isso foi evitado de propósito.
+</p>
+
 <h3>6.3 Teto do depósito da Capital</h3>
 
 <table>
@@ -831,8 +876,10 @@ ob_start();
 
 <table>
   <tr><th>Regra</th><th>Valor</th></tr>
-  <tr><td>Cobrança</td><td><b>0,005 F$/hora</b>, por veículo, hora cheia, sem limite de vagas — vai ao Tesouro</td></tr>
+  <tr><td>Cobrança</td><td><b><?= n(Patio::TARIFA_MICRO_HORA / Colony::MICRO_POR_FERT, 3) ?> F$/hora</b>, por veículo, hora cheia, sem limite de vagas — vai ao Tesouro</td></tr>
   <tr><td>Sem Fert$ para pagar</td><td>O veículo é <b>rebocado de graça</b> para casa — nunca fica refém</td></tr>
+  <tr><td>Chamar de volta, vazio, por vontade própria</td><td>Paga a energia da distância, como qualquer despacho — mas <b>não</b> exige Confiança Comercial: é reaver o próprio veículo, não usar o Mercado <span class="d">D-91</span></td></tr>
+  <tr><td>Aviso da Capital</td><td>Uma mensagem no rádio (chat), de "Capital", ao estacionar e a cada 24h que continuar lá — diz a tarifa e lembra de chamá-lo de volta <span class="d">D-91</span></td></tr>
   <tr><td>Sobra de carga (depósito lotou)</td><td>O veículo volta na hora com o excedente, sem estacionar</td></tr>
   <tr><td>Energia da ida só</td><td><b>Metade</b> da viagem normal — ele não faz a volta</td></tr>
 </table>
@@ -1065,13 +1112,13 @@ ob_start();
   que esconder — só quem já foi ocupada guarda segredo.
 </div>
 
-<h3>8.6 Upgrade de nível e manutenção territorial <span class="d">D-84, PR aberto</span></h3>
+<h3>8.6 Upgrade de nível e manutenção territorial <span class="d">D-84</span></h3>
 
-<div class="nota">
-  <b>Pronto, testado, ainda não mesclado.</b> Fecha as duas últimas lacunas da Fatia 1 (D-52):
-  teto de zonas por jogador e upgrade de nível. Resumo — os números completos estão na nota da
-  seção 0.
-</div>
+<p>
+  Fecha as duas últimas lacunas da Fatia 1 (D-52): teto de zonas por jogador e upgrade de nível —
+  e ativa pela primeira vez a manutenção territorial que o §27.12 já previa, e que nunca havia
+  cobrado nada de nenhuma zona.
+</p>
 
 <ul>
   <li><b>Teto de 5 zonas por jogador</b> <?= arbitrado('o GDD não publica número') ?>.</li>
@@ -1082,6 +1129,23 @@ ob_start();
       <b>abandonada automaticamente</b> — reset completo, para não abrir lavagem de zona entre
       contas do mesmo jogador.</li>
 </ul>
+
+<h3>8.7 A zona em cinco abas, e o Histórico <span class="d">D-86</span></h3>
+
+<p>
+  A tela da zona reorganizou em cinco abas — Zona Neutra (identidade, planta, upgrade), Depósito,
+  Canteiro de obras, Guarnição, Histórico — e o Canteiro passou a perguntar <b>qual obra</b> antes
+  de pedir o recurso, mostrando só o que ela precisa. Isso é interface, não regra nova.
+</p>
+
+<p>
+  O <b>Histórico</b> é conteúdo novo: uma linha do tempo da zona, só para o dono, juntando três
+  fontes — o <code>ledger</code> filtrado por <code>zona:{id}:</code> (ocupação, upgrade,
+  manutenção, saque), os <code>Combat</code> daquela zona (invasões, cercos, sabotagens) e
+  <code>zone_events</code> (posse: ocupação, abandono, conquista) — uma tabela que não existia
+  antes, porque o estado da zona sempre foi só o presente, nunca um registro de como se chegou
+  nele.
+</p>
 
 <!-- ══════════════════════════════════════════════════════════════ 9 -->
 <h2 id="s9">9. Operação e administração</h2>
@@ -1116,6 +1180,24 @@ ob_start();
   restrição do §9.4. A colônia <b>continua produzindo</b>: o mundo não para, e nada se perde.
 </p>
 
+<h3>9.3 O que o operador arbitra sem deploy</h3>
+
+<p>
+  Um número que só existe em código exige um deploy para mudar — e um deploy é risco e demora que
+  nem sempre a decisão merece. Cada vez mais desses números viraram linhas de banco, editáveis em
+  <code>/central/admin</code> → Operação, sem tocar em código:
+</p>
+
+<ul>
+  <li><b>O Marco</b> — os cinco valores de XP por ato <span class="d">D-75</span>.</li>
+  <li><b>O Ministério dos Transportes</b> — a curva de depreciação, o piso de desempenho, o custo
+      de manutenção, o teto de revenda do Furgão, o frete público <span class="d">D-60, D-73, D-76</span>.</li>
+  <li><b>O kit inicial</b> — Fert$, os 26 recursos e a frota de toda colônia nova
+      <span class="d">D-92</span>, ver §3.2.1.</li>
+  <li><b>O Governo no Mercado Central</b> — o que o Tesouro tem à venda, e por quanto
+      <span class="d">D-87</span>, ver §6.2.1.</li>
+</ul>
+
 <!-- ══════════════════════════════════════════════════════════════ 10 -->
 <h2 id="s10">10. Tudo o que ainda falta decidir</h2>
 
@@ -1127,8 +1209,10 @@ ob_start();
 <p>
   <b>Fechados desde a última revisão</b> (não aparecem mais aqui): a guerra inteira (D-66, D-70),
   o Drone (D-74), o Marco (D-75), as Missões (D-78), o Chat (D-77), a receita de Ligas e
-  Compostos (D-83), o serviço logístico público (D-76), o teto de revenda do Furgão (D-73). O
-  teto e o upgrade de zona também já foram decididos — D-84, na seção 0, PR aberto.
+  Compostos (D-83), o serviço logístico público (D-76), o teto de revenda do Furgão (D-73), o
+  teto e o upgrade de zona e a manutenção territorial (D-84, §8.6), o kit inicial e a frota que
+  ele concede (D-85/D-92, §3.2.1), a zona em abas e o Histórico (D-86, §8.7), o Governo vendendo
+  no Mercado Central (D-87, §6.2.1), e chamar o veículo de volta do Pátio vazio (D-91, §6.3.1).
 </p>
 
 <table>

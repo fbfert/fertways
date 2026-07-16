@@ -1026,21 +1026,45 @@ o D-84 no mesmo `sudo ./tools/deploy.sh`, a pedido explícito do usuário.
 
 **Para retomar isto:** não há mais pendência — é o estado normal da tela da colônia agora.
 
-## O GDD v36 atualizado até o D-83 (docs/gdd-v36-atualizacao) — **PR aberto, NÃO mesclado** (2026-07-15)
+## O GDD v36 atualizado até o D-92 (docs/gdd-v36-atualizacao) — **PR aberto, NÃO mesclado** (2026-07-15/16)
 
 Pedido do usuário: um GDD novo, "de acordo com tudo que já construímos". Já existia a
 infraestrutura certa para isto (D-62): `tools/gdd-v36.php` é um **gerador**, não um documento
 escrito à mão — as tabelas numéricas vêm ao vivo de `building_specs`/`resource_types`. Só que
 não era regenerado desde o D-79; 24 decisões de conteúdo real (guerra, Drone, Marco, Missões,
 Chat, a Capital em áreas, os dois mercados) ficaram de fora ou continuavam como lacuna aberta
-mesmo já implementadas.
+mesmo já implementadas. Uma primeira passada reescreveu até o D-83.
 
-Reescrito até o D-83 (o que já está em `main`); as decisões ainda em PR noutros branches
-(teto/upgrade de zona, kit inicial, zona em abas) ficam resumidas numa nota da seção 0, não nas
-tabelas — o gerador só lê o que já está mesclado. Regenerado em
-`/home/fertways/FERTWAYS_GDD_v36_CONSOLIDADO.html` (fora do git). O commit deste PR, em
-`docs/decisoes.md`, tem o detalhe de tudo que foi reescrito. Validado: `tests/Gdd/*`
-(23 testes) continuam batendo com o que o jogo lê.
+**2026-07-16 — reescrito de novo, até o D-92**, agora que D-84 a D-92 mescladaram em `main` ao
+longo desta sessão. Seções novas ou reescritas:
+
+- **§3.2.1 O kit inicial** (D-85/D-92): vira uma tabela lida ao vivo de
+  `KitInicial::recursos()`/`fertMicro()`/`frota()` — Fert$, os 26 recursos e a frota, com o aviso
+  do "muro de progressão" (Nióbio/Quartzo) e a nota de que é editável pelo admin sem deploy.
+- **§5.1**: a linha de cada veículo agora diz quantos vêm no kit, ao vivo.
+- **§6.2.1 O Governo vende, na mesma vitrine** (D-87): a semântica "quanto deve estar à venda
+  AGORA", e por que não existe uma colônia sintética do Governo.
+- **§6.3.1 O Pátio Logístico**: a tarifa passa a ser lida de `Patio::TARIFA_MICRO_HORA` (não mais
+  digitada), e ganhou duas linhas — chamar de volta vazio e o aviso da Capital (D-91).
+- **§8.6/§8.7**: D-84 (teto/upgrade/manutenção) perde o rótulo "PR aberto"; §8.7 é nova, sobre a
+  zona em cinco abas e o Histórico (D-86) — só o Histórico é conteúdo de jogo de verdade, o resto
+  é reorganização de tela.
+- **§9.3 nova**: "o que o operador arbitra sem deploy" — reúne Marco, Transportes, kit inicial
+  (D-92) e o Governo no Mercado (D-87) num só lugar, porque cada vez mais números do jogo viraram
+  configuração de banco em vez de constante em código.
+- **A nota da seção 0** foi reescrita: só o que é de fato interface (D-88, o fix da Siderúrgica)
+  fica de fora do documento — o resto (D-84 a D-92) já está integrado nas seções acima, sem mais
+  nenhuma decisão "pronta mas não mesclada" pendente.
+- **§10**: a lista de "fechados desde a última revisão" ganhou as seis referências às seções
+  novas/reescritas acima.
+
+Regenerado em `/home/fertways/FERTWAYS_GDD_v36_CONSOLIDADO.html` (fora do git, como sempre foi —
+é documento para ler, não para o git). Validado: `tests/Gdd/*` (23 testes) continuam batendo com
+o que o jogo lê; suíte de backend inteira (588 testes) — nenhum arquivo além de
+`tools/gdd-v36.php` mudou, então nada mais tinha por que quebrar.
+
+**Para retomar isto:** olhe o PR no GitHub — se a CI vier verde, está pronto para mesclar e
+publicar (publicar aqui é só atualizar o `.html` fora do git — o `tools/deploy.sh` não o toca).
 
 ## O Governo vende no Mercado Central (feat/mercado-do-governo) — **mesclado e no ar** (2026-07-15), commit `c92e218`
 
