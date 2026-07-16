@@ -1077,7 +1077,7 @@ publicar.
 
 **Para retomar isto:** não há mais pendência — é o estado normal do painel de admin agora.
 
-## O painel da Indústria Siderúrgica dizia "Produz por hora: Metal Bruto" — **PR aberto, NÃO mesclado, NÃO publicado** (2026-07-16)
+## O painel da Indústria Siderúrgica dizia "Produz por hora: Metal Bruto" — **mesclado e no ar** (2026-07-16), commit `fb467b2`
 
 Queixa do usuário: a Indústria Siderúrgica parecia estar **produzindo** Metal Bruto, quando ela
 deveria **consumi-lo** para produzir Ligas Metálicas e os cinco minerais eletrônicos (D-82). A
@@ -1101,8 +1101,12 @@ testes), `npx tsc -b`/lint/build e e2e completo — todos verdes antes de abrir 
 existente (backend ou e2e) assumia o texto antigo — o painel da zona (onde a Siderúrgica também
 pode existir) usa só a `nota` estática, nunca `producao_hora`, então não foi tocado.
 
-**Para retomar isto:** olhe o PR no GitHub — se a CI vier verde, está pronto para mesclar e
-publicar.
+Mesclado (squash, PR #9) em `main` e publicado por `sudo ./tools/deploy.sh`, a pedido do
+usuário. Rebaseado sobre `main` antes de mesclar (conflito de prosa em `docs/RETOMAR.md`, sem
+tocar código) e revalidado depois: 571 testes, CI verde, e2e completo (8 arquivos).
+
+**Para retomar isto:** não há mais pendência — o painel da Siderúrgica mostra "Processa por
+hora" para o Metal Bruto, não mais "Produz".
 
 ## O trabalho anterior: zonas neutras + Drone (D-52)
 
