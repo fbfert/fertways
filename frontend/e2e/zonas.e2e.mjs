@@ -96,11 +96,64 @@ try {
     checar(!!(await page.$(`[data-area="${area}"]`)), `a planta tem a área "${area}"`)
   }
 
+  // ═══════════════════════════════════════════════════ as abas (D-86)
+  console.log('\nA zona virou cinco abas')
+  for (const aba of ['zona', 'deposito', 'canteiro', 'guarnicao', 'historico']) {
+    checar(!!(await page.$(`[data-aba-zona="${aba}"]`)), `a aba "${aba}" existe`)
+  }
+
+  console.log('\nO nível da zona e o upgrade aparecem na aba Zona Neutra')
+  checar(await esperarTexto(page, /Nível da zona/), 'a seção de upgrade de nível existe')
+  checar(!!(await page.$('[data-upar-zona]')), 'o botão de upgrade existe')
+
+  console.log('\nA aba Depósito mostra o bruto extraído')
+  await page.click('[data-aba-zona="deposito"]')
+  await assentar()
+  checar(!!(await page.$('[data-bruto]')), 'o Depósito mostra o saldo bruto')
+
+  console.log('\nA aba Canteiro pergunta a obra antes do recurso')
+  await page.click('[data-aba-zona="canteiro"]')
+  await assentar()
   // O canteiro nasce vazio: o material das obras chega de VEÍCULO, não do estoque de casa.
   checar(
     await esperarTexto(page, /Despache um veículo com material/),
     'o canteiro nasce vazio, e a tela diz que o material chega de veículo',
   )
+  /*
+   * O formulário de envio só existe com veículo ocioso — e este arquivo, de propósito (ver o
+   * comentário do topo), não pode CONTAR com um: Mercado, Acordo e Ministério, rodados antes,
+   * despacham o Furgão do e2e e ele pode não ter voltado ainda. Testa o formulário se houver
+   * veículo; senão, confirma a mensagem de "nenhum ocioso" — as duas são o comportamento certo.
+   */
+  const obraDoCanteiro = await page.$('[data-obra-do-canteiro]')
+  if (obraDoCanteiro) {
+    checar(true, 'o formulário pergunta para qual obra, antes de pedir recurso nenhum')
+    await page.select('[data-obra-do-canteiro]', 'muralha_de_perimetro')
+    await assentar()
+    checar(
+      await esperarTexto(page, /falta \d+ de \d+/),
+      'escolhida a obra, os campos já mostram o que falta — não mais três recursos fixos adivinhados',
+    )
+  } else {
+    checar(
+      await esperarTexto(page, /Nenhum veículo ocioso para levar material/),
+      'sem veículo ocioso agora (outro teste o despachou antes), a tela diz isso em vez de sumir',
+    )
+  }
+
+  console.log('\nA aba Guarnição mostra a defesa e o formulário de reforço')
+  await page.click('[data-aba-zona="guarnicao"]')
+  await assentar()
+  checar(await esperarTexto(page, /pontos de defesa/), 'a guarnição mostra os pontos de defesa')
+  checar(await esperarTexto(page, /Reforçar com Sentinelas/), 'o reforço mora dentro da própria zona agora')
+
+  console.log('\nA aba Histórico já mostra a ocupação que acabou de acontecer')
+  await page.click('[data-aba-zona="historico"]')
+  await assentar()
+  checar(await esperarTexto(page, /Ocupada/), 'a ocupação vira a primeira linha do histórico')
+
+  await page.click('[data-aba-zona="zona"]')
+  await assentar()
 
   // Clicar na Muralha abre o painel dela, com o que o GDD promete e o que o jogo entrega.
   await page.click('[data-area="muralha_de_perimetro"]')

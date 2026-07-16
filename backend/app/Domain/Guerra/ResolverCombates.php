@@ -300,6 +300,8 @@ class ResolverCombates
      */
     private function vitoriaDoAtacante(Combat $combate, NeutralZone $zona): void
     {
+        $donoAnterior = $zona->owner_colony_id;
+
         $butim = $this->saquear($combate, $zona, Combat::SAQUE_BPS, "combate:{$combate->id}");
 
         /*
@@ -329,6 +331,13 @@ class ResolverCombates
         // recuar. Quem defendia e ainda respira só sobreviveria se o defensor tivesse ABANDONADO
         // (§27.9) — e aí o combate não chega aqui.
         Unit::where('zone_id', $zona->id)->delete();
+
+        // Histórico da zona (D-86).
+        \App\Models\ZoneEvent::create([
+            'zone_id' => $zona->id, 'type' => 'conquistada', 'colony_id' => $combate->attacker_colony_id,
+            'meta' => ['combat_id' => $combate->id, 'dono_anterior_colony_id' => $donoAnterior],
+            'created_at' => now(),
+        ]);
 
         // O exército vencedor volta para casa, ferido (§27.6). Os mortos ficam no campo.
         $this->recolherSobreviventes($combate);

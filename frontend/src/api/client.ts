@@ -242,7 +242,7 @@ export type ZonaNeutra = {
   mineral: string
   level: number
   status: string
-  owner: { id: number; name: string } | null
+  owner: { id: number; name: string; user_id: number } | null
   mine: boolean
   /**
    * Os dois únicos segredos do interior (D-74): null = névoa, não zero. Zero é um fato ("está
@@ -927,6 +927,9 @@ export const api = {
       body: JSON.stringify({ name }),
     }),
 
+  /** O Histórico da zona (D-86): posse, financeiro e guerra, numa linha do tempo só. Só o dono vê. */
+  historicoDaZona: (id: number) => req<{ eventos: EventoDaZona[] }>(`/zones/${id}/historico`),
+
   /**
    * A arte das construções (D-68). Só o que TEM imagem vem no mapa; o resto cai no hexágono.
    *
@@ -1194,6 +1197,20 @@ export type ZonaDetalhe = {
   cercada: boolean
   productive_at: string | null
   protected_until: string | null
+  /** Upgrade de nível e manutenção territorial (D-84). */
+  level: number
+  upgrade: {
+    target: number | null
+    finishes_at: string | null
+    proximo_custo: { metal_bruto: number; fert: number } | null
+    proxima_guarnicao: number | null
+  }
+  manutencao: {
+    custo_diario: Record<string, number>
+    proximo_vencimento: string | null
+    inadimplente_desde: string | null
+    penalidade_bps: number
+  }
   deposito: {
     bruto: number
     /** O que a Refinaria de Campo já converteu. Ocupa o mesmo Depósito. */
@@ -1216,4 +1233,23 @@ export type ZonaDetalhe = {
   /** O que o §17.4 lista e o jogo NÃO tem, com o porquê. */
   ausentes: Record<string, { nome: string; porque: string }>
   modules_offline: string[]
+}
+
+/** Uma linha do Histórico da zona (D-86) — posse, financeiro ou guerra, já numa forma comum. */
+export type EventoDaZona = {
+  categoria: 'financeiro' | 'guerra' | 'posse'
+  em: string
+  tipo: string
+  // financeiro
+  recurso?: string | null
+  quantidade?: number
+  ref?: string
+  // guerra
+  status?: string
+  atacante?: string | null
+  defensor?: string | null
+  resultado?: Record<string, unknown> | null
+  // posse
+  colonia?: string | null
+  meta?: Record<string, unknown> | null
 }

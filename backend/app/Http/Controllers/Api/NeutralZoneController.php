@@ -32,7 +32,7 @@ class NeutralZoneController extends Controller
     {
         $minha = $request->user()->colony()->first();
 
-        $zonas = NeutralZone::with('owner:id,name')->orderBy('district')->orderBy('x')->orderBy('y')->get()
+        $zonas = NeutralZone::with('owner:id,name,user_id')->orderBy('district')->orderBy('x')->orderBy('y')->get()
             ->map(function (NeutralZone $z) use ($minha, $avistamentos) {
                 $visto = $minha
                     ? $avistamentos->de($minha, $z)
@@ -53,7 +53,9 @@ class NeutralZoneController extends Controller
                     'mineral' => $z->mineral,
                     'level' => $z->level,
                     'status' => $z->status,
-                    'owner' => $z->owner ? ['id' => $z->owner->id, 'name' => $z->owner->name] : null,
+                    // `user_id`: como no diretório de colônias (D-37) — quem é dono já é público.
+                    // É o que deixa o mapa abrir a ficha do jogador (e o chat privado) a partir da zona.
+                    'owner' => $z->owner ? ['id' => $z->owner->id, 'name' => $z->owner->name, 'user_id' => $z->owner->user_id] : null,
                     'mine' => $mine,
                     // Derivados do nível, que é público — esconder seria teatro: qualquer um calcula.
                     'deposit_cap' => $z->capacidadeDeposito(),

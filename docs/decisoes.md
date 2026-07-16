@@ -3871,3 +3871,97 @@ fosse gente).
   migrations limpo nos dois, lint, build. E2e completo, mas só como regressão — o e2e não roda o
   tick (`tools/e2e.sh` é explícito sobre isto), então nenhum veículo chega a estacionar de
   verdade numa corrida de e2e; o comportamento novo só é observável pelos testes de domínio.
+
+## D-86 — A zona vira cinco abas, o Canteiro pergunta a obra antes do recurso, e nasce o Histórico.
+**Data:** 2026-07-15 · **Status:** arbitrado pelo usuário · **Ajustes pontuais de UX, não do GDD**
+
+Pedido do usuário: reorganizar a tela da zona (uma coluna só, de cima a baixo) em abas — **Zona
+Neutra** (identidade, planta, upgrade de nível), **Depósito**, **Canteiro de obras**, **Guarnição**
+e **Histórico** (novo) —, consertar o Canteiro ("não está dando para entender a mecânica ali"), e
+deixar o nome do dono de uma colônia ou zona no mapa abrir o chat privado com ele.
+
+### O chat a partir do mapa
+
+Confirmado com o usuário: clicar no nome abre a **ficha do jogador** (`InfoJogador`, já existente,
+D-81) — e é DENTRO dela que mora o botão "Conversar" novo, não um atalho direto. A ficha e o Chat
+vivem em lugares diferentes da árvore (o Mapa é uma rota própria, `/mapa`; o Chat só existe dentro
+da rota `/`, como um estado local de `App.tsx`) — não havia como um "abrir" o outro. A ponte:
+`Mapa` ganhou `aoAbrirChatPrivado`, que `App.tsx` liga a um novo estado `conversaAlvo`, navegando
+de volta para `/` e abrindo o Chat já com a privada certa. Do lado da zona, o dono só tinha
+`colony.id`/`colony.name` publicados (`NeutralZoneController::index`) — sem `user_id` não há como
+abrir a ficha de ninguém; publicá-lo não vaza nada novo (o diretório de colônias já publica
+`user_id` de toda vizinha desde o D-37).
+
+### O Canteiro: pergunta a obra antes do recurso
+
+O diagnóstico, confirmado com o usuário antes de mexer: o formulário sempre usava o primeiro
+veículo ocioso da frota **sem dizer qual**, oferecia sempre os mesmos **três recursos fixos**
+(Metal Bruto, Ligas, Componentes) mesmo quando a obra pedia outra coisa, e os campos não tinham
+limite nenhum (ao contrário do formulário de Retirar, que já tinha). Um colono erguendo a Antena de
+Comunicação (que pede Componentes + Quartzo) via um formulário que só oferecia enviar Metal Bruto,
+Ligas e Componentes — Quartzo nunca aparecia.
+
+**A correção não foi só consertar os três problemas — foi inverter a pergunta.** Agora o formulário
+pergunta **"para qual obra?"** primeiro (um `<select>` com as construções erguíveis que têm
+próximo nível), e só depois de escolhida mostra os recursos que ELA precisa, com "falta N de M"
+já calculado contra o que já está no canteiro, pré-preenchido, e limitado pela capacidade efetiva
+do veículo escolhido. Com mais de um veículo ocioso, agora dá para escolher qual — antes era
+sempre o primeiro da frota, em silêncio. O estado de "obra selecionada" é compartilhado com a
+planta da aba Zona Neutra (o mesmo clique que abre o painel de uma estrutura lá já pré-seleciona
+ela aqui) — clicar na Muralha na planta e ir direto ao Canteiro já vem com a Muralha escolhida.
+
+### O Depósito: já estava pronto para recursos futuros
+
+O usuário explicou por que pediu "estocar todos os tipos de recursos": zonas neutras vão, em
+breve, produzir mais do que um ou dois recursos. Ao investigar, `ZoneController::show` e o
+formulário de Retirar **já eram genéricos** — constroem a lista do que há no Depósito (bruto +
+refinado + os minerais da Siderúrgica) dinamicamente, sem nenhum nome de recurso hardcoded.
+**Não precisou mudar nada na mecânica** — só documentar isso e reorganizar em aba própria: quando
+uma zona passar a produzir um sexto ou sétimo recurso, ele aparece sozinho, sem tocar em código.
+
+### A Guarnição ganhou o Reforço
+
+Confirmado com o usuário: a aba não só reorganiza os números que já existiam (Robôs, Sentinelas,
+Defesa) — também traz para dentro dela a ação de **reforçar a zona** (`Domain\Guerra\Reforcar`,
+D-70), que até aqui só existia atrelada a um combate ativo específico, no Quartel. O próprio
+domínio já dizia "reforçar não exige combate em curso" — a tela é que nunca tinha oferecido o
+caminho geral. Agora dá para guarnecer uma zona seguindo em paz, sem esperar ser atacado.
+
+### O Histórico: três fontes, uma linha do tempo
+
+Não existia nada — nem endpoint, nem tabela. Confirmado com o usuário: três categorias
+(**financeiro**, **guerra**, **posse**), só o dono vê (mesma régua do D-74/D-84: o interior da
+zona é dela).
+
+- **financeiro**: `Ledger` cujo `ref` começa em `zona:{id}:` — cobre ocupação, upgrade de nível,
+  manutenção territorial, saque/cerco. **Não cobre** o material entregue ao canteiro
+  (`custo_obra_zona`): esse ledger é indexado pela viagem do veículo, não pela zona, e não valeria
+  a pena um JOIN só para isto.
+- **guerra**: `Combat` desta zona — invasões, cercos, sabotagens, apreensões.
+- **posse**: tabela nova, `zone_events` (`App\Models\ZoneEvent`) — ocupação, abandono por
+  manutenção não paga, conquista por guerra. **Sem precedente no código**: nenhum evento discreto
+  de "isto aconteceu com a zona" existia antes — o estado da zona sempre foi só o presente, nunca
+  um histórico. `colony_id` é nullable de propósito: um abandono não tem colônia nenhuma no fim
+  (a linha registra QUEM perdeu, lida antes do `update()` zerar `owner_colony_id`).
+
+### O que mudou no código
+
+- Migration `2026_07_15_200000_create_zone_events_table`: `zone_events` (`zone_id`, `type`,
+  `colony_id` nullable, `meta` json, `created_at`).
+- `App\Models\ZoneEvent` (novo). Hooks: `OcuparZonaNeutra` (ocupada),
+  `ResolverCombates::vitoriaDoAtacante` (conquistada, com `combat_id` e o dono anterior em
+  `meta`), `CobrarManutencaoTerritorial::abandonar` (abandonada).
+- `ZoneController::historico()` + `GET /zones/{id}/historico` — mescla as três fontes, 403 para
+  quem não é dono.
+- `ZoneController::show()` ganhou `level`, `upgrade` e `manutencao` (D-84), que só existiam em
+  `NeutralZoneController::index` até aqui.
+- `NeutralZoneController::index`: `owner` ganhou `user_id`.
+- Frontend: `Zona.tsx` reescrito em cinco abas; `EnviarMaterial` (o formulário do Canteiro,
+  pergunta a obra); `ReforcarZona`; as três `Linha*` do Histórico. `InfoJogador` ganhou o botão
+  "Conversar" (só aparece se o chamador passar `aoConversar`). `Chat` ganhou `conversaInicial` +
+  `aoConsumirConversaInicial`. `Mapa` ganhou `aoAbrirChatPrivado`, e o nome do dono (colônia ou
+  zona) virou botão que abre a ficha do jogador.
+- e2e: `zonas.e2e.mjs` cobre as cinco abas, o seletor de obra do Canteiro, e o Histórico mostrando
+  a ocupação recém-feita; `chat.e2e.mjs` cobre o fluxo novo — Mapa → ficha do jogador → Conversar
+  → Chat já na privada certa.
+- Validado: suíte de backend inteira, lint, build, e2e completo.

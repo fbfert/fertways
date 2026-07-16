@@ -75,7 +75,16 @@ type Selecao =
   | { tipo: 'zona'; z: ZonaNeutra }
   | null
 
-export function Mapa({ aoFechar, aoAbrirCapital }: { aoFechar: () => void; aoAbrirCapital?: () => void }) {
+export function Mapa({
+  aoFechar,
+  aoAbrirCapital,
+  aoAbrirChatPrivado,
+}: {
+  aoFechar: () => void
+  aoAbrirCapital?: () => void
+  /** Sai do mapa e abre o Chat já na privada com este jogador (D-86, via a ficha do InfoJogador). */
+  aoAbrirChatPrivado?: (id: number, nickname: string) => void
+}) {
   const [dir, setDir] = useState<Diretorio | null>(null)
   const [zonas, setZonas] = useState<ZonaNeutra[]>([])
   const [frota, setFrota] = useState<Veiculo[]>([])
@@ -318,6 +327,7 @@ export function Mapa({ aoFechar, aoAbrirCapital }: { aoFechar: () => void; aoAbr
                   frota={frota}
                   aoAgir={recarregar}
                   aoFocar={() => focar(selecao.z.x, selecao.z.y)}
+                  aoVerInfo={setInfoAberta}
                 />
               )}
 
@@ -386,7 +396,11 @@ export function Mapa({ aoFechar, aoAbrirCapital }: { aoFechar: () => void; aoAbr
       </div>
 
       {infoAberta !== null && (
-        <InfoJogador userId={infoAberta} aoFechar={() => setInfoAberta(null)} />
+        <InfoJogador
+          userId={infoAberta}
+          aoFechar={() => setInfoAberta(null)}
+          aoConversar={aoAbrirChatPrivado}
+        />
       )}
     </>
   )
@@ -583,7 +597,13 @@ function corDaZona(z: ZonaNeutra, selecao: Selecao): string {
 function PainelColonia({ c, aoVerInfo }: { c: ColoniaVizinha; aoVerInfo: () => void }) {
   return (
     <div className="border-rust/25 bg-sand mt-4 border p-3">
-      <div className="text-rust eyebrow">{c.nickname}</div>
+      <button
+        onClick={aoVerInfo}
+        data-abrir-info={c.user_id}
+        className="text-rust eyebrow hover:text-rust-bright"
+      >
+        {c.nickname}
+      </button>
       <div className="text-ink font-black">{c.name}</div>
       <dl className="text-ink-soft mt-2 space-y-1 text-sm">
         <Linha termo="Posição" valor={`(${c.x}, ${c.y})`} />
@@ -616,12 +636,14 @@ function PainelZona({
   frota,
   aoAgir,
   aoFocar,
+  aoVerInfo,
 }: {
   z: ZonaNeutra
   me: { x: number; y: number }
   frota: Veiculo[]
   aoAgir: () => Promise<void>
   aoFocar: () => void
+  aoVerInfo?: (userId: number) => void
 }) {
   const [erro, setErro] = useState<string | null>(null)
   const [enviando, setEnviando] = useState(false)
@@ -706,7 +728,26 @@ function PainelZona({
       <dl className="text-ink-soft mt-2 space-y-1 text-sm">
         <Linha termo="Posição" valor={`(${z.x}, ${z.y})`} />
         <Linha termo="Distância" valor={`${dist} slots`} />
-        <Linha termo="Dono" valor={z.owner ? (z.mine ? 'você' : z.owner.name) : 'livre'} />
+        <div className="flex justify-between">
+          <dt>Dono</dt>
+          <dd className="text-ink tabular-nums">
+            {!z.owner ? (
+              'livre'
+            ) : z.mine ? (
+              'você'
+            ) : aoVerInfo ? (
+              <button
+                onClick={() => aoVerInfo(z.owner!.user_id)}
+                data-abrir-info={z.owner.user_id}
+                className="text-rust hover:text-rust-bright"
+              >
+                {z.owner.name}
+              </button>
+            ) : (
+              z.owner.name
+            )}
+          </dd>
+        </div>
         {z.mine && <Linha termo="Nível" valor={`${z.level}${z.upgrade?.target ? ` → ${z.upgrade.target}` : ''}`} />}
         {z.mine && <Linha termo="Depósito" valor={`${deposito} / ${z.deposit_cap}`} />}
         {z.mine && <Linha termo="Extração" valor={`${z.extraction_per_hour}/h`} />}

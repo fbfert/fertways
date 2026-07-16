@@ -84,6 +84,12 @@ class OcuparZonaNeutra
             app(\App\Domain\Marco\ConcederXp::class)->handle($colony->id, 'zona_ocupada', "zona:{$zona->id}");
             app(\App\Domain\Missoes\Progresso::class)->registrar($colony->id, 'zona_ocupada');
 
+            // Histórico da zona (D-86): a primeira linha da vida dela com dono.
+            \App\Models\ZoneEvent::create([
+                'zone_id' => $zona->id, 'type' => 'ocupada', 'colony_id' => $colony->id,
+                'created_at' => $agora,
+            ]);
+
             /*
              * A guarnição são 20 Robôs Mineradores — e desde o D-66 eles são LINHAS, não um
              * contador. O §27.2 os torna defensores improvisados (25% da Sentinela, ataque zero),
