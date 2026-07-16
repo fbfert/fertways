@@ -474,35 +474,22 @@ class PainelController extends Controller
 
     public function transportes(Request $request): View
     {
-        return view('admin.transportes', [
-            // A Garagem do frete público (D-76): a frota real do serviço do §07.
-            'garagem' => \App\Domain\Frete\Garagem::frota()->orderBy('id')->get(),
-            'garagemLivres' => \App\Domain\Frete\Garagem::livres()->count(),
-            /*
-             * A frota inteira do planeta, com placa (2026-07-13). O painel dizia quantos veículos
-             * havia e nunca **quais** — e a placa é o único identificador de um veículo que aparece
-             * na tela de outro jogador (§16.3), logo é por ela que uma reclamação chega ao operador.
-             *
-             * Inclui os SUCATEADOS (`withTrashed`): a sucata arquiva e não apaga, justamente para a
-             * placa não ser reciclada — e um veículo que sumiu da lista é um veículo que ninguém mais
-             * consegue rastrear.
-             */
-            'veiculos' => Vehicle::withTrashed()
-                ->with('colony:id,name')
-                ->when($request->query('placa'), fn ($w, $p) => $w->where('plate', 'like', "%{$p}%"))
-                ->orderByRaw('plate is null')   // sem placa por último: elas são a coluna que se lê
-                ->orderBy('plate')
-                ->paginate(50)
-                ->withQueryString(),
-            'placa' => (string) $request->query('placa', ''),
+        $abas = ['ministerio', 'garagem', 'frota'];
+        $aba = in_array($request->query('aba'), $abas, true) ? $request->query('aba') : 'ministerio';
+
+        $dados = [
+            'aba' => $aba,
             'conservacao' => app(Conservacao::class),
             'transporte' => TransportSetting::singleton(),
-            'frotaGoverno' => [
+        ];
+
+        if ($aba === 'ministerio') {
+            $dados['frotaGoverno'] = [
                 'estoque' => Vehicle::whereNull('colony_id')->where('status', 'estoque')->count(),
                 'fabricando' => Vehicle::whereNull('colony_id')->where('status', 'fabricando')->count(),
                 'alvo' => Ministerio::ESTOQUE_ALVO,
-            ],
-            'volumeVeiculos' => [
+            ];
+            $dados['volumeVeiculos'] = [
                 'registrados' => Vehicle::whereNotNull('plate')->count(),
                 'em_rota' => Vehicle::where('status', 'em_rota')->count(),
                 'anunciados' => VehicleListing::where('status', 'aberto')->count(),
@@ -511,8 +498,60 @@ class PainelController extends Controller
                 'sucateados_7d' => Vehicle::onlyTrashed()->where('deleted_at', '>=', now()->subDays(7))->count(),
                 'vendidos_7d' => VehicleListing::where('status', 'concluido')
                     ->where('updated_at', '>=', now()->subDays(7))->count(),
-            ],
-        ]);
+            ];
+        }
+
+        // A Garagem do frete público (D-76): a frota real do serviço do §07.
+        if ($aba === 'garagem') {
+            $dados['garagem'] = \App\Domain\Frete\Garagem::frota()->orderBy('id')->get();
+            $dados['garagemLivres'] = \App\Domain\Frete\Garagem::livres()->count();
+        }
+
+        /*
+         * A frota inteira do planeta, com placa (2026-07-13). O painel dizia quantos veículos
+         * havia e nunca **quais** — e a placa é o único identificador de um veículo que aparece
+         * na tela de outro jogador (§16.3), logo é por ela que uma reclamação chega ao operador.
+         *
+         * Inclui os SUCATEADOS (`withTrashed`): a sucata arquiva e não apaga, justamente para a
+         * placa não ser reciclada — e um veículo que sumiu da lista é um veículo que ninguém mais
+         * consegue rastrear.
+         *
+         * A busca por Dono e a ordenação por cabeçalho (D-96) exigem um join com `colonies` — o
+         * dono só existe do lado de lá, e `orderBy` num relacionamento Eloquent não alcança o SQL.
+         */
+        if ($aba === 'frota') {
+            $ordenaveis = [
+                'placa' => 'vehicles.plate', 'tipo' => 'vehicles.type', 'dono' => 'colonies.name',
+                'situacao' => 'vehicles.status', 'conservacao' => 'vehicles.conservacao_bps',
+                'teto' => 'vehicles.teto_conservacao_bps', 'manutencao' => 'vehicles.manutencoes',
+                'uso' => 'vehicles.uso_ativo_seg',
+            ];
+            $sort = (string) $request->query('sort', '');
+            $coluna = $ordenaveis[$sort] ?? null;
+            $dir = $request->query('dir') === 'desc' ? 'desc' : 'asc';
+            $dono = trim((string) $request->query('dono', ''));
+
+            $dados['veiculos'] = Vehicle::withTrashed()
+                ->with('colony:id,name')
+                ->leftJoin('colonies', 'colonies.id', '=', 'vehicles.colony_id')
+                ->select('vehicles.*')
+                ->when($request->query('placa'), fn ($w, $p) => $w->where('vehicles.plate', 'like', "%{$p}%"))
+                ->when($dono !== '', fn ($w) => $w->where('colonies.name', 'like', "%{$dono}%"))
+                ->when(
+                    $coluna,
+                    fn ($w) => $w->orderBy($coluna, $dir),
+                    // sem placa por último: elas são a coluna que se lê
+                    fn ($w) => $w->orderByRaw('vehicles.plate is null')->orderBy('vehicles.plate'),
+                )
+                ->paginate(50)
+                ->withQueryString();
+            $dados['placa'] = (string) $request->query('placa', '');
+            $dados['dono'] = $dono;
+            $dados['sort'] = $sort;
+            $dados['dir'] = $dir;
+        }
+
+        return view('admin.transportes', $dados);
     }
 
     /**
