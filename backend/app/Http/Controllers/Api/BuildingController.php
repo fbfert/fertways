@@ -261,8 +261,17 @@ class BuildingController extends Controller
             ->get(['building_type', 'level', 'producao_hora_json', 'energia_consumo_hora'])
             ->keyBy(fn ($s) => "{$s->building_type}:{$s->level}");
 
+        // ⚠️ A Indústria Siderúrgica (D-82) reaproveita a chave `metal_bruto` da própria Mina
+        // Local dentro de `producao_hora_json` — mas ali é o que ela PROCESSA por hora (um
+        // insumo), não o que produz. Devolver isso como `producao_hora` sem distinção fazia o
+        // painel dizer "Produz por hora: Metal Bruto: 15", o oposto do que a construção faz.
         $efeito = fn (string $tipo, int $nivel) => ($s = $catalogo->get("{$tipo}:{$nivel}")) ? [
-            'producao_hora' => json_decode($s->producao_hora_json ?? 'null', true),
+            'producao_hora' => $tipo === 'industria_siderurgica'
+                ? null
+                : json_decode($s->producao_hora_json ?? 'null', true),
+            'insumo_hora' => $tipo === 'industria_siderurgica'
+                ? json_decode($s->producao_hora_json ?? 'null', true)
+                : null,
             'energia_hora' => (int) $s->energia_consumo_hora,
         ] : null;
 

@@ -133,6 +133,8 @@ export type Funcao = {
 /** O que a construção produz e consome por hora, num dado nível (§19.2–19.4). */
 export type Efeito = {
   producao_hora: Record<string, number> | null
+  /** O que ela PROCESSA por hora — só a Indústria Siderúrgica usa isto, hoje (D-82). */
+  insumo_hora: Record<string, number> | null
   energia_hora: number
 }
 

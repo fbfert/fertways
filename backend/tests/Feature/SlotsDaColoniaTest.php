@@ -358,6 +358,24 @@ class SlotsDaColoniaTest extends TestCase
         $this->assertTrue($reator['subsidized']);
     }
 
+    /**
+     * A Indústria Siderúrgica (D-82) reaproveita a chave `metal_bruto` da Mina Local dentro de
+     * `producao_hora_json`, mas ali é o que ela PROCESSA por hora, não o que produz. Sem
+     * distinção, o painel dizia "Produz por hora: Metal Bruto: 15" — o oposto do que ela faz.
+     * `producao_hora` tem de vir vazio, e o insumo tem de vir à parte, em `insumo_hora`.
+     */
+    public function test_a_siderurgica_nao_aparece_como_produtora_de_metal_bruto(): void
+    {
+        $user = $this->colono();
+        $this->erguerPredio($user->colony, 'industria_siderurgica', 1);
+
+        $siderurgica = collect($this->actingAs($user)->getJson('/buildings')->assertOk()->json())
+            ->keyBy('type')['industria_siderurgica'];
+
+        $this->assertNull($siderurgica['efeito_atual']['producao_hora']);
+        $this->assertSame(15, $siderurgica['efeito_atual']['insumo_hora']['metal_bruto']);
+    }
+
     // ---- O backfill das colônias antigas ----
 
     public function test_o_backfill_ergue_o_miolo_preserva_niveis_e_apaga_o_nivel_zero(): void
