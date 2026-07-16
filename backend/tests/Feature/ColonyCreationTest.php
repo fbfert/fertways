@@ -68,9 +68,9 @@ class ColonyCreationTest extends TestCase
 
         // Uma linha por recurso do catálogo — exatamente os 26 do kit inicial (D-85).
         $this->assertCount(count(Resource::daColonia()), $colony->resources);
-        $this->assertSame(count(KitInicial::RECURSOS), count(Resource::daColonia()));
+        $this->assertSame(count(KitInicial::recursos()), count(Resource::daColonia()));
 
-        foreach (KitInicial::RECURSOS as $recurso => $qtd) {
+        foreach (KitInicial::recursos() as $recurso => $qtd) {
             $this->assertSame($qtd, $colony->resources->firstWhere('resource_type', $recurso)->amount, $recurso);
         }
 
@@ -101,7 +101,7 @@ class ColonyCreationTest extends TestCase
 
         // O kit inicial também é auditável: um lançamento por recurso concedido de fato — os
         // zerados do kit (D-85) não geram linha, não houve concessão para auditar.
-        $concedidos = count(array_filter(KitInicial::RECURSOS, fn ($qtd) => $qtd > 0));
+        $concedidos = count(array_filter(KitInicial::recursos(), fn ($qtd) => $qtd > 0));
         $kit = Ledger::where(['colony_id' => $user->colony->id, 'type' => 'kit_inicial'])->get();
         $this->assertCount($concedidos, $kit);
         $this->assertTrue($kit->every(fn ($l) => $l->amount > 0 && $l->resource_type !== null));

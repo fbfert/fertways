@@ -447,6 +447,54 @@ class AcoesController extends Controller
     }
 
     /**
+     * O kit inicial de toda colônia nova (D-85), editável pelo admin sem mexer em código (D-92).
+     *
+     * Só vale para quem funda DEPOIS de salvar — mesma regra que o D-85 já tinha fixado; não há
+     * backfill aqui, de propósito (confirmado com o usuário).
+     *
+     * Nióbio Alienígena e Quartzo Piezoelétrico **não travam** acima do limiar que reabre o muro
+     * de progressão do D-17 — só avisam, ao lado do campo, na própria tela. O admin decide de
+     * olhos abertos.
+     */
+    public function kitInicial(Request $request): RedirectResponse
+    {
+        $codigos = \App\Models\ResourceType::pluck('code');
+
+        $dados = $request->validate([
+            'fert' => ['required', 'numeric', 'min:0'],
+            'recursos' => ['required', 'array'],
+            'recursos.*' => ['required', 'integer', 'min:0'],
+            'furgoes' => ['required', 'integer', 'min:0', 'max:255'],
+            'caminhoes' => ['required', 'integer', 'min:0', 'max:255'],
+        ]);
+
+        // Só os códigos que o catálogo de fato tem — um `<input name="recursos[x]">` forjado não
+        // cria uma linha nova em `kit_inicial_recursos` para um recurso que não existe.
+        $recursos = collect($dados['recursos'])->only($codigos->all());
+
+        return $this->tentar('kit_inicial.parametros', function () use ($dados, $recursos) {
+            $agora = now();
+
+            foreach ($recursos as $codigo => $qtd) {
+                \Illuminate\Support\Facades\DB::table('kit_inicial_recursos')->updateOrInsert(
+                    ['resource_type' => $codigo],
+                    ['amount' => $qtd, 'updated_at' => $agora],
+                );
+            }
+
+            $config = \App\Models\KitInicialSetting::singleton();
+            $config->update([
+                'fert_micro' => (int) round(((float) $dados['fert']) * 1_000_000),
+                'furgoes' => $dados['furgoes'],
+                'caminhoes' => $dados['caminhoes'],
+            ]);
+
+            return 'Kit inicial atualizado. Vale só para quem funda a partir de agora — '
+                .'colônias já fundadas não são tocadas.';
+        });
+    }
+
+    /**
      * Encomenda um caminhão para a GARAGEM do frete público (D-76).
      *
      * Instantâneo e por fiat, ao contrário da prateleira de venda (que tem linha de montagem no

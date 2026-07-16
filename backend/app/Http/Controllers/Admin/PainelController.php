@@ -413,12 +413,27 @@ class PainelController extends Controller
      */
     public function operacao(): View
     {
+        // O kit inicial (D-85, editável desde o D-92): um valor por recurso, na mesma ordem por
+        // classe que o resto do painel já usa, com o que está gravado hoje ao lado do nome.
+        $kitRecursos = DB::table('resource_types')
+            ->leftJoin('kit_inicial_recursos', 'kit_inicial_recursos.resource_type', '=', 'resource_types.code')
+            ->orderBy('resource_types.tax_class')->orderBy('resource_types.nome')
+            ->get(['resource_types.code', 'resource_types.nome', 'resource_types.tax_class',
+                DB::raw('COALESCE(kit_inicial_recursos.amount, 0) as amount')]);
+
         return view('admin.operacao', [
             'resumo' => $this->resumo(),
             // Com a colônia de cada uma, para o operador ver de onde ela sai antes de escolher o destino.
             'colonias' => Colony::with('user:id,nickname')->orderBy('id')->get(),
             // Os valores de XP por ato (D-75) — e o marco de cada colônia sai da lista acima.
             'marco' => \App\Models\MilestoneSetting::singleton(),
+            'kitRecursos' => $kitRecursos,
+            'kitSettings' => \App\Models\KitInicialSetting::singleton(),
+            // As chaves batem com `Vehicle::CAPACIDADE` — hoje só duas, mas o formulário não
+            // hardcoda os tipos, para não ficar obsoleto se um terceiro veículo aparecer.
+            'kitVeiculos' => \App\Models\Vehicle::CAPACIDADE,
+            'kitMuroNiobio' => \App\Domain\Colony\KitInicial::MURO_NIOBIO_REABRE_EM,
+            'kitMuroQuartzo' => \App\Domain\Colony\KitInicial::MURO_QUARTZO_REABRE_EM,
         ]);
     }
 

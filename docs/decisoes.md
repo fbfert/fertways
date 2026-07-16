@@ -4029,3 +4029,64 @@ Transportes (D-60).
 - Frontend: `Fundacao.tsx` (o texto "Você chega com 50 Fert$..." → 100 Fert$ + kit de recursos).
 - Validado: suíte inteira sem os 40 testes que a mudança de fato invalidou (agora corrigidos),
   lint e build do frontend, e2e completo.
+
+## D-92 — O kit inicial vira tela de admin: nenhum número mais preso em código.
+**Data:** 2026-07-16 · **Status:** arbitrado pelo usuário · **Extensão do D-85, ainda balanceamento, não GDD**
+
+Pedido do usuário: uma tela em `/central/admin` (aba Operação) para arbitrar o kit inicial —
+Fert$, os 26 recursos e a frota — sem precisar editar `Domain\Colony\KitInicial` em código.
+`const RECURSOS` (PHP) vira `kit_inicial_recursos` (uma linha por recurso, banco), e o Fert$/frota
+viram `kit_inicial_settings` (linha única, mesmo padrão de `transport_settings`/
+`marco_settings`). Nenhum número muda neste commit — é a mesma tabela do D-85, só que editável.
+
+### A frota entra no kit pela primeira vez
+
+Antes, `CreateColony` erguia um Furgão de Comércio hardcoded — nem o D-85 tocou nisso ("o veículo
+do kit inicial não muda", registrado então). Confirmado com o usuário agora: só a **quantidade**
+por tipo de veículo é arbitrável (não nível, não capacidade — esses continuam os padrões do
+catálogo, nível 1). `KitInicial::frota()` devolve `{furgao_de_comercio: N, caminhao_de_carga: M}`,
+e `CreateColony` cria exatamente essa combinação, registrando a placa de cada um (§16.3, D-60)
+como sempre fez. Hoje: 1 Furgão, 0 Caminhões — igual ao que já existia.
+
+### Sem backfill, de novo
+
+Confirmado com o usuário: editar o kit pelo painel só vale para quem funda DEPOIS de salvar.
+Mesma regra que o D-85 já tinha fixado — sem comando de aplicar retroativamente, ao contrário do
+que o D-57 (morto) costumava oferecer.
+
+### O muro de progressão: avisa, não trava
+
+O D-85 zerou Nióbio Alienígena e deixou só 2 Quartzo Piezoelétrico de propósito, para trancar
+Torre de Defesa + Quartel (juntas, 5 Nióbio) e Refinaria Química + Antena de Comunicação (juntas,
+3 Quartzo) até o colono negociar com o governo. Um admin usando a tela nova, sem saber disso,
+podia reabrir o muro sem querer. Confirmado com o usuário: a tela **avisa, ao lado do campo**
+("X+ reabre..."), mas **não bloqueia** — o admin decide de olhos abertos, a mesma filosofia do
+D-32/D-60 (arbitragem consciente não se "conserta" com uma trava). `KitInicial::
+MURO_NIOBIO_REABRE_EM`/`MURO_QUARTZO_REABRE_EM` são os limiares do aviso, documentados, não uma
+validação — o formulário aceita qualquer valor ≥ 0.
+
+### O que mudou no código
+
+- Migration `2026_07_16_130000_kit_inicial_editavel_pelo_admin`: `kit_inicial_recursos`
+  (`resource_type` chave, `amount`) semeada com os 26 valores que `KitInicial::RECURSOS` tinha;
+  `kit_inicial_settings` (linha única: `fert_micro`, `furgoes`, `caminhoes`), com os mesmos
+  defaults de sempre.
+- `App\Models\KitInicialSetting` (novo): singleton, mesmo padrão de `TransportSetting`.
+- `Domain\Colony\KitInicial`: `const RECURSOS` morreu; `recursos()`, `fertMicro()`, `frota()` leem
+  do banco agora. `MURO_NIOBIO_REABRE_EM`/`MURO_QUARTZO_REABRE_EM` (constantes, só para o aviso).
+- `CreateColony`: lê `KitInicial::recursos()`/`fertMicro()`/`frota()` em vez das constantes;
+  a criação do Furgão vira um laço sobre `KitInicial::frota()` — qualquer combinação de
+  tipo/quantidade, não só "sempre um Furgão".
+- `PainelController::operacao()`: publica o kit atual (recursos com nome/classe, settings, tipos
+  de veículo, os dois limiares do muro) para a view.
+- `AcoesController::kitInicial()` + rota `POST /admin/operacao/kit-inicial`: valida e salva os
+  três blocos numa chamada só, audita (`Auditoria::registrar`, via `tentar()`).
+- `resources/views/admin/operacao.blade.php`: card novo, tabela dos 26 recursos (aviso inline nas
+  duas linhas do muro) + Fert$ + quantidade por tipo de veículo.
+- `tests/Feature/KitInicialAdminTest.php` (novo, 6 casos): a tela mostra o kit e o aviso, salvar
+  muda o que a fundação de fato concede (inclusive frota), colônia já fundada não é tocada,
+  recurso desconhecido no payload não vira linha, quantidade negativa é recusada, o singleton
+  nasce com os defaults do D-85. `ColonyCreationTest`/`TesouroTest` atualizados para
+  `KitInicial::recursos()` (não mais a const).
+- Validado: 588 testes (SQLite e MariaDB 10.5 efêmero em container local), round-trip de
+  migrations limpo nos dois, lint, build, e2e completo.
