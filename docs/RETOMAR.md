@@ -1184,7 +1184,7 @@ pedido do usuário.
 
 **Para retomar isto:** não há mais pendência — é o estado normal da tela da zona agora.
 
-## O kit inicial vira uma tabela só, e depois vira tela de admin (D-85 + D-92) — **PR aberto, NÃO mesclado, NÃO publicado** (2026-07-15/16)
+## O kit inicial vira uma tabela só, e depois vira tela de admin (D-85 + D-92) — **mesclado e no ar** (2026-07-15/16), commit `cdf8841`
 
 Pedido do usuário (D-85): uma tabela única, Fert$ + um valor fixo para os 26 recursos do catálogo,
 substituindo as **três fontes separadas** que a fundação juntava até aqui — os 50 Fert$ do GDD, os
@@ -1196,23 +1196,30 @@ em `/central/admin` → aba Operação → **Kit inicial**. A frota entrou no ki
 antes o Furgão era hardcoded em `CreateColony`; agora é só mais uma quantidade arbitrável (hoje 1
 Furgão, 0 Caminhões, igual ao que já existia).
 
-⚠️ **Duas coisas para saber antes de mesclar (do D-85, ainda valem):**
+⚠️ **Duas coisas para saber, que seguem valendo em produção (do D-85):**
 
 1. **O "muro de progressão" quebra de propósito.** O kit dá 0 Nióbio Alienígena e 2 Quartzo
    Piezoelétrico — nenhum dos dois é produzível no jogo. Torre de Defesa + Quartel (juntas, 5
    Nióbio) e uma das duas entre Refinaria Química/Antena de Comunicação (juntas, 3 Quartzo) ficam
-   **trancadas** para quem funda depois deste deploy, até comprar do governo. **Confirmado com o
-   usuário — não é lacuna, é decisão.** A tela do admin agora AVISA (não trava) se alguém subir
-   esses dois números além do limiar que reabre o muro — mas o aviso é novo no D-92, a decisão de
-   trancar é do D-85.
-2. **Só vale para quem funda depois do deploy.** Colônias que já existem não são tocadas — ao
-   contrário do D-57, não há comando de backfill, e o D-92 manteve essa regra também para as
+   **trancadas** para quem fundou depois do deploy, até comprar do governo. **Confirmado com o
+   usuário — não é lacuna, é decisão.** A tela do admin AVISA (não trava) se alguém subir esses
+   dois números além do limiar que reabre o muro — mas o aviso é do D-92, a decisão de trancar é
+   do D-85.
+2. **Só vale para quem funda depois de cada mudança.** Colônias que já existem não são tocadas —
+   ao contrário do D-57, não há comando de backfill, e o D-92 manteve essa regra também para as
    edições pelo painel.
 
 Ver **D-85** e **D-92** completos em `docs/decisoes.md`.
 
-**Validado:** 588 testes (SQLite e MariaDB 10.5 efêmero em container local), round-trip de
-migrations limpo nos dois, lint, build, e2e completo.
+**Validado antes de abrir o PR:** 588 testes (SQLite e MariaDB 10.5 efêmero em container local),
+round-trip de migrations limpo nos dois, lint, build, e2e completo (uma falha isolada de
+rede/timing na primeira corrida, confirmada flake — verde na repetição, sem relação com esta
+mudança).
+
+Mesclado (squash, PR #4) em `main` e publicado por `sudo ./tools/deploy.sh`, a pedido do usuário.
+
+**Para retomar isto:** não há mais pendência — `/central/admin` → Operação → Kit inicial é o
+estado normal do painel agora.
 
 **Para retomar isto:** olhe o PR no GitHub — se a CI vier verde, está pronto para mesclar e
 publicar.
