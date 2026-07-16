@@ -1042,7 +1042,7 @@ tabelas — o gerador só lê o que já está mesclado. Regenerado em
 `docs/decisoes.md`, tem o detalhe de tudo que foi reescrito. Validado: `tests/Gdd/*`
 (23 testes) continuam batendo com o que o jogo lê.
 
-## O Governo vende no Mercado Central (feat/mercado-do-governo) — **PR aberto, NÃO mesclado** (2026-07-15)
+## O Governo vende no Mercado Central (feat/mercado-do-governo) — **mesclado e no ar** (2026-07-15), commit `c92e218`
 
 Pedido do usuário: a aba Economia do painel de admin virou quatro sub-abas (Finanças, Tesouro,
 Enviar Recursos, **Mercado** — nova), e nesta última o Governo lista recursos do Tesouro à
@@ -1063,10 +1063,19 @@ foram anunciados.
 Ver **D-87** em `docs/decisoes.md` para o raciocínio completo (inclusive como o dinheiro da
 venda do Governo é creditado sem duplicar líquido/taxa).
 
-**Validado:** 560 testes de backend (SQLite e MariaDB 10.5 efêmero em container local),
-round-trip de migrations limpo nos dois, lint, build e e2e completo do frontend (o tipo
-`OfertaGlobal` mudou, então revalidei o fluxo do Mercado inteiro). 8 casos novos em
-`MercadoDoGovernoTest.php`. **Ninguém pediu merge nem deploy ainda.**
+**Validado antes de abrir o PR:** 560 testes de backend (SQLite e MariaDB 10.5 efêmero em
+container local), round-trip de migrations limpo nos dois, lint, build e e2e completo do
+frontend (o tipo `OfertaGlobal` mudou, então revalidei o fluxo do Mercado inteiro). 8 casos
+novos em `MercadoDoGovernoTest.php`.
+
+Mesclado (squash, PR #7) em `main` e publicado por `sudo ./tools/deploy.sh`, a pedido do
+usuário. O branch havia divergido de `main` (D-84/D-88 entraram primeiro nesta sessão) — foi
+rebaseado antes de mesclar; único conflito foi de prosa em `docs/RETOMAR.md`/`docs/decisoes.md`
+(duas seções novas concorrendo pelo mesmo ponto de inserção), sem tocar código. Revalidado
+depois do rebase: 570 testes, CI verde nos três jobs, e2e completo (8 arquivos) — tudo antes de
+publicar.
+
+**Para retomar isto:** não há mais pendência — é o estado normal do painel de admin agora.
 
 ## O trabalho anterior: zonas neutras + Drone (D-52)
 
