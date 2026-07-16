@@ -4090,3 +4090,37 @@ validação — o formulário aceita qualquer valor ≥ 0.
   `KitInicial::recursos()` (não mais a const).
 - Validado: 588 testes (SQLite e MariaDB 10.5 efêmero em container local), round-trip de
   migrations limpo nos dois, lint, build, e2e completo.
+
+## D-93 — Seis ajustes pontuais no HUD e no Mapa.
+**Data:** 2026-07-16 · **Status:** arbitrado pelo usuário · **Ajustes de UX, não do GDD**
+
+Pedido do usuário, seis itens: Sair do mesmo tamanho do Perfil; um card do Marco ao lado do
+Fert$; um atalho para a Capital ao lado do Mapa; a busca do Chat casando nome de colônia, não só
+nickname; "Conversar" direto no painel da colônia do Mapa; e o formulário de carga do Mercado
+abrindo com três linhas em vez de uma.
+
+### O bug que o pedido não citou, mas o e2e achou
+
+O botão "Conversar" novo, no painel da colônia do Mapa (`PainelColonia`), usou `data-conversar`
+— a MESMA marca que `InfoJogador.tsx` já usa no botão homônimo dentro da ficha do jogador. Os
+dois convivem na tela ao mesmo tempo (o painel da colônia fica atrás da ficha aberta), então um
+seletor `[data-conversar]` virou ambíguo. O e2e (`chat.e2e.mjs`) reproduziu isso de forma
+determinística — falhou igual em duas corridas seguidas, antes da correção. Renomeado o novo
+para `data-conversar-direto`.
+
+### O que mudou no código
+
+- `App.tsx`: o wrapper do dropdown de confirmação de Sair ganha `flex` (o `align-items: stretch`
+  do flexbox, que já valia para o wrapper, não alcançava o botão dentro dele sem isso); card do
+  Marco (`colonia.marco`, já vinha na resposta) entre o botão Perfil e o card de Fert$; botão
+  "Capital" ao lado do "Mapa", navegando para `/capital` — antes só se chegava lá pelo losango
+  dentro do Mapa.
+- `Chat.tsx`: o filtro de busca (dentro de Privadas) passa a casar `nickname` OU `name` (nome da
+  colônia) — a lista de resultados já mostrava os dois, mas só filtrava por nickname.
+- `Mapa.tsx`: `PainelColonia` ganha a prop opcional `aoConversar`, com o mesmo botão que
+  `InfoJogador` já tem, mas `data-conversar-direto` (ver acima).
+- `Mercado.tsx`: `FormularioDeCarga` (usado nos 5 formulários de carga do Mercado — Despachar do
+  Pátio, Buscar, Levar ao depósito etc.) nasce com 3 linhas de recurso, não 1. Linhas vazias já
+  eram ignoradas na montagem da carga — nada mudou na validação.
+- Validado: `npx tsc -b`/lint/build limpos, e2e completo (8 arquivos) — vermelho nas duas
+  primeiras corridas pelo bug do `data-conversar` acima, verde na terceira.
