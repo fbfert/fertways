@@ -92,9 +92,9 @@ class PainelController extends Controller
 
         $jogadores = User::query()
             ->with('colony')
-            // "Capital" (D-91) é uma conta de sistema, não um jogador — sem colônia, sem senha
-            // utilizável, e nada aqui deveria poder suspendê-la ou editá-la como se fosse gente.
-            ->where('email', '!=', ContaSistema::EMAIL_CAPITAL)
+            // "Capital" (D-91) e "Missões" são contas de sistema, não jogadores — sem colônia,
+            // sem senha utilizável, e nada aqui deveria poder suspendê-las como se fossem gente.
+            ->whereNotIn('email', [ContaSistema::EMAIL_CAPITAL, ContaSistema::EMAIL_MISSOES])
             ->when($q !== '', function ($query) use ($q) {
                 /*
                  * A busca aceita as quatro coisas que alguém tem à mão quando reclama de algo: o
