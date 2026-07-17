@@ -28,5 +28,10 @@ final class Acoes
         'chat_mensagem' => 'Falar num canal público',
         'frete_publico' => 'Usar o frete público',
         'manutencao' => 'Fazer manutenção de veículo',
+        // Pedido do usuário (2026-07-16).
+        'compra_governo_mercado' => 'Comprar recursos do Governo no Mercado Central',
+        'compra_veiculo_novo' => 'Compre um veículo Novo',
+        'compra_veiculo_usado' => 'Compre um veículo Usado',
+        'venda_veiculo_usado' => 'Venda seu primeiro veículo',
     ];
 }
