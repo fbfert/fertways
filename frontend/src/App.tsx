@@ -12,6 +12,7 @@ import { Chat } from './ui/Chat'
 import { Missoes } from './ui/Missoes'
 import { Mapa } from './ui/Mapa'
 import { Marca } from './ui/Marca'
+import { MobileNav } from './ui/MobileNav'
 import { Route, Routes, useNavigate, useParams } from 'react-router-dom'
 import { Mercado } from './ui/Mercado'
 import { Quartel } from './ui/Quartel'
@@ -240,7 +241,10 @@ export default function App() {
         />
       </div>
 
-      <header className="pointer-events-none absolute inset-x-0 top-0 flex items-start justify-between p-5">
+      {/* Reforma mobile-first do HUD (pedido do usuário): este header é só desktop — os seis
+          botões e os dois cartões não cabem numa tela de 360-430px. O `<MobileNav>` logo abaixo é
+          o equivalente para `md:hidden`. */}
+      <header className="pointer-events-none absolute inset-x-0 top-0 hidden items-start justify-between p-5 md:flex">
         {/* A marca e o Mapa, juntos: sair da colônia é ir ao mapa, e é o único caminho para fora. */}
         <div className="pointer-events-auto flex items-stretch gap-3">
           <div className="painel bg-sand-light flex items-center px-4 py-3">
@@ -402,6 +406,21 @@ export default function App() {
         )}
       </header>
 
+      {colonia && (
+        <MobileNav
+          colonia={colonia}
+          chatPendente={chatPendente}
+          aoAbrirChat={() => setChatAberto((v) => !v)}
+          aoAbrirMissoes={() => setMissoesAbertas((v) => !v)}
+          aoAbrirBugs={() => setBugsAbertos((v) => !v)}
+          aoAbrirExtrato={() => setExtratoAberto(true)}
+          aoIrMapa={() => navegar('/mapa')}
+          aoIrCapital={() => navegar('/capital')}
+          aoIrPerfil={() => navegar('/perfil')}
+          aoSair={() => void sair()}
+        />
+      )}
+
       {chatAberto && colonia && (
         <Chat
           aoFechar={() => setChatAberto(false)}
@@ -416,8 +435,10 @@ export default function App() {
       )}
 
 
+      {/* Reforma mobile-first: escondida no mobile por ora — ainda sem lugar para abrir (o PR
+          seguinte lhe dá um ícone próprio na barra inferior, como um sheet). */}
       {colonia && (
-        <div className="absolute top-24 left-5">
+        <div className="absolute top-24 left-5 hidden md:block">
           <Recursos colonia={colonia} />
         </div>
       )}
@@ -429,7 +450,8 @@ export default function App() {
         A fila vem primeiro (D-88): é o que o colono acabou de mexer, e as zonas — que só aparecem
         quando ele tem alguma — empurravam a fila pra baixo da dobra em quem tinha várias.
       */}
-      <div className="absolute top-24 right-5 w-64 space-y-4">
+      {/* Mesma reforma: escondida no mobile por ora, ganha um ícone próprio no PR seguinte. */}
+      <div className="absolute top-24 right-5 hidden w-64 space-y-4 md:block">
         {fila && <FilaDeObras fila={fila} />}
         <MinhasZonas />
       </div>

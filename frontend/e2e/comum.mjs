@@ -85,7 +85,13 @@ export const assentar = () => new Promise((r) => setTimeout(r, 300))
 
 const ignoravel = (url) => (url ?? '').endsWith('/favicon.ico')
 
-export async function abrirNavegador() {
+/**
+ * `viewport` é opcional — o padrão continua 1400×900, o desktop que todo o resto da suíte já
+ * testava. Um viewport de telefone (390×844, o iPhone 12/13/14 "normal") é o único jeito de provar
+ * que a barra mobile (`MobileNav.tsx`) existe: ela é `md:hidden`, e um Chromium de 1400px de largura
+ * nunca a mostra.
+ */
+export async function abrirNavegador(viewport = { width: 1400, height: 900 }) {
   const navegador = await puppeteer.launch({
     executablePath: CHROMIUM,
     headless: true,
@@ -108,7 +114,7 @@ export async function abrirNavegador() {
   })
 
   const page = await navegador.newPage()
-  await page.setViewport({ width: 1400, height: 900 })
+  await page.setViewport(viewport)
 
   page.on('pageerror', (e) => erros.push(`pageerror: ${e.message}`))
 
