@@ -124,6 +124,26 @@ try {
   await page.click('[data-fechar-busca]')
   await assentar()
   checar(!(await page.$('[data-busca-jogador]')), 'a busca fecha')
+
+  // ═══════════════════════════════════════════════ o link de conversa no popup da busca
+  console.log('\nO popup da busca também tem o link de mensagem privada — item 4 do pedido do usuário')
+  await page.click('[data-buscar-jogador]')
+  await assentar()
+  await page.type('[data-buscar-texto]', 'vizi')
+  await assentar()
+  const resultadoDeNovo = await acharPorTexto(page, '[data-resultado-busca]', /vizinha/)
+  await resultadoDeNovo.click()
+  await assentar()
+
+  const conversarDaBusca = await page.$('[data-conversar]')
+  checar(!!conversarDaBusca, 'o botão "Conversar" existe no popup aberto pela busca')
+  await conversarDaBusca.click()
+  await assentar()
+  checar(!!(await page.$('[data-tela="chat"]')), 'clicar abre o Chat')
+  checar(
+    !!(await page.$('input[placeholder^="Para vizinha"]')),
+    'já na privada com quem foi buscado',
+  )
 } catch (e) {
   falhas.push(`exceção: ${e.message}`)
   try {

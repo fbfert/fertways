@@ -106,6 +106,11 @@ export function BugsMelhorias({ aoFechar }: { aoFechar: () => void }) {
               className="border-rust/25 bg-sand focus:border-rust mt-1 w-full border px-2 py-1.5 text-sm outline-none"
               placeholder="Descreva com o máximo de detalhe que conseguir"
             />
+            {mensagem.trim().length > 0 && mensagem.trim().length < 10 && (
+              <p className="text-ink-soft mt-1 text-xs" data-feedback-mensagem-curta>
+                Faltam pelo menos {10 - mensagem.trim().length} caractere(s) — o mínimo é 10.
+              </p>
+            )}
 
             {erro && <p className="text-rust mt-2 text-xs">{erro}</p>}
 
@@ -115,7 +120,7 @@ export function BugsMelhorias({ aoFechar }: { aoFechar: () => void }) {
               data-enviar-feedback
               className="botao mt-3 w-full disabled:opacity-40"
             >
-              {enviando ? 'Enviando…' : 'Enviar'}
+              {enviando ? 'Enviando…' : assunto.trim() === '' ? 'Escreva um assunto' : 'Enviar'}
             </button>
           </>
         )}
