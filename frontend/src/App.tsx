@@ -12,7 +12,7 @@ import { Chat } from './ui/Chat'
 import type { AvisosDoChat } from './ui/Chat'
 import { Missoes } from './ui/Missoes'
 import { Mapa } from './ui/Mapa'
-import { Marca } from './ui/Marca'
+import { Header } from './ui/Header'
 import { MobileNav } from './ui/MobileNav'
 import { Route, Routes, useNavigate, useParams } from 'react-router-dom'
 import { Mercado } from './ui/Mercado'
@@ -241,7 +241,8 @@ export default function App() {
 
   /**
    * A colônia — a rota `/`. Deixou de ser "o app" e passou a ser **uma tela entre outras**
-   * (D-67). Antes, tudo o mais era popup por cima dela.
+   * (D-67). O header/barra de navegação não vivem mais aqui dentro — são globais agora
+   * (reforma de navegação, pedido do usuário) e envolvem `<Routes>` lá embaixo.
    */
   const jogo = (
     <div className="relative h-screen w-screen overflow-hidden">
@@ -260,204 +261,7 @@ export default function App() {
         />
       </div>
 
-      {/* Reforma mobile-first do HUD (pedido do usuário): este header é só desktop — os seis
-          botões e os dois cartões não cabem numa tela de 360-430px. O `<MobileNav>` logo abaixo é
-          o equivalente para `md:hidden`. */}
-      <header className="pointer-events-none absolute inset-x-0 top-0 hidden items-start justify-between p-5 md:flex">
-        {/* A marca e o Mapa, juntos: sair da colônia é ir ao mapa, e é o único caminho para fora. */}
-        <div className="pointer-events-auto flex items-stretch gap-3">
-          <div className="painel bg-sand-light flex items-center px-4 py-3">
-            <Marca compacto />
-          </div>
-
-          {colonia && (
-            <button
-              onClick={() => navegar('/mapa')}
-              className="painel bg-rust text-sand-light hover:bg-rust-bright eyebrow px-5"
-            >
-              Mapa
-            </button>
-          )}
-
-          {/* Atalho para a Capital — antes só se chegava lá abrindo o Mapa e clicando no
-              losango do Governo Central. */}
-          {colonia && (
-            <button
-              onClick={() => navegar('/capital')}
-              className="painel bg-sand-light text-rust hover:text-rust-bright eyebrow px-5"
-            >
-              Capital
-            </button>
-          )}
-
-          {/* As Missões do §06 (D-78): a mão do dia, a semanal e a tutoria. */}
-          {colonia && (
-            <button
-              onClick={() => setMissoesAbertas((v) => !v)}
-              data-abrir-missoes
-              className="painel bg-sand-light text-rust hover:text-rust-bright eyebrow px-5"
-            >
-              Missões
-            </button>
-          )}
-
-          {/* O rádio do planeta (§10, D-77). Fechado, não custa um request. */}
-          {colonia && (
-            <button
-              onClick={() => setChatAberto((v) => !v)}
-              data-abrir-chat
-              data-chat-pendente={chatPendente}
-              className="painel bg-sand-light text-rust hover:text-rust-bright eyebrow relative px-5"
-            >
-              Chat
-              {chatPendente > 0 && (
-                <span className="bg-rust text-sand-light absolute -top-1.5 -right-1.5 flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-[10px] font-black">
-                  {chatPendente > 9 ? '9+' : chatPendente}
-                </span>
-              )}
-            </button>
-          )}
-
-          {/* Bugs/Melhorias (D-95): ao lado do Chat — o mesmo lugar de onde se pede ajuda. */}
-          {colonia && (
-            <button
-              onClick={() => setBugsAbertos((v) => !v)}
-              data-abrir-bugs-melhorias
-              className="painel bg-sand-light text-rust hover:text-rust-bright eyebrow px-5"
-            >
-              Bugs/Melhorias
-            </button>
-          )}
-        </div>
-
-        {colonia && (
-          <div className="pointer-events-auto flex items-stretch gap-3">
-            {/* O Marco (§03/§05, D-75), ao lado do saldo — o colono já tinha esse número no
-                Perfil, mas o progresso é algo que se olha de relance, não algo que se busca. */}
-            <div className="painel bg-sand-light px-5 py-3 text-right" data-marco={colonia.marco.numero}>
-              <div className="text-rust eyebrow">Marco {colonia.marco.numero}</div>
-              <div className="text-ink text-sm font-bold">{colonia.marco.titulo}</div>
-              <div className="text-ink-soft text-xs tabular-nums">
-                {colonia.marco.xp_do_proximo !== null
-                  ? `${colonia.marco.xp.toLocaleString('pt-BR')} / ${colonia.marco.xp_do_proximo.toLocaleString('pt-BR')} XP`
-                  : `${colonia.marco.xp.toLocaleString('pt-BR')} XP · máximo`}
-              </div>
-            </div>
-
-            <div className="painel bg-sand-light px-5 py-3 text-right">
-              <div className="text-rust eyebrow">{colonia.name}</div>
-              {/* O valor e a palavra "Fert$" abrem o extrato bancário — o resto do card (o nome
-                  da colônia) não é clicável, de propósito: só o saldo tem extrato para ver. */}
-              <button
-                onClick={() => setExtratoAberto(true)}
-                data-abrir-extrato
-                title="Ver extrato"
-                className="text-ink hover:text-rust text-xl font-black tabular-nums"
-              >
-                {colonia.fert.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}{' '}
-                <span className="text-rust text-sm">Fert$</span>
-              </button>
-            </div>
-
-            {/*
-              O perfil (D-69). Ao lado do saldo e do nome da colônia, que é onde o colono já olha
-              para se ver. Antes ele não podia sequer trocar a própria senha — tinha de pedir a um
-              operador.
-            */}
-            <button
-              onClick={() => navegar('/perfil')}
-              aria-label="O seu perfil"
-              title="O seu perfil"
-              data-abrir-perfil
-              className="painel bg-sand-light text-rust hover:bg-sand flex w-14 items-center justify-center"
-            >
-              <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2">
-                <circle cx="12" cy="8" r="4" />
-                <path d="M4 21c0-4 3.6-6 8-6s8 2 8 6" strokeLinecap="round" />
-              </svg>
-            </button>
-
-            {/*
-              Sair virou ícone ao lado do perfil (D-88) — morava sozinho no canto inferior
-              esquerdo, longe de onde o colono já olha para se ver. Ícone é mais fácil de clicar
-              sem querer do que o botão de texto que havia antes, então pede confirmação: mesmo
-              toggle "Sim/Não" que o resto do jogo já usa para ações que não voltam sozinhas
-              (`Transportes.tsx`, sucatear veículo) — sair é reversível (basta entrar de novo),
-              mas o clique tem de ser de propósito.
-            */}
-            <div className="relative flex">
-              <button
-                onClick={() => setConfirmandoSaida((v) => !v)}
-                aria-label="Sair"
-                title="Sair"
-                data-sair
-                className="painel bg-sand-light text-rust hover:bg-sand flex w-14 items-center justify-center"
-              >
-                <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" strokeLinecap="round" strokeLinejoin="round" />
-                  <polyline points="16 17 21 12 16 7" strokeLinecap="round" strokeLinejoin="round" />
-                  <line x1="21" y1="12" x2="9" y2="12" strokeLinecap="round" />
-                </svg>
-              </button>
-
-              {confirmandoSaida && (
-                <div className="painel bg-sand-light border-rust/30 absolute right-0 top-full z-10 mt-2 w-48 border p-3 text-right">
-                  <p className="text-ink text-xs font-bold">Sair da conta?</p>
-                  <div className="mt-2 flex justify-end gap-2">
-                    <button
-                      onClick={() => setConfirmandoSaida(false)}
-                      className="text-ink-soft hover:text-ink px-2 py-1 text-xs"
-                    >
-                      Não
-                    </button>
-                    <button
-                      onClick={() => void sair()}
-                      data-confirmar-sair
-                      className="bg-rust text-sand-light px-3 py-1 text-xs font-bold"
-                    >
-                      Sim
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-      </header>
-
-      {colonia && (
-        <MobileNav
-          colonia={colonia}
-          fila={fila}
-          chatPendente={chatPendente}
-          aoAbrirChat={() => setChatAberto((v) => !v)}
-          aoAbrirMissoes={() => setMissoesAbertas((v) => !v)}
-          aoAbrirBugs={() => setBugsAbertos((v) => !v)}
-          aoAbrirExtrato={() => setExtratoAberto(true)}
-          aoIrMapa={() => navegar('/mapa')}
-          aoIrCapital={() => navegar('/capital')}
-          aoIrPerfil={() => navegar('/perfil')}
-          aoSair={() => void sair()}
-        />
-      )}
-
-      {chatAberto && colonia && (
-        <Chat
-          aoFechar={() => setChatAberto(false)}
-          conversaInicial={conversaAlvo}
-          aoConsumirConversaInicial={() => setConversaAlvo(null)}
-          avisos={avisosChat}
-        />
-      )}
-      {missoesAbertas && !chatAberto && colonia && <Missoes aoFechar={() => setMissoesAbertas(false)} />}
-      {extratoAberto && colonia && <Extrato aoFechar={() => setExtratoAberto(false)} />}
-      {bugsAbertos && !chatAberto && !missoesAbertas && colonia && (
-        <BugsMelhorias aoFechar={() => setBugsAbertos(false)} />
-      )}
-
-
-      {/* Reforma mobile-first: escondida no mobile por ora — ainda sem lugar para abrir (o PR
-          seguinte lhe dá um ícone próprio na barra inferior, como um sheet). */}
+      {/* Só desktop — no mobile, os recursos vivem dentro do Depósito Local (uma construção). */}
       {colonia && (
         <div className="absolute top-24 left-5 hidden md:block">
           <Recursos colonia={colonia} />
@@ -471,7 +275,7 @@ export default function App() {
         A fila vem primeiro (D-88): é o que o colono acabou de mexer, e as zonas — que só aparecem
         quando ele tem alguma — empurravam a fila pra baixo da dobra em quem tinha várias.
       */}
-      {/* Mesma reforma: escondida no mobile por ora, ganha um ícone próprio no PR seguinte. */}
+      {/* Só desktop — no mobile, a mesma dupla vive dentro de "Mais" (`MobileNav.tsx`). */}
       <div className="absolute top-24 right-5 hidden w-64 space-y-4 md:block">
         {fila && <FilaDeObras fila={fila} />}
         <MinhasZonas />
@@ -501,100 +305,124 @@ export default function App() {
           aoFechar={() => setSelecionada(null)}
         />
       )}
+    </div>
+  )
 
+  /**
+   * O botão Colônia (novo, reforma de navegação): o único caminho de volta agora — cada tela
+   * roteada perdeu o próprio `×`. `carregar()` é o que o antigo `aoFechar` de Ministério/Mercado já
+   * fazia: atualiza o HUD na hora (uma condenação ou um depósito pode ter mexido em recurso), em
+   * vez de esperar o poll de 5s.
+   */
+  const irParaColonia = () => {
+    void carregar()
+    navegar('/')
+  }
+
+  return (
+    <>
+      {/* Navegação global (pedido do usuário): antes só existia na rota `/`, agora envolve
+          `<Routes>` inteiro e fica visível em qualquer tela — inclusive os popups que ela abre
+          (Chat/Missões/Bugs-Melhorias/Extrato/erro de construção), que também deixam de existir só
+          dentro da colônia. */}
+      <Header
+        colonia={colonia}
+        chatPendente={chatPendente}
+        aoAbrirChat={() => setChatAberto((v) => !v)}
+        aoAbrirMissoes={() => setMissoesAbertas((v) => !v)}
+        aoAbrirBugs={() => setBugsAbertos((v) => !v)}
+        aoAbrirExtrato={() => setExtratoAberto(true)}
+        aoIrColonia={irParaColonia}
+        aoIrMapa={() => navegar('/mapa')}
+        aoIrCapital={() => navegar('/capital')}
+        aoIrPerfil={() => navegar('/perfil')}
+        confirmandoSaida={confirmandoSaida}
+        setConfirmandoSaida={setConfirmandoSaida}
+        aoSair={() => void sair()}
+      />
+
+      {colonia && (
+        <MobileNav
+          colonia={colonia}
+          fila={fila}
+          chatPendente={chatPendente}
+          aoAbrirChat={() => setChatAberto((v) => !v)}
+          aoAbrirMissoes={() => setMissoesAbertas((v) => !v)}
+          aoAbrirBugs={() => setBugsAbertos((v) => !v)}
+          aoAbrirExtrato={() => setExtratoAberto(true)}
+          aoIrColonia={irParaColonia}
+          aoIrMapa={() => navegar('/mapa')}
+          aoIrCapital={() => navegar('/capital')}
+          aoIrPerfil={() => navegar('/perfil')}
+          aoSair={() => void sair()}
+        />
+      )}
+
+      <Routes>
+        <Route path="/" element={jogo} />
+
+        <Route
+          path="/mapa"
+          element={
+            <Mapa
+              aoAbrirCapital={() => navegar('/capital')}
+              aoAbrirChatPrivado={(id, nickname) => {
+                setConversaAlvo({ id, nickname })
+                setChatAberto(true)
+                navegar('/')
+              }}
+            />
+          }
+        />
+
+        <Route path="/frota" element={<Frota />} />
+
+        {/* O perfil do colono (D-69). `aoSalvar` recarrega o HUD: o nome da colônia aparece no topo. */}
+        <Route path="/perfil" element={<Perfil aoSalvar={() => void carregar()} />} />
+        <Route path="/quartel" element={<Quartel />} />
+
+        {/* A zona neutra ocupada é um LUGAR, como a colônia e a Capital (D-67). */}
+        <Route path="/zona/:id" element={<Zona />} />
+
+        <Route
+          path="/capital"
+          element={
+            <Capital
+              aoAbrirMercado={() => navegar('/mercado/central')}
+              aoAbrirMinisterio={() => navegar('/ministerio')}
+            />
+          }
+        />
+
+        <Route path="/ministerio" element={<Ministerio />} />
+
+        {/* O contexto do Mercado está na URL desde o D-67: o Local é a construção do colono, o Central
+            é a instituição do governo. São duas telas, e agora são dois endereços. */}
+        <Route path="/mercado/:contexto" element={<MercadoRota colonia={colonia} />} />
+
+        {/* Endereço que não existe: volta à colônia, em vez de deixar a tela branca. */}
+        <Route path="*" element={jogo} />
+      </Routes>
+
+      {chatAberto && colonia && (
+        <Chat
+          aoFechar={() => setChatAberto(false)}
+          conversaInicial={conversaAlvo}
+          aoConsumirConversaInicial={() => setConversaAlvo(null)}
+          avisos={avisosChat}
+        />
+      )}
+      {missoesAbertas && !chatAberto && colonia && <Missoes aoFechar={() => setMissoesAbertas(false)} />}
+      {extratoAberto && colonia && <Extrato aoFechar={() => setExtratoAberto(false)} />}
+      {bugsAbertos && !chatAberto && !missoesAbertas && colonia && (
+        <BugsMelhorias aoFechar={() => setBugsAbertos(false)} />
+      )}
       {erroConstrucao && (
         <Popup titulo="Não foi possível" aoFechar={() => setErroConstrucao(null)}>
           <p className="text-ink text-sm">{erroConstrucao}</p>
         </Popup>
       )}
-
-    </div>
-  )
-
-  /*
-   * As telas têm URL própria (D-67). O botão Voltar do navegador funciona, recarregar a página não
-   * larga o colono na colônia, e um link pode ser mandado a alguém.
-   *
-   * `voltar()` usa o histórico quando há para onde voltar, e cai na colônia quando não há — quem
-   * abre `/zona/12` direto pelo endereço não tem histórico nenhum, e um Voltar que saísse do site
-   * seria pior que nenhum.
-   */
-  const voltar = () => (window.history.length > 1 ? navegar(-1) : navegar('/'))
-
-  return (
-    <Routes>
-      <Route path="/" element={jogo} />
-
-      <Route
-        path="/mapa"
-        element={
-          <Mapa
-            aoFechar={voltar}
-            aoAbrirCapital={() => navegar('/capital')}
-            aoAbrirChatPrivado={(id, nickname) => {
-              setConversaAlvo({ id, nickname })
-              setChatAberto(true)
-              navegar('/')
-            }}
-          />
-        }
-      />
-
-      <Route path="/frota" element={<Frota aoFechar={voltar} />} />
-
-      {/* O perfil do colono (D-69). `aoSalvar` recarrega o HUD: o nome da colônia aparece no topo. */}
-      <Route
-        path="/perfil"
-        element={<Perfil aoFechar={voltar} aoSalvar={() => void carregar()} />}
-      />
-      <Route path="/quartel" element={<Quartel aoFechar={voltar} />} />
-
-      {/* A zona neutra ocupada é um LUGAR, como a colônia e a Capital (D-67). */}
-      <Route path="/zona/:id" element={<Zona aoFechar={voltar} />} />
-
-      <Route
-        path="/capital"
-        element={
-          <Capital
-            aoFechar={voltar}
-            aoAbrirMercado={() => navegar('/mercado/central')}
-            aoAbrirMinisterio={() => navegar('/ministerio')}
-          />
-        }
-      />
-
-      <Route
-        path="/ministerio"
-        element={
-          <Ministerio
-            aoFechar={() => {
-              // Uma condenação pode ter tirado recurso de circulação; o HUD reflete o estado novo.
-              void carregar()
-              voltar()
-            }}
-          />
-        }
-      />
-
-      {/* O contexto do Mercado está na URL desde o D-67: o Local é a construção do colono, o Central
-          é a instituição do governo. São duas telas, e agora são dois endereços. */}
-      <Route
-        path="/mercado/:contexto"
-        element={
-          <MercadoRota
-            colonia={colonia}
-            aoFechar={() => {
-              // O depósito tira recurso do estoque na hora: o HUD tem de refletir isso já.
-              void carregar()
-              voltar()
-            }}
-          />
-        }
-      />
-
-      {/* Endereço que não existe: volta à colônia, em vez de deixar a tela branca. */}
-      <Route path="*" element={jogo} />
-    </Routes>
+    </>
   )
 }
 
@@ -602,22 +430,10 @@ export default function App() {
  * O Mercado, pela URL. O `contexto` vem do endereço (`/mercado/local` ou `/mercado/central`) e não
  * de um estado que se perde ao recarregar.
  */
-function MercadoRota({
-  colonia,
-  aoFechar,
-}: {
-  colonia: Colonia | null
-  aoFechar: () => void
-}) {
+function MercadoRota({ colonia }: { colonia: Colonia | null }) {
   const { contexto } = useParams()
 
   if (!colonia) return null
 
-  return (
-    <Mercado
-      colonia={colonia}
-      contexto={contexto === 'central' ? 'central' : 'local'}
-      aoFechar={aoFechar}
-    />
-  )
+  return <Mercado colonia={colonia} contexto={contexto === 'central' ? 'central' : 'local'} />
 }

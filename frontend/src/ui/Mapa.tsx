@@ -76,11 +76,9 @@ type Selecao =
   | null
 
 export function Mapa({
-  aoFechar,
   aoAbrirCapital,
   aoAbrirChatPrivado,
 }: {
-  aoFechar: () => void
   aoAbrirCapital?: () => void
   /** Sai do mapa e abre o Chat já na privada com este jogador (D-86, via a ficha do InfoJogador). */
   aoAbrirChatPrivado?: (id: number, nickname: string) => void
@@ -244,21 +242,16 @@ export function Mapa({
   return (
     <>
       <div className="bg-sand fixed inset-0 z-20 overflow-y-auto">
-      <div className="bg-sand-light mx-auto min-h-screen w-full max-w-5xl p-6">
-        <header className="flex items-start justify-between">
-          <div>
-            <div className="text-rust eyebrow">Mapa</div>
-            <h2 className="text-ink text-2xl font-black">Fertways</h2>
-            {dir && (
-              <p className="text-ink-soft mt-1 text-sm">
-                Grade {dir.side}×{dir.side}. Capital em ({dir.capital.x}, {dir.capital.y}). Você em (
-                {dir.me.x}, {dir.me.y}), a {distancia(dir.me, dir.capital)} slots dela.
-              </p>
-            )}
-          </div>
-          <button onClick={aoFechar} className="text-ink-soft hover:text-rust text-2xl leading-none">
-            ×
-          </button>
+      <div className="bg-sand-light mx-auto min-h-screen w-full max-w-5xl px-6 pt-20 pb-24 md:pt-28 md:pb-6">
+        <header>
+          <div className="text-rust eyebrow">Mapa</div>
+          <h2 className="text-ink text-2xl font-black">Fertways</h2>
+          {dir && (
+            <p className="text-ink-soft mt-1 text-sm">
+              Grade {dir.side}×{dir.side}. Capital em ({dir.capital.x}, {dir.capital.y}). Você em (
+              {dir.me.x}, {dir.me.y}), a {distancia(dir.me, dir.capital)} slots dela.
+            </p>
+          )}
         </header>
 
         {erro && <p className="text-rust mt-4 text-sm">{erro}</p>}

@@ -110,7 +110,7 @@ function Despacho({
   )
 }
 
-export function Quartel({ aoFechar }: { aoFechar: () => void }) {
+export function Quartel() {
   const [dados, setDados] = useState<EstadoDaGuerra | null>(null)
   const [combates, setCombates] = useState<Combate[]>([])
   const [erro, setErro] = useState<string | null>(null)
@@ -153,16 +153,9 @@ export function Quartel({ aoFechar }: { aoFechar: () => void }) {
 
   const moldura = (dentro: React.ReactNode) => (
     <div className="bg-sand fixed inset-0 z-20 overflow-y-auto">
-      <div className="bg-sand-light mx-auto min-h-screen w-full max-w-3xl p-6">
-        <div className="mb-4 flex items-start justify-between">
+      <div className="bg-sand-light mx-auto min-h-screen w-full max-w-3xl px-6 pt-20 pb-24 md:pt-28 md:pb-6">
+        <div className="mb-4">
           <h2 className="text-xl font-bold">Quartel</h2>
-          <button
-            onClick={aoFechar}
-            data-fechar-quartel
-            className="text-ink-soft hover:text-rust text-2xl leading-none"
-          >
-            ×
-          </button>
         </div>
         {dentro}
       </div>

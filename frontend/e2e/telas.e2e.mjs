@@ -136,8 +136,8 @@ try {
   const linhas = await page.$$eval('svg[data-mapa] line[stroke-dasharray]', (n) => n.length)
   checar(linhas === 1, 'a reta até a colônia escolhida é traçada')
 
-  console.log('\nFecha o Mapa')
-  await (await acharPorTexto(page, 'button', /^×$/)).click()
+  console.log('\nVolta à colônia pelo botão Colônia do header (navegação global)')
+  await page.click('[data-nav-desktop="colonia"]')
   await assentar()
   checar(!(await textoDaPagina(page)).includes('Grade 101×101'), 'o Mapa fecha')
 
@@ -187,8 +187,8 @@ try {
   checar(await esperarTexto(page, /No pátio/), 'veículo ocioso é descrito como no pátio')
   checar(await esperarTexto(page, /6\.000 unidades/), 'mostra a capacidade do Furgão (§21.2)')
 
-  console.log('\nFecha a Frota')
-  await (await acharPorTexto(page, 'button', /^×$/)).click()
+  console.log('\nVolta à colônia pelo botão Colônia do header')
+  await page.click('[data-nav-desktop="colonia"]')
   await assentar()
   checar(!(await textoDaPagina(page)).includes('Sua frota'), 'a Frota fecha')
 } catch (e) {

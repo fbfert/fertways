@@ -1,14 +1,24 @@
 /**
- * A navegação mobile da colônia (`MobileNav.tsx`) — reforma mobile-first do HUD, pedido do usuário.
+ * A navegação mobile — reforma mobile-first do HUD (D-103) e reforma de navegação global (pedido
+ * do usuário): a barra inferior deixou de existir só na rota `/` e agora acompanha qualquer tela.
  *
  * O resto da suíte roda a 1400×900 e nunca alcançaria este código: a barra mobile é `md:hidden`, e
- * o header de sempre é `hidden md:flex`. Sem um teste num viewport estreito, nada prova que os cinco
- * ícones da barra inferior realmente abrem o que prometem — só a checagem visual manual provaria, e
- * essa não roda sozinha no CI.
+ * o header de sempre é `hidden md:flex`. Sem um teste num viewport estreito, nada prova que os
+ * ícones da barra inferior realmente abrem/navegam para o que prometem — só a checagem visual
+ * manual provaria, e essa não roda sozinha no CI.
  */
 import { abrirNavegador, assentar, checar, entrar, esperarTexto, falhas, relatar } from './comum.mjs'
 
 const { navegador, page } = await abrirNavegador({ width: 390, height: 844 })
+
+/**
+ * `true` se o botão daquele destino está com o destaque de rota ativa (texto na cor rust).
+ *
+ * Confere o TOKEN exato `text-rust` entre as classes — `.includes('text-rust')` sozinho pegaria
+ * falso-positivo em `hover:text-rust`/`active:text-rust`, que o estado inativo também tem.
+ */
+const estaAtivo = (marcador) =>
+  page.$eval(`[data-nav="${marcador}"]`, (b) => b.className.split(/\s+/).includes('text-rust'))
 
 try {
   console.log('\nLogin, num viewport de telefone (390×844)')
@@ -29,34 +39,59 @@ try {
   const semEstouro = await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)
   checar(semEstouro, 'document.documentElement.scrollWidth não passa de innerWidth')
 
+  console.log('\nNa colônia, "Colônia" começa destacada (reforma de navegação: o destaque segue a rota)')
+  checar(await estaAtivo('colonia'), 'Colônia está ativa em "/"')
+  checar(!(await estaAtivo('mapa')), 'Mapa não está ativo')
+
   console.log('\nChat: abre pela barra, fecha pelo × do próprio painel')
   await page.click('[data-nav="chat"]')
   await assentar()
   checar(!!(await page.$('[data-tela="chat"]')), 'o painel do Chat abre')
   await page.click('[data-fechar-chat]')
   await assentar()
-  checar(!(await page.$('[data-tela="chat"]')), 'e fecha')
 
-  console.log('\nColônia: o sheet com abas que substitui as duas barras laterais do desktop')
+  console.log('\nMapa: navega de verdade (rota própria, D-67) — e a barra continua na tela')
+  await page.click('[data-nav="mapa"]')
+  await assentar()
+  checar(page.url().endsWith('/mapa'), 'a URL vira /mapa')
+  checar(await esperarTexto(page, /Fertways/), 'o Mapa carrega')
+  checar(!!(await page.$('[data-nav-mobile]')), 'a barra inferior continua visível fora da colônia')
+  checar(await estaAtivo('mapa'), 'Mapa passa a estar ativo')
+  checar(!(await estaAtivo('colonia')), 'Colônia deixa de estar ativa')
+
+  console.log('\nDa Mapa direto para a Capital — sem precisar voltar à colônia primeiro')
+  await page.click('[data-nav="capital"]')
+  await assentar()
+  checar(page.url().endsWith('/capital'), 'a URL vira /capital')
+  checar(await esperarTexto(page, /Governo de Fertways/), 'a Capital carrega')
+  checar(await estaAtivo('capital'), 'Capital passa a estar ativa')
+
+  console.log('\n"Colônia" agora navega para "/" — não abre mais o antigo sheet de recursos')
   await page.click('[data-nav="colonia"]')
   await assentar()
-  checar(!!(await page.$('[data-tela="colonia-sheet"]')), 'o sheet abre')
-  checar(await esperarTexto(page, /Recursos primários/), 'começa na aba Recursos, com a lista de sempre')
-  await page.click('[data-aba-colonia="obras"]')
-  await assentar()
-  checar(await esperarTexto(page, /Fila de construção/), 'a aba Obras e zonas mostra a fila')
-  await page.click('[data-fechar-colonia-sheet]')
-  await assentar()
-  checar(!(await page.$('[data-tela="colonia-sheet"]')), 'e fecha')
+  checar(new URL(page.url()).pathname === '/', 'a URL volta para "/"')
+  checar(await estaAtivo('colonia'), 'Colônia volta a estar ativa')
 
-  console.log('\n"Mais" reúne o que sobrou do header: Marco, Missões, Bugs/Melhorias, Perfil, Sair')
+  console.log('\n"Mais" reúne o que sobrou do header: Marco, Missões, Obras e zonas, Bugs/Melhorias, Perfil, Sair')
   await page.click('[data-nav="mais"]')
   await assentar()
   checar(await esperarTexto(page, /Marco \d/), 'mostra o Marco')
   checar(!!(await page.$('[data-abrir-missoes-mobile]')), 'tem o link de Missões')
+  checar(!!(await page.$('[data-abrir-obras-e-zonas-mobile]')), 'tem o link de Obras e zonas')
   checar(!!(await page.$('[data-abrir-bugs-melhorias-mobile]')), 'tem o link de Bugs/Melhorias')
   checar(!!(await page.$('[data-abrir-perfil-mobile]')), 'tem o link do Perfil')
   checar(!!(await page.$('[data-sair-mobile]')), 'tem o botão Sair')
+
+  console.log('\nObras e zonas abre por cima do "Mais" — o que sobrou do antigo sheet de Colônia')
+  await page.click('[data-abrir-obras-e-zonas-mobile]')
+  await assentar()
+  checar(!!(await page.$('[data-tela="obras-e-zonas"]')), 'o painel de Obras e zonas abre')
+  checar(await esperarTexto(page, /Fila de construção/), 'mostra a fila')
+  await page.click('[data-fechar-obras-e-zonas]')
+  await assentar()
+
+  await page.click('[data-nav="mais"]')
+  await assentar()
 
   console.log('\nMissões abre por cima do "Mais", como Bugs/Melhorias')
   await page.click('[data-abrir-missoes-mobile]')
@@ -75,22 +110,8 @@ try {
   await page.click('[data-fechar-bugs-melhorias]')
   await assentar()
 
-  console.log('\nMapa: navega de verdade (rota própria, D-67)')
+  console.log('\nSair: de dentro do Mapa (uma tela sem × próprio agora) — prova que o header é mesmo global')
   await page.click('[data-nav="mapa"]')
-  await assentar()
-  checar(page.url().endsWith('/mapa'), 'a URL vira /mapa')
-  checar(await esperarTexto(page, /Fertways/), 'o Mapa carrega')
-
-  console.log('\nVolta e vai à Capital pela barra')
-  await page.goBack()
-  await assentar()
-  await page.click('[data-nav="capital"]')
-  await assentar()
-  checar(page.url().endsWith('/capital'), 'a URL vira /capital')
-  checar(await esperarTexto(page, /Governo de Fertways/), 'a Capital carrega')
-
-  console.log('\nSair: confirma Sim/Não, como no desktop')
-  await page.goBack()
   await assentar()
   await page.click('[data-nav="mais"]')
   await assentar()

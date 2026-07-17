@@ -4504,3 +4504,45 @@ disto mexeu em schema), `tsc`/`lint`/`build` limpos, e2e completo (9/9 verde), c
 manual (backend efêmero + Puppeteer): o pontinho de Vizinhança acende de verdade com uma menção
 semeada, e o popup "Não foi possível" apareceu com um erro real de fila cheia depois de fechar o
 card de construção.
+
+## D-105 — A navegação vira global: header/barra em todo o site, o botão Colônia substitui o × de cada tela.
+**Data:** 2026-07-17 · **Status:** arbitrado pelo usuário · **Feature nova, não do GDD**
+
+Pedido do usuário: o header desktop e a barra inferior mobile — que só existiam na rota `/` (a
+colônia) — passam a acompanhar toda tela do jogo (Mapa, Capital, Frota, Perfil, Quartel, Zona,
+Ministério, Mercado). Cada uma dessas 8 telas tinha o próprio `×`/voltar; todos saíram, e um botão
+**Colônia** novo (entre a marca e Mapa no header; primeiro ícone da barra mobile) é agora o único
+caminho de volta. O destaque, antes sempre fixo em "Mapa", passa a seguir a rota atual.
+
+`App.tsx`: o `<header>` (agora extraído para `Header.tsx`, com `useLocation()` próprio para o
+destaque) e o `<MobileNav>` saem de dentro do bloco `jogo` (que só rodava nas rotas `/`/`*`) e
+passam a envolver `<Routes>` inteiro — junto com os popups que os botões deles abrem
+(Chat/Missões/Bugs-Melhorias/Extrato/erro de construção), que também deixam de existir só dentro
+da colônia. As 8 telas perderam o prop `aoFechar` e o botão `×`; a navegação **interna** de cada
+uma (sub-abas da Capital, do Ministério, do Mercado) ficou intacta — só o fechamento no NÍVEL DA
+TELA sumiu. No mobile, o ícone "Colônia" da barra — que abria um sheet de Recursos/Fila/Zonas —
+passa a navegar para `/`, como o botão do desktop; o que sobrava do sheet (Fila de obras + Zonas,
+já que Recursos sai de vez, ver PR seguinte) virou um item novo dentro de "Mais"
+(`ObrasEZonasSheet.tsx`; `ColoniaSheet.tsx` foi apagado).
+
+### Dois bugs achados no caminho, nenhum previsto no plano
+
+1. **Os controles de zoom (`ControlesDeZoom.tsx`, `top-3 right-3`) ficaram atrás do header.** O
+   header ganhou `z-[25]` (para ficar acima das 8 telas, que são `z-20`) — mas isso também o pôs
+   acima dos controles de zoom (`z-10`), que caem na mesma região da colônia. Resolvido subindo o
+   zoom para `z-[26]`.
+2. **`aria-label="Capital"` duplicado.** `MobileNav.tsx` já usava `aria-label={rotulo}` no ícone de
+   cada destino da barra — inofensivo enquanto a barra só existia em `/`, porque a página nunca
+   tinha outro elemento com esse aria-label ao mesmo tempo. Virando global, o ícone "Capital" da
+   barra (escondido em telas largas, `md:hidden`, caixa zero) passou a coexistir com o losango
+   `aria-label="Capital"` do `Mapa.tsx` — e `[aria-label="Capital"]` pega o primeiro do DOM, não o
+   visível. Determinístico, não era flake (100% reproduzido com um script à parte, isolado de
+   contenção de memória): o e2e clicava sempre no ícone escondido. Corrigido trocando o
+   `aria-label` da barra para "Ir para {rótulo}" — não colide, e é mais descritivo pra leitor de
+   tela de quebra.
+
+Validado: `php artisan test` (sem mudança de backend nesta parte, só frontend), `tsc`/`lint`/`build`
+limpos, e2e completo (9/9 verde — inclusive `capital.e2e.mjs`, `ministerio.e2e.mjs`,
+`mercado.e2e.mjs`, que dependem do losango da Capital), checagem visual manual (backend efêmero +
+Puppeteer, desktop 1400×900 e mobile 390×844) em `/`, `/mapa` e `/capital`: header/barra presentes
+nas três, destaque seguindo a rota, sem `×` nas telas.

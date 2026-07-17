@@ -22,7 +22,7 @@ const ESTADO: Record<Veiculo['status'], string> = {
  * Antes desta tela não havia onde ver um Furgão em viagem: o jogador despachava e o veículo sumia
  * até voltar. A viagem é de ida e volta (D-30), e a volta é o que libera o veículo.
  */
-export function Frota({ aoFechar }: { aoFechar: () => void }) {
+export function Frota() {
   const [frota, setFrota] = useState<FrotaDto | null>(null)
   const [vizinhas, setVizinhas] = useState<ColoniaVizinha[]>([])
   const [erro, setErro] = useState<string | null>(null)
@@ -70,21 +70,16 @@ export function Frota({ aoFechar }: { aoFechar: () => void }) {
 
   return (
     <div className="bg-sand fixed inset-0 z-20 overflow-y-auto">
-      <div className="bg-sand-light mx-auto min-h-screen w-full max-w-3xl p-6">
-        <header className="flex items-start justify-between">
-          <div>
-            <div className="text-rust eyebrow">Ministério dos Transportes</div>
-            <h2 className="text-ink text-2xl font-black">Sua frota</h2>
-            {frota && (
-              <p className="text-ink-soft mt-1 text-sm">
-                {frota.vehicles.length} {frota.vehicles.length === 1 ? 'veículo' : 'veículos'} ·{' '}
-                {frota.vehicles.filter((v) => v.status === 'ocioso').length} ocioso(s)
-              </p>
-            )}
-          </div>
-          <button onClick={aoFechar} className="text-ink-soft hover:text-rust text-2xl leading-none">
-            ×
-          </button>
+      <div className="bg-sand-light mx-auto min-h-screen w-full max-w-3xl px-6 pt-20 pb-24 md:pt-28 md:pb-6">
+        <header>
+          <div className="text-rust eyebrow">Ministério dos Transportes</div>
+          <h2 className="text-ink text-2xl font-black">Sua frota</h2>
+          {frota && (
+            <p className="text-ink-soft mt-1 text-sm">
+              {frota.vehicles.length} {frota.vehicles.length === 1 ? 'veículo' : 'veículos'} ·{' '}
+              {frota.vehicles.filter((v) => v.status === 'ocioso').length} ocioso(s)
+            </p>
+          )}
         </header>
 
         {erro && <p className="text-rust mt-4 text-sm">{erro}</p>}

@@ -1,26 +1,23 @@
 import { useState } from 'react'
+import { useLocation } from 'react-router-dom'
 import type { Colonia, Fila } from '../api/client'
-import { ColoniaSheet } from './ColoniaSheet'
 import { Marca } from './Marca'
+import { ObrasEZonasSheet } from './ObrasEZonasSheet'
 import { Popup } from './Popup'
 
 /**
- * A navegação da colônia (rota `/`), versão mobile (`md:hidden`) — o header de `App.tsx` é
- * absolutamente posicionado com botões de largura fixa, pensado para uma tela larga; numa tela de
- * 360-430px, os seis botões e os dois cartões nem chegam a caber numa linha.
- *
- * Duas peças, ambas só decoração + navegação — a lógica (o que cada botão faz) continua em
- * `App.tsx`, passada por props, como o resto do jogo já faz.
+ * A navegação, versão mobile (`md:hidden`) — reforma de navegação global (pedido do usuário): o
+ * header desktop (`Header.tsx`) e esta barra deixaram de existir só na rota `/` e agora envolvem
+ * `<Routes>` inteiro em `App.tsx`, visíveis em qualquer tela.
  *
  *  - **Faixa superior**: a marca e o saldo (toque abre o Extrato, como no desktop).
- *  - **Barra inferior fixa**: os cinco destinos que cabem sem espremer — Mapa e Capital navegam,
- *    "Colônia" abre Recursos/Fila de obras/Zonas (as duas barras laterais do desktop, que viraram
- *    um sheet com abas — `ColoniaSheet.tsx`), Chat abre o painel de sempre (D-77), e "Mais" reúne o
- *    que sobrou do header desktop (Marco, Missões, Bugs/Melhorias, Perfil, Sair).
+ *  - **Barra inferior fixa**: Colônia (a rota `/` — primeiro item, como no header desktop),
+ *    Mapa e Capital (navegam, com destaque na rota ativa), Chat (o painel de sempre, D-77), e
+ *    "Mais" (Marco, Missões, Obras e zonas, Bugs/Melhorias, Perfil, Sair).
  *
- * Missões entrou em "Mais" — e não na barra — de propósito: ao contrário do desktop, aqui os
- * recursos e a fila de obras (informação ambiente, sempre visível no desktop) competiam por um
- * lugar com ela, e são consultados com mais frequência do que a tela de missões é aberta.
+ * "Colônia" costumava abrir um sheet de Recursos/Fila/Zonas — agora só navega, igual ao botão novo
+ * do header desktop. Recursos saiu de vez (agora mora no Depósito Local, uma construção); Obras e
+ * zonas foi para dentro de "Mais".
  */
 export function MobileNav({
   colonia,
@@ -30,6 +27,7 @@ export function MobileNav({
   aoAbrirMissoes,
   aoAbrirBugs,
   aoAbrirExtrato,
+  aoIrColonia,
   aoIrMapa,
   aoIrCapital,
   aoIrPerfil,
@@ -42,17 +40,29 @@ export function MobileNav({
   aoAbrirMissoes: () => void
   aoAbrirBugs: () => void
   aoAbrirExtrato: () => void
+  aoIrColonia: () => void
   aoIrMapa: () => void
   aoIrCapital: () => void
   aoIrPerfil: () => void
   aoSair: () => void
 }) {
   const [maisAberto, setMaisAberto] = useState(false)
-  const [coloniaAberta, setColoniaAberta] = useState(false)
+  const [obrasEZonasAbertas, setObrasEZonasAbertas] = useState(false)
+  const { pathname } = useLocation()
+
+  // Ministério e Mercado só se alcançam PELA Capital (D-59, item 6) — contam como "Capital".
+  const ativo: 'colonia' | 'mapa' | 'capital' | null =
+    pathname === '/'
+      ? 'colonia'
+      : pathname === '/mapa'
+        ? 'mapa'
+        : pathname === '/capital' || pathname === '/ministerio' || pathname.startsWith('/mercado/')
+          ? 'capital'
+          : null
 
   return (
     <>
-      <header className="pointer-events-none absolute inset-x-0 top-0 z-20 flex items-center justify-between p-3 md:hidden">
+      <header className="pointer-events-none absolute inset-x-0 top-0 z-[25] flex items-center justify-between p-3 md:hidden">
         <div className="painel bg-sand-light pointer-events-auto flex items-center px-3 py-2">
           <Marca compacto />
         </div>
@@ -70,17 +80,17 @@ export function MobileNav({
       </header>
 
       <nav
-        className="bg-sand-light border-rust/20 fixed inset-x-0 bottom-0 z-20 flex border-t pb-[max(0.5rem,env(safe-area-inset-bottom))] md:hidden"
+        className="bg-sand-light border-rust/20 fixed inset-x-0 bottom-0 z-[25] flex border-t pb-[max(0.5rem,env(safe-area-inset-bottom))] md:hidden"
         data-nav-mobile
       >
-        <BotaoNav rotulo="Mapa" onClick={aoIrMapa} marcador="mapa">
+        <BotaoNav rotulo="Colônia" onClick={aoIrColonia} marcador="colonia" ativo={ativo === 'colonia'}>
+          <IconeColonia />
+        </BotaoNav>
+        <BotaoNav rotulo="Mapa" onClick={aoIrMapa} marcador="mapa" ativo={ativo === 'mapa'}>
           <IconeMapa />
         </BotaoNav>
-        <BotaoNav rotulo="Capital" onClick={aoIrCapital} marcador="capital">
+        <BotaoNav rotulo="Capital" onClick={aoIrCapital} marcador="capital" ativo={ativo === 'capital'}>
           <IconeCapital />
-        </BotaoNav>
-        <BotaoNav rotulo="Colônia" onClick={() => setColoniaAberta(true)} marcador="colonia">
-          <IconeColonia />
         </BotaoNav>
         <BotaoNav rotulo="Chat" onClick={aoAbrirChat} badge={chatPendente} marcador="chat">
           <IconeChat />
@@ -90,8 +100,8 @@ export function MobileNav({
         </BotaoNav>
       </nav>
 
-      {coloniaAberta && (
-        <ColoniaSheet colonia={colonia} fila={fila} aoFechar={() => setColoniaAberta(false)} />
+      {obrasEZonasAbertas && (
+        <ObrasEZonasSheet fila={fila} aoFechar={() => setObrasEZonasAbertas(false)} />
       )}
 
       {maisAberto && (
@@ -115,6 +125,17 @@ export function MobileNav({
             className="text-ink hover:text-rust border-rust/10 block w-full border-b py-3 text-left text-sm font-bold"
           >
             Missões
+          </button>
+
+          <button
+            onClick={() => {
+              setMaisAberto(false)
+              setObrasEZonasAbertas(true)
+            }}
+            data-abrir-obras-e-zonas-mobile
+            className="text-ink hover:text-rust border-rust/10 block w-full border-b py-3 text-left text-sm font-bold"
+          >
+            Obras e zonas
           </button>
 
           <button
@@ -185,6 +206,7 @@ function BotaoNav({
   onClick,
   badge,
   marcador,
+  ativo = false,
   children,
 }: {
   rotulo: string
@@ -192,14 +214,22 @@ function BotaoNav({
   badge?: number
   /** Vira `data-nav="{marcador}"`, o gancho que o e2e usa para achar o botão. */
   marcador: string
+  /** O destaque segue a rota (pedido do usuário) — Chat e Mais não são rota, nunca destacam. */
+  ativo?: boolean
   children: React.ReactNode
 }) {
   return (
     <button
       onClick={onClick}
-      aria-label={rotulo}
+      // "Ir para {rotulo}", não `rotulo` puro — a barra é global desde a reforma de navegação
+      // (pedido do usuário), e um `aria-label="Capital"` aqui colidia com o do losango da Capital
+      // em `Mapa.tsx`: o e2e clicava no ícone escondido (`md:hidden`, caixa zero) em vez do
+      // losango, porque `[aria-label="Capital"]` pegava o primeiro do DOM, não o visível.
+      aria-label={`Ir para ${rotulo}`}
       data-nav={marcador}
-      className="text-ink-soft hover:text-rust active:text-rust flex flex-1 flex-col items-center justify-center gap-0.5 py-2"
+      className={`flex flex-1 flex-col items-center justify-center gap-0.5 py-2 ${
+        ativo ? 'text-rust' : 'text-ink-soft hover:text-rust active:text-rust'
+      }`}
     >
       <span className="relative">
         {children}

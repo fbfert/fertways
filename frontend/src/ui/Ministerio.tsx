@@ -59,7 +59,7 @@ const ROTULO_STATUS: Record<Denuncia['status'], string> = {
  *
  * A "equipe do jogo" (§9.2) não aparece aqui: é o operador, fora do jogo, e julga por artisan.
  */
-export function Ministerio({ aoFechar }: { aoFechar: () => void }) {
+export function Ministerio() {
   const [aba, setAba] = useState<'reputacao' | 'denunciar' | 'casos'>('reputacao')
   const [pasta, setPasta] = useState<Pasta | null>(null)
   const [minhas, setMinhas] = useState<Denuncia[]>([])
@@ -116,19 +116,14 @@ export function Ministerio({ aoFechar }: { aoFechar: () => void }) {
 
   return (
     <div className="bg-sand fixed inset-0 z-20 overflow-y-auto">
-      <div className="bg-sand-light mx-auto min-h-screen w-full max-w-3xl p-6">
-        <header className="flex items-start justify-between">
-          <div>
-            <div className="text-rust eyebrow">Ministério das Reputações</div>
-            <h2 className="text-ink text-2xl font-black">Slot 7 da Capital</h2>
-            <p className="text-ink-soft mt-1 text-sm">
-              Recebe denúncias, investiga e pune. A pena de cada violação está escrita: o conciliador
-              julga o fato, não a punição.
-            </p>
-          </div>
-          <button onClick={aoFechar} className="text-ink-soft hover:text-rust text-2xl leading-none">
-            ×
-          </button>
+      <div className="bg-sand-light mx-auto min-h-screen w-full max-w-3xl px-6 pt-20 pb-24 md:pt-28 md:pb-6">
+        <header>
+          <div className="text-rust eyebrow">Ministério das Reputações</div>
+          <h2 className="text-ink text-2xl font-black">Slot 7 da Capital</h2>
+          <p className="text-ink-soft mt-1 text-sm">
+            Recebe denúncias, investiga e pune. A pena de cada violação está escrita: o conciliador
+            julga o fato, não a punição.
+          </p>
         </header>
 
         <nav className="border-rust/20 mt-5 flex gap-1 border-b">

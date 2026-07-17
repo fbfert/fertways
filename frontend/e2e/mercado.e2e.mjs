@@ -254,8 +254,8 @@ try {
   const guardado = await page.evaluate(() => localStorage.getItem('fertways.token'))
   checar(!!guardado, 'o token está no localStorage enquanto a sessão vive')
 
-  await (await acharPorTexto(page, 'button', /^×$/)).click()
   // Sair virou ícone ao lado do perfil, com confirmação (D-88): abre o "Sim/Não" antes de sair.
+  // O header é global agora (reforma de navegação) — não precisa fechar a tela do Mercado antes.
   await page.click('[data-sair]')
   await page.click('[data-confirmar-sair]')
   await page.waitForNetworkIdle({ idleTime: 800 })

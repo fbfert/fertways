@@ -219,6 +219,13 @@ export async function abrirCapital(page) {
    * Esperar o texto era esperar por procuração. Passava quase sempre, e quebrava quando qualquer
    * mudança no Mapa deslocava o tempo dos renders — foi o que aconteceu ao acrescentar o painel de
    * ataque. **Espere o que você vai clicar.**
+   *
+   * ⚠️ `[aria-label="Capital"]` tem de ser ÚNICO na página — a reforma de navegação global (pedido
+   * do usuário) passou a montar a barra mobile em toda rota, e por um tempo ela também usava
+   * `aria-label="Capital"` no próprio ícone (escondido em telas largas, `md:hidden`). Duas coisas
+   * com o mesmo aria-label na mesma página e este `page.click` acerta a primeira do DOM — que podia
+   * ser a escondida, com caixa zero, não o losango. Corrigido em `MobileNav.tsx` (agora usa "Ir
+   * para {rótulo}"); registrado aqui para quem cocar a cabeça de novo.
    */
   await page.waitForSelector('[aria-label="Capital"]')
   await page.click('[aria-label="Capital"]')
