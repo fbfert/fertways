@@ -24,7 +24,7 @@ use Illuminate\Support\Facades\DB;
  */
 class EnviarMensagem
 {
-    public const PUBLICOS = ['global', 'regiao', 'vizinhanca'];
+    public const PUBLICOS = ['global', 'vizinhanca'];
 
     public function handle(User $autor, string $canal, string $corpo, ?User $destinatario = null): ChatMessage
     {
@@ -63,7 +63,6 @@ class EnviarMensagem
 
         return match ($canal) {
             'global' => $this->gravar($autor, 'global', $corpo),
-            'regiao' => $this->gravar($autor, 'regiao:'.Regiao::de($colony), $corpo),
             'vizinhanca' => $this->gravar($autor, 'vizinhanca', $corpo, x: $colony->x, y: $colony->y),
             'privada' => $this->privada($autor, $destinatario, $corpo),
             default => throw new DomainRuleException('canal_invalido', "Não existe o canal {$canal}. O de federação espera as federações existirem."),

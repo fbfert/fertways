@@ -17,8 +17,9 @@ use Tests\TestCase;
 /**
  * O Sistema de Mensagens do §10 (D-77).
  *
- * O GDD publica os 5 canais, a moderação e a retenção; o usuário arbitrou polling (não Reverb),
- * as 5 regiões (4 quadrantes + Núcleo), o filtro que BLOQUEIA, e o silêncio só por pena humana.
+ * O GDD publica os canais, a moderação e a retenção; o usuário arbitrou polling (não Reverb), o
+ * filtro que BLOQUEIA, e o silêncio só por pena humana. O canal de Região (4 quadrantes + Núcleo)
+ * existiu e foi removido por pedido do usuário — ficam Global, Vizinhança e Privadas.
  */
 class ChatTest extends TestCase
 {
@@ -55,22 +56,16 @@ class ChatTest extends TestCase
             ->assertJsonPath('mensagens.0.de.nickname', 'aurora');
     }
 
-    public function test_a_regiao_e_o_quadrante_e_o_nucleo_e_o_disco_central(): void
+    /** O canal existiu, foi removido por pedido do usuário — a rota morre com ele. */
+    public function test_o_canal_regiao_nao_existe_mais(): void
     {
-        $nordeste = $this->colono(40, 40, 'ne');
-        $sudoeste = $this->colono(-40, -40, 'so');
-        $nucleo = $this->colono(0, 3, 'founder');   // a 3 slots da Capital: dentro do disco
+        $colono = $this->colono(40, 40, 'ne');
 
-        $this->actingAs($nordeste)->postJson('/chat/regiao', ['body' => 'Alguém do NE por aí?'])->assertCreated();
-
-        // O vizinho de quadrante ouve; o do outro canto do planeta, não; o do Núcleo, também não.
-        $this->actingAs($nordeste)->getJson('/chat/regiao')->assertJsonCount(1, 'mensagens');
-        $this->actingAs($sudoeste)->getJson('/chat/regiao')->assertJsonCount(0, 'mensagens');
-        $this->actingAs($nucleo)->getJson('/chat/regiao')->assertJsonCount(0, 'mensagens');
-
-        // E a tela diz a cada um em que sala ele está.
-        $this->actingAs($nucleo)->getJson('/chat')->assertJsonPath('regiao', 'Núcleo');
-        $this->actingAs($sudoeste)->getJson('/chat')->assertJsonPath('regiao', 'Sudoeste');
+        $this->actingAs($colono)->postJson('/chat/regiao', ['body' => 'Alguém do NE por aí?'])
+            ->assertStatus(422)->assertJsonPath('code', 'canal_invalido');
+        $this->actingAs($colono)->getJson('/chat/regiao')
+            ->assertStatus(422)->assertJsonPath('code', 'canal_invalido');
+        $this->actingAs($colono)->getJson('/chat')->assertJsonMissingPath('regiao');
     }
 
     public function test_a_vizinhanca_e_um_raio_e_o_raio_e_do_operador(): void
@@ -170,7 +165,7 @@ class ChatTest extends TestCase
         ]);
 
         // Os públicos, fechados (§10.2: "remove acesso aos chats públicos")…
-        foreach (['global', 'regiao', 'vizinhanca'] as $canal) {
+        foreach (['global', 'vizinhanca'] as $canal) {
             $this->actingAs($a)->postJson("/chat/{$canal}", ['body' => 'alô?'])
                 ->assertStatus(422)->assertJsonPath('code', 'silenciado');
         }
@@ -273,6 +268,30 @@ class ChatTest extends TestCase
         // Abrir o canal citado apaga o selo: ele avisou, o colono veio.
         $this->actingAs($b)->getJson('/chat/global');
         $this->actingAs($b)->getJson('/chat/pendencias')->assertJsonPath('mencoes', 0);
+    }
+
+    /** A aba acende sozinha (pedido do usuário): o selo agregado já existia, o por-canal é novo. */
+    public function test_o_selo_diz_em_qual_canal_esta_a_citacao(): void
+    {
+        $a = $this->colono(20, 20, 'vizinha1');
+        $b = $this->colono(20, 26, 'citada'); // a 6 slots: dentro do raio padrão de vizinhança
+
+        $this->actingAs($a)->postJson('/chat/vizinhanca', ['body' => 'oi @citada, tudo bem?'])->assertCreated();
+
+        $this->actingAs($b)->getJson('/chat/pendencias')
+            ->assertJsonPath('mencoes', 1)
+            ->assertJsonPath('mencoes_por_canal.vizinhanca', 1)
+            ->assertJsonPath('mencoes_por_canal.global', 0);
+
+        // Abrir Global (o canal errado) não apaga a menção que está em Vizinhança.
+        $this->actingAs($b)->getJson('/chat/global');
+        $this->actingAs($b)->getJson('/chat/pendencias')->assertJsonPath('mencoes_por_canal.vizinhanca', 1);
+
+        // Abrir Vizinhança (o canal certo) apaga só a dela.
+        $this->actingAs($b)->getJson('/chat/vizinhanca');
+        $this->actingAs($b)->getJson('/chat/pendencias')
+            ->assertJsonPath('mencoes_por_canal.vizinhanca', 0)
+            ->assertJsonPath('mencoes_por_canal.global', 0);
     }
 
     public function test_quem_eu_bloqueei_nao_acende_o_meu_selo(): void

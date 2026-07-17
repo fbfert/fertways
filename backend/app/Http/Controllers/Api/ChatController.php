@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Api;
 
 use App\Domain\Chat\EnviarMensagem;
 use App\Domain\Chat\LerMensagens;
-use App\Domain\Chat\Regiao;
 use App\Http\Controllers\Controller;
 use App\Models\ChatMessage;
 use App\Models\User;
@@ -28,12 +27,10 @@ class ChatController extends Controller
     public function canais(Request $request, EnviarMensagem $enviar): JsonResponse
     {
         $user = $request->user();
-        $colony = $user->colony()->first();
         $silencio = $enviar->silencioVigente($user);
 
         return response()->json([
             'nickname' => $user->nickname,
-            'regiao' => $colony ? Regiao::NOMES[Regiao::de($colony)] : null,
             'silenciado_ate' => $silencio?->expires_at?->toIso8601String(),
             'bloqueados' => DB::table('chat_blocks')
                 ->join('users', 'users.id', '=', 'chat_blocks.blocked_user_id')

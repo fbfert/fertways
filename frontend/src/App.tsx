@@ -9,6 +9,7 @@ import { Fundacao } from './ui/Fundacao'
 import { Login } from './ui/Login'
 import { BugsMelhorias } from './ui/BugsMelhorias'
 import { Chat } from './ui/Chat'
+import type { AvisosDoChat } from './ui/Chat'
 import { Missoes } from './ui/Missoes'
 import { Mapa } from './ui/Mapa'
 import { Marca } from './ui/Marca'
@@ -20,6 +21,7 @@ import { Zona } from './ui/Zona'
 import { MinhasZonas } from './ui/MinhasZonas'
 import { Ministerio } from './ui/Ministerio'
 import { Perfil } from './ui/Perfil'
+import { Popup } from './ui/Popup'
 import { Detalhe, FilaDeObras, Recursos, SlotVazio } from './ui/Hud'
 
 /** Sem websocket nesta fase: polling simples, como o plano define. */
@@ -54,7 +56,9 @@ export default function App() {
   const [fila, setFila] = useState<Fila | null>(null)
   const [selecionada, setSelecionada] = useState<Spec | null>(null)
   const [slotVazio, setSlotVazio] = useState<number | null>(null)
-  const [erro, setErro] = useState<string | null>(null)
+  // O erro de construir/evoluir/demolir agora é um popup à parte (pedido do usuário) — não mais
+  // um texto inline dentro do card que já fechou.
+  const [erroConstrucao, setErroConstrucao] = useState<string | null>(null)
   const [semColonia, setSemColonia] = useState(false)
 
   const carregar = useCallback(async () => {
@@ -123,35 +127,41 @@ export default function App() {
     return () => clearInterval(t)
   }, [])
 
+  // Fecha o popup NA HORA do clique (pedido do usuário) — sucesso ou falha, o card não fica
+  // esperando resposta. Se falhar, o aviso chega pelo popup de erroConstrucao, por cima.
   async function evoluir(spec: Spec) {
-    setErro(null)
+    setSelecionada(null)
+    setErroConstrucao(null)
     try {
       await api.enfileirar(spec.id)
       await carregar()
     } catch (e) {
-      setErro(e instanceof ApiError ? e.message : 'Falha ao enfileirar.')
+      setErroConstrucao(e instanceof ApiError ? e.message : 'Falha ao enfileirar.')
     }
   }
 
   async function erguer(tipo: string, slot: number) {
-    setErro(null)
+    setSlotVazio(null)
+    setErroConstrucao(null)
     try {
       await api.construir(tipo, slot)
-      setSlotVazio(null)
       await carregar()
     } catch (e) {
-      setErro(e instanceof ApiError ? e.message : 'Falha ao construir.')
+      setErroConstrucao(e instanceof ApiError ? e.message : 'Falha ao construir.')
     }
   }
 
+  // Demolir continua com a confirmação digitada aberta (fluxo deliberadamente diferente) — só o
+  // erro passa a ficar visível, o que hoje não acontecia (Detalhe nunca mostrava `erro` no ramo de
+  // demolição).
   async function demolir(spec: Spec) {
-    setErro(null)
+    setErroConstrucao(null)
     try {
       await api.demolir(spec.id)
       setSelecionada(null)
       await carregar()
     } catch (e) {
-      setErro(e instanceof ApiError ? e.message : 'Falha ao demolir.')
+      setErroConstrucao(e instanceof ApiError ? e.message : 'Falha ao demolir.')
     }
   }
 
@@ -171,6 +181,9 @@ export default function App() {
   const [missoesAbertas, setMissoesAbertas] = useState(false)
   const [bugsAbertos, setBugsAbertos] = useState(false)
   const [chatPendente, setChatPendente] = useState(0)
+  // A mesma resposta do poll, guardada inteira — o selo do botão só soma; o Chat usa o detalhe por
+  // canal para acender a aba certa (pedido do usuário).
+  const [avisosChat, setAvisosChat] = useState<AvisosDoChat | null>(null)
   // O "Sim/Não" do ícone de Sair (D-88) — fecha sozinho depois de confirmar, porque `sair()`
   // já tira `colonia` da tela e o dropdown não teria mais onde se ancorar.
   const [confirmandoSaida, setConfirmandoSaida] = useState(false)
@@ -188,7 +201,13 @@ export default function App() {
   useEffect(() => {
     if (!colonia) return
     const puxar = () =>
-      void api.chatPendencias().then((p) => setChatPendente(p.privadas_nao_lidas + p.mencoes)).catch(() => {})
+      void api
+        .chatPendencias()
+        .then((p) => {
+          setChatPendente(p.privadas_nao_lidas + p.mencoes)
+          setAvisosChat(p)
+        })
+        .catch(() => {})
     puxar()
     const tique = setInterval(puxar, 30_000)
     return () => clearInterval(tique)
@@ -427,6 +446,7 @@ export default function App() {
           aoFechar={() => setChatAberto(false)}
           conversaInicial={conversaAlvo}
           aoConsumirConversaInicial={() => setConversaAlvo(null)}
+          avisos={avisosChat}
         />
       )}
       {missoesAbertas && !chatAberto && colonia && <Missoes aoFechar={() => setMissoesAbertas(false)} />}
@@ -468,7 +488,6 @@ export default function App() {
           catalogo={catalogo}
           aoErguer={(tipo, slot) => void erguer(tipo, slot)}
           aoFechar={() => setSlotVazio(null)}
-          erro={erro}
         />
       )}
 
@@ -480,8 +499,13 @@ export default function App() {
           aoDemolir={(s) => void demolir(s)}
           aoAbrirPorta={abrirPorta}
           aoFechar={() => setSelecionada(null)}
-          erro={erro}
         />
+      )}
+
+      {erroConstrucao && (
+        <Popup titulo="Não foi possível" aoFechar={() => setErroConstrucao(null)}>
+          <p className="text-ink text-sm">{erroConstrucao}</p>
+        </Popup>
       )}
 
     </div>

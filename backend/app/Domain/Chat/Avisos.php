@@ -78,7 +78,24 @@ class Avisos
             ->whereNull('seen_at')
             ->count();
 
-        return ['privadas_nao_lidas' => $naoLidas, 'mencoes' => $mencoes];
+        // Por canal, para a aba acender sozinha (pedido do usuário): `chat_mentions.channel` já
+        // grava o canal real desde sempre (`citar()`, abaixo) — só nunca tinha sido agrupado.
+        $porCanal = DB::table('chat_mentions')
+            ->where('user_id', $user->id)
+            ->whereNull('seen_at')
+            ->whereIn('channel', EnviarMensagem::PUBLICOS)
+            ->selectRaw('channel, count(*) as n')
+            ->groupBy('channel')
+            ->pluck('n', 'channel');
+
+        return [
+            'privadas_nao_lidas' => $naoLidas,
+            'mencoes' => $mencoes,
+            'mencoes_por_canal' => [
+                'global' => (int) ($porCanal['global'] ?? 0),
+                'vizinhanca' => (int) ($porCanal['vizinhanca'] ?? 0),
+            ],
+        ];
     }
 
     /**
