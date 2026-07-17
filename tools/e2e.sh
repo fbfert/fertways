@@ -272,6 +272,10 @@ E2E_URL="http://127.0.0.1:$PORTA_WEB" node e2e/telas.e2e.mjs
 # O Chat não mexe em veículo nem em recurso — só em mensagens — e por isso cabe em qualquer ponto
 # da ordem. Fica aqui, cedo, por não depender de nada que as telas seguintes ainda vão montar.
 E2E_URL="http://127.0.0.1:$PORTA_WEB" node e2e/chat.e2e.mjs
+# A barra mobile (reforma mobile-first do HUD). Roda num browser PRÓPRIO a 390×844 — não interfere
+# no viewport 1400×900 do resto da suíte — e termina saindo da conta; como cada arquivo faz seu
+# próprio login, isso não afeta os que vêm depois.
+E2E_URL="http://127.0.0.1:$PORTA_WEB" node e2e/mobile.e2e.mjs
 # A Capital SUBIU na ordem no D-60, e não por gosto: a tela do Ministério dos Transportes precisa de
 # um veículo **no pátio** para reparar e sucatear, e o botão de manutenção só existe para veículo
 # ocioso. Depois do Mercado e do Acordo os três furgões estão em rota, e não haveria em que clicar.
