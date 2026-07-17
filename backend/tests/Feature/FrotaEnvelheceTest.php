@@ -564,4 +564,74 @@ class FrotaEnvelheceTest extends TestCase
             ->assertJsonPath('planeta.veiculos_registrados', 1)
             ->assertJsonPath('planeta.sucateados', 1);
     }
+
+    // ---------------------------------------------------------------- placa e apelido (pedido do usuário)
+
+    public function test_a_frota_mostra_placa_e_apelido(): void
+    {
+        $user = $this->colono();
+        $v = $this->furgao($user->colony);
+        $v->update(['plate' => 'FW-00001-F', 'nickname' => 'Zé Furioso']);
+
+        $this->actingAs($user)->getJson('/vehicles')
+            ->assertOk()
+            ->assertJsonPath('vehicles.0.plate', 'FW-00001-F')
+            ->assertJsonPath('vehicles.0.nickname', 'Zé Furioso');
+    }
+
+    public function test_a_frota_mostra_nickname_nulo_quando_nao_apelidado(): void
+    {
+        $user = $this->colono();
+
+        $this->actingAs($user)->getJson('/vehicles')
+            ->assertOk()
+            ->assertJsonPath('vehicles.0.nickname', null);
+    }
+
+    public function test_renomeia_o_veiculo(): void
+    {
+        $user = $this->colono();
+        $v = $this->furgao($user->colony);
+
+        $this->actingAs($user)->patchJson("/vehicles/{$v->id}/nickname", ['nickname' => '  Relâmpago  '])
+            ->assertOk()
+            ->assertJsonPath('nickname', 'Relâmpago');
+
+        $this->assertSame('Relâmpago', $v->fresh()->nickname, 'salva já sem os espaços nas pontas');
+    }
+
+    public function test_apelido_vazio_remove_o_nome(): void
+    {
+        $user = $this->colono();
+        $v = $this->furgao($user->colony);
+        $v->update(['nickname' => 'Relâmpago']);
+
+        $this->actingAs($user)->patchJson("/vehicles/{$v->id}/nickname", ['nickname' => ''])
+            ->assertOk()
+            ->assertJsonPath('nickname', null);
+
+        $this->assertNull($v->fresh()->nickname);
+    }
+
+    public function test_nao_renomeia_veiculo_de_outra_colonia(): void
+    {
+        $dono = $this->colono();
+        $outro = $this->colono();
+        $v = $this->furgao($dono->colony);
+
+        $this->actingAs($outro)->patchJson("/vehicles/{$v->id}/nickname", ['nickname' => 'Roubado'])
+            ->assertStatus(422)
+            ->assertJsonPath('code', 'veiculo_de_outra_colonia');
+
+        $this->assertNull($v->fresh()->nickname);
+    }
+
+    public function test_apelido_acima_de_60_caracteres_e_recusado(): void
+    {
+        $user = $this->colono();
+        $v = $this->furgao($user->colony);
+
+        $this->actingAs($user)->patchJson("/vehicles/{$v->id}/nickname", ['nickname' => str_repeat('a', 61)])
+            ->assertJsonValidationErrors('nickname');
+    }
 }

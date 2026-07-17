@@ -100,6 +100,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/vehicles', [VehicleController::class, 'index']);
     Route::get('/vehicles/route', [VehicleController::class, 'rota']);
     Route::post('/vehicles/{vehicle}/dispatch', [VehicleController::class, 'despachar']);
+    Route::patch('/vehicles/{vehicle}/nickname', [VehicleController::class, 'renomear']);
 
     Route::get('/market/account', [MarketController::class, 'conta']);
     // O serviço logístico público do §07 (D-76): o governo busca na doca e leva até a colônia.

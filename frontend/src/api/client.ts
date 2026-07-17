@@ -437,6 +437,8 @@ export type Fila = { slots: number; used: number; items: ItemDaFila[] }
 export type Veiculo = {
   id: number
   type: string
+  plate: string | null
+  nickname: string | null
   level: number
   status: 'ocioso' | 'carregando' | 'em_rota' | 'descarregando'
   /** A capacidade de fábrica (§25.4). É a nominal: não é ela que o despacho cobra. */
@@ -1031,6 +1033,13 @@ export const api = {
     }),
 
   frota: () => req<Frota>('/vehicles'),
+
+  /** Dá (ou tira) um apelido do veículo. A placa não muda — é do veículo, não do dono (§16.3). */
+  renomearVeiculo: (veiculo: number, nickname: string) =>
+    req<{ nickname: string | null }>(`/vehicles/${veiculo}/nickname`, {
+      method: 'PATCH',
+      body: JSON.stringify({ nickname }),
+    }),
 
   /** Leva carga do estoque até a doca do Mercado. O tributo incide na chegada (D-32). */
   depositar: (veiculo: number, cargo: Record<string, number>) =>
