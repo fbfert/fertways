@@ -6,12 +6,15 @@
  *
  *     /usr/bin/php84 tools/gdd-v36.php > ../../FERTWAYS_GDD_v36_CONSOLIDADO.html
  *
- * Atualizado até o D-92 (2026-07-16) — guerra (D-66/D-70), Drone (D-74), Marco (D-75),
+ * Atualizado até o D-101 (2026-07-16) — guerra (D-66/D-70), Drone (D-74), Marco (D-75),
  * Missões (D-78), Chat (D-77), a Capital em quatro áreas (D-63), os dois mercados (D-65),
  * Indústria Siderúrgica e a receita de Ligas/Compostos (D-82/D-83), teto/upgrade/manutenção de
  * zona (D-84), o kit inicial em tabela única e depois editável pelo admin (D-85/D-92), a zona em
- * cinco abas com Histórico (D-86), o Governo vendendo no Mercado Central (D-87), e o Pátio
- * chamando o veículo de volta vazio com aviso da Capital (D-91).
+ * cinco abas com Histórico (D-86), o Governo vendendo no Mercado Central (D-87), o Pátio
+ * chamando o veículo de volta vazio com aviso da Capital (D-91), o extrato bancário e
+ * Bugs/Melhorias (D-94/D-95), o painel de admin em abas com o extrato do Tesouro (D-96/D-99), a
+ * categoria Eventuais e quatro ações novas de missão (D-99/D-100), e a placa e o apelido do
+ * veículo na Frota (D-101).
  *
  * ---
  *
@@ -470,6 +473,7 @@ ob_start();
   <tr><td>Tutoria</td><td>5, entregues na fundação</td><td>dias 1–3</td></tr>
   <tr><td>Diária</td><td>3, sorteadas de um pool de 30+</td><td><b>07h → 07h</b> — a régua da semanal, aplicada ao dia inteiro</td></tr>
   <tr><td>Semanal</td><td>1</td><td>quarta 07h → terça 23h59, textual do GDD</td></tr>
+  <tr><td>Eventuais <span class="d">D-99</span></td><td>fora do pool — atribuição manual</td><td>sem sorteio automático (evento, sazonal, lançamento)</td></tr>
 </table>
 
 <p>
@@ -477,6 +481,15 @@ ob_start();
   sem botão de resgate —, generoso por arbitragem (2× a proposta modesta original). <b>A tutoria
   recompensa e não trava</b> o subsídio: contradição deliberada com o §03 ("mediante conclusão da
   tutoria"), porque o tutorial já é auto-completo na fundação desde antes das Missões existirem.
+</p>
+
+<p>
+  <b>O catálogo de ações que um molde pode escutar</b> cresceu com o pedido do usuário
+  <span class="d">D-100</span>: além dos atos de sempre (construção, despacho, combate, Mercado,
+  Nióbio, chat, frete público, manutenção), agora inclui <b>comprar do Governo no Mercado
+  Central</b> (distinto de comprar de outro colono), <b>comprar um veículo novo</b> (do
+  Ministério), <b>comprar um veículo usado</b> e <b>vender um veículo usado</b> — este último só
+  dispara na entrega, quando o Fert$ de fato chega ao vendedor (§5.5, §6.5).
 </p>
 
 <!-- ══════════════════════════════════════════════════════════════ 3 -->
@@ -572,6 +585,16 @@ ob_start();
   É por isso que até a <b>correção administrativa</b> lança <code>ajuste_admin</code>, com motivo
   escrito e o admin que a fez. <span class="d">D-61</span>
 </div>
+
+<p>
+  <b>O Tesouro ganhou o próprio ledger</b> <span class="d">D-96</span>: até aqui o caixa do
+  Governo só guardava o SALDO corrente (<code>treasury_holdings</code>), sem histórico nenhum —
+  ao contrário de toda colônia. O <code>treasury_ledger</code> é a mesma regra de ouro, do lado do
+  Tesouro: uma tabela nova, sem <code>colony_id</code> (o Tesouro é um só), append-only, visível
+  em <code>/central/admin</code> → Economia → Extrato do Governo. O jogador continua vendo só o
+  próprio extrato — o Fert$ do card do HUD, aberto num popup <span class="d">D-94</span> — e o
+  extrato de toda colônia junto vive só do lado do admin, em Extrato Colonos.
+</p>
 
 <!-- ══════════════════════════════════════════════════════════════ 4 -->
 <h2 id="s4">4. Construções</h2>
@@ -694,6 +717,13 @@ ob_start();
   <tr><td>Nave de Transporte Planetária</td><td class="num">4.000 un.</td><td class="num">10 slots/min</td><td class="num">Gelo de Metano</td><td><?= promessa('Fora do MVP') ?></td></tr>
   <tr><td>Cargueiro Interplanetário</td><td class="num">—</td><td class="num">—</td><td class="num">—</td><td><?= promessa('Depende do Espaçoporto') ?></td></tr>
 </table>
+
+<p>
+  Todo veículo tem <b>placa</b> (§16.3), única e permanente — não muda de dono nem de mão. Desde o
+  D-101, o colono também pode dar um <b>apelido</b> a cada veículo (opcional, sem filtro de
+  conteúdo, mesmo desenho do nome da zona — §8.7): "Furgão de Comércio" continua sendo o que ele
+  É; o apelido é só como o dono prefere chamá-lo na tela da Frota.
+</p>
 
 <h3>5.2 A viagem <span class="d">D-30, D-32</span></h3>
 
@@ -1197,6 +1227,24 @@ ob_start();
   <li><b>O Governo no Mercado Central</b> — o que o Tesouro tem à venda, e por quanto
       <span class="d">D-87</span>, ver §6.2.1.</li>
 </ul>
+
+<h3>9.4 O painel em abas, e o que o jogador ganhou de volta <span class="d">D-93 a D-99</span></h3>
+
+<p>
+  Quatro telas do painel — Economia, Transportes, Visão Geral, Missões — separadas em abas: cada
+  uma crescia sem parar a cada seção nova, e empurrava tudo para baixo da dobra. Economia ganhou
+  <b>Ofertas Globais</b> (o livro do Mercado Central inteiro, todo colono e o Governo, numa lista
+  só) e os dois extratos (§3.3). Transportes ganhou busca por Dono e ordenação por cabeçalho na
+  Frota do Planeta. Missões ganhou uma visão geral do catálogo — por molde, quantas vezes foi
+  sorteado e como terminou.
+</p>
+
+<p>
+  Do lado do jogador: um formulário de <b>Bugs/Melhorias</b> ao lado do Chat, para reportar bug,
+  sugestão ou dúvida — os dados de jogador/colônia/e-mail são anexados pelo servidor, e se o
+  Governo responder, o aviso chega pelo rádio, remetente "Capital" (a mesma conta de sistema do
+  D-91). Sem tela de acompanhamento: só o envio, e a resposta pelo canal que o jogador já olha.
+</p>
 
 <!-- ══════════════════════════════════════════════════════════════ 10 -->
 <h2 id="s10">10. Tudo o que ainda falta decidir</h2>

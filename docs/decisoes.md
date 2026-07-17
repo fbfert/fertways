@@ -4375,3 +4375,40 @@ mais o item 4 sem branch — não havia o que mudar), mas o merge dos quatro bra
 (`sudo ./tools/deploy.sh`) e este mesmo registro só aconteceram depois que os cinco estavam
 prontos — a publicação incremental de D-93/94/95 (a leva anterior) foi a exceção, não a regra
 daqui em diante quando o pedido disser isso explicitamente.
+
+## D-100 — Quatro ações novas no catálogo de missões: comprar do Governo, veículo novo e usado.
+**Data:** 2026-07-16 · **Status:** arbitrado pelo usuário · **Feature nova, não do GDD**
+
+Pedido do usuário: mais gatilhos para "Ação escutada" em Criar um Molde — "Comprar recursos do
+Governo no Mercado Central", "Compre um veículo Novo", "Compre um veículo Usado" e "Venda seu
+primeiro veículo".
+
+Cada ação ganhou um gancho real no domínio, não só a entrada no catálogo — sem isto seria a
+mesma "missão impossível" que o D-72 já tinha documentado (um molde cuja ação nenhum código
+dispara, 0/N para sempre, em silêncio):
+
+- `compra_governo_mercado`: em `ExecutarOrdem`, só quando o vendedor é o Governo (`colony_id`
+  nulo), com o mesmo piso de 500 F$ que já protege XP/reputação contra execuções minúsculas.
+- `compra_veiculo_novo`: em `ComprarCaminhao`, na compra da prateleira do Ministério.
+- `compra_veiculo_usado`: em `MercadoDeUsados::comprar`, no ato da compra.
+- `venda_veiculo_usado`: em `MercadoDeUsados::concluirEntrega` — só na ENTREGA, que é quando o
+  Fert$ de fato chega ao vendedor (o escrow fica retido até lá).
+
+`App\Domain\Missoes\Acoes::TODAS` ganha as quatro entradas. Validado: `tests/Feature/
+MissoesNovasAcoesTest.php` (6 casos), suíte completa (623 testes), sem mudança de schema.
+
+## D-101 — A Frota mostra a placa e permite apelidar o veículo.
+**Data:** 2026-07-16 · **Status:** arbitrado pelo usuário · **Feature nova, não do GDD**
+
+Pedido do usuário: em `/frota`, mostrar a placa de cada veículo e permitir dar um nome a ele. A
+placa já existia no banco desde o D-60, mas `GET /vehicles` nunca a devolvia — a tela só mostrava
+tipo e nível.
+
+Apelido novo: coluna nullable `vehicles.nickname` (migration
+`2026_07_16_170000_apelido_do_veiculo`), rota `PATCH /vehicles/{id}/nickname` (confere o dono, 60
+caracteres, sem filtro de conteúdo — mesmo desenho do nome da zona, D-67). No frontend, mesmo
+padrão de UX que a zona já usa: o campo edita livre, e o "Salvar" só aparece quando o texto muda
+do que está gravado; vazio remove o apelido e volta a mostrar só o tipo. Validado:
+`tests/Feature/FrotaEnvelheceTest.php` (+6 casos), migração testada num MariaDB efêmero
+(up + rollback), e2e completo (8 arquivos, 3ª tentativa limpa — as duas primeiras caíram por
+contenção de memória do servidor compartilhado, confirmado pelo `free -h` e não por bug).
