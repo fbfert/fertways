@@ -409,6 +409,7 @@ export default function App() {
       {colonia && (
         <MobileNav
           colonia={colonia}
+          fila={fila}
           chatPendente={chatPendente}
           aoAbrirChat={() => setChatAberto((v) => !v)}
           aoAbrirMissoes={() => setMissoesAbertas((v) => !v)}
