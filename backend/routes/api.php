@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\CapitalController;
 use App\Http\Controllers\Api\ChatController;
 use App\Http\Controllers\Api\ColonyController;
 use App\Http\Controllers\Api\DroneController;
+use App\Http\Controllers\Api\EstatisticasController;
 use App\Http\Controllers\Api\FeedbackController;
 use App\Http\Controllers\Api\ImagesController;
 use App\Http\Controllers\Api\MarketController;
@@ -23,6 +24,9 @@ use Illuminate\Support\Facades\Route;
 
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
+
+// A landing page (pedido do usuário, 2026-07-17): números reais, sem exigir conta.
+Route::get('/estatisticas', [EstatisticasController::class, 'index']);
 
 Route::middleware('auth:sanctum')->group(function () {
     // Revoga o token que fez a chamada. Sem isto, "sair" só apaga o token do navegador.
