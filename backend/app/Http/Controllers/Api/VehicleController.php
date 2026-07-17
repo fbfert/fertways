@@ -25,6 +25,8 @@ class VehicleController extends Controller
             'vehicles' => $colony->vehicles->map(fn (Vehicle $v) => [
                 'id' => $v->id,
                 'type' => $v->type,
+                'plate' => $v->plate,
+                'nickname' => $v->nickname,
                 'level' => $v->level,
                 'status' => $v->status,
                 'capacity' => $v->capacity,
@@ -116,6 +118,25 @@ class VehicleController extends Controller
             'cargo' => $veiculo->cargo_json,
             'trade_agreement_id' => $veiculo->trade_agreement_id,
         ], 201);
+    }
+
+    /** Dá (ou tira) um apelido do veículo — a placa não muda, ela é do veículo, não do dono (§16.3). */
+    public function renomear(Request $request, Vehicle $vehicle): JsonResponse
+    {
+        $colony = $this->colonia($request);
+
+        if ($vehicle->colony_id !== $colony->id) {
+            throw new DomainRuleException('veiculo_de_outra_colonia', 'Este veículo não é seu.');
+        }
+
+        $dados = $request->validate([
+            'nickname' => ['nullable', 'string', 'max:60'],
+        ]);
+
+        $nickname = trim((string) ($dados['nickname'] ?? ''));
+        $vehicle->update(['nickname' => $nickname !== '' ? $nickname : null]);
+
+        return response()->json(['nickname' => $vehicle->nickname]);
     }
 
     private function colonia(Request $request): Colony

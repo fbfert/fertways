@@ -102,8 +102,11 @@ export function Frota({ aoFechar }: { aoFechar: () => void }) {
               <li key={v.id} className="border-rust/25 bg-sand border p-4">
                 <div className="flex items-baseline justify-between">
                   <div>
-                    <span className="text-ink font-black">{nomeVeiculo(v.type)}</span>
-                    <span className="text-ink-soft ml-2 text-sm">nível {v.level}</span>
+                    <NomeEApelido veiculo={v} aoRenomear={() => void carregar()} />
+                    <div className="text-ink-soft text-sm">
+                      {nomeVeiculo(v.type)} · nível {v.level}
+                      {v.plate && <span className="ml-2 tabular-nums">{v.plate}</span>}
+                    </div>
                   </div>
                   <span
                     className={`eyebrow ${v.status === 'ocioso' ? 'text-ink-soft' : 'text-rust'}`}
@@ -170,6 +173,56 @@ function Linha({ termo, valor }: { termo: string; valor: string }) {
     <div className="flex justify-between">
       <dt>{termo}</dt>
       <dd className="text-ink">{valor}</dd>
+    </div>
+  )
+}
+
+/**
+ * O apelido do veículo (pedido do usuário). Mesmo padrão de "sem mudança, sem botão" que a zona já
+ * usa: o "Salvar" só aparece quando o campo difere do que está gravado, e vazio remove o apelido.
+ */
+function NomeEApelido({ veiculo, aoRenomear }: { veiculo: Veiculo; aoRenomear: () => void }) {
+  const [nome, setNome] = useState(veiculo.nickname ?? '')
+  const [salvando, setSalvando] = useState(false)
+
+  useEffect(() => setNome(veiculo.nickname ?? ''), [veiculo.nickname])
+
+  const mudou = nome.trim() !== (veiculo.nickname ?? '')
+
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <input
+        type="text"
+        value={nome}
+        onChange={(e) => setNome(e.target.value)}
+        placeholder={nomeVeiculo(veiculo.type)}
+        maxLength={60}
+        data-apelido-veiculo={veiculo.id}
+        className="text-ink border-rust/25 focus:border-rust w-40 border-b bg-transparent font-black outline-none"
+      />
+      {mudou && (
+        <button
+          type="button"
+          className="botao text-xs"
+          data-salvar-apelido={veiculo.id}
+          disabled={salvando}
+          onClick={() =>
+            void (async () => {
+              setSalvando(true)
+              try {
+                await api.renomearVeiculo(veiculo.id, nome.trim())
+                aoRenomear()
+              } catch {
+                /* A tela recarrega sozinha a cada 3s; um erro aqui não trava nada. */
+              } finally {
+                setSalvando(false)
+              }
+            })()
+          }
+        >
+          Salvar
+        </button>
+      )}
     </div>
   )
 }

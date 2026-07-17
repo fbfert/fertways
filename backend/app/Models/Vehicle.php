@@ -16,7 +16,7 @@ class Vehicle extends Model
     use SoftDeletes;
 
     protected $fillable = [
-        'colony_id', 'type', 'plate', 'level', 'status', 'capacity', 'local',
+        'colony_id', 'type', 'plate', 'nickname', 'level', 'status', 'capacity', 'local',
         'conservacao_bps', 'teto_conservacao_bps', 'manutencoes', 'uso_ativo_seg',
         'origin_id', 'destination_type', 'destination_id', 'leg', 'trip_purpose', 'distance_slots',
         'return_distance_slots', 'departs_at', 'arrives_at', 'parked_at', 'patio_cobrado_ate',
