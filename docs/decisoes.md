@@ -4429,3 +4429,41 @@ painel de jogadores do admin, junto com a "Capital". Validado:
 `tests/Feature/MissoesAvisoRadioTest.php` (3 casos) e a suíte completa (635 testes); sem migração
 de schema, só um INSERT de dado — dispensado o round-trip em MariaDB (a "mentira do SQLite" é
 sobre DDL, e aqui não há DDL nenhum).
+
+## D-103 — O HUD do jogo vira mobile-first, sem tocar o desktop.
+**Data:** 2026-07-17 · **Status:** arbitrado pelo usuário · **Feature nova, não do GDD**
+
+Pedido do usuário: reformatar o visual do jogo para mobile-first. O jogo inteiro era desktop-first
+(Tailwind padrão, responsividade esparsa, nenhum padrão de navegação mobile em lugar nenhum do
+código) — decidido com o usuário fazer isto tela por tela, e não num "big bang": desktop tem de
+continuar idêntico o tempo todo, e o HUD/navegação da colônia (rota `/`) vem primeiro, por ser a
+casca em que toda tela do jogo vive. Três PRs sequenciais, cada um validado e no ar antes do
+próximo (#28, #29, #30):
+
+1. **O painel flutuante vira mobile-first.** `Chat.tsx`, `Missoes.tsx` e `BugsMelhorias.tsx`
+   compartilhavam a mesma janela fixa em pixels (`fixed right-4 bottom-4 w-[340-360px]`) —
+   inviável numa tela de 360-430px. Extraído para `painelFlutuante.ts`: base mobile ocupa quase a
+   tela inteira (`inset-4`); a partir de `sm:` volta a ser exatamente a janela de canto de sempre.
+2. **A navegação em si.** O `<header>` de `App.tsx` — seis botões e dois cartões, absolutamente
+   posicionado, pensado pra tela larga — vira `hidden md:flex`, sem nenhuma classe alterada nele.
+   `MobileNav.tsx` (novo, `md:hidden`) dá em troca: faixa superior (marca + Fert$) e barra
+   inferior fixa de 5 ícones. As duas barras laterais (`Recursos`, `FilaDeObras`+`MinhasZonas`)
+   ganham `hidden md:block` — sem isto, sobrepunham a tela toda no mobile assim que o header parou
+   de as empurrar visualmente.
+3. **Um lugar de volta para Recursos/Fila/Zonas.** `ColoniaSheet.tsx`: um sheet com duas abas
+   (Recursos / Obras e zonas), reaproveitando os três componentes das barras laterais do desktop
+   sem alteração interna. Na barra mobile, o ícone "Missões" virou "Colônia" (um hexágono, o
+   motivo do deck) e Missões entrou no menu "Mais" — no mobile, Recursos/Fila competem por espaço
+   e são consultados com mais frequência do que a tela de Missões é aberta.
+
+Achado no meio do trabalho, não previsto no plano original: o `Hud.tsx` do código NÃO é a
+navegação — é o conjunto de painéis de construção (`Recursos`, `FilaDeObras`, `Detalhe`,
+`SlotVazio`). A navegação de verdade vivia solta dentro de `App.tsx`. E as duas barras laterais
+foram escondidas no PR 2 (não no PR 3, como o plano original previa) — a checagem visual mostrou
+que, sem isso, elas sobrepunham a colônia inteira no intervalo entre os dois deploys.
+
+Validado a cada PR: `tsc`/`lint`/`build` limpos, checagem visual manual (backend efêmero +
+Puppeteer, 1400×900 e 390×844, capturas antes de cada PR), e2e completo — `abrirNavegador()`
+(`e2e/comum.mjs`) ganhou um parâmetro de viewport, e `e2e/mobile.e2e.mjs` (novo) roda a suíte
+inteira a 390×844. Fora de escopo por ora: toque no canvas do jogo, e qualquer tela alcançada por
+rota própria (Mapa, Frota, Capital, Zona...) — cada uma é uma fase futura própria.
