@@ -4412,3 +4412,20 @@ do que está gravado; vazio remove o apelido e volta a mostrar só o tipo. Valid
 `tests/Feature/FrotaEnvelheceTest.php` (+6 casos), migração testada num MariaDB efêmero
 (up + rollback), e2e completo (8 arquivos, 3ª tentativa limpa — as duas primeiras caíram por
 contenção de memória do servidor compartilhado, confirmado pelo `free -h` e não por bug).
+
+## D-102 — O rádio avisa quando uma missão é concluída, e o que ela pagou.
+**Data:** 2026-07-17 · **Status:** arbitrado pelo usuário · **Feature nova, não do GDD**
+
+Pedido do usuário: hoje uma missão conclui e paga em silêncio (§06; D-78) — o colono só descobre
+se abrir a tela de Missões por conta própria. Mesma lacuna que o D-91 fechou para o Pátio.
+
+Nova conta de sistema "Missões" (`ContaSistema::missoes()`, migration
+`2026_07_16_160000_conta_sistema_missoes`), mesmo desenho da "Capital" do D-91: uma conta de
+verdade, sem colônia e sem senha utilizável, reservada por migration para fechar a janela em que
+um jogador tomaria o nickname primeiro. `Progresso::pagar()` (o mesmo método que credita Fert$,
+recurso e XP na conclusão) manda, ao final, uma mensagem privada com o título da missão e o que
+foi pago — Fert$, recursos e XP, só o que houver. Excluída de `/estatisticas` (`colonos`) e do
+painel de jogadores do admin, junto com a "Capital". Validado:
+`tests/Feature/MissoesAvisoRadioTest.php` (3 casos) e a suíte completa (635 testes); sem migração
+de schema, só um INSERT de dado — dispensado o round-trip em MariaDB (a "mentira do SQLite" é
+sobre DDL, e aqui não há DDL nenhum).

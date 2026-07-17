@@ -2,10 +2,13 @@
 
 namespace App\Domain\Missoes;
 
+use App\Domain\Chat\ContaSistema;
+use App\Domain\Chat\EnviarMensagem;
 use App\Domain\Marco\ConcederXp;
 use App\Models\Colony;
 use App\Models\Ledger;
 use App\Models\MissionAssignment;
+use App\Models\ResourceType;
 
 /**
  * O progresso das missões (§06; D-78) — o ouvido que escuta os atos do jogo.
@@ -18,10 +21,16 @@ use App\Models\MissionAssignment;
  * (§06 lista "recompensas de missão" entre as entradas de Fert$), o ledger registra cada perna, e
  * o XP entra pelo ledger do Marco com o valor DO TEMPLATE (as missões pagam o que o catálogo diz,
  * não o que a tabela de atos do D-75 diz).
+ *
+ * E avisa: a conta de sistema "Missões" manda pelo rádio o que acabou de ser pago (pedido do
+ * usuário) — mesmo desenho do aviso do Pátio (D-91), só que disparado uma vez, na conclusão.
  */
 class Progresso
 {
-    public function __construct(private readonly ConcederXp $xp) {}
+    public function __construct(
+        private readonly ConcederXp $xp,
+        private readonly EnviarMensagem $chat,
+    ) {}
 
     public function registrar(int $colonyId, string $acao, int $vezes = 1): void
     {
@@ -82,5 +91,40 @@ class Progresso
         if ((int) $t->recompensa_xp > 0) {
             $this->xp->direto($missao->colony_id, 'missao_concluida', (int) $t->recompensa_xp, $ref);
         }
+
+        $this->avisar($missao);
+    }
+
+    private function avisar(MissionAssignment $missao): void
+    {
+        $usuario = Colony::find($missao->colony_id)?->user;
+
+        if (! $usuario) {
+            return;
+        }
+
+        $t = $missao->template;
+        $ganhos = [];
+
+        if ((int) $t->recompensa_fert_micro > 0) {
+            $ganhos[] = number_format($t->recompensa_fert_micro / 1_000_000, 2, ',', '.').' Fert$';
+        }
+
+        foreach ($t->recompensa_recursos ?? [] as $recurso => $qtd) {
+            $nome = ResourceType::find($recurso)?->nome ?? $recurso;
+            $ganhos[] = "{$qtd}x {$nome}";
+        }
+
+        if ((int) $t->recompensa_xp > 0) {
+            $ganhos[] = "{$t->recompensa_xp} XP";
+        }
+
+        $recompensa = $ganhos === [] ? '' : ' Você ganhou '.implode(', ', $ganhos).'.';
+
+        $this->chat->sistema(
+            ContaSistema::missoes(),
+            $usuario,
+            "Missão concluída: \"{$t->titulo}\".{$recompensa}",
+        );
     }
 }

@@ -46,10 +46,11 @@ class EstatisticasPublicasTest extends TestCase
         $this->assertGreaterThan(0, $resp->json('fert_em_circulacao_micro'));
     }
 
-    public function test_a_conta_de_sistema_capital_nao_conta_como_colono(): void
+    public function test_as_contas_de_sistema_nao_contam_como_colono(): void
     {
-        // A migration do D-91 já semeia a conta "Capital" em todo banco — nem precisa criá-la.
+        // As migrations do D-91 e de "Missões" já semeiam as duas em todo banco — nem precisa criá-las.
         $this->assertDatabaseHas('users', ['email' => \App\Domain\Chat\ContaSistema::EMAIL_CAPITAL]);
+        $this->assertDatabaseHas('users', ['email' => \App\Domain\Chat\ContaSistema::EMAIL_MISSOES]);
 
         $resp = $this->getJson('/estatisticas')->assertOk();
 

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Domain\Chat\ContaSistema;
 use App\Http\Controllers\Controller;
 use App\Models\Building;
 use App\Models\Colony;
@@ -24,8 +25,8 @@ class EstatisticasController extends Controller
     public function index(): JsonResponse
     {
         return response()->json([
-            // "Capital" é conta de sistema (D-91), não é gente.
-            'colonos' => User::where('email', '!=', \App\Domain\Chat\ContaSistema::EMAIL_CAPITAL)->count(),
+            // "Capital" (D-91) e "Missões" são contas de sistema, não são gente.
+            'colonos' => User::whereNotIn('email', [ContaSistema::EMAIL_CAPITAL, ContaSistema::EMAIL_MISSOES])->count(),
             'colonias' => Colony::count(),
             'fert_em_circulacao_micro' => (int) Colony::sum('fert_micro'),
             'construcoes_erguidas' => Building::count(),
