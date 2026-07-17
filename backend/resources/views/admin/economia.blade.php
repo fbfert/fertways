@@ -199,7 +199,7 @@
                         <td>{{ $o->colony?->name ?? 'Governo' }}</td>
                         <td class="pequeno">{{ $o->side === 'buy' ? 'compra' : 'venda' }}</td>
                         <td class="pequeno">{{ $o->resource_type }}</td>
-                        <td class="num">{{ $fert($o->price_micro) }}</td>
+                        <td class="num">{{ number_format($o->price_micro / 1000000, 4, ',', '.') }}</td>
                         <td class="num">{{ number_format($o->qty, 0, ',', '.') }}</td>
                         <td class="pequeno">{{ $o->status }}</td>
                         <td class="mut pequeno">{{ $quando($o->created_at) }}</td>
