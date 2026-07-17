@@ -38,7 +38,7 @@ const INDICES: { chave: keyof PerfilDto['reputacao']; nome: string; oque: string
   },
 ]
 
-export function Perfil({ aoFechar, aoSalvar }: { aoFechar: () => void; aoSalvar: () => void }) {
+export function Perfil({ aoSalvar }: { aoSalvar: () => void }) {
   const [p, setP] = useState<PerfilDto | null>(null)
   const [erro, setErro] = useState<string | null>(null)
   const [recibo, setRecibo] = useState<string | null>(null)
@@ -87,32 +87,23 @@ export function Perfil({ aoFechar, aoSalvar }: { aoFechar: () => void; aoSalvar:
 
   const moldura = (dentro: React.ReactNode) => (
     <div className="bg-sand fixed inset-0 z-20 overflow-y-auto" data-tela="perfil">
-      <div className="bg-sand-light mx-auto min-h-screen w-full max-w-2xl p-6">
-        <div className="mb-4 flex items-start justify-between">
-          <div>
-            <div className="text-rust eyebrow">Colono</div>
-            <h2 className="text-2xl font-black">{p?.name ?? 'Perfil'}</h2>
-            {/* O Marco é identidade (§03) — mora junto do nome, não numa aba. */}
-            {p?.marco && (
-              <p className="text-ink-soft mt-1 text-sm" data-marco={p.marco.numero}>
-                Marco <strong>{p.marco.numero}</strong> — <strong>{p.marco.titulo}</strong>
-                {p.marco.xp_do_proximo !== null ? (
-                  <span className="text-ink-soft/70">
-                    {' '}· {p.marco.xp} / {p.marco.xp_do_proximo} XP para o próximo
-                  </span>
-                ) : (
-                  <span className="text-ink-soft/70"> · o teto do planeta</span>
-                )}
-              </p>
-            )}
-          </div>
-          <button
-            onClick={aoFechar}
-            data-fechar-perfil
-            className="text-ink-soft hover:text-rust text-2xl leading-none"
-          >
-            ×
-          </button>
+      <div className="bg-sand-light mx-auto min-h-screen w-full max-w-2xl px-6 pt-20 pb-24 md:pt-28 md:pb-6">
+        <div className="mb-4">
+          <div className="text-rust eyebrow">Colono</div>
+          <h2 className="text-2xl font-black">{p?.name ?? 'Perfil'}</h2>
+          {/* O Marco é identidade (§03) — mora junto do nome, não numa aba. */}
+          {p?.marco && (
+            <p className="text-ink-soft mt-1 text-sm" data-marco={p.marco.numero}>
+              Marco <strong>{p.marco.numero}</strong> — <strong>{p.marco.titulo}</strong>
+              {p.marco.xp_do_proximo !== null ? (
+                <span className="text-ink-soft/70">
+                  {' '}· {p.marco.xp} / {p.marco.xp_do_proximo} XP para o próximo
+                </span>
+              ) : (
+                <span className="text-ink-soft/70"> · o teto do planeta</span>
+              )}
+            </p>
+          )}
         </div>
         {dentro}
       </div>

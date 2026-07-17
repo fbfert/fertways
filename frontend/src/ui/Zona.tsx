@@ -77,7 +77,7 @@ const ABAS: { id: Aba; rotulo: string }[] = [
   { id: 'historico', rotulo: 'Histórico' },
 ]
 
-export function Zona({ aoFechar }: { aoFechar: () => void }) {
+export function Zona() {
   const { id } = useParams()
   const zonaId = Number(id)
 
@@ -156,57 +156,48 @@ export function Zona({ aoFechar }: { aoFechar: () => void }) {
 
   const moldura = (dentro: React.ReactNode) => (
     <div className="bg-sand fixed inset-0 z-20 overflow-y-auto" data-tela="zona">
-      <div className="bg-sand-light mx-auto min-h-screen w-full max-w-5xl p-6">
-        <div className="mb-4 flex items-start justify-between">
-          <div>
-            <div className="text-rust eyebrow">Zona Neutra</div>
-            {z ? (
-              <>
-                <div className="flex flex-wrap items-center gap-2">
-                  <input
-                    type="text"
-                    value={nome}
-                    onChange={(e) => setNome(e.target.value)}
-                    placeholder={`(${z.x}, ${z.y})`}
-                    maxLength={120}
-                    data-nome-zona
-                    className="text-ink border-rust/25 focus:border-rust bg-transparent border-b text-2xl font-black outline-none"
-                  />
-                  {nome.trim() !== (z.name ?? '') && (
-                    <button
-                      className="botao text-xs"
-                      data-salvar-nome-zona
-                      disabled={ocupado}
-                      onClick={() =>
-                        void agir(async () => {
-                          const r = await api.renomearZona(z.id, nome.trim())
-                          setNome(r.name ?? '')
+      <div className="bg-sand-light mx-auto min-h-screen w-full max-w-5xl px-6 pt-20 pb-24 md:pt-28 md:pb-6">
+        <div className="mb-4">
+          <div className="text-rust eyebrow">Zona Neutra</div>
+          {z ? (
+            <>
+              <div className="flex flex-wrap items-center gap-2">
+                <input
+                  type="text"
+                  value={nome}
+                  onChange={(e) => setNome(e.target.value)}
+                  placeholder={`(${z.x}, ${z.y})`}
+                  maxLength={120}
+                  data-nome-zona
+                  className="text-ink border-rust/25 focus:border-rust bg-transparent border-b text-2xl font-black outline-none"
+                />
+                {nome.trim() !== (z.name ?? '') && (
+                  <button
+                    className="botao text-xs"
+                    data-salvar-nome-zona
+                    disabled={ocupado}
+                    onClick={() =>
+                      void agir(async () => {
+                        const r = await api.renomearZona(z.id, nome.trim())
+                        setNome(r.name ?? '')
 
-                          return r.name
-                            ? `Zona renomeada para "${r.name}".`
-                            : 'Nome removido — a zona volta a mostrar as coordenadas.'
-                        })
-                      }
-                    >
-                      Salvar nome
-                    </button>
-                  )}
-                </div>
-                <div className="text-ink-soft text-sm">
-                  ({z.x}, {z.y}) — {nomeRecurso(z.mineral)} · nível {z.level}
-                </div>
-              </>
-            ) : (
-              <h2 className="text-2xl font-black">Carregando…</h2>
-            )}
-          </div>
-          <button
-            onClick={aoFechar}
-            data-fechar-zona
-            className="text-ink-soft hover:text-rust text-2xl leading-none"
-          >
-            ×
-          </button>
+                        return r.name
+                          ? `Zona renomeada para "${r.name}".`
+                          : 'Nome removido — a zona volta a mostrar as coordenadas.'
+                      })
+                    }
+                  >
+                    Salvar nome
+                  </button>
+                )}
+              </div>
+              <div className="text-ink-soft text-sm">
+                ({z.x}, {z.y}) — {nomeRecurso(z.mineral)} · nível {z.level}
+              </div>
+            </>
+          ) : (
+            <h2 className="text-2xl font-black">Carregando…</h2>
+          )}
         </div>
 
         {z && (

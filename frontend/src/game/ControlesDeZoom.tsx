@@ -19,8 +19,12 @@ export function ControlesDeZoom({
 }) {
   const enquadrado = vista.escala === 1 && vista.dx === 0 && vista.dy === 0
 
+  // z-[26]: acima do header/barra de navegação (z-[25], global desde a reforma de navegação) —
+  // sem isto, os cartões do canto direito do header cobrem estes botões quando as duas coisas
+  // caem na mesma região da tela (a colônia, cujo canvas ocupa a tela inteira por baixo do
+  // header flutuante).
   return (
-    <div className="absolute top-3 right-3 z-10 flex flex-col gap-1">
+    <div className="absolute top-3 right-3 z-[26] flex flex-col gap-1">
       <button
         onClick={() => ampliar(1.25)}
         disabled={vista.escala >= ZOOM_MAX}
