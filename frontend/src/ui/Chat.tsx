@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { api, ApiError } from '../api/client'
 import type { ColoniaVizinha, MensagemDeChat } from '../api/client'
 import { InfoJogador } from './InfoJogador'
+import { painelFlutuante } from './painelFlutuante'
 
 /**
  * O rádio do planeta (§10; docs/decisoes.md D-77) — um painel flutuante com os canais vivos:
@@ -68,10 +69,7 @@ export function Chat({
 
   return (
     <>
-      <div
-        className="painel bg-sand-light border-rust/30 fixed right-4 bottom-4 z-30 flex h-[420px] w-[340px] flex-col border shadow-lg"
-        data-tela="chat"
-      >
+      <div className={painelFlutuante.chat} data-tela="chat">
         <div className="border-rust/20 flex items-center justify-between border-b px-3 py-2">
           <span className="text-rust eyebrow">Rádio do planeta</span>
           <button onClick={aoFechar} data-fechar-chat className="text-ink-soft hover:text-rust text-xl leading-none">
