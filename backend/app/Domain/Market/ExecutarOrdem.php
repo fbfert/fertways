@@ -199,6 +199,11 @@ class ExecutarOrdem
 
             $xp->handle($compradorId, 'mercado_executado', $chave);
             $missoes->registrar($compradorId, 'mercado_executado');
+
+            // Pedido do usuário: uma missão específica para comprar do Governo, não de outro colono.
+            if ($vendedorId === null) {
+                $missoes->registrar($compradorId, 'compra_governo_mercado');
+            }
         }
 
         if ($taxa > 0 && $vendedorId !== null) {

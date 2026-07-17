@@ -170,6 +170,8 @@ class MercadoDeUsados
                 'created_at' => now(),
             ]);
 
+            app(\App\Domain\Missoes\Progresso::class)->registrar($comprador->id, 'compra_veiculo_usado');
+
             return $this->entregar($anuncio, $veiculo, $comprador);
         });
     }
@@ -238,6 +240,8 @@ class MercadoDeUsados
                 'ref' => "usado:{$anuncio->id}",
                 'created_at' => now(),
             ]);
+
+            app(\App\Domain\Missoes\Progresso::class)->registrar($vendedor->id, 'venda_veiculo_usado');
         }
 
         $anuncio->update(['escrow_micro' => 0, 'status' => 'concluido']);

@@ -87,6 +87,8 @@ class ComprarCaminhao
                 'created_at' => now(),
             ]);
 
+            app(\App\Domain\Missoes\Progresso::class)->registrar($colony->id, 'compra_veiculo_novo');
+
             return $this->entregar($colony, $caminhao);
         });
     }
