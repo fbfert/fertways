@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import type { Colonia } from '../api/client'
+import type { Colonia, Fila } from '../api/client'
+import { ColoniaSheet } from './ColoniaSheet'
 import { Marca } from './Marca'
 import { Popup } from './Popup'
 
@@ -13,14 +14,17 @@ import { Popup } from './Popup'
  *
  *  - **Faixa superior**: a marca e o saldo (toque abre o Extrato, como no desktop).
  *  - **Barra inferior fixa**: os cinco destinos que cabem sem espremer — Mapa e Capital navegam,
- *    Missões e Chat abrem o painel de sempre (D-78/D-77), e "Mais" abre um resumo com o que sobrou
- *    do header desktop (Marco, Bugs/Melhorias, Perfil, Sair).
+ *    "Colônia" abre Recursos/Fila de obras/Zonas (as duas barras laterais do desktop, que viraram
+ *    um sheet com abas — `ColoniaSheet.tsx`), Chat abre o painel de sempre (D-77), e "Mais" reúne o
+ *    que sobrou do header desktop (Marco, Missões, Bugs/Melhorias, Perfil, Sair).
  *
- * Recursos, Fila de obras e Zonas (as duas barras laterais do desktop) ainda não têm lugar aqui —
- * ficam para o próximo passo desta reforma; por ora continuam visíveis só a partir de `md:`.
+ * Missões entrou em "Mais" — e não na barra — de propósito: ao contrário do desktop, aqui os
+ * recursos e a fila de obras (informação ambiente, sempre visível no desktop) competiam por um
+ * lugar com ela, e são consultados com mais frequência do que a tela de missões é aberta.
  */
 export function MobileNav({
   colonia,
+  fila,
   chatPendente,
   aoAbrirChat,
   aoAbrirMissoes,
@@ -32,6 +36,7 @@ export function MobileNav({
   aoSair,
 }: {
   colonia: Colonia
+  fila: Fila | null
   chatPendente: number
   aoAbrirChat: () => void
   aoAbrirMissoes: () => void
@@ -43,6 +48,7 @@ export function MobileNav({
   aoSair: () => void
 }) {
   const [maisAberto, setMaisAberto] = useState(false)
+  const [coloniaAberta, setColoniaAberta] = useState(false)
 
   return (
     <>
@@ -73,8 +79,8 @@ export function MobileNav({
         <BotaoNav rotulo="Capital" onClick={aoIrCapital} marcador="capital">
           <IconeCapital />
         </BotaoNav>
-        <BotaoNav rotulo="Missões" onClick={aoAbrirMissoes} marcador="missoes">
-          <IconeMissoes />
+        <BotaoNav rotulo="Colônia" onClick={() => setColoniaAberta(true)} marcador="colonia">
+          <IconeColonia />
         </BotaoNav>
         <BotaoNav rotulo="Chat" onClick={aoAbrirChat} badge={chatPendente} marcador="chat">
           <IconeChat />
@@ -83,6 +89,10 @@ export function MobileNav({
           <IconeMais />
         </BotaoNav>
       </nav>
+
+      {coloniaAberta && (
+        <ColoniaSheet colonia={colonia} fila={fila} aoFechar={() => setColoniaAberta(false)} />
+      )}
 
       {maisAberto && (
         <Popup titulo="Mais" eyebrow={colonia.name} aoFechar={() => setMaisAberto(false)}>
@@ -95,6 +105,17 @@ export function MobileNav({
                 : `${colonia.marco.xp.toLocaleString('pt-BR')} XP · máximo`}
             </div>
           </div>
+
+          <button
+            onClick={() => {
+              setMaisAberto(false)
+              aoAbrirMissoes()
+            }}
+            data-abrir-missoes-mobile
+            className="text-ink hover:text-rust border-rust/10 block w-full border-b py-3 text-left text-sm font-bold"
+          >
+            Missões
+          </button>
 
           <button
             onClick={() => {
@@ -212,11 +233,11 @@ function IconeCapital() {
   )
 }
 
-function IconeMissoes() {
+/** O hexágono é o motivo repetido do deck (docs/design-tokens.md — a mesma forma da `.hex`). */
+function IconeColonia() {
   return (
     <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2">
-      <rect x="4.5" y="3" width="15" height="18" rx="1.5" />
-      <path d="M8 8h8M8 12h8M8 16h5" strokeLinecap="round" />
+      <path d="M12 2.5 21 7.8v8.4L12 21.5l-9-5.3V7.8L12 2.5z" strokeLinejoin="round" />
     </svg>
   )
 }
