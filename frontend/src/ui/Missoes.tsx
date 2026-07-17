@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { api, ApiError } from '../api/client'
 import type { Missao } from '../api/client'
+import { painelFlutuante } from './painelFlutuante'
 import { nomeRecurso } from './recursos'
 
 /**
@@ -47,10 +48,7 @@ export function Missoes({ aoFechar }: { aoFechar: () => void }) {
     .filter((g) => g.itens.length > 0)
 
   return (
-    <div
-      className="painel bg-sand-light border-rust/30 fixed right-4 bottom-4 z-30 flex max-h-[560px] w-[360px] flex-col border shadow-lg"
-      data-tela="missoes"
-    >
+    <div className={painelFlutuante.grande} data-tela="missoes">
       <div className="border-rust/20 flex items-center justify-between border-b px-3 py-2">
         <span className="text-rust eyebrow">Missões</span>
         <button onClick={aoFechar} data-fechar-missoes className="text-ink-soft hover:text-rust text-xl leading-none">

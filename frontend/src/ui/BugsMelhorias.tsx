@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { api, ApiError } from '../api/client'
+import { painelFlutuante } from './painelFlutuante'
 
 /**
  * Bugs/Melhorias (D-95) — ao lado do Chat no cabeçalho: um formulário curto para o colono
@@ -40,10 +41,7 @@ export function BugsMelhorias({ aoFechar }: { aoFechar: () => void }) {
   }
 
   return (
-    <div
-      className="painel bg-sand-light border-rust/30 fixed right-4 bottom-4 z-30 flex max-h-[560px] w-[360px] flex-col border shadow-lg"
-      data-tela="bugs-melhorias"
-    >
+    <div className={painelFlutuante.grande} data-tela="bugs-melhorias">
       <div className="border-rust/20 flex items-center justify-between border-b px-3 py-2">
         <span className="text-rust eyebrow">Bugs/Melhorias</span>
         <button
