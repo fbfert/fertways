@@ -780,6 +780,18 @@ export const api = {
   login: (b: { email: string; password: string }) =>
     req<Sessao>('/login', { method: 'POST', body: JSON.stringify(b) }),
 
+  /** Números reais do planeta, para a landing page — sem exigir conta (pedido do usuário). */
+  estatisticas: () =>
+    req<{
+      colonos: number
+      colonias: number
+      fert_em_circulacao_micro: number
+      construcoes_erguidas: number
+      veiculos_registrados: number
+      zonas_ocupadas: number
+      lancamentos_no_ledger: number
+    }>('/estatisticas'),
+
   /**
    * Revoga o token no servidor. Token do Sanctum não expira: sem esta chamada, apagar o
    * `localStorage` deixaria uma credencial válida em circulação para sempre.
