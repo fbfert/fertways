@@ -6,7 +6,8 @@ import { painelFlutuante } from './painelFlutuante'
 
 /**
  * O rádio do planeta (§10; docs/decisoes.md D-77) — um painel flutuante com os canais vivos:
- * Global, Região (a sua, das 5), Vizinhança (um RAIO, não uma sala) e as Privadas.
+ * Global, Vizinhança (um RAIO, não uma sala) e as Privadas. (O canal de Região existiu e foi
+ * removido por pedido do usuário.)
  *
  * **Polling, não websocket** — arbitragem do usuário: o servidor tem 4 GB divididos com o banco de
  * produção, e um daemon Reverb é memória que o jogo não tem. Enquanto o painel está aberto, a aba
@@ -14,22 +15,32 @@ import { painelFlutuante } from './painelFlutuante'
  * Fechado, o chat não custa NADA — nem um request.
  */
 
-type Aba = 'global' | 'regiao' | 'vizinhanca' | 'privadas'
+type Aba = 'global' | 'vizinhanca' | 'privadas'
 
 const RITMO_MS = 5_000
+
+export type AvisosDoChat = {
+  privadas_nao_lidas: number
+  mencoes_por_canal: { global: number; vizinhanca: number }
+}
 
 export function Chat({
   aoFechar,
   conversaInicial,
   aoConsumirConversaInicial,
+  avisos,
 }: {
   aoFechar: () => void
   /** Uma privada pedida de FORA do Chat (o "Conversar" da ficha do jogador, aberta do Mapa). */
   conversaInicial?: { id: number; nickname: string } | null
   aoConsumirConversaInicial?: () => void
+  /**
+   * O mesmo poll de 30 s que já acende o selo do botão Chat (D-77) — aqui só para dizer EM QUAL
+   * aba está a novidade (pedido do usuário). `null` enquanto o primeiro poll não chegou.
+   */
+  avisos?: AvisosDoChat | null
 }) {
   const [aba, setAba] = useState<Aba>('global')
-  const [regiao, setRegiao] = useState<string | null>(null)
   const [silenciadoAte, setSilenciadoAte] = useState<string | null>(null)
   const [meuNick, setMeuNick] = useState('')
   // A conversa privada aberta mora AQUI, e não dentro de `Privadas` — um clique no nick de uma
@@ -42,11 +53,21 @@ export function Chat({
 
   useEffect(() => {
     void api.chatCanais().then((c) => {
-      setRegiao(c.regiao)
       setSilenciadoAte(c.silenciado_ate)
       setMeuNick(c.nickname)
     })
   }, [])
+
+  /**
+   * Só diz QUAL aba, não QUANTO — o pontinho é mais discreto que o número do selo do botão, que já
+   * fez esse trabalho. Latência aceita de até 30 s (o ritmo do poll do HUD, D-77): ler a aba limpa
+   * a menção no servidor na hora, mas o pontinho só acompanha no próximo poll.
+   */
+  function temAviso(id: Aba): boolean {
+    if (!avisos) return false
+    if (id === 'privadas') return avisos.privadas_nao_lidas > 0
+    return avisos.mencoes_por_canal[id] > 0
+  }
 
   function abrirPrivada(id: number, nickname: string) {
     setPrivadaAberta({ id, nickname })
@@ -81,7 +102,6 @@ export function Chat({
           {(
             [
               ['global', 'Global'],
-              ['regiao', regiao ?? 'Região'],
               ['vizinhanca', 'Vizinhança'],
               ['privadas', 'Privadas'],
             ] as [Aba, string][]
@@ -90,9 +110,15 @@ export function Chat({
               key={id}
               onClick={() => setAba(id)}
               data-aba-chat={id}
-              className={`flex-1 py-2 font-bold ${aba === id ? 'bg-rust text-sand-light' : 'text-ink-soft hover:text-rust'}`}
+              className={`relative flex-1 py-2 font-bold ${aba === id ? 'bg-rust text-sand-light' : 'text-ink-soft hover:text-rust'}`}
             >
               {rotulo}
+              {temAviso(id) && (
+                <span
+                  data-aviso-aba={id}
+                  className={`absolute top-1.5 right-2 h-1.5 w-1.5 rounded-full ${aba === id ? 'bg-sand-light' : 'bg-rust'}`}
+                />
+              )}
             </button>
           ))}
           {/* Ao lado de Privadas, de propósito: buscar é o primeiro passo de uma privada nova. */}
@@ -147,7 +173,7 @@ function Canal({
   meuNick,
   aoAbrirPrivada,
 }: {
-  canal: 'global' | 'regiao' | 'vizinhanca'
+  canal: 'global' | 'vizinhanca'
   meuNick: string
   aoAbrirPrivada: (id: number, nickname: string) => void
 }) {

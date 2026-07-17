@@ -4467,3 +4467,40 @@ Puppeteer, 1400×900 e 390×844, capturas antes de cada PR), e2e completo — `a
 (`e2e/comum.mjs`) ganhou um parâmetro de viewport, e `e2e/mobile.e2e.mjs` (novo) roda a suíte
 inteira a 390×844. Fora de escopo por ora: toque no canvas do jogo, e qualquer tela alcançada por
 rota própria (Mapa, Frota, Capital, Zona...) — cada uma é uma fase futura própria.
+
+## D-104 — O canal Região/Núcleo sai do chat; a aba acende sozinha; construir/evoluir fecham na hora.
+**Data:** 2026-07-17 · **Status:** arbitrado pelo usuário · **Feature nova, não do GDD**
+
+Três pedidos do usuário, todos em cima do rádio do planeta e do fluxo de construir/evoluir:
+
+1. **O canal Região sai do chat** — ficam só Global, Vizinhança e Privadas. "Região" (§10.1: 4
+   quadrantes + Núcleo, arbitragem do D-77) era 100% um construto do chat, calculado on-the-fly a
+   partir de `colony->x/y` (`Regiao::de()`) — não é coluna de banco, não é usado por nenhum outro
+   domínio. Removido de `EnviarMensagem::PUBLICOS`, `LerMensagens`, `ChatController::canais()`;
+   `Regiao.php` apagado (ficava morto). `PurgarMensagens.php` **não muda** — continua expurgando
+   `regiao:*` antigas pelo prazo já publicado (180 dias); as mensagens antigas envelhecem sozinhas,
+   sem precisar de limpeza manual.
+
+2. **A aba do Chat acende sozinha.** O selo agregado do botão Chat (`privadas_nao_lidas + mencoes`,
+   D-77) continua igual, mas agora `GET /chat/pendencias` também devolve `mencoes_por_canal`
+   (`Avisos::pendencias()`, agrupando `chat_mentions` — que já grava o canal real desde sempre —
+   por `channel`). Cada aba (Global, Vizinhança, Privadas) ganha um pontinho quando tem novidade.
+   Latência aceita de até 30s (o ritmo do poll do HUD): abrir a aba limpa a menção no servidor na
+   hora, o pontinho local só acompanha no próximo poll — mesma arbitragem de sempre (polling, não
+   websocket, pelo servidor de 4 GB).
+
+3. **Construir/Evoluir fecham o popup na hora do clique** (sucesso ou falha); se a ação falhar
+   (recurso insuficiente, fila cheia etc.), o erro aparece num popup novo, por cima — não mais
+   inline dentro do card que já fechou. `App.tsx`: `erro` virou `erroConstrucao`;
+   `evoluir`/`erguer` chamam `setSelecionada(null)`/`setSlotVazio(null)` **antes** do
+   `try`/`await`, não depois. `demolir` fica de fora do fechamento imediato de propósito — é a
+   confirmação digitada "DEMOLIR", um fluxo deliberadamente diferente — mas passa a ter erro
+   visível pela primeira vez: `Detalhe` nunca mostrava `erro` no ramo de demolição (só no de
+   evoluir), então uma demolição que falhasse não avisava nada. Achado no meio do trabalho, corrigido
+   de graça pelo mesmo popup novo.
+
+Validado: `ChatTest.php` (+2 casos, -1 removido), suíte completa (636 testes, sem migração — nada
+disto mexeu em schema), `tsc`/`lint`/`build` limpos, e2e completo (9/9 verde), checagem visual
+manual (backend efêmero + Puppeteer): o pontinho de Vizinhança acende de verdade com uma menção
+semeada, e o popup "Não foi possível" apareceu com um erro real de fila cheia depois de fechar o
+card de construção.

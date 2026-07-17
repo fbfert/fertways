@@ -284,7 +284,6 @@ export function Detalhe({
   aoDemolir,
   aoAbrirPorta,
   aoFechar,
-  erro,
 }: {
   spec: Spec | null
   aoConstruir: (s: Spec) => void
@@ -293,7 +292,6 @@ export function Detalhe({
   aoAbrirPorta: (tipo: string) => void
   // Desde o D-69 o detalhe é um POPUP, e um popup fecha. Antes era um card fixo na direita.
   aoFechar: () => void
-  erro: string | null
 }) {
   // O custo só aparece depois de o colono pedir para evoluir (D-59, item 5): a tela abre no que a
   // construção faz, não no que ela cobra.
@@ -385,8 +383,6 @@ export function Detalhe({
                   Esta construção será custeada pelo Governo Central até o nível 3
                 </p>
               )}
-
-              {erro && <p className="text-rust mt-3 text-sm">{erro}</p>}
 
               <button
                 onClick={() => aoConstruir(spec)}
@@ -485,13 +481,11 @@ export function SlotVazio({
   catalogo,
   aoErguer,
   aoFechar,
-  erro,
 }: {
   slot: number
   catalogo: Catalogo | null
   aoErguer: (tipo: string, slot: number) => void
   aoFechar: () => void
-  erro: string | null
 }) {
   const [escolhida, setEscolhida] = useState<Erguivel | null>(null)
 
@@ -561,8 +555,6 @@ export function SlotVazio({
           <div className="text-ink-soft mt-2 text-xs">
             Tempo: {Math.round(escolhida.build_time_seconds / 60)} min
           </div>
-
-          {erro && <p className="text-rust mt-3 text-sm">{erro}</p>}
 
           <button
             onClick={() => aoErguer(escolhida.type, slot)}

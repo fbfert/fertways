@@ -13,9 +13,8 @@ use Illuminate\Support\Facades\DB;
 /**
  * Lê um canal pelos olhos de um colono (§10; D-77).
  *
- * Três regras moram na LEITURA, não na escrita:
+ * Duas regras moram na LEITURA, não na escrita:
  *
- *   região       cada um lê a região onde a colônia dele está — mudou de quadrante, mudou de sala.
  *   vizinhança   o canal é um RAIO: vê-se o que foi dito a até N slots da colônia do leitor (N é
  *                do operador). Dois vizinhos ouvem-se; o outro lado do planeta, não.
  *   bloqueio     quem eu bloqueei some da MINHA tela em todos os canais — bloquear é não ouvir,
@@ -35,7 +34,6 @@ class LerMensagens
 
         $consulta = match ($canal) {
             'global' => ChatMessage::where('channel', 'global'),
-            'regiao' => ChatMessage::where('channel', 'regiao:'.Regiao::de($colony)),
             'vizinhanca' => ChatMessage::where('channel', 'vizinhanca'),
             default => throw new DomainRuleException('canal_invalido', "Não existe o canal {$canal}."),
         };
@@ -60,7 +58,7 @@ class LerMensagens
         }
 
         // Abrir o canal apaga as citações dele: o selo avisou, o colono veio (D-77, aditivo).
-        app(Avisos::class)->verMencoes($leitor, $canal === 'regiao' ? 'regiao:'.Regiao::de($colony) : $canal);
+        app(Avisos::class)->verMencoes($leitor, $canal);
 
         return $mensagens;
     }

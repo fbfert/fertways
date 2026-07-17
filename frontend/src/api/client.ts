@@ -1148,15 +1148,19 @@ export const api = {
   chatCanais: () =>
     req<{
       nickname: string
-      regiao: string | null
       silenciado_ate: string | null
       bloqueados: { id: number; nickname: string }[]
     }>('/chat'),
-  /** O poll leve do HUD (~30 s, mesmo com o painel fechado): só duas contagens indexadas. */
-  chatPendencias: () => req<{ privadas_nao_lidas: number; mencoes: number }>('/chat/pendencias'),
-  chatLer: (canal: 'global' | 'regiao' | 'vizinhanca', after = 0) =>
+  /** O poll leve do HUD (~30 s, mesmo com o painel fechado): as contagens do selo, e por canal. */
+  chatPendencias: () =>
+    req<{
+      privadas_nao_lidas: number
+      mencoes: number
+      mencoes_por_canal: { global: number; vizinhanca: number }
+    }>('/chat/pendencias'),
+  chatLer: (canal: 'global' | 'vizinhanca', after = 0) =>
     req<{ mensagens: MensagemDeChat[] }>(`/chat/${canal}?after=${after}`),
-  chatFalar: (canal: 'global' | 'regiao' | 'vizinhanca', body: string) =>
+  chatFalar: (canal: 'global' | 'vizinhanca', body: string) =>
     req<MensagemDeChat>(`/chat/${canal}`, { method: 'POST', body: JSON.stringify({ body }) }),
   chatConversas: () =>
     req<{ conversas: { user_id: number; nickname: string; ultima: MensagemDeChat; nao_lidas: number }[] }>('/chat/conversas'),
