@@ -627,7 +627,7 @@ class PainelController extends Controller
      */
     public function construcoes(Request $request): View
     {
-        $abas = ['tempo', 'custo', 'silo', 'fila'];
+        $abas = ['tempo', 'custo', 'silo', 'fila', 'manutencao'];
         $aba = in_array($request->query('aba'), $abas, true) ? $request->query('aba') : 'tempo';
 
         $dados = ['aba' => $aba, 'naoConstroi' => \App\Models\Building::NASCE_NO_NIVEL_UM];
@@ -641,6 +641,11 @@ class PainelController extends Controller
                 ->groupBy('resource_type');
             $dados['recursos'] = \App\Models\ResourceType::orderBy('tax_class')->orderBy('nome')->get();
             $dados['niveisSilo'] = range(1, 10);
+        } elseif ($aba === 'manutencao') {
+            $dados['gruposManutencao'] = $this->manutencaoAgrupada();
+            // Raros ficam de fora — decisão do usuário (D-112): só primário e industrial.
+            $dados['recursosManutencao'] = \App\Models\ResourceType::where('tax_class', '!=', 'raro')
+                ->orderBy('tax_class')->orderBy('nome')->get();
         } else {
             $dados['fila'] = \App\Models\FilaSetting::singleton();
         }
@@ -662,20 +667,10 @@ class PainelController extends Controller
 
         $porTipo = $base->groupBy('building_type');
 
-        $gruposDef = [
-            'As cinco essenciais' => \App\Models\Building::ESSENCIAIS,
-            'Progressão da colônia' => \App\Models\Building::PROGRESSAO,
-            'Zona neutra' => array_keys(\App\Domain\Zona\Estruturas::COLUNA),
-            'Veículos e unidades' => [
-                'furgao_de_comercio', 'caminhao_de_carga', 'nave_de_transporte_planetaria',
-                'drone_de_exploracao', 'sentinela', 'robo_minerador', 'infiltrador', 'predador',
-            ],
-        ];
-
         $jaAgrupado = [];
         $grupos = [];
 
-        foreach ($gruposDef as $titulo => $tipos) {
+        foreach ($this->definicaoDeGrupos() as $titulo => $tipos) {
             $itens = [];
 
             foreach ($tipos as $tipo) {
@@ -696,6 +691,69 @@ class PainelController extends Controller
         foreach ($porTipo->keys() as $tipo) {
             if (! isset($jaAgrupado[$tipo])) {
                 $outras[] = $this->construcaoParaAba($tipo, $porTipo[$tipo], $overrides);
+            }
+        }
+        if ($outras !== []) {
+            $grupos['Outras'] = $outras;
+        }
+
+        return $grupos;
+    }
+
+    /** As mesmas quatro categorias que agrupam Tempo/Custo, reaproveitadas em Manutenção (D-112). */
+    private function definicaoDeGrupos(): array
+    {
+        return [
+            'As cinco essenciais' => \App\Models\Building::ESSENCIAIS,
+            'Progressão da colônia' => \App\Models\Building::PROGRESSAO,
+            'Zona neutra' => array_keys(\App\Domain\Zona\Estruturas::COLUNA),
+            'Veículos e unidades' => [
+                'furgao_de_comercio', 'caminhao_de_carga', 'nave_de_transporte_planetaria',
+                'drone_de_exploracao', 'sentinela', 'robo_minerador', 'infiltrador', 'predador',
+            ],
+        ];
+    }
+
+    /**
+     * Gestão de Construções — Manutenção (D-112): consumo extra de recursos por hora, por TIPO de
+     * construção (sem nível — diferente de Tempo/Custo). Mesmo agrupamento por categoria de
+     * `construcoesAgrupadas()`, mas listando o que já está configurado em `manutencao_estruturas`
+     * em vez de tempo/custo.
+     */
+    private function manutencaoAgrupada(): array
+    {
+        $tipos = DB::table('building_specs')->select('building_type')->distinct()->pluck('building_type');
+        $config = DB::table('manutencao_estruturas')->get()->groupBy('building_type');
+
+        $paraAba = fn (string $tipo) => [
+            'tipo' => $tipo,
+            'nome' => \App\Domain\Media\NomesDeExibicao::de($tipo),
+            'recursos' => ($config->get($tipo) ?? collect())->pluck('qtd_hora', 'resource_type')->all(),
+        ];
+
+        $jaAgrupado = [];
+        $grupos = [];
+
+        foreach ($this->definicaoDeGrupos() as $titulo => $listaTipos) {
+            $itens = [];
+
+            foreach ($listaTipos as $tipo) {
+                if (isset($jaAgrupado[$tipo]) || ! $tipos->contains($tipo)) {
+                    continue;
+                }
+                $jaAgrupado[$tipo] = true;
+                $itens[] = $paraAba($tipo);
+            }
+
+            if ($itens !== []) {
+                $grupos[$titulo] = $itens;
+            }
+        }
+
+        $outras = [];
+        foreach ($tipos as $tipo) {
+            if (! isset($jaAgrupado[$tipo])) {
+                $outras[] = $paraAba($tipo);
             }
         }
         if ($outras !== []) {

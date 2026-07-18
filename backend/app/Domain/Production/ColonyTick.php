@@ -164,6 +164,7 @@ class ColonyTick
         }
 
         $erguidas = $this->erguidasComSpec($colony);
+        $manutencao = $this->manutencaoPorTipo($erguidas);
 
         // Taxas por hora, somadas entre construções. Desde o D-59 a soma é por LINHA, não por
         // tipo: Mina Local, Oficina, Refinaria e Destilaria podem ocupar mais de um slot, e duas
@@ -171,6 +172,9 @@ class ColonyTick
         // simplesmente sumia da conta.
         $taxas = [];
         $consumoEnergia = 0;
+        // Manutenção de estruturas (D-112) — aditiva ao consumo de energia do GDD, por cima:
+        // qualquer recurso primário/industrial que o admin tiver configurado por construção.
+        $consumosExtras = [];
         $taxaDestilaria = 0;
         $taxaSiderurgica = 0;
         $taxaCompostos = 0;
@@ -181,6 +185,10 @@ class ColonyTick
 
         foreach ($erguidas as ['tipo' => $tipo, 'spec' => $spec, 'recipe' => $recipe]) {
             $consumoEnergia += $spec->energia_consumo_hora;
+
+            foreach ($manutencao[$tipo] ?? [] as $recurso => $qtd) {
+                $consumosExtras[$recurso] = ($consumosExtras[$recurso] ?? 0) + $qtd;
+            }
 
             if (! $spec->producao_hora_json) {
                 continue;
@@ -224,6 +232,10 @@ class ColonyTick
         // operacional. O saldo pode ficar negativo — o GDD não define o que ocorre então,
         // e nós apenas travamos o estoque em zero. Ver docs/decisoes.md D-20.
         $taxas['energia'] = ($taxas['energia'] ?? 0) - $consumoEnergia;
+
+        foreach ($consumosExtras as $recurso => $qtd) {
+            $taxas[$recurso] = ($taxas[$recurso] ?? 0) - $qtd;
+        }
 
         $estoque = $colony->resources()->lockForUpdate()->get()->keyBy('resource_type');
 
@@ -411,5 +423,26 @@ class ColonyTick
         }
 
         return $saida;
+    }
+
+    /**
+     * Consumo extra de manutenção (D-112), por tipo de construção — batched numa query só pros
+     * tipos presentes na colônia, igual `erguidasComSpec()` faz pra specs, pra não virar N+1
+     * dentro do loop de `produzir()`.
+     */
+    private function manutencaoPorTipo(array $erguidas): array
+    {
+        if ($erguidas === []) {
+            return [];
+        }
+
+        $tipos = array_unique(array_column($erguidas, 'tipo'));
+
+        return DB::table('manutencao_estruturas')
+            ->whereIn('building_type', $tipos)
+            ->get()
+            ->groupBy('building_type')
+            ->map(fn ($linhas) => $linhas->pluck('qtd_hora', 'resource_type')->all())
+            ->all();
     }
 }

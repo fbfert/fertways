@@ -10,6 +10,7 @@
         "custo" => "Custo de Construção e Evolução",
         "silo" => "Gestão do Silo",
         "fila" => "Fila",
+        "manutencao" => "Manutenção",
     ];
 @endphp
 
@@ -203,6 +204,63 @@
                 <div style="flex:0"><button>Salvar</button></div>
             </form>
         </div>
+    @endif
+
+    {{-- ─────────────────────────────────────────────── Manutenção ── --}}
+    @if ($aba === 'manutencao')
+        <p class="mut pequeno">
+            Consumo extra de recursos por hora, por construção — <b>por cima</b> da energia do GDD,
+            nunca no lugar dela. Vazio por padrão: nenhuma construção consome nada além de energia
+            até você configurar aqui. Só recursos primários e industriais entram — raros ficam de
+            fora.
+        </p>
+
+        @foreach ($gruposManutencao as $titulo => $itens)
+            <h2 class="secao">{{ $titulo }}</h2>
+            <div class="cartao">
+                <table>
+                    <tr><th>Construção</th><th class="num">Recursos configurados</th><th></th></tr>
+                    @foreach ($itens as $c)
+                        @php $domId = "editar-manutencao-{$c['tipo']}"; @endphp
+                        <tr data-construcao="{{ $c['tipo'] }}">
+                            <td class="pequeno"><b>{{ $c['nome'] }}</b></td>
+                            <td class="num">{{ count($c['recursos']) }}</td>
+                            <td>
+                                <button class="leve" type="button"
+                                        onclick="document.getElementById('{{ $domId }}').style.display =
+                                                 document.getElementById('{{ $domId }}').style.display === 'none' ? 'block' : 'none'">
+                                    Editar
+                                </button>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td colspan="3" style="padding:0">
+                                <form id="{{ $domId }}"
+                                      method="POST"
+                                      action="{{ route('admin.construcoes.manutencao') }}"
+                                      style="display:none;margin:4px 0 10px;padding:8px;background:rgba(180,69,11,.04)">
+                                    @csrf
+                                    <input type="hidden" name="building_type" value="{{ $c['tipo'] }}">
+                                    <div style="flex:1">
+                                        <textarea name="recursos" rows="3"
+                                                  style="width:100%">{{ $paraTexto($c['recursos']) }}</textarea>
+                                    </div>
+                                    <div class="mut pequeno" style="margin-top:4px">
+                                        Uma linha <code>recurso:quantidade</code> por linha — apagar
+                                        uma linha remove aquele consumo ao salvar. Recursos
+                                        aceitos:
+                                        {{ $recursosManutencao->pluck('code')->implode(', ') }}.
+                                    </div>
+                                    <div style="margin-top:8px">
+                                        <button data-salvar-construcao="{{ $c['tipo'] }}:manutencao">Salvar</button>
+                                    </div>
+                                </form>
+                            </td>
+                        </tr>
+                    @endforeach
+                </table>
+            </div>
+        @endforeach
     @endif
 
 @endsection
