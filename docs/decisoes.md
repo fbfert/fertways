@@ -4878,3 +4878,61 @@ um ajuste: o teto de revenda do Furgão usado passou de 60 para 150 Fert$, refle
 de fábrica novo), checagem visual manual (backend efêmero + Puppeteer): a aba Fábrica do admin com
 os dois tipos, salvar um ajuste refletindo na hora na tela do jogador, comprar um Furgão, e o
 seletor de destino no Pátio e Depósito com "Capital" e a zona sua listadas.
+
+## D-110 — Ícones de recurso, cards em Ofertas Globais, e a contagem sobreposta no mobile.
+**Data:** 2026-07-18 · **Status:** arbitrado pelo usuário · **Feature nova, não do GDD**
+
+Pedido do usuário, três itens de UI:
+
+1. Ícones diferentes ao lado de COMPRA/VENDE, e um ícone por recurso — reaproveitado no depósito
+   central e no depósito da colônia, além de Ofertas Globais.
+2. Em Ofertas Globais, as ofertas viram cards lado a lado no desktop; no mobile continuam em lista.
+3. No mobile, o tempo até uma construção ficar pronta aparece sobreposto à imagem dela, na colmeia.
+
+### 1 — Selos de recurso, não desenhos
+
+Não existia nenhum sistema de ícone pra recurso no jogo — a arte de construção (D-68) é ilustração
+grande, carregada em runtime pro canvas do Phaser, o formato errado pra 26 selos pequenos dentro de
+listas de DOM. Desenhar 26 ícones à mão também não caberia nesta entrega. Em vez disso: um selo
+colorido pequeno com uma sigla — 8 dos 12 industriais usam o **símbolo químico real do elemento**
+(Al, Cu, Sn, Li, Au, Si, Ta, W), a leitura mais rápida que existe pra quem já viu uma tabela
+periódica. A cor do selo é a **classe** do recurso (primário/industrial/raro, §8.3 — a mesma classe
+que já rege tributo e teto do depósito), só com as cores que já existem no jogo (rust/ember/ink),
+sem inventar paleta nova.
+
+`IconeRecurso.tsx` (novo): o selo, mais `IconeCompra`/`IconeVende` — duas setas SVG inline, molde de
+`MobileNav.tsx` (`currentColor`, sem cor própria — o rótulo ao lado já é neutro de propósito, ver o
+comentário original de `LinhaDaVitrine`, e colorir a seta de verde/vermelho sugeriria uma ação que
+nem sempre é a de quem lê). Aplicado em `Hud.tsx` (`Linha`, o depósito da colônia), `Mercado.tsx`
+(o depósito da Capital, e `LinhaDaVitrine` em Ofertas Globais).
+
+### 2 — Cards em grade, sem markup duplicado
+
+`OfertasGlobais`: o container passou de `space-y-2` (lista vertical sempre) para
+`grid gap-2 md:grid-cols-2 lg:grid-cols-3` — o MESMO idioma que todo o resto do jogo já usa pra
+"cards no desktop, lista no mobile" (`PatioEDeposito`, `Acordos.tsx`, as páginas do site): um grid
+sem colunas explícitas colapsa sozinho a uma coluna em telas estreitas, sem precisar de duas árvores
+de JSX. `LinhaDaVitrine` ganhou `h-full flex flex-col justify-between` pra cards da mesma fileira
+ficarem com a mesma altura.
+
+### 3 — A contagem no mobile: achado no caminho, um dado que faltava expor
+
+`Spec` (o tipo que descreve cada hexágono) não carregava `finishes_at` — só `ItemDaFila` (a fila da
+barra lateral) tinha isso, indexado por TIPO de construção, não por slot. Correlacionar por tipo
+seria frágil (duas Minas em obra ao mesmo tempo confundiriam qual é qual). A solução certa estava
+mais perto: `buildings.upgrade_finish_at` já existe desde sempre (`EnqueueUpgrade.php` grava lá
+quando o item começa a construir de verdade, não quando só entra na fila) — só faltava
+`BuildingController::specs()` expô-lo. Uma linha nova (`'finishes_at' => $b->upgrade_finish_at?->...`)
+resolve por SLOT, sem ambiguidade nenhuma, e sem tocar em `ConcluirTrechos`/`EnqueueUpgrade`.
+
+`ColonyCanvas.tsx`: um `<span>` absolutamente posicionado sobre cada hexágono em obra, `md:hidden`
+(só mobile — no desktop a barra lateral já mostra o relógio, duplicar poluiria), `pointer-events-none`
+(o clique continua sendo do botão invisível por baixo dela), reaproveitando `relogio()`/
+`segundosRestantes()` que já existem em `recursos.ts`. Não precisou de um intervalo novo: o `tique`
+que já roda em `App.tsx` a cada segundo já refaz esta conta de graça.
+
+Validado: `php artisan test` completo (665, sem regressão — a mudança em `BuildingController.php` é
+só um campo novo, aditivo), `tsc`/`lint`/`build` limpos, e2e completo (9/9 verde), checagem visual
+manual (backend efêmero + Puppeteer, desktop 1400×900 e mobile 390×844): selos nos dois depósitos e
+em Ofertas Globais, cards lado a lado no desktop e lista no mobile, e a contagem "15:40" sobreposta
+ao hexágono da Oficina em obra no mobile.

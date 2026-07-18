@@ -144,6 +144,8 @@ export type Spec = {
   level: number
   /** Onde ela está na colmeia de 21 (D-59). */
   slot: number
+  /** Só quando ELA está em obra de verdade (não só na fila, atrás de outra) — D-110. */
+  finishes_at?: string | null
   max_level: number
   next_level?: number
   cost?: Record<string, number>

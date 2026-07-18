@@ -4,13 +4,17 @@ import type { Catalogo, Colonia, Efeito, Erguivel, Fila, Funcao, Receita, Spec }
 import { rotulo } from '../game/ColonyScene'
 import { carregarArte } from '../game/arte'
 import type { Arte } from '../game/arte'
+import { IconeRecurso } from './IconeRecurso'
 import { Popup } from './Popup'
 import { INDUSTRIAIS, nomeRecurso, PRIMARIOS, RAROS } from './recursos'
 
 function Linha({ codigo, valor }: { codigo: string; valor: number }) {
   return (
     <div className="border-rust/10 flex items-center justify-between border-b py-1.5 last:border-0">
-      <span className="text-ink-soft text-sm">{nomeRecurso(codigo)}</span>
+      <span className="text-ink-soft flex items-center gap-1.5 text-sm">
+        <IconeRecurso codigo={codigo} />
+        {nomeRecurso(codigo)}
+      </span>
       <span className="text-ink font-bold tabular-nums">{valor.toLocaleString('pt-BR')}</span>
     </div>
   )
