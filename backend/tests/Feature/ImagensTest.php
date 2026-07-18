@@ -223,6 +223,11 @@ class ImagensTest extends TestCase
         $this->assertArrayHasKey('capital:area:oeste', $todas);
         $this->assertArrayHasKey('capital:slot:2', $todas);
 
+        // O Depósito Local (D-105/106) nasce fora de `Building::MVP` de propósito, mas é uma
+        // construção de verdade — precisa poder receber imagem como qualquer outra.
+        $this->assertArrayHasKey('deposito_local', $todas);
+        $this->assertSame('Depósito Local', $todas['deposito_local']);
+
         // Nome humano, não slug.
         $this->assertSame('Refinaria Química', $todas['refinaria_quimica']);
         $this->assertSame('Captação de Água', $todas['captacao_de_agua']);

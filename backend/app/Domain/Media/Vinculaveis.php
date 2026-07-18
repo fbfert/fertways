@@ -69,7 +69,10 @@ class Vinculaveis
             ],
             'especializacoes-da-colonia' => [
                 'titulo' => 'As construções de progressão da colônia',
-                'itens' => self::rotular($progressao),
+                // O Depósito Local (D-105/106) nasce fora de `Building::MVP` de propósito — não é
+                // catálogo de construção — mas é uma construção de verdade, com slot e arte própria
+                // (`deposito-local.png` já está na biblioteca, na mesma categoria, sem vínculo).
+                'itens' => self::rotular([...$progressao, 'deposito_local']),
             ],
             'zonas-neutras-e-conflito' => [
                 'titulo' => 'As estruturas da zona neutra (§17.4)',
