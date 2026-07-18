@@ -68,7 +68,7 @@ function Bloco({
  */
 export function Recursos({ colonia }: { colonia: Colonia }) {
   return (
-    <div className="painel bg-sand-light max-h-[calc(100vh-13rem)] w-64 overflow-y-auto p-4">
+    <div>
       <Bloco titulo="Recursos primários" codigos={PRIMARIOS} colonia={colonia} />
       <Bloco titulo="Recursos industriais" codigos={INDUSTRIAIS} colonia={colonia} />
       <Bloco titulo="Recursos raros" codigos={RAROS} colonia={colonia} recolhivel />
