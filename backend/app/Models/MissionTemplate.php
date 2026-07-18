@@ -9,17 +9,22 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class MissionTemplate extends Model
 {
     /**
-     * As quatro categorias do baralho — centralizadas aqui (D-96) porque viviam soltas em três
-     * lugares (a tela do admin, a validação do `AcoesController`, e nenhum enum no banco): editar
-     * uma sem a outra deixava a tela e a validação discordarem sobre o que é válido.
+     * As categorias do baralho — centralizadas aqui (D-96) porque viviam soltas em três lugares (a
+     * tela do admin, a validação do `AcoesController`, e nenhum enum no banco): editar uma sem a
+     * outra deixava a tela e a validação discordarem sobre o que é válido.
      *
      * "Eventuais" (D-96) é para o que não tem ciclo — evento sazonal, comemoração, missão de
      * lançamento — coisa que não é tutoria, não se repete todo dia, nem toda semana.
+     *
+     * "Federação" (D-116, Fatia 3): cooperativa, 2 por semana (§06). Cada colônia-membro ganha a
+     * própria linha em `mission_assignments`, todas marcadas com o mesmo `federation_id` — ver
+     * `Atribuir::garantirFederacao()` e `Progresso::registrar()`.
      */
     public const CATEGORIAS = [
         'tutoria' => 'Tutoria',
         'diaria' => 'Diária',
         'semanal' => 'Semanal',
+        'federacao' => 'Federação',
         'eventuais' => 'Eventuais',
     ];
 

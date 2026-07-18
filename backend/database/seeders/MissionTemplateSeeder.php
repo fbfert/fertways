@@ -106,6 +106,19 @@ class MissionTemplateSeeder extends Seeder
             ['chave' => 'sem_presenca', 'titulo' => 'Cidadão de Fertways', 'descricao' => 'Fale 10 vezes nos canais públicos na semana.', 'acao' => 'chat_mensagem', 'meta' => 10, 'fert' => 0, 'xp' => 1200, 'rec' => null],
         ];
 
+        // ── FEDERAÇÃO (§06: "2 por semana", cooperativa; D-116) — meta grande de propósito: uma
+        // colônia sozinha dificilmente bate 30 despachos ou 5 combates na semana, mas o grupo sim.
+        // "Cooperativa dá mais" (GDD) lido como recompensa maior que a semanal equivalente — sem
+        // fórmula de escala por nº de participantes, que o GDD não publica.
+        $federacao = [
+            ['chave' => 'fed_logistica', 'titulo' => 'Comboio da Aliança',
+             'descricao' => 'A federação despacha 30 viagens na semana — cada membro contribui, o placar é de todos.',
+             'acao' => 'despacho', 'meta' => 30, 'fert' => 0, 'xp' => 2000, 'rec' => null],
+            ['chave' => 'fed_guerra', 'titulo' => 'Defesa Conjunta',
+             'descricao' => 'A federação vence 5 combates na semana — cada aliado que luta soma para o grupo inteiro.',
+             'acao' => 'combate_vencido', 'meta' => 5, 'fert' => 0, 'xp' => 2500, 'rec' => null],
+        ];
+
         $montar = fn (array $lista, string $categoria) => array_map(fn ($t) => [
             'chave' => $t['chave'],
             'categoria' => $categoria,
@@ -123,6 +136,7 @@ class MissionTemplateSeeder extends Seeder
             $montar($tutoria, 'tutoria'),
             $montar($diarias, 'diaria'),
             $montar($semanais, 'semanal'),
+            $montar($federacao, 'federacao'),
         );
     }
 }

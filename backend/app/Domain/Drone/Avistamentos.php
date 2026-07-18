@@ -20,6 +20,9 @@ use Illuminate\Support\Collection;
  *             É o "revela zonas neutras ANTES de ocupação" do §16.1, de graça: o segredo só
  *             nasce quando alguém a toma.
  *   ao_vivo   um Drone dela está SOBREVOANDO com a zona no raio: transmissão ao vivo.
+ *   federacao a zona é de um ALIADO da mesma federação (D-116), e a dona tem Central de
+ *             Comunicação (`communication_level >= 1`): vê ao vivo, sem gastar vigia de Drone —
+ *             a Central troca de olhos por quem já é do mesmo time.
  *   foto      um Drone dela já passou por lá: os números da última passagem, com a DATA.
  *   nenhuma   nunca viu: guarnição e depósito são null na tela — não zero, null. Zero é um
  *             fato ("está indefesa"); null é a honestidade de não saber.
@@ -38,6 +41,16 @@ class Avistamentos
     {
         if ($zona->owner_colony_id === $colonia->id || $zona->owner_colony_id === null) {
             return $this->aoVivo($zona, $zona->owner_colony_id === null ? 'livre' : 'dona');
+        }
+
+        if ($colonia->federation_id !== null && $zona->communication_level >= 1) {
+            // Não usa `$zona->owner` (relação eager-loaded pelo chamador, D-37, `NeutralZoneController`,
+            // que restringe as colunas a `id,name,user_id` — sem `federation_id`): busca fresca.
+            $dona = Colony::find($zona->owner_colony_id);
+
+            if ($dona && $dona->federation_id === $colonia->federation_id) {
+                return $this->aoVivo($zona, 'federacao');
+            }
         }
 
         ['vigias' => $vigias, 'fotos' => $fotos] = $this->da($colonia);

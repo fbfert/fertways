@@ -25,8 +25,10 @@ class EstatisticasController extends Controller
     public function index(): JsonResponse
     {
         return response()->json([
-            // "Capital" (D-91) e "Missões" são contas de sistema, não são gente.
-            'colonos' => User::whereNotIn('email', [ContaSistema::EMAIL_CAPITAL, ContaSistema::EMAIL_MISSOES])->count(),
+            // "Capital" (D-91), "Missões" e "Federação" são contas de sistema, não são gente.
+            'colonos' => User::whereNotIn('email', [
+                ContaSistema::EMAIL_CAPITAL, ContaSistema::EMAIL_MISSOES, ContaSistema::EMAIL_FEDERACAO,
+            ])->count(),
             'colonias' => Colony::count(),
             'fert_em_circulacao_micro' => (int) Colony::sum('fert_micro'),
             'construcoes_erguidas' => Building::count(),

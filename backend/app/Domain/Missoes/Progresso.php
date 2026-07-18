@@ -9,6 +9,7 @@ use App\Models\Colony;
 use App\Models\Ledger;
 use App\Models\MissionAssignment;
 use App\Models\ResourceType;
+use Illuminate\Support\Facades\DB;
 
 /**
  * O progresso das missões (§06; D-78) — o ouvido que escuta os atos do jogo.
@@ -34,26 +35,57 @@ class Progresso
 
     public function registrar(int $colonyId, string $acao, int $vezes = 1): void
     {
-        $ativas = MissionAssignment::ativa()
+        $ids = MissionAssignment::ativa()
             ->where('colony_id', $colonyId)
             ->where('acao', $acao)
-            ->get();
+            ->pluck('id');
 
-        foreach ($ativas as $missao) {
-            $missao->progresso = min($missao->meta, $missao->progresso + max(1, $vezes));
+        foreach ($ids as $id) {
+            DB::transaction(function () use ($id, $vezes) {
+                $missao = MissionAssignment::whereKey($id)->lockForUpdate()->first();
 
-            if ($missao->progresso >= $missao->meta) {
-                $missao->status = 'concluida';
-                $missao->concluded_at = now();
-                $missao->save();
+                if (! $missao || $missao->status !== 'ativa') {
+                    return;
+                }
 
-                $this->pagar($missao);
+                $novoProgresso = min($missao->meta, $missao->progresso + max(1, $vezes));
+                $this->avancar($missao, $novoProgresso);
 
-                continue;
-            }
+                // Missão de federação (D-116): o feito é UM só — todo o grupo vê o mesmo placar,
+                // não soma por irmã. Quem cruza a meta primeiro leva as irmãs junto.
+                if ($missao->federation_id === null) {
+                    return;
+                }
 
-            $missao->save();
+                $irmas = MissionAssignment::where('federation_id', $missao->federation_id)
+                    ->where('template_id', $missao->template_id)
+                    ->where('id', '!=', $missao->id)
+                    ->where('status', 'ativa')
+                    ->lockForUpdate()
+                    ->get();
+
+                foreach ($irmas as $irma) {
+                    $this->avancar($irma, $novoProgresso);
+                }
+            });
         }
+    }
+
+    private function avancar(MissionAssignment $missao, int $novoProgresso): void
+    {
+        $missao->progresso = $novoProgresso;
+
+        if ($missao->progresso >= $missao->meta) {
+            $missao->status = 'concluida';
+            $missao->concluded_at = now();
+            $missao->save();
+
+            $this->pagar($missao);
+
+            return;
+        }
+
+        $missao->save();
     }
 
     private function pagar(MissionAssignment $missao): void
