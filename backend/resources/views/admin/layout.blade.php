@@ -139,6 +139,7 @@
                 'admin.transportes' => 'Transportes',
                 'admin.auditoria' => 'Auditoria',
                 'admin.operacao' => 'Operação',
+                'admin.construcoes' => 'Gestão de Construções',
                 'admin.feedback' => 'Bugs/Melhorias',
             ];
 

@@ -55,6 +55,8 @@ class NomesDeExibicao
             'tanque_de_combustivel' => 'Tanque de Combustível',
             // Não está no GDD — construção nova, pedida pelo usuário (D-82).
             'industria_siderurgica' => 'Indústria Siderúrgica',
+            // Não está no GDD — construção nova, pedida pelo usuário (D-105/106), agora o Silo (D-107).
+            'deposito_local' => 'Depósito Local',
 
             // As estruturas da zona neutra (§17.4, D-66, D-67 e D-79).
             'posto_de_comando' => 'Posto de Comando',
