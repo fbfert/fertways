@@ -7,7 +7,7 @@ use App\Domain\Logistics\ConcluirTrechos;
 use App\Domain\Market\ExecutarOrdem;
 use App\Domain\Market\OfertarComoGoverno;
 use App\Domain\Missoes\Acoes;
-use App\Domain\Transport\FabricarCaminhoes;
+use App\Domain\Transport\FabricarVeiculos;
 use App\Domain\Transport\MercadoDeUsados;
 use App\Domain\Transport\Ministerio;
 use App\Models\Colony;
@@ -124,20 +124,20 @@ class MissoesNovasAcoesTest extends TestCase
 
     public function test_comprar_veiculo_novo_completa_a_missao(): void
     {
-        foreach (Ministerio::custoFabricacao() as $recurso => $qtd) {
+        foreach (Ministerio::config('caminhao_de_carga')['custo'] as $recurso => $qtd) {
             TreasuryHolding::updateOrCreate(['resource_type' => $recurso], ['amount' => $qtd * 5]);
         }
-        app(FabricarCaminhoes::class)->handle();
-        $this->travelTo(now()->addMinutes(Ministerio::MINUTOS_FABRICACAO + 1));
-        app(FabricarCaminhoes::class)->handle();
+        app(FabricarVeiculos::class)->handle();
+        $this->travelTo(now()->addMinutes(Ministerio::config('caminhao_de_carga')['minutos_fabricacao'] + 1));
+        app(FabricarVeiculos::class)->handle();
 
         $user = $this->colono();
         $this->erguerPredio($user->colony, 'central_de_transportes', 2);
-        $user->colony->update(['fert_micro' => Ministerio::PRECO_MICRO]);
+        $user->colony->update(['fert_micro' => Ministerio::config('caminhao_de_carga')['preco_micro']]);
 
         $missao = $this->atribuir($user->colony, $this->molde('compra_veiculo_novo'));
 
-        $this->actingAs($user)->postJson('/transport/buy')->assertCreated();
+        $this->actingAs($user)->postJson('/transport/buy', ['tipo' => 'caminhao_de_carga'])->assertCreated();
 
         $this->assertSame('concluida', $missao->fresh()->status);
     }

@@ -96,6 +96,10 @@ Route::prefix('admin')->group(function () {
         // O Painel do Ministério dos Transportes (§16, D-60): os quatro números que o GDD manda o
         // operador configurar e nunca publica.
         Route::post('/transporte', [AcoesController::class, 'transporte'])->name('admin.transporte');
+        // A Fábrica (D-109): preço, estoque-alvo, tempo e custo por tipo de veículo — e a
+        // encomenda avulsa, fora do ciclo do tick.
+        Route::post('/transportes/fabrica', [AcoesController::class, 'fabricaConfig'])->name('admin.fabrica.config');
+        Route::post('/transportes/fabrica/encomendar', [AcoesController::class, 'fabricaEncomendar'])->name('admin.fabrica.encomendar');
         // A Garagem do frete público (D-76): encomendar mais um caminhão, conforme a demanda.
         Route::post('/garagem', [AcoesController::class, 'garagem'])->name('admin.garagem');
 

@@ -3,7 +3,7 @@
 namespace Tests\Feature;
 
 use App\Domain\Colony\CreateColony;
-use App\Domain\Transport\FabricarCaminhoes;
+use App\Domain\Transport\FabricarVeiculos;
 use App\Domain\Transport\Ministerio;
 use App\Domain\Transport\Vagas;
 use App\Models\Colony;
@@ -14,11 +14,17 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 /**
- * O Ministério dos Transportes (D-60): placas, vagas e a fábrica única de caminhões.
+ * O Ministério dos Transportes (D-60): placas, vagas e a fábrica de veículos — desde o D-109,
+ * Caminhão de Carga E Furgão de Comércio, cada um com o seu preço/estoque/custo, editáveis pelo
+ * admin (`fabrica_veiculos`).
  */
 class MinisterioDosTransportesTest extends TestCase
 {
     use RefreshDatabase;
+
+    private const CAMINHAO = 'caminhao_de_carga';
+
+    private const FURGAO = 'furgao_de_comercio';
 
     protected function setUp(): void
     {
@@ -37,29 +43,38 @@ class MinisterioDosTransportesTest extends TestCase
         return $user->fresh();
     }
 
-    /** O caixa do governo, dotado para N caminhões. */
+    /** O caixa do governo, dotado para N unidades de CADA tipo que a fábrica produz. */
     private function dotarTesouro(int $vezes = 10): void
     {
-        foreach (Ministerio::custoFabricacao() as $recurso => $qtd) {
-            TreasuryHolding::updateOrCreate(['resource_type' => $recurso], ['amount' => $qtd * $vezes]);
+        $total = [];
+
+        foreach (Ministerio::TIPOS as $tipo) {
+            foreach (Ministerio::config($tipo)['custo'] as $recurso => $qtd) {
+                $total[$recurso] = ($total[$recurso] ?? 0) + $qtd * $vezes;
+            }
+        }
+
+        foreach ($total as $recurso => $qtd) {
+            TreasuryHolding::updateOrCreate(['resource_type' => $recurso], ['amount' => $qtd]);
         }
     }
 
-    /** Fabrica e deixa os 5 prontos na prateleira. */
+    /** Fabrica e deixa as prateleiras dos DOIS tipos cheias. */
     private function prepararPrateleira(): void
     {
         $this->dotarTesouro();
-        app(FabricarCaminhoes::class)->handle();
-        $this->travelTo(now()->addMinutes(Ministerio::MINUTOS_FABRICACAO + 1));
-        app(FabricarCaminhoes::class)->handle();
+        app(FabricarVeiculos::class)->handle();
+        $maiorTempo = max(array_map(fn ($t) => Ministerio::config($t)['minutos_fabricacao'], Ministerio::TIPOS));
+        $this->travelTo(now()->addMinutes($maiorTempo + 1));
+        app(FabricarVeiculos::class)->handle();
     }
 
     /** Um colono com Central de Transportes (logo, com vaga) e dinheiro no bolso. */
-    private function compradorPronto(int $nivelDaCentral = 2, int $fertMicro = Ministerio::PRECO_MICRO): User
+    private function compradorPronto(int $nivelDaCentral = 2, ?int $fertMicro = null): User
     {
         $user = $this->colono();
         $this->erguerPredio($user->colony, 'central_de_transportes', $nivelDaCentral);
-        $user->colony->update(['fert_micro' => $fertMicro]);
+        $user->colony->update(['fert_micro' => $fertMicro ?? Ministerio::config(self::CAMINHAO)['preco_micro']]);
 
         return $user;
     }
@@ -76,11 +91,11 @@ class MinisterioDosTransportesTest extends TestCase
     public function test_a_placa_do_caminhao_termina_em_C(): void
     {
         $this->dotarTesouro();
-        app(FabricarCaminhoes::class)->handle();
+        app(FabricarVeiculos::class)->handle();
 
         $this->assertMatchesRegularExpression(
             '/^FW-\d{5}-C$/',
-            Vehicle::whereNull('colony_id')->first()->plate,
+            Vehicle::whereNull('colony_id')->where('type', self::CAMINHAO)->first()->plate,
         );
     }
 
@@ -88,11 +103,12 @@ class MinisterioDosTransportesTest extends TestCase
     {
         $this->colono();
         $this->dotarTesouro();
-        app(FabricarCaminhoes::class)->handle();
+        app(FabricarVeiculos::class)->handle();
 
         $placas = Vehicle::whereNotNull('plate')->pluck('plate');
+        $alvoTotal = Ministerio::config(self::CAMINHAO)['estoque_alvo'] + Ministerio::config(self::FURGAO)['estoque_alvo'];
 
-        $this->assertCount(Ministerio::ESTOQUE_ALVO + 1, $placas, 'os 5 do governo mais o Furgão do kit');
+        $this->assertCount($alvoTotal + 1, $placas, 'as prateleiras dos dois tipos mais o Furgão do kit');
         $this->assertCount($placas->count(), $placas->unique(), 'nenhuma placa se repete');
     }
 
@@ -119,28 +135,62 @@ class MinisterioDosTransportesTest extends TestCase
         $this->assertSame(3, app(Vagas::class)->livres($colony), 'o Furgão do kit já ocupa uma');
     }
 
-    // ---------------------------------------------------------------- a fábrica
+    // ---------------------------------------------------------------- a fábrica, por tipo
 
-    public function test_o_ministerio_repoe_a_prateleira_consumindo_o_tesouro(): void
+    public function test_o_ministerio_repoe_as_duas_prateleiras_consumindo_o_tesouro(): void
     {
         $this->dotarTesouro();
 
-        $resultado = app(FabricarCaminhoes::class)->handle();
+        $resultado = app(FabricarVeiculos::class)->handle();
 
-        $this->assertSame(Ministerio::ESTOQUE_ALVO, $resultado['encomendados']);
-        $this->assertSame(Ministerio::ESTOQUE_ALVO, Vehicle::whereNull('colony_id')->where('status', 'fabricando')->count());
+        $alvoCaminhao = Ministerio::config(self::CAMINHAO)['estoque_alvo'];
+        $alvoFurgao = Ministerio::config(self::FURGAO)['estoque_alvo'];
 
-        // O Tesouro pagou por cada um: dotámo-lo para 10, saíram 5.
-        $this->assertSame(
-            Ministerio::custoFabricacao()['ligas_metalicas'] * 5,
-            (int) TreasuryHolding::whereKey('ligas_metalicas')->value('amount'),
-        );
+        $this->assertSame($alvoCaminhao + $alvoFurgao, $resultado['encomendados']);
+        $this->assertSame($alvoCaminhao, Vehicle::whereNull('colony_id')->where('type', self::CAMINHAO)->where('status', 'fabricando')->count());
+        $this->assertSame($alvoFurgao, Vehicle::whereNull('colony_id')->where('type', self::FURGAO)->where('status', 'fabricando')->count());
+
+        // O Tesouro pagou por cada um: dotámo-lo para 10×, saíram 5+5.
+        $dotado = Ministerio::config(self::CAMINHAO)['custo']['ligas_metalicas'] * 10
+            + Ministerio::config(self::FURGAO)['custo']['ligas_metalicas'] * 10;
+        $gasto = Ministerio::config(self::CAMINHAO)['custo']['ligas_metalicas'] * $alvoCaminhao
+            + Ministerio::config(self::FURGAO)['custo']['ligas_metalicas'] * $alvoFurgao;
+
+        $this->assertSame($dotado - $gasto, (int) TreasuryHolding::whereKey('ligas_metalicas')->value('amount'));
     }
 
-    public function test_sem_tesouro_nao_ha_caminhao(): void
+    /** O Furgão custa e demora 40% do Caminhão — pedido do usuário (D-109), não é do GDD. */
+    public function test_o_furgao_custa_e_demora_40_por_cento_do_caminhao(): void
+    {
+        $custoCaminhao = Ministerio::config(self::CAMINHAO)['custo'];
+        $custoFurgao = Ministerio::config(self::FURGAO)['custo'];
+
+        $this->assertSame((int) round($custoCaminhao['ligas_metalicas'] * 0.4), $custoFurgao['ligas_metalicas']);
+        $this->assertSame((int) round($custoCaminhao['componentes_eletronicos'] * 0.4), $custoFurgao['componentes_eletronicos']);
+        $this->assertSame((int) round($custoCaminhao['metal_bruto'] * 0.4), $custoFurgao['metal_bruto']);
+
+        $this->assertSame(
+            (int) round(Ministerio::config(self::CAMINHAO)['minutos_fabricacao'] * 0.4),
+            Ministerio::config(self::FURGAO)['minutos_fabricacao'],
+        );
+
+        $this->assertSame(150.0, Ministerio::precoFert(self::FURGAO));
+        $this->assertSame(300.0, Ministerio::precoFert(self::CAMINHAO));
+    }
+
+    /** O custo de fabricação do Furgão NÃO é a tabela de manutenção do GDD (§21.2). */
+    public function test_o_custo_de_fabricacao_do_furgao_nao_e_a_tabela_de_manutencao(): void
+    {
+        $custoFabricacao = Ministerio::config(self::FURGAO)['custo'];
+        $custoManutencaoGdd = \App\Domain\Transport\VeiculoCustos::nivel1(self::FURGAO);
+
+        $this->assertNotSame($custoManutencaoGdd, $custoFabricacao);
+    }
+
+    public function test_sem_tesouro_nao_ha_veiculo(): void
     {
         // Caixa vazio: o governo não fabrica o que não pode pagar (D-60).
-        $this->assertSame(0, app(FabricarCaminhoes::class)->handle()['encomendados']);
+        $this->assertSame(0, app(FabricarVeiculos::class)->handle()['encomendados']);
         $this->assertSame(0, Vehicle::whereNull('colony_id')->count());
     }
 
@@ -151,13 +201,13 @@ class MinisterioDosTransportesTest extends TestCase
         TreasuryHolding::updateOrCreate(['resource_type' => 'componentes_eletronicos'], ['amount' => 0]);
         TreasuryHolding::updateOrCreate(['resource_type' => 'metal_bruto'], ['amount' => 10_000]);
 
-        app(FabricarCaminhoes::class)->handle();
+        app(FabricarVeiculos::class)->handle();
 
         $this->assertSame(0, Vehicle::whereNull('colony_id')->count());
         $this->assertSame(
             10_000,
             (int) TreasuryHolding::whereKey('ligas_metalicas')->value('amount'),
-            'as Ligas não podem ter sido debitadas por um caminhão que não nasceu',
+            'as Ligas não podem ter sido debitadas por um veículo que não nasceu',
         );
     }
 
@@ -165,33 +215,32 @@ class MinisterioDosTransportesTest extends TestCase
     {
         $this->dotarTesouro(50);
 
-        app(FabricarCaminhoes::class)->handle();
-        app(FabricarCaminhoes::class)->handle();
+        app(FabricarVeiculos::class)->handle();
+        app(FabricarVeiculos::class)->handle();
 
-        $this->assertSame(Ministerio::ESTOQUE_ALVO, Vehicle::whereNull('colony_id')->count());
+        $alvoTotal = Ministerio::config(self::CAMINHAO)['estoque_alvo'] + Ministerio::config(self::FURGAO)['estoque_alvo'];
+        $this->assertSame($alvoTotal, Vehicle::whereNull('colony_id')->count());
     }
 
-    public function test_o_caminhao_pronto_vai_para_a_prateleira(): void
+    public function test_o_veiculo_pronto_vai_para_a_prateleira(): void
     {
-        $this->dotarTesouro();
-        app(FabricarCaminhoes::class)->handle();
+        $this->prepararPrateleira();
 
-        $this->travelTo(now()->addMinutes(Ministerio::MINUTOS_FABRICACAO + 1));
-
-        $this->assertSame(Ministerio::ESTOQUE_ALVO, app(FabricarCaminhoes::class)->handle()['prontos']);
-        $this->assertSame(Ministerio::ESTOQUE_ALVO, Vehicle::whereNull('colony_id')->where('status', 'estoque')->count());
+        $alvoTotal = Ministerio::config(self::CAMINHAO)['estoque_alvo'] + Ministerio::config(self::FURGAO)['estoque_alvo'];
+        $this->assertSame($alvoTotal, Vehicle::whereNull('colony_id')->where('status', 'estoque')->count());
     }
 
-    // ---------------------------------------------------------------- a compra
+    // ---------------------------------------------------------------- a compra, por tipo
 
-    public function test_comprar_debita_o_fert_e_o_caminhao_vem_dirigindo(): void
+    public function test_comprar_caminhao_debita_o_fert_e_ele_vem_dirigindo(): void
     {
         $this->prepararPrateleira();
         $user = $this->compradorPronto();
 
-        $resposta = $this->actingAs($user)->postJson('/transport/buy')
+        $resposta = $this->actingAs($user)->postJson('/transport/buy', ['tipo' => self::CAMINHAO])
             ->assertCreated()
-            ->assertJsonPath('comprado.a_caminho', true);
+            ->assertJsonPath('comprado.a_caminho', true)
+            ->assertJsonPath('comprado.tipo', self::CAMINHAO);
 
         $caminhao = Vehicle::find($resposta->json('comprado.id'));
 
@@ -202,9 +251,30 @@ class MinisterioDosTransportesTest extends TestCase
 
         // E entraram no Tesouro (D-57): o dreno de Fert$ que o D-60 queria.
         $this->assertSame(
-            Ministerio::PRECO_MICRO,
+            Ministerio::config(self::CAMINHAO)['preco_micro'],
             (int) TreasuryHolding::whereKey(\App\Domain\Treasury\Tesouro::FERT)->value('amount'),
         );
+    }
+
+    public function test_comprar_furgao_custa_150_fert(): void
+    {
+        $this->prepararPrateleira();
+        $user = $this->compradorPronto(fertMicro: 150_000_000);
+
+        $this->actingAs($user)->postJson('/transport/buy', ['tipo' => self::FURGAO])
+            ->assertCreated()
+            ->assertJsonPath('comprado.tipo', self::FURGAO);
+
+        $this->assertSame(0, (int) $user->colony->fresh()->fert_micro);
+    }
+
+    public function test_tipo_desconhecido_e_recusado(): void
+    {
+        $this->prepararPrateleira();
+        $user = $this->compradorPronto();
+
+        $this->actingAs($user)->postJson('/transport/buy', ['tipo' => 'nave_inventada'])
+            ->assertStatus(422);
     }
 
     /**
@@ -219,11 +289,11 @@ class MinisterioDosTransportesTest extends TestCase
 
         $antes = $this->actingAs($user)->getJson('/transport')->json();
 
-        $this->actingAs($user)->postJson('/transport/buy')->assertCreated();
+        $this->actingAs($user)->postJson('/transport/buy', ['tipo' => self::CAMINHAO])->assertCreated();
 
         $this->actingAs($user)->getJson('/transport')
             ->assertOk()
-            ->assertJsonPath('caminhao.em_estoque', $antes['caminhao']['em_estoque'] - 1)
+            ->assertJsonPath('fabrica.'.self::CAMINHAO.'.em_estoque', $antes['fabrica'][self::CAMINHAO]['em_estoque'] - 1)
             ->assertJsonPath('frota.livres', $antes['frota']['livres'] - 1);
     }
 
@@ -233,9 +303,9 @@ class MinisterioDosTransportesTest extends TestCase
         $user = $this->compradorPronto();
 
         $antes = Vehicle::count();
-        $placaNaPrateleira = Vehicle::whereNull('colony_id')->orderBy('id')->value('plate');
+        $placaNaPrateleira = Vehicle::whereNull('colony_id')->where('type', self::CAMINHAO)->orderBy('id')->value('plate');
 
-        $resposta = $this->actingAs($user)->postJson('/transport/buy')->assertCreated();
+        $resposta = $this->actingAs($user)->postJson('/transport/buy', ['tipo' => self::CAMINHAO])->assertCreated();
 
         $this->assertSame($antes, Vehicle::count(), 'a venda dá dono a um veículo, não cria outro');
         $this->assertSame($placaNaPrateleira, $resposta->json('comprado.placa'), 'a placa é do veículo, não do dono');
@@ -246,7 +316,7 @@ class MinisterioDosTransportesTest extends TestCase
         $this->prepararPrateleira();
         $user = $this->compradorPronto();
 
-        $id = $this->actingAs($user)->postJson('/transport/buy')->json('comprado.id');
+        $id = $this->actingAs($user)->postJson('/transport/buy', ['tipo' => self::CAMINHAO])->json('comprado.id');
 
         // A viagem de entrega é fechada pela mesma máquina de sempre — sem uma linha nova.
         $this->travelTo(now()->addDays(2));
@@ -265,14 +335,15 @@ class MinisterioDosTransportesTest extends TestCase
 
         // Sem Central de Transportes: teto 1, e o Furgão do kit já o ocupa.
         $user = $this->colono();
-        $user->colony->update(['fert_micro' => Ministerio::PRECO_MICRO * 10]);
+        $preco = Ministerio::config(self::CAMINHAO)['preco_micro'];
+        $user->colony->update(['fert_micro' => $preco * 10]);
 
-        $this->actingAs($user)->postJson('/transport/buy')
+        $this->actingAs($user)->postJson('/transport/buy', ['tipo' => self::CAMINHAO])
             ->assertStatus(422)
             ->assertJsonPath('code', 'frota_cheia');
 
         $this->assertSame(
-            Ministerio::PRECO_MICRO * 10,
+            $preco * 10,
             (int) $user->colony->fresh()->fert_micro,
             'a vaga é conferida ANTES de o Fert$ sair',
         );
@@ -281,9 +352,9 @@ class MinisterioDosTransportesTest extends TestCase
     public function test_sem_fert_nao_compra(): void
     {
         $this->prepararPrateleira();
-        $user = $this->compradorPronto(fertMicro: Ministerio::PRECO_MICRO - 1);
+        $user = $this->compradorPronto(fertMicro: Ministerio::config(self::CAMINHAO)['preco_micro'] - 1);
 
-        $this->actingAs($user)->postJson('/transport/buy')
+        $this->actingAs($user)->postJson('/transport/buy', ['tipo' => self::CAMINHAO])
             ->assertStatus(422)
             ->assertJsonPath('code', 'fert_insuficiente');
     }
@@ -293,29 +364,29 @@ class MinisterioDosTransportesTest extends TestCase
         // Tesouro seco: nada na prateleira.
         $user = $this->compradorPronto();
 
-        $this->actingAs($user)->postJson('/transport/buy')
+        $this->actingAs($user)->postJson('/transport/buy', ['tipo' => self::CAMINHAO])
             ->assertStatus(422)
-            ->assertJsonPath('code', 'sem_caminhao_em_estoque');
+            ->assertJsonPath('code', 'sem_veiculo_em_estoque');
 
-        $this->assertSame(Ministerio::PRECO_MICRO, (int) $user->colony->fresh()->fert_micro);
+        $this->assertSame(Ministerio::config(self::CAMINHAO)['preco_micro'], (int) $user->colony->fresh()->fert_micro);
     }
 
-    public function test_dois_compradores_nao_levam_o_mesmo_caminhao(): void
+    public function test_dois_compradores_nao_levam_o_mesmo_veiculo(): void
     {
         $this->prepararPrateleira();
 
         $a = $this->compradorPronto();
         $b = $this->compradorPronto();
 
-        $um = $this->actingAs($a)->postJson('/transport/buy')->json('comprado.id');
-        $dois = $this->actingAs($b)->postJson('/transport/buy')->json('comprado.id');
+        $um = $this->actingAs($a)->postJson('/transport/buy', ['tipo' => self::CAMINHAO])->json('comprado.id');
+        $dois = $this->actingAs($b)->postJson('/transport/buy', ['tipo' => self::CAMINHAO])->json('comprado.id');
 
         $this->assertNotSame($um, $dois);
     }
 
     // ---------------------------------------------------------------- a Central não fabrica mais
 
-    public function test_a_central_de_transportes_nao_fabrica_caminhao(): void
+    public function test_a_central_de_transportes_nao_fabrica_veiculo(): void
     {
         $colony = $this->colono()->colony;
         $this->erguerPredio($colony, 'central_de_transportes', 5);
@@ -323,16 +394,16 @@ class MinisterioDosTransportesTest extends TestCase
         /*
          * O §28.5 dizia que os caminhões do nível vinham "sem custo adicional" com o upgrade da
          * Central. A tabela de precedência da seção 0 revogou isso (D-28), e o D-60 mudou a fábrica
-         * de lugar: subir a Central ao nível 5 não dá caminhão nenhum. O que ela dá é vaga.
+         * de lugar: subir a Central ao nível 5 não dá veículo nenhum. O que ela dá é vaga.
          */
         $this->assertSame(1, $colony->vehicles()->count(), 'só o Furgão do kit');
-        $this->assertSame(0, $colony->vehicles()->where('type', Ministerio::TIPO)->count());
+        $this->assertSame(0, $colony->vehicles()->where('type', self::CAMINHAO)->count());
         $this->assertSame(5, app(Vagas::class)->teto($colony), 'o que ela dá é vaga');
     }
 
     // ---------------------------------------------------------------- a vitrine
 
-    public function test_a_vitrine_mostra_a_prateleira_e_o_teto(): void
+    public function test_a_vitrine_mostra_as_duas_prateleiras_e_o_teto(): void
     {
         $this->prepararPrateleira();
 
@@ -341,14 +412,16 @@ class MinisterioDosTransportesTest extends TestCase
 
         $this->actingAs($user)->getJson('/transport')
             ->assertOk()
-            ->assertJsonPath('caminhao.preco_fert', 300)
-            ->assertJsonPath('caminhao.em_estoque', Ministerio::ESTOQUE_ALVO)
+            ->assertJsonPath('fabrica.'.self::CAMINHAO.'.preco_fert', 300)
+            ->assertJsonPath('fabrica.'.self::CAMINHAO.'.em_estoque', Ministerio::config(self::CAMINHAO)['estoque_alvo'])
+            ->assertJsonPath('fabrica.'.self::FURGAO.'.preco_fert', 150)
+            ->assertJsonPath('fabrica.'.self::FURGAO.'.em_estoque', Ministerio::config(self::FURGAO)['estoque_alvo'])
             ->assertJsonPath('frota.teto', 3)
             ->assertJsonPath('frota.livres', 2);
     }
 
     /** O veículo do governo não é de ninguém — e não pode aparecer na frota de um colono. */
-    public function test_o_caminhao_do_governo_nao_aparece_na_frota_do_colono(): void
+    public function test_o_veiculo_do_governo_nao_aparece_na_frota_do_colono(): void
     {
         $this->prepararPrateleira();
         $user = $this->colono();

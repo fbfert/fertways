@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Domain\Logistics\VeiculoSpecs;
-use App\Domain\Transport\ComprarCaminhao;
+use App\Domain\Transport\ComprarVeiculo;
 use App\Domain\Transport\Conservacao;
 use App\Domain\Transport\Manutencao;
 use App\Domain\Transport\MercadoDeUsados;
@@ -16,6 +16,7 @@ use App\Models\Vehicle;
 use App\Models\VehicleListing;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 /**
  * O Ministério dos Transportes (§16), na vista do colono — slot 8 da Capital (D-60).
@@ -27,7 +28,7 @@ class TransportController extends Controller
 {
     public function __construct(
         private readonly Vagas $vagas,
-        private readonly ComprarCaminhao $comprar,
+        private readonly ComprarVeiculo $comprar,
         private readonly Conservacao $conservacao,
         private readonly Manutencao $manutencao,
         private readonly Sucatear $sucatear,
@@ -39,15 +40,21 @@ class TransportController extends Controller
     {
         $colony = $this->colonia($request);
 
+        $fabrica = [];
+        foreach (Ministerio::TIPOS as $tipo) {
+            $config = Ministerio::config($tipo);
+            $fabrica[$tipo] = [
+                'tipo' => $tipo,
+                'preco_fert' => $config['preco_micro'] / Colony::MICRO_POR_FERT,
+                'capacidade' => VeiculoSpecs::CAPACIDADE[$tipo],
+                'em_estoque' => Vehicle::whereNull('colony_id')->where('type', $tipo)->where('status', 'estoque')->count(),
+                'em_fabricacao' => Vehicle::whereNull('colony_id')->where('type', $tipo)->where('status', 'fabricando')->count(),
+                'minutos_fabricacao' => $config['minutos_fabricacao'],
+            ];
+        }
+
         return response()->json([
-            'caminhao' => [
-                'tipo' => Ministerio::TIPO,
-                'preco_fert' => Ministerio::precoFert(),
-                'capacidade' => VeiculoSpecs::CAPACIDADE[Ministerio::TIPO],
-                'em_estoque' => Vehicle::whereNull('colony_id')->where('status', 'estoque')->count(),
-                'em_fabricacao' => Vehicle::whereNull('colony_id')->where('status', 'fabricando')->count(),
-                'minutos_fabricacao' => Ministerio::MINUTOS_FABRICACAO,
-            ],
+            'fabrica' => $fabrica,
             'frota' => [
                 'teto' => $this->vagas->teto($colony),
                 'ocupadas' => $this->vagas->ocupadas($colony),
@@ -118,15 +125,19 @@ class TransportController extends Controller
     /** POST /central/transport/buy — compra um Caminhão novo da prateleira do governo. */
     public function comprar(Request $request): JsonResponse
     {
-        $caminhao = $this->comprar->handle($this->colonia($request));
+        $dados = $request->validate([
+            'tipo' => ['required', 'string', Rule::in(Ministerio::TIPOS)],
+        ]);
+
+        $veiculo = $this->comprar->handle($this->colonia($request), $dados['tipo']);
 
         return response()->json([
             'comprado' => [
-                'id' => $caminhao->id,
-                'placa' => $caminhao->plate,
-                'tipo' => $caminhao->type,
+                'id' => $veiculo->id,
+                'placa' => $veiculo->plate,
+                'tipo' => $veiculo->type,
                 'a_caminho' => true,
-                'chega_em' => $caminhao->arrives_at?->toIso8601String(),
+                'chega_em' => $veiculo->arrives_at?->toIso8601String(),
             ],
         ], 201);
     }

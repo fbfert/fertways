@@ -312,14 +312,14 @@ class FrotaEnvelheceTest extends TestCase
     {
         $user = $this->comCentral();
         $caminhao = $user->colony->vehicles()->create([
-            'type' => Ministerio::TIPO, 'level' => 1, 'status' => 'ocioso',
-            'capacity' => VeiculoSpecs::CAPACIDADE[Ministerio::TIPO],
+            'type' => 'caminhao_de_carga', 'level' => 1, 'status' => 'ocioso',
+            'capacity' => VeiculoSpecs::CAPACIDADE['caminhao_de_carga'],
         ]);
 
         $conservacao = app(Conservacao::class);
 
         // Novo: o teto é o preço de fábrica.
-        $this->assertSame(Ministerio::PRECO_MICRO, $conservacao->tetoDeRevendaMicro($caminhao));
+        $this->assertSame(Ministerio::config('caminhao_de_carga')['preco_micro'], $conservacao->tetoDeRevendaMicro($caminhao));
 
         app(Manutencao::class)->handle($user->colony, $this->desgastar($caminhao, 40));
 
@@ -336,23 +336,27 @@ class FrotaEnvelheceTest extends TestCase
      * movia dinheiro limpo pelo escrow, sem carga e sem tributo. O usuário reviu: âncora de
      * referência do operador, 60 Fert$ por padrão (1/5 do Caminhão, como a capacidade).
      */
-    public function test_o_furgao_agora_tem_teto_e_ele_e_do_operador(): void
+    /**
+     * Desde o D-109, o Furgão tem preço de fábrica de verdade (o Ministério passou a vendê-lo) —
+     * o teto de revenda ancora nele, igual ao Caminhão, e não mais na referência do operador
+     * (`furgao_preco_referencia_micro`, resquício do D-73 que ficou no schema sem ser lido).
+     */
+    public function test_o_teto_do_furgao_ancora_no_preco_de_fabrica(): void
     {
         $v = $this->furgao($this->colono()->colony);
 
-        // Novo: teto = referência inteira.
-        $this->assertSame(60_000_000, app(Conservacao::class)->tetoDeRevendaMicro($v));
+        $this->assertSame(150_000_000, app(Conservacao::class)->tetoDeRevendaMicro($v));
 
         // Gasto a 50%: o teto acompanha a conservação, como no Caminhão.
         $this->assertSame(
-            30_000_000,
+            75_000_000,
             app(Conservacao::class)->tetoDeRevendaMicro($v->forceFill(['teto_conservacao_bps' => 5_000])),
         );
 
-        // E a âncora é do OPERADOR: mudou no painel, mudou o teto — sem deploy.
+        // A referência do operador NÃO mexe mais no teto — o D-109 aposentou essa leitura.
         TransportSetting::singleton()->update(['furgao_preco_referencia_micro' => 100_000_000]);
         $this->assertSame(
-            100_000_000,
+            150_000_000,
             app(Conservacao::class)->tetoDeRevendaMicro($v->forceFill(['teto_conservacao_bps' => 10_000])),
         );
     }
@@ -380,8 +384,8 @@ class FrotaEnvelheceTest extends TestCase
     {
         $user = $this->comCentral();
         $caminhao = $user->colony->vehicles()->create([
-            'type' => Ministerio::TIPO, 'level' => 1, 'status' => 'ocioso',
-            'capacity' => VeiculoSpecs::CAPACIDADE[Ministerio::TIPO],
+            'type' => 'caminhao_de_carga', 'level' => 1, 'status' => 'ocioso',
+            'capacity' => VeiculoSpecs::CAPACIDADE['caminhao_de_carga'],
         ]);
 
         $this->actingAs($user)->postJson('/transport/listings', [

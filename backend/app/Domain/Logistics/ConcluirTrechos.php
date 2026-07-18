@@ -119,6 +119,26 @@ class ConcluirTrechos
             return;
         }
 
+        /*
+         * Reposicionamento (D-109): o veículo saiu vazio só para mudar de lugar — do Pátio ou de
+         * casa, rumo à própria colônia, à Capital, ou a uma Zona Neutra sua. Sem carga, sem
+         * tributo, sem volta: ele chega e FICA, onde quer que seja.
+         */
+        if ($v->trip_purpose === 'reposicionamento') {
+            if ($v->destination_type === 'mercado_central') {
+                // Mesmo caminho de quem chega com carga e descarrega tudo: estaciona no Pátio,
+                // com o mesmo aviso do D-91.
+                $this->estacionar($v);
+
+                return;
+            }
+
+            $local = $v->destination_type === 'zona_neutra' ? Vehicle::NA_ZONA : Vehicle::EM_CASA;
+            $this->terminarViagem($v, $local);
+
+            return;
+        }
+
         $origem = Colony::find($v->colony_id);
 
         /*
@@ -248,13 +268,18 @@ class ConcluirTrechos
     /** Fim de viagem: o veículo para, onde quer que seja, e esquece tudo o que era da viagem. */
     private function terminarViagem(Vehicle $v, string $local, ?CarbonInterface $chegada = null): void
     {
+        // Estacionado numa zona (D-109), `destination_type`/`destination_id` NÃO se limpam — viram
+        // "em qual zona está", em vez de "para onde vai". É a mesma dupla de colunas, sem migração
+        // nova; `Vehicle::naZona()` é quem sabe reinterpretar.
+        $naZona = $local === Vehicle::NA_ZONA;
+
         $v->forceFill([
             'status' => 'ocioso',
             'local' => $local,
             'leg' => null,
             'trip_purpose' => null,
-            'destination_type' => null,
-            'destination_id' => null,
+            'destination_type' => $naZona ? $v->destination_type : null,
+            'destination_id' => $naZona ? $v->destination_id : null,
             'distance_slots' => null,
             'return_distance_slots' => null,
             'departs_at' => null,

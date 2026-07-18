@@ -376,6 +376,140 @@ class DespacharVeiculo
     }
 
     /**
+     * Reposiciona um veículo VAZIO (docs/decisoes.md D-109) — a função que substitui o antigo
+     * "Chamar de volta" (D-91), agora com mais destinos possíveis:
+     *
+     *  - **Do Pátio da Capital**: para a própria colônia, ou para uma Zona Neutra sua.
+     *  - **De casa**: para a Capital (o Pátio), ou para uma Zona Neutra sua.
+     *  - **De uma Zona Neutra sua**: só de volta para casa (ver `reposicionarDaZona`).
+     *
+     * Sempre vazio, sempre só de ida — o veículo chega e FICA. Não é "usar o Mercado" (não exige
+     * Confiança Comercial, não passa pelo depósito), é resgatar/reposicionar um bem seu, mesma
+     * lógica que já isentava o "vazio para casa" original.
+     */
+    public function reposicionarVazio(Colony $origem, Vehicle $veiculo, string $destinoTipo, ?int $destinoId): Vehicle
+    {
+        $this->validarVeiculo($origem, $veiculo);
+        $this->exigirSemRestricaoComercial($origem);
+
+        if (! in_array($destinoTipo, ['colonia', 'mercado_central', 'zona_neutra'], true)) {
+            throw new DomainRuleException('destino_invalido', "Destino desconhecido: {$destinoTipo}");
+        }
+
+        if ($veiculo->noPatio()) {
+            return $this->reposicionarDoPatio($origem, $veiculo, $destinoTipo, $destinoId);
+        }
+
+        if ($veiculo->naZona()) {
+            return $this->reposicionarDaZona($origem, $veiculo, $destinoTipo, $destinoId);
+        }
+
+        return $this->reposicionarDeCasa($origem, $veiculo, $destinoTipo, $destinoId);
+    }
+
+    private function reposicionarDoPatio(Colony $dona, Vehicle $veiculo, string $destinoTipo, ?int $destinoId): Vehicle
+    {
+        if ($destinoTipo === 'colonia') {
+            if ($destinoId !== $dona->id) {
+                throw new DomainRuleException(
+                    'destino_invalido_do_patio',
+                    'Do Pátio, um veículo vazio só volta para a SUA colônia.',
+                );
+            }
+
+            $ida = $this->distancia(MapaFertways::CAPITAL_X, MapaFertways::CAPITAL_Y, $dona->x, $dona->y);
+
+            return $this->partirVazio($dona, $veiculo, 'colonia', $dona->id, $ida);
+        }
+
+        if ($destinoTipo === 'zona_neutra') {
+            $zona = $this->exigirZonaPropria($dona, $destinoId);
+            $ida = $this->distancia(MapaFertways::CAPITAL_X, MapaFertways::CAPITAL_Y, $zona->x, $zona->y);
+
+            return $this->partirVazio($dona, $veiculo, 'zona_neutra', $zona->id, $ida);
+        }
+
+        throw new DomainRuleException(
+            'destino_invalido_do_patio',
+            'Do Pátio da Capital, um veículo vazio só sai para a sua colônia ou para uma zona neutra sua.',
+        );
+    }
+
+    private function reposicionarDeCasa(Colony $origem, Vehicle $veiculo, string $destinoTipo, ?int $destinoId): Vehicle
+    {
+        if ($destinoTipo === 'mercado_central') {
+            $ida = $this->distancia($origem->x, $origem->y, MapaFertways::CAPITAL_X, MapaFertways::CAPITAL_Y);
+
+            return $this->partirVazio($origem, $veiculo, 'mercado_central', null, $ida);
+        }
+
+        if ($destinoTipo === 'zona_neutra') {
+            $zona = $this->exigirZonaPropria($origem, $destinoId);
+            $ida = $this->distancia($origem->x, $origem->y, $zona->x, $zona->y);
+
+            return $this->partirVazio($origem, $veiculo, 'zona_neutra', $zona->id, $ida);
+        }
+
+        throw new DomainRuleException(
+            'destino_invalido',
+            'De casa, um veículo vazio só sai para a Capital ou para uma zona neutra sua.',
+        );
+    }
+
+    /**
+     * De uma Zona Neutra, hoje só a volta para casa está pronta — reaproveita a MESMA distância
+     * zona↔colônia que o ciclo de ida-e-volta (`retirarDeZona`/`entregarMaterialNaZona`) já usa
+     * para a perna de volta, não é conta nova. Ir da zona para a Capital ou para outra zona fica
+     * para uma entrega futura: a distância entre dois pontos que não são "a Capital" e "a colônia
+     * dona" nunca foi calculada em lugar nenhum do jogo até aqui.
+     */
+    private function reposicionarDaZona(Colony $origem, Vehicle $veiculo, string $destinoTipo, ?int $destinoId): Vehicle
+    {
+        if ($destinoTipo !== 'colonia' || $destinoId !== $origem->id) {
+            throw new DomainRuleException(
+                'destino_invalido_da_zona',
+                'De uma zona neutra, hoje um veículo vazio só volta para a sua colônia.',
+            );
+        }
+
+        // Onde ele está estacionado: `destination_id` guarda a zona desde que `terminarViagem()`
+        // parou de limpá-la para quem fica `NA_ZONA` (ver D-109).
+        $zona = NeutralZone::find($veiculo->destination_id);
+
+        if (! $zona) {
+            throw new DomainRuleException('zona_inexistente', 'A zona onde este veículo está não existe mais.');
+        }
+
+        $ida = $this->distancia($zona->x, $zona->y, $origem->x, $origem->y);
+
+        return $this->partirVazio($origem, $veiculo, 'colonia', $origem->id, $ida);
+    }
+
+    private function exigirZonaPropria(Colony $colonia, ?int $zonaId): NeutralZone
+    {
+        $zona = NeutralZone::find($zonaId);
+
+        if (! $zona || $zona->owner_colony_id !== $colonia->id) {
+            throw new DomainRuleException('zona_nao_e_sua', 'Esta zona neutra não é sua.');
+        }
+
+        return $zona;
+    }
+
+    /** Debita a energia da perna e põe o veículo na estrada, vazio, só de ida. */
+    private function partirVazio(Colony $colonia, Vehicle $veiculo, string $destinoTipo, ?int $destinoId, int $ida): Vehicle
+    {
+        $energia = VeiculoSpecs::energiaDasPernas($veiculo->type, [$ida]);
+
+        return DB::transaction(function () use ($colonia, $veiculo, $destinoTipo, $destinoId, $ida, $energia) {
+            $agora = now();
+            $this->partir($colonia, $veiculo, $energia, $agora);
+
+            return $this->emRota($veiculo, $destinoTipo, $destinoId, 'reposicionamento', $ida, null, [], $agora);
+        });
+    }
+
+    /**
      * Leva material de obra até a zona (docs/decisoes.md D-67).
      *
      * **As obras da zona exigem entrega física.** O material sai do estoque da colônia, viaja de

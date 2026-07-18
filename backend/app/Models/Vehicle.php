@@ -64,6 +64,13 @@ class Vehicle extends Model
     public const NO_PATIO = 'capital';
 
     /**
+     * Estacionado numa Zona Neutra sua (D-109) — o terceiro lugar onde um veículo pode ficar
+     * parado, ao lado de casa e do Pátio. Só chega aqui vazio, por reposicionamento explícito: as
+     * viagens de carga à zona (retirar recursos, entregar material) sempre voltam sozinhas.
+     */
+    public const NA_ZONA = 'zona';
+
+    /**
      * Capacidade por viagem (GDD §25.4): 1.000 unidades de qualquer recurso = 1 m³.
      * Furgão 6 m³ = 6.000 unidades. Caminhão de Carga 30 m³ = 30.000 unidades.
      */
@@ -94,5 +101,15 @@ class Vehicle extends Model
     public function noPatio(): bool
     {
         return $this->local === self::NO_PATIO && $this->status === 'ocioso';
+    }
+
+    /**
+     * Está parado numa Zona Neutra (D-109)? Enquanto estacionado, `destination_type`/
+     * `destination_id` deixam de significar "para onde vai" e passam a dizer "em qual zona está" —
+     * a mesma dupla de colunas, sem migração nova (ver `ConcluirTrechos::terminarViagem()`).
+     */
+    public function naZona(): bool
+    {
+        return $this->local === self::NA_ZONA && $this->status === 'ocioso';
     }
 }

@@ -4782,3 +4782,99 @@ página.
 **Passo obrigatório depois do deploy**: rodar `php artisan db:seed --class=BuildingSpecSeeder
 --force` em produção — os níveis 6-10 do Depósito Local só existem de verdade depois disso (mesma
 lição do D-106, desta vez feito de propósito, não esquecido).
+
+## D-109 — O Furgão ganha fábrica, a Fábrica ganha admin, o despacho vazio ganha zona neutra, e a compra ganha um recibo.
+**Data:** 2026-07-18 · **Status:** arbitrado pelo usuário · **Feature nova, não do GDD**
+
+Pedido do usuário, quatro itens:
+
+1. O Ministério dos Transportes passa a fabricar **Furgão de Comércio** também (antes, só
+   Caminhão de Carga) — vendido a **150 Fert$**; custo de fabricação e tempo = **40% do
+   Caminhão**; prateleira inicial de **5**.
+2. Uma aba nova **Fábrica** em `/central/admin/transportes`: configurar o estoque-alvo, pedir
+   fabricação avulsa, o preço de venda e o custo em recursos — por tipo.
+3. Em Mercado Central → Pátio e Depósito: despachar um veículo VAZIO — do Pátio, para casa ou
+   para uma zona neutra sua; de casa, para a Capital ou para uma zona neutra sua. Substitui o
+   "Chamar de volta" (D-91), que só cobria pátio→casa.
+4. Em Ofertas Globais, ao comprar, um modal confirma a compra e que o recurso está no depósito da
+   Capital.
+
+Perguntei o que acontece quando um veículo vazio chega a uma zona neutra — hoje não existia
+"estacionado numa zona", as viagens à zona eram sempre ida-e-volta automática. Resposta: **fica
+estacionado lá de verdade**, um terceiro lugar (`Vehicle::NA_ZONA = 'zona'`), ao lado de casa e do
+Pátio.
+
+### 1 e 2 — A fábrica generaliza por tipo, e vira admin-editável
+
+`Ministerio::PRECO_MICRO`/`ESTOQUE_ALVO`/`MINUTOS_FABRICACAO`/`custoFabricacao()` (constantes de
+PHP) viram `Ministerio::config(tipo)`, lendo `fabrica_veiculos` — tabela nova, semeada uma vez na
+própria migration (mesmo molde do kit inicial, D-92; do Silo, D-107/108), nunca tocada por
+Seeder. Duas linhas de partida: Caminhão (os números que já existiam, só migram de PHP para
+banco) e Furgão (150 Fert$, 5 na prateleira, 24 min, custo 36 Ligas/10 Componentes/6 Metal Bruto —
+40% do Caminhão, arredondado, minha proposta default).
+
+**Achado no caminho, e por que não reaproveitei um número que já existia**:
+`VeiculoCustos::NIVEL_1['furgao_de_comercio']` (40 Ligas/10 Componentes/7 Metal Bruto) já existe —
+mas é o custo-base do GDD (§21.2), usado só por `Manutencao.php` para calcular o custo de
+MANUTENÇÃO do Furgão (10% dessa tabela), valendo desde sempre para todo Furgão do kit inicial.
+Tocar essa tabela mudaria a manutenção de toda a frota existente, e ninguém pediu isso — o custo de
+FABRICAÇÃO do governo é um número novo e separado (40% do Caminhão), só usado pela fábrica.
+
+`FabricarCaminhoes.php` virou **`FabricarVeiculos.php`** (o nome antigo mentiria); `ComprarCaminhao.php`
+virou **`ComprarVeiculo.php`** — os dois generalizados por tipo, mesma lógica de sempre (Tesouro
+paga o custo; sem saldo, sem veículo, sem erro, sem fila).
+
+**Efeito colateral corrigido, não pedido mas descoberto no caminho**: `Conservacao::tetoDeRevendaMicro()`
+usava, para o Furgão, uma referência do operador (`furgao_preco_referencia_micro`, D-73) — porque
+até aqui o Ministério não o vendia, não havia preço de fábrica. Agora há. O teto do Furgão passa a
+ancorar no preço de fábrica dele, igual ao Caminhão; a referência antiga fica no schema (não vale
+uma migration só para tirá-la) mas não é mais lida.
+
+Admin: aba **Fábrica** nova em `transportes.blade.php` (`?aba=fabrica`, mesmo padrão `?aba=` de
+`missoes.blade.php`/`construcoes.blade.php`), um cartão por tipo — preço, estoque-alvo, minutos,
+custo (textarea `recurso:quantidade`, mesmo parser de sempre) — e um botão de encomenda avulsa
+(empurrão pontual fora do tick, não muda o estoque-alvo).
+
+### 3 — O despacho vazio ganha um terceiro lugar: a zona neutra
+
+`Vehicle::NA_ZONA = 'zona'` — `local` é `string(10)`, não enum, então o valor novo não pediu
+migração de schema. Estacionado lá, `destination_type`/`destination_id` **não se limpam** — a
+mesma dupla de colunas que guardava "para onde vai" passa a dizer "em qual zona está"
+(`ConcluirTrechos::terminarViagem()`).
+
+`DespacharVeiculo::reposicionarVazio()` (novo, ao lado de `handle()`/`retirarDeZona()`/
+`entregarMaterialNaZona()`): do Pátio, casa ou zona sua; de casa, Capital ou zona sua; de uma
+zona sua, **só de volta para casa** — reaproveita a mesma distância zona↔colônia que o ciclo de
+ida-e-volta já usa para a perna de volta, não é conta nova. Ir de uma zona para a Capital ou para
+outra zona fica de fora **de propósito**: ninguém pediu, e essa distância nunca foi calculada em
+lugar nenhum do jogo — sem isso, "voltar pra casa" é sempre a válvula de escape, nenhum veículo
+fica preso.
+
+`VehicleController::despachar` passou a rotear: carga vazia vai para `reposicionarVazio()`, carga
+de verdade continua em `handle()` — o mesmo endpoint de sempre, `POST /vehicles/{v}/dispatch`.
+
+Frontend (`Mercado.tsx`): o botão único "Chamar de volta" virou um seletor de destino
+(`SeletorDeDestino`), reaproveitado nas três listas do Pátio e Depósito — "No Pátio", "Em casa", e
+uma seção nova "Numa zona neutra" (senão um veículo lá estacionado ficaria invisível na tela). As
+opções vêm de `api.minhasZonas()`, que já existia.
+
+### 4 — O recibo da compra
+
+Puramente frontend: `Popup.tsx` (já genérico, usado em outros 4 lugares) confirma a compra em
+Ofertas Globais, só do lado de quem COMPRA (quem vende já vê o Fert$ entrar, sem mistério).
+
+## Fora de escopo, de propósito
+
+- Despachar de uma zona neutra para a Capital ou para outra zona.
+- Nível 2+ de fabricação de qualquer um dos dois veículos (D-60 já flagrou as duas curvas
+  divergentes do GDD para o Caminhão nível 2+ — sem decisão tomada).
+- Remover a coluna `furgao_preco_referencia_micro` do schema — fica inerte, sem migration.
+
+Validado: `php artisan test` completo (665 testes — 12 novos em `DespachoVazioTest`, mais ajustes
+em `MinisterioDosTransportesTest`/`MissoesNovasAcoesTest`/`FrotaEnvelheceTest` para o novo shape
+por tipo), round-trip de migração em MariaDB efêmero (`migrate:fresh` + `migrate:rollback`, uma
+tabela nova), `tsc`/`lint`/`build` limpos, e2e completo (9/9 verde — `capital.e2e.mjs` precisou de
+um ajuste: o teto de revenda do Furgão usado passou de 60 para 150 Fert$, reflexo direto do preço
+de fábrica novo), checagem visual manual (backend efêmero + Puppeteer): a aba Fábrica do admin com
+os dois tipos, salvar um ajuste refletindo na hora na tela do jogador, comprar um Furgão, e o
+seletor de destino no Pátio e Depósito com "Capital" e a zona sua listadas.

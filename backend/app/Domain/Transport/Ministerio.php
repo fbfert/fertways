@@ -2,75 +2,56 @@
 
 namespace App\Domain\Transport;
 
+use App\Exceptions\DomainRuleException;
 use App\Models\Colony;
+use Illuminate\Support\Facades\DB;
 
 /**
  * O Ministério dos Transportes (D-60) — os números.
  *
- * **Leia esta divisão antes de mexer em qualquer valor daqui.** As constantes deste arquivo são de
- * duas naturezas diferentes, e confundi-las é como o projeto erra:
+ * Desde o D-109, todos os números daqui vêm de `fabrica_veiculos`, editável pelo admin (aba
+ * Fábrica, `/central/admin/transportes?aba=fabrica`) — não são mais constantes de PHP. A tabela
+ * é uma migration one-time (nunca um Seeder), então o ajuste do admin nunca é apagado por um
+ * `db:seed` futuro — mesmo desenho do kit inicial (D-92) e do Silo (D-107/108).
  *
- *  - **`CUSTO_FABRICACAO` sai do GDD** (§21.3, Caminhão de Carga, nível 1). Não se ajusta para
- *    balancear: se o GDD mudar, muda aqui; se não, não.
- *  - **Todo o resto é arbitragem do usuário** (2026-07-12), e é onde se mexe para balancear.
- *
- * ---
- *
- * **A errata que este arquivo desvia, e não resolve.** O GDD tem DUAS tabelas de custo para o
- * Caminhão, e elas divergem a partir do nível 2:
- *
- *      §21.3  Ligas  90 135 202 304 456   (curva 1,50×)
- *      §20    Ligas  90 149 245 404 667   (curva 1,65×)
- *
- * É a mesma armadilha do D-37. **O nível 1 é idêntico nas duas** — e o D-60 decidiu que só o nível
- * 1 é vendido, então a divergência não nos toca. Se um dia os níveis 2+ entrarem, é aqui que a
- * briga começa: não copie uma das duas tabelas sem antes reabrir o D-37.
+ * **O Ministério fabrica dois veículos**: o Caminhão de Carga (GDD §21.3, nível 1) e, desde o
+ * D-109, o Furgão de Comércio também — pedido do usuário, "para o Furgão continua vindo só no kit
+ * inicial" (D-60, item 9) deixou de valer.
  */
 final class Ministerio
 {
-    /** O Ministério fabrica só isto. O Furgão continua vindo só no kit inicial (D-60, item 9). */
-    public const TIPO = 'caminhao_de_carga';
+    public const TIPOS = ['caminhao_de_carga', 'furgao_de_comercio'];
 
     /**
-     * GDD §21.3, Caminhão de Carga, nível 1. **Do documento, não do balanceamento.**
+     * A configuração de um tipo: preço, estoque-alvo, tempo de fabricação e custo em recursos.
+     * Cache por request — o mesmo tick pode consultar isto várias vezes sem reconsultar o banco.
      *
-     * Sai do caixa do Tesouro (D-57) a cada caminhão fabricado: o governo constrói com o que
-     * arrecadou. Se o Tesouro não tiver isto, não há caminhão — e a redistribuição do §2.1 passa a
-     * ter consequência.
-     *
-     * A tabela mora em `VeiculoCustos`, não aqui: a **manutenção** (D-60) custa uma fração dela, e
-     * duas cópias do mesmo número do GDD acabariam divergindo.
-     *
-     * @return array<string,int>
+     * @return array{preco_micro: int, estoque_alvo: int, minutos_fabricacao: int, custo: array<string,int>}
      */
-    public static function custoFabricacao(): array
+    public static function config(string $tipo): array
     {
-        return VeiculoCustos::nivel1(self::TIPO);
+        static $cache = [];
+
+        if (isset($cache[$tipo])) {
+            return $cache[$tipo];
+        }
+
+        $linha = DB::table('fabrica_veiculos')->where('tipo', $tipo)->first();
+
+        if (! $linha) {
+            throw new DomainRuleException('veiculo_sem_fabrica', "O Ministério não fabrica: {$tipo}");
+        }
+
+        return $cache[$tipo] = [
+            'preco_micro' => (int) $linha->preco_micro,
+            'estoque_alvo' => (int) $linha->estoque_alvo,
+            'minutos_fabricacao' => (int) $linha->minutos_fabricacao,
+            'custo' => json_decode($linha->custo_json, true),
+        ];
     }
 
-    /**
-     * 300 Fert$ — **arbitragem do usuário**, não do GDD.
-     *
-     * A preço de referência, os recursos de um Caminhão valem ~33,60 Fert$: o preço é ~9× isso, e
-     * 6× o kit inicial de um colono (50 Fert$). A margem é gorda de propósito — é ela o dreno de
-     * Fert$ que dá serventia ao caixa do Tesouro, e é ela que faz do caminhão um objetivo de médio
-     * prazo em vez de uma compra de estreia.
-     */
-    public const PRECO_MICRO = 300 * Colony::MICRO_POR_FERT;
-
-    /** 1 hora por caminhão. Arbitragem do usuário. */
-    public const MINUTOS_FABRICACAO = 60;
-
-    /**
-     * A prateleira: quantos caminhões o Ministério mantém prontos. Arbitragem do usuário.
-     *
-     * Ele repõe sozinho no tick, até este alvo. Quem compra da prateleira leva na hora; quem a
-     * esvaziou espera a fila de 1 h. Com 5 colônias em produção, 5 é um por colônia.
-     */
-    public const ESTOQUE_ALVO = 5;
-
-    public static function precoFert(): float
+    public static function precoFert(string $tipo): float
     {
-        return self::PRECO_MICRO / Colony::MICRO_POR_FERT;
+        return self::config($tipo)['preco_micro'] / Colony::MICRO_POR_FERT;
     }
 }

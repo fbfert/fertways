@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { api, ApiError } from '../api/client'
-import type { RegistroVeiculo, Transportes as TransportesDto } from '../api/client'
+import type { ItemDaFabrica, RegistroVeiculo, Transportes as TransportesDto } from '../api/client'
 import { dataHumana, nomeRecurso, nomeVeiculo } from './recursos'
 import { Usados } from './Usados'
 
@@ -9,9 +9,9 @@ import { Usados } from './Usados'
  *
  * Três coisas que o jogador não tem como adivinhar, e que a tela existe para dizer:
  *
- *  1. **Só aqui se compra caminhão.** A Central de Transportes dele não fabrica mais nada — e como
- *     o GDD (§17.2) diz que ela "produz Caminhões de Carga", quem ler o documento vai procurá-la na
- *     colônia e não achar.
+ *  1. **Só aqui se compra veículo novo.** A Central de Transportes dele não fabrica mais nada — e
+ *     como o GDD (§17.2) diz que ela "produz Caminhões de Carga", quem ler o documento vai procurá-la
+ *     na colônia e não achar. Desde o D-109, o Ministério fabrica os dois tipos: Caminhão e Furgão.
  *  2. **De onde vem o teto de frota**: é o nível da Central dele.
  *  3. **O que o desgaste faz.** Um número de conservação sozinho não diz nada. O que importa é que
  *     velocidade e capacidade encolhem junto — e é isso que a linha do registro mostra.
@@ -58,69 +58,26 @@ export function Transportes() {
   if (erro && !dados) return <p className="text-rust mt-4 text-sm font-bold">{erro}</p>
   if (!dados) return <p className="text-ink-soft mt-4 text-sm">Carregando…</p>
 
-  const { caminhao, frota, veiculos, planeta } = dados
+  const { fabrica, frota, veiculos, planeta } = dados
   const semVaga = frota.livres < 1
-  const semEstoque = caminhao.em_estoque < 1
 
   return (
     <div className="mt-5 space-y-5" data-tela="transportes">
-      {/* ---------------------------------------------------------------- a fábrica */}
-      <section className="border-rust/20 bg-sand border p-4">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <div className="text-rust eyebrow">Fábrica do Governo</div>
-            <h3 className="text-ink text-lg font-black">Caminhão de Carga</h3>
-            <p className="text-ink-soft mt-1 text-sm">
-              {caminhao.capacidade.toLocaleString('pt-BR')} unidades por viagem — cinco vezes o Furgão.
-            </p>
-          </div>
-          <div className="text-right">
-            <div className="text-ink text-2xl font-black">{caminhao.preco_fert} F$</div>
-            <div className="text-ink-soft/70 text-xs">preço do governo</div>
-          </div>
-        </div>
-
-        <p className="text-ink-soft/70 mt-3 text-xs">
-          Fabricar caminhão é <strong>privativo deste Ministério</strong>. A sua Central de
-          Transportes não os produz — ela define quantos veículos você pode ter.
-        </p>
-
-        <div className="mt-3 flex items-center gap-4 text-sm">
-          <span className="text-ink" data-estoque={caminhao.em_estoque}>
-            <strong>{caminhao.em_estoque}</strong> na prateleira
-          </span>
-          <span className="text-ink-soft/70">{caminhao.em_fabricacao} na linha de montagem</span>
-        </div>
-
-        {recibo && <p className="text-rust mt-3 text-sm font-bold">{recibo}</p>}
-        {erro && <p className="text-rust mt-3 text-sm font-bold">{erro}</p>}
-
-        <button
-          onClick={() =>
-            agir(async () => {
-              const { comprado } = await api.comprarCaminhao()
-              return `Caminhão ${comprado.placa} é seu. Ele vem dirigindo da Capital.`
-            })
-          }
-          disabled={semVaga || semEstoque || ocupado}
-          data-comprar-caminhao
-          className="bg-rust text-sand-light hover:bg-rust-bright disabled:bg-ink-soft/30 mt-3 px-5 py-2 text-sm font-bold disabled:cursor-not-allowed"
-        >
-          {ocupado ? 'Aguarde…' : `Comprar por ${caminhao.preco_fert} F$`}
-        </button>
-
-        {/* Botão desabilitado sem explicação é a pior tela possível: diga POR QUE. */}
-        {semVaga && (
-          <p className="text-ink-soft/80 mt-2 text-xs">
-            A sua frota está no teto de {frota.teto}. Suba a Central de Transportes para abrir vaga.
-          </p>
-        )}
-        {semEstoque && !semVaga && (
-          <p className="text-ink-soft/80 mt-2 text-xs">
-            O governo está sem caminhão pronto — {caminhao.minutos_fabricacao} min por unidade na
-            linha de montagem.
-          </p>
-        )}
+      {/* ---------------------------------------------------------------- a fábrica (D-109: os dois tipos) */}
+      <section className="space-y-3">
+        <div className="text-rust eyebrow">Fábrica do Governo</div>
+        {Object.values(fabrica).map((item) => (
+          <CartaoDaFabrica
+            key={item.tipo}
+            item={item}
+            semVaga={semVaga}
+            tetoDaFrota={frota.teto}
+            ocupado={ocupado}
+            recibo={recibo}
+            erro={erro}
+            agir={agir}
+          />
+        ))}
       </section>
 
       {/* ---------------------------------------------------------------- o registro de placas */}
@@ -152,6 +109,89 @@ export function Transportes() {
           veículos registrados · {planeta.vendidos} vendidos · {planeta.sucateados} sucateados.
         </div>
       </section>
+    </div>
+  )
+}
+
+/**
+ * Um cartão da fábrica, por tipo (D-109). Antes só existia para o Caminhão; agora o mesmo
+ * cartão serve aos dois — Caminhão e Furgão vêm da mesma vitrine, só o tipo muda.
+ */
+function CartaoDaFabrica({
+  item,
+  semVaga,
+  tetoDaFrota,
+  ocupado,
+  recibo,
+  erro,
+  agir,
+}: {
+  item: ItemDaFabrica
+  semVaga: boolean
+  tetoDaFrota: number
+  ocupado: boolean
+  recibo: string | null
+  erro: string | null
+  agir: (acao: () => Promise<string>) => Promise<void>
+}) {
+  const semEstoque = item.em_estoque < 1
+
+  return (
+    <div className="border-rust/20 bg-sand border p-4" data-fabrica={item.tipo}>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h3 className="text-ink text-lg font-black">{nomeVeiculo(item.tipo)}</h3>
+          <p className="text-ink-soft mt-1 text-sm">
+            {item.capacidade.toLocaleString('pt-BR')} unidades por viagem.
+          </p>
+        </div>
+        <div className="text-right">
+          <div className="text-ink text-2xl font-black">{item.preco_fert} F$</div>
+          <div className="text-ink-soft/70 text-xs">preço do governo</div>
+        </div>
+      </div>
+
+      <p className="text-ink-soft/70 mt-3 text-xs">
+        Fabricar é <strong>privativo deste Ministério</strong>. A sua Central de Transportes não
+        produz veículo — ela define quantos você pode ter.
+      </p>
+
+      <div className="mt-3 flex items-center gap-4 text-sm">
+        <span className="text-ink" data-estoque={item.em_estoque}>
+          <strong>{item.em_estoque}</strong> na prateleira
+        </span>
+        <span className="text-ink-soft/70">{item.em_fabricacao} na linha de montagem</span>
+      </div>
+
+      {recibo && <p className="text-rust mt-3 text-sm font-bold">{recibo}</p>}
+      {erro && <p className="text-rust mt-3 text-sm font-bold">{erro}</p>}
+
+      <button
+        onClick={() =>
+          agir(async () => {
+            const { comprado } = await api.comprarVeiculo(item.tipo)
+            return `${nomeVeiculo(item.tipo)} ${comprado.placa} é seu. Ele vem dirigindo da Capital.`
+          })
+        }
+        disabled={semVaga || semEstoque || ocupado}
+        data-comprar-veiculo={item.tipo}
+        className="bg-rust text-sand-light hover:bg-rust-bright disabled:bg-ink-soft/30 mt-3 px-5 py-2 text-sm font-bold disabled:cursor-not-allowed"
+      >
+        {ocupado ? 'Aguarde…' : `Comprar por ${item.preco_fert} F$`}
+      </button>
+
+      {/* Botão desabilitado sem explicação é a pior tela possível: diga POR QUE. */}
+      {semVaga && (
+        <p className="text-ink-soft/80 mt-2 text-xs">
+          A sua frota está no teto de {tetoDaFrota}. Suba a Central de Transportes para abrir vaga.
+        </p>
+      )}
+      {semEstoque && !semVaga && (
+        <p className="text-ink-soft/80 mt-2 text-xs">
+          O governo está sem unidade pronta — {item.minutos_fabricacao} min por unidade na linha de
+          montagem.
+        </p>
+      )}
     </div>
   )
 }

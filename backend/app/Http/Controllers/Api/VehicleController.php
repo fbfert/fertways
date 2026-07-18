@@ -88,11 +88,14 @@ class VehicleController extends Controller
     public function despachar(Request $request, Vehicle $vehicle, DespacharVeiculo $despachar): JsonResponse
     {
         $dados = $request->validate([
-            'destination_type' => ['required', 'string', 'in:colonia,mercado_central'],
+            // `zona_neutra` desde o D-109 — só vale para o reposicionamento vazio (ver abaixo);
+            // carga de verdade para uma zona continua passando por `retirarDeZona`/
+            // `entregarMaterialNaZona`, endpoints próprios.
+            'destination_type' => ['required', 'string', 'in:colonia,mercado_central,zona_neutra'],
             'destination_id' => ['nullable', 'integer'],
-            // Vazio só é aceito na volta do Pátio para a própria colônia (D-91) — `DespacharVeiculo`
-            // é quem decide isso, com contexto de origem que esta validação não tem. Qualquer outra
-            // combinação continua recusando carga vazia em `validarCarga()`.
+            // Vazio é o reposicionamento (D-91, generalizado no D-109) — `DespacharVeiculo` é quem
+            // decide se aquele destino aceita vazio, com contexto de origem que esta validação não
+            // tem. Qualquer combinação com carga continua recusando vazio em `validarCarga()`.
             'cargo' => ['present', 'array'],
             'cargo.*' => ['integer', 'min:1'],
             // Opcional: amarra esta carga a um Acordo de Troca (D-41). Sem ele, o despacho é
@@ -100,14 +103,18 @@ class VehicleController extends Controller
             'trade_agreement_id' => ['nullable', 'integer'],
         ]);
 
-        $veiculo = $despachar->handle(
-            $this->colonia($request),
-            $vehicle,
-            $dados['destination_type'],
-            $dados['destination_id'] ?? null,
-            $dados['cargo'],
-            $dados['trade_agreement_id'] ?? null,
-        );
+        $colonia = $this->colonia($request);
+
+        $veiculo = $dados['cargo'] === []
+            ? $despachar->reposicionarVazio($colonia, $vehicle, $dados['destination_type'], $dados['destination_id'] ?? null)
+            : $despachar->handle(
+                $colonia,
+                $vehicle,
+                $dados['destination_type'],
+                $dados['destination_id'] ?? null,
+                $dados['cargo'],
+                $dados['trade_agreement_id'] ?? null,
+            );
 
         return response()->json([
             'id' => $veiculo->id,
