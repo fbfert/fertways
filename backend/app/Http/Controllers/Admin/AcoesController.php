@@ -565,6 +565,187 @@ class AcoesController extends Controller
     }
 
     /**
+     * Gestão de Construções — Tempo (D-107). Grava em `building_specs_overrides`, nunca em
+     * `building_specs` (que é semeada de novo a cada `db:seed`) — é por isso que o ajuste
+     * sobrevive a um reseed futuro.
+     */
+    public function construcoesTempo(Request $request): RedirectResponse
+    {
+        $dados = $this->validarAjusteDeConstrucao($request, ['niveis' => ['required', 'array'], 'niveis.*' => ['required', 'integer', 'min:1', 'max:100000']]);
+
+        return $this->tentar('construcoes.tempo', function () use ($dados) {
+            $agora = now();
+            $tocados = 0;
+
+            foreach ($dados['niveis'] as $nivel => $minutos) {
+                \Illuminate\Support\Facades\DB::table('building_specs_overrides')->updateOrInsert(
+                    ['building_type' => $dados['tipo'], 'level' => $nivel],
+                    ['build_time_seconds' => $minutos * 60, 'admin_id' => auth('admin')->id(), 'updated_at' => $agora],
+                );
+                $tocados++;
+            }
+
+            return "Tempo de {$dados['nome']} atualizado em {$tocados} nível(is).";
+        }, "construcoes:{$dados['tipo']}");
+    }
+
+    /**
+     * Gestão de Construções — Custo (D-107). Cada nível chega como uma linha
+     * `recurso:quantidade` por linha — mesmo formato que `recompensa_recursos` já usa em
+     * `validarMissao()` — e vira o `cost_json` do override.
+     */
+    public function construcoesCusto(Request $request): RedirectResponse
+    {
+        $dados = $this->validarAjusteDeConstrucao($request, ['niveis' => ['required', 'array'], 'niveis.*' => ['nullable', 'string', 'max:2000']]);
+
+        return $this->tentar('construcoes.custo', function () use ($dados, $request) {
+            $agora = now();
+            $tocados = 0;
+
+            foreach ($dados['niveis'] as $nivel => $texto) {
+                $custo = $this->parseRecursosPorLinha($texto, "niveis.{$nivel}");
+
+                if ($custo === []) {
+                    continue;
+                }
+
+                \Illuminate\Support\Facades\DB::table('building_specs_overrides')->updateOrInsert(
+                    ['building_type' => $dados['tipo'], 'level' => $nivel],
+                    [
+                        'cost_json' => json_encode($custo, JSON_UNESCAPED_UNICODE),
+                        'admin_id' => auth('admin')->id(),
+                        'updated_at' => $agora,
+                    ],
+                );
+                $tocados++;
+            }
+
+            return "Custo de {$dados['nome']} atualizado em {$tocados} nível(is).";
+        }, "construcoes:{$dados['tipo']}");
+    }
+
+    /**
+     * Valida o que Tempo e Custo têm em comum: a construção existe, e nenhum nível 1 das que já
+     * nascem prontas (`Building::NASCE_NO_NIVEL_UM`) — validação no servidor, não só esconder o
+     * campo na view, porque um POST forjado não lê HTML.
+     *
+     * @param  array<string,array<int,string>>  $regrasNiveis
+     * @return array{tipo: string, nome: string, niveis: array<int,mixed>}
+     */
+    private function validarAjusteDeConstrucao(Request $request, array $regrasNiveis): array
+    {
+        $tipos = \Illuminate\Support\Facades\DB::table('building_specs')->distinct()->pluck('building_type');
+
+        $dados = $request->validate([
+            'building_type' => ['required', 'string', Rule::in($tipos->all())],
+        ] + $regrasNiveis);
+
+        $niveisValidos = \Illuminate\Support\Facades\DB::table('building_specs')
+            ->where('building_type', $dados['building_type'])->pluck('level')->all();
+
+        $niveis = [];
+        foreach ($dados['niveis'] as $nivel => $valor) {
+            $nivel = (int) $nivel;
+
+            if (! in_array($nivel, $niveisValidos, true)) {
+                throw ValidationException::withMessages([
+                    'niveis' => "{$dados['building_type']} não tem nível {$nivel} em building_specs.",
+                ]);
+            }
+
+            if ($nivel === 1 && in_array($dados['building_type'], \App\Models\Building::NASCE_NO_NIVEL_UM, true)) {
+                throw ValidationException::withMessages([
+                    'niveis' => "{$dados['building_type']} já nasce pronta no nível 1 — não há o que ajustar ali.",
+                ]);
+            }
+
+            $niveis[$nivel] = $valor;
+        }
+
+        return [
+            'tipo' => $dados['building_type'],
+            'nome' => \App\Domain\Media\NomesDeExibicao::de($dados['building_type']),
+            'niveis' => $niveis,
+        ];
+    }
+
+    /** Mesma regra de `recompensa_recursos`: uma linha `recurso:quantidade`, recurso do catálogo. */
+    private function parseRecursosPorLinha(?string $texto, string $campo): array
+    {
+        $recursos = [];
+
+        foreach (explode("\n", (string) $texto) as $linha) {
+            $linha = trim($linha);
+
+            if ($linha === '') {
+                continue;
+            }
+
+            [$recurso, $qtd] = array_pad(explode(':', $linha, 2), 2, null);
+            $recurso = trim((string) $recurso);
+            $qtd = (int) trim((string) $qtd);
+
+            if ($recurso === '' || $qtd <= 0) {
+                throw ValidationException::withMessages([
+                    $campo => "Linha inválida: «{$linha}». Use recurso:quantidade, um por linha.",
+                ]);
+            }
+
+            if (! \App\Models\ResourceType::whereKey($recurso)->exists()) {
+                throw ValidationException::withMessages([
+                    $campo => "«{$recurso}» não é um recurso do catálogo. Confira a grafia (ex.: ligas_metalicas).",
+                ]);
+            }
+
+            $recursos[$recurso] = $qtd;
+        }
+
+        return $recursos;
+    }
+
+    /**
+     * Gestão de Construções — Silo (D-107). Uma grade recurso × nível; só grava as células que
+     * vieram no POST e batem com um recurso real do catálogo — a mesma cautela do `kitInicial()`
+     * contra um `<input>` forjado criando linha para um recurso que não existe.
+     */
+    public function construcoesSilo(Request $request): RedirectResponse
+    {
+        $codigos = \App\Models\ResourceType::pluck('code');
+
+        $dados = $request->validate([
+            'capacidades' => ['required', 'array'],
+            'capacidades.*' => ['required', 'array'],
+            'capacidades.*.*' => ['required', 'integer', 'min:0'],
+        ]);
+
+        return $this->tentar('construcoes.silo', function () use ($dados, $codigos) {
+            $agora = now();
+            $tocadas = 0;
+
+            foreach ($dados['capacidades'] as $recurso => $porNivel) {
+                if (! $codigos->contains($recurso)) {
+                    continue;
+                }
+
+                foreach ($porNivel as $nivel => $capacidade) {
+                    $nivel = (int) $nivel;
+                    if ($nivel < 1 || $nivel > 10) {
+                        continue;
+                    }
+
+                    \Illuminate\Support\Facades\DB::table('silo_capacidades')->updateOrInsert(
+                        ['resource_type' => $recurso, 'level' => $nivel],
+                        ['capacidade' => $capacidade, 'admin_id' => auth('admin')->id(), 'updated_at' => $agora],
+                    );
+                    $tocadas++;
+                }
+            }
+
+            return "Capacidade do Silo atualizada em {$tocadas} célula(s).";
+        });
+    }
+
+    /**
      * Encomenda um caminhão para a GARAGEM do frete público (D-76).
      *
      * Instantâneo e por fiat, ao contrário da prateleira de venda (que tem linha de montagem no

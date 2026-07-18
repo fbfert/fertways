@@ -51,6 +51,12 @@ Route::prefix('admin')->group(function () {
         Route::post('/operacao/marco', [AcoesController::class, 'marco'])->name('admin.marco.parametros');
         Route::post('/operacao/kit-inicial', [AcoesController::class, 'kitInicial'])->name('admin.kit_inicial.parametros');
 
+        // Gestão de Construções (D-107): tempo, Silo e custo, por nível — hoje fixos no GDD.
+        Route::get('/construcoes', [PainelController::class, 'construcoes'])->name('admin.construcoes');
+        Route::post('/construcoes/tempo', [AcoesController::class, 'construcoesTempo'])->name('admin.construcoes.tempo');
+        Route::post('/construcoes/custo', [AcoesController::class, 'construcoesCusto'])->name('admin.construcoes.custo');
+        Route::post('/construcoes/silo', [AcoesController::class, 'construcoesSilo'])->name('admin.construcoes.silo');
+
         // Bugs/Melhorias (D-95): o jogador manda pelo jogo; o admin lê, responde (o rádio avisa,
         // D-91) e marca como feito. Aba própria — mistura CRUD com o dashboard não caberia num card.
         Route::get('/feedback', [PainelController::class, 'feedback'])->name('admin.feedback');

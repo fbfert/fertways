@@ -4707,3 +4707,78 @@ O usuário mandou um segundo lote de arte, `structures.zip`, com um manifesto (`
 > do painel se perde num `--aplicar` de rotina), mas significa que "vinculada" no relatório do
 > comando não quer dizer "está na tela agora" — quer dizer "criou um `ImageBinding` novo", e é
 > preciso separar as duas coisas ao reportar para quem pediu.
+
+---
+
+## D-108 — Gestão de Construções: tempo, Silo e custo deixam de ser fixos no GDD.
+**Data:** 2026-07-17 · **Status:** arbitrado pelo usuário · **Feature nova, não do GDD**
+
+Pedido do usuário: uma aba nova no Admin, **Gestão de Construções**, com três sub-abas — Tempo de
+Construções, Gestão do Silo, e Custo de Construção e Evolução — para tirar do código números que
+hoje só mudam com deploy.
+
+**O Silo é o Depósito Local (D-105/106), estendido** — mesmo slot 21, mesmo botão. Perguntei ao
+usuário duas coisas antes de desenhar: se "Silo" era uma construção nova ou o Depósito Local
+estendido (é o Depósito Local — nível máximo passa de 5 para 10, o range que o usuário deu); e se
+"poderão ser saqueados" (os recursos que excedem a capacidade) significava construir o saque de
+colônia agora, ou só a regra/dado desta vez. **Só a regra/dado**: a guerra hoje (`Atacar`/
+`Combat`/`Unit`) mira exclusivamente Zona Neutra — `combats.zone_id` é obrigatório, e não há
+nenhum caminho de código que ataque uma colônia. Estender isso é, por si, um trabalho do tamanho
+do sistema de guerra que já existe; fica para uma entrega separada, já combinada.
+
+### O desenho
+
+1. **`building_specs_overrides`** (migration nova, tabela vazia): o ajuste do admin em tempo/custo
+   por `(building_type, level)`. `BuildingSpecs::para()` aplica o override por cima da base do GDD
+   quando existir. **O motivo de ser uma tabela separada, não editar `building_specs` direto**: o
+   `BuildingSpecSeeder` roda `upsert` incondicional a cada `db:seed` — e isso acontece de verdade,
+   foi preciso rodar manualmente ao publicar o Depósito Local (D-106). Editar a base seria perder o
+   ajuste no primeiro reseed, calado. Mesmo problema que o kit inicial já resolveu (D-92), mesma
+   solução: uma tabela que só o admin toca. `nivelMaximo()` continua lendo só a base — quantos
+   níveis uma construção TEM é fato estrutural, não algo que o admin adiciona por aqui.
+
+2. **`silo_capacidades`** (migration nova, com o dado de partida gravado nela mesma — mesmo molde
+   do `kit_inicial_recursos`, D-92): quanto de cada recurso cabe protegido, por nível do Silo.
+   Padrão pedido pelo usuário: nível 1 a 10, 10.000 de cada um dos 26 recursos, igual em todos os
+   níveis — 260 linhas, ele ajusta pelo próprio painel.
+
+3. **`Silo` (domínio novo)**: `nivel()`/`capacidade()`/`protegido()`/`exposto()`, molde de
+   `Protegido` (D-66) — a mesma pergunta que a guerra de Zona Neutra já resolve, só que por
+   RECURSO (a zona tem um Depósito único somando tudo; a colônia já é uma linha por recurso).
+   Calculado **sob demanda**, não gravado em `resources.storage_cap` (que fecha o D-14, mas
+   continua `NULL` de propósito) — gravar exigiria recalcular toda vez que o Depósito Local evolui;
+   sob demanda é sempre certo. **Não conectado a nenhuma tela ou endpoint nesta entrega** — só a
+   regra e o dado, prontos para quando o saque de colônia existir.
+
+4. **Depósito Local vai a nível 10.** `building_specs.json`: níveis 6-10 acrescentados com a MESMA
+   fórmula que todo o resto do jogo já segue (custo ×1,65/nível half-up, tempo ×1,5/nível
+   half-even, a partir da base do nível 1 — 4,9 min, a mesma da Captação de Água) — não é número
+   inventado, `tests/Gdd/GddSpecsTest.php` valida os níveis novos de graça, sem mudar o teste.
+
+5. **A aba** (`resources/views/admin/construcoes.blade.php`) segue os padrões já estabelecidos:
+   sub-abas por `?aba=` (mesmo de `missoes.blade.php`), lista com "Editar" por linha revelando os
+   níveis (mesmo de `missoes.blade.php`/baralho), grade de números para o Silo (mesmo de
+   `operacao.blade.php`/kit inicial), textarea `recurso:quantidade` para custo (mesmo parser de
+   `recompensa_recursos`). O nível 1 das seis que já nascem prontas (5 essenciais + Depósito
+   Local — `Building::NASCE_NO_NIVEL_UM`, constante nova) fica de fora da lista, e o servidor
+   recusa um POST forjado pra ele — validação não é só esconder campo na tela.
+
+### Fora de escopo, de propósito
+
+- A mecânica de saque em si (unidades, UI de ataque, defesa, notificação) — decisão já tomada com
+  o usuário, entrega separada.
+- Qualquer UI pro jogador ver "protegido/exposto" — o domínio `Silo` fica pronto, sem tela ainda.
+- Renomear `deposito_local` pra `silo` no banco ou no jogo — o nome "Silo" vive só no título da
+  sub-aba do admin; é trivial renomear depois, é só rótulo.
+
+Validado: `php artisan test` completo (649 testes — 11 novos, o mais importante prova que rodar
+`BuildingSpecSeeder` de novo depois de um ajuste do admin NÃO apaga o ajuste, o cerne do desenho),
+`GddSpecsTest` segue verde sem alteração (valida os níveis novos do Depósito Local de graça),
+round-trip de migração em MariaDB efêmero (`migrate:fresh` + `migrate:rollback`, duas tabelas
+novas), checagem visual manual (backend efêmero + Puppeteer, sessão de admin): as três sub-abas
+abrem, salvar um ajuste de tempo, um de custo e uma célula do Silo persiste depois de recarregar a
+página.
+
+**Passo obrigatório depois do deploy**: rodar `php artisan db:seed --class=BuildingSpecSeeder
+--force` em produção — os níveis 6-10 do Depósito Local só existem de verdade depois disso (mesma
+lição do D-106, desta vez feito de propósito, não esquecido).

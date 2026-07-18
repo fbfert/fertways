@@ -110,6 +110,14 @@ class Building extends Model
         return $this->ehEssencial() || $this->type === 'deposito_local';
     }
 
+    /**
+     * As que nascem já erguidas no nível 1 — as cinco essenciais mais o Depósito Local
+     * (D-105/106) — mesmo conjunto de `ehIndemolivel()`, mas como array estático: a Gestão de
+     * Construções (D-107) usa isto para recusar um ajuste de tempo/custo no nível 1 delas, e
+     * ali não há uma instância de `Building` à mão, só o slug que veio do formulário.
+     */
+    public const NASCE_NO_NIVEL_UM = [...self::ESSENCIAIS, 'deposito_local'];
+
     /** Nível 0 = ainda não construída. As specs do GDD começam no nível 1. */
     public function construida(): bool
     {
