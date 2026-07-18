@@ -36,7 +36,19 @@ export function colmeia(
   const base = Math.min(largura / 13.5, altura / 10.5)
   const passoX = Math.sqrt(3) * base * folga
   const passoY = 1.5 * base * folga
-  const meioY = ((linhas.length - 1) * passoY) / 2
+
+  /*
+   * O centro (e por tabela o zoom, que ancora no centro da tela — `transformar()`) continua
+   * calculado só com a colmeia ORIGINAL de 5 linhas (D-59), não com `linhas.length` inteiro.
+   *
+   * O Depósito Local (D-105) acrescenta uma 6ª linha sozinha no final. Se `meioY` entrasse a
+   * contar essa linha, o centro desceria e a linha do TOPO (onde mora a Central de Transportes)
+   * se deslocaria na tela a cada zoom — mesmo ela não tendo mudado de posição real nenhuma.
+   * Fixando o centro nas 5 linhas de sempre, os 21 slots originais não mudam nem um pixel de
+   * posição ou zoom; a linha extra só pendura por baixo deles, sem puxar ninguém.
+   */
+  const LINHAS_ORIGINAIS = 5
+  const meioY = ((Math.min(linhas.length, LINHAS_ORIGINAIS) - 1) * passoY) / 2
 
   const centros: [number, number][] = []
 
@@ -80,6 +92,7 @@ const NOMES: Record<string, string> = {
   mina_local: 'Mina Local',
   destilaria: 'Destilaria',
   tanque_de_combustivel: 'Tanque de Combustível',
+  deposito_local: 'Depósito Local',
 }
 
 export function rotulo(tipo: string): string {
@@ -87,7 +100,7 @@ export function rotulo(tipo: string): string {
 }
 
 /**
- * O slot principal do colono: a colmeia de 21 posições (D-59).
+ * O slot principal do colono: a colmeia de 22 posições (D-59, D-105).
  *
  * Antes, a cena desenhava uma construção por hexágono, em anéis, e as 16 estavam sempre lá — as
  * não erguidas apareciam vazadas. Agora o buraco vem primeiro: **os 21 slots são desenhados

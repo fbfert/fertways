@@ -11,17 +11,19 @@ use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Backfill dos 21 slots (D-59) para as colônias que já existem. As novas já nascem certas, no
- * `CreateColony`. Passo à parte do deploy, como o `fertways:placas` (D-60).
+ * Backfill dos 22 slots (D-59, D-105) para as colônias que já existem. As novas já nascem certas,
+ * no `CreateColony`. Passo à parte do deploy, como o `fertways:placas` (D-60).
  *
  *   artisan fertways:slots            # simula: mostra o que faria em cada colônia
  *   artisan fertways:slots --aplicar  # migra de verdade
  *
  * O que ele faz em cada colônia, nesta ordem:
  *
- *  1. **Põe as cinco essenciais no miolo.** Quem já existe ganha o slot fixo; quem estiver no
- *     nível 0 é promovida ao nível 1 (o miolo nasce erguido — D-59), com o custo lançado no
- *     ledger como `subsidio_governo`, exatamente como na fundação.
+ *  1. **Põe as cinco essenciais no miolo, e o Depósito Local no slot 21.** Quem já existe ganha o
+ *     slot fixo; quem estiver no nível 0 é promovido ao nível 1 (nascem erguidos — D-59/D-105),
+ *     com o custo lançado no ledger como `subsidio_governo`, exatamente como na fundação. O
+ *     Depósito é o mesmo tratamento do miolo, só que fora dele: sem ele a colônia já migrada não
+ *     teria como ver os recursos, que saíram da barra lateral sempre visível.
  *  2. **Apaga as construções nível 0** que ninguém está erguendo: elas eram o desenho antigo
  *     (16 linhas criadas na fundação) e agora significam "slot vazio". Uma construção que **está
  *     na fila** é preservada e ganha slot — cancelar a obra de alguém seria roubo.
@@ -33,7 +35,7 @@ class SlotsDaColonia extends Command
 {
     protected $signature = 'fertways:slots {--aplicar : migra de verdade; sem isto, só simula}';
 
-    protected $description = 'Backfill dos 21 slots e do miolo erguido (D-59) nas colônias existentes';
+    protected $description = 'Backfill dos 22 slots, do miolo e do Depósito Local erguidos (D-59, D-105) nas colônias existentes';
 
     public function handle(): int
     {
@@ -74,8 +76,10 @@ class SlotsDaColonia extends Command
     {
         $agora = now();
 
-        // 1. O miolo.
-        foreach (Slots::MIOLO as $tipo => $slot) {
+        // 1. O miolo, e o Depósito Local junto (D-105) — mesmo tratamento, slot fixo fora dele.
+        $fixos = [...Slots::MIOLO, ...Slots::DEPOSITO_LOCAL];
+
+        foreach ($fixos as $tipo => $slot) {
             $b = $colony->buildings()->where('type', $tipo)->first();
 
             if (! $b) {
@@ -105,7 +109,7 @@ class SlotsDaColonia extends Command
         // Ordem estável: quem já tinha slot fica onde estava, e o resto entra por id. Sem isto,
         // rodar duas vezes poderia embaralhar o mapa da colônia de um jogador.
         $restantes = $colony->buildings()
-            ->whereNotIn('type', Building::ESSENCIAIS)
+            ->whereNotIn('type', [...Building::ESSENCIAIS, ...array_keys(Slots::DEPOSITO_LOCAL)])
             ->orderByRaw('slot IS NULL')->orderBy('slot')->orderBy('id')
             ->get();
 
@@ -142,8 +146,9 @@ class SlotsDaColonia extends Command
     }
 
     /**
-     * O nível 1 do miolo é emissão do Governo, como na fundação. `firstOrCreate` no ledger é o que
-     * torna o comando idempotente: rodar de novo não lança o subsídio duas vezes.
+     * O nível 1 do miolo (e do Depósito Local) é emissão do Governo, como na fundação.
+     * `firstOrCreate` no ledger é o que torna o comando idempotente: rodar de novo não lança o
+     * subsídio duas vezes.
      */
     private function lancarSubsidio(Colony $colony, string $tipo, $agora): void
     {

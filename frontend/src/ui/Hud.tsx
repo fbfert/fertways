@@ -279,6 +279,7 @@ function OQueFaz({ funcao, atual, proximo }: { funcao: Funcao; atual: Efeito | n
 
 export function Detalhe({
   spec,
+  colonia,
   aoConstruir,
   aoAtualizar,
   aoDemolir,
@@ -286,6 +287,8 @@ export function Detalhe({
   aoFechar,
 }: {
   spec: Spec | null
+  // Só pro Depósito Local (D-105) mostrar os recursos — o resto do popup nem olha pra isto.
+  colonia: Colonia
   aoConstruir: (s: Spec) => void
   aoAtualizar: () => void
   aoDemolir: (s: Spec) => void
@@ -335,6 +338,15 @@ export function Detalhe({
       </div>
 
       <OQueFaz funcao={spec.funcao} atual={spec.efeito_atual} proximo={spec.efeito_proximo} />
+
+      {/* O Depósito Local (D-105): os recursos deixaram de ficar sempre visíveis — abrir esta
+          construção é agora o único jeito de vê-los, no desktop e no mobile. Mesmo componente da
+          antiga barra lateral, só que morando aqui dentro. */}
+      {spec.type === 'deposito_local' && (
+        <div className="border-rust/30 my-3 border-t pt-3">
+          <Recursos colonia={colonia} />
+        </div>
+      )}
 
       {/* A porta: a Central de Transportes abre a Frota, o Mercado Local abre os Acordos (item 6). */}
       {spec.funcao.efeito === 'porta' && !emObra && (

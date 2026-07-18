@@ -14,7 +14,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 /**
- * Os 21 slots, o miolo erguido, a repetição e a demolição (D-59).
+ * Os 22 slots, o miolo erguido, o Depósito Local, a repetição e a demolição (D-59, D-105).
  *
  * Nada disto está no GDD — ele não tem conceito de slot, não demole e não repete. É tudo
  * arbitragem do usuário, e é por isso que precisa de teste: a única coisa que a segura é este
@@ -55,9 +55,9 @@ class SlotsDaColoniaTest extends TestCase
     {
         $colony = $this->colono()->colony;
 
-        $this->assertCount(5, $colony->buildings);
+        $this->assertCount(6, $colony->buildings);
 
-        foreach (Slots::MIOLO as $tipo => $slot) {
+        foreach ([...Slots::MIOLO, ...Slots::DEPOSITO_LOCAL] as $tipo => $slot) {
             $b = $colony->buildings->firstWhere('type', $tipo);
             $this->assertSame(1, $b->level, $tipo);
             $this->assertSame($slot, $b->slot, $tipo);
@@ -66,14 +66,20 @@ class SlotsDaColoniaTest extends TestCase
         // O trio que o usuário nomeou fica no centro da linha do meio.
         $this->assertSame(10, Slots::MIOLO['reator_de_energia']);
         $this->assertSame([9, 11], [Slots::MIOLO['gerador_de_atmosfera'], Slots::MIOLO['estrutura_de_sobrevivencia']]);
+
+        // O Depósito Local (D-105) fica sozinho, na linha nova de 1 célula ao final da colmeia.
+        $this->assertSame(21, Slots::DEPOSITO_LOCAL['deposito_local']);
     }
 
-    /** O miolo é emissão do Governo: aparece no ledger, como todo Fert$ e todo recurso do jogo. */
+    /**
+     * O miolo e o Depósito Local são emissão do Governo: aparecem no ledger, como todo Fert$ e
+     * todo recurso do jogo.
+     */
     public function test_o_miolo_e_lancado_como_subsidio_no_ledger(): void
     {
         $colony = $this->colono()->colony;
 
-        foreach (Building::ESSENCIAIS as $tipo) {
+        foreach ([...Building::ESSENCIAIS, ...array_keys(Slots::DEPOSITO_LOCAL)] as $tipo) {
             $this->assertTrue(
                 Ledger::where(['colony_id' => $colony->id, 'type' => 'subsidio_governo'])
                     ->where('ref', "build:{$tipo}:n1")->exists(),
@@ -129,6 +135,16 @@ class SlotsDaColoniaTest extends TestCase
         $this->actingAs($user)->postJson('/buildings', ['type' => 'mina_local', 'slot' => Slots::MIOLO['reator_de_energia']])
             ->assertStatus(422)
             ->assertJsonPath('code', 'slot_do_miolo');
+    }
+
+    public function test_o_slot_do_deposito_local_tambem_nao_e_do_colono(): void
+    {
+        $user = $this->colono();
+        $this->darRecursos($user->colony);
+
+        $this->actingAs($user)->postJson('/buildings', ['type' => 'mina_local', 'slot' => Slots::DEPOSITO_LOCAL['deposito_local']])
+            ->assertStatus(422)
+            ->assertJsonPath('code', 'slot_do_deposito');
     }
 
     public function test_essencial_nao_se_ergue_de_novo(): void
@@ -277,6 +293,19 @@ class SlotsDaColoniaTest extends TestCase
         $this->assertNotNull($user->colony->fresh()->buildings->firstWhere('type', 'reator_de_energia'));
     }
 
+    /** O Depósito Local (D-105) é indemolível pelo mesmo motivo prático das essenciais. */
+    public function test_deposito_local_nao_se_demole(): void
+    {
+        $user = $this->colono();
+        $deposito = $user->colony->buildings->firstWhere('type', 'deposito_local');
+
+        $this->actingAs($user)->deleteJson("/buildings/{$deposito->id}", ["confirmacao" => "DEMOLIR"])
+            ->assertStatus(422)
+            ->assertJsonPath('code', 'essencial_indemolivel');
+
+        $this->assertNotNull($user->colony->fresh()->buildings->firstWhere('type', 'deposito_local'));
+    }
+
     public function test_nao_se_demole_o_que_esta_em_obra(): void
     {
         $user = $this->colono();
@@ -298,16 +327,17 @@ class SlotsDaColoniaTest extends TestCase
 
         $r = $this->actingAs($user)->getJson('/buildings/catalogo')->assertOk();
 
-        $this->assertSame([4, 4, 5, 4, 4], $r->json('slots.linhas'));
-        $this->assertSame(21, $r->json('slots.total'));
-        // Os cinco do miolo já estão ocupados na fundação.
-        $this->assertCount(5, $r->json('ocupados'));
+        $this->assertSame([4, 4, 5, 4, 4, 1], $r->json('slots.linhas'));
+        $this->assertSame(22, $r->json('slots.total'));
+        // O miolo e o Depósito Local já estão ocupados na fundação.
+        $this->assertCount(6, $r->json('ocupados'));
 
         $catalogo = collect($r->json('buildings'))->keyBy('type');
 
-        // As 12 de progressão — e nenhuma essencial, que não se ergue de novo.
+        // As 12 de progressão — nem as essenciais nem o Depósito Local, que não se erguem de novo.
         $this->assertCount(count(Building::PROGRESSAO), $catalogo);
         $this->assertNull($catalogo->get('fazenda'));
+        $this->assertNull($catalogo->get('deposito_local'));
 
         // A frase do GDD, com a fonte.
         $this->assertSame('Pesquisa tecnológica.', $catalogo['laboratorio']['funcao']['frase']);
@@ -358,6 +388,14 @@ class SlotsDaColoniaTest extends TestCase
         // O custo existe, mas é a tela que decide só mostrá-lo atrás do botão Evoluir.
         $this->assertSame(2, $reator['next_level']);
         $this->assertTrue($reator['subsidized']);
+
+        // O Depósito Local (D-105) é indemolível como as essenciais, mas NÃO é uma delas — não
+        // ganha o selo "essencial" nem o subsídio automático além do nível 1.
+        $deposito = $detalhe['deposito_local'];
+        $this->assertSame(Slots::DEPOSITO_LOCAL['deposito_local'], $deposito['slot']);
+        $this->assertFalse($deposito['essencial']);
+        $this->assertFalse($deposito['demolivel']);
+        $this->assertFalse($deposito['subsidized']);
     }
 
     /**
@@ -404,13 +442,20 @@ class SlotsDaColoniaTest extends TestCase
             $this->assertSame($slot, $b->slot, $tipo);
         }
 
+        // O Depósito Local (D-105) nasceu do zero — a colônia "antiga" simulada acima nem tinha a
+        // linha dele (Building::MVP, de propósito, não inclui `deposito_local`).
+        $deposito = $colony->buildings->firstWhere('type', 'deposito_local');
+        $this->assertNotNull($deposito, 'o backfill criou o Depósito Local');
+        $this->assertSame(1, $deposito->level);
+        $this->assertSame(21, $deposito->slot);
+
         // A Oficina manteve o nível 4 e ganhou um slot de fora do miolo.
         $oficina = $colony->buildings->firstWhere('type', 'oficina');
         $this->assertSame(4, $oficina->level);
         $this->assertContains($oficina->slot, Slots::livres());
 
         // As de nível 0 sumiram: agora significam "slot vazio".
-        $this->assertCount(6, $colony->buildings);   // 5 do miolo + a Oficina
+        $this->assertCount(7, $colony->buildings);   // 5 do miolo + o Depósito Local + a Oficina
     }
 
     public function test_o_backfill_e_idempotente(): void

@@ -98,6 +98,18 @@ class Building extends Model
         return in_array($this->type, self::ESSENCIAIS, true);
     }
 
+    /**
+     * Indemolível = as cinco essenciais + o Depósito Local (D-105). Ele nasce no slot 21, que
+     * `Slots::exigirEscolhivel()` nunca deixa reconstruir — demoli-lo tiraria pra sempre o único
+     * jeito de ver os recursos, e o slot ficaria vazio sem chance de voltar. Mesmo motivo das
+     * essenciais (miolo sem chance de refazer), mas não é uma delas: não conta pro subsídio do
+     * §24.7 nem pro selo "essencial" da tela, que é textual do GDD.
+     */
+    public function ehIndemolivel(): bool
+    {
+        return $this->ehEssencial() || $this->type === 'deposito_local';
+    }
+
     /** Nível 0 = ainda não construída. As specs do GDD começam no nível 1. */
     public function construida(): bool
     {
