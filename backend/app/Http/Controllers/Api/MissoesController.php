@@ -20,6 +20,19 @@ class MissoesController extends Controller
         $colony = $request->user()->colony()->firstOrFail();
         $missoes = $atribuir->garantir($colony);
 
+        if ($colony->federation_id !== null) {
+            $atribuir->garantirFederacao($colony->federation, $colony);
+
+            $missoes = $missoes->concat(
+                MissionAssignment::with('template')
+                    ->where('colony_id', $colony->id)
+                    ->where('categoria', 'federacao')
+                    ->where('created_at', '>=', Janela::semanaAtual())
+                    ->orderBy('id')
+                    ->get()
+            );
+        }
+
         return response()->json([
             'missoes' => $missoes->map($this->linha(...)),
             'rejeicoes_restantes' => $this->rejeicoesRestantes($colony->id),

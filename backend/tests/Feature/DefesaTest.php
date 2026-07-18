@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Domain\Chat\ContaSistema;
 use App\Domain\Colony\CreateColony;
 use App\Domain\Guerra\Atacar;
 use App\Domain\Guerra\ChegarReforcos;
@@ -9,6 +10,7 @@ use App\Domain\Guerra\Reforcar;
 use App\Domain\Guerra\ResolverCombates;
 use App\Domain\Guerra\RomperCerco;
 use App\Exceptions\DomainRuleException;
+use App\Models\ChatMessage;
 use App\Models\Colony;
 use App\Models\Combat;
 use App\Models\NeutralZone;
@@ -340,6 +342,71 @@ class DefesaTest extends TestCase
 
         $this->expectException(DomainRuleException::class);
         app(RomperCerco::class)->handle($estranho, $cerco->fresh(), $this->sentinelas($estranho, 5));
+    }
+
+    // ── a Central de Comunicação avisa a federação (D-116) ─────────────────────────────────────────
+
+    public function test_a_central_avisa_todos_os_membros_da_federacao_quando_o_cerco_comeca(): void
+    {
+        $sitiante = $this->colono('Sitiante');
+        $defensor = $this->colono('Defensor');
+        $aliado = $this->colono('Aliado');
+
+        $fed = \App\Models\Federation::create(['name' => 'Aliança']);
+        $defensor->update(['federation_id' => $fed->id, 'federation_role' => \App\Models\Federation::LIDER]);
+        $aliado->update(['federation_id' => $fed->id, 'federation_role' => \App\Models\Federation::MEMBRO]);
+
+        $zona = $this->zonaDe($defensor, extra: ['communication_level' => 1]);
+        app(Atacar::class)->handle($sitiante, $zona, 'cerco', $this->sentinelas($sitiante, 3));
+
+        $this->travelTo(now()->addMinutes(30));
+        app(ResolverCombates::class)->handle(now());
+
+        $federacao = ContaSistema::federacao();
+
+        $this->assertDatabaseHas('chat_messages', [
+            'user_id' => $federacao->id,
+            'recipient_user_id' => $defensor->user_id,
+        ]);
+        $this->assertDatabaseHas('chat_messages', [
+            'user_id' => $federacao->id,
+            'recipient_user_id' => $aliado->user_id,
+        ]);
+        $corpo = ChatMessage::where('user_id', $federacao->id)->where('recipient_user_id', $aliado->user_id)->value('body');
+        $this->assertStringContainsString('Defensor', $corpo);
+        $this->assertStringContainsString('sob cerco', $corpo);
+    }
+
+    public function test_sem_central_de_nivel_1_o_cerco_nao_avisa_ninguem(): void
+    {
+        $sitiante = $this->colono('Sitiante');
+        $defensor = $this->colono('Defensor');
+
+        $fed = \App\Models\Federation::create(['name' => 'Aliança']);
+        $defensor->update(['federation_id' => $fed->id, 'federation_role' => \App\Models\Federation::LIDER]);
+
+        $zona = $this->zonaDe($defensor);   // communication_level 0 (padrão)
+        app(Atacar::class)->handle($sitiante, $zona, 'cerco', $this->sentinelas($sitiante, 3));
+
+        $this->travelTo(now()->addMinutes(30));
+        app(ResolverCombates::class)->handle(now());
+
+        $this->assertDatabaseHas('users', ['email' => ContaSistema::EMAIL_FEDERACAO]);
+        $this->assertSame(0, ChatMessage::where('user_id', ContaSistema::federacao()->id)->count());
+    }
+
+    public function test_sem_federacao_o_cerco_com_central_nao_avisa_ninguem(): void
+    {
+        $sitiante = $this->colono('Sitiante');
+        $defensor = $this->colono('Defensor');   // sem federação
+
+        $zona = $this->zonaDe($defensor, extra: ['communication_level' => 1]);
+        app(Atacar::class)->handle($sitiante, $zona, 'cerco', $this->sentinelas($sitiante, 3));
+
+        $this->travelTo(now()->addMinutes(30));
+        app(ResolverCombates::class)->handle(now());
+
+        $this->assertSame(0, ChatMessage::where('user_id', ContaSistema::federacao()->id)->count());
     }
 
     // ── a API ───────────────────────────────────────────────────────────────────────────────────

@@ -12,7 +12,7 @@ class MissionAssignment extends Model
     public $timestamps = false;
 
     protected $fillable = [
-        'colony_id', 'template_id', 'categoria', 'acao', 'progresso', 'meta',
+        'colony_id', 'federation_id', 'template_id', 'categoria', 'acao', 'progresso', 'meta',
         'status', 'expires_at', 'concluded_at', 'created_at',
     ];
 

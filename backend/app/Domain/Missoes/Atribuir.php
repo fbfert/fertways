@@ -3,6 +3,7 @@
 namespace App\Domain\Missoes;
 
 use App\Models\Colony;
+use App\Models\Federation;
 use App\Models\MissionAssignment;
 use App\Models\MissionTemplate;
 use Illuminate\Support\Collection;
@@ -18,6 +19,8 @@ use Illuminate\Support\Facades\DB;
 class Atribuir
 {
     public const DIARIAS_POR_DIA = 3;
+
+    public const FEDERACAO_POR_SEMANA = 2;
 
     /** As 5 da tutoria, na fundação — "5 missões, dias 1 a 3" (§06): expiram em 3 dias. */
     public function tutoria(Colony $colony): void
@@ -119,5 +122,107 @@ class Atribuir
         }
 
         return $sorteadas->count();
+    }
+
+    /**
+     * As missões "Federação" da semana (§06, D-116) — 2 cooperativas, uma linha POR COLÔNIA-MEMBRO
+     * (não uma linha compartilhada: `mission_assignments.colony_id` continua `NOT NULL`). Todas as
+     * linhas do mesmo sorteio compartilham `federation_id` — são "irmãs", e `Progresso::registrar()`
+     * espelha o progresso entre elas.
+     *
+     * Lazy, como `garantir()`: chamada de `MissoesController::index()` quando a colônia que pediu
+     * tem federação. Quem chega primeiro na semana sorteia para TODOS os membros atuais; quem
+     * chega depois (entrou na federação no meio da semana) ganha a própria linha, com o progresso
+     * JÁ ANDADO — não começa do zero por ter entrado depois. Se a missão da semana já terminou
+     * (concluída ou expirada) antes de a colônia pedir, ela simplesmente perde esta semana — não
+     * há linha "concluída sem pagamento" para trás.
+     */
+    public function garantirFederacao(Federation $federation, Colony $quemPediu): void
+    {
+        $semana = Janela::semanaAtual();
+
+        DB::transaction(function () use ($federation, $quemPediu, $semana) {
+            // Trava a federação: dois membros pedindo ao mesmo tempo não sorteiam duas mãos.
+            Federation::whereKey($federation->id)->lockForUpdate()->first();
+
+            $jaTemLinha = MissionAssignment::where('federation_id', $federation->id)
+                ->where('colony_id', $quemPediu->id)
+                ->where('categoria', 'federacao')
+                ->where('created_at', '>=', $semana)
+                ->exists();
+
+            if ($jaTemLinha) {
+                return;
+            }
+
+            $irmas = MissionAssignment::where('federation_id', $federation->id)
+                ->where('categoria', 'federacao')
+                ->where('created_at', '>=', $semana)
+                ->get()
+                ->groupBy('template_id');
+
+            if ($irmas->isNotEmpty()) {
+                $agora = now();
+
+                foreach ($irmas as $templateId => $linhas) {
+                    $modelo = $linhas->first();
+
+                    // Já foi decidido (concluída ou expirada) antes de eu chegar: perdi esta.
+                    if ($modelo->status !== 'ativa') {
+                        continue;
+                    }
+
+                    MissionAssignment::create([
+                        'colony_id' => $quemPediu->id,
+                        'federation_id' => $federation->id,
+                        'template_id' => $templateId,
+                        'categoria' => 'federacao',
+                        'acao' => $modelo->acao,
+                        'progresso' => $modelo->progresso,
+                        'meta' => $modelo->meta,
+                        'status' => 'ativa',
+                        'expires_at' => $modelo->expires_at,
+                        'created_at' => $agora,
+                    ]);
+                }
+
+                return;
+            }
+
+            // Ninguém da federação pediu ainda esta semana: sorteia e cria uma linha por membro
+            // atual, todas irmãs do mesmo objetivo.
+            $sorteados = MissionTemplate::where('categoria', 'federacao')->where('ativa', true)
+                ->inRandomOrder()
+                ->limit(self::FEDERACAO_POR_SEMANA)
+                ->get();
+
+            if ($sorteados->isEmpty()) {
+                return;
+            }
+
+            $membros = Colony::where('federation_id', $federation->id)->get();
+            $agora = now();
+            $expira = Janela::fimDaSemana();
+
+            $linhas = [];
+            foreach ($membros as $membro) {
+                foreach ($sorteados as $t) {
+                    $linhas[] = [
+                        'colony_id' => $membro->id,
+                        'federation_id' => $federation->id,
+                        'template_id' => $t->id,
+                        'categoria' => 'federacao',
+                        'acao' => $t->acao,
+                        'progresso' => 0,
+                        'meta' => $t->meta,
+                        'status' => 'ativa',
+                        'expires_at' => $expira,
+                        'created_at' => $agora,
+                    ];
+                }
+            }
+
+            MissionAssignment::insert($linhas);
+        });
     }
 }

@@ -255,8 +255,8 @@ export type ZonaNeutra = {
   extraction_per_hour: number
   productive_at: string | null
   garrison: number | null
-  /** Com que olhos esta colônia vê a zona (D-74). */
-  intel: 'dona' | 'livre' | 'ao_vivo' | 'foto' | 'nenhuma'
+  /** Com que olhos esta colônia vê a zona (D-74; 'federacao' — D-116, Central de Comunicação). */
+  intel: 'dona' | 'livre' | 'ao_vivo' | 'foto' | 'nenhuma' | 'federacao'
   /** A data da foto, quando intel === 'foto' — informação que envelhece é informação honesta. */
   intel_em: string | null
   /** Upgrade de nível (D-84). Só o dono vê — nulo para qualquer outra colônia. */
@@ -382,7 +382,7 @@ export type Extrato = {
 /** Uma missão na sua mão (§06; D-78). Concluir paga na hora — não há botão de resgate. */
 export type Missao = {
   id: number
-  categoria: 'tutoria' | 'diaria' | 'semanal'
+  categoria: 'tutoria' | 'diaria' | 'semanal' | 'federacao'
   titulo: string
   descricao: string
   progresso: number

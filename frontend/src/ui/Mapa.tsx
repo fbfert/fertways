@@ -804,6 +804,7 @@ function PainelZona({
           </dl>
           <p className="text-ink-soft/70 mt-1 text-xs">
             {z.intel === 'ao_vivo' && 'Um Drone seu sobrevoa a região: transmissão ao vivo.'}
+            {z.intel === 'federacao' && 'Zona de um aliado da sua federação: a Central de Comunicação transmite ao vivo.'}
             {z.intel === 'foto' && z.intel_em &&
               `Foto de Drone — ${idadeDaFoto(z.intel_em)}. O de lá de agora pode ser outro.`}
             {z.intel === 'nenhuma' &&

@@ -2,6 +2,7 @@
 
 namespace App\Domain\Guerra;
 
+use App\Domain\Zona\AvisoDeAtaque;
 use App\Models\Colony;
 use App\Models\Combat;
 use App\Models\Ledger;
@@ -49,6 +50,7 @@ class ResolverCombates
         private Forcas $forcas,
         private Protegido $protegido,
         private Sorteio $sorteio,
+        private AvisoDeAtaque $avisoDeAtaque,
     ) {}
 
     /** @return int quantos combates avançaram */
@@ -153,6 +155,7 @@ class ResolverCombates
             // "O bloqueio ocorre apenas nas rotas externas" — a zona fica fechada, e após 30 min
             // (as 3 rodadas do §28.10) o depósito para de aceitar. O defensor tem 48 h.
             $zona->update(['sieged_at' => $agora]);
+            $this->avisoDeAtaque->avisar($zona);
 
             $combate->prazo_at = $agora->copy()->addHours(Combat::CERCO_HORAS);
         }

@@ -57,13 +57,13 @@ class DroneTest extends TestCase
         return $user->fresh();
     }
 
-    private function zona(int $x, int $y, ?Colony $dona = null, int $robos = 0): NeutralZone
+    private function zona(int $x, int $y, ?Colony $dona = null, int $robos = 0, array $extra = []): NeutralZone
     {
-        $z = NeutralZone::create([
+        $z = NeutralZone::create(array_merge([
             'x' => $x, 'y' => $y, 'district' => 'nordeste', 'mineral' => 'metal_bruto',
             'level' => 1, 'status' => $dona ? 'ocupada' : 'livre', 'deposit_level' => 1,
             'owner_colony_id' => $dona?->id, 'deposit_amount' => $dona ? 777 : 0,
-        ]);
+        ], $extra));
 
         for ($i = 0; $i < $robos; $i++) {
             Unit::create([
@@ -151,6 +151,59 @@ class DroneTest extends TestCase
         $livre = $zonas->firstWhere('x', 60);
         $this->assertSame(0, $livre['garrison']);
         $this->assertSame('livre', $livre['intel']);
+    }
+
+    // ---------------------------------------------------------------- a Central de Comunicação (D-116)
+
+    public function test_aliado_da_mesma_federacao_ve_ao_vivo_com_a_central_sem_drone(): void
+    {
+        $eu = $this->colono();
+        $aliado = $this->colono();
+
+        $fed = \App\Models\Federation::create(['name' => 'Aliança']);
+        $eu->colony->update(['federation_id' => $fed->id, 'federation_role' => \App\Models\Federation::LIDER]);
+        $aliado->colony->update(['federation_id' => $fed->id, 'federation_role' => \App\Models\Federation::MEMBRO]);
+
+        $this->zona(50, 50, $aliado->colony->fresh(), robos: 7, extra: ['communication_level' => 1]);
+
+        $zonas = collect($this->actingAs($eu)->getJson('/zones')->json('zones'));
+        $daAliada = $zonas->firstWhere('x', 50);
+
+        $this->assertSame('federacao', $daAliada['intel']);
+        $this->assertSame(7, $daAliada['garrison'], 'ao vivo de verdade — sem null, sem gastar Drone');
+    }
+
+    public function test_sem_central_de_nivel_1_a_federacao_nao_ajuda(): void
+    {
+        $eu = $this->colono();
+        $aliado = $this->colono();
+
+        $fed = \App\Models\Federation::create(['name' => 'Aliança']);
+        $eu->colony->update(['federation_id' => $fed->id, 'federation_role' => \App\Models\Federation::LIDER]);
+        $aliado->colony->update(['federation_id' => $fed->id, 'federation_role' => \App\Models\Federation::MEMBRO]);
+
+        $this->zona(50, 50, $aliado->colony->fresh(), robos: 7);   // communication_level 0 (padrão)
+
+        $zonas = collect($this->actingAs($eu)->getJson('/zones')->json('zones'));
+
+        $this->assertSame('nenhuma', $zonas->firstWhere('x', 50)['intel']);
+    }
+
+    public function test_federacao_diferente_nao_ve_ao_vivo_pela_central(): void
+    {
+        $eu = $this->colono();
+        $estranho = $this->colono();
+
+        $fedA = \App\Models\Federation::create(['name' => 'A']);
+        $fedB = \App\Models\Federation::create(['name' => 'B']);
+        $eu->colony->update(['federation_id' => $fedA->id, 'federation_role' => \App\Models\Federation::LIDER]);
+        $estranho->colony->update(['federation_id' => $fedB->id, 'federation_role' => \App\Models\Federation::LIDER]);
+
+        $this->zona(50, 50, $estranho->colony->fresh(), robos: 7, extra: ['communication_level' => 1]);
+
+        $zonas = collect($this->actingAs($eu)->getJson('/zones')->json('zones'));
+
+        $this->assertSame('nenhuma', $zonas->firstWhere('x', 50)['intel']);
     }
 
     // ---------------------------------------------------------------- a missão FOTO (ida e volta)

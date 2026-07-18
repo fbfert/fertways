@@ -12,7 +12,7 @@ import { nomeRecurso } from './recursos'
  * progresso, prêmio e prazo. O único verbo aqui é rejeitar uma diária que não combina com o seu dia.
  */
 
-const NOME_CATEGORIA = { tutoria: 'Tutoria', diaria: 'Diárias', semanal: 'Semanal' } as const
+const NOME_CATEGORIA = { tutoria: 'Tutoria', diaria: 'Diárias', semanal: 'Semanal', federacao: 'Federação' } as const
 
 export function Missoes({ aoFechar }: { aoFechar: () => void }) {
   const [missoes, setMissoes] = useState<Missao[]>([])
@@ -43,7 +43,7 @@ export function Missoes({ aoFechar }: { aoFechar: () => void }) {
     }
   }
 
-  const grupos = (['tutoria', 'diaria', 'semanal'] as const)
+  const grupos = (['tutoria', 'diaria', 'semanal', 'federacao'] as const)
     .map((c) => ({ categoria: c, itens: missoes.filter((m) => m.categoria === c) }))
     .filter((g) => g.itens.length > 0)
 

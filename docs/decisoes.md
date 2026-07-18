@@ -5246,3 +5246,83 @@ limpos, e2e completo (9/9 verde — uma rodada teve uma falha isolada e não rel
 pré-existente, não regressão desta entrega). Checagem visual manual (backend efêmero + Puppeteer,
 dois colonos da mesma federação em contextos isolados): a aba Federação aparece entre Vizinhança e
 Privadas, uma mensagem enviada por um colono aparece para o outro no mesmo canal.
+
+## D-116 — Federação, Fatia 3: missões cooperativas e o alerta de cerco da Central de Comunicação.
+**Data:** 2026-07-19 · **Status:** arbitrado pelo usuário · **As duas pontas que o D-115 adiou de propósito**
+
+O D-115 deixou duas pontas por exigirem mecanismo novo, não extensão de um padrão pronto:
+progresso de missão compartilhado entre colônias, e broadcast de mensagem para vários jogadores de
+uma vez. Perguntado se seguia com as duas agora, o usuário disse "sim, siga". O GDD não dá números
+nem fórmula para "missão cooperativa" ou "alerta de zona" — o desenho inteiro é estrutural.
+
+### 1. Missões "Federação" — 2 por semana, "irmãs", não um progresso compartilhado
+
+`mission_assignments.colony_id` é `NOT NULL` com FK, numa tabela viva — torná-la nullable para
+permitir uma linha compartilhada por várias colônias seria o desenho "óbvio", mas um risco de
+migration que o pedido não exige (mesma família de cautela do D-59, "SQLite mente"). Em vez disso:
+**uma linha POR COLÔNIA-MEMBRO**, todas marcadas com o mesmo `federation_id` novo (nullable, FK
+`federations`, `cascadeOnDelete()` — a missão compartilhada é objetivo ativo, não registro
+histórico como `federation_ledger`) — "irmãs" do mesmo objetivo, sorteadas juntas por
+`Atribuir::garantirFederacao()`.
+
+`Progresso::registrar()` aprendeu a espelhar: depois de processar a própria linha de quem agiu, se
+ela tem `federation_id`, todas as irmãs (`WHERE federation_id = X AND template_id = Y AND status =
+'ativa'`) recebem o MESMO progresso — não somado por irmã, o feito é um só e o placar é do grupo.
+Cruzou a meta, todas concluem e `pagar()`/`avisar()` rodam para CADA UMA sem nenhuma mudança
+nelas: cada irmã já sabia pagar a própria colônia.
+
+Quem entra na federação no meio da semana ganha a própria linha com o progresso JÁ ANDADO copiado
+de uma irmã existente — não começa do zero por ter chegado depois. Se o template já foi decidido
+(concluído ou expirado) antes de a colônia pedir, ela simplesmente perde aquela missão da semana —
+sem linha "concluída sem pagamento" fantasma.
+
+⚠️ **Julgamento do desenvolvedor, sinalizado para o usuário revisitar**: uma colônia que SAIU da
+federação depois de a missão ter sido atribuída, mas antes de terminar, ainda recebe se o resto do
+grupo terminar — a linha já existe, independente da federação atual. Simplicidade sobre precisão:
+reconferir a federação a cada `registrar()` custaria uma consulta a mais por ação do jogo inteiro,
+para um caso raro.
+
+### 2. Central de Comunicação — visão ao vivo do aliado, e o alerta de cerco
+
+Duas metades do mesmo trecho do GDD, cada uma um encaixe pequeno em cima do que já existia:
+
+**Visão ao vivo** — `Avistamentos::de()` ganhou um branch novo: se a zona é de um aliado da MESMA
+federação e a dona tem `communication_level >= 1`, devolve `intel: 'federacao'` (ao vivo, sem
+gastar vigia de Drone) — um quinto valor ao lado de `dona`/`livre`/`ao_vivo`/`foto`/`nenhuma`. Bug
+real pego durante o teste, não só de SQLite-vs-MariaDB desta vez: `NeutralZoneController::index()`
+eager-carrega `owner:id,name,user_id` (colunas restritas, sem `federation_id`) — o branch novo
+usava `$zona->owner` direto e sempre lia `federation_id: null`, caindo silenciosamente em
+`'nenhuma'`. Corrigido buscando a colônia dona fresca (`Colony::find`) dentro do próprio
+`Avistamentos`, em vez de depender do eager-load restrito de quem chama.
+
+**O alerta** — nova conta de sistema `ContaSistema::federacao()` (migration
+`2026_07_19_120000_conta_sistema_federacao`, mesmo molde da "Missões") e `App\Domain\Zona\
+AvisoDeAtaque` (mesmo formato de `AvisoDoPatio.php`): quando `communication_level >= 1` e a zona
+tem dono federado, avisa TODOS os membros da federação, um a um, via `EnviarMensagem::sistema()`.
+Disparado em `ResolverCombates::chegar()`, no mesmo instante que já marca `sieged_at` — o ponto
+único onde "o cerco começou a morder" já existe no motor.
+
+### O round-trip contra o MariaDB, de novo
+
+A migration de `mission_assignments.federation_id` expôs duas lições que o SQLite não ensina:
+
+1. **`dropConstrainedForeignId` sozinho não basta** para desfazer um `foreignId()->constrained()` +
+   `index()` combinados: soltar a coluna sem soltar a FK primeiro esbarra em "needed in a foreign
+   key constraint" (o MariaDB recusa apagar o índice que ainda sustenta a FK).
+2. **Soltar a FK e a coluna NÃO leva o índice composto junto** — o MariaDB só o ENCOLHE (tira a
+   coluna removida da composição), mantendo o NOME antigo de 3 colunas num índice que passa a ter
+   2. Um `up()` futuro que tente recriar o índice esbarra em "Duplicate key name". A ordem certa:
+   soltar a FK → soltar o índice PELO NOME, com a coluna ainda viva → só então soltar a coluna.
+
+Nenhuma das duas quebra o `migrate:fresh` nem o `php artisan test` (SQLite): só aparecem num
+`rollback` de verdade contra o MariaDB. Ensaiado duas vezes seguidas (fresh → rollback → migrate →
+rollback → migrate) antes de fechar a fatia.
+
+Validado: `php artisan test` completo (752 — 13 novos: 7 em `MissoesFederacaoTest`, 3 em
+`DroneTest` — aliado vê ao vivo pela Central, sem ela nada muda, federação diferente continua de
+fora —, 3 em `DefesaTest` — o alerta avisa todos os membros, sem Central ninguém é avisado, sem
+federação idem), MariaDB efêmero (fresh + rollback + migrate, duas vezes, para as duas migrations
+novas), `tsc`/`lint`/`build` limpos, e2e completo (9/9 verde). Checagem visual manual (backend
+efêmero + Puppeteer, duas colônias da mesma federação em contextos isolados): a missão "Federação"
+aparece com o MESMO progresso nas telas das duas colônias (espelhamento confirmado), e o aviso de
+cerco chega em Privadas, remetido pela conta "Federação", assim que a zona é sitiada.
