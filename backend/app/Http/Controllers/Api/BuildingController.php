@@ -285,6 +285,9 @@ class BuildingController extends Controller
                     'type' => $b->type,
                     'level' => $b->level,
                     'slot' => $b->slot,
+                    // Só quando ELA é a que está em obra de verdade (não apenas na fila, atrás de
+                    // outra) — a contagem no mobile (D-110) precisa saber onde apontar o relógio.
+                    'finishes_at' => $b->upgrade_finish_at?->toIso8601String(),
                     'max_level' => $max,
                     'essencial' => $b->ehEssencial(),
                     // Indemolível = essencial, ou o Depósito Local (D-105) — ver

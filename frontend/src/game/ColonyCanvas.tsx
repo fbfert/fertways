@@ -3,6 +3,7 @@ import Phaser from 'phaser'
 import { colmeia, ColonyScene, rotulo } from './ColonyScene'
 import { ControlesDeZoom } from './ControlesDeZoom'
 import { useVista } from './vista'
+import { relogio, segundosRestantes } from '../ui/recursos'
 import type { Spec } from '../api/client'
 
 type Props = {
@@ -105,37 +106,58 @@ export function ColonyCanvas({ specs, linhas, onSelecionar, onSlotVazio }: Props
         const nome = spec
           ? `${rotulo(spec.type)}, ${spec.level > 0 ? `nível ${spec.level}` : 'em obra'}`
           : `Slot ${slot}, vazio — construir aqui`
+        const restam = spec?.finishes_at ? segundosRestantes(spec.finishes_at) : 0
 
         return (
-          <button
-            key={slot}
-            onClick={() => (spec ? onSelecionar(spec) : onSlotVazio(slot))}
-            onMouseEnter={() => cena.current?.realcar(slot)}
-            onMouseLeave={() => cena.current?.realcar(null)}
-            onFocus={() => cena.current?.realcar(slot)}
-            onBlur={() => cena.current?.realcar(null)}
-            aria-label={nome}
-            title={nome}
-            /*
-             * Um quadrado inscrito no hexágono, não o hexágono inteiro: os cantos de dois
-             * hexágonos vizinhos se aproximam, e alvos retangulares do tamanho cheio se
-             * sobreporiam — o de cima roubaria o clique do de baixo. Com 1,4·r de lado, cada botão
-             * cabe folgado dentro do seu losango e nenhum invade o vizinho.
-             */
-            style={{
-              position: 'absolute',
-              left: x - r * 0.7,
-              top: y - r * 0.7,
-              width: r * 1.4,
-              height: r * 1.4,
-              background: 'transparent',
-              border: 'none',
-              borderRadius: '50%',
-              cursor: 'pointer',
-              padding: 0,
-            }}
-            className="focus-visible:ring-rust focus-visible:ring-2 focus-visible:outline-none"
-          />
+          <div key={slot}>
+            <button
+              onClick={() => (spec ? onSelecionar(spec) : onSlotVazio(slot))}
+              onMouseEnter={() => cena.current?.realcar(slot)}
+              onMouseLeave={() => cena.current?.realcar(null)}
+              onFocus={() => cena.current?.realcar(slot)}
+              onBlur={() => cena.current?.realcar(null)}
+              aria-label={nome}
+              title={nome}
+              /*
+               * Um quadrado inscrito no hexágono, não o hexágono inteiro: os cantos de dois
+               * hexágonos vizinhos se aproximam, e alvos retangulares do tamanho cheio se
+               * sobreporiam — o de cima roubaria o clique do de baixo. Com 1,4·r de lado, cada
+               * botão cabe folgado dentro do seu losango e nenhum invade o vizinho.
+               */
+              style={{
+                position: 'absolute',
+                left: x - r * 0.7,
+                top: y - r * 0.7,
+                width: r * 1.4,
+                height: r * 1.4,
+                background: 'transparent',
+                border: 'none',
+                borderRadius: '50%',
+                cursor: 'pointer',
+                padding: 0,
+              }}
+              className="focus-visible:ring-rust focus-visible:ring-2 focus-visible:outline-none"
+            />
+
+            {/*
+              Contagem sobreposta à construção, só no mobile (D-110, pedido do usuário) — no
+              desktop a barra lateral (`FilaDeObras`) já mostra o relógio, e duplicar aqui
+              poluiria uma tela que já tem espaço de sobra. `pointer-events-none`: é só leitura,
+              o clique continua sendo do botão logo abaixo dela no DOM.
+            */}
+            {spec?.finishes_at && (
+              <span
+                className="bg-ink/70 text-sand-light pointer-events-none absolute rounded-full px-1.5 py-0.5 text-[10px] font-bold tabular-nums md:hidden"
+                style={{
+                  left: x,
+                  top: y,
+                  transform: 'translate(-50%, -50%)',
+                }}
+              >
+                {relogio(restam)}
+              </span>
+            )}
+          </div>
         )
       })}
     </div>

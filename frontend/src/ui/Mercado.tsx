@@ -11,6 +11,7 @@ import type {
   Veiculo,
   Vitrine,
 } from '../api/client'
+import { IconeCompra, IconeRecurso, IconeVende } from './IconeRecurso'
 import { Popup } from './Popup'
 import { OfertarEntreColonos, VerOfertasDeColonos } from './Acordos'
 import { fert, nomeRecurso, nomeVeiculo, paraMicro, relogio, segundosRestantes } from './recursos'
@@ -347,7 +348,10 @@ function PatioEDeposito({
                 key={b.resource_type}
                 className="border-rust/10 flex justify-between border-b py-1.5 last:border-0"
               >
-                <span className="text-ink-soft text-sm">{nomeRecurso(b.resource_type)}</span>
+                <span className="text-ink-soft flex items-center gap-1.5 text-sm">
+                  <IconeRecurso codigo={b.resource_type} />
+                  {nomeRecurso(b.resource_type)}
+                </span>
                 <span className="text-ink font-bold tabular-nums">
                   {b.amount.toLocaleString('pt-BR')}
                 </span>
@@ -1143,7 +1147,9 @@ function OfertasGlobais({
           Nenhuma oferta na vitrine{filtro ? ' neste recurso' : ''}. Anuncie a sua na aba ao lado.
         </p>
       ) : (
-        <div className="mt-4 space-y-2">
+        // Cards lado a lado a partir do desktop (md); empilhado no mobile — mesmo idioma de grid
+        // responsivo que o resto do jogo já usa (PatioEDeposito, Acordos, as páginas do site).
+        <div className="mt-4 grid gap-2 md:grid-cols-2 lg:grid-cols-3">
           {ofertas.map((o) => (
             <LinhaDaVitrine
               key={o.id}
@@ -1189,18 +1195,25 @@ function LinhaDaVitrine({
   const vende = oferta.side === 'sell'
 
   return (
-    <div className="border-rust/15 border p-3">
-      <div className="flex flex-wrap items-center justify-between gap-2">
+    <div className="border-rust/15 flex h-full flex-col justify-between border p-3">
+      <div className="flex flex-col gap-2">
         <div className="text-sm">
           {/*
            * A etiqueta diz o que O ANUNCIANTE quer — não é um botão, é a descrição da oferta dele.
            * Por isso fica em tom neutro: colori-la de rust (a cor de toda ação clicável na tela)
            * fazia "COMPRA" parecer um convite para comprar, quando na verdade significa que É VOCÊ
            * quem venderia, entregando do seu depósito. A frase de baixo, essa sim em rust, é que diz
-           * a ação de quem está lendo.
+           * a ação de quem está lendo. Os ícones seguem o mesmo tom neutro — a forma da seta é que
+           * distingue, não a cor.
            */}
-          <span className="text-ink font-bold">{vende ? 'VENDE' : 'COMPRA'}</span>{' '}
-          <span className="text-ink font-bold">{nomeRecurso(oferta.resource_type)}</span>
+          <span className="text-ink inline-flex items-center gap-1 font-bold">
+            {vende ? <IconeVende /> : <IconeCompra />}
+            {vende ? 'VENDE' : 'COMPRA'}
+          </span>{' '}
+          <span className="text-ink inline-flex items-center gap-1 font-bold">
+            <IconeRecurso codigo={oferta.resource_type} />
+            {nomeRecurso(oferta.resource_type)}
+          </span>
           <span className="text-ink-soft">
             {' · '}
             {oferta.qty.toLocaleString('pt-BR')} un a{' '}
@@ -1223,12 +1236,12 @@ function LinhaDaVitrine({
         {oferta.minha ? (
           <button
             onClick={() => void agir(() => api.cancelar(oferta.id))}
-            className="text-ink-soft hover:text-rust text-xs font-bold"
+            className="text-ink-soft hover:text-rust self-start text-xs font-bold"
           >
             Cancelar
           </button>
         ) : (
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <input
               aria-label="Quantidade a executar"
               className="border-rust/25 bg-sand focus:border-rust w-24 border px-2 py-1.5 text-sm outline-none"
