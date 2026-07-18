@@ -8,6 +8,7 @@ use App\Domain\Trade\CreditarEntrega;
 use App\Domain\Transport\Conservacao;
 use App\Domain\Transport\MercadoDeUsados;
 use App\Models\Colony;
+use App\Models\FederationLedger;
 use App\Models\Ledger;
 use App\Models\NeutralZone;
 use App\Models\ResourceType;
@@ -184,6 +185,24 @@ class ConcluirTrechos
 
             $v->forceFill(['return_distance_slots' => $v->distance_slots])->save();
             $this->iniciarVolta($v, manterCarga: false, carga: $sobra);
+
+            return;
+        }
+
+        /*
+         * Contribuição ao fundo da federação (D-114) — mesmo raciocínio geográfico e a mesma regra
+         * de "só de ida, estaciona no Pátio" do Mercado Central. Tributada NORMALMENTE (§25.2, como
+         * qualquer entrega): a Fatia 1 não mexe em desconto de tributo entre aliados — isso é uma
+         * fatia futura, e ela precisa que hoje incida 100% para fazer sentido.
+         */
+        if ($v->destination_type === 'federacao') {
+            if ($origem) {
+                foreach ($v->cargo_json ?? [] as $recurso => $qtd) {
+                    $this->depositarNaFederacao($origem, $v, $recurso, (int) $qtd);
+                }
+            }
+
+            $this->estacionar($v);
 
             return;
         }
@@ -435,6 +454,60 @@ class ConcluirTrechos
         $this->lancarTributo($origem, $tributo, $recurso, $chave);
 
         return $excedente;
+    }
+
+    /**
+     * Credita o líquido no fundo da FEDERAÇÃO DA COLÔNIA NA HORA DA CHEGADA (D-114), não a de
+     * quando o veículo partiu — a viagem não carrega um `destination_id` fixo (ver
+     * `DespacharVeiculo::resolverDestino`). Se a colônia tiver saído da federação no meio do
+     * trajeto, a carga se perde — mesmo tratamento que "a colônia de destino sumiu no trajeto" já
+     * recebe em `entregar()`; não há para onde devolvê-la.
+     *
+     * Sem `Ledger` novo na colônia de origem: o débito de saída já foi lançado no despacho
+     * (`transferencia`, em `DespacharVeiculo::debitarEstoque`), e o fundo não é mais "dela" — é
+     * como uma entrega a outro colono (`entregar()`), não como o depósito do Mercado
+     * (`depositarNoMercado`), que é a mesma colônia depositando em si mesma.
+     */
+    private function depositarNaFederacao(Colony $origem, Vehicle $v, string $recurso, int $qtd): void
+    {
+        $tipo = ResourceType::find($recurso);
+
+        if (! $tipo || $origem->federation_id === null) {
+            return;
+        }
+
+        $chave = $this->chave('federacao', $v, $recurso);
+        $tributo = intdiv($qtd * $tipo->tax_bps, 10_000);
+        $liquido = $qtd - $tributo;
+
+        if (! $this->tributar($chave, $origem, $recurso, $qtd, $tipo->tax_bps, $tributo)) {
+            return;
+        }
+
+        DB::table('federation_holdings')->insertOrIgnore([
+            'federation_id' => $origem->federation_id,
+            'resource_type' => $recurso,
+            'amount' => 0,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        DB::table('federation_holdings')
+            ->where('federation_id', $origem->federation_id)
+            ->where('resource_type', $recurso)
+            ->increment('amount', $liquido);
+
+        FederationLedger::create([
+            'federation_id' => $origem->federation_id,
+            'colony_id' => $origem->id,
+            'type' => 'credito',
+            'amount' => $liquido,
+            'resource_type' => $recurso,
+            'ref' => $chave,
+            'created_at' => now(),
+        ]);
+
+        $this->lancarTributo($origem, $tributo, $recurso, $chave);
     }
 
     /**

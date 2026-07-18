@@ -42,6 +42,10 @@ Route::prefix('admin')->group(function () {
         Route::get('/guerra', [PainelController::class, 'guerra'])->name('admin.guerra');
         Route::post('/guerra', [AcoesController::class, 'guerra'])->name('admin.guerra.parametros');
         Route::get('/transportes', [PainelController::class, 'transportes'])->name('admin.transportes');
+        // Federação (§04/§07; D-114) — painel de leitura + uma alavanca de emergência, mesmo
+        // perfil de Guerra/Transportes: sistema 100% jogador-a-jogador, o operador só observa.
+        Route::get('/federacoes', [PainelController::class, 'federacoes'])->name('admin.federacoes');
+        Route::post('/federacoes/{federation}/dissolver', [AcoesController::class, 'federacaoDissolver'])->name('admin.federacoes.dissolver');
         // O rádio do planeta (§10, D-77): moderação, termos, reincidência e a espiada AUDITADA.
         Route::get('/chat', [PainelController::class, 'chat'])->name('admin.chat');
         Route::post('/chat/parametros', [AcoesController::class, 'chat'])->name('admin.chat.parametros');

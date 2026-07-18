@@ -90,8 +90,9 @@ class VehicleController extends Controller
         $dados = $request->validate([
             // `zona_neutra` desde o D-109 — só vale para o reposicionamento vazio (ver abaixo);
             // carga de verdade para uma zona continua passando por `retirarDeZona`/
-            // `entregarMaterialNaZona`, endpoints próprios.
-            'destination_type' => ['required', 'string', 'in:colonia,mercado_central,zona_neutra'],
+            // `entregarMaterialNaZona`, endpoints próprios. `federacao` desde o D-114 — só vale
+            // para carga de verdade (contribuição ao fundo); vazio não faz sentido lá.
+            'destination_type' => ['required', 'string', 'in:colonia,mercado_central,zona_neutra,federacao'],
             'destination_id' => ['nullable', 'integer'],
             // Vazio é o reposicionamento (D-91, generalizado no D-109) — `DespacharVeiculo` é quem
             // decide se aquele destino aceita vazio, com contexto de origem que esta validação não

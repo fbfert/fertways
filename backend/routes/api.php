@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\ChatController;
 use App\Http\Controllers\Api\ColonyController;
 use App\Http\Controllers\Api\DroneController;
 use App\Http\Controllers\Api\EstatisticasController;
+use App\Http\Controllers\Api\FederationController;
 use App\Http\Controllers\Api\FeedbackController;
 use App\Http\Controllers\Api\ImagesController;
 use App\Http\Controllers\Api\MarketController;
@@ -180,4 +181,19 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/ministry/reports', [MinistryController::class, 'store']);
     Route::post('/ministry/reports/{report}/decide', [MinistryController::class, 'decidir']);
     Route::post('/ministry/reports/{report}/appeal', [MinistryController::class, 'apelar']);
+
+    // Federação (§04/§07; D-114), Fatia 1 — Capital slot 9, o Quartel de Alianças.
+    Route::get('/federation', [FederationController::class, 'show']);
+    Route::get('/federations', [FederationController::class, 'index']);
+    Route::post('/federations', [FederationController::class, 'store']);
+    Route::post('/federations/{federation}/invite', [FederationController::class, 'convidar']);
+    Route::post('/federations/{federation}/apply', [FederationController::class, 'pedir']);
+    Route::post('/federation/invites/{invite}/accept', [FederationController::class, 'aceitar']);
+    Route::post('/federation/invites/{invite}/reject', [FederationController::class, 'recusar']);
+    Route::delete('/federation/invites/{invite}', [FederationController::class, 'cancelarConvite']);
+    Route::post('/federation/leave', [FederationController::class, 'sair']);
+    Route::post('/federation/transfer-leadership', [FederationController::class, 'transferirLideranca']);
+    Route::post('/federation/members/{colony}/kick', [FederationController::class, 'expulsar']);
+    Route::patch('/federation/members/{colony}/role', [FederationController::class, 'alterarCargo']);
+    Route::post('/federation/withdraw', [FederationController::class, 'sacar']);
 });

@@ -96,8 +96,11 @@ class DespacharVeiculo
          * D-65: levar carga ao depósito é uma viagem **só de ida**. O veículo descarrega e fica
          * estacionado no Pátio — foi a decisão do usuário —, então não há volta a rodar nem volta
          * a pagar. Toda outra viagem que sai de casa continua sendo ida e volta, como no D-30.
+         *
+         * A contribuição à federação (D-114) segue a MESMA regra — o Quartel de Alianças mora na
+         * Capital, igual ao Mercado: chega, descarrega, estaciona no Pátio.
          */
-        $volta = $destinoTipo === 'mercado_central' ? null : $ida;
+        $volta = in_array($destinoTipo, ['mercado_central', 'federacao'], true) ? null : $ida;
         $energia = VeiculoSpecs::energiaDasPernas($veiculo->type, array_filter([$ida, $volta]));
 
         return DB::transaction(function () use ($origem, $veiculo, $destinoTipo, $destino, $carga, $ida, $volta, $energia, $acordo) {
@@ -700,6 +703,20 @@ class DespacharVeiculo
         // §25.8: o destino é fixo — o Mercado Central fica no núcleo do mapa. Não tem `id`
         // porque não é uma colônia; quem identifica o dono da carga é a origem da viagem.
         if ($tipo === 'mercado_central') {
+            return ['id' => null, 'x' => MapaFertways::CAPITAL_X, 'y' => MapaFertways::CAPITAL_Y];
+        }
+
+        /*
+         * Federação (D-114): o Quartel de Alianças mora fisicamente na Capital, mesmo raciocínio
+         * geográfico do Mercado Central. `destination_id` NUNCA vem do cliente — a federação é
+         * sempre a da própria colônia, resolvida aqui, para um colono jamais conseguir "contribuir"
+         * para a federação de outro por engano ou má-fé.
+         */
+        if ($tipo === 'federacao') {
+            if ($origem->federation_id === null) {
+                throw new DomainRuleException('sem_federacao', 'Sua colônia não está em nenhuma federação.');
+            }
+
             return ['id' => null, 'x' => MapaFertways::CAPITAL_X, 'y' => MapaFertways::CAPITAL_Y];
         }
 
