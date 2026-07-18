@@ -4975,3 +4975,54 @@ com o seu relógio, e a terceira ainda estoura o teto), os testes que já existi
 `tsc`/`lint`/`build` (sem mudança de frontend nesta entrega), e2e completo (9/9 verde), checagem
 visual manual (backend efêmero + Puppeteer): os dois cartões da aba Fila, salvando cada um
 independente do outro.
+
+## D-112 — Manutenção de estruturas: consumo extra de recursos por hora, por construção, admin-editável.
+**Data:** 2026-07-18 · **Status:** arbitrado pelo usuário · **Feature nova, não do GDD**
+
+Pedido do usuário: uma sub-aba **Manutenção** em Gestão de Construções, definindo "quanto de
+energia, luz, oxigênio, etc.. (acho que podemos deixar para escolher entre todos recursos
+primários e industriais aqui), consome por hora" por construção.
+
+**Aditiva, nunca substitui** `energia_consumo_hora` (GDD, §19.x). O consumo de energia continua
+exatamente como sempre foi calculado — é balanceamento comprovado, e ninguém pediu para mexer nele.
+`manutencao_estruturas` (tabela nova, vazia por padrão, mesmo molde de `building_specs_overrides` —
+D-107/108: nunca tocada por Seeder) é um consumo A MAIS, por cima, ligado por escolha do operador.
+Enquanto vazia, nenhuma construção consome nada além do que já consumia — os testes que já
+existiam (toda a suíte de `TickColoniesTest`) continuam verdes sem alteração.
+
+**Por TIPO de construção, não por tipo+nível** — diferente do custo/tempo
+(`building_specs_overrides`, que é por `(tipo, nível)`). O usuário não pediu granularidade por
+nível, e uma grade de 38 construções × até 10 níveis × 17 recursos não caberia numa tela
+administrável. Uma taxa só por tipo é a extensão natural do pedido ("quanto consome por hora"),
+soma linearmente entre cópias da mesma construção (Mina Local, Oficina, Refinaria, Destilaria,
+Indústria Siderúrgica — as repetíveis, D-59) do mesmo jeito que a produção já soma.
+
+**Só primário e industrial** — o usuário deixou em aberto ("acho que podemos") e a decisão foi
+excluir os raros: são 9 recursos de minério puro, cuja escassez já é o próprio mecanismo de jogo
+(§22.4); um consumo passivo neles mudaria esse balanço sem que o usuário tivesse pedido
+especificamente. `ResourceType.tax_class` (`primario`/`secundario`/`raro`, já existente desde a
+criação do catálogo) faz a checagem — sem tabela nova.
+
+`ColonyTick::produzir()`: um novo `manutencaoPorTipo()`, batched numa query só pros tipos de
+construção presentes na colônia (mesmo padrão de `erguidasComSpec()`, evitando N+1 dentro do loop
+principal), soma um `$consumosExtras` por recurso, e no fim é subtraído de `$taxas` do mesmo jeito
+que `$taxas['energia'] -= $consumoEnergia` já fazia — só que agora para QUALQUER recurso, não só
+energia. `acumular()` já travava o estoque em zero (D-20) para qualquer recurso, não só energia —
+zero mudança ali, o comportamento generaliza de graça.
+
+Admin: sub-aba **Manutenção** (`/central/admin/construcoes?aba=manutencao`), agrupada nas mesmas
+quatro categorias que Tempo/Custo já usam (as cinco essenciais, progressão, zona neutra, veículos e
+unidades — a definição foi extraída para `definicaoDeGrupos()`, reaproveitada pelas três abas). Uma
+textarea `recurso:quantidade` por construção, mesmo formato usado em Custo e nas recompensas de
+missão — salvar substitui o conjunto inteiro daquele tipo (`DB::transaction` com delete + insert),
+então apagar uma linha remove aquele consumo.
+
+Validado: `php artisan test` completo (685 — 13 novos: 6 em `ManutencaoEstruturasTest` provando o
+efeito no tick — aditivo sobre energia, soma entre cópias da mesma construção, nunca fica negativo,
+não afeta tipo não configurado —, mais 7 em `ManutencaoAdminTest` cobrindo o CRUD, a substituição
+total ao salvar, a rejeição de raro e de tipo inexistente). Round-trip de migração em MariaDB
+efêmero (fresh + rollback + migrate), suíte completa também verde contra MariaDB. `tsc`/`lint`/
+`build` não se aplicam (sem mudança de frontend nesta entrega). E2E completo (9/9 verde). Checagem
+visual manual (backend efêmero SQLite + Puppeteer): a aba Manutenção lista as 38 construções nas
+quatro categorias, o editor abre com a textarea e a lista de recursos aceitos, salvar
+`energia:5`/`agua:2` no Laboratório e a contagem "2" aparece na lista ao recarregar.

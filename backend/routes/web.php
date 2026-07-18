@@ -57,6 +57,7 @@ Route::prefix('admin')->group(function () {
         Route::post('/construcoes/custo', [AcoesController::class, 'construcoesCusto'])->name('admin.construcoes.custo');
         Route::post('/construcoes/silo', [AcoesController::class, 'construcoesSilo'])->name('admin.construcoes.silo');
         Route::post('/construcoes/fila', [AcoesController::class, 'construcoesFila'])->name('admin.construcoes.fila');
+        Route::post('/construcoes/manutencao', [AcoesController::class, 'construcoesManutencao'])->name('admin.construcoes.manutencao');
 
         // Bugs/Melhorias (D-95): o jogador manda pelo jogo; o admin lê, responde (o rádio avisa,
         // D-91) e marca como feito. Aba própria — mistura CRUD com o dashboard não caberia num card.

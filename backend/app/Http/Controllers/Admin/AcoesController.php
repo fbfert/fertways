@@ -734,6 +734,61 @@ class AcoesController extends Controller
     }
 
     /**
+     * Gestão de Construções — Manutenção (D-112): consumo extra de recursos por hora, por TIPO de
+     * construção — mesma linha `recurso:quantidade` de Custo, mas sem nível (o usuário não pediu
+     * granularidade por nível) e restrita a primário/industrial: raro fica de fora, decisão do
+     * usuário. Grava em `manutencao_estruturas`, ADITIVA sobre `energia_consumo_hora` do GDD —
+     * nunca o substitui (ver docs/decisoes.md D-112). A textarea representa o conjunto inteiro
+     * daquele tipo: salvar de novo substitui tudo, então tirar uma linha zera aquele recurso.
+     */
+    public function construcoesManutencao(Request $request): RedirectResponse
+    {
+        $tipos = \Illuminate\Support\Facades\DB::table('building_specs')->distinct()->pluck('building_type');
+
+        $dados = $request->validate([
+            'building_type' => ['required', 'string', Rule::in($tipos->all())],
+            'recursos' => ['nullable', 'string', 'max:2000'],
+        ]);
+
+        $nome = \App\Domain\Media\NomesDeExibicao::de($dados['building_type']);
+        $consumo = $this->parseRecursosPorLinha($dados['recursos'] ?? '', 'recursos');
+
+        $permitidos = \App\Models\ResourceType::where('tax_class', '!=', 'raro')->pluck('code');
+        foreach (array_keys($consumo) as $recurso) {
+            if (! $permitidos->contains($recurso)) {
+                throw ValidationException::withMessages([
+                    'recursos' => "«{$recurso}» é um recurso raro — Manutenção só aceita primário ou industrial.",
+                ]);
+            }
+        }
+
+        return $this->tentar('construcoes.manutencao', function () use ($dados, $consumo, $nome) {
+            $agora = now();
+
+            \Illuminate\Support\Facades\DB::transaction(function () use ($dados, $consumo, $agora) {
+                \Illuminate\Support\Facades\DB::table('manutencao_estruturas')
+                    ->where('building_type', $dados['building_type'])
+                    ->delete();
+
+                foreach ($consumo as $recurso => $qtd) {
+                    \Illuminate\Support\Facades\DB::table('manutencao_estruturas')->insert([
+                        'building_type' => $dados['building_type'],
+                        'resource_type' => $recurso,
+                        'qtd_hora' => $qtd,
+                        'admin_id' => auth('admin')->id(),
+                        'created_at' => $agora,
+                        'updated_at' => $agora,
+                    ]);
+                }
+            });
+
+            return $consumo === []
+                ? "Manutenção de {$nome} zerada — volta a não consumir nada além da energia do GDD."
+                : "Manutenção de {$nome} atualizada: ".count($consumo).' recurso(s).';
+        }, "construcoes:{$dados['building_type']}");
+    }
+
+    /**
      * Valida o que Tempo e Custo têm em comum: a construção existe, e nenhum nível 1 das que já
      * nascem prontas (`Building::NASCE_NO_NIVEL_UM`) — validação no servidor, não só esconder o
      * campo na view, porque um POST forjado não lê HTML.
