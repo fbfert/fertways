@@ -5026,3 +5026,51 @@ efêmero (fresh + rollback + migrate), suíte completa também verde contra Mari
 visual manual (backend efêmero SQLite + Puppeteer): a aba Manutenção lista as 38 construções nas
 quatro categorias, o editor abre com a textarea e a lista de recursos aceitos, salvar
 `energia:5`/`agua:2` no Laboratório e a contagem "2" aparece na lista ao recarregar.
+
+## D-113 — "Enviar Recursos" vira "Subsídios": vários recursos de uma vez, e um modo pra todos os colonos.
+**Data:** 2026-07-18 · **Status:** arbitrado pelo usuário · **Feature nova, não do GDD**
+
+Pedido do usuário: em `central/admin/economia?aba=enviar`, trocar ENVIAR RECURSOS por SUBSÍDIOS, com
+dois modos — mandar pra um colono (escolhe a colônia, abre a lista inteira do catálogo para marcar
+quanto de cada) ou mandar para todos os colonos (escolhe os recursos e quanto de cada, aplicado a
+todo mundo).
+
+**O antigo formulário mandava um recurso por vez** — `AcoesController::distribuir()`, `recurso` +
+`quantidade` singulares, POST por recurso. Trocado por dois novos: `subsidioColono()` (a lista
+inteira do catálogo + Fert$ num formulário só, mesmo padrão `qtd[{{code}}]` que a aba Mercado já
+usa para a vitrine do Governo) e `subsidioTodos()` (a mesma cesta, para cada colônia fundada). O
+antigo `admin.tesouro.distribuir` foi removido — não ficou como alternativa paralela, porque o
+pedido foi trocar o fluxo, não somar um novo ao lado do velho. `Tesouro::distribuir()` (o método de
+domínio, uma transação por recurso-colônia) continua exatamente como estava — é a peça que os dois
+novos endpoints chamam em loop.
+
+**Todo-ou-nada nos dois modos, por razões diferentes:**
+- **Um colono, vários recursos:** os `Tesouro::distribuir()` (cada um já transacional) vivem dentro
+  de UMA transação externa. Sem isto, se o Tesouro tivesse Ligas mas não Água, o colono receberia só
+  metade do que o operador mandou — uma entrega parcial e silenciosa que o operador não pediu.
+- **Todos os colonos, mesma cesta:** antes de tocar em qualquer colônia, `Tesouro::comporta()`
+  confere o custo AGREGADO (quantidade × nº de colônias). Sem essa conferência prévia, a entrega
+  pararia no meio da lista — algumas colônias receberiam o subsídio, outras não, por causa da ORDEM
+  em que `Colony::orderBy('id')` as devolve, o que seria arbitrário e injusto entre colonos.
+  `comporta()` já existia (D-60, usado pela fábrica de veículos) — reaproveitado, não inventado.
+
+**Recurso fora do catálogo nos dois modos: ignorado, não rejeita a requisição inteira** — mesma
+cautela de `construcoesSilo`/`fabricaConfig` contra um `<input>` forjado; um nome de recurso que não
+bate com nada do catálogo simplesmente não gera entrega nenhuma, sem atrapalhar os outros que vieram
+certos no mesmo POST.
+
+Admin: sub-aba **Subsídios** (`/central/admin/economia?aba=subsidios` — o slug também mudou, de
+`enviar` para `subsidios`), dois cartões alternados por rádio (mesmo padrão de mostrar/esconder já
+usado em Gestão de Construções), cada um com a tabela do catálogo inteiro (Fert$ + todos os
+recursos) e um campo de quantidade por linha.
+
+Validado: `php artisan test` completo (695 — 10 novos em `SubsidiosAdminTest`: multi-recurso pra um
+colono, Fert$ junto com recurso, todo-ou-nada quando um recurso não cabe, recurso fora do catálogo
+ignorado, sem colônias fundadas recusado, sem saldo agregado recusado antes de tocar em qualquer
+colônia, autenticação exigida, a aba mostra os dois modos — mais os três testes que já existiam e
+apontavam para o antigo `admin.tesouro.distribuir`, adaptados para o novo `subsidio_colono`), suíte
+completa também verde contra MariaDB efêmero (sem migração nesta entrega — nenhuma tabela nova).
+`tsc`/`lint`/`build` não se aplicam (sem mudança de frontend). E2E completo (9/9 verde). Checagem
+visual manual (backend efêmero SQLite + Puppeteer): os dois modos alternam por rádio, enviar
+50 Água + 20 Ligas Metálicas a uma colônia confirma na mensagem, enviar 10 Água "a todos" confirma
+contando as colônias fundadas.

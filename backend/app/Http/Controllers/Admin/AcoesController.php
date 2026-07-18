@@ -352,27 +352,125 @@ class AcoesController extends Controller
         );
     }
 
-    // ── Ministério do Tesouro (D-57) ─────────────────────────────────────────
+    // ── Ministério do Tesouro — Subsídios (D-57; D-113) ───────────────────────
 
-    public function distribuir(Request $request, Tesouro $tesouro): RedirectResponse
+    /**
+     * Recebe o `quantidade[código] = valor` de um formulário de subsídio (mesmo padrão
+     * `qtd[{{ $r->code }}]` da aba Mercado) e devolve só as entradas válidas: código do catálogo
+     * (ou `Tesouro::FERT`) com valor positivo, já convertido para a unidade interna — micro-Fert$
+     * para FERT, unidades inteiras para o resto.
+     *
+     * @return array<string,int>
+     */
+    private function parseSubsidio(array $quantidades): array
+    {
+        $codigos = \App\Models\ResourceType::pluck('code')->push(Tesouro::FERT);
+
+        $entregas = [];
+        foreach ($quantidades as $recurso => $valor) {
+            if (! $codigos->contains($recurso) || (float) $valor <= 0) {
+                continue;
+            }
+
+            $qtd = $recurso === Tesouro::FERT
+                ? (int) round(((float) $valor) * Colony::MICRO_POR_FERT)
+                : (int) $valor;
+
+            if ($qtd > 0) {
+                $entregas[$recurso] = $qtd;
+            }
+        }
+
+        return $entregas;
+    }
+
+    private function resumoSubsidio(array $entregas): string
+    {
+        return collect($entregas)
+            ->map(fn ($q, $r) => $r === Tesouro::FERT ? number_format($q).' µF$' : "{$q} {$r}")
+            ->implode('; ');
+    }
+
+    /**
+     * Subsídios — "Mandar pra um colono" (D-113): a lista inteira do catálogo (+ Fert$) num
+     * formulário só, ao contrário do antigo "Enviar Recursos" (um recurso por vez). Todo-ou-nada:
+     * os vários `Tesouro::distribuir()` (cada um já transacional) vivem dentro de UMA
+     * transação externa — se o terceiro recurso não couber no saldo, os dois primeiros voltam.
+     */
+    public function subsidioColono(Request $request, Tesouro $tesouro): RedirectResponse
     {
         $dados = $request->validate([
             'colony_id' => ['required', 'integer', 'exists:colonies,id'],
-            'recurso' => ['required', 'string'],
-            'quantidade' => ['required', 'numeric', 'min:0.0001'],
+            'quantidade' => ['required', 'array'],
+            'quantidade.*' => ['nullable', 'numeric', 'min:0'],
         ]);
 
         $destino = Colony::findOrFail($dados['colony_id']);
-        $ehFert = $dados['recurso'] === Tesouro::FERT;
-        $qtd = $ehFert
-            ? (int) round(((float) $dados['quantidade']) * Colony::MICRO_POR_FERT)
-            : (int) $dados['quantidade'];
+        $entregas = $this->parseSubsidio($dados['quantidade']);
 
-        return $this->tentar('tesouro.distribuir', function () use ($tesouro, $destino, $dados, $qtd, $ehFert) {
-            $tesouro->distribuir($destino, $dados['recurso'], $qtd);
+        if ($entregas === []) {
+            throw ValidationException::withMessages([
+                'quantidade' => 'Informe ao menos um recurso com quantidade positiva.',
+            ]);
+        }
 
-            return 'Tesouro enviou '.number_format($qtd).' de '.($ehFert ? 'Fert$ (micro)' : $dados['recurso'])." a {$destino->name}.";
+        return $this->tentar('tesouro.subsidio_colono', function () use ($tesouro, $destino, $entregas) {
+            \Illuminate\Support\Facades\DB::transaction(function () use ($tesouro, $destino, $entregas) {
+                foreach ($entregas as $recurso => $qtd) {
+                    $tesouro->distribuir($destino, $recurso, $qtd);
+                }
+            });
+
+            return "Tesouro enviou a {$destino->name}: {$this->resumoSubsidio($entregas)}.";
         }, "colony:{$destino->id}");
+    }
+
+    /**
+     * Subsídios — "Mandar para todos colonos" (D-113): a MESMA quantidade de cada recurso
+     * escolhido, para cada colônia fundada. Todo-ou-nada de verdade: primeiro confere se o Tesouro
+     * comporta o custo AGREGADO (quantidade × nº de colônias) — sem isso, a entrega pararia no
+     * meio da lista de colônias, e algumas receberiam o subsídio e outras não, o que ninguém pediu.
+     */
+    public function subsidioTodos(Request $request, Tesouro $tesouro): RedirectResponse
+    {
+        $dados = $request->validate([
+            'quantidade' => ['required', 'array'],
+            'quantidade.*' => ['nullable', 'numeric', 'min:0'],
+        ]);
+
+        $porColonia = $this->parseSubsidio($dados['quantidade']);
+
+        if ($porColonia === []) {
+            throw ValidationException::withMessages([
+                'quantidade' => 'Informe ao menos um recurso com quantidade positiva.',
+            ]);
+        }
+
+        $colonias = Colony::orderBy('id')->get(['id', 'name']);
+
+        if ($colonias->isEmpty()) {
+            throw ValidationException::withMessages(['quantidade' => 'Não há colônias fundadas.']);
+        }
+
+        $custoTotal = collect($porColonia)->map(fn ($qtd) => $qtd * $colonias->count())->all();
+
+        if (! $tesouro->comporta($custoTotal)) {
+            throw ValidationException::withMessages([
+                'quantidade' => "O Tesouro não tem saldo para entregar isto às {$colonias->count()} colônias — reduza a quantidade ou escolha menos recursos.",
+            ]);
+        }
+
+        return $this->tentar('tesouro.subsidio_todos', function () use ($tesouro, $colonias, $porColonia) {
+            \Illuminate\Support\Facades\DB::transaction(function () use ($tesouro, $colonias, $porColonia) {
+                foreach ($colonias as $colonia) {
+                    foreach ($porColonia as $recurso => $qtd) {
+                        $tesouro->distribuir($colonia, $recurso, $qtd);
+                    }
+                }
+            });
+
+            return "Tesouro enviou a cada uma das {$colonias->count()} colônias: {$this->resumoSubsidio($porColonia)}.";
+        });
     }
 
     /**

@@ -189,7 +189,7 @@ class AdminPainelTest extends TestCase
         $c = $this->colonia('destino');
 
         $this->actingAs($this->admin(), 'admin')
-            ->post(route('admin.tesouro.distribuir'), ['colony_id' => $c->id, 'recurso' => 'metal_bruto', 'quantidade' => '500'])
+            ->post(route('admin.tesouro.subsidio_colono'), ['colony_id' => $c->id, 'quantidade' => ['metal_bruto' => '500']])
             ->assertSessionHas('ok');
 
         $this->assertSame(9_500, (int) \App\Models\TreasuryHolding::whereKey('metal_bruto')->value('amount'));

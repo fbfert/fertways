@@ -91,7 +91,8 @@ Route::prefix('admin')->group(function () {
         Route::post('/noticias/{news}/ocultar', [AcoesController::class, 'noticiaOcultar'])->name('admin.noticia.ocultar');
         Route::post('/noticias/{news}/inativar', [AcoesController::class, 'noticiaInativar'])->name('admin.noticia.inativar');
         // Ministério do Tesouro (D-57)
-        Route::post('/tesouro/distribuir', [AcoesController::class, 'distribuir'])->name('admin.tesouro.distribuir');
+        Route::post('/tesouro/subsidio-colono', [AcoesController::class, 'subsidioColono'])->name('admin.tesouro.subsidio_colono');
+        Route::post('/tesouro/subsidio-todos', [AcoesController::class, 'subsidioTodos'])->name('admin.tesouro.subsidio_todos');
         // O Governo no Mercado Central (D-87): a lista de ofertas em pé, salva de uma vez.
         Route::post('/mercado/governo', [AcoesController::class, 'mercadoGoverno'])->name('admin.mercado.governo');
 
