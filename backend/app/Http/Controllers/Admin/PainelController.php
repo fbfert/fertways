@@ -627,20 +627,22 @@ class PainelController extends Controller
      */
     public function construcoes(Request $request): View
     {
-        $abas = ['tempo', 'custo', 'silo'];
+        $abas = ['tempo', 'custo', 'silo', 'fila'];
         $aba = in_array($request->query('aba'), $abas, true) ? $request->query('aba') : 'tempo';
 
         $dados = ['aba' => $aba, 'naoConstroi' => \App\Models\Building::NASCE_NO_NIVEL_UM];
 
         if ($aba === 'tempo' || $aba === 'custo') {
             $dados['grupos'] = $this->construcoesAgrupadas();
-        } else {
+        } elseif ($aba === 'silo') {
             $dados['capacidades'] = DB::table('silo_capacidades')
                 ->orderBy('resource_type')->orderBy('level')
                 ->get()
                 ->groupBy('resource_type');
             $dados['recursos'] = \App\Models\ResourceType::orderBy('tax_class')->orderBy('nome')->get();
             $dados['niveisSilo'] = range(1, 10);
+        } else {
+            $dados['fila'] = \App\Models\FilaSetting::singleton();
         }
 
         return view('admin.construcoes', $dados);

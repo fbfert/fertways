@@ -9,6 +9,7 @@
         "tempo" => "Tempo de Construções",
         "custo" => "Custo de Construção e Evolução",
         "silo" => "Gestão do Silo",
+        "fila" => "Fila",
     ];
 @endphp
 
@@ -148,6 +149,58 @@
                     </table>
                 </div>
                 <div style="margin-top:10px"><button>Salvar capacidades do Silo</button></div>
+            </form>
+        </div>
+    @endif
+
+    {{-- ─────────────────────────────────────────────── Fila ── --}}
+    @if ($aba === 'fila')
+        <p class="mut pequeno">
+            Quantos itens cabem na fila de construção — da colônia (D-13) e da zona neutra (D-67).
+            Não compartilham a mesma fila.
+        </p>
+
+        <div class="cartao" style="margin-top:12px">
+            <h3 style="margin:0 0 6px">Colônia</h3>
+            <p class="mut pequeno">
+                O onboarding continua valendo: fila dupla nos 5 primeiros dias completos de conta,
+                fila única depois — só os NÚMEROS de cada uma são do operador agora.
+            </p>
+            <form method="POST" action="{{ route('admin.construcoes.fila') }}" class="linha-form">
+                @csrf
+                <div style="flex:0">
+                    <label>Vagas — conta nova (5 primeiros dias)</label>
+                    <input type="number" min="1" max="20" name="colonia_vagas_novato"
+                           value="{{ $fila->colonia_vagas_novato }}" required style="width:90px">
+                </div>
+                <div style="flex:0">
+                    <label>Vagas — conta padrão</label>
+                    <input type="number" min="1" max="20" name="colonia_vagas_padrao"
+                           value="{{ $fila->colonia_vagas_padrao }}" required style="width:90px">
+                </div>
+                <input type="hidden" name="zona_vagas" value="{{ $fila->zona_vagas }}">
+                <div style="flex:0"><button>Salvar</button></div>
+            </form>
+        </div>
+
+        <div class="cartao" style="margin-top:12px">
+            <h3 style="margin:0 0 6px">Zona neutra</h3>
+            <p class="mut pequeno">
+                Quantas obras a zona comporta em curso ao mesmo tempo. Hoje (padrão 1) é o
+                comportamento de sempre — "uma obra por vez" (D-67). A zona não tem "esperando o
+                antecessor terminar" como a colônia: cada obra só nasce quando o canteiro já tem o
+                material, então até este teto, todas as que tiverem material começam na hora.
+            </p>
+            <form method="POST" action="{{ route('admin.construcoes.fila') }}" class="linha-form">
+                @csrf
+                <input type="hidden" name="colonia_vagas_novato" value="{{ $fila->colonia_vagas_novato }}">
+                <input type="hidden" name="colonia_vagas_padrao" value="{{ $fila->colonia_vagas_padrao }}">
+                <div style="flex:0">
+                    <label>Obras simultâneas por zona</label>
+                    <input type="number" min="1" max="20" name="zona_vagas"
+                           value="{{ $fila->zona_vagas }}" required style="width:90px">
+                </div>
+                <div style="flex:0"><button>Salvar</button></div>
             </form>
         </div>
     @endif
