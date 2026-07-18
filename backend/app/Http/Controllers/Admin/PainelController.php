@@ -215,7 +215,7 @@ class PainelController extends Controller
 
     public function economia(Request $request): View
     {
-        $abas = ['financas', 'tesouro', 'enviar', 'mercado', 'ofertas_globais', 'extrato_governo', 'extrato_colonos'];
+        $abas = ['financas', 'tesouro', 'subsidios', 'mercado', 'ofertas_globais', 'extrato_governo', 'extrato_colonos'];
         $aba = in_array($request->query('aba'), $abas, true) ? $request->query('aba') : 'financas';
 
         $ofertasDoGoverno = app(\App\Domain\Market\OfertarComoGoverno::class)->ofertas();

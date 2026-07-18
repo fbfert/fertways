@@ -401,15 +401,15 @@ class AdminPainel2Test extends TestCase
 
     // ── economia: o card próprio ────────────────────────────────────────────────────────────────
 
-    public function test_enviar_recursos_e_um_card_com_nome(): void
+    public function test_subsidios_e_um_card_com_nome(): void
     {
         $this->seed(\Database\Seeders\TreasurySeeder::class);
 
-        // Economia virou sub-abas no D-87 — "Enviar Recursos" é uma delas agora.
+        // Economia virou sub-abas no D-87 — "Subsídios" (D-113, ex-"Enviar Recursos") é uma delas.
         $this->actingAs($this->operador(), 'admin')
-            ->get('/admin/economia?aba=enviar')
+            ->get('/admin/economia?aba=subsidios')
             ->assertOk()
-            ->assertSee('Enviar recursos')
+            ->assertSee('Subsídios')
             // E as notícias saíram daqui: viraram aba própria.
             ->assertDontSee('Central de Notícias');
     }

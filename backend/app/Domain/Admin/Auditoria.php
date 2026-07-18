@@ -19,7 +19,7 @@ use Illuminate\Support\Facades\Request;
  *   quem       o admin e o **papel que ele tinha na hora** — se ele for promovido depois, o log não
  *              pode reescrever o passado
  *   quando     `created_at`, e só ele: linha de auditoria não se atualiza
- *   o quê      a ação (`tesouro.distribuir`) e o alvo (`user:12`)
+ *   o quê      a ação (`tesouro.subsidio_colono`) e o alvo (`user:12`)
  *   antes/     os valores, para responder à pergunta que de fato se faz do log: não "quem mexeu na
  *   depois     colônia 4?", mas "**o que exatamente** mudou nela, e do que para o quê?"
  *   de onde    IP e navegador
@@ -32,7 +32,7 @@ class Auditoria
     /**
      * Registra um ato administrativo.
      *
-     * @param  string  $acao    verbo canônico e estável: `jogador.suspender`, `tesouro.distribuir`
+     * @param  string  $acao    verbo canônico e estável: `jogador.suspender`, `tesouro.subsidio_colono`
      * @param  string|null  $alvo    `user:12`, `colony:4`, `admin:2` — texto, não FK
      * @param  array|null  $de      o estado antes (só os campos que interessam)
      * @param  array|null  $para    o estado depois

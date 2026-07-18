@@ -111,11 +111,11 @@ class AdminAuditoriaTest extends TestCase
 
         $this->actingAs($this->dono(), 'admin')
             ->from(route('admin.economia'))
-            ->post(route('admin.tesouro.distribuir'), [
-                'colony_id' => $colony->id, 'recurso' => 'ligas_metalicas', 'quantidade' => 100,
+            ->post(route('admin.tesouro.subsidio_colono'), [
+                'colony_id' => $colony->id, 'quantidade' => ['ligas_metalicas' => 100],
             ])->assertSessionHas('ok');
 
-        $log = AuditEntry::where('acao', 'tesouro.distribuir')->first();
+        $log = AuditEntry::where('acao', 'tesouro.subsidio_colono')->first();
 
         $this->assertNotNull($log, 'a distribuição do Tesouro tem de aparecer no log');
         $this->assertSame("colony:{$colony->id}", $log->alvo);

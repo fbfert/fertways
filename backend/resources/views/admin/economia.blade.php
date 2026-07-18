@@ -6,7 +6,7 @@
     $abas = [
         "financas" => "Finanças",
         "tesouro" => "Ministério do Tesouro",
-        "enviar" => "Enviar Recursos",
+        "subsidios" => "Subsídios",
         "mercado" => "Mercado",
         "ofertas_globais" => "Ofertas Globais",
         "extrato_governo" => "Extrato do Governo",
@@ -88,29 +88,88 @@
         </div>
     @endif
 
-    {{-- ── Enviar recursos ── --}}
-    @if ($aba === "enviar")
-        <h2 class="secao">Enviar recursos</h2>
-        <div class="cartao">
-            <p class="mut pequeno">
-                Tira do caixa do Tesouro e entrega a uma colônia (§2.1). Não passa por veículo e não paga
-                tributo — é emissão do governo, e fica no extrato do colono.
-            </p>
-            <form method="POST" action="{{ route("admin.tesouro.distribuir") }}" class="linha-form" style="margin-top:8px">
+    {{-- ── Subsídios (D-113) ── --}}
+    @if ($aba === "subsidios")
+        <h2 class="secao">Subsídios</h2>
+        <p class="mut pequeno">
+            Tira do caixa do Tesouro e entrega a colonos (§2.1). Não passa por veículo e não paga
+            tributo — é emissão do governo, e fica no extrato de quem recebe.
+        </p>
+
+        <div class="linha-form" style="margin-bottom:10px">
+            <label style="flex:0;white-space:nowrap">
+                <input type="radio" name="modo-subsidio" value="colono" checked
+                       onclick="document.getElementById('subsidio-colono').style.display='block';document.getElementById('subsidio-todos').style.display='none'">
+                Mandar pra um colono
+            </label>
+            <label style="flex:0;white-space:nowrap">
+                <input type="radio" name="modo-subsidio" value="todos"
+                       onclick="document.getElementById('subsidio-colono').style.display='none';document.getElementById('subsidio-todos').style.display='block'">
+                Mandar para todos colonos
+            </label>
+        </div>
+
+        <div id="subsidio-colono" class="cartao">
+            <form method="POST" action="{{ route('admin.tesouro.subsidio_colono') }}">
                 @csrf
-                <div><label>Colônia</label>
-                    <select name="colony_id">
+                <div style="max-width:320px;margin-bottom:10px">
+                    <label>Colônia</label>
+                    <select name="colony_id" required>
                         @foreach ($colonias as $c)<option value="{{ $c->id }}">{{ $c->name }}</option>@endforeach
                     </select>
                 </div>
-                <div><label>Recurso</label>
-                    <select name="recurso">
-                        <option value="{{ $FERT }}">Fert$</option>
-                        @foreach ($recursos as $r)<option value="{{ $r->code }}">{{ $r->nome }}</option>@endforeach
-                    </select>
+                <div style="overflow-x:auto">
+                    <table>
+                        <tr><th>Recurso</th><th class="num">Quantidade</th></tr>
+                        <tr>
+                            <td><b>Fert$</b></td>
+                            <td class="num">
+                                <input type="number" step="0.0001" min="0" name="quantidade[{{ $FERT }}]" style="width:120px;text-align:right">
+                            </td>
+                        </tr>
+                        @foreach ($recursos as $r)
+                            <tr>
+                                <td>{{ $r->nome }}</td>
+                                <td class="num">
+                                    <input type="number" min="0" name="quantidade[{{ $r->code }}]" style="width:120px;text-align:right">
+                                </td>
+                            </tr>
+                        @endforeach
+                    </table>
                 </div>
-                <div style="flex:0"><label>Quantidade</label><input type="number" step="0.0001" min="0.0001" name="quantidade" required></div>
-                <div style="flex:0"><label>&nbsp;</label><button>Enviar</button></div>
+                <div style="margin-top:10px"><button>Enviar ao colono</button></div>
+            </form>
+        </div>
+
+        <div id="subsidio-todos" class="cartao" style="display:none">
+            <p class="mut pequeno">
+                A MESMA quantidade de cada recurso escolhido, para CADA colônia fundada
+                ({{ $colonias->count() }} hoje). Todo-ou-nada: se o Tesouro não comportar o total
+                (quantidade × nº de colônias), nada é enviado — não faria sentido algumas colônias
+                receberem o subsídio e outras não.
+            </p>
+            <form method="POST" action="{{ route('admin.tesouro.subsidio_todos') }}">
+                @csrf
+                <div style="overflow-x:auto">
+                    <table>
+                        <tr><th>Recurso</th><th class="num">Quantidade por colônia</th></tr>
+                        <tr>
+                            <td><b>Fert$</b></td>
+                            <td class="num">
+                                <input type="number" step="0.0001" min="0" name="quantidade[{{ $FERT }}]" style="width:120px;text-align:right">
+                            </td>
+                        </tr>
+                        @foreach ($recursos as $r)
+                            <tr>
+                                <td>{{ $r->nome }}</td>
+                                <td class="num">
+                                    <input type="number" min="0" name="quantidade[{{ $r->code }}]" style="width:120px;text-align:right">
+                                </td>
+                            </tr>
+                        @endforeach
+                    </table>
+                </div>
+                <div style="margin-top:10px"><button>Enviar a todos</button></div>
             </form>
         </div>
     @endif
@@ -218,7 +277,7 @@
         <div class="cartao">
             <p class="mut pequeno">
                 Todo movimento real do caixa do Tesouro — crédito (tributo, venda, tarifa), débito
-                (gasto, oferta no Mercado) e distribuição (a aba Enviar Recursos). Positivo entra,
+                (gasto, oferta no Mercado) e distribuição (a aba Subsídios). Positivo entra,
                 negativo sai.
             </p>
             <form method="GET" action="{{ route('admin.economia', ['aba' => 'extrato_governo']) }}" class="linha-form" style="margin-top:8px">
