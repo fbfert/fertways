@@ -19,6 +19,9 @@ use App\Models\AuditEntry;
 use App\Models\BuildQueue;
 use App\Models\Colony;
 use App\Models\Combat;
+use App\Models\Federation;
+use App\Models\FederationHolding;
+use App\Models\FederationLedger;
 use App\Models\ImageBinding;
 use App\Models\MediaAsset;
 use App\Models\Ledger;
@@ -487,6 +490,43 @@ class PainelController extends Controller
                 ->get(),
             'fotos' => (int) DB::table('drone_sightings')->count(),
         ]);
+    }
+
+    /**
+     * Federação (§04/§07; D-114) — leitura + uma alavanca de emergência ("Dissolver"), mesmo
+     * perfil de Guerra/Transportes: sistema 100% jogador-a-jogador, o operador só observa.
+     */
+    public function federacoes(Request $request): View
+    {
+        $federacoes = Federation::withCount('membros')
+            ->orderByRaw('disbanded_at is not null')
+            ->orderBy('name')
+            ->get();
+
+        $dados = ['federacoes' => $federacoes, 'federacao' => null];
+
+        $federacao = $request->query('ver') ? Federation::find($request->query('ver')) : null;
+
+        if ($federacao) {
+            $dados['federacao'] = $federacao;
+            // Ordenado em PHP, não em SQL: `FIELD()` é MySQL/MariaDB — a suíte roda em SQLite, que
+            // não tem essa função (lição do D-59, "SQLite mente" outra vez, agora em SQL, não DDL).
+            $dados['membros'] = Colony::where('federation_id', $federacao->id)
+                ->get(['id', 'name', 'federation_role'])
+                ->sortBy(fn (Colony $c) => array_search($c->federation_role, Federation::CARGOS, true))
+                ->values();
+            $dados['fundo'] = FederationHolding::where('federation_id', $federacao->id)
+                ->where('amount', '>', 0)
+                ->orderBy('resource_type')
+                ->get();
+            $dados['ledgerFederacao'] = FederationLedger::with('colony:id,name')
+                ->where('federation_id', $federacao->id)
+                ->orderByDesc('id')
+                ->limit(50)
+                ->get();
+        }
+
+        return view('admin.federacoes', $dados);
     }
 
     public function transportes(Request $request): View

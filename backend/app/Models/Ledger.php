@@ -59,6 +59,7 @@ class Ledger extends Model
         'bonus_conciliador',   // §26.7: +3 F$ por decisão que sobrevive à apelação
         'custo_ocupacao',      // §07: Posto de Comando + Robôs Mineradores para ocupar zona (D-52)
         'transferencia_tesouro', // Ministério do Tesouro: distribuição do governo ao colono (D-57)
+        'saque_federacao', // Líder/Intendente saca do fundo da federação para a própria colônia (D-114)
         // Descontinuado no D-85: o kit fixo do D-57 morreu, substituído pelo `kit_inicial` único.
         // Fica na lista porque é ledger — append-only, não se apaga lançamento — e colônias
         // fundadas antes do D-85 têm linhas de verdade com este tipo.

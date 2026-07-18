@@ -137,6 +137,7 @@
                 'admin.chat' => 'Chat',
                 'admin.missoes' => 'Missões',
                 'admin.transportes' => 'Transportes',
+                'admin.federacoes' => 'Federações',
                 'admin.auditoria' => 'Auditoria',
                 'admin.operacao' => 'Operação',
                 'admin.construcoes' => 'Gestão de Construções',

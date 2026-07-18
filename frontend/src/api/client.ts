@@ -788,6 +788,35 @@ export type Noticias = {
   gagarin: { ativo: boolean; jogadores: number; limiar_jogadores: number; regra: string }
 }
 
+// ── Federação (§04/§07; D-114) — o Quartel de Alianças, Capital slot 9 ─────────────────────────
+
+export type FederationRole = 'lider' | 'diplomata' | 'intendente' | 'membro'
+
+export type FederationMember = { colony_id: number; name: string; role: FederationRole }
+
+export type FederationFundLine = { resource_type: string; amount: number }
+
+/** Um convite (Líder/Diplomata chama de fora) ou um pedido (colônia sem federação pede entrada). */
+export type FederationInviteDto = {
+  id: number
+  kind: 'convite' | 'pedido'
+  federation: { id: number; name: string } | null
+  colony: { id: number; name: string } | null
+  created_by_colony_id: number
+  created_at: string
+}
+
+export type MinhaFederacao = {
+  federation: { id: number; name: string } | null
+  my_role: FederationRole | null
+  members: FederationMember[]
+  fund: FederationFundLine[]
+  /** Só vem preenchido pro Líder/Diplomata — quem age sobre convites/pedidos. */
+  pending_invites: FederationInviteDto[]
+}
+
+export type FederationListItem = { id: number; name: string; membros: number; cheia: boolean }
+
 export const api = {
   register: (b: { name: string; nickname: string; email: string; password: string }) =>
     req<Sessao>('/register', { method: 'POST', body: JSON.stringify(b) }),
@@ -1253,6 +1282,65 @@ export const api = {
   /** Aceita uma oferta do mural e vira a contraparte dela. Quem chega primeiro leva. */
   aceitarOfertaDoMural: (id: number) =>
     req<Acordo>(`/trade/agreements/${id}/accept`, { method: 'POST' }),
+
+  // ── Federação (§04/§07, D-114) — o Quartel de Alianças, Capital slot 9 ──────────────────────
+
+  /** A federação da própria colônia (ou `federation: null`), membros, fundo e pendências. */
+  minhaFederacao: () => req<MinhaFederacao>('/federation'),
+
+  /** O diretório público — para escolher a quem pedir entrada. */
+  federacoes: () => req<FederationListItem[]>('/federations'),
+
+  fundarFederacao: (name: string) =>
+    req<{ id: number; name: string }>('/federations', { method: 'POST', body: JSON.stringify({ name }) }),
+
+  convidarParaFederacao: (federation: number, colonyId: number) =>
+    req<{ id: number }>(`/federations/${federation}/invite`, {
+      method: 'POST',
+      body: JSON.stringify({ colony_id: colonyId }),
+    }),
+
+  pedirEntradaNaFederacao: (federation: number) =>
+    req<{ id: number }>(`/federations/${federation}/apply`, { method: 'POST' }),
+
+  aceitarConviteDeFederacao: (invite: number) =>
+    req<{ ok: true }>(`/federation/invites/${invite}/accept`, { method: 'POST' }),
+
+  recusarConviteDeFederacao: (invite: number) =>
+    req<{ ok: true }>(`/federation/invites/${invite}/reject`, { method: 'POST' }),
+
+  cancelarConviteDeFederacao: (invite: number) =>
+    req<{ ok: true }>(`/federation/invites/${invite}`, { method: 'DELETE' }),
+
+  sairDaFederacao: () => req<{ ok: true }>('/federation/leave', { method: 'POST' }),
+
+  transferirLiderancaDaFederacao: (colonyId: number) =>
+    req<{ ok: true }>('/federation/transfer-leadership', {
+      method: 'POST',
+      body: JSON.stringify({ colony_id: colonyId }),
+    }),
+
+  expulsarDaFederacao: (colonyId: number) =>
+    req<{ ok: true }>(`/federation/members/${colonyId}/kick`, { method: 'POST' }),
+
+  alterarCargoNaFederacao: (colonyId: number, role: string) =>
+    req<{ ok: true }>(`/federation/members/${colonyId}/role`, {
+      method: 'PATCH',
+      body: JSON.stringify({ role }),
+    }),
+
+  sacarDoFundoDaFederacao: (resourceType: string, amount: number) =>
+    req<{ ok: true }>('/federation/withdraw', {
+      method: 'POST',
+      body: JSON.stringify({ resource_type: resourceType, amount }),
+    }),
+
+  /** Contribui ao fundo — a MESMA rota de despacho, com `destination_type: 'federacao'` (D-114). */
+  contribuirParaFederacao: (veiculo: number, cargo: Record<string, number>) =>
+    req<Veiculo>(`/vehicles/${veiculo}/dispatch`, {
+      method: 'POST',
+      body: JSON.stringify({ destination_type: 'federacao', cargo }),
+    }),
 }
 
 // ── a zona como LUGAR (§17.4, D-67) ───────────────────────────────────────────────────────────────

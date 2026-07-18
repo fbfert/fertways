@@ -3,6 +3,7 @@ import { CapitalCanvas } from '../game/CapitalCanvas'
 import type { AreaId, SlotDaCapital } from '../game/CapitalScene'
 import { Endurance } from './Endurance'
 import { Espacoporto } from './Espacoporto'
+import { Federacao } from './Federacao'
 import { Financas } from './Financas'
 import { Noticias } from './Noticias'
 import { Tesouro } from './Tesouro'
@@ -24,13 +25,14 @@ import { Transportes } from './Transportes'
  * o D-55. Mercado e Pátio são a mesma área, e os caminhões desenhados ali são **desenho**, não uma
  * segunda porta.
  */
-type Sub = 'tesouro' | 'financas' | 'noticias' | 'transportes' | 'endurance' | 'espacoporto'
+type Sub = 'tesouro' | 'financas' | 'noticias' | 'transportes' | 'endurance' | 'espacoporto' | 'federacao'
 
 /**
  * Os slots do Governo Central. **O 6 não está aqui**: ele é a área do Leste.
  *
- * Os vagos (9–20) aparecem, apagados e travados. É o que faz a Capital parecer um lugar que vai
- * crescer, e não uma lista — e o GDD publica os 20.
+ * Os vagos (10–20) aparecem, apagados e travados. É o que faz a Capital parecer um lugar que vai
+ * crescer, e não uma lista — e o GDD publica os 20. O 9 (Quartel de Alianças) saiu de "reservado"
+ * pra "ativo" no D-114 — Federação, Fatia 1.
  */
 const SLOTS: SlotDaCapital[] = [
   { n: 1, nome: 'Administração Pública', abre: null, estado: 'em_breve' },
@@ -40,7 +42,7 @@ const SLOTS: SlotDaCapital[] = [
   { n: 5, nome: 'Ministério da Segurança e Guerra', abre: null, estado: 'em_breve' },
   { n: 7, nome: 'Ministério das Reputações', abre: 'ministerio', estado: 'ativo' },
   { n: 8, nome: 'Ministério dos Transportes', abre: 'transportes', estado: 'ativo' },
-  { n: 9, nome: 'Quartel de Alianças', abre: null, estado: 'reservado' },
+  { n: 9, nome: 'Quartel de Alianças', abre: 'federacao', estado: 'ativo' },
   ...Array.from({ length: 11 }, (_, i) => ({
     n: 10 + i,
     nome: 'Vago',
@@ -56,6 +58,7 @@ const TITULO: Record<Sub, string> = {
   transportes: 'Ministério dos Transportes',
   endurance: 'Endurance of Mankind',
   espacoporto: 'Espaçoporto',
+  federacao: 'Quartel de Alianças',
 }
 
 export function Capital({
@@ -120,6 +123,7 @@ export function Capital({
             {sub === 'transportes' && <Transportes />}
             {sub === 'endurance' && <Endurance />}
             {sub === 'espacoporto' && <Espacoporto />}
+            {sub === 'federacao' && <Federacao />}
           </div>
         ) : (
           <>
@@ -140,8 +144,7 @@ export function Capital({
 
             <p className="text-ink-soft/60 mt-3 shrink-0 text-xs">
               O <b>slot 6</b> não aparece no Governo Central porque ele <b>é</b> o Leste: o Mercado
-              Central e o Pátio Logístico são a mesma área (§2.1). Os slots 10–20 estão vagos, e o 9
-              (Embaixada) é reservado — fora do MVP.
+              Central e o Pátio Logístico são a mesma área (§2.1). Os slots 10–20 estão vagos.
             </p>
           </>
         )}

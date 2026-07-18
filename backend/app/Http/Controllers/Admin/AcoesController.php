@@ -8,6 +8,7 @@ use App\Domain\Admin\Contas;
 use App\Domain\Admin\CorrigirEstado;
 use App\Domain\Admin\RealocarColonia;
 use App\Domain\Admin\Suspender;
+use App\Domain\Federacao\DissolverFederacao;
 use App\Domain\Finance\DeclararIntervencao;
 use App\Domain\Ministry\Apelacao;
 use App\Domain\Ministry\DecidirCaso;
@@ -22,6 +23,7 @@ use App\Domain\Media\Vinculaveis;
 use App\Models\Colony;
 use App\Models\ImageBinding;
 use App\Models\MediaAsset;
+use App\Models\Federation;
 use App\Models\News;
 use App\Models\Report;
 use App\Models\TransportSetting;
@@ -541,6 +543,29 @@ class AcoesController extends Controller
                 .($mudou !== '' ? $mudou : 'Nada mudou.')
                 .' Valem no PRÓXIMO combate: os em curso já congelaram a força e o dano.';
         });
+    }
+
+    /**
+     * Federação — alavanca de emergência (D-114). Sem "criar" nem "mover membro" pelo painel:
+     * nenhum sistema comparável (Acordo de Troca, Guerra) tem isso — o operador intervém no
+     * extremo (nome ofensivo, disputa entre jogadores, Líder inativo com colônia zumbi), não no
+     * meio do fluxo do jogador. O saldo do fundo vai para o Tesouro, mesma regra da dissolução
+     * normal (`DissolverFederacao`) — ver docs/decisoes.md D-114.
+     */
+    public function federacaoDissolver(Request $request, Federation $federation, DissolverFederacao $dissolver): RedirectResponse
+    {
+        $dados = $request->validate(['confirmacao' => ['required', 'string']]);
+
+        if ($dados['confirmacao'] !== 'DISSOLVER') {
+            return $this->erro('Digite DISSOLVER, exatamente assim, para confirmar.');
+        }
+
+        return $this->tentar('federacao.dissolver', function () use ($federation, $dissolver) {
+            $nome = $federation->name;
+            $dissolver->handle($federation);
+
+            return "Federação «{$nome}» dissolvida pelo operador. O saldo do fundo foi para o Tesouro.";
+        }, "federation:{$federation->id}");
     }
 
     public function transporte(Request $request): RedirectResponse

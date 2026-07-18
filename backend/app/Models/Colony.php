@@ -23,7 +23,7 @@ class Colony extends Model
 
     protected $fillable = [
         'user_id', 'name', 'x', 'y', 'founded_at', 'milestone', 'fert_micro', 'last_tick_at',
-        'siderurgica_lote_remainder',
+        'siderurgica_lote_remainder', 'federation_id', 'federation_role',
     ];
 
     /**
@@ -62,5 +62,33 @@ class Colony extends Model
     public function vehicles(): HasMany
     {
         return $this->hasMany(Vehicle::class);
+    }
+
+    /** A federação da colônia (D-114) — null se não estiver em nenhuma. */
+    public function federation(): BelongsTo
+    {
+        return $this->belongsTo(Federation::class);
+    }
+
+    public function naFederacao(): bool
+    {
+        return $this->federation_id !== null;
+    }
+
+    public function liderDaFederacao(): bool
+    {
+        return $this->federation_role === Federation::LIDER;
+    }
+
+    /** Líder ou Diplomata: quem convida colônia de fora e aceita pedido de entrada (D-114). */
+    public function podeConvidarParaFederacao(): bool
+    {
+        return in_array($this->federation_role, [Federation::LIDER, Federation::DIPLOMATA], true);
+    }
+
+    /** Líder ou Intendente: quem saca do fundo da federação (D-114). */
+    public function podeSacarDoFundo(): bool
+    {
+        return in_array($this->federation_role, [Federation::LIDER, Federation::INTENDENTE], true);
     }
 }

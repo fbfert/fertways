@@ -5074,3 +5074,110 @@ completa também verde contra MariaDB efêmero (sem migração nesta entrega —
 visual manual (backend efêmero SQLite + Puppeteer): os dois modos alternam por rádio, enviar
 50 Água + 20 Ligas Metálicas a uma colônia confirma na mensagem, enviar 10 Água "a todos" confirma
 contando as colônias fundadas.
+
+---
+
+## D-114 — Federação (§04/§07): o núcleo — cargos, convite/pedido, fundo por entrega física.
+**Data:** 2026-07-19 · **Status:** arbitrado pelo usuário, Fatia 1 · **GDD com contradição interna**
+
+Depois de fechar o lote de transportes/recursos (D-109 a D-113), perguntei ao usuário qual frente
+do GDD ainda em aberto atacar — as opções eram Federação, Leilões e Ranking de Guerras (§27.13),
+todas sem sistema nenhum no jogo hoje. Ele escolheu **Federação**.
+
+### O GDD se contradiz, e a divergência é genuína — duas arbitragens do usuário
+
+O documento tem uma tabela v3.0 (§04 "Sistema de Federações") e uma revisão v3.2 marcada "regra
+definitiva" (dentro de §07 "Comércio entre colonos e federações") que discordam em dois pontos:
+
+1. **Desconto de tributo entre aliados.** v3.0: "50% de desconto nos tributos entre aliadas". v3.2:
+   alianças **não** concedem desconto automático — tratados criam obrigações e janelas de defesa,
+   não descontos. O índice de status do documento aponta pra v3.2 ("tributação única prevalece").
+   **O usuário escolheu a v3.0**: 50% de desconto entre aliados. Fica registrado para uma fatia
+   futura — a Fatia 1 não mexe em tributação nenhuma de entrega; a contribuição ao fundo é
+   tributada NORMALMENTE (100%), deixando o terreno pronto para o desconto entrar depois sem
+   redesenhar a viagem.
+2. **Como o fundo recebe contribuição.** v3.0: uma taxa automática (1–10% da produção diária,
+   padrão 3%) descontada sozinha. v3.2: "armazém/fundo por rota física e livro-razão" — soa como
+   entrega manual por veículo, igual a tudo que a logística do jogo já faz. **O usuário escolheu a
+   v3.2**: entrega física por veículo. Reaproveita `DespacharVeiculo`/`ConcluirTrechos` inteiros —
+   zero mecânica nova de "desconto automático de produção", que não existe em nenhum outro lugar do
+   jogo.
+
+Os quatro cargos (v3.2: Líder, Diplomata, Intendente, Membro — a v3.0 só citava dois) e o teto de
+12 colônias não têm conflito entre as versões — v3.2 só completa o que v3.0 omitiu. O limite
+antimonopólio ("20% → 10%", v3.0) e a fórmula do fundo em % da produção (agora superada pela
+entrega física) ficam **fora da Fatia 1** — vagos demais para arbitrar sem mais contexto do
+usuário.
+
+### Escopo da Fatia 1 — só o núcleo
+
+Fundar/entrar/sair, os quatro cargos, o fundo (entrada por veículo, saída por saque administrativo)
+e o Quartel de Alianças (Capital, slot 9 — antes `reservado`, sem função nenhuma). **Fora, para
+fatias seguintes**: o canal de chat `federacao` (a coluna já aceita o valor desde o D-77, só falta
+o `case` em `EnviarMensagem`/`LerMensagens`), o apoio de aliado ao romper um cerco (§28.10 —
+`RomperCerco` só aceita o dono da zona hoje), a categoria de missão "Federação" (não existe nem
+como valor de enum), a metade que falta do impedimento do conciliador em `Triagem::impedido()`
+(só a parte de acordo comercial está implementada), e o payload da Central de Comunicação da zona
+(construção erguível e inerte desde o D-79, esperando exatamente isto).
+
+### Modelo de dados
+
+`colonies` ganha `federation_id`/`federation_role` — posse DIRETA, sem pivô, mesmo padrão de
+`neutral_zones.owner_colony_id` (uma colônia pertence a no máximo uma federação). `federations`
+nunca é apagada (`disbanded_at`, mesmo padrão de `Admin.desativado_em`) — uma dissolvida vira
+histórico consultável. `federation_holdings`/`federation_ledger` espelham
+`treasury_holdings`/`treasury_ledger` (D-57/D-96), mas não-singleton (N federações, não um Tesouro
+só). `federation_invites` cobre convite E pedido na mesma tabela (`kind` distingue), sem unique de
+schema — a checagem de duplicata vive em código sob `lockForUpdate()`, como o resto do domínio.
+
+### O domínio (`App\Domain\Federacao\`)
+
+Nove classes: `CriarFederacao`, `EnviarConviteOuPedido` (convidar/pedir), `ResponderConviteOuPedido`
+(aceitar/recusar/cancelar), `SairDaFederacao`, `TransferirLideranca`, `ExpulsarMembro`,
+`AlterarCargo`, `SacarDoFundo`, `DissolverFederacao`. A contribuição ao fundo **não ganhou classe
+nova** — estende `DespacharVeiculo::resolverDestino()` (novo ramo `federacao`, coordenadas fixas da
+Capital como `mercado_central`, `destination_id` **nunca** vem do cliente, sempre resolvido da
+federação da própria colônia) e `ConcluirTrechos::concluirIda()` (novo `depositarNaFederacao()`,
+tributa normalmente, credita `federation_holdings`, lança em `federation_ledger`, estaciona no
+Pátio ao final — a mesma regra "só de ida" do Mercado, D-65).
+
+⚠️ **Julgamento do desenvolvedor, sinalizado para o usuário revisitar**: quando a federação
+dissolve (último membro saiu, ou o admin força em emergência), o saldo do fundo vai para o
+**Tesouro**, não para quem saiu por último. Evita o exploit óbvio (expulsar todo mundo e sair por
+último para embolsar o fundo sozinho) e segue a convenção do resto do jogo — valor não reclamado
+sempre cai no Tesouro. Uma divisão proporcional ao histórico de contribuição de cada colônia seria
+mais "justa" e é bem mais complexa; fica fora da Fatia 1.
+
+### Dois bugs de verdade, achados escrevendo os testes
+
+1. **Checagem de permissão no objeto errado.** `EnviarConviteOuPedido::convidar()` e
+   `ResponderConviteOuPedido::exigirPermissao()` checavam `federation_role`/`podeConvidarParaFederacao()`
+   no `Colony` que o controller passou, em vez de reler sob `lockForUpdate()` como
+   `TransferirLideranca`/`ExpulsarMembro`/`AlterarCargo` já faziam. Isso nunca morde em produção
+   (um request HTTP resolve o usuário do zero, uma vez, e usa na hora), mas os testes que simulam
+   várias chamadas em sequência com o mesmo objeto PHP expuseram a inconsistência — e ela é real o
+   bastante para valer a correção: as cinco classes agora relêem os dois lados sob lock, sempre.
+2. **`FIELD()` é MySQL/MariaDB, não existe em SQLite.** `PainelController::federacoes()` e
+   `FederationController::show()` ordenavam membros por cargo com `orderByRaw("field(...)")` —
+   quebrava a suíte inteira (SQLite) sem jamais aparecer num teste que rodasse contra produção
+   (MariaDB), a mesma classe de armadilha do D-59 ("SQLite mente"), agora em SQL de ordenação, não
+   em DDL de migration. Corrigido ordenando em PHP (`sortBy` sobre `Federation::CARGOS`).
+
+### Admin
+
+Nova aba **Federações** (`/central/admin/federacoes`): leitura (todas as federações, membros,
+fundo, extrato) + uma alavanca de emergência, "Dissolver" (exige escrever `DISSOLVER`, mesmo padrão
+de `REALOCAR`/`DEMOLIR`). Sem criar federação nem mover membro pelo admin — nenhum sistema
+comparável (Acordo de Troca, Guerra) tem isso; o operador intervém no extremo, não no meio do fluxo
+do jogador. A dissolução de emergência precisou de um ajuste que a saída normal não expunha:
+`DissolverFederacao` agora desliga **todos** os membros que ainda restarem (o caminho normal já
+chega com zero, porque quem sai por último se desliga antes de chamar; o admin pode dissolver com
+vários ativos).
+
+Validado: `php artisan test` completo (728 — 33 novos: `FederacaoNucleoTest` 19, `FederacaoFundoTest`
+9, `FederacaoAdminTest` 5), suíte completa também verde contra MariaDB efêmero (fresh + rollback +
+migrate para a migration nova), `tsc`/`lint`/`build` limpos, e2e completo (9/9 verde — nenhuma
+mudança de contrato em rotas existentes, só aditivo). Checagem visual manual (backend efêmero +
+Puppeteer, dois colonos em contextos de navegador isolados): fundar, convidar, o segundo colono
+aceitando e virando Membro, um despacho de verdade para o Quartel de Alianças, e a tela do
+operador em `/admin/federacoes` com a lista, o detalhe e o formulário de dissolução.
