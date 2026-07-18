@@ -491,7 +491,7 @@ class PainelController extends Controller
 
     public function transportes(Request $request): View
     {
-        $abas = ['ministerio', 'garagem', 'frota'];
+        $abas = ['ministerio', 'fabrica', 'garagem', 'frota'];
         $aba = in_array($request->query('aba'), $abas, true) ? $request->query('aba') : 'ministerio';
 
         $dados = [
@@ -501,11 +501,14 @@ class PainelController extends Controller
         ];
 
         if ($aba === 'ministerio') {
-            $dados['frotaGoverno'] = [
-                'estoque' => Vehicle::whereNull('colony_id')->where('status', 'estoque')->count(),
-                'fabricando' => Vehicle::whereNull('colony_id')->where('status', 'fabricando')->count(),
-                'alvo' => Ministerio::ESTOQUE_ALVO,
-            ];
+            $dados['frotaGoverno'] = [];
+            foreach (Ministerio::TIPOS as $tipo) {
+                $dados['frotaGoverno'][$tipo] = [
+                    'estoque' => Vehicle::whereNull('colony_id')->where('type', $tipo)->where('status', 'estoque')->count(),
+                    'fabricando' => Vehicle::whereNull('colony_id')->where('type', $tipo)->where('status', 'fabricando')->count(),
+                    'alvo' => Ministerio::config($tipo)['estoque_alvo'],
+                ];
+            }
             $dados['volumeVeiculos'] = [
                 'registrados' => Vehicle::whereNotNull('plate')->count(),
                 'em_rota' => Vehicle::where('status', 'em_rota')->count(),
@@ -516,6 +519,19 @@ class PainelController extends Controller
                 'vendidos_7d' => VehicleListing::where('status', 'concluido')
                     ->where('updated_at', '>=', now()->subDays(7))->count(),
             ];
+        }
+
+        // A Fábrica (D-109): preço, estoque-alvo, tempo e custo em recursos, por tipo — hoje
+        // admin-editável, antes era constante de PHP.
+        if ($aba === 'fabrica') {
+            $dados['fabricaConfig'] = collect(Ministerio::TIPOS)
+                ->mapWithKeys(fn ($tipo) => [$tipo => Ministerio::config($tipo)]);
+            $dados['fabricaEstoque'] = collect(Ministerio::TIPOS)->mapWithKeys(fn ($tipo) => [
+                $tipo => [
+                    'estoque' => Vehicle::whereNull('colony_id')->where('type', $tipo)->where('status', 'estoque')->count(),
+                    'fabricando' => Vehicle::whereNull('colony_id')->where('type', $tipo)->where('status', 'fabricando')->count(),
+                ],
+            ]);
         }
 
         // A Garagem do frete público (D-76): a frota real do serviço do §07.

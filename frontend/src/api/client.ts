@@ -449,11 +449,21 @@ export type Veiculo = {
    * servidor recusa.
    */
   capacity_efetiva: number
-  /** Onde ele está parado (D-65): em casa, ou no Pátio Logístico da Capital. */
-  local: 'colonia' | 'capital'
+  /**
+   * Onde ele está parado: em casa, no Pátio Logístico da Capital, ou — desde o D-109 — numa Zona
+   * Neutra sua (só chega lá vazio, por reposicionamento explícito).
+   */
+  local: 'colonia' | 'capital' | 'zona'
   parked_at: string | null
   leg: 'ida' | 'volta' | null
-  trip_purpose: 'entrega' | 'retirada' | 'reboque' | 'entrega_de_fabrica' | 'venda_usado' | null
+  trip_purpose:
+    | 'entrega'
+    | 'retirada'
+    | 'reboque'
+    | 'entrega_de_fabrica'
+    | 'venda_usado'
+    | 'reposicionamento'
+    | null
   distance_slots: number | null
   destination_type: string | null
   destination_id: number | null
@@ -699,15 +709,18 @@ export type AnuncioUsado = {
   veiculo: RegistroVeiculo
 }
 
+export type ItemDaFabrica = {
+  tipo: string
+  preco_fert: number
+  capacidade: number
+  em_estoque: number
+  em_fabricacao: number
+  minutos_fabricacao: number
+}
+
 export type Transportes = {
-  caminhao: {
-    tipo: string
-    preco_fert: number
-    capacidade: number
-    em_estoque: number
-    em_fabricacao: number
-    minutos_fabricacao: number
-  }
+  /** Desde o D-109: uma entrada por tipo que a fábrica produz — hoje Caminhão e Furgão. */
+  fabrica: Record<string, ItemDaFabrica>
   frota: { teto: number; ocupadas: number; livres: number; regra: string }
   veiculos: RegistroVeiculo[]
   /** A 6ª atribuição do painel do §16, na porção que vai ao colono. */
@@ -820,11 +833,16 @@ export const api = {
   noticias: () => req<Noticias>('/news'),
 
   /**
-   * Ministério dos Transportes (§16, slot 8): a vitrine do Caminhão, a prateleira do governo e a
-   * frota do colono com as placas. Desde o D-60, é o único lugar do planeta que fabrica caminhão.
+   * Ministério dos Transportes (§16, slot 8): a vitrine da fábrica, a prateleira do governo e a
+   * frota do colono com as placas. Desde o D-60, é o único lugar do planeta que fabrica veículo —
+   * e desde o D-109, fabrica os dois tipos (Caminhão de Carga e Furgão de Comércio).
    */
   transportes: () => req<Transportes>('/transport'),
-  comprarCaminhao: () => req<{ comprado: CaminhaoComprado }>('/transport/buy', { method: 'POST' }),
+  comprarVeiculo: (tipo: string) =>
+    req<{ comprado: CaminhaoComprado }>('/transport/buy', {
+      method: 'POST',
+      body: JSON.stringify({ tipo }),
+    }),
 
   /** §16.4: restaura o desempenho, mas corrói a vida útil e o teto de revenda. Custa recursos. */
   repararVeiculo: (id: number) =>
@@ -1058,6 +1076,22 @@ export const api = {
     req<Veiculo>(`/vehicles/${veiculo}/dispatch`, {
       method: 'POST',
       body: JSON.stringify({ destination_type: 'mercado_central', cargo }),
+    }),
+
+  /**
+   * Reposiciona um veículo VAZIO (D-109) — substitui o antigo "Chamar de volta": do Pátio, para
+   * casa ou para uma zona neutra sua; de casa, para a Capital ou para uma zona neutra sua; de uma
+   * zona neutra sua, só de volta para casa. O servidor decide o que aquele destino aceita a partir
+   * de onde o veículo está agora — esta função só varia o destino.
+   */
+  reposicionarVazio: (
+    veiculo: number,
+    destinationType: 'colonia' | 'mercado_central' | 'zona_neutra',
+    destinationId: number | null,
+  ) =>
+    req<Veiculo>(`/vehicles/${veiculo}/dispatch`, {
+      method: 'POST',
+      body: JSON.stringify({ destination_type: destinationType, destination_id: destinationId, cargo: {} }),
     }),
 
   /**

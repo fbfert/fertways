@@ -486,6 +486,115 @@ class AcoesController extends Controller
         });
     }
 
+    /**
+     * A Fábrica (D-109): preço, estoque-alvo, tempo de fabricação e custo em recursos de UM tipo
+     * de veículo. `updateOrInsert` em `fabrica_veiculos` — a mesma tabela que a migration semeou
+     * uma vez só; nenhum Seeder a toca depois, então o ajuste do admin nunca é apagado.
+     */
+    public function fabricaConfig(Request $request): RedirectResponse
+    {
+        $dados = $request->validate([
+            'tipo' => ['required', 'string', Rule::in(\App\Domain\Transport\Ministerio::TIPOS)],
+            'preco_fert' => ['required', 'numeric', 'min:0.000001'],
+            'estoque_alvo' => ['required', 'integer', 'min:0', 'max:255'],
+            'minutos_fabricacao' => ['required', 'integer', 'min:1', 'max:100000'],
+            // Mesmo formato recurso:quantidade das outras telas (missões, Gestão de Construções).
+            'custo' => ['required', 'string', 'max:2000'],
+        ]);
+
+        $custo = [];
+        foreach (explode("\n", $dados['custo']) as $linha) {
+            $linha = trim($linha);
+            if ($linha === '') {
+                continue;
+            }
+
+            [$recurso, $qtd] = array_pad(explode(':', $linha, 2), 2, null);
+            $recurso = trim((string) $recurso);
+            $qtd = (int) trim((string) $qtd);
+
+            if ($recurso === '' || $qtd <= 0) {
+                throw ValidationException::withMessages([
+                    'custo' => "Linha inválida: «{$linha}». Use recurso:quantidade, um por linha.",
+                ]);
+            }
+
+            if (! \App\Models\ResourceType::whereKey($recurso)->exists()) {
+                throw ValidationException::withMessages([
+                    'custo' => "«{$recurso}» não é um recurso do catálogo.",
+                ]);
+            }
+
+            $custo[$recurso] = $qtd;
+        }
+
+        return $this->tentar('fabrica.config', function () use ($dados, $custo) {
+            \Illuminate\Support\Facades\DB::table('fabrica_veiculos')->where('tipo', $dados['tipo'])->update([
+                'preco_micro' => (int) round(((float) $dados['preco_fert']) * 1_000_000),
+                'estoque_alvo' => $dados['estoque_alvo'],
+                'minutos_fabricacao' => $dados['minutos_fabricacao'],
+                'custo_json' => json_encode($custo, JSON_UNESCAPED_UNICODE),
+                'admin_id' => auth('admin')->id(),
+                'updated_at' => now(),
+            ]);
+
+            return "Fábrica de {$dados['tipo']} atualizada: {$dados['preco_fert']} Fert$, estoque-alvo {$dados['estoque_alvo']}.";
+        }, "fabrica:{$dados['tipo']}");
+    }
+
+    /**
+     * Encomenda avulsa (D-109): um empurrão pontual na prateleira de um tipo, fora do ciclo do
+     * tick — reaproveita a MESMA regra de custo (debita o Tesouro, cria o veículo em
+     * `fabricando`), só que disparada na hora pelo operador, N vezes. Não muda o estoque-alvo: o
+     * tick volta a repor só até ele depois que este excedente for vendido.
+     */
+    public function fabricaEncomendar(Request $request): RedirectResponse
+    {
+        $dados = $request->validate([
+            'tipo' => ['required', 'string', Rule::in(\App\Domain\Transport\Ministerio::TIPOS)],
+            'quantidade' => ['required', 'integer', 'min:1', 'max:50'],
+        ]);
+
+        return $this->tentar('fabrica.encomendar', function () use ($dados) {
+            $config = \App\Domain\Transport\Ministerio::config($dados['tipo']);
+            $tesouro = app(\App\Domain\Treasury\Tesouro::class);
+            $placas = app(\App\Domain\Transport\Placas::class);
+            $feitos = 0;
+
+            for ($i = 0; $i < $dados['quantidade']; $i++) {
+                $ok = \Illuminate\Support\Facades\DB::transaction(function () use ($config, $dados, $tesouro, $placas) {
+                    if (! $tesouro->gastar($config['custo'], "fabricacao_avulsa:{$dados['tipo']}")) {
+                        return false;
+                    }
+
+                    $veiculo = \App\Models\Vehicle::create([
+                        'colony_id' => null,
+                        'type' => $dados['tipo'],
+                        'level' => 1,
+                        'status' => 'fabricando',
+                        'capacity' => \App\Domain\Logistics\VeiculoSpecs::CAPACIDADE[$dados['tipo']],
+                        'ready_at' => now()->addMinutes($config['minutos_fabricacao']),
+                    ]);
+                    $placas->registrar($veiculo);
+
+                    return true;
+                });
+
+                if (! $ok) {
+                    break;
+                }
+
+                $feitos++;
+            }
+
+            if ($feitos < $dados['quantidade']) {
+                return "Encomendados {$feitos} de {$dados['quantidade']} — o Tesouro não teve para o resto.";
+            }
+
+            return "Encomendados {$feitos} {$dados['tipo']}(s) avulsos. Ficam prontos em {$config['minutos_fabricacao']} min.";
+        }, "fabrica:{$dados['tipo']}");
+    }
+
     /** Os cinco valores de XP do Marco (D-75). A CURVA (50×N²) não está aqui: é arbitragem, não balanceamento. */
     public function marco(Request $request): RedirectResponse
     {

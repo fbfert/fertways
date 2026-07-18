@@ -152,11 +152,15 @@ try {
   checar(opcoes.length > 0, `o seletor lista os veículos do pátio (${opcoes.length})`)
 
   await page.select('[data-usado-veiculo]', opcoes[0])
-  // O aditivo 14 morreu no D-73: o Furgão GANHOU teto (referência do operador × conservação),
-  // porque sem ele a venda de usado era a porta da lavagem de Fert$ entre contas.
+  /*
+   * O aditivo 14 morreu no D-73: o Furgão GANHOU teto, porque sem ele a venda de usado era a
+   * porta da lavagem de Fert$ entre contas. Até o D-109 a âncora era uma referência do operador
+   * (60 F$); desde o D-109 o Ministério vende o Furgão de verdade, e o teto ancora no preço de
+   * fábrica dele (150 F$), igual ao Caminhão.
+   */
   checar(
-    await esperarTexto(page, /Teto de revenda: .*60 F\$/),
-    'e mostra o teto do Furgão: 60 F$ — a referência do operador, novo no D-73',
+    await esperarTexto(page, /Teto de revenda: .*150 F\$/),
+    'e mostra o teto do Furgão: 150 F$ — o preço de fábrica dele, desde o D-109',
   )
 
   await page.type('[data-usado-preco]', '50')
@@ -179,7 +183,7 @@ try {
 
   console.log('\nCompra um Caminhão de Carga')
   const vagasAntes = await page.$eval('[data-vagas]', (el) => el.getAttribute('data-vagas'))
-  await page.click('[data-comprar-caminhao]')
+  await page.click('[data-comprar-veiculo="caminhao_de_carga"]')
 
   checar(
     await esperarTexto(page, /vem dirigindo da Capital/),

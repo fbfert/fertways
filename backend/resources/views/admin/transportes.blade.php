@@ -5,9 +5,13 @@
     $quando = fn ($d) => $d ? \Illuminate\Support\Carbon::parse($d)->format("d/m H:i") : "—";
     $abas = [
         "ministerio" => "Ministério dos Transportes",
+        "fabrica" => "Fábrica",
         "garagem" => "Garagem do Governo",
         "frota" => "Frota do Planeta",
     ];
+    $nomeVeiculo = fn ($tipo) => $tipo === "caminhao_de_carga" ? "Caminhão de Carga" : "Furgão de Comércio";
+    $paraTextoCusto = fn (array $custo) => collect($custo)
+        ->map(fn ($q, $r) => "{$r}:{$q}")->implode("\n");
     $colunas = [
         'placa' => 'Placa', 'tipo' => 'Tipo', 'dono' => 'Dono', 'situacao' => 'Situação',
         'conservacao' => 'Conservação', 'teto' => 'Teto', 'manutencao' => 'Manut.', 'uso' => 'Uso',
@@ -47,14 +51,20 @@
             </p>
 
             <table style="margin-top:8px">
-                <tr><th>Frota do governo</th><th class="num">Agora</th></tr>
-                <tr><td>Caminhões na prateleira (alvo: {{ $frotaGoverno['alvo'] }})</td><td class="num" data-estoque-governo>{{ $frotaGoverno['estoque'] }}</td></tr>
-                <tr><td>Na linha de montagem</td><td class="num">{{ $frotaGoverno['fabricando'] }}</td></tr>
+                <tr><th>Frota do governo</th><th class="num">Na prateleira</th><th class="num">Alvo</th><th class="num">Na linha de montagem</th></tr>
+                @foreach ($frotaGoverno as $tipo => $linha)
+                    <tr data-frota-governo="{{ $tipo }}">
+                        <td>{{ $nomeVeiculo($tipo) }}</td>
+                        <td class="num" data-estoque-governo="{{ $tipo }}">{{ $linha['estoque'] }}</td>
+                        <td class="num">{{ $linha['alvo'] }}</td>
+                        <td class="num">{{ $linha['fabricando'] }}</td>
+                    </tr>
+                @endforeach
             </table>
             <p class="mut pequeno" style="margin-top:6px">
-                A reposição consome o caixa do Tesouro (90 Ligas, 25 Componentes, 16 Metal Bruto por
-                caminhão). <b>Se o Tesouro secar, a prateleira não se repõe</b> — e ninguém compra
-                caminhão.
+                Preço, estoque-alvo, tempo de fabricação e custo em recursos — por tipo — se
+                configuram na aba <b>Fábrica</b>. <b>Se o Tesouro secar, a prateleira não se
+                repõe</b> — e ninguém compra veículo.
             </p>
 
             <table style="margin-top:12px">
@@ -114,14 +124,77 @@
                 <b>{{ $transporte->perda_de_teto_bps / 100 }} pontos</b> a cada manutenção.
             </p>
             <p class="mut pequeno">
-                A <b>referência do Furgão</b>
+                O campo <b>Referência do Furgão</b> acima
                 (hoje <b>{{ number_format($transporte->furgao_preco_referencia_micro / 1000000, 2, ',', '.') }} Fert$</b>)
-                é a âncora do teto de revenda dele no mercado de usados — teto = referência × conservação
-                (D-73). <b>Não é preço de venda</b>: o Ministério continua não vendendo Furgão. Antes dela,
-                um Furgão sucateado anunciado por 5.000 Fert$ movia dinheiro limpo entre duas contas do
-                mesmo jogador, sem carga e sem tributo. O Caminhão usa o preço de fábrica (300 Fert$).
+                é um resquício do D-73: era a âncora do teto de revenda do Furgão no mercado de
+                usados, de quando o Ministério ainda não o vendia. <b>Desde o D-109, o Furgão tem
+                preço de fábrica de verdade</b> (aba Fábrica) — é ele que ancora o teto agora, para
+                os dois tipos igual. Este campo continua salvando, mas não é mais lido em lugar
+                nenhum; fica no formulário só porque não valia uma migration para removê-lo.
             </p>
         </div>
+    @endif
+
+    {{-- ── A Fábrica (D-109): preço, estoque-alvo, tempo e custo, por tipo ── --}}
+    @if ($aba === "fabrica")
+        <h2 class="secao">Fábrica</h2>
+        <p class="mut pequeno">
+            Preço de venda, estoque-alvo (o que a linha de montagem repõe sozinha no tick), tempo de
+            fabricação e custo em recursos (sai do caixa do Tesouro) — por tipo de veículo. O
+            Caminhão de Carga é do GDD (§21.3); o Furgão de Comércio é novo (D-109), vendido a 150
+            Fert$, com custo e tempo de fabricação em 40% do Caminhão.
+        </p>
+
+        @foreach ($fabricaConfig as $tipo => $config)
+            <div class="cartao" style="margin-top:12px" data-fabrica-tipo="{{ $tipo }}">
+                <h3 style="margin:0 0 6px">{{ $nomeVeiculo($tipo) }}</h3>
+                <p class="mut pequeno">
+                    Na prateleira agora: <b>{{ $fabricaEstoque[$tipo]['estoque'] }}</b> ·
+                    na linha de montagem: <b>{{ $fabricaEstoque[$tipo]['fabricando'] }}</b>
+                </p>
+
+                <form method="POST" action="{{ route('admin.fabrica.config') }}" class="linha-form">
+                    @csrf
+                    <input type="hidden" name="tipo" value="{{ $tipo }}">
+                    <div style="flex:0">
+                        <label>Preço (Fert$)</label>
+                        <input type="number" step="0.000001" min="0.000001" name="preco_fert"
+                               value="{{ number_format($config['preco_micro'] / 1000000, 6, '.', '') }}" required style="width:120px">
+                    </div>
+                    <div style="flex:0">
+                        <label>Estoque-alvo</label>
+                        <input type="number" min="0" max="255" name="estoque_alvo"
+                               value="{{ $config['estoque_alvo'] }}" required style="width:90px">
+                    </div>
+                    <div style="flex:0">
+                        <label>Minutos de fabricação</label>
+                        <input type="number" min="1" name="minutos_fabricacao"
+                               value="{{ $config['minutos_fabricacao'] }}" required style="width:90px">
+                    </div>
+                    <div>
+                        <label>Custo — <code>recurso:quantidade</code> por linha</label>
+                        <textarea name="custo" rows="2" style="width:100%" required>{{ $paraTextoCusto($config['custo']) }}</textarea>
+                    </div>
+                    <div style="flex:0"><button data-salvar-fabrica="{{ $tipo }}">Salvar</button></div>
+                </form>
+
+                <form method="POST" action="{{ route('admin.fabrica.encomendar') }}" class="linha-form" style="margin-top:10px">
+                    @csrf
+                    <input type="hidden" name="tipo" value="{{ $tipo }}">
+                    <div style="flex:0">
+                        <label>Encomenda avulsa</label>
+                        <input type="number" min="1" max="50" name="quantidade" value="1" style="width:70px">
+                    </div>
+                    <div style="flex:0">
+                        <button class="leve" data-encomendar-fabrica="{{ $tipo }}">Encomendar agora</button>
+                    </div>
+                    <span class="mut pequeno">
+                        Empurrão pontual, fora do tick — não muda o estoque-alvo. Debita o Tesouro na
+                        hora, mesma regra da reposição automática.
+                    </span>
+                </form>
+            </div>
+        @endforeach
     @endif
 
     {{-- ── A Garagem do Governo (§07; D-76): a frota real do frete público ── --}}

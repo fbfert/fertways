@@ -135,20 +135,22 @@ class Conservacao
      * **E o Furgão passou a ter uma (D-73).** Ele ficou sem teto do aditivo 14 do D-52 até
      * 2026-07-13 — o Ministério não o vende, logo não havia preço de fábrica — e era por esse buraco
      * que duas contas do mesmo jogador podiam **lavar Fert$**: um Furgão sucateado anunciado por
-     * 5.000 Fert$ move dinheiro limpo pelo escrow, sem carga e sem tributo. O usuário reviu: a âncora
-     * é um **preço de referência do operador** (60 Fert$ por padrão — a proporção da capacidade: 1/5
-     * do Caminhão de 300), no painel dos Transportes. Referência, não preço de venda: o Ministério
-     * continua não vendendo Furgão.
+     * 5.000 Fert$ move dinheiro limpo pelo escrow, sem carga e sem tributo. A âncora era, até o
+     * D-109, um **preço de referência do operador** (`furgao_preco_referencia_micro`, em
+     * `transport_settings`) — porque não havia preço de fábrica de verdade.
+     *
+     * **Desde o D-109, há.** O Ministério passou a fabricar e vender o Furgão também — e a âncora
+     * volta a ser a mesma regra do Caminhão: o preço de fábrica de `Ministerio::config()`, agora
+     * por tipo. `furgao_preco_referencia_micro` fica no schema (não vale a pena uma migration só
+     * para tirá-lo), mas deixa de ser lido aqui.
      *
      * @return int|null micro-Fert$; `null` = sem teto (Nave e Drone não passam pelo mercado de usados)
      */
     public function tetoDeRevendaMicro(Vehicle $veiculo): ?int
     {
-        $referencia = match ($veiculo->type) {
-            Ministerio::TIPO => Ministerio::PRECO_MICRO,
-            'furgao_de_comercio' => (int) $this->config()->furgao_preco_referencia_micro,
-            default => null,
-        };
+        $referencia = in_array($veiculo->type, Ministerio::TIPOS, true)
+            ? Ministerio::config($veiculo->type)['preco_micro']
+            : null;
 
         if ($referencia === null) {
             return null;

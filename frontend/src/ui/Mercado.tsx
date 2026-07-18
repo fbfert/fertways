@@ -5,11 +5,13 @@ import type {
   ColoniaVizinha,
   ContaDoMercado,
   Frota,
+  MinhaZona,
   OfertaGlobal,
   SaldoDoRecurso,
   Veiculo,
   Vitrine,
 } from '../api/client'
+import { Popup } from './Popup'
 import { OfertarEntreColonos, VerOfertasDeColonos } from './Acordos'
 import { fert, nomeRecurso, nomeVeiculo, paraMicro, relogio, segundosRestantes } from './recursos'
 
@@ -67,6 +69,7 @@ export function Mercado({
   const [conta, setConta] = useState<ContaDoMercado | null>(null)
   const [vitrine, setVitrine] = useState<Vitrine | null>(null)
   const [vizinhas, setVizinhas] = useState<ColoniaVizinha[]>([])
+  const [zonas, setZonas] = useState<MinhaZona[]>([])
   const [erro, setErro] = useState<string | null>(null)
 
   const carregar = useCallback(async () => {
@@ -100,6 +103,19 @@ export function Mercado({
       })
   }, [])
 
+  /**
+   * As minhas zonas neutras — destino do despacho vazio (D-109), ao lado de casa/Capital. Mesma
+   * lógica do diretório: muda raro, uma busca ao abrir a tela basta.
+   */
+  useEffect(() => {
+    api
+      .minhasZonas()
+      .then((r) => setZonas(r.zones))
+      .catch((e: unknown) => {
+        if (e instanceof ApiError) setErro(e.message)
+      })
+  }, [])
+
   // Faz as contagens regressivas andarem sem bater na API.
   const [, tique] = useState(0)
   useEffect(() => {
@@ -117,10 +133,12 @@ export function Mercado({
     }
   }
 
-  // Os dois pátios (D-65): quem está ocioso **em casa** e quem está ocioso **na Capital**. Um
-  // veículo no Pátio não pode sair de casa, e um veículo em casa não carrega do depósito.
+  // Os três lugares onde um veículo ocioso pode estar (D-65, e a zona neutra desde o D-109): em
+  // casa, no Pátio da Capital, ou estacionado numa zona sua. Um veículo no Pátio não pode sair de
+  // casa, e um veículo em casa não carrega do depósito.
   const emCasa = frota?.vehicles.filter((v) => v.status === 'ocioso' && v.local === 'colonia') ?? []
   const noPatio = frota?.vehicles.filter((v) => v.status === 'ocioso' && v.local === 'capital') ?? []
+  const naZona = frota?.vehicles.filter((v) => v.status === 'ocioso' && v.local === 'zona') ?? []
 
   return (
     <div className="bg-sand fixed inset-0 z-20 overflow-y-auto">
@@ -174,7 +192,9 @@ export function Mercado({
             conta={conta}
             emCasa={emCasa}
             noPatio={noPatio}
+            naZona={naZona}
             vizinhas={vizinhas}
+            zonas={zonas}
             agir={agir}
           />
         )}
@@ -289,14 +309,18 @@ function PatioEDeposito({
   conta,
   emCasa,
   noPatio,
+  naZona,
   vizinhas,
+  zonas,
   agir,
 }: {
   colonia: Colonia
   conta: ContaDoMercado | null
   emCasa: Veiculo[]
   noPatio: Veiculo[]
+  naZona: Veiculo[]
   vizinhas: ColoniaVizinha[]
+  zonas: MinhaZona[]
   agir: (a: () => Promise<unknown>) => Promise<void>
 }) {
   const naDoca = conta?.balances ?? []
@@ -345,7 +369,7 @@ function PatioEDeposito({
         ) : (
           <div className="mt-2 space-y-2">
             {noPatio.map((v) => (
-              <LinhaVeiculo key={v.id} v={v} vizinhas={vizinhas} colonia={colonia} agir={agir} />
+              <LinhaVeiculo key={v.id} v={v} vizinhas={vizinhas} colonia={colonia} zonas={zonas} agir={agir} />
             ))}
           </div>
         )}
@@ -355,9 +379,25 @@ function PatioEDeposito({
           {emCasa.length === 0 ? (
             <p className="text-ink-soft text-sm">Nenhum veículo ocioso na colônia.</p>
           ) : (
-            emCasa.map((v) => <LinhaVeiculo key={v.id} v={v} vizinhas={vizinhas} />)
+            emCasa.map((v) => (
+              <LinhaVeiculo key={v.id} v={v} vizinhas={vizinhas} colonia={colonia} zonas={zonas} agir={agir} />
+            ))
           )}
         </div>
+
+        {naZona.length > 0 && (
+          <>
+            <div className="text-rust eyebrow mt-6">Numa zona neutra ({naZona.length})</div>
+            <p className="text-ink-soft/80 mt-1 text-xs">
+              Estacionado lá desde que você o reposicionou (D-109). Hoje só pode voltar para casa.
+            </p>
+            <div className="mt-2 space-y-2">
+              {naZona.map((v) => (
+                <LinhaVeiculo key={v.id} v={v} vizinhas={vizinhas} colonia={colonia} zonas={zonas} agir={agir} />
+              ))}
+            </div>
+          </>
+        )}
       </section>
 
       <section className="space-y-6">
@@ -404,11 +444,13 @@ function LinhaVeiculo({
   v,
   vizinhas,
   colonia,
+  zonas,
   agir,
 }: {
   v: Veiculo
   vizinhas: ColoniaVizinha[]
   colonia?: Colonia
+  zonas?: MinhaZona[]
   agir?: (a: () => Promise<unknown>) => Promise<void>
 }) {
   const restam = segundosRestantes(v.arrives_at)
@@ -419,13 +461,18 @@ function LinhaVeiculo({
    * intervalo entre abrir a tela e o diretório chegar, e para um destino que suma da lista.
    */
   const alvo = vizinhas.find((c) => c.id === v.destination_id)
+  const zonaAlvo = zonas?.find((z) => z.id === v.destination_id)
 
   const destino =
     v.destination_type === 'mercado_central'
       ? 'a Capital'
-      : alvo
-        ? `a colônia de ${alvo.nickname}`
-        : `a colônia #${v.destination_id}`
+      : v.destination_type === 'zona_neutra'
+        ? zonaAlvo
+          ? `a zona ${zonaAlvo.name ?? `(${zonaAlvo.x},${zonaAlvo.y})`}`
+          : 'a uma zona neutra'
+        : alvo
+          ? `a colônia de ${alvo.nickname}`
+          : `a colônia #${v.destination_id}`
 
   return (
     <div className="border-rust/15 border p-2" data-veiculo={v.id}>
@@ -433,7 +480,7 @@ function LinhaVeiculo({
         <span className="text-ink text-sm font-bold">{nomeVeiculo(v.type)}</span>
         {v.status === 'ocioso' ? (
           <span className="text-ink-soft text-xs">
-            {v.local === 'capital' ? 'no Pátio da Capital' : 'ocioso'}
+            {v.local === 'capital' ? 'no Pátio da Capital' : v.local === 'zona' ? 'numa zona neutra' : 'ocioso'}
           </span>
         ) : (
           <span className="text-rust font-bold tabular-nums">{relogio(restam)}</span>
@@ -448,9 +495,11 @@ function LinhaVeiculo({
               : 'voltando carregado ao seu slot'
             : v.trip_purpose === 'reboque'
               ? 'rebocado da Capital: sem Fert$ para a hora do Pátio'
-              : v.leg === 'ida'
-                ? `levando carga para ${destino}`
-                : 'voltando para casa'}
+              : v.trip_purpose === 'reposicionamento'
+                ? `indo vazio, reposicionando para ${destino}`
+                : v.leg === 'ida'
+                  ? `levando carga para ${destino}`
+                  : 'voltando para casa'}
           {v.cargo && (
             <span>
               {' · '}
@@ -469,16 +518,82 @@ function LinhaVeiculo({
         )}
       </div>
 
-      {/* Vazio, de volta para casa (D-91): paga a energia da distância, mas não exige carga nem
-          Confiança Comercial — é resgatar o próprio veículo, não usar o Mercado. */}
-      {v.status === 'ocioso' && v.local === 'capital' && colonia && agir && (
-        <button
-          onClick={() => agir(() => api.enviarAColonia(v.id, colonia.id, {}))}
-          className="text-rust hover:text-rust/70 mt-1.5 text-xs font-bold"
-        >
-          Chamar de volta (vazio)
-        </button>
+      {v.status === 'ocioso' && colonia && zonas && agir && (
+        <SeletorDeDestino v={v} colonia={colonia} zonas={zonas} agir={agir} />
       )}
+    </div>
+  )
+}
+
+/**
+ * Reposiciona um veículo vazio (D-109) — substitui o antigo botão único "Chamar de volta". As
+ * opções mudam com onde o veículo está: do Pátio, casa ou uma zona sua; de casa, a Capital ou uma
+ * zona sua; de uma zona, hoje só casa (o backend recusa o resto — ver `DespacharVeiculo`).
+ */
+function SeletorDeDestino({
+  v,
+  colonia,
+  zonas,
+  agir,
+}: {
+  v: Veiculo
+  colonia: Colonia
+  zonas: MinhaZona[]
+  agir: (a: () => Promise<unknown>) => Promise<void>
+}) {
+  type Opcao = { valor: string; rotulo: string; tipo: 'colonia' | 'mercado_central' | 'zona_neutra'; id: number | null }
+
+  const opcoes: Opcao[] =
+    v.local === 'capital'
+      ? [
+          { valor: 'casa', rotulo: 'Casa', tipo: 'colonia', id: colonia.id },
+          ...zonas.map((z) => ({
+            valor: `zona:${z.id}`,
+            rotulo: z.name ?? `Zona (${z.x},${z.y})`,
+            tipo: 'zona_neutra' as const,
+            id: z.id,
+          })),
+        ]
+      : v.local === 'colonia'
+        ? [
+            { valor: 'capital', rotulo: 'Capital', tipo: 'mercado_central', id: null },
+            ...zonas.map((z) => ({
+              valor: `zona:${z.id}`,
+              rotulo: z.name ?? `Zona (${z.x},${z.y})`,
+              tipo: 'zona_neutra' as const,
+              id: z.id,
+            })),
+          ]
+        : [{ valor: 'casa', rotulo: 'Casa', tipo: 'colonia', id: colonia.id }]
+
+  const [escolha, setEscolha] = useState(opcoes[0]?.valor ?? '')
+  const selecionada = opcoes.find((o) => o.valor === escolha)
+
+  if (opcoes.length === 0) return null
+
+  return (
+    <div className="mt-1.5 flex items-center gap-1.5">
+      <select
+        aria-label="Enviar vazio para"
+        value={escolha}
+        onChange={(e) => setEscolha(e.target.value)}
+        className="border-rust/25 bg-sand focus:border-rust border px-1.5 py-1 text-xs outline-none"
+      >
+        {opcoes.map((o) => (
+          <option key={o.valor} value={o.valor}>
+            {o.rotulo}
+          </option>
+        ))}
+      </select>
+      <button
+        onClick={() =>
+          selecionada && agir(() => api.reposicionarVazio(v.id, selecionada.tipo, selecionada.id))
+        }
+        disabled={!selecionada}
+        className="text-rust hover:text-rust/70 text-xs font-bold disabled:cursor-not-allowed disabled:opacity-40"
+      >
+        Enviar vazio
+      </button>
     </div>
   )
 }
@@ -1054,6 +1169,7 @@ function LinhaDaVitrine({
 }) {
   const [qtd, setQtd] = useState('')
   const quantidade = Number(qtd) || oferta.qty
+  const [confirmacao, setConfirmacao] = useState<{ qtd: number; recurso: string } | null>(null)
 
   /*
    * Executar uma VENDA alheia é comprar: preciso de espaço no depósito para receber.
@@ -1124,7 +1240,12 @@ function LinhaDaVitrine({
             <button
               disabled={!!impedimento || quantidade <= 0 || quantidade > oferta.qty}
               onClick={() => {
-                void agir(() => api.executarOferta(oferta.id, quantidade)).then(() => setQtd(''))
+                void agir(() => api.executarOferta(oferta.id, quantidade)).then(() => {
+                  setQtd('')
+                  // Só ao COMPRAR (a oferta era de venda): quem vende não precisa de aviso, o
+                  // Fert$ dele entra sem mistério nenhum — é o recurso chegando que é a novidade.
+                  if (vende) setConfirmacao({ qtd: quantidade, recurso: oferta.resource_type })
+                })
               }}
               className="bg-rust text-sand-light hover:bg-rust-bright px-4 py-1.5 text-sm font-bold disabled:cursor-not-allowed disabled:opacity-40"
             >
@@ -1135,6 +1256,18 @@ function LinhaDaVitrine({
       </div>
 
       {impedimento && <p className="text-rust mt-1 text-xs font-bold">{impedimento}</p>}
+
+      {confirmacao && (
+        <Popup titulo="Compra concluída" eyebrow="Ofertas globais" aoFechar={() => setConfirmacao(null)}>
+          <p className="text-ink text-sm">
+            Compra realizada: <strong>{confirmacao.qtd.toLocaleString('pt-BR')}</strong> de{' '}
+            <strong>{nomeRecurso(confirmacao.recurso)}</strong>.
+          </p>
+          <p className="text-ink-soft mt-1 text-sm">
+            O recurso já está no seu depósito, na Capital.
+          </p>
+        </Popup>
+      )}
     </div>
   )
 }

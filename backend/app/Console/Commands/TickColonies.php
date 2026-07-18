@@ -12,7 +12,7 @@ use App\Domain\Zona\CobrarManutencaoTerritorial;
 use App\Domain\Zona\ProcessarSiderurgicaNaZona;
 use App\Domain\Zona\RefinarNaZona;
 use App\Domain\Logistics\ExtrairZonasNeutras;
-use App\Domain\Transport\FabricarCaminhoes;
+use App\Domain\Transport\FabricarVeiculos;
 use App\Domain\Ministry\ExpirarPrazos;
 use App\Domain\Ministry\PagarConciliadores;
 use App\Domain\Production\ColonyTick;
@@ -48,7 +48,7 @@ class TickColonies extends Command
         ExpirarPrazos $ministerio,
         PagarConciliadores $folha,
         ExtrairZonasNeutras $zonasNeutras,
-        FabricarCaminhoes $fabrica,
+        FabricarVeiculos $fabrica,
         Patio $patio,
         ResolverCombates $combates,
         ChegarReforcos $reforcos,
