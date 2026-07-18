@@ -106,6 +106,100 @@ class ImportarImagens extends Command
         'extratora-rubicon' => 'mina_local',       // sonda de perfuração — extração, não zona
         'doca-meridiana' => 'central_de_transportes',  // docas e guindastes — o hub de veículos
         'torre-trafego-zenite' => 'torre_de_vigia',    // radares: ver o ataque chegando (o aviso do D-70)
+
+        // ── O lote de `structures.zip` (D-107): DIFERENTE dos dois anteriores, os nomes de
+        //    arquivo JÁ SÃO canônicos (`deposito-local`, `reator-energia`) — vieram de uma lista
+        //    mestra com o nome da estrutura ao lado do arquivo, não de fantasia. Mesmo assim, o
+        //    vínculo saiu de CRUZAR o manifesto com `Vinculaveis::todas()`, não de aceitar o texto
+        //    dele sozinho: boa parte das ~60 estruturas do lote não tem chave hoje (Mercado e
+        //    Comércio, Espaçoporto, quase todos os "Destroços da Endurance", e metade das
+        //    "Especializações da Colônia" como Estufa Bioluminescente/Torre Geotérmica/Complexo
+        //    Metalúrgico/Observatório/Salão de Negociações) — o jogo ainda não tem onde pendurá-las.
+        //
+        //    ⚠️ MUITAS destas chaves JÁ TÊM uma imagem vinculada, vinda do D-68/D-72 (nomes de
+        //    fantasia: `reator-helios`, `forja-titan`, etc.). O comando NUNCA troca um vínculo que
+        //    já existe (`! ImageBinding::where('entity_key', $chave)->exists()`) — então estas
+        //    entradas REGISTRAM a arte nova na biblioteca, mas NÃO tiram a arte antiga de cena. Quem
+        //    quiser a arte nova no lugar da antiga troca no painel, vendo as duas miniaturas.
+
+        // Capital: os 6 nomes de slot que o manifesto acerta em cheio (D-63/GDD §2.1). O slot 6
+        // ("Pátio Logístico") NÃO é um slot próprio — é metade da área Leste (Mercado + Pátio,
+        // D-65), que já tem arte (`mercado-aurora`); `patio-logistico.png` fica sem vínculo.
+        'administracao-publica' => 'capital:slot:1',        // vazio até aqui — primeiro vínculo do slot 1
+        'central-tributos' => 'capital:slot:2',
+        'central-pesquisas-noticias' => 'capital:slot:3',
+        'secretaria-financas' => 'capital:slot:4',
+        'ministerio-seguranca-guerra' => 'capital:slot:5',
+        'ministerio-reputacoes' => 'capital:slot:7',
+
+        // Colônia Base: as 5 essenciais, pelo nome idêntico ao slug do jogo.
+        'captacao-agua' => 'captacao_de_agua',
+        'estrutura-sobrevivencia' => 'estrutura_de_sobrevivencia',
+        'fazenda' => 'fazenda',
+        'gerador-atmosfera' => 'gerador_de_atmosfera',
+        'reator-energia' => 'reator_de_energia',
+
+        // Progressão da colônia: 12 das 13 batem com uma chave de `Building::MVP`. A 13ª,
+        // `deposito-local`, NÃO tem chave — `deposito_local` é o Depósito Local do D-105/D-106 (22º
+        // slot), que nasce fora do catálogo de `Vinculaveis` e não está em `Building::MVP`.
+        'oficina' => 'oficina',                             // vazio até aqui
+        'refinaria-quimica' => 'refinaria_quimica',         // vazio até aqui
+        'laboratorio' => 'laboratorio',                     // vazio até aqui
+        'antena-comunicacao' => 'antena_de_comunicacao',
+        'torre-defesa' => 'torre_de_defesa',                // vazio até aqui
+        'mercado-local' => 'mercado_local',
+        'quartel' => 'quartel',                             // vazio até aqui
+        'plataforma-pouso' => 'plataforma_de_pouso',
+        'central-transportes' => 'central_de_transportes',
+        'mina-local' => 'mina_local',
+        'destilaria' => 'destilaria',                       // vazio até aqui
+        'tanque-combustivel' => 'tanque_de_combustivel',
+
+        // Especializações da colônia: só `bastiao` bate — as outras 7 (Estufa Bioluminescente,
+        // Aquífero Profundo, Torre Geotérmica, Complexo Metalúrgico, Terminal de Cargas,
+        // Observatório, Salão de Negociações) não são `building_type` nenhum hoje.
+        'bastiao' => 'bastiao',
+
+        // Logística e frota: 6 dos 7 veículos/unidades. `cargueiro-interplanetario` continua sem
+        // lar — é o mesmo caso do `cargueiro-zenith` do D-72, arte à espera de um Espaçoporto que
+        // ainda não existe como feature.
+        'caminhao-carga' => 'caminhao_de_carga',
+        'drone-exploracao' => 'drone_de_exploracao',
+        'furgao-comercio' => 'furgao_de_comercio',
+        'nave-planetaria' => 'nave_de_transporte_planetaria',
+        'robo-minerador' => 'robo_minerador',
+        'sentinela' => 'sentinela',
+
+        // Espaçoporto: só a área da Capital (Sul) tem chave hoje. `terminal-aduaneiro` e
+        // `torre-trafego-orbital` não têm — o Espaçoporto como feature própria não existe (D-72).
+        'espacoporto' => 'capital:area:sul',
+
+        // Destroços da Endurance: só o casco inteiro (área Oeste) tem chave. As 8 seções
+        // individuais continuam sem lar (D-72) — e 6 delas (`anel-habitacional-endurance`,
+        // `baia-criogenica-endurance`, `matriz-comunicacao-endurance`, `modulo-medico-endurance`,
+        // `secao-acoplagem-endurance`, `silo-suprimentos-endurance`) nem chegaram a ser copiadas: o
+        // nome de arquivo colide, letra por letra, com uma imagem JÁ existente na biblioteca desde
+        // o D-72 (conteúdo diferente, mesmo nome) — decisão de sobrescrever ou não fica para o
+        // usuário, e não foi tomada aqui.
+        'casco-principal-endurance' => 'capital:area:oeste',
+
+        // Zonas neutras e conflito: 11 das 13 — e é aqui que o lote fecha quase todo o buraco que
+        // o D-72 apontou ("Muralha, Depósito, Refinaria de Campo e Cemitério da zona" sem
+        // candidata). `fortim-defesa` e `centro-cerco` ficam sem vínculo: o manifesto os trata como
+        // estruturas à parte, mas o jogo só tem `bastiao` (já reivindicado por "Bastião", acima) e
+        // `abrigo_de_robos` (já reivindicado por "Abrigo de Robôs Mineradores", abaixo) — chutar
+        // qual delas seria a arte poria a estrutura errada num prédio.
+        'posto-comando-zona' => 'posto_de_comando',
+        'estrutura-extracao' => 'estrutura_de_extracao',   // vazio até aqui
+        'deposito-recursos' => 'deposito_de_zona_neutra',  // vazio até aqui — fecha o buraco do D-72
+        'abrigo-robos-mineradores' => 'abrigo_de_robos',   // vazio até aqui
+        'muralha-perimetro' => 'muralha_de_perimetro',     // vazio até aqui — fecha o buraco do D-72
+        'torre-vigia' => 'torre_de_vigia',
+        'refinaria-campo' => 'refinaria_de_campo',         // vazio até aqui — fecha o buraco do D-72
+        'central-comunicacao-zona' => 'central_de_comunicacao',   // vazio até aqui
+        'plataforma-pouso-zona' => 'plataforma_de_pouso_da_zona', // vazio até aqui
+        'estacionamento-caminhoes' => 'estacionamento_da_zona',   // vazio até aqui
+        'cemiterio-robos' => 'cemiterio_de_robos',         // vazio até aqui — fecha o buraco do D-72
     ];
 
     public function handle(Biblioteca $biblioteca): int

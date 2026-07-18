@@ -4635,6 +4635,81 @@ Validado (o segundo, o primeiro é operação de banco, não código): `tsc`/`li
 completo (9/9 verde de novo), checagem visual manual (backend efêmero + Puppeteer): a lista de
 recursos ocupa a largura inteira do popup, alinhada com o texto acima dela.
 
+---
+
+## D-107 — O lote canônico (`structures.zip`): 68 estruturas, 15 vínculos novos, e o buraco da zona neutra do D-72 quase fecha.
+**Data:** 2026-07-17 · **Status:** os evidentes aplicados pelo usuário · **Não há GDD sobre isto**
+
+O usuário mandou um segundo lote de arte, `structures.zip`, com um manifesto (`LISTA_MESTRA_ASSETS_ESTRUTURAS.md`) listando 68 estruturas em 9 pastas. **Ao contrário do D-68/D-72, os nomes de arquivo já são canônicos** (`reator-energia.png`, `deposito-local.png`), não fantasia (`reator-helios.png`) — mas "canônico" não é "vinculável": o mapeamento saiu de cruzar o manifesto com `Vinculaveis::todas()` lido do código (`php artisan tinker --execute='dd(array_keys(...))'`), não de aceitar o texto do manifesto sozinho. **Nenhuma associação é automática** continua valendo (D-68).
+
+### Os números
+
+**136 imagens registradas** (68 estruturas × mestre 1024px + cópia pequena). Das 68:
+
+- **15 ganharam vínculo NOVO** — chaves que não tinham NENHUMA arte antes: `capital:slot:1`
+  (Administração Pública — primeiro vínculo do slot 1), `refinaria_quimica`, `laboratorio`,
+  `torre_de_defesa`, `quartel`, `destilaria` (progressão da colônia), e **9 da zona neutra**:
+  `estrutura_de_extracao`, `deposito_de_zona_neutra`, `abrigo_de_robos`, `muralha_de_perimetro`,
+  `refinaria_de_campo`, `central_de_comunicacao`, `plataforma_de_pouso_da_zona`,
+  `estacionamento_da_zona`, `cemiterio_de_robos`. **Estas 9 fecham quase todo o buraco que o D-72
+  apontou** ("sobrariam ~10 entidades sem NENHUMA imagem candidata: Muralha, Depósito, Refinaria de
+  Campo e Cemitério da zona...") — a Muralha, o Depósito, a Refinaria de Campo e o Cemitério
+  ganharam arte, e mais cinco que nem chegaram a ser citadas por nome no D-72.
+
+- **28 batem com uma chave EVIDENTE, mas a chave já tinha arte do D-68/D-72.** O comando nunca troca
+  um vínculo que já existe (`! ImageBinding::where('entity_key', ...)->exists()`) — de propósito,
+  para uma reaplicação nunca derrubar uma escolha manual do painel. Estas 28 ficam registradas na
+  biblioteca, prontas para o operador trocar pela miniatura se preferir a arte nova (as 5 essenciais
+  da colônia, 6 dos 8 slots nomeados da Capital, 6 dos 7 veículos/unidades, `oficina`,
+  `antena_de_comunicacao`, `mercado_local`, `plataforma_de_pouso`, `central_de_transportes`,
+  `mina_local`, `tanque_de_combustivel`, `bastiao`, `posto_de_comando`, `torre_de_vigia`, as duas
+  áreas nomeadas da Capital — Sul e Oeste).
+
+- **25 ficam SEM vínculo — o jogo não tem onde pendurá-las hoje**, e nenhuma foi forçada:
+  - **Sem chave nenhuma no catálogo:** `deposito-local` (é o Depósito Local do D-105/D-106, 22º
+    slot — nasce fora de `Building::MVP` e fora de `Vinculaveis`, apesar do nome bater igualzinho
+    com o slug do jogo — **conferido, não chutado**: `deposito_local` NÃO está em
+    `Vinculaveis::todas()`); `cargueiro-interplanetario` (mesmo caso do `cargueiro-zenith` do D-72:
+    espera um Espaçoporto que ainda não é feature); as 8 seções da Endurance (a área Oeste já
+    mostra o casco inteiro); `terminal-aduaneiro` e `torre-trafego-orbital` (Espaçoporto, mesma
+    razão); `camara-escrow`, `doca-mercado`, `mercado-central` (Mercado e Comércio não tem
+    catálogo próprio — e `mercado-central` é ambíguo entre `capital:area:leste` e `mercado_local`,
+    os dois já ocupados); 7 de "Especializações da Colônia" que não são `building_type` nenhum
+    (Estufa Bioluminescente, Aquífero Profundo, Torre Geotérmica, Complexo Metalúrgico, Terminal de
+    Cargas, Observatório, Salão de Negociações — `Complexo Metalúrgico` chegou a ser cotado contra
+    `industria_siderurgica`, mas o nome não bate o bastante para confiar).
+  - **Ambíguo demais para decidir sozinho:** `patio-logistico` (o slot 6 não existe como slot
+    próprio — é metade da área Leste, "Mercado Central + Pátio Logístico, juntos", D-63/D-65, já
+    ocupada por `mercado-aurora` desde o D-72); `fortim-defesa` e `centro-cerco` (o manifesto os
+    trata como estruturas à parte, mas o jogo só tem `bastiao` e `abrigo_de_robos` para esse tipo de
+    coisa, e as duas já foram reivindicadas por "Bastião" e "Abrigo de Robôs Mineradores" — chutar
+    qual seria a arte de qual poria a estrutura errada num prédio).
+
+### O que se aprendeu construindo
+
+> **Um nome idêntico ao slug do jogo não é garantia de chave.** A instrução chegou com
+> `deposito-local → deposito_local` como exemplo de "batida evidente". A leitura do código mostrou
+> o contrário: `deposito_local` existe no jogo (D-105/D-106), mas fora de `Building::MVP` e fora de
+> `Vinculaveis` — nunca passou pelo catálogo que o painel de imagens entende. Só a leitura do código
+> pegou isso; o nome sozinho teria enganado.
+
+> **Duas leves de arte podem colidir pelo nome, sem avisar.** Seis arquivos de "Destroços da
+> Endurance" deste lote (`anel-habitacional-endurance.png` e mais cinco) têm o MESMO nome de
+> arquivo que imagens já na biblioteca desde o D-72 — mas o CONTEÚDO é diferente (`md5sum`
+> confirmou). `cp -n` (sem sobrescrever) evitou destruir a arte antiga silenciosamente, mas também
+> deixou a arte nova de fora — nenhuma das duas tem vínculo de qualquer forma (as seções da
+> Endurance continuam sem lar), então o custo do não-vínculo foi baixo, mas a decisão de qual das
+> duas manter fica em aberto para o usuário.
+
+> **O guarda contra reaplicação também esconde a "vitória".** Rodar o comando de novo com um lote
+> novo nunca troca uma arte já vinculada — então 28 das 68 estruturas deste lote entraram na
+> biblioteca sem qualquer efeito visível na colônia. Isso é a defesa certa (nenhum vínculo manual
+> do painel se perde num `--aplicar` de rotina), mas significa que "vinculada" no relatório do
+> comando não quer dizer "está na tela agora" — quer dizer "criou um `ImageBinding` novo", e é
+> preciso separar as duas coisas ao reportar para quem pediu.
+
+---
+
 ## D-108 — Gestão de Construções: tempo, Silo e custo deixam de ser fixos no GDD.
 **Data:** 2026-07-17 · **Status:** arbitrado pelo usuário · **Feature nova, não do GDD**
 
