@@ -4936,3 +4936,42 @@ só um campo novo, aditivo), `tsc`/`lint`/`build` limpos, e2e completo (9/9 verd
 manual (backend efêmero + Puppeteer, desktop 1400×900 e mobile 390×844): selos nos dois depósitos e
 em Ofertas Globais, cards lado a lado no desktop e lista no mobile, e a contagem "15:40" sobreposta
 ao hexágono da Oficina em obra no mobile.
+
+## D-111 — A fila vira admin-editável: a da colônia, e a da zona neutra, que ganha teto de verdade.
+**Data:** 2026-07-18 · **Status:** arbitrado pelo usuário · **Feature nova, não do GDD**
+
+Pedido do usuário: "A Colônia tem sua fila de construção, mas cada zona neutra tem sua fila também,
+não compartilham a mesma fila" — e uma sub-aba **Fila** em Gestão de Construções pra definir quantos
+itens cabem em cada uma.
+
+**A colônia já tinha fila** (D-13) — a mudança é só tirar o número de dentro do PHP.
+`BuildQueue::vagasDe()` tinha 2 (conta nova, 5 primeiros dias) / 1 (conta padrão) cravados no
+código, com o comentário explícito "persistir o limite criaria um estado que envelhece errado" — o
+que continua verdade **pra regra dos 5 dias**, não pro NÚMERO de vagas. `FilaSetting` (nova,
+singleton, molde de `TransportSetting`) guarda os dois números; o prazo de 5 dias continua fixo,
+ninguém pediu pra mexer nele.
+
+**A zona neutra não tinha fila — tinha um canteiro só.** `NeutralZone::obraEmCurso()` era uma
+EXISTÊNCIA booleana ("alguma obra em curso?"), não uma contagem contra um teto — o próprio código
+já dizia isso: "a zona não é a colônia, que tem fila: aqui é um canteiro só" (D-67). Virou uma
+contagem de verdade: `ConstruirNaZona::handle()` agora compara `$zona->obras()->count()` contra
+`FilaSetting::singleton()->zona_vagas` (padrão 1 — o comportamento de sempre; subir o número é o
+que muda algo). Diferente da fila da colônia, a zona **não tem "queued esperando o antecessor"**: o
+material só entra no canteiro por entrega física (D-67), então cada obra com material pronto começa
+na hora, com o seu próprio relógio — o teto aqui é "quantas em curso ao mesmo tempo", não uma fila
+sequencial. `obraEmCurso()` (o booleano) fica intocado — ainda é usado, ainda significa a mesma
+coisa, só não é mais o que barra a segunda obra.
+
+Admin: sub-aba **Fila** (`/central/admin/construcoes?aba=fila`), dois cartões — Colônia (as duas
+vagas, com a nota do prazo fixo de 5 dias) e Zona neutra (o teto de obras simultâneas) — dois
+formulários, uma ação só (`construcoesFila`), cada formulário carrega os campos do outro num
+`<input type=hidden>` pra não zerar o que não está editando.
+
+Validado: `php artisan test` completo (672 — 7 novos: 6 em `FilaAdminTest`, mais 1 em
+`ZonaLugarTest` provando que subir `zona_vagas` deixa duas obras em curso ao mesmo tempo, cada uma
+com o seu relógio, e a terceira ainda estoura o teto), os testes que já existiam
+(`BuildQueueTest`/`ZonaLugarTest`/`SlotsDaColoniaTest`) continuam verdes SEM alteração — os
+`default()` da migration reproduzem o 2/1/1 de sempre. Round-trip de migração em MariaDB efêmero,
+`tsc`/`lint`/`build` (sem mudança de frontend nesta entrega), e2e completo (9/9 verde), checagem
+visual manual (backend efêmero + Puppeteer): os dois cartões da aba Fila, salvando cada um
+independente do outro.

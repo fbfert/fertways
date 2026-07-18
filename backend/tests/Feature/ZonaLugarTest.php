@@ -202,6 +202,31 @@ class ZonaLugarTest extends TestCase
         app(ConstruirNaZona::class)->handle($colono, $zona->fresh(), 'abrigo_de_robos');
     }
 
+    /**
+     * O teto de obras simultâneas é do operador desde o D-111 (`FilaSetting`) — "uma obra por vez"
+     * é só o PADRÃO. Subir `zona_vagas` deixa a zona comportar mais, cada uma com o seu relógio,
+     * porque cada obra só nasce quando o canteiro JÁ tem o material — não há "esperando terminar a
+     * anterior" como na fila da colônia.
+     */
+    public function test_admin_pode_liberar_mais_de_uma_obra_simultanea_na_zona(): void
+    {
+        \App\Models\FilaSetting::singleton()->update(['zona_vagas' => 2]);
+
+        $colono = $this->colono();
+        $zona = $this->zonaDe($colono);
+
+        $this->encherCanteiro($zona, ['metal_bruto' => 10000, 'ligas_metalicas' => 10000]);
+
+        app(ConstruirNaZona::class)->handle($colono, $zona, 'muralha_de_perimetro');
+        app(ConstruirNaZona::class)->handle($colono, $zona->fresh(), 'abrigo_de_robos');
+
+        $this->assertSame(2, $zona->fresh()->obras()->count());
+
+        // A terceira, essa sim, estoura o teto de 2.
+        $this->expectException(DomainRuleException::class);
+        app(ConstruirNaZona::class)->handle($colono, $zona->fresh(), 'torre_de_vigia');
+    }
+
     // ── o cerco impede fortificar ───────────────────────────────────────────────────────────────
 
     /**

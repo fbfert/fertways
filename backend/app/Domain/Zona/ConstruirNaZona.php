@@ -4,6 +4,7 @@ namespace App\Domain\Zona;
 
 use App\Exceptions\DomainRuleException;
 use App\Models\Colony;
+use App\Models\FilaSetting;
 use App\Models\NeutralZone;
 use Illuminate\Support\Facades\DB;
 
@@ -52,11 +53,21 @@ class ConstruirNaZona
                 );
             }
 
-            // Uma obra por vez. A zona não é a colônia, que tem fila (D-13): aqui é um canteiro só.
-            if ($zona->obraEmCurso()) {
+            /*
+             * O teto de obras simultâneas na zona (D-111) — do operador, não mais 1 cravado no
+             * código. Diferente da fila da colônia, aqui não há "queued esperando o antecessor":
+             * cada obra só nasce quando o canteiro já tem o material, então até o teto, todas as
+             * que tiverem material começam na hora, cada uma com o seu relógio.
+             */
+            $vagas = FilaSetting::singleton()->zona_vagas;
+            $emCurso = $zona->obras()->count();
+
+            if ($emCurso >= $vagas) {
                 throw new DomainRuleException(
                     'obra_em_curso',
-                    'Já há uma obra em curso nesta zona. Espere-a terminar.',
+                    $vagas === 1
+                        ? 'Já há uma obra em curso nesta zona. Espere-a terminar.'
+                        : "A zona já tem {$vagas} obras em curso ao mesmo tempo. Espere uma terminar.",
                 );
             }
 

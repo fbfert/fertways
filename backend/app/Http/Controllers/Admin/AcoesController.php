@@ -855,6 +855,34 @@ class AcoesController extends Controller
     }
 
     /**
+     * Gestão de Construções — Fila (D-111): quantos itens cabem na fila da colônia (novato e
+     * padrão, preservando a regra dos 5 dias de onboarding) e quantas obras a zona neutra
+     * comporta em curso ao mesmo tempo.
+     */
+    public function construcoesFila(Request $request): RedirectResponse
+    {
+        $dados = $request->validate([
+            'colonia_vagas_novato' => ['required', 'integer', 'min:1', 'max:20'],
+            'colonia_vagas_padrao' => ['required', 'integer', 'min:1', 'max:20'],
+            'zona_vagas' => ['required', 'integer', 'min:1', 'max:20'],
+        ]);
+
+        $config = \App\Models\FilaSetting::singleton();
+        $antes = $config->only(array_keys($dados));
+
+        return $this->tentar('construcoes.fila', function () use ($dados, $config, $antes) {
+            $config->update($dados);
+
+            $mudou = collect($dados)
+                ->reject(fn ($v, $k) => (int) $v === (int) $antes[$k])
+                ->map(fn ($v, $k) => "{$k}: {$antes[$k]} → {$v}")
+                ->implode('; ');
+
+            return 'Fila de construção atualizada. '.($mudou !== '' ? $mudou : 'Nada mudou.');
+        });
+    }
+
+    /**
      * Encomenda um caminhão para a GARAGEM do frete público (D-76).
      *
      * Instantâneo e por fiat, ao contrário da prateleira de venda (que tem linha de montagem no
