@@ -6,8 +6,8 @@ import { painelFlutuante } from './painelFlutuante'
 
 /**
  * O rádio do planeta (§10; docs/decisoes.md D-77) — um painel flutuante com os canais vivos:
- * Global, Vizinhança (um RAIO, não uma sala) e as Privadas. (O canal de Região existiu e foi
- * removido por pedido do usuário.)
+ * Global, Vizinhança (um RAIO, não uma sala), Federação (D-115 — só aparece pra quem tem uma) e as
+ * Privadas. (O canal de Região existiu e foi removido por pedido do usuário.)
  *
  * **Polling, não websocket** — arbitragem do usuário: o servidor tem 4 GB divididos com o banco de
  * produção, e um daemon Reverb é memória que o jogo não tem. Enquanto o painel está aberto, a aba
@@ -15,13 +15,13 @@ import { painelFlutuante } from './painelFlutuante'
  * Fechado, o chat não custa NADA — nem um request.
  */
 
-type Aba = 'global' | 'vizinhanca' | 'privadas'
+type Aba = 'global' | 'vizinhanca' | 'federacao' | 'privadas'
 
 const RITMO_MS = 5_000
 
 export type AvisosDoChat = {
   privadas_nao_lidas: number
-  mencoes_por_canal: { global: number; vizinhanca: number }
+  mencoes_por_canal: { global: number; vizinhanca: number; federacao: number }
 }
 
 export function Chat({
@@ -43,6 +43,8 @@ export function Chat({
   const [aba, setAba] = useState<Aba>('global')
   const [silenciadoAte, setSilenciadoAte] = useState<string | null>(null)
   const [meuNick, setMeuNick] = useState('')
+  // A aba Federação só existe pra quem tem uma (D-115) — uma busca leve, uma vez, ao abrir o Chat.
+  const [temFederacao, setTemFederacao] = useState(false)
   // A conversa privada aberta mora AQUI, e não dentro de `Privadas` — um clique no nick de uma
   // mensagem PÚBLICA precisa abri-la também, e `Canal` é irmão de `Privadas`, não filho.
   const [privadaAberta, setPrivadaAberta] = useState<{ id: number; nickname: string } | null>(null)
@@ -56,6 +58,7 @@ export function Chat({
       setSilenciadoAte(c.silenciado_ate)
       setMeuNick(c.nickname)
     })
+    void api.minhaFederacao().then((f) => setTemFederacao(f.federation !== null))
   }, [])
 
   /**
@@ -103,6 +106,7 @@ export function Chat({
             [
               ['global', 'Global'],
               ['vizinhanca', 'Vizinhança'],
+              ...(temFederacao ? [['federacao', 'Federação']] : []),
               ['privadas', 'Privadas'],
             ] as [Aba, string][]
           ).map(([id, rotulo]) => (
@@ -167,13 +171,13 @@ export function Chat({
   )
 }
 
-/** Um canal público: lista com polling + caixa de envio. */
+/** Um canal público (ou a federação, um círculo fechado de aliados): lista com polling + envio. */
 function Canal({
   canal,
   meuNick,
   aoAbrirPrivada,
 }: {
-  canal: 'global' | 'vizinhanca'
+  canal: 'global' | 'vizinhanca' | 'federacao'
   meuNick: string
   aoAbrirPrivada: (id: number, nickname: string) => void
 }) {

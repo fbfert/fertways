@@ -78,12 +78,18 @@ class Avisos
             ->whereNull('seen_at')
             ->count();
 
-        // Por canal, para a aba acender sozinha (pedido do usuário): `chat_mentions.channel` já
-        // grava o canal real desde sempre (`citar()`, abaixo) — só nunca tinha sido agrupado.
+        /*
+         * Por canal, para a aba acender sozinha (pedido do usuário): `chat_mentions.channel` já
+         * grava o canal real desde sempre (`citar()`, abaixo) — só nunca tinha sido agrupado.
+         *
+         * Lista própria, não `EnviarMensagem::PUBLICOS` (D-115): federação fica de fora de
+         * `PUBLICOS` por causa do filtro/silêncio (outra pergunta), mas "a aba deveria acender"
+         * é uma terceira pergunta — e a resposta pra federação é sim, é uma sala de verdade.
+         */
         $porCanal = DB::table('chat_mentions')
             ->where('user_id', $user->id)
             ->whereNull('seen_at')
-            ->whereIn('channel', EnviarMensagem::PUBLICOS)
+            ->whereIn('channel', ['global', 'vizinhanca', 'federacao'])
             ->selectRaw('channel, count(*) as n')
             ->groupBy('channel')
             ->pluck('n', 'channel');
@@ -94,6 +100,7 @@ class Avisos
             'mencoes_por_canal' => [
                 'global' => (int) ($porCanal['global'] ?? 0),
                 'vizinhanca' => (int) ($porCanal['vizinhanca'] ?? 0),
+                'federacao' => (int) ($porCanal['federacao'] ?? 0),
             ],
         ];
     }

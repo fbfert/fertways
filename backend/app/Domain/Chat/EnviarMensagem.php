@@ -21,6 +21,12 @@ use Illuminate\Support\Facades\DB;
  *                registrada para o moderador (`chat_filter_hits`).
  *   bloqueio     bloqueado não manda privada para quem o bloqueou (MVP social, seção 15).
  *   vizinhança   a mensagem carrega a POSIÇÃO da colônia do autor: o canal é um raio, não uma sala.
+ *   federação    (D-115) a mensagem carrega A FEDERAÇÃO do autor, congelada no envio — mesmo
+ *                raciocínio da vizinhança, mas por pertencimento, não posição. Fica de fora de
+ *                `PUBLICOS` de propósito: o §10.2 já isenta "federação e privadas" do filtro, e
+ *                aqui a mesma isenção se estende ao silêncio — um círculo de aliados é mais perto
+ *                de conversa fechada do que de praça pública. ⚠️ Julgamento do desenvolvedor, não
+ *                do GDD — se o usuário achar errado, `PUBLICOS` ganha `'federacao'` numa linha.
  */
 class EnviarMensagem
 {
@@ -38,6 +44,14 @@ class EnviarMensagem
 
         if (! $colony) {
             throw new DomainRuleException('sem_colonia', 'Funde uma colônia antes de falar no rádio do planeta.');
+        }
+
+        /*
+         * Federação (D-115): só quem pertence fala. Checado antes do `match` — o `canal_invalido`
+         * do `default` é para canal que não existe; este é para canal que existe e não é seu.
+         */
+        if ($canal === 'federacao' && $colony->federation_id === null) {
+            throw new DomainRuleException('sem_federacao', 'Sua colônia não está em nenhuma federação.');
         }
 
         $publico = in_array($canal, self::PUBLICOS, true);
@@ -64,8 +78,9 @@ class EnviarMensagem
         return match ($canal) {
             'global' => $this->gravar($autor, 'global', $corpo),
             'vizinhanca' => $this->gravar($autor, 'vizinhanca', $corpo, x: $colony->x, y: $colony->y),
+            'federacao' => $this->gravar($autor, 'federacao', $corpo, federationId: $colony->federation_id),
             'privada' => $this->privada($autor, $destinatario, $corpo),
-            default => throw new DomainRuleException('canal_invalido', "Não existe o canal {$canal}. O de federação espera as federações existirem."),
+            default => throw new DomainRuleException('canal_invalido', "Não existe o canal {$canal}."),
         };
     }
 
@@ -99,7 +114,7 @@ class EnviarMensagem
         return $this->gravar($autor, 'privada', $corpo, destinatario: $destinatario->id);
     }
 
-    private function gravar(User $autor, string $canal, string $corpo, ?int $destinatario = null, ?int $x = null, ?int $y = null): ChatMessage
+    private function gravar(User $autor, string $canal, string $corpo, ?int $destinatario = null, ?int $x = null, ?int $y = null, ?int $federationId = null): ChatMessage
     {
         $mensagem = ChatMessage::create([
             'user_id' => $autor->id,
@@ -107,6 +122,7 @@ class EnviarMensagem
             'recipient_user_id' => $destinatario,
             'x' => $x,
             'y' => $y,
+            'federation_id' => $federationId,
             'body' => $corpo,
             'created_at' => now(),
         ]);

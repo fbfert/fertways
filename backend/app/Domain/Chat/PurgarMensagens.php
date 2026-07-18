@@ -12,6 +12,10 @@ use Carbon\CarbonInterface;
  *   vizinhança           90 dias
  *   privadas             indefinido no lançamento ("sem prazo de expiração") — NÃO purga
  *
+ * Federação (D-115) não tem prazo publicado — o GDD nunca fala da retenção dela especificamente.
+ * Segue os 180 dias de `global`: é um canal persistente e pequeno (até 12 colônias), mais perto de
+ * praça duradoura do que de vizinhança, cujo prazo curto é sobre volume (D-77 já explica por quê).
+ *
  * ⚠️ O GDD preserva "evidência de caso até conclusão + 90 dias". Hoje nenhuma denúncia aponta para
  * mensagem de chat (a evidência do §26.8 é Acordo/log), então não há vínculo a proteger; no dia em
  * que a denúncia anexar mensagem, a purga tem de aprender a desviar dela. Registrado no D-77.
@@ -20,7 +24,7 @@ class PurgarMensagens
 {
     public function handle(CarbonInterface $agora): int
     {
-        $apagadas = ChatMessage::whereIn('channel', ['global', 'regiao:nucleo', 'regiao:nordeste', 'regiao:sudeste', 'regiao:sudoeste', 'regiao:noroeste'])
+        $apagadas = ChatMessage::whereIn('channel', ['global', 'federacao', 'regiao:nucleo', 'regiao:nordeste', 'regiao:sudeste', 'regiao:sudoeste', 'regiao:noroeste'])
             ->where('created_at', '<', $agora->copy()->subDays(180))
             ->delete();
 
