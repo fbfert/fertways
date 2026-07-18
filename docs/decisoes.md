@@ -4609,3 +4609,28 @@ colono, e o Depósito não se demole; mais os 3 arquivos com contagem de slot/mi
 topo quebraria), checagem visual manual (backend efêmero + Puppeteer, desktop 1400×900 e mobile
 390×844): o hexágono 22 aparece na colmeia, abrir o Depósito mostra a lista completa de recursos
 nos dois formatos, e o botão "Colônia" da barra mobile navega — não abre mais o sheet antigo.
+
+### Dois problemas achados depois do deploy, nenhum pego pelo e2e nem pela checagem visual
+
+1. **`building_specs` não chega em produção sozinho.** `tools/deploy.sh` roda `migrate --force`,
+   nunca `db:seed` — correto, porque reseedar sem cuidado reescreveria dado de partida por cima de
+   colônias que já jogaram. Mas a curva de custo/tempo do Depósito Local só existe via
+   `BuildingSpecSeeder` (lida de `building_specs.json`), nunca via migration — nenhuma migration
+   deste PR mexe em schema. O backfill (`fertways:slots --aplicar`) criou a construção
+   `deposito_local` nas 26 colônias reais, mas a tabela `building_specs` da produção nunca ganhou as
+   linhas de custo dela — e todo `GET /buildings` (que resolve o catálogo INTEIRO, não só o que a
+   colônia já ergueu) começou a estourar `Construção desconhecida: deposito_local`, um 500 que
+   derrubava o carregamento do HUD inteiro. Sem schema novo para avisar "rode uma migration", o
+   passo ficou fácil de esquecer — corrigido rodando
+   `php artisan db:seed --class=BuildingSpecSeeder --force` manualmente (é um `upsert` por
+   `building_type`+`level`, seguro de rodar de novo, não mexe em mais nada).
+2. **`<Recursos>` ainda vestia a roupa da barra lateral antiga.** `w-64` (256px, fixo),
+   `max-h-[calc(100vh-13rem)]` e `overflow-y-auto` faziam sentido quando era um painel flutuante
+   sobre a colônia; dentro do popup do Depósito (`max-w-md`, 448px, que já rola a própria altura),
+   sobrou uma faixa estreita à esquerda em vez de ocupar a largura toda — achado pelo usuário
+   depois do deploy. `Recursos` virou um `<div>` sem essas classes; `Bloco`/`Linha` já usavam
+   `w-full`/`justify-between`, então passaram a esticar sozinhos.
+
+Validado (o segundo, o primeiro é operação de banco, não código): `tsc`/`lint`/`build` limpos, e2e
+completo (9/9 verde de novo), checagem visual manual (backend efêmero + Puppeteer): a lista de
+recursos ocupa a largura inteira do popup, alinhada com o texto acima dela.
