@@ -2097,5 +2097,62 @@
                 }
             }
         ]
+    },
+    {
+        "type": "deposito_local",
+        "nome": "Depósito Local",
+        "max_level": 5,
+        "levels": [
+            {
+                "level": 1,
+                "build_time_seconds": 300,
+                "cost": {
+                    "biomassa": 10,
+                    "ligas_metalicas": 25,
+                    "oxigenio": 6,
+                    "energia": 10
+                }
+            },
+            {
+                "level": 2,
+                "build_time_seconds": 420,
+                "cost": {
+                    "biomassa": 17,
+                    "ligas_metalicas": 41,
+                    "oxigenio": 10,
+                    "energia": 17
+                }
+            },
+            {
+                "level": 3,
+                "build_time_seconds": 660,
+                "cost": {
+                    "biomassa": 27,
+                    "ligas_metalicas": 68,
+                    "oxigenio": 16,
+                    "energia": 27
+                }
+            },
+            {
+                "level": 4,
+                "build_time_seconds": 1020,
+                "cost": {
+                    "biomassa": 45,
+                    "ligas_metalicas": 112,
+                    "oxigenio": 27,
+                    "energia": 45
+                }
+            },
+            {
+                "level": 5,
+                "build_time_seconds": 1500,
+                "cost": {
+                    "biomassa": 74,
+                    "ligas_metalicas": 185,
+                    "oxigenio": 44,
+                    "energia": 74
+                }
+            }
+        ]
     }
 ]

@@ -28,6 +28,7 @@ class Funcoes
      *   produz   — credita recurso no tick, sem insumo (§19.2)
      *   converte — consome insumo e credita saída (Destilaria §18.2, Oficina §24.5)
      *   porta    — o prédio é o acesso a uma tela do jogo (D-59, item 6)
+     *   mostra   — não produz nem processa nada; é onde uma informação do jogo mora (D-105)
      *   nenhum   — não faz nada além de consumir energia
      */
     public const CATALOGO = [
@@ -178,6 +179,19 @@ class Funcoes
             'efeito' => 'nenhum',
             'nota' => 'O GDD publica a capacidade (200 no nível 1, até 1.012), mas o jogo ainda não '
                 . 'tem teto de estoque nenhum — guardar mais não faz diferença. Hoje só consome energia.',
+        ],
+
+        // ---------------------------------------------------------------- fora do GDD (D-105)
+        'deposito_local' => [
+            'frase' => 'Não está no GDD — nasce erguido em todo colono, no slot 21 (pedido do usuário).',
+            'fonte' => '—',
+            'efeito' => 'mostra',
+            'nota' => 'É por aqui que se vê o que a colônia tem guardado: os recursos deixaram de '
+                . 'ficar sempre visíveis, e abrir o Depósito é o único jeito de consultá-los agora, '
+                . 'no desktop e no mobile. Não produz nem processa nada — é infraestrutura de acesso, '
+                . 'não uma construção econômica. Nasce no nível 1, custeada pelo Governo como as '
+                . 'cinco essenciais, e evolui como qualquer outra: o nível não muda o que ela mostra, '
+                . 'só é a mesma curva de custo/tempo de toda construção.',
         ],
     ];
 

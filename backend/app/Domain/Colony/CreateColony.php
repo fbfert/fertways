@@ -16,10 +16,11 @@ use Illuminate\Support\Facades\DB;
 /**
  * Fundação de uma colônia no slot principal.
  *
- * Tudo numa transação: cria a colônia, as **cinco essenciais já erguidas no nível 1** no miolo
- * dos 21 slots, as linhas de recurso já com o kit inicial (D-85), a frota do kit e o lançamento
- * do saldo em Fert$. Se qualquer passo falhar, nada persiste — senão um jogador poderia ficar com
- * colônia sem recursos ou sem veículo, estados que nenhuma parte do jogo sabe consertar.
+ * Tudo numa transação: cria a colônia, as **cinco essenciais e o Depósito Local já erguidos no
+ * nível 1** (D-105) no miolo dos 22 slots, as linhas de recurso já com o kit inicial (D-85), a
+ * frota do kit e o lançamento do saldo em Fert$. Se qualquer passo falhar, nada persiste — senão
+ * um jogador poderia ficar com colônia sem recursos ou sem veículo, estados que nenhuma parte do
+ * jogo sabe consertar.
  *
  * Regras aplicadas aqui:
  *  - Saldo, recursos e frota iniciais: `Domain\Colony\KitInicial` (D-85, editável pelo admin
@@ -82,15 +83,20 @@ class CreateColony
              */
             app(\App\Domain\Marco\ConcederXp::class)->handle($colony->id, 'obra_concluida', 'fundacao', vezes: 5);
 
-            // As cinco essenciais, já no nível 1, cada uma no seu slot do miolo (D-59). Só elas:
-            // o resto dos 21 slots nasce vazio, e uma construção só ganha linha quando o colono
-            // escolhe o slot dela.
-            $colony->buildings()->createMany(
-                array_map(
+            // As cinco essenciais, já no nível 1, cada uma no seu slot do miolo (D-59) — e o
+            // Depósito Local (D-105, fora do GDD) junto, no slot 21: sem ele não há como ver os
+            // recursos, e um colono não pode nascer sem enxergar o que tem no depósito. O resto
+            // dos slots nasce vazio, e uma construção só ganha linha quando o colono escolhe.
+            $colony->buildings()->createMany([
+                ...array_map(
                     fn (string $tipo) => ['type' => $tipo, 'level' => 1, 'slot' => Slots::MIOLO[$tipo]],
                     Building::ESSENCIAIS,
                 ),
-            );
+                ...array_map(
+                    fn (string $tipo) => ['type' => $tipo, 'level' => 1, 'slot' => Slots::DEPOSITO_LOCAL[$tipo]],
+                    array_keys(Slots::DEPOSITO_LOCAL),
+                ),
+            ]);
 
             $recursosDoKit = KitInicial::recursos();
 
@@ -132,7 +138,7 @@ class CreateColony
                 'created_at' => $agora,
             ]);
 
-            $this->registrarMioloSubsidiado($colony, $agora);
+            $this->registrarNivelUmSubsidiado($colony, $agora);
             $this->lancarKitInicial($colony, $agora);
 
             /*
@@ -151,16 +157,16 @@ class CreateColony
     }
 
     /**
-     * As cinco essenciais nascem prontas, mas não nascem de graça no papel: quem as pagou foi o
-     * Governo Central, e o ledger é a fonte auditável do jogo. Lança o custo do nível 1 de cada
-     * uma como `subsidio_governo`, exatamente como `ColonyTick::concluir()` faz quando um upgrade
-     * subsidiado termina. Sem isto, a emissão do miolo seria invisível na contabilidade.
+     * As cinco essenciais e o Depósito Local nascem prontos, mas não nascem de graça no papel:
+     * quem os pagou foi o Governo Central, e o ledger é a fonte auditável do jogo. Lança o custo
+     * do nível 1 de cada um como `subsidio_governo`, exatamente como `ColonyTick::concluir()` faz
+     * quando um upgrade subsidiado termina. Sem isto, a emissão seria invisível na contabilidade.
      */
-    private function registrarMioloSubsidiado(Colony $colony, $agora): void
+    private function registrarNivelUmSubsidiado(Colony $colony, $agora): void
     {
         $especificacoes = DB::table('building_specs')
             ->where('level', 1)
-            ->whereIn('building_type', Building::ESSENCIAIS)
+            ->whereIn('building_type', [...Building::ESSENCIAIS, ...array_keys(Slots::DEPOSITO_LOCAL)])
             ->get(['building_type', 'cost_json']);
 
         foreach ($especificacoes as $spec) {

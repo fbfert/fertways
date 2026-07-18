@@ -4546,3 +4546,66 @@ limpos, e2e completo (9/9 verde — inclusive `capital.e2e.mjs`, `ministerio.e2e
 `mercado.e2e.mjs`, que dependem do losango da Capital), checagem visual manual (backend efêmero +
 Puppeteer, desktop 1400×900 e mobile 390×844) em `/`, `/mapa` e `/capital`: header/barra presentes
 nas três, destaque seguindo a rota, sem `×` nas telas.
+
+## D-106 — O Depósito Local: 22º slot, e os recursos deixam de ficar sempre visíveis.
+**Data:** 2026-07-17 · **Status:** arbitrado pelo usuário · **Feature nova, não do GDD**
+
+Pedido do usuário, item 6 do mesmo lote do D-105: um slot novo (o 21, zero-indexado) em **toda**
+colônia — a existente, via backfill, e a futura, na fundação — com uma construção nova, o
+**Depósito Local**, dentro. A partir daqui, ver os recursos deixa de ser algo sempre visível na
+tela: é preciso abrir o Depósito, tanto no desktop quanto no mobile. Perguntei se a construção
+seria uma fixture livre (sem custo, sem evolução) ou uma construção normal; o usuário escolheu
+**normal, com custo e caminho de evolução**.
+
+`Slots.php`: `LINHAS = [4, 4, 5, 4, 4, 1]` (a 6ª linha, sozinha, só no final — nenhum slot 0-20
+muda de posição), `TOTAL = 22`, `DEPOSITO_LOCAL = ['deposito_local' => 21]`. `livres()` e
+`exigirEscolhivel()` excluem esse slot do mesmo jeito que já excluíam o miolo — reservado, não
+escolhível pelo colono.
+
+**Custo e tempo: mesma curva da Captação de Água.** O Depósito não está no GDD — mesma família do
+D-82 (Indústria Siderúrgica), uma construção nova pega numa já existente com uma regra explícita,
+não em números soltos. A Captação de Água é outra essencial, mesma "camada" de infraestrutura
+básica; é a proposta default deste PR, e como é só dado semeado (`building_specs.json`), é trivial
+ajustar depois se o usuário quiser outra curva.
+
+**Nasce erguido no nível 1, subsidiado pelo Governo — como as cinco essenciais (D-59), mas
+separado delas.** `CreateColony.php` cria o Depósito junto do miolo, mesmo padrão de subsídio no
+ledger. Mas `Building::ehIndemolivel()` é um método **novo**, deliberadamente separado de
+`ESSENCIAIS`: o Depósito não pode ser demolido (como as cinco), mas não é "essencial" no sentido do
+GDD — não entra no auto-subsídio ao nível 3 do §24.7, nem ganha o selo "essencial" na UI, porque
+nenhuma das duas coisas é verdade para ele.
+
+**Backfill nas colônias que já existem: estendeu o `fertways:slots` já existente**
+(`SlotsDaColonia.php`), não um comando novo — o laço "garante que a construção do slot fixo existe
+no nível 1, senão cria/promove + subsidia" já fazia exatamente isto para o miolo; bastou passar
+`[...Slots::MIOLO, ...Slots::DEPOSITO_LOCAL]`. Mesma disciplina de sempre: idempotente,
+`--aplicar`/simulação via rollback.
+
+**`Funcoes.php` ganhou um `efeito` novo: `'mostra'`.** O vocabulário existente (`produz`/
+`converte`/`porta`/`nenhum`) não tinha um valor para "não produz nada, só expõe o que já existe" —
+usar `'nenhum'` faria o catálogo de slot vazio rotular o Depósito como "efeito ainda não
+implementado", o que é falso: o efeito dele é mostrar os recursos.
+
+**Frontend: os recursos saem da barra lateral e entram dentro do popup do Depósito.** `App.tsx`
+perdeu de vez o `<Recursos>` fixo (que só existia no desktop); `Hud.tsx`/`Detalhe` ganhou o prop
+`colonia` e, quando `spec.type === 'deposito_local'`, renderiza `<Recursos colonia={colonia} />`
+dentro do popup — mesmo padrão que `spec.type === 'oficina'` já usava pra `<ReceitaDaOficina>`.
+Funciona idêntico em desktop e mobile, porque o clique no hexágono já era o mesmo caminho nos dois.
+
+### O bug achado no caminho: o zoom empurrava a linha do topo pra fora da tela
+
+`ColonyScene.ts`'s `colmeia()` calcula o centro vertical (`meioY`) a partir do número de linhas, e
+o zoom (`transformar()`) ancora nesse centro. Recalcular `meioY` contando a 6ª linha nova fazia o
+centro descer — e a linha do TOPO (onde mora a Central de Transportes, de todo colono) se deslocar
+na tela a cada zoom, mesmo sem ter mudado de posição real nenhuma. `meioY` passou a ser calculado
+sempre com as 5 linhas originais (`Math.min(linhas.length, 5)`), nunca com `linhas.length` inteiro
+— os 21 slots de sempre não mudam nem um pixel de posição ou zoom; a linha nova só pendura por
+baixo deles, sem puxar ninguém.
+
+Validado: `php artisan test` (638 testes — 2 casos novos: o slot do Depósito não é escolhível pelo
+colono, e o Depósito não se demole; mais os 3 arquivos com contagem de slot/miolo atualizada de
+21/5 para 22/6), sem migração (nenhuma mudança de schema), `tsc`/`lint`/`build` limpos, e2e completo
+(9/9 verde — inclusive o zoom-e-clique de `telas.e2e.mjs`, que é exatamente o caminho que o bug do
+topo quebraria), checagem visual manual (backend efêmero + Puppeteer, desktop 1400×900 e mobile
+390×844): o hexágono 22 aparece na colmeia, abrir o Depósito mostra a lista completa de recursos
+nos dois formatos, e o botão "Colônia" da barra mobile navega — não abre mais o sheet antigo.

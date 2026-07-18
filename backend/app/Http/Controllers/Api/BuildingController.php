@@ -287,9 +287,10 @@ class BuildingController extends Controller
                     'slot' => $b->slot,
                     'max_level' => $max,
                     'essencial' => $b->ehEssencial(),
-                    // Indemolível = essencial (D-59). A tela esconde o botão em vez de oferecer
-                    // um clique que o backend vai recusar.
-                    'demolivel' => ! $b->ehEssencial(),
+                    // Indemolível = essencial, ou o Depósito Local (D-105) — ver
+                    // `Building::ehIndemolivel()`. A tela esconde o botão em vez de oferecer um
+                    // clique que o backend vai recusar.
+                    'demolivel' => ! $b->ehIndemolivel(),
                     'repetivel' => $b->podeRepetir(),
                     // O que ela FAZ: a frase do GDD, a fonte, e a nota honesta de quando o efeito
                     // ainda não morde no jogo.

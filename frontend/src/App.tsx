@@ -22,7 +22,7 @@ import { MinhasZonas } from './ui/MinhasZonas'
 import { Ministerio } from './ui/Ministerio'
 import { Perfil } from './ui/Perfil'
 import { Popup } from './ui/Popup'
-import { Detalhe, FilaDeObras, Recursos, SlotVazio } from './ui/Hud'
+import { Detalhe, FilaDeObras, SlotVazio } from './ui/Hud'
 
 /** Sem websocket nesta fase: polling simples, como o plano define. */
 const INTERVALO_MS = 5000
@@ -261,13 +261,6 @@ export default function App() {
         />
       </div>
 
-      {/* Só desktop — no mobile, os recursos vivem dentro do Depósito Local (uma construção). */}
-      {colonia && (
-        <div className="absolute top-24 left-5 hidden md:block">
-          <Recursos colonia={colonia} />
-        </div>
-      )}
-
       {/*
         A DIREITA deixou de ser o lugar do detalhe (D-69). O card da construção virou POPUP — por
         cima da colônia, que é o que lhe dá contexto —, e a barra lateral ficou para o que o colono
@@ -295,9 +288,10 @@ export default function App() {
         />
       )}
 
-      {slotVazio === null && selecionada && (
+      {slotVazio === null && selecionada && colonia && (
         <Detalhe
           spec={selecionada}
+          colonia={colonia}
           aoConstruir={(s) => void evoluir(s)}
           aoAtualizar={() => void carregar()}
           aoDemolir={(s) => void demolir(s)}

@@ -19,7 +19,9 @@ use Illuminate\Support\Facades\DB;
  *    quando a obra foi enfileirada, e continua lá — é o registro honesto de um gasto que virou pó.
  *  - **As cinco essenciais são indemolíveis.** Elas nasceram com a colônia, no miolo. Deixar o
  *    colono derrubar o Gerador de Atmosfera exigiria decidir o que acontece a uma colônia sem
- *    atmosfera, e o GDD não tem resposta para isso. Não se inventa uma.
+ *    atmosfera, e o GDD não tem resposta para isso. Não se inventa uma. O Depósito Local (D-105)
+ *    é indemolível pelo mesmo motivo prático — nasce no slot 21, que não é reconstruível —, mesmo
+ *    não sendo uma das cinco.
  *  - **Não se demole o que está em obra.** Primeiro cancele a obra (ou espere terminar). Assim
  *    não é preciso decidir o estorno de uma obra interrompida no meio — questão que este serviço
  *    simplesmente não faz nascer.
@@ -41,10 +43,12 @@ class Demolir
             throw new DomainRuleException('construcao_de_outra_colonia', 'Esta construção não é sua.');
         }
 
-        if ($building->ehEssencial()) {
+        if ($building->ehIndemolivel()) {
             throw new DomainRuleException(
                 'essencial_indemolivel',
-                'As cinco construções essenciais são o miolo da colônia e não podem ser demolidas.',
+                $building->ehEssencial()
+                    ? 'As cinco construções essenciais são o miolo da colônia e não podem ser demolidas.'
+                    : 'O Depósito Local nasce no slot 21, que não pode ser reconstruído — por isso não pode ser demolido.',
             );
         }
 
