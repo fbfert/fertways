@@ -2101,7 +2101,7 @@
     {
         "type": "deposito_local",
         "nome": "Depósito Local",
-        "max_level": 5,
+        "max_level": 10,
         "levels": [
             {
                 "level": 1,
@@ -2151,6 +2151,56 @@
                     "ligas_metalicas": 185,
                     "oxigenio": 44,
                     "energia": 74
+                }
+            },
+            {
+                "level": 6,
+                "build_time_seconds": 2220,
+                "cost": {
+                    "biomassa": 122,
+                    "ligas_metalicas": 306,
+                    "oxigenio": 73,
+                    "energia": 122
+                }
+            },
+            {
+                "level": 7,
+                "build_time_seconds": 3360,
+                "cost": {
+                    "biomassa": 202,
+                    "ligas_metalicas": 504,
+                    "oxigenio": 121,
+                    "energia": 202
+                }
+            },
+            {
+                "level": 8,
+                "build_time_seconds": 5040,
+                "cost": {
+                    "biomassa": 333,
+                    "ligas_metalicas": 832,
+                    "oxigenio": 200,
+                    "energia": 333
+                }
+            },
+            {
+                "level": 9,
+                "build_time_seconds": 7560,
+                "cost": {
+                    "biomassa": 549,
+                    "ligas_metalicas": 1373,
+                    "oxigenio": 330,
+                    "energia": 549
+                }
+            },
+            {
+                "level": 10,
+                "build_time_seconds": 11280,
+                "cost": {
+                    "biomassa": 906,
+                    "ligas_metalicas": 2266,
+                    "oxigenio": 544,
+                    "energia": 906
                 }
             }
         ]

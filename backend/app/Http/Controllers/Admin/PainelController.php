@@ -606,6 +606,108 @@ class PainelController extends Controller
     }
 
     /**
+     * Gestão de Construções (D-107): tempo, Silo e custo — hoje fixos no GDD, o admin passa a
+     * ajustar por nível. Três sub-abas, mesmo padrão `?aba=` de `missoes()`.
+     */
+    public function construcoes(Request $request): View
+    {
+        $abas = ['tempo', 'custo', 'silo'];
+        $aba = in_array($request->query('aba'), $abas, true) ? $request->query('aba') : 'tempo';
+
+        $dados = ['aba' => $aba, 'naoConstroi' => \App\Models\Building::NASCE_NO_NIVEL_UM];
+
+        if ($aba === 'tempo' || $aba === 'custo') {
+            $dados['grupos'] = $this->construcoesAgrupadas();
+        } else {
+            $dados['capacidades'] = DB::table('silo_capacidades')
+                ->orderBy('resource_type')->orderBy('level')
+                ->get()
+                ->groupBy('resource_type');
+            $dados['recursos'] = \App\Models\ResourceType::orderBy('tax_class')->orderBy('nome')->get();
+            $dados['niveisSilo'] = range(1, 10);
+        }
+
+        return view('admin.construcoes', $dados);
+    }
+
+    /**
+     * Toda `building_specs`, base + o ajuste do admin quando existir, agrupada como o painel de
+     * imagens já agrupa (`Vinculaveis`) — essenciais, progressão, zona neutra, veículos/unidades —
+     * mais um grupo "outras" pro que nenhum dos quatro cobre (hoje só o Depósito Local, que não
+     * está em `Building::MVP` de propósito — D-105/106).
+     */
+    private function construcoesAgrupadas(): array
+    {
+        $base = DB::table('building_specs')->orderBy('building_type')->orderBy('level')->get();
+        $overrides = DB::table('building_specs_overrides')->get()
+            ->keyBy(fn ($o) => "{$o->building_type}:{$o->level}");
+
+        $porTipo = $base->groupBy('building_type');
+
+        $gruposDef = [
+            'As cinco essenciais' => \App\Models\Building::ESSENCIAIS,
+            'Progressão da colônia' => \App\Models\Building::PROGRESSAO,
+            'Zona neutra' => array_keys(\App\Domain\Zona\Estruturas::COLUNA),
+            'Veículos e unidades' => [
+                'furgao_de_comercio', 'caminhao_de_carga', 'nave_de_transporte_planetaria',
+                'drone_de_exploracao', 'sentinela', 'robo_minerador', 'infiltrador', 'predador',
+            ],
+        ];
+
+        $jaAgrupado = [];
+        $grupos = [];
+
+        foreach ($gruposDef as $titulo => $tipos) {
+            $itens = [];
+
+            foreach ($tipos as $tipo) {
+                if (isset($jaAgrupado[$tipo]) || ! $porTipo->has($tipo)) {
+                    continue;
+                }
+                $jaAgrupado[$tipo] = true;
+                $itens[] = $this->construcaoParaAba($tipo, $porTipo[$tipo], $overrides);
+            }
+
+            if ($itens !== []) {
+                $grupos[$titulo] = $itens;
+            }
+        }
+
+        // O que sobrar (hoje: só o Depósito Local) — nenhum tipo de building_specs fica de fora.
+        $outras = [];
+        foreach ($porTipo->keys() as $tipo) {
+            if (! isset($jaAgrupado[$tipo])) {
+                $outras[] = $this->construcaoParaAba($tipo, $porTipo[$tipo], $overrides);
+            }
+        }
+        if ($outras !== []) {
+            $grupos['Outras'] = $outras;
+        }
+
+        return $grupos;
+    }
+
+    private function construcaoParaAba(string $tipo, $niveis, $overrides): array
+    {
+        return [
+            'tipo' => $tipo,
+            'nome' => \App\Domain\Media\NomesDeExibicao::de($tipo),
+            'niveis' => $niveis->map(function ($n) use ($tipo, $overrides) {
+                $override = $overrides->get("{$tipo}:{$n->level}");
+
+                return [
+                    'nivel' => $n->level,
+                    'tempo_base_min' => $n->build_time_seconds !== null ? (int) round($n->build_time_seconds / 60) : null,
+                    'tempo_override_min' => $override?->build_time_seconds !== null
+                        ? (int) round($override->build_time_seconds / 60) : null,
+                    'custo_base' => json_decode($n->cost_json, true),
+                    'custo_override' => $override?->cost_json !== null ? json_decode($override->cost_json, true) : null,
+                ];
+            })->values()->all(),
+        ];
+    }
+
+    /**
      * A aba Missões (§06; D-78) — o CRUD do catálogo. Ganhou aba própria porque o formulário de
      * criar/editar é grande demais para caber num card da Operação sem afogar o resto da tela.
      */
