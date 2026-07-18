@@ -5181,3 +5181,68 @@ mudança de contrato em rotas existentes, só aditivo). Checagem visual manual (
 Puppeteer, dois colonos em contextos de navegador isolados): fundar, convidar, o segundo colono
 aceitando e virando Membro, um despacho de verdade para o Quartel de Alianças, e a tela do
 operador em `/admin/federacoes` com a lista, o detalhe e o formulário de dissolução.
+
+---
+
+## D-115 — Federação, Fatia 2: canal de chat, apoio de aliado no cerco, e a outra metade do impedimento.
+**Data:** 2026-07-19 · **Status:** arbitrado pelo usuário · **Três pontas fechadas, duas adiadas de propósito**
+
+O D-114 (Fatia 1) deixou cinco pontas para depois. Perguntei ao usuário qual atacar; ele escolheu
+as quatro que eu ofereci (esqueci de oferecer a quinta — a metade que falta do impedimento do
+conciliador — como opção separada, mas ela entrou de qualquer jeito por fazer parte do mesmo
+levantamento). Pesquisando a fundo, achei que duas das cinco (categoria de missão "Federação"
+cooperativa, e o alerta em tempo real da Central de Comunicação da zona) exigem mecanismos que
+**não existem em lugar nenhum do jogo hoje** — progresso de missão compartilhado entre colônias
+(toda `mission_assignments.colony_id` é uma colônia só), e broadcast de mensagem para vários
+jogadores de uma vez (`EnviarMensagem::sistema()` é sempre 1-para-1). Perguntei ao usuário se
+quaisquer as cinco de uma vez ou só as três que já tinham um padrão pronto para estender; ele
+escolheu **só as três rápidas**. Missões cooperativas e o alerta da zona ficam para uma sessão
+própria, com mais espaço de design — não são um "não", são um "ainda não".
+
+### 1. O canal de chat "federacao"
+
+A coluna `chat_messages.channel` já aceitava qualquer valor desde a migration original do chat —
+só faltava saber DE QUAL federação. Nova coluna `federation_id` (nullable, sem FK — dado descritivo
+congelado, como `x`/`y` da vizinhança), gravada no ENVIO, não recalculada na leitura: um colono que
+sai da federação depois não apaga o histórico para quem ficou, e um que entra depois não herda o de
+antes. Mesmo raciocínio da vizinhança (`x`/`y` congelados, filtro por raio na leitura), só que por
+pertencimento em vez de posição.
+
+⚠️ **Julgamento do desenvolvedor, não do GDD, sinalizado para o usuário revisitar**: o canal fica
+FORA de `EnviarMensagem::PUBLICOS`, isento tanto do filtro de termos quanto da pena de silêncio. O
+GDD só é explícito sobre o filtro ("federação e privadas não têm filtro automático", §10.2) — a
+isenção de silêncio foi minha extensão da mesma lógica: um círculo de aliados está mais para
+conversa fechada do que para praça pública, e "cala a praça, não a boca" (o espírito do §9.4)
+sugere que a punição não deveria alcançar aqui. Se o usuário achar errado, é uma linha
+(`PUBLICOS` ganha `'federacao'`).
+
+Retenção: 180 dias, como `global` — não há prazo publicado especificamente para federação, e ela é
+um canal persistente e pequeno (até 12 colônias), mais perto de praça duradoura que de vizinhança
+(cujo prazo curto é sobre volume). A aba só aparece no Chat pra quem tem federação (uma busca leve
+e independente ao abrir o painel, mesmo padrão que `Mercado.tsx` já usa pro diretório de colônias).
+
+### 2. Apoio de federação aliada ao romper um cerco (§28.10)
+
+`RomperCerco::handle()` tinha um guard único: só o sitiado rompe. Virou: o sitiado, OU qualquer
+colônia da MESMA federação dele. Verificado ponta a ponta antes de escrever a linha: as unidades
+exigidas já eram as de CASA de quem chama (não do dono da zona), "uma ruptura por vez" já era por
+ZONA e não por colônia, e o crédito de XP/missão em `ResolverCombates::cercoRompido()` já ia para
+`attacker_colony_id`, que é quem chama a ação — então nada mais no motor de combate precisou mudar.
+Quem manda o socorro, luta; quem luta, ganha o crédito — dono ou aliado.
+
+### 3. Ministério das Reputações — a outra metade do impedimento (§26.8)
+
+`Triagem::impedido()` já cobria "transação comercial nos últimos 30 dias"; a metade "membros da
+mesma federação" estava documentada como inerte desde sempre. Uma checagem a mais no início do
+método (mesma federação do conciliador e de uma das partes → impedido), sem classe nova, sem rota
+nova — a lacuna que o próprio comentário do código já previa.
+
+Validado: `php artisan test` completo (739 — 11 novos: 7 em `ChatFederacaoTest`, 2 em `DefesaTest`
+— aliado rompe e recebe o crédito, federação diferente continua de fora —, 2 em
+`MinisterioDasReputacoesTest`), suíte completa também verde contra MariaDB efêmero (fresh +
+rollback + migrate para a migration do `chat_messages.federation_id`), `tsc`/`lint`/`build`
+limpos, e2e completo (9/9 verde — uma rodada teve uma falha isolada e não relacionada em
+`capital.e2e.mjs`, na vitrine de usados, que uma segunda rodada confirmou como intermitência
+pré-existente, não regressão desta entrega). Checagem visual manual (backend efêmero + Puppeteer,
+dois colonos da mesma federação em contextos isolados): a aba Federação aparece entre Vizinhança e
+Privadas, uma mensagem enviada por um colono aparece para o outro no mesmo canal.

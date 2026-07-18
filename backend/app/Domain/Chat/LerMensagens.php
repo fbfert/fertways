@@ -13,10 +13,13 @@ use Illuminate\Support\Facades\DB;
 /**
  * Lê um canal pelos olhos de um colono (§10; D-77).
  *
- * Duas regras moram na LEITURA, não na escrita:
+ * Regras que moram na LEITURA, não na escrita:
  *
  *   vizinhança   o canal é um RAIO: vê-se o que foi dito a até N slots da colônia do leitor (N é
  *                do operador). Dois vizinhos ouvem-se; o outro lado do planeta, não.
+ *   federação    (D-115) filtro por `federation_id`, gravado no envio (`EnviarMensagem`) — não
+ *                pela federação ATUAL do leitor recalculada aqui. Quem já saiu não apaga o
+ *                histórico de quem ficou; quem entra depois não herda o de antes.
  *   bloqueio     quem eu bloqueei some da MINHA tela em todos os canais — bloquear é não ouvir,
  *                não é calar o outro.
  */
@@ -32,9 +35,14 @@ class LerMensagens
             throw new DomainRuleException('sem_colonia', 'Funde uma colônia antes de ouvir o rádio do planeta.');
         }
 
+        if ($canal === 'federacao' && $colony->federation_id === null) {
+            throw new DomainRuleException('sem_federacao', 'Sua colônia não está em nenhuma federação.');
+        }
+
         $consulta = match ($canal) {
             'global' => ChatMessage::where('channel', 'global'),
             'vizinhanca' => ChatMessage::where('channel', 'vizinhanca'),
+            'federacao' => ChatMessage::where('channel', 'federacao')->where('federation_id', $colony->federation_id),
             default => throw new DomainRuleException('canal_invalido', "Não existe o canal {$canal}."),
         };
 

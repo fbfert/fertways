@@ -34,7 +34,10 @@ use Illuminate\Support\Facades\DB;
  * Vencendo o socorro, o **cerco é levantado** e o exército sitiante é destruído. Vencendo o sitiante,
  * a força de socorro morre e **o cerco continua** — e o relógio das 48 h não parou.
  *
- * **Federações não existem** (D-44), então o apoio aliado do §28.10 fica de fora. Registrado.
+ * **O apoio de federação aliada chegou no D-115** (Fatia 2): qualquer colônia da mesma federação
+ * do sitiado pode mandar as próprias Sentinelas para romper — mesmas regras, mesmo relógio, mesmo
+ * "uma tentativa por vez" (que já era por ZONA, não por colônia, então dono e aliado não se
+ * atropelham sem guarda nova nenhuma).
  */
 class RomperCerco
 {
@@ -56,10 +59,21 @@ class RomperCerco
             }
 
             if ($cerco->defender_colony_id !== $colony->id) {
-                throw new DomainRuleException(
-                    'cerco_nao_e_seu',
-                    'Este cerco não é contra você. Só o sitiado o rompe.',
-                );
+                // Apoio de federação aliada (§28.10, D-115): a mesma tropa que o sitiado mandaria,
+                // só que de casa de um aliado. Nada mais no método muda — as Sentinelas continuam
+                // sendo as de quem chama (`$colony->id`), e o crédito de XP/missão em
+                // `ResolverCombates::cercoRompido()` já vai para `attacker_colony_id`, que também
+                // é quem chama. Quem luta, ganha — seja o dono ou o aliado.
+                $defensor = Colony::find($cerco->defender_colony_id);
+                $aliado = $colony->federation_id !== null
+                    && $defensor && $defensor->federation_id === $colony->federation_id;
+
+                if (! $aliado) {
+                    throw new DomainRuleException(
+                        'cerco_nao_e_seu',
+                        'Este cerco não é contra você nem contra um membro da sua federação. Só o sitiado ou um aliado o rompe.',
+                    );
+                }
             }
 
             // Uma tentativa de ruptura por vez. Duas forças de socorro ao mesmo tempo seriam duas

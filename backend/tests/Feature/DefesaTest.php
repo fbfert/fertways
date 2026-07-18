@@ -272,7 +272,7 @@ class DefesaTest extends TestCase
         app(RomperCerco::class)->handle($defensor, $cerco->fresh(), $this->sentinelas($defensor, 2));
     }
 
-    /** Só o SITIADO rompe. Um terceiro não se mete. */
+    /** Só o SITIADO (ou, desde o D-115, um aliado da federação dele) rompe. Um terceiro não se mete. */
     public function test_so_o_sitiado_rompe(): void
     {
         $sitiante = $this->colono('Sitiante');
@@ -287,6 +287,59 @@ class DefesaTest extends TestCase
 
         $this->expectException(DomainRuleException::class);
         app(RomperCerco::class)->handle($terceiro, $cerco->fresh(), $this->sentinelas($terceiro, 5));
+    }
+
+    /**
+     * Federação aliada (§28.10, D-115): quem está na MESMA federação do sitiado também rompe — com
+     * as PRÓPRIAS Sentinelas, de casa. Quem lutou, ganha: o crédito de XP/missão vai para quem
+     * mandou o socorro, não necessariamente para o dono da zona.
+     */
+    public function test_aliado_da_mesma_federacao_tambem_rompe_o_cerco(): void
+    {
+        $sitiante = $this->colono('Sitiante');
+        $defensor = $this->colono('Defensor');
+        $aliado = $this->colono('Aliado');
+
+        $fed = \App\Models\Federation::create(['name' => 'Aliança']);
+        $defensor->update(['federation_id' => $fed->id, 'federation_role' => \App\Models\Federation::LIDER]);
+        $aliado->update(['federation_id' => $fed->id, 'federation_role' => \App\Models\Federation::MEMBRO]);
+
+        $zona = $this->zonaDe($defensor);
+        $cerco = app(Atacar::class)->handle($sitiante, $zona, 'cerco', $this->sentinelas($sitiante, 3));
+
+        $this->travelTo(now()->addMinutes(30));
+        app(ResolverCombates::class)->handle(now());
+
+        // O socorro sai da casa do ALIADO, não do sitiado.
+        $ruptura = app(RomperCerco::class)->handle($aliado, $cerco->fresh(), $this->sentinelas($aliado, 10));
+
+        $fim = $this->correr($ruptura, 12);
+
+        $this->assertSame('vitoria_atacante', $fim->status);
+        $this->assertFalse($zona->fresh()->cercada(), 'o cerco foi levantado pelo aliado');
+        $this->assertSame($aliado->id, $ruptura->attacker_colony_id, 'quem lutou, ganha o crédito');
+    }
+
+    /** Federação DIFERENTE (ou nenhuma) continua de fora — a exceção é só para aliados de verdade. */
+    public function test_colonia_de_outra_federacao_nao_rompe(): void
+    {
+        $sitiante = $this->colono('Sitiante');
+        $defensor = $this->colono('Defensor');
+        $estranho = $this->colono('Estranho');
+
+        $fedA = \App\Models\Federation::create(['name' => 'A']);
+        $fedB = \App\Models\Federation::create(['name' => 'B']);
+        $defensor->update(['federation_id' => $fedA->id, 'federation_role' => \App\Models\Federation::LIDER]);
+        $estranho->update(['federation_id' => $fedB->id, 'federation_role' => \App\Models\Federation::LIDER]);
+
+        $zona = $this->zonaDe($defensor);
+        $cerco = app(Atacar::class)->handle($sitiante, $zona, 'cerco', $this->sentinelas($sitiante, 3));
+
+        $this->travelTo(now()->addMinutes(30));
+        app(ResolverCombates::class)->handle(now());
+
+        $this->expectException(DomainRuleException::class);
+        app(RomperCerco::class)->handle($estranho, $cerco->fresh(), $this->sentinelas($estranho, 5));
     }
 
     // ── a API ───────────────────────────────────────────────────────────────────────────────────

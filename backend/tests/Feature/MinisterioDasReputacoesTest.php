@@ -210,6 +210,37 @@ class MinisterioDasReputacoesTest extends TestCase
     }
 
     #[Test]
+    public function o_conciliador_na_mesma_federacao_de_uma_das_partes_esta_impedido(): void
+    {
+        [$a, $b, $c] = [$this->colonia('alfa'), $this->colonia('beta'), $this->colonia('gama')];
+        $this->nomearConciliador($c);
+
+        // §26.8, a outra metade do impedimento (D-115): "membros da própria federação" — sem
+        // transação nenhuma entre eles, só o vínculo de federação já basta.
+        $fed = \App\Models\Federation::create(['name' => 'Aliança']);
+        $c->update(['federation_id' => $fed->id, 'federation_role' => \App\Models\Federation::LIDER]);
+        $a->update(['federation_id' => $fed->id, 'federation_role' => \App\Models\Federation::MEMBRO]);
+
+        $denuncia = $this->denunciar($a, $b, 'calote_reincidente');
+
+        $this->assertSame('na_equipe', $denuncia->status, 'o único conciliador é da mesma federação de uma das partes');
+    }
+
+    #[Test]
+    public function federacao_diferente_ou_nenhuma_nao_impede(): void
+    {
+        [$a, $b, $c] = [$this->colonia('alfa'), $this->colonia('beta'), $this->colonia('gama')];
+        $conciliador = $this->nomearConciliador($c);
+
+        $fedA = \App\Models\Federation::create(['name' => 'A']);
+        $fedC = \App\Models\Federation::create(['name' => 'C']);
+        $a->update(['federation_id' => $fedA->id, 'federation_role' => \App\Models\Federation::LIDER]);
+        $c->update(['federation_id' => $fedC->id, 'federation_role' => \App\Models\Federation::LIDER]);
+
+        $this->assertSame($conciliador->id, $this->denunciar($a, $b, 'calote_reincidente')->conciliator_user_id);
+    }
+
+    #[Test]
     public function o_conciliador_nao_julga_o_proprio_caso(): void
     {
         [$a, $b] = [$this->colonia('alfa'), $this->colonia('beta')];

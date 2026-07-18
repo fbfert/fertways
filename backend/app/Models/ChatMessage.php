@@ -10,7 +10,7 @@ class ChatMessage extends Model
 {
     public $timestamps = false;
 
-    protected $fillable = ['user_id', 'channel', 'recipient_user_id', 'x', 'y', 'body', 'created_at'];
+    protected $fillable = ['user_id', 'channel', 'recipient_user_id', 'x', 'y', 'federation_id', 'body', 'created_at'];
 
     protected $casts = ['created_at' => 'datetime'];
 

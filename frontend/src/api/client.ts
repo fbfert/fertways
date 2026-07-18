@@ -1221,11 +1221,11 @@ export const api = {
     req<{
       privadas_nao_lidas: number
       mencoes: number
-      mencoes_por_canal: { global: number; vizinhanca: number }
+      mencoes_por_canal: { global: number; vizinhanca: number; federacao: number }
     }>('/chat/pendencias'),
-  chatLer: (canal: 'global' | 'vizinhanca', after = 0) =>
+  chatLer: (canal: 'global' | 'vizinhanca' | 'federacao', after = 0) =>
     req<{ mensagens: MensagemDeChat[] }>(`/chat/${canal}?after=${after}`),
-  chatFalar: (canal: 'global' | 'vizinhanca', body: string) =>
+  chatFalar: (canal: 'global' | 'vizinhanca' | 'federacao', body: string) =>
     req<MensagemDeChat>(`/chat/${canal}`, { method: 'POST', body: JSON.stringify({ body }) }),
   chatConversas: () =>
     req<{ conversas: { user_id: number; nickname: string; ultima: MensagemDeChat; nao_lidas: number }[] }>('/chat/conversas'),

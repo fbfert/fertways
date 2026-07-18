@@ -94,15 +94,20 @@ class Triagem
      * §26.8, impedimento: "Conciliador não pode julgar casos envolvendo membros da própria
      * federação, ou jogadores com quem teve transação comercial nos últimos 30 dias."
      *
-     * Federações não existem — metade da regra fica inerte, e volta a morder sozinha quando
-     * existirem. A outra metade morde hoje: o único registro par-a-par de transação comercial que o
-     * servidor guarda é o Acordo de Troca. Um despacho avulso lança no ledger da origem, sem o
-     * destino, e portanto não prova relação entre dois colonos.
+     * As duas metades mordem desde o D-115. A da federação: `$conciliador` e uma das partes na
+     * mesma federação. A comercial: o único registro par-a-par de transação que o servidor guarda
+     * é o Acordo de Troca — um despacho avulso lança no ledger da origem, sem o destino, e
+     * portanto não prova relação entre dois colonos.
      *
      * @param  array<int>  $partes
      */
     private function impedido(Colony $conciliador, array $partes): bool
     {
+        if ($conciliador->federation_id !== null
+            && Colony::whereIn('id', $partes)->where('federation_id', $conciliador->federation_id)->exists()) {
+            return true;
+        }
+
         $desde = now()->subDays(PunicaoSpecs::IMPEDIMENTO_DIAS);
 
         return TradeAgreement::where('created_at', '>=', $desde)
