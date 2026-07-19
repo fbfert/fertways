@@ -992,6 +992,13 @@ export const api = {
       body: JSON.stringify({ structure }),
     }),
 
+  /** Repara uma estrutura sabotada, ou resgata antecipadamente uma apreendida (D-118). */
+  repararModulo: (id: number, estrutura: string) =>
+    req<{ estruturas: EstruturaDaZona[] }>(`/zones/${id}/reparar`, {
+      method: 'POST',
+      body: JSON.stringify({ estrutura }),
+    }),
+
   /** Despacha um veículo com material de obra até o canteiro da zona. A entrega é FÍSICA (D-67). */
   entregarMaterial: (id: number, vehicleId: number, cargo: Record<string, number>) =>
     req<{ id: number; type: string; plate: string; status: string; arrives_at: string | null }>(
@@ -1356,8 +1363,16 @@ export type EstruturaDaZona = {
   /** O Cemitério é declarado "apenas visual" pelo próprio GDD. */
   inerte: boolean
   construivel: boolean
-  /** Desligada por uma sabotagem ou uma apreensão (§28.10). */
+  /** Desligada por uma apreensão (§28.10) — mantido por compatibilidade, é o mesmo que `apreendida`. */
   offline: boolean
+  /** Quanto do efeito normal está de pé agora, em bps (10000 = cheio, 0 = totalmente fora, D-118). */
+  fracao_efetiva: number
+  /** A Apreensão do Predador: desliga por inteiro até `expira_em` (24h) ou um reparo antecipado. */
+  apreendida: { expira_em: string | null } | null
+  /** A Sabotagem do Infiltrador: reduz proporcionalmente ao nível de quem sabotou. Sem prazo — só reparo. */
+  sabotada: { nivel_do_infiltrador: number } | null
+  /** Custo do reparo/resgate, só quando `apreendida` ou `sabotada`. */
+  custo_reparo: Record<string, number> | null
   proximo: { level: number; custo: Record<string, number>; segundos: number } | null
 }
 

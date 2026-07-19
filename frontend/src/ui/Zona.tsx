@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { api, ApiError } from '../api/client'
-import type { EstadoDaGuerra, EventoDaZona, Veiculo, ZonaDetalhe } from '../api/client'
+import type { EstadoDaGuerra, EstruturaDaZona, EventoDaZona, Veiculo, ZonaDetalhe } from '../api/client'
 import { dataHumana, nomeRecurso, nomeVeiculo } from './recursos'
 
 /**
@@ -305,7 +305,9 @@ export function Zona() {
                       stroke={erguida ? 'var(--color-rust)' : 'var(--color-ink-soft)'}
                       strokeWidth={1.5}
                       strokeDasharray={erguida ? undefined : '4 3'}
-                      opacity={e?.offline ? 0.35 : 1}
+                      // Esmaece na proporção do que sobrou de efeito (D-118) — 0,35 é o piso, para
+                      // uma estrutura totalmente apreendida continuar visível, só visivelmente fraca.
+                      opacity={e ? Math.max(0.35, e.fracao_efetiva / 10_000) : 1}
                       className="cursor-pointer"
                       onClick={() => setSel(tipo)}
                       data-area={tipo}
@@ -340,10 +342,31 @@ export function Zona() {
                     </span>
                   </h3>
 
-                  {escolhida.offline && (
-                    <p className="text-rust mt-1 text-sm font-bold">
-                      ⚠ Fora de operação — sabotada ou apreendida. Precisa de reparo.
-                    </p>
+                  {escolhida.apreendida && (
+                    <div className="border-rust/40 bg-sand-light mt-1 border p-2 text-sm">
+                      <p className="text-rust font-bold">
+                        ⚠ Apreendida pelo Predador — 0% de efeito.
+                      </p>
+                      <p className="text-ink-soft mt-1 text-xs">
+                        {escolhida.apreendida.expira_em
+                          ? `Volta sozinha ${dataHumana(escolhida.apreendida.expira_em)}, ou pague o resgate agora.`
+                          : 'Volta sozinha, ou pague o resgate agora.'}
+                      </p>
+                      <BotaoDeReparo z={z} escolhida={escolhida} agir={agir} rotulo="Pagar resgate" />
+                    </div>
+                  )}
+
+                  {escolhida.sabotada && (
+                    <div className="border-rust/40 bg-sand-light mt-1 border p-2 text-sm">
+                      <p className="text-rust font-bold">
+                        ⚠ Sabotada pelo Infiltrador (nível {escolhida.sabotada.nivel_do_infiltrador}) —
+                        opera a {Math.round(escolhida.fracao_efetiva / 100)}%.
+                      </p>
+                      <p className="text-ink-soft mt-1 text-xs">
+                        Sem prazo automático — só volta ao normal com reparo.
+                      </p>
+                      <BotaoDeReparo z={z} escolhida={escolhida} agir={agir} rotulo="Reparar" />
+                    </div>
                   )}
 
                   {/* As duas camadas, e elas não se confundem: o que o GDD promete e o que o jogo faz. */}
@@ -788,6 +811,7 @@ function LinhaFinanceira({ ev }: { ev: EventoDaZona }) {
     custo_upgrade_zona: 'Custo de upgrade de nível',
     manutencao_territorial: 'Manutenção territorial',
     saque_de_guerra: 'Saque de guerra',
+    reparo_de_modulo: 'Reparo de módulo',
   }
   const qtd = ev.quantidade ?? 0
 
@@ -993,6 +1017,49 @@ function ReforcarZona({
         onClick={() => onReforcar(escolhidas.map((u) => u.id))}
       >
         {zona.cercada ? 'Cercada: reforço não passa' : 'Despachar reforço'}
+      </button>
+    </div>
+  )
+}
+
+/**
+ * O reparo/resgate de um módulo (D-118) — mesmo botão para as duas portas do "Módulo Operacional"
+ * (D-66): a Sabotagem só sai daqui, a Apreensão também sai sozinha em 24h, mas paga aqui é na hora.
+ */
+function BotaoDeReparo({
+  z,
+  escolhida,
+  agir,
+  rotulo,
+}: {
+  z: ZonaDetalhe
+  escolhida: EstruturaDaZona
+  agir: (acao: () => Promise<string>) => Promise<void>
+  rotulo: string
+}) {
+  const custo = escolhida.custo_reparo ?? {}
+
+  return (
+    <div className="mt-2">
+      <ul className="text-ink-soft text-xs">
+        {Object.entries(custo).map(([r, q]) => (
+          <li key={r}>
+            {nomeRecurso(r)}: {q}
+          </li>
+        ))}
+      </ul>
+      <button
+        className="border-rust/40 text-rust hover:border-rust mt-1 w-full border py-1.5 text-xs font-bold"
+        data-reparar={escolhida.type}
+        onClick={() =>
+          void agir(async () => {
+            await api.repararModulo(z.id, escolhida.type)
+
+            return `${escolhida.nome} reparada.`
+          })
+        }
+      >
+        {rotulo}
       </button>
     </div>
   )

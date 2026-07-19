@@ -458,7 +458,7 @@ class DefesaTest extends TestCase
      * porque até o D-70 nada o escrevia. O `update()` o descartaria **em silêncio**: o admin mudaria
      * o número, a tela diria "atualizado", e o valor continuaria o mesmo. Este teste é a rede.
      */
-    public function test_o_painel_grava_os_dez_parametros_da_guerra(): void
+    public function test_o_painel_grava_os_onze_parametros_da_guerra(): void
     {
         $admin = \App\Models\Admin::create([
             'name' => 'Operador', 'email' => 'op@fertways.test',
@@ -477,6 +477,7 @@ class DefesaTest extends TestCase
             'predador_min_bps' => 500,
             'predador_max_bps' => 9500,
             'niobio_preco_micro' => 7_500_000,
+            'reparo_bps_do_custo' => 2000,
         ];
 
         $this->actingAs($admin, 'admin')

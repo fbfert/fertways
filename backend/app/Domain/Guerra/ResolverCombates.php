@@ -590,7 +590,12 @@ class ResolverCombates
             return;
         }
 
-        $deteccao = $this->forcas->config()->torre_deteccao_bps_por_nivel * $zona->watchtower_level;
+        // Torre sabotada/apreendida detecta menos (D-118) — é a mesma degradação que a vigia sofre.
+        $deteccao = intdiv(
+            $this->forcas->config()->torre_deteccao_bps_por_nivel * $zona->watchtower_level
+                * $zona->fracaoEfetiva('torre_de_vigia'),
+            10_000,
+        );
 
         if ($this->sorteio->sucesso($deteccao)) {
             $this->infiltradorMorto($combate, 'detectado_pela_torre');
@@ -602,7 +607,7 @@ class ResolverCombates
             return;   // falhou a tentativa, mas passou despercebido: tenta de novo na próxima.
         }
 
-        $this->desligarModulo($zona, (string) $combate->alvo);
+        $this->sabotarModulo($zona, (string) $combate->alvo, $infiltrador->level);
 
         $this->recolherSobreviventes($combate);
 
@@ -640,8 +645,11 @@ class ResolverCombates
 
         $c = $this->forcas->config();
 
+        // Abrigo sabotado/apreendido resiste menos (D-118) — o nível efetivo cai com ele.
+        $abrigoEfetivo = intdiv($zona->shelter_level * $zona->fracaoEfetiva('abrigo_de_robos'), 10_000);
+
         $chance = $c->predador_base_bps
-            + $c->predador_por_nivel_bps * ($predador->level - $zona->shelter_level);
+            + $c->predador_por_nivel_bps * ($predador->level - $abrigoEfetivo);
 
         $chance = max($c->predador_min_bps, min($c->predador_max_bps, $chance));
 
@@ -658,8 +666,12 @@ class ResolverCombates
         $combate->status = 'vitoria_atacante';
         $combate->proxima_rodada_at = null;
         // O resgate: 24 h para o dono reaver o módulo (§28.10). Passado o prazo, ele repara
-        // normalmente — o módulo é "temporariamente removido", não destruído (v3.2).
+        // normalmente — o módulo é "temporariamente removido", não destruído (v3.2). D-118 lê
+        // este prazo de verdade: `ExpirarApreensoes` no tick, ou `RepararModulo` antes da hora.
         $combate->prazo_at = $agora->copy()->addHours(Combat::RESGATE_HORAS);
+        $expira = $zona->modules_offline_expira_em ?? [];
+        $expira[(string) $combate->alvo] = $combate->prazo_at->toIso8601String();
+        $zona->update(['modules_offline_expira_em' => $expira]);
         $combate->resultado = array_merge($combate->resultado, [
             'apreendido' => $combate->alvo,
             'chance_bps' => $chance,
@@ -739,9 +751,9 @@ class ResolverCombates
     }
 
     /**
-     * Tira uma estrutura de operação. É o "Módulo Operacional" da v3.2 (D-66): a estrutura para de
-     * funcionar até o dono a reparar ou pagar o resgate. **Não é destruída** — "temporariamente
-     * removido, que pode ser rastreado, recuperado e reparado".
+     * A Apreensão do Predador: desliga a estrutura POR INTEIRO (0 bps em `fracaoEfetiva()`) até o
+     * tick de `ExpirarApreensoes` (24h) ou um `RepararModulo` antecipado (D-118). **Não é
+     * destruída** — "temporariamente removido, que pode ser rastreado, recuperado e reparado" (v3.2).
      */
     private function desligarModulo(NeutralZone $zona, string $alvo): void
     {
@@ -752,6 +764,19 @@ class ResolverCombates
         }
 
         $zona->update(['modules_offline' => $offline]);
+    }
+
+    /**
+     * A Sabotagem do Infiltrador: reduz a estrutura na proporção do nível de quem sabotou — não
+     * desliga por inteiro como a Apreensão (D-118, `fracaoEfetiva()`). Sem prazo automático: o
+     * §28.10 só promete o das 24h para a Apreensão. Só sai por `RepararModulo`.
+     */
+    private function sabotarModulo(NeutralZone $zona, string $alvo, int $nivelDoInfiltrador): void
+    {
+        $sabotadas = $zona->structures_saboted ?? [];
+        $sabotadas[$alvo] = $nivelDoInfiltrador;
+
+        $zona->update(['structures_saboted' => $sabotadas]);
     }
 
     /** O Infiltrador ou o Predador foi visto. Ataque zero: cai em combate e morre (§28.10). */

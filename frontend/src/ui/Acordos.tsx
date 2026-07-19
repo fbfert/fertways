@@ -379,8 +379,8 @@ function Cartao({
 
       {!acordo.moves_reputation && (
         <p className="text-ink-soft mt-2 text-xs">
-          Vale {fert(acordo.value_micro, 2)} Fert$ somando os dois lados: abaixo do piso de 500, fica
-          registrado mas não move a Confiança Comercial (§26.3).
+          Vale {fert(acordo.value_micro, 2)} Fert$ somando os dois lados: abaixo do piso de 5 Fert$
+          (D-117), fica registrado mas não move a Confiança Comercial (§26.3).
         </p>
       )}
 

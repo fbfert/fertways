@@ -522,13 +522,14 @@ class ZonaLugarTest extends TestCase
             // O Cemitério é declarado INERTE pelo próprio GDD, e a tela tem de dizê-lo.
             ->assertJsonPath('estruturas.8.type', 'cemiterio_de_robos')
             ->assertJsonPath('estruturas.8.inerte', true)
-            // As três últimas do §17.4 (D-79): custeadas, construíveis, e também INERTES — nenhuma
-            // tem sistema que a acione ainda (extração já funciona sem ferramenta; sem Federação;
-            // sem Nave de Transporte Planetária).
+            // Duas das três últimas do §17.4 (D-79) continuam INERTES — nenhuma tem sistema que a
+            // acione (extração já funciona sem ferramenta; sem Nave de Transporte Planetária). A
+            // Central de Comunicação SAIU da lista no D-116/D-118: a Federação existe, e ela já
+            // avisa e mostra a zona ao vivo pros aliados.
             ->assertJsonPath('estruturas.9.type', 'estrutura_de_extracao')
             ->assertJsonPath('estruturas.9.inerte', true)
             ->assertJsonPath('estruturas.10.type', 'central_de_comunicacao')
-            ->assertJsonPath('estruturas.10.inerte', true)
+            ->assertJsonPath('estruturas.10.inerte', false)
             ->assertJsonPath('estruturas.11.type', 'plataforma_de_pouso_da_zona')
             ->assertJsonPath('estruturas.11.inerte', true)
             // E não sobrou nada do §17.4 marcado como "buraco" — o D-79 fechou a lista.
@@ -652,10 +653,12 @@ class ZonaLugarTest extends TestCase
     }
 
     /**
-     * As três últimas do §17.4 (D-79) — a lacuna nunca foi de função, e continua não sendo: são
-     * INERTES de propósito, como o Cemitério, mas agora têm custo e se erguem pelo canteiro.
+     * As três últimas do §17.4 (D-79) se erguem pelo canteiro como qualquer outra. Duas continuam
+     * INERTES de propósito, como o Cemitério — a Estrutura de Extração (a zona já extrai sem ela) e
+     * a Plataforma de Pouso (espera a Nave de Transporte Planetária, que não existe). A Central de
+     * Comunicação SAIU do grupo no D-116/D-118: a Federação existe, e ela tem efeito de verdade.
      */
-    public function test_as_tres_ultimas_estruturas_se_erguem_e_sao_inertes(): void
+    public function test_as_tres_ultimas_estruturas_se_erguem(): void
     {
         $colono = $this->colono();
         $zona = $this->zonaDe($colono);
@@ -665,12 +668,11 @@ class ZonaLugarTest extends TestCase
             'metal_bruto' => 1000, 'ligas_metalicas' => 500, 'componentes_eletronicos' => 200,
         ]);
 
-        foreach (
-            ['estrutura_de_extracao', 'central_de_comunicacao', 'plataforma_de_pouso_da_zona']
-            as $estrutura
-        ) {
+        $inertes = ['estrutura_de_extracao' => true, 'central_de_comunicacao' => false, 'plataforma_de_pouso_da_zona' => true];
+
+        foreach ($inertes as $estrutura => $deveSerInerte) {
             $this->assertContains($estrutura, Estruturas::CONSTRUIVEIS);
-            $this->assertTrue(Estruturas::de($estrutura)['inerte']);
+            $this->assertSame($deveSerInerte, Estruturas::de($estrutura)['inerte']);
 
             app(ConstruirNaZona::class)->handle($colono, $zona, $estrutura);
 

@@ -32,6 +32,7 @@ class WarSetting extends Model
         'predador_base_bps', 'predador_por_nivel_bps',
         'predador_min_bps', 'predador_max_bps',
         'niobio_preco_micro',
+        'reparo_bps_do_custo',
     ];
 
     protected $casts = [
@@ -45,6 +46,7 @@ class WarSetting extends Model
         'predador_min_bps' => 'integer',
         'predador_max_bps' => 'integer',
         'niobio_preco_micro' => 'integer',
+        'reparo_bps_do_custo' => 'integer',
     ];
 
     /**

@@ -172,6 +172,8 @@ class CobrarManutencaoTerritorial
             'last_industry_at' => null,
             'sieged_at' => null,
             'modules_offline' => null,
+            'modules_offline_expira_em' => null,
+            'structures_saboted' => null,
         ]);
     }
 }

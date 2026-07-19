@@ -212,6 +212,23 @@
                 recusa.
             </p>
 
+            <h3 style="margin-top:14px">Reparo de módulos <span class="mut pequeno">— Sabotagem e resgate antecipado de Apreensão (§28.10)</span></h3>
+            <div class="linha-form">
+                <div style="flex:0">
+                    <label>Custo, fração do preço de construção</label>
+                    <input type="number" min="0" max="10000" name="reparo_bps_do_custo"
+                           value="{{ $guerra->reparo_bps_do_custo }}" data-p="reparo" required>
+                    <span class="mut pequeno">{{ $pct($guerra->reparo_bps_do_custo) }} do custo de construção do nível atual</span>
+                </div>
+            </div>
+            <p class="mut pequeno">
+                O §28.10 manda "reparar ou pagar o resgate" e não publica custo nenhum. Fração do
+                custo de CONSTRUÇÃO da estrutura (não número novo) — mesmo padrão da manutenção de
+                veículos do Ministério dos Transportes. A Apreensão também repara sozinha em 24h,
+                sem custo nenhum; isto só paga para reaver antes do prazo, ou para a Sabotagem, que
+                não tem prazo automático.
+            </p>
+
             <h3 style="margin-top:14px">O Nióbio Alienígena <span class="mut pequeno">— o freio de todo o exército</span></h3>
             <div class="linha-form">
                 <div style="flex:0">
