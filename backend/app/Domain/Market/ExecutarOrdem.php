@@ -183,10 +183,11 @@ class ExecutarOrdem
         }
 
         /*
-         * O Marco anda com o comércio (D-75) — e com o MESMO piso do D-43 que protege a reputação:
-         * execução abaixo de 500 Fert$ não rende XP, senão duas contas fariam volume de mentira a
-         * 1 unidade por vez (a taxa de 3% tornaria o farm caro, mas caro não é impossível). O
-         * Governo não é colônia: sem XP nem missão para o lado dele, só para quem comprou.
+         * O Marco anda com o comércio (D-75) — e com o MESMO piso do D-43/D-117 que protege a
+         * reputação: execução abaixo de 5 Fert$ não rende XP, senão duas contas fariam volume de
+         * mentira a 1 unidade por vez (a taxa de 3% tornaria o farm caro, mas caro não é
+         * impossível). O Governo não é colônia: sem XP nem missão para o lado dele, só para quem
+         * comprou.
          */
         if ($valor >= \App\Domain\Trade\AcordoSpecs::PISO_REPUTACAO_MICRO) {
             $xp = app(\App\Domain\Marco\ConcederXp::class);

@@ -89,7 +89,7 @@ class AcordoDeTrocaTest extends TestCase
     }
 
     /**
-     * Um acordo caro o bastante para cruzar o piso de 500 F$ do §26.3.
+     * Um acordo caro o bastante para cruzar o piso de 5 F$ do §26.3 (com folga: 506 F$, bem acima).
      *
      * Precisa de recurso raro: Bioenergia Curativa custa 0,506 F$ a unidade, e 1.000 unidades já
      * valem 506 F$. Água a 0,0062 exigiria 80 mil unidades — mais que a capacidade do Furgão.
@@ -269,11 +269,11 @@ class AcordoDeTrocaTest extends TestCase
     }
 
     #[Test]
-    public function acordo_abaixo_do_piso_de_500_fert_nao_move_reputacao(): void
+    public function acordo_abaixo_do_piso_de_5_fert_nao_move_reputacao(): void
     {
         [$a, $b] = $this->duasColonias();
 
-        // 1 unidade de cada lado: valor de mercado muito abaixo dos 500 F$ do §26.3.
+        // 1 unidade de cada lado: valor de mercado muito abaixo dos 5 F$ do §26.3 (D-117).
         $acordo = app(ProporAcordo::class)->handle(
             $a, $b, ['metal_bruto' => 1], ['agua' => 1], $this->prazoValido($a, $b),
         );

@@ -93,7 +93,7 @@ class MissoesNovasAcoesTest extends TestCase
 
         $missao = $this->atribuir($comprador->colony, $this->molde('compra_governo_mercado'));
 
-        // 600 × 1 Fert$ = 600 Fert$, acima do piso de reputação (500) que libera XP/missão.
+        // 600 × 1 Fert$ = 600 Fert$, acima do piso de reputação (5 F$, D-117) que libera XP/missão.
         app(ExecutarOrdem::class)->handle($comprador->colony->fresh(), $ordem->id, 600);
 
         $this->assertSame('concluida', $missao->fresh()->status);
