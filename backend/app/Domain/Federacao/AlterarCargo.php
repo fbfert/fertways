@@ -2,6 +2,8 @@
 
 namespace App\Domain\Federacao;
 
+use App\Domain\Chat\ContaSistema;
+use App\Domain\Chat\EnviarMensagem;
 use App\Exceptions\DomainRuleException;
 use App\Models\Colony;
 use App\Models\Federation;
@@ -15,6 +17,12 @@ use Illuminate\Support\Facades\DB;
 class AlterarCargo
 {
     private const ALTERAVEIS = [Federation::DIPLOMATA, Federation::INTENDENTE, Federation::MEMBRO];
+
+    private const NOME = [
+        Federation::DIPLOMATA => 'Diplomata', Federation::INTENDENTE => 'Intendente', Federation::MEMBRO => 'Membro',
+    ];
+
+    public function __construct(private readonly EnviarMensagem $chat) {}
 
     public function handle(Colony $lider, Colony $alvo, string $cargo): void
     {
@@ -51,6 +59,16 @@ class AlterarCargo
             }
 
             $alvo->forceFill(['federation_role' => $cargo])->save();
+
+            // D-121.
+            if ($usuario = $alvo->user) {
+                $nomeCargo = self::NOME[$cargo] ?? $cargo;
+                $this->chat->sistema(
+                    ContaSistema::federacao(),
+                    $usuario,
+                    "Seu cargo na federação mudou para {$nomeCargo}.",
+                );
+            }
         });
     }
 }

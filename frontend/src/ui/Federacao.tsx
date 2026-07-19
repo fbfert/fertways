@@ -246,6 +246,8 @@ function ComFederacao({
   const [recursoSacar, setRecursoSacar] = useState('')
   const [qtdSacar, setQtdSacar] = useState('')
   const [transferirPara, setTransferirPara] = useState('')
+  const [confirmandoSaida, setConfirmandoSaida] = useState(false)
+  const [palavraSaida, setPalavraSaida] = useState('')
 
   const veiculosEmCasa = veiculos.filter((v) => v.local === 'colonia' && v.status === 'ocioso')
   const colonoDoAlvo = (id: number) => colonias.find((c) => c.id === id)
@@ -542,19 +544,60 @@ function ComFederacao({
       )}
 
       <section>
-        <button
-          disabled={ocupado}
-          onClick={() =>
-            void agir(
-              () => api.sairDaFederacao(),
-              members.length === 1 ? 'Você saiu — a federação foi dissolvida.' : 'Você saiu da federação.',
-            )
-          }
-          className="text-rust rounded border px-4 py-2 text-sm font-bold disabled:opacity-40"
-          data-sair-federacao
-        >
-          Sair da federação
-        </button>
+        {!confirmandoSaida ? (
+          <button
+            disabled={ocupado}
+            onClick={() => setConfirmandoSaida(true)}
+            className="text-rust rounded border px-4 py-2 text-sm font-bold disabled:opacity-40"
+            data-sair-federacao
+          >
+            Sair da federação
+          </button>
+        ) : (
+          <div className="border-rust/40 max-w-sm space-y-2 rounded border p-3">
+            <p className="text-ink text-sm">
+              {members.length === 1
+                ? 'Você é a única colônia — sair dissolve a federação.'
+                : 'Tem certeza que quer sair da federação?'}
+            </p>
+            <label className="text-ink-soft block text-xs">
+              Escreva <span className="text-rust font-bold">SAIR</span> para confirmar:
+              <input
+                value={palavraSaida}
+                onChange={(e) => setPalavraSaida(e.target.value)}
+                autoFocus
+                data-palavra-sair
+                className="border-ink/20 mt-1 w-full rounded border px-2 py-1 font-mono text-sm"
+              />
+            </label>
+            <div className="flex gap-2">
+              <button
+                disabled={ocupado || palavraSaida !== 'SAIR'}
+                onClick={() => {
+                  void agir(
+                    () => api.sairDaFederacao(palavraSaida),
+                    members.length === 1 ? 'Você saiu — a federação foi dissolvida.' : 'Você saiu da federação.',
+                  )
+                  setConfirmandoSaida(false)
+                  setPalavraSaida('')
+                }}
+                data-confirmar-sair-federacao
+                className="bg-rust text-sand-light rounded px-4 py-2 text-sm font-bold disabled:opacity-40"
+              >
+                Sair mesmo assim
+              </button>
+              <button
+                onClick={() => {
+                  setConfirmandoSaida(false)
+                  setPalavraSaida('')
+                }}
+                className="text-ink-soft rounded border px-4 py-2 text-sm"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        )}
         {ehLider && members.length > 1 && (
           <p className="text-ink-soft mt-1 text-xs">
             Você é o Líder: transfira a liderança antes de sair, ou o pedido será recusado.

@@ -155,8 +155,22 @@ class FederationController extends Controller
         return response()->json(['ok' => true]);
     }
 
+    /**
+     * A exigência da palavra vive AQUI, e não só na tela (D-121, mesmo padrão do `Demolir`, D-59):
+     * uma confirmação só em React protege contra o dedo escorregando, e nada mais. Quem chamar a
+     * API direto sai sem digitar nada, se a porta de verdade não perguntar.
+     */
     public function sair(Request $request): JsonResponse
     {
+        $confirmacao = (string) $request->input('confirmacao');
+
+        if ($confirmacao !== SairDaFederacao::PALAVRA) {
+            throw new DomainRuleException(
+                'confirmacao_invalida',
+                'Para sair, escreva '.SairDaFederacao::PALAVRA.'.',
+            );
+        }
+
         $this->sair->handle($this->colonia($request));
 
         return response()->json(['ok' => true]);

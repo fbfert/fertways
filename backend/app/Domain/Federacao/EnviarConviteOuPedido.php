@@ -2,6 +2,8 @@
 
 namespace App\Domain\Federacao;
 
+use App\Domain\Chat\ContaSistema;
+use App\Domain\Chat\EnviarMensagem;
 use App\Exceptions\DomainRuleException;
 use App\Models\Colony;
 use App\Models\Federation;
@@ -15,9 +17,23 @@ use Illuminate\Support\Facades\DB;
  */
 class EnviarConviteOuPedido
 {
+    public function __construct(private readonly EnviarMensagem $chat) {}
+
     public function convidar(Colony $convidante, Federation $federation, Colony $alvo): FederationInvite
     {
-        return $this->criar($federation, $alvo, FederationInvite::CONVITE, $convidante, exigirPermissao: true);
+        $invite = $this->criar($federation, $alvo, FederationInvite::CONVITE, $convidante, exigirPermissao: true);
+
+        // D-121: sem isto, a colônia convidada só saberia olhando a própria tela — e ninguém
+        // olha uma tela sem motivo pra abrir.
+        if ($usuario = $alvo->user) {
+            $this->chat->sistema(
+                ContaSistema::federacao(),
+                $usuario,
+                "Você foi convidado(a) para a federação «{$federation->name}».",
+            );
+        }
+
+        return $invite;
     }
 
     public function pedir(Colony $candidata, Federation $federation): FederationInvite

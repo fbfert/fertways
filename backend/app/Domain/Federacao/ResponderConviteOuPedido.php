@@ -2,6 +2,8 @@
 
 namespace App\Domain\Federacao;
 
+use App\Domain\Chat\ContaSistema;
+use App\Domain\Chat\EnviarMensagem;
 use App\Exceptions\DomainRuleException;
 use App\Models\Colony;
 use App\Models\Federation;
@@ -17,6 +19,8 @@ use Illuminate\Support\Facades\DB;
  */
 class ResponderConviteOuPedido
 {
+    public function __construct(private readonly EnviarMensagem $chat) {}
+
     public function aceitar(FederationInvite $invite, Colony $ator): void
     {
         DB::transaction(function () use ($invite, $ator) {
@@ -41,9 +45,9 @@ class ResponderConviteOuPedido
             }
 
             // Refeito sob lock: a federação pode ter enchido entre o convite e o aceite.
-            $membros = Colony::where('federation_id', $federation->id)->count();
+            $membrosAtuais = Colony::where('federation_id', $federation->id)->get();
 
-            if ($membros >= Federation::MAX_COLONIAS) {
+            if ($membrosAtuais->count() >= Federation::MAX_COLONIAS) {
                 throw new DomainRuleException(
                     'federacao_cheia',
                     'A federação já está no teto de '.Federation::MAX_COLONIAS.' colônias.',
@@ -63,6 +67,18 @@ class ResponderConviteOuPedido
                 ->where('id', '!=', $invite->id)
                 ->where('status', FederationInvite::PENDENTE)
                 ->update(['status' => FederationInvite::CANCELADO, 'decided_at' => now()]);
+
+            // D-121: os membros que já estavam lá são avisados de quem chegou — a lista de
+            // membros muda e ninguém fica sabendo por que, a não ser abrindo a tela de novo.
+            foreach ($membrosAtuais as $membro) {
+                if ($usuario = $membro->user) {
+                    $this->chat->sistema(
+                        ContaSistema::federacao(),
+                        $usuario,
+                        "{$entrando->name} entrou na federação.",
+                    );
+                }
+            }
         });
     }
 

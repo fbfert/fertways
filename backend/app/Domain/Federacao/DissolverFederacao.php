@@ -2,6 +2,8 @@
 
 namespace App\Domain\Federacao;
 
+use App\Domain\Chat\ContaSistema;
+use App\Domain\Chat\EnviarMensagem;
 use App\Domain\Treasury\Tesouro;
 use App\Models\Colony;
 use App\Models\Federation;
@@ -23,7 +25,10 @@ use Illuminate\Support\Facades\DB;
  */
 class DissolverFederacao
 {
-    public function __construct(private readonly Tesouro $tesouro) {}
+    public function __construct(
+        private readonly Tesouro $tesouro,
+        private readonly EnviarMensagem $chat,
+    ) {}
 
     public function handle(Federation $federation): void
     {
@@ -57,12 +62,27 @@ class DissolverFederacao
                 $saldo->update(['amount' => 0]);
             }
 
-            // Caminho normal: ninguém mais aponta pra cá (o último saiu antes de chamar). Dissolução
-            // de emergência pelo admin: pode sobrar gente — todo mundo é desligado aqui.
+            // Caminho normal: ninguém mais aponta pra cá (o último saiu antes de chamar) — a lista
+            // abaixo vem vazia, e não há ninguém para avisar (SairDaFederacao já avisou quem
+            // ficou, antes de chegar até aqui). Dissolução de emergência pelo admin: pode sobrar
+            // gente ativa — é esse o caso em que o aviso realmente importa.
+            $restantes = Colony::where('federation_id', $federation->id)->get();
+
             Colony::where('federation_id', $federation->id)
                 ->update(['federation_id' => null, 'federation_role' => null]);
 
             $federation->forceFill(['disbanded_at' => now()])->save();
+
+            // D-121.
+            foreach ($restantes as $membro) {
+                if ($usuario = $membro->user) {
+                    $this->chat->sistema(
+                        ContaSistema::federacao(),
+                        $usuario,
+                        "A federação «{$federation->name}» foi dissolvida.",
+                    );
+                }
+            }
         });
     }
 }

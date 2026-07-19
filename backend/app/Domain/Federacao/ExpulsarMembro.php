@@ -2,6 +2,8 @@
 
 namespace App\Domain\Federacao;
 
+use App\Domain\Chat\ContaSistema;
+use App\Domain\Chat\EnviarMensagem;
 use App\Exceptions\DomainRuleException;
 use App\Models\Colony;
 use App\Models\Federation;
@@ -13,6 +15,8 @@ use Illuminate\Support\Facades\DB;
  */
 class ExpulsarMembro
 {
+    public function __construct(private readonly EnviarMensagem $chat) {}
+
     public function handle(Colony $ator, Colony $alvo): void
     {
         DB::transaction(function () use ($ator, $alvo) {
@@ -44,7 +48,18 @@ class ExpulsarMembro
                 );
             }
 
+            $nomeFederacao = $ator->federation?->name ?? 'sua federação';
             $alvo->forceFill(['federation_id' => null, 'federation_role' => null])->save();
+
+            // D-121: o expulso só descobria ao tentar usar o chat/fundo da federação e levar
+            // "sem_federacao" — agora é avisado na hora.
+            if ($usuario = $alvo->user) {
+                $this->chat->sistema(
+                    ContaSistema::federacao(),
+                    $usuario,
+                    "Você foi removido(a) da federação «{$nomeFederacao}».",
+                );
+            }
         });
     }
 }

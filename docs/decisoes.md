@@ -5542,3 +5542,70 @@ sendo federada, e o painel ajusta o número de verdade — testado com 100% de d
 entrega por inteiro). MariaDB efêmero (fresh + rollback + migrate, duas vezes) para a coluna nova
 em `federation_settings`. `tsc`/`lint`/`build` limpos (sem mudança de frontend — o desconto é
 transparente na tela, o colono só vê o líquido que já chegou maior). e2e completo, 9/9 verde.
+
+---
+
+## D-121 — Sair da federação pede confirmação; as 9 ações sociais deixam de ser silenciosas.
+**Data:** 2026-07-19 · **Status:** pedido direto do usuário, três partes
+
+Pedido do usuário, três partes: (1) "Sair da federação" passa a exigir digitar SAIR; (2) o jogador
+recebe mensagens no chat, vindas da conta "Federação", para convite, saída e outros alertas; (3)
+uma aba de chat "Federação" nova, só entre os membros da própria federação.
+
+**A parte 3 já existia — não foi construída de novo.** O canal de chat `federacao` (coluna
+`chat_messages.federation_id`, `EnviarMensagem`/`LerMensagens`) e a aba "Federação" no Chat
+(`frontend/src/ui/Chat.tsx`, condicional a `temFederacao`) são do **D-115**, publicados em
+19/07 mais cedo no mesmo dia. Conferido ponta a ponta antes de mexer em qualquer coisa — front e
+back, funcional. Se o pedido era outra coisa (ex.: o comportamento de filtro/silêncio do canal,
+que o D-115 isentou de propósito e marcou como "julgamento do desenvolvedor, revisitável"), fica
+para o usuário esclarecer; nenhum código foi tocado aqui.
+
+### 1. Sair exige "SAIR" — mesmo padrão do Demolir (D-59)
+
+`SairDaFederacao::PALAVRA = 'SAIR'`, checada no **controller** (`FederationController::sair()`),
+não só na tela — "uma confirmação só em React protege contra o dedo escorregando, e nada mais"
+(o mesmo raciocínio que já valia para `Demolir`). O frontend replica o padrão exato do botão de
+demolir: clique revela um campo de texto, o botão de confirmar fica `disabled` até o texto bater
+exatamente, "Cancelar" limpa tudo.
+
+### 2. As 9 ações da Federação eram TODAS silenciosas — 6 ganham aviso
+
+Levantamento antes de mexer: nenhuma das 9 classes de `App\Domain\Federacao\*` avisava quem quer
+que fosse — nem convite, nem entrada, nem saída, nem expulsão, nem cargo, nem liderança, nem
+dissolução. O único aviso relacionado à Federação em todo o jogo era o de cerco (`AvisoDeAtaque`,
+D-116, fora de `Domain\Federacao`). Um membro só descobria que tinha sido expulso, por exemplo,
+ao tropeçar num erro "sem_federacao" tentando usar alguma coisa.
+
+Seis eventos ganharam aviso, pela conta de sistema `ContaSistema::federacao()` (já existia,
+D-116) via `EnviarMensagem::sistema()`:
+
+- **Convite recebido** (`EnviarConviteOuPedido::convidar()`) — avisa a colônia convidada.
+- **Entrada aceita** (`ResponderConviteOuPedido::aceitar()`) — avisa quem JÁ estava na federação
+  (capturados antes de o novo membro entrar), não o que entrou — ele já sabe, foi ele quem clicou.
+- **Saída** (`SairDaFederacao`) — avisa quem ficou.
+- **Expulsão** (`ExpulsarMembro`) — avisa o expulso.
+- **Cargo alterado** (`AlterarCargo`) — avisa o próprio membro afetado.
+- **Liderança transferida** (`TransferirLideranca`) — avisa o novo Líder.
+- **Dissolução** (`DissolverFederacao`) — avisa os membros ainda ativos, capturados **antes** de
+  zerar `federation_id` de todos. ⚠️ No caminho NORMAL (o último membro sai e a federação dissolve
+  sozinha), essa lista sempre vem vazia — quem saiu por último já foi avisado por `SairDaFederacao`
+  antes de chegar aqui. É a dissolução de EMERGÊNCIA pelo admin, com gente ainda ativa, que
+  realmente dispara o aviso — coberto por teste específico.
+
+⚠️ **Três ficaram de fora, por escopo, sinalizado para o usuário revisitar:**
+
+- `SacarDoFundo` — já é visível no extrato do fundo; um aviso a mais seria redundante.
+- `CriarFederacao` — a colônia está sozinha ao fundar; não há quem avisar.
+- `EnviarConviteOuPedido::pedir()` (pedido de entrada, o inverso do convite) — avisaria vários
+  Líderes/Diplomatas de uma vez, não uma pessoa só; escopo maior do que "convite, saída e outros
+  alertas" parecia pedir. Fica para uma revisão se o usuário quiser.
+
+### Validado
+
+`php artisan test` completo (785 — 7 novos em `AvisosSociaisDaFederacaoTest`, um por evento, mais
+o teste de fronteira da confirmação errada em `FederacaoNucleoTest`; os testes de `/federation/
+leave` existentes em `FederacaoNucleoTest`/`FederacaoFundoTest` atualizados para mandar
+`confirmacao: SAIR`). Sem migration — nenhuma coluna nova, só comportamento. `tsc`/`lint`/`build`
+limpos. e2e completo, 9/9 verde (uma rodada teve uma falha isolada no Chat, num fluxo de busca que
+este trabalho não toca; duas rodadas seguintes confirmaram verde — instabilidade pré-existente,
+mesma classe da intermitência já documentada no Mercado).
