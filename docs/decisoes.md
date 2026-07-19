@@ -5494,3 +5494,51 @@ com o teto mais frouxo —, e as duas pontas do formulário do painel). MariaDB 
 rollback + migrate, duas vezes) para a migration nova (`federation_settings`). `tsc`/`lint`/`build`
 limpos (sem mudança de frontend — o teto só existe no painel de admin e no domínio). e2e completo,
 9/9 verde.
+
+---
+
+## D-120 — O desconto de tributo entre aliados (§04/§07): 50%, do operador, só entre DUAS colônias.
+**Data:** 2026-07-19 · **Status:** arbitrado com o usuário em duas perguntas · **GDD §04/§07, v3.0**
+
+A última ponta que o D-114 tinha deixado de fora da Fatia 1 de propósito: "a contribuição ao fundo é
+tributada NORMALMENTE (100%), deixando o terreno pronto para o desconto entrar depois sem
+redesenhar a viagem". O próprio comentário que ficou em `ConcluirTrechos::concluirIda()`, no bloco
+do destino `federacao`, usava a contribuição ao fundo como o exemplo do "terreno pronto" — uma
+ambiguidade real sobre se o desconto valeria só no comércio entre colonos (§07) ou também na
+entrega ao próprio fundo (§04). Perguntado, o usuário decidiu:
+
+1. **Só comércio entre DUAS colônias aliadas** (§07). A contribuição ao fundo da própria federação
+   (§04) continua tributada cheia — `FederacaoFundoTest` não muda uma linha. Faz sentido lido
+   assim: o fundo não é uma troca entre duas partes, é a colônia alimentando o próprio caixa
+   coletivo — "entre aliadas" pressupõe duas colônias, não uma colônia e o grupo que ela integra.
+2. **O número (50%, que a v3.0 publica com todas as letras) mora no painel**, não em constante de
+   código — mesma tabela `federation_settings` que o D-119 já tinha criado para o outro número do
+   §04 (o teto antimonopólio). Diferente do D-119, aqui o GDD não delega o número — ele o publica.
+   Mesmo assim vira parâmetro: o precedente mais próximo (o mesmo domínio, a poucos commits) já
+   tinha decidido que qualquer coisa que valha a pena rebalancear sem deploy vira painel.
+
+### Onde entra, e o cuidado de não descontar quem entrega para SI MESMO
+
+`ConcluirTrechos::entregar(Colony $origem, Colony $destino, ...)` já recebe as duas colônias — é o
+único lugar que precisava mudar. Novo helper privado `aliquota()`: se `$origem->id !== $destino->id`
+e as duas têm o MESMO `federation_id` não nulo, aplica o desconto; senão, alíquota cheia.
+
+⚠️ **A checagem de identidade (`$origem->id !== $destino->id`) não é redundante.** `entregar()`
+também é chamada com origem e destino **iguais** em dois casos: o frete público do governo (D-76,
+o caminhão entrega e a colônia É a própria origem e destino) e a retirada do Mercado Central
+(§25.8, a colônia retirando o que ela mesma depositou). Sem essa checagem, uma colônia federada
+"descontaria de si mesma" ao retirar o próprio estoque — não é comércio entre aliados, é a colônia
+falando com ela mesma. Coberto por teste (`retirada_do_mercado_nao_ganha_desconto_mesmo_sendo_
+federada`).
+
+`depositarNoMercado()` e `depositarNaFederacao()` calculam o tributo delas mesmas, **fora** de
+`entregar()` — não foram tocadas, e é por isso que o desconto não vaza para lá.
+
+### Validado
+
+`php artisan test` completo (777 — 4 novos em `DescontoDeTributoEntreAliadosTest`: entrega entre
+aliados paga metade, federações diferentes pagam cheio, retirada do Mercado não desconta mesmo
+sendo federada, e o painel ajusta o número de verdade — testado com 100% de desconto, isentando a
+entrega por inteiro). MariaDB efêmero (fresh + rollback + migrate, duas vezes) para a coluna nova
+em `federation_settings`. `tsc`/`lint`/`build` limpos (sem mudança de frontend — o desconto é
+transparente na tela, o colono só vê o líquido que já chegou maior). e2e completo, 9/9 verde.

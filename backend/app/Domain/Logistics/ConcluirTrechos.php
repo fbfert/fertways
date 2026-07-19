@@ -523,13 +523,14 @@ class ConcluirTrechos
         }
 
         $chave = $this->chave($prefixo, $v, $recurso);
+        $bps = $this->aliquota($origem, $destino, $tipo->tax_bps);
 
         // Truncamento: o tributo é retido em unidades inteiras do próprio recurso (D-12), e
         // arredondar para cima cobraria mais do que a alíquota em cargas pequenas.
-        $tributo = intdiv($qtd * $tipo->tax_bps, 10_000);
+        $tributo = intdiv($qtd * $bps, 10_000);
         $liquido = $qtd - $tributo;
 
-        if (! $this->tributar($chave, $origem, $recurso, $qtd, $tipo->tax_bps, $tributo)) {
+        if (! $this->tributar($chave, $origem, $recurso, $qtd, $bps, $tributo)) {
             return null;
         }
 
@@ -539,6 +540,30 @@ class ConcluirTrechos
         $this->lancarTributo($origem, $tributo, $recurso, $chave);
 
         return $liquido;
+    }
+
+    /**
+     * A alíquota efetiva, com o desconto entre aliados do §04/§07 (D-114, D-120: "50% de desconto
+     * nos tributos entre aliadas", v3.0).
+     *
+     * Só se aplica a uma entrega de VERDADE entre DUAS colônias diferentes, e as duas na MESMA
+     * federação. `entregar()` também é chamada com `$origem === $destino` para o frete público
+     * (D-76) e a retirada do Mercado (§25.8) — a colônia recebendo o próprio lote não é "comércio
+     * entre aliados", é ela mesma, e não pode dar desconto em si própria.
+     */
+    private function aliquota(Colony $origem, Colony $destino, int $bpsCheio): int
+    {
+        $aliados = $origem->id !== $destino->id
+            && $origem->federation_id !== null
+            && $origem->federation_id === $destino->federation_id;
+
+        if (! $aliados) {
+            return $bpsCheio;
+        }
+
+        $desconto = \App\Models\FederationSetting::singleton()->desconto_tributo_aliados_bps;
+
+        return intdiv($bpsCheio * (10_000 - $desconto), 10_000);
     }
 
     /**

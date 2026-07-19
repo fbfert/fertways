@@ -175,14 +175,20 @@ class LimiteAntimonopolioTest extends TestCase
     public function test_o_painel_recusa_bps_fora_da_faixa(): void
     {
         $this->actingAs($this->admin(), 'admin')
-            ->post('/admin/federacoes/parametros', ['teto_ocupacao_zonas_bps' => 10_001])
+            ->post('/admin/federacoes/parametros', [
+                'teto_ocupacao_zonas_bps' => 10_001,
+                'desconto_tributo_aliados_bps' => 5_000,
+            ])
             ->assertSessionHasErrors('teto_ocupacao_zonas_bps');
     }
 
     public function test_o_painel_grava_o_teto(): void
     {
         $this->actingAs($this->admin(), 'admin')
-            ->post('/admin/federacoes/parametros', ['teto_ocupacao_zonas_bps' => 1_500])
+            ->post('/admin/federacoes/parametros', [
+                'teto_ocupacao_zonas_bps' => 1_500,
+                'desconto_tributo_aliados_bps' => 5_000,
+            ])
             ->assertRedirect();
 
         $this->assertSame(1_500, FederationSetting::singleton()->fresh()->teto_ocupacao_zonas_bps);
