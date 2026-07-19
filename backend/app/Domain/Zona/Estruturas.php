@@ -13,6 +13,17 @@ namespace App\Domain\Zona;
  * Duas camadas, como o `Domain\Building\Funcoes` faz para a colônia, e pela mesma razão: separar o
  * que o GDD **promete** do que o jogo **entrega hoje**. Sem isso, o colono gasta 600 Metal Bruto num
  * prédio inerte e só descobre depois.
+ *
+ * ⚠️ **Não existe demolição nem downgrade de estrutura de zona — assimetria real com a colônia
+ * (`Domain\Building\Demolir`), nunca decidida nem discutida** (achado numa revisão de 2026-07-19,
+ * D-122). `ConcluirObrasDaZona`/`SubirNivelDaZona` só SOBEM nível (o `max()` do primeiro é
+ * deliberado — "nunca se BAIXA um nível", inclusive na conquista por guerra), e não há endpoint,
+ * classe de domínio nem botão de tela para reduzir uma estrutura já erguida. Diferente das outras
+ * contradições/assimetrias do jogo (tributo do D-32, frota que nunca trava do D-60), esta nunca foi
+ * registrada como escolha — parece só nunca ter sido levantada. Fica registrada agora como o que é:
+ * uma lacuna real, não uma decisão. Implementá-la abriria perguntas de design que esta revisão não
+ * respondeu (demolir devolve material? reduz o custo de manutenção na hora? undo de saque de
+ * guerra?) — **não implementar sem antes decidir essas perguntas com o usuário.**
  */
 class Estruturas
 {
@@ -171,9 +182,16 @@ class Estruturas
         'estacionamento_da_zona' => [
             'nome' => 'Estacionamento da Zona',
             'gdd' => '10 vagas para Caminhões de Carga aguardarem fila de retirada dentro da própria zona.',
-            'hoje' => 'Dá 10 vagas na zona. De graça — a tarifa do Pátio da Capital existe porque aquele '
-                .'pátio é do GOVERNO; esta zona é sua.',
-            'inerte' => false,
+            // Corrigido em 2026-07-19 (D-122, achado numa revisão de zonas): até aqui esta linha
+            // dizia "dá 10 vagas — de graça", mas NADA no jogo contava veículos nem barrava
+            // ninguém — o texto prometia um limite que não existia. Implementar o limite de
+            // verdade hoje arriscaria travar zonas já ativas em produção sem fila nenhuma pra
+            // justificar a mudança; a correção segura, por ora, é dizer a verdade — mesma escolha
+            // do Cemitério.
+            'hoje' => 'Nada. Ninguém conta veículos nem barra ninguém — o "10 vagas" nunca foi '
+                .'aplicado. Ergue-se por gosto e futuro, como o Cemitério, até alguém desenhar o '
+                .'que "fila de retirada" deveria significar num jogo sem fila de verdade.',
+            'inerte' => true,
         ],
 
         'cemiterio_de_robos' => [

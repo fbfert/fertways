@@ -5701,3 +5701,51 @@ genuinamente sem tempo). Sem migration — só dados de seeder (`build_times_bas
 comportamento; **passo à mão no deploy**: `artisan db:seed --class=BuildingSpecSeeder --force`
 no banco de produção, mesma classe de esquecimento que já mordeu o D-67 (RETOMAR.md, "o deploy.sh
 NÃO roda seeders"). `tsc`/`lint`/`build` limpos (sem mudança de frontend). e2e completo, 9/9 verde.
+
+---
+
+## D-123 — Os cinco achados menores da mesma revisão: 5 a 9, sem parar para perguntar.
+**Data:** 2026-07-19 · **Status:** pedido direto do usuário — "siga sem me fazer perguntas"
+
+Continuação do D-122: os cinco achados restantes da revisão de Zonas Neutras/construções/envio,
+resolvidos com julgamento próprio (o usuário pediu explicitamente para não parar e perguntar).
+
+**5. Estacionamento da Zona prometia 10 vagas e zero era aplicado.** Nenhuma rotina de despacho
+contava veículos nem checava `parking_level`. Decisão: em vez de implementar um limite ao vivo
+(risco real de travar zonas já ativas em produção, sem nenhuma fila de verdade que justificasse a
+mudança agora), a estrutura passa a se declarar honestamente **inerte** — `inerte => true`, texto
+corrigido — mesmo tratamento do Cemitério. Implementar o limite de verdade fica para quando alguém
+desenhar o que "fila de retirada" deveria significar num jogo sem fila de verdade nenhuma.
+
+**6. `ConstruirNaZona` nunca lia `building_specs_overrides`** — um ajuste do admin no painel de
+Gestão de Construções (D-107/D-108) não tinha efeito nenhum nas 12 estruturas de zona. Trocada a
+leitura crua de `building_specs` por `BuildingSpecs::para()`, o MESMO caminho que
+`EnqueueUpgrade` já usa do lado da colônia — inclusive o padrão de checar `nivelMaximo()` antes,
+pra preservar o código de erro `nivel_maximo` que já era o contrato da API. Provado por teste: um
+override de custo/tempo em `muralha_de_perimetro` agora vale na zona.
+
+**7. Não existe demolição nem downgrade de estrutura de zona — e isso nunca foi decidido, só nunca
+foi levantado.** Diferente das outras contradições do jogo (tributo do D-32, frota que nunca trava
+do D-60), não havia nenhum D-N discutindo a ausência. Registrado agora como o que é: uma lacuna
+real, sinalizada no docblock de `Estruturas`, com as perguntas de design que uma implementação
+abriria (devolve material? reduz manutenção na hora? undo de saque de guerra?) — **não
+implementada nesta fatia**, porque essas perguntas são do usuário, não do desenvolvedor.
+
+**8. Dois docblocks de `Funcoes.php` mentiam** — Quartel dizia "nenhuma unidade é recrutada aqui
+ainda" (falso desde o D-66, `FabricarUnidade` recruta as quatro unidades no Quartel) e Central de
+Transportes dizia que o teto de frota "ainda não vale no jogo" (falso desde o D-60,
+`Domain\Transport\Vagas` já o aplica). As duas notas foram escritas antes das decisões que as
+tornaram obsoletas, e nunca revisitadas. Corrigidas para descrever o código real; `quartel` também
+teve o `efeito` corrigido de `nenhum` para `converte` (consome recurso, credita unidade).
+
+**9. `manutencao.custo_diario`/`proximo_vencimento` — a API sempre devolveu, a tela nunca lia.** O
+colono só descobria o custo da manutenção territorial depois de já estar inadimplente. `Zona.tsx`
+ganhou um bloco calmo (visível quando NÃO há atraso) mostrando o custo por recurso e o próximo
+vencimento; o aviso vermelho de atraso, que já existia, continua exatamente como estava.
+
+### Validado
+
+`php artisan test` completo (793 — nenhum teste novo além do que o item 6 provou dentro de
+`RevisaoDoCanteiroTest`; a suíte inteira permaneceu verde porque nenhum teste existente afirmava o
+texto antigo de Estacionamento/Quartel/Central de Transportes). Sem migration. `tsc`/`lint`/`build`
+limpos. e2e completo, 9/9 verde.
