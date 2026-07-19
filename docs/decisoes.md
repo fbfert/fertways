@@ -5326,3 +5326,29 @@ novas), `tsc`/`lint`/`build` limpos, e2e completo (9/9 verde). Checagem visual m
 efêmero + Puppeteer, duas colônias da mesma federação em contextos isolados): a missão "Federação"
 aparece com o MESMO progresso nas telas das duas colônias (espelhamento confirmado), e o aviso de
 cerco chega em Privadas, remetido pela conta "Federação", assim que a zona é sitiada.
+
+---
+
+## D-117 — O piso anti-farming do §26.3 desce de 500 F$ para 5 F$.
+**Data:** 2026-07-19 · **Status:** decidido pelo usuário (revisão do D-43) · **GDD §26.3**
+
+O usuário topou com um Acordo real valendo 0,78 Fert$ somando os dois lados — bem abaixo do piso de
+500 F$ do D-43, então ficou registrado no histórico sem mover a Confiança Comercial, exatamente como
+o código documenta. Pediu para descer o piso para **5 F$**.
+
+**Uma linha:** `AcordoSpecs::PISO_REPUTACAO_MICRO` (usada tanto pelo Acordo de Troca quanto pelo
+Mercado Central — `ExecutarOrdem`, D-75 — é o MESMO piso para os dois canais de comércio). Nenhuma
+migration: é uma constante de código, não uma linha de configuração do operador.
+
+⚠️ **A leitura oposta do mesmo número, para não perder de vista**: o piso existe para impedir que
+duas contas façam volume de mentira em microtransações e "farmem" Confiança Comercial ou XP do
+Marco de graça. Descer de 500 para 5 F$ **encolhe 100× o custo de entrada do farm** — 1 unidade de
+um recurso barato já bastava para furar o piso antigo mirando alto; agora quase qualquer transação
+com conteúdo real cruza os 5 F$. Isso não é um bug: é o trade-off que o usuário escolheu, entre
+"piso alto demais barra negócio pequeno de verdade" (o caso que ele bateu) e "piso baixo demais
+abre o farm". Se o farm aparecer, é este número o primeiro a revisitar — na direção contrária.
+
+Validado: `php artisan test` completo (752, mesma contagem — nenhum teste novo, só comentários e o
+nome de `test_acordo_abaixo_do_piso_de_500_fert_nao_move_reputacao` atualizados para o piso novo; o
+cenário em si, 1 unidade de cada lado, já ficava abaixo tanto de 500 quanto de 5 F$, então continua
+provando a mesma coisa).

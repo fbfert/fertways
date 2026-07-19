@@ -32,10 +32,11 @@ final class AcordoSpecs
     public const PERDA_QUEBRADO = 50;
 
     /**
-     * D-43: o piso anti-farming do §26.3, estendido ao Acordo — 500 F$ de valor de mercado somando
-     * os dois lados. Abaixo disto o acordo registra histórico, mas não move o índice.
+     * D-43 (piso original: 500 F$), revisto no D-117 para 5 F$ — o piso anti-farming do §26.3,
+     * estendido ao Acordo: valor de mercado somando os dois lados. Abaixo disto o acordo registra
+     * histórico, mas não move o índice.
      */
-    public const PISO_REPUTACAO_MICRO = 500 * Colony::MICRO_POR_FERT;
+    public const PISO_REPUTACAO_MICRO = 5 * Colony::MICRO_POR_FERT;
 
     /** D-42: folga somada ao tempo de viagem para formar o prazo mínimo propunível. */
     public const FOLGA_PRAZO_SEGUNDOS = 12 * 3600;

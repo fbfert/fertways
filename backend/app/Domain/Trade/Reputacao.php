@@ -10,7 +10,8 @@ use Illuminate\Support\Facades\DB;
  * Move a Confiança Comercial (GDD §26.2) conforme o desfecho de um Acordo de Troca.
  *
  * Os números são arbitragem do usuário, não do GDD: +10 por acordo cumprido, −50 por acordo
- * quebrado, e nada abaixo do piso de 500 F$ do §26.3. Ver docs/decisoes.md D-43.
+ * quebrado, e nada abaixo do piso de 5 F$ do §26.3 (500 F$ original, revisto no D-117). Ver
+ * docs/decisoes.md D-43 e D-117.
  *
  * O §26.9 veda compensação cruzada: **só** `confianca_comercial` se move aqui. Pagar tributo ou
  * completar missão nunca recupera confiança perdida num calote.
