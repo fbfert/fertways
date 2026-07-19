@@ -2,6 +2,7 @@
 
 namespace App\Domain\Zona;
 
+use App\Domain\Building\BuildingSpecs;
 use App\Exceptions\DomainRuleException;
 use App\Models\Colony;
 use App\Models\FilaSetting;
@@ -25,6 +26,8 @@ use Illuminate\Support\Facades\DB;
  */
 class ConstruirNaZona
 {
+    public function __construct(private readonly BuildingSpecs $specs) {}
+
     public function handle(Colony $colony, NeutralZone $zona, string $estrutura): void
     {
         if (! in_array($estrutura, Estruturas::CONSTRUIVEIS, true)) {
@@ -74,13 +77,9 @@ class ConstruirNaZona
             $coluna = Estruturas::COLUNA[$estrutura];
             $atual = (int) $zona->{$coluna};
             $alvo = $atual + 1;
+            $max = $this->specs->nivelMaximo($estrutura);
 
-            $spec = DB::table('building_specs')
-                ->where('building_type', $estrutura)
-                ->where('level', $alvo)
-                ->first();
-
-            if (! $spec) {
+            if ($alvo > $max) {
                 throw new DomainRuleException(
                     'nivel_maximo',
                     Estruturas::de($estrutura)['nome']." já está no nível máximo ({$atual}).",
@@ -88,27 +87,21 @@ class ConstruirNaZona
             }
 
             /*
-             * O Depósito de Zona Neutra ficou com `build_time_seconds` NULL por um bom tempo sem
-             * ninguém notar (D-122): `(int) null` é `0`, e a obra concluía no PRÓXIMO tick, de
-             * graça. Corrigido na raiz (o tempo entrou no seeder), mas a trava fica aqui também —
-             * mesma proteção que `BuildingSpecs::para()` já dá ao lado da colônia, para qualquer
-             * OUTRA estrutura de zona que um dia fique sem tempo por engano.
+             * Até 2026-07-19 (D-122) esta classe lia `building_specs` direto — um ajuste do admin
+             * em `building_specs_overrides` (D-107/D-108) não tinha efeito nenhum nas estruturas
+             * de zona. `BuildingSpecs::para()` é o MESMO caminho que a colônia já usa (custo/tempo
+             * com o override por cima do GDD), e também é quem barra tempo indefinido — foi essa
+             * falta que deixou o Depósito de Zona Neutra construir instantâneo por um bom tempo
+             * (`build_time_seconds` NULL nunca era conferido aqui).
              */
-            if ($spec->build_time_seconds === null) {
-                throw new DomainRuleException(
-                    'tempo_indefinido',
-                    Estruturas::de($estrutura)['nome']." não tem tempo de construção definido no nível {$alvo}. Enfileiramento bloqueado.",
-                );
-            }
+            $spec = $this->specs->para($estrutura, $alvo);
 
-            $custo = json_decode($spec->cost_json, true) ?: [];
-
-            $this->debitarDoCanteiro($zona, $custo, $estrutura, $alvo);
+            $this->debitarDoCanteiro($zona, $spec['custo'], $estrutura, $alvo);
 
             $zona->obras()->create([
                 'structure' => $estrutura,
                 'target_level' => $alvo,
-                'finishes_at' => now()->addSeconds((int) $spec->build_time_seconds),
+                'finishes_at' => now()->addSeconds($spec['tempo_segundos']),
             ]);
         });
     }

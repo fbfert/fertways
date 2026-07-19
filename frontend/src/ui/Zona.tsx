@@ -251,7 +251,7 @@ export function Zona() {
         </div>
       )}
 
-      {z.manutencao.inadimplente_desde && (
+      {z.manutencao.inadimplente_desde ? (
         <div className="border-rust bg-rust/10 border-l-4 p-3" data-manutencao-atrasada>
           <strong className="text-rust">Manutenção territorial em atraso</strong>
           <p className="text-sm">
@@ -259,6 +259,21 @@ export function Zona() {
             {z.manutencao.penalidade_bps > 0 &&
               ` — defesa reduzida em ${z.manutencao.penalidade_bps / 100}%`}
             . Sem pagar por 72 h a zona é abandonada automaticamente.
+          </p>
+        </div>
+      ) : (
+        // Antes disto, o colono só descobria o custo/prazo depois de já estar atrasado —
+        // a cobrança em si é automática (D-84), mas o valor e a data nunca eram ditos antes.
+        <div className="border-ink/10 border-l-4 p-3 text-sm" data-manutencao-info>
+          <strong className="text-ink">Manutenção territorial</strong>
+          <p className="text-ink-soft mt-1">
+            {Object.entries(z.manutencao.custo_diario)
+              .map(([r, q]) => `${q.toLocaleString('pt-BR')} ${nomeRecurso(r)}`)
+              .join(' + ')}{' '}
+            por dia, cobrados sozinhos.
+            {z.manutencao.proximo_vencimento && (
+              <> Próximo vencimento: {dataHumana(z.manutencao.proximo_vencimento)}.</>
+            )}
           </p>
         </div>
       )}

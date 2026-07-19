@@ -122,9 +122,12 @@ class Funcoes
             'frase' => 'Produção e gestão de Caminhões de Carga e Naves de Transporte Planetária.',
             'fonte' => '§17.2',
             'efeito' => 'porta',
-            'nota' => 'É por aqui que se vê a Frota. O §28.5 diz que o nível dela deveria limitar '
-                . 'quantos Caminhões o colono pode ter — isso ainda não vale no jogo, e nenhum '
-                . 'Caminhão é fabricado aqui.',
+            // Corrigido em 2026-07-19 (D-122, achado numa revisão de construções): esta nota dizia
+            // que o teto de frota "ainda não vale no jogo" — falso desde o D-60. `Domain\Transport\
+            // Vagas` (teto = máximo(1, nível)) barra a compra de Caminhão antes do Fert$ sair.
+            'nota' => 'É por aqui que se vê a Frota, e o nível dela LIMITA quantos Caminhões o '
+                . 'colono pode ter — máximo(1, nível), desde o D-60. Nenhum Caminhão é fabricado '
+                . 'aqui: quem fabrica é o Ministério dos Transportes (D-60); a Central só dá vaga.',
         ],
         'mercado_local' => [
             'frase' => 'Comércio direto com vizinhos.',
@@ -160,9 +163,12 @@ class Funcoes
             'frase' => 'Recruta e treina Robôs Mineradores, Infiltradores e Predadores. Necessário '
                 . 'para ocupar zonas neutras ou atacar.',
             'fonte' => '§17.2',
-            'efeito' => 'nenhum',
-            'nota' => 'A guerra do §27 está fora do MVP e nenhuma unidade é recrutada aqui ainda. '
-                . 'Hoje só consome energia.',
+            'efeito' => 'converte',
+            // Corrigido em 2026-07-19 (D-122): dizia que "nenhuma unidade é recrutada aqui ainda" —
+            // falso desde o D-66. `Domain\Guerra\FabricarUnidade` recruta Sentinela, Robô
+            // Minerador, Infiltrador e Predador no Quartel, com custo de `building_specs`.
+            'nota' => 'Recruta Sentinela, Robô Minerador, Infiltrador e Predador — consome recurso '
+                . 'e credita a unidade (§27.1), desde o D-66. Exige o Quartel nível 1 ou mais.',
         ],
         'plataforma_de_pouso' => [
             'frase' => 'Hangar onde as Naves de Transporte Planetária ficam estacionadas. Upgrades '

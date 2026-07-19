@@ -297,4 +297,28 @@ class RevisaoDoCanteiroTest extends TestCase
         app(ConcluirObrasDaZona::class)->handle();
         $this->assertSame(2, $zona->fresh()->deposit_level, 'passado o tempo de verdade, conclui');
     }
+
+    // ── item 6 da revisão: ConstruirNaZona passa a obedecer building_specs_overrides ───────────
+
+    public function test_o_ajuste_do_admin_em_building_specs_overrides_vale_para_estrutura_de_zona(): void
+    {
+        $colono = $this->colonoAbastecido();
+        $zona = $this->zonaOcupada($colono);
+
+        // Até o D-122 isto NÃO tinha efeito nenhum na zona — só na colônia.
+        \Illuminate\Support\Facades\DB::table('building_specs_overrides')->insert([
+            'building_type' => 'muralha_de_perimetro', 'level' => 1,
+            'build_time_seconds' => 30, 'cost_json' => json_encode(['metal_bruto' => 1]),
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        $this->encherCanteiro($zona, ['metal_bruto' => 1]);
+        app(ConstruirNaZona::class)->handle($colono, $zona, 'muralha_de_perimetro');
+
+        $this->assertSame(0, (int) ZoneMaterial::where('zone_id', $zona->id)->where('resource_type', 'metal_bruto')->value('amount'), 'debitou o custo do OVERRIDE (1), não o do GDD (400)');
+
+        $this->travelTo(now()->addSeconds(31));
+        app(ConcluirObrasDaZona::class)->handle();
+        $this->assertSame(1, $zona->fresh()->wall_level, 'concluiu no tempo do OVERRIDE (30s), não nas 4h do GDD');
+    }
 }
