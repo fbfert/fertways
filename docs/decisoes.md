@@ -5787,3 +5787,39 @@ uma vez; o D-122 reinventou a resposta errada sem perceber que a pergunta já ti
 real de produção, 1.350 já acumulado + 300 novos = 1.650, nada volta na carroceria). Sem
 migration. `tsc`/`lint`/`build` limpos. e2e completo, 9/9 verde (uma rodada teve a mesma falha
 isolada e já documentada no Chat, não relacionada; segunda rodada confirmou verde).
+
+---
+
+## D-125 — "Despachar Material" ficava desabilitado sem motivo; a ficha da zona só mostrava a
+## primeira obra da fila, mesmo com vagas sobrando (achado #10 do D-122/D-123, adiado até aqui).
+**Data:** 2026-07-19 · **Status:** dois fixes no mesmo par de telas · GDD §17.4 · D-111
+
+**1. O botão "Despachar material" nascia desabilitado mesmo com os campos aparentemente
+preenchidos.** Cada `<input>` de quantidade mostrava um valor padrão calculado na hora
+(`envio[r] ?? Math.min(falta, capacidade do veículo)`) — parecia pronto para enviar — mas esse
+padrão nunca era escrito de volta no estado `envio`, que começava `{}`. Como o `total` (e,
+portanto, o `disabled` do botão) somava só `Object.values(envio)`, ele ficava em 0 até o jogador
+editar À MÃO cada campo, mesmo os que já mostravam o número "certo" na tela — um desencontro
+clássico de componente controlado entre o que aparece e o que o estado realmente guarda.
+Corrigido com um único helper `efetivo(r)`, usado ao mesmo tempo pelo `value` do input, pelo
+cálculo do `total`/`disabled` e pela montagem da carga do despacho — as três lugares que antes
+duplicavam (e podiam divergir de) a mesma fórmula de fallback agora leem o mesmo lugar.
+
+**2. A ficha da zona só lia `obras()->first()`.** Desde o D-111, `FilaSetting::zona_vagas` é
+configurável pelo operador e pode liberar mais de uma obra simultânea por zona — `ConstruirNaZona`
+já aceitava a segunda desde então, mas a tela nunca soube: lia só a primeira obra, e o botão
+"Construir" desabilitava assim que UMA obra qualquer existisse, mesmo sobrando vaga. Corrigido
+em par: `ZoneController::show()` devolve `obras` (a fila inteira, ordenada) e `obras_vagas` (o
+teto do operador), em vez do singular `obra`. `Zona.tsx` ganhou um bloco no topo da aba "Zona"
+listando a fila (`N/vagas`), a mesma lista na aba Canteiro, e o botão "Construir" passou a
+desabilitar por `filaCheia` (`obras.length >= obras_vagas`) em vez de "existe qualquer obra" —
+com o texto do botão distinguindo "já há uma obra em curso" (quando o teto é 1, a frase de
+sempre) de "fila cheia (N/vagas)" (quando o operador liberou mais de uma). O endpoint singular
+`obra` de `minhas()` (resumo da barra lateral) e o de `construir()` (confirmação de UMA obra
+recém-criada) ficaram como estavam — nenhum dos dois precisa da fila inteira.
+
+### Validado
+
+`php artisan test` completo (794 — um teste novo, `test_a_ficha_da_zona_lista_a_fila_inteira_de_obras`,
+afirma `obras`/`obras_vagas` com duas obras simultâneas e `zona_vagas = 2`). Sem migration.
+`tsc`/`lint`/`build` limpos. e2e completo, 9/9 verde.

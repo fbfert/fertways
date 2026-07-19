@@ -1420,7 +1420,10 @@ export type ZonaDetalhe = {
   estruturas: EstruturaDaZona[]
   /** O canteiro de obras: material entregue de veículo, à espera de virar construção. */
   canteiro: { resource_type: string; amount: number }[]
-  obra: { structure: string; nome: string; target_level: number; finishes_at: string } | null
+  /** A fila de obras inteira — pode ter mais de uma ao mesmo tempo, conforme `obras_vagas`. */
+  obras: { structure: string; nome: string; target_level: number; finishes_at: string }[]
+  /** O teto de obras simultâneas na zona (`FilaSetting.zona_vagas`, do operador, D-111). */
+  obras_vagas: number
   /** O que o §17.4 lista e o jogo NÃO tem, com o porquê. */
   ausentes: Record<string, { nome: string; porque: string }>
   modules_offline: string[]

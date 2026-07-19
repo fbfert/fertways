@@ -9,6 +9,7 @@ use App\Domain\Zona\Estruturas;
 use App\Domain\Zona\RepararModulo;
 use App\Http\Controllers\Controller;
 use App\Models\Combat;
+use App\Models\FilaSetting;
 use App\Models\Ledger;
 use App\Models\NeutralZone;
 use App\Models\Unit;
@@ -109,7 +110,14 @@ class ZoneController extends Controller
             ], 403);
         }
 
-        $obra = $zone->obras()->first();
+        /*
+         * A fila inteira, não só a primeira (revisão de 2026-07-19, achado #10). O teto de obras
+         * simultâneas (`FilaSetting::zona_vagas`, D-111) é do operador e pode passar de 1 — mas
+         * `ConstruirNaZona` já aceitava a segunda obra desde então, e a tela nunca mostrava (nem
+         * deixava iniciar) a segunda: só lia `obras()->first()`, e o botão "Construir" desabilitava
+         * assim que UMA obra qualquer existisse, mesmo com vaga sobrando.
+         */
+        $obras = $zone->obras()->orderBy('id')->get();
 
         return response()->json([
             'id' => $zone->id,
@@ -170,12 +178,13 @@ class ZoneController extends Controller
 
             'estruturas' => $this->estruturas($zone, $reparo),
             'canteiro' => $zone->materiais()->orderBy('resource_type')->get(['resource_type', 'amount']),
-            'obra' => $obra ? [
-                'structure' => $obra->structure,
-                'nome' => Estruturas::de($obra->structure)['nome'],
-                'target_level' => $obra->target_level,
-                'finishes_at' => $obra->finishes_at,
-            ] : null,
+            'obras' => $obras->map(fn ($o) => [
+                'structure' => $o->structure,
+                'nome' => Estruturas::de($o->structure)['nome'],
+                'target_level' => $o->target_level,
+                'finishes_at' => $o->finishes_at,
+            ])->values(),
+            'obras_vagas' => FilaSetting::singleton()->zona_vagas,
 
             // O que o §17.4 lista e o jogo NÃO tem, e por quê. A tela as mostra como buraco marcado,
             // em vez de fingir que não existem — é o padrão do Gagarin e do Espaçoporto (D-55, D-63).

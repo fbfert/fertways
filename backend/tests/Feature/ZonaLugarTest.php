@@ -227,6 +227,32 @@ class ZonaLugarTest extends TestCase
         app(ConstruirNaZona::class)->handle($colono, $zona->fresh(), 'torre_de_vigia');
     }
 
+    /**
+     * A ficha da zona lista a fila inteira, não só a primeira (revisão de 2026-07-19, achado #10).
+     * Com `zona_vagas = 2` e duas obras em curso, o endpoint devolve as duas — e o teto usado pela
+     * tela para desenhar "2/2" e desabilitar o botão "Construir".
+     */
+    public function test_a_ficha_da_zona_lista_a_fila_inteira_de_obras(): void
+    {
+        \App\Models\FilaSetting::singleton()->update(['zona_vagas' => 2]);
+
+        $colono = $this->colono();
+        $zona = $this->zonaDe($colono);
+
+        $this->encherCanteiro($zona, ['metal_bruto' => 10000, 'ligas_metalicas' => 10000]);
+
+        app(ConstruirNaZona::class)->handle($colono, $zona, 'muralha_de_perimetro');
+        app(ConstruirNaZona::class)->handle($colono, $zona->fresh(), 'abrigo_de_robos');
+
+        $this->actingAs($colono->user)
+            ->getJson("/zones/{$zona->id}")
+            ->assertOk()
+            ->assertJsonCount(2, 'obras')
+            ->assertJsonPath('obras.0.structure', 'muralha_de_perimetro')
+            ->assertJsonPath('obras.1.structure', 'abrigo_de_robos')
+            ->assertJsonPath('obras_vagas', 2);
+    }
+
     // ── o cerco impede fortificar ───────────────────────────────────────────────────────────────
 
     /**
