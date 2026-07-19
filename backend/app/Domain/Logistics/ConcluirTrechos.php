@@ -216,41 +216,35 @@ class ConcluirTrechos
          */
         if ($v->destination_type === 'zona_neutra') {
             $zona = NeutralZone::find($v->destination_id);
-            $sobra = [];
 
+            /*
+             * ⚠️ Correção de 2026-07-19 (D-124): o D-122 tinha dado um teto de rejeição ao
+             * canteiro (capacidadeDeposito(), sobra volta na carroceria) — e isso quebrou a
+             * entrega de verdade: uma zona de produção já tinha 1.350 no canteiro (herança de
+             * quando não havia teto nenhum), a capacidade dela é 500, e `capacidade - ocupado`
+             * negativo travava QUALQUER entrega nova em silêncio, sem aviso — "Despachar
+             * Material" parecia não fazer nada.
+             *
+             * O D-66 já tinha passado por este EXATO dilema, do lado da extração, e escolheu o
+             * caminho oposto ao que o D-122 tomou aqui: "a extração deixa de parar no teto... o
+             * excedente empilha ao relento" — porque um teto de REJEIÇÃO transformaria em zero o
+             * que devia ser risco. O canteiro segue o mesmo caminho agora: SEM teto de entrega —
+             * tudo que chega é aceito, como sempre foi —, e o risco de acumular demais é o
+             * saqueável do D-122 (`Protegido::saqueDetalhado()`), não uma porta fechada.
+             */
             if ($zona) {
-                /*
-                 * O canteiro ganha teto (revisão de 2026-07-19): era um depósito paralelo sem
-                 * fundo — reaproveita a capacidade do Depósito de verdade (§19.6), a mesma conta
-                 * que já existe, em vez de inventar um número novo. O que não coube volta na
-                 * carroceria, mesmo padrão do Mercado Central (D-58).
-                 */
-                $capacidade = $zona->capacidadeDeposito();
-                $ocupado = ZoneMaterial::where('zone_id', $zona->id)->sum('amount');
-
                 foreach ($v->cargo_json ?? [] as $recurso => $qtd) {
-                    $qtd = (int) $qtd;
-                    $cabe = max(0, min($qtd, $capacidade - $ocupado));
-
-                    if ($cabe > 0) {
-                        ZoneMaterial::query()
-                            ->firstOrCreate(
-                                ['zone_id' => $zona->id, 'resource_type' => $recurso],
-                                ['amount' => 0],
-                            )
-                            ->increment('amount', $cabe);
-                        $ocupado += $cabe;
-                    }
-
-                    if ($cabe < $qtd) {
-                        $sobra[$recurso] = $qtd - $cabe;
-                    }
+                    ZoneMaterial::query()
+                        ->firstOrCreate(
+                            ['zone_id' => $zona->id, 'resource_type' => $recurso],
+                            ['amount' => 0],
+                        )
+                        ->increment('amount', (int) $qtd);
                 }
             }
 
-            // Se a zona sumiu no trajeto, a carga se perde — como já acontece com a colônia
-            // apagada. O que não coube no teto do canteiro volta com o veículo.
-            $this->iniciarVolta($v, manterCarga: false, carga: $sobra === [] ? null : $sobra);
+            // Se a zona sumiu no trajeto, a carga se perde — como já acontece com a colônia apagada.
+            $this->iniciarVolta($v, manterCarga: false);
 
             return;
         }

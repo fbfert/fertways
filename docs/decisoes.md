@@ -5749,3 +5749,41 @@ vencimento; o aviso vermelho de atraso, que já existia, continua exatamente com
 `RevisaoDoCanteiroTest`; a suíte inteira permaneceu verde porque nenhum teste existente afirmava o
 texto antigo de Estacionamento/Quartel/Central de Transportes). Sem migration. `tsc`/`lint`/`build`
 limpos. e2e completo, 9/9 verde.
+
+---
+
+## D-124 — O teto do canteiro do D-122 quebrou a entrega de material em produção. Corrigido.
+**Data:** 2026-07-19 · **Status:** correção urgente, achada pelo usuário em produção · GDD §17.4/D-66
+
+O usuário reportou "Despachar Material para Zona Neutra" quebrado. Investigação: o item 2 do
+D-122 tinha dado ao canteiro um teto de REJEIÇÃO na entrega (`capacidadeDeposito()`, sobra volta
+na carroceria, mesmo padrão do Mercado Central D-58). Conferido direto em produção: a zona 1
+("Primeira Ocupação") já tinha **1.350** unidades no canteiro — herança de quando não havia teto
+nenhum, muito antes deste D-122 — contra uma capacidade de 500. `capacidade - ocupado` dava
+**negativo**, e `max(0, negativo)` trava em zero: **toda entrega nova, de qualquer zona nessa
+situação, era 100% rejeitada e voltava inteira na carroceria**, sem aviso nenhum na tela — parecia
+simplesmente não fazer nada.
+
+**O D-66 já tinha passado por este exato dilema, do lado da extração, e escolheu o caminho
+oposto.** O comentário dele está lá, e o D-122 não o releu: *"a extração deixa de parar no
+teto... o excedente empilha ao relento"* — porque um teto de REJEIÇÃO transforma em zero
+justamente o que devia virar risco. `saqueDetalhado()` já tinha ficado pronto pra isso no mesmo
+D-122 (o canteiro é 100% exposto, sempre). Sobrava só desfazer a metade errada: o teto de entrada.
+
+Corrigido: `ConcluirTrechos` volta a aceitar a entrega inteira no canteiro, sem checar
+capacidade nenhuma — exatamente como sempre foi, antes do D-122. O que fica de pé do D-122: o
+canteiro continua saqueável (Invasão/Cerco/Predador), e os itens 1/3/4 (abandono limpa canteiro e
+fila, Depósito de Zona Neutra com tempo real, upgrade perdido auditável) não foram tocados —
+nenhum deles tinha essa classe de problema.
+
+⚠️ **Lição registrada**: antes de dar um teto de rejeição a qualquer acumulador do jogo, confira
+se já existe precedente para o MESMO dilema — e se o jogo já está em produção com dado real que
+o novo teto invalidaria. `estoqueTotal()`/extração já tinham resolvido exatamente este problema
+uma vez; o D-122 reinventou a resposta errada sem perceber que a pergunta já tinha sido feita.
+
+### Validado
+
+`php artisan test` completo (793 — dois testes do D-122 reescritos: um agora reproduz o cenário
+real de produção, 1.350 já acumulado + 300 novos = 1.650, nada volta na carroceria). Sem
+migration. `tsc`/`lint`/`build` limpos. e2e completo, 9/9 verde (uma rodada teve a mesma falha
+isolada e já documentada no Chat, não relacionada; segunda rodada confirmou verde).
