@@ -8,6 +8,7 @@ use App\Models\Combat;
 use App\Models\Ledger;
 use App\Models\NeutralZone;
 use App\Models\Unit;
+use App\Models\ZoneMaterial;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -745,6 +746,26 @@ class ResolverCombates
             ]);
 
             $zona->minerais()->where('resource_type', $recurso)->decrement('amount', $qtd);
+        }
+
+        // O canteiro (D-122): 100% exposto, sempre — não é o que o Depósito protege.
+        foreach ($butim['canteiro'] as $recurso => $qtd) {
+            if ($qtd <= 0) {
+                continue;
+            }
+
+            $atacante->resources()->where('resource_type', $recurso)->increment('amount', $qtd);
+
+            Ledger::create([
+                'colony_id' => $atacante->id,
+                'type' => 'saque_de_guerra',
+                'amount' => $qtd,
+                'resource_type' => $recurso,
+                'ref' => "zona:{$zona->id}:{$ref}",
+                'created_at' => now(),
+            ]);
+
+            ZoneMaterial::where('zone_id', $zona->id)->where('resource_type', $recurso)->decrement('amount', $qtd);
         }
 
         return $butim;

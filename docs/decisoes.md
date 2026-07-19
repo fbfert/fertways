@@ -5609,3 +5609,95 @@ leave` existentes em `FederacaoNucleoTest`/`FederacaoFundoTest` atualizados para
 limpos. e2e completo, 9/9 verde (uma rodada teve uma falha isolada no Chat, num fluxo de busca que
 este trabalho não toca; duas rodadas seguintes confirmaram verde — instabilidade pré-existente,
 mesma classe da intermitência já documentada no Mercado).
+
+---
+
+## D-122 — O canteiro da zona ganha teto e vira saqueável; abandono para de vazar obra e upgrade.
+**Data:** 2026-07-19 · **Status:** revisão pedida pelo usuário nas Zonas Neutras/construções/envio
+
+Pedido do usuário: revisar zonas neutras, construções e o mecanismo de envio de recursos pra zona
+neutra. Duas pesquisas em paralelo (ciclo de vida da zona + canteiro; construções da colônia e da
+zona) acharam onze pontos; o usuário escolheu os quatro mais graves — todos no canteiro de obras
+(`zone_materials`) e no ciclo de abandono/upgrade da zona.
+
+### 1. Abandono não limpava o canteiro nem a fila de obras — a lavagem que o D-84 dizia ter fechado
+
+`CobrarManutencaoTerritorial::abandonar()` já resetava TUDO — nível, guarnição, todas as
+estruturas — menos duas tabelas: `zone_materials` e `zone_build_queue`. Uma obra em curso no
+momento do abandono sobrevivia, e quando o prazo vencesse, `ConcluirObrasDaZona` erguia a
+estrutura pra quem quer que fosse o dono NAQUELE momento — inclusive uma segunda conta do mesmo
+jogador que reocupasse de propósito. É a exploração exata que o comentário do próprio método já
+citava por nome ("a lavagem que o D-73 já fechou para o Furgão, só que para zonas"), só que nunca
+tinha sido de fato fechada para essa dupla de tabelas. Corrigido: as duas são apagadas no
+abandono, junto com o resto.
+
+### 2. O canteiro era um depósito paralelo — sem teto, imune a Invasão/Cerco/Predador
+
+Ao contrário do Depósito de verdade (capacidade crescente pelo §19.6, e é sobre ele que a guerra
+calcula o que está exposto), `zone_materials` nunca tinha limite nem entrava em `estoqueTotal()`.
+Duas mudanças:
+
+- **Teto**: reaproveita `capacidadeDeposito()` — a mesma conta que já existe, não um número novo.
+  O que não coube na entrega volta na carroceria, mesmo padrão do Mercado Central (D-58).
+- **Saque**: o canteiro entra em `Protegido::saqueDetalhado()` numa conta À PARTE — **sempre
+  100% exposto**, nunca protegido. Não é o que o Depósito protege (não é minério extraído, é
+  material importado à espera de virar construção), e por isso não compete pela capacidade do
+  Depósito nem pelo `estoqueTotal()`: perde a MESMA fração `$bps` do resto do saque (50% na
+  Invasão, 30% no Cerco), sempre. `ResolverCombates::saquear()` credita o atacante e decrementa
+  `ZoneMaterial` do mesmo jeito que já fazia para bruto/refinado/minerais.
+
+⚠️ **Julgamento do desenvolvedor, sinalizado para o usuário revisitar**: a conquista por guerra
+(`vitoriaDoAtacante`) continua transferindo o que sobrar do canteiro pro invasor, sem tocar nele —
+consistente com o precedente já existente de que o vencedor herda a obra em curso ("ele pagou com
+sangue", `ConcluirObrasDaZona.php`), não uma lacuna nova. Só o abandono (item 1) e o saque de
+Invasão/Cerco (item 2) foram fechados nesta revisão.
+
+### 3. Depósito de Zona Neutra: `build_time_seconds` NULL nos 10 níveis — construía instantâneo
+
+`BuildingSpecSeeder` já tinha a proteção certa: uma construção sem tempo publicado fica NULL, e
+`BuildingSpecs::para()` recusa enfileirar (`tempo_indefinido`) em vez de deixar `(int) null` virar
+`0` e a obra concluir no ato. Só que **essa proteção nunca alcançava o canteiro da zona**:
+`ConstruirNaZona` sempre leu `building_specs` direto via `DB::table`, sem passar por
+`BuildingSpecs::para()` — e o Depósito de Zona Neutra é a ÚNICA das 13 estruturas de zona sem
+tempo definido (as outras, incluindo as 3 fechadas no D-79, sempre tiveram um número). Não era uma
+decisão — o próprio docblock do seeder já listava o Depósito junto de Central de
+Transportes/Destilaria como "o GDD não publica", mas só essas duas (e os veículos) tinham ganhado
+um tempo-base em `build_times_base.json`; o Depósito ficou pra trás.
+
+Corrigido nos dois lados: um tempo-base entrou no `build_times_base.json` (120 min no nível 1,
+mesma curva 1,5× dos demais — chega a ~77h no nível 10, dentro da faixa das outras estruturas de
+zona), e `ConstruirNaZona` ganhou a MESMA trava que `BuildingSpecs::para()` já dava à colônia, caso
+outra estrutura de zona um dia fique sem tempo por engano.
+
+### 4. Upgrade pago perdido no abandono — sem estorno, mas agora auditável
+
+Se a manutenção vence no meio de um upgrade de nível em curso, o abandono cancela o upgrade — mas
+o Metal Bruto/Fert$ já debitados no pedido (`SubirNivelDaZona`) não eram estornados, **e não
+ficava rastro nenhum de que isso tinha acontecido**. Decisão: **sem estorno continua sendo o
+certo** — o reset do abandono é deliberado (D-84), e reembolsar contrariaria o "reset completo, não
+congelamento" que a própria decisão defende. O que faltava era só a auditoria: `abandonar()` agora
+grava um `ZoneEvent` (`upgrade_perdido_no_abandono`) com o nível-alvo e o custo perdido
+(recalculado por `NeutralZone::custoDeUpgrade()`, a mesma fórmula do pedido original — nada
+armazenado a mais), coerente com "todo Fert$/recurso tem história" que o resto do jogo já segue.
+
+### O que ficou de fora desta rodada (achados 5–11 da revisão, não escolhidos)
+
+Estacionamento da Zona sem teto aplicado, `ConstruirNaZona` não lendo `building_specs_overrides`,
+ausência de demolição/downgrade de estrutura de zona, dois docblocks desatualizados em
+`Funcoes.php` (Quartel e Central de Transportes, que já fazem o que o texto diz que "ainda não"),
+`manutencao.custo_diario`/`proximo_vencimento` nunca mostrados na tela, e o teto de obras
+simultâneas (`zona_vagas`) não refletido no frontend. Nenhum foi tocado nesta fatia.
+
+### Validado
+
+`php artisan test` completo (792 — 7 novos em `RevisaoDoCanteiroTest`, um por comportamento: a
+lavagem de zona fechada de ponta a ponta [encher canteiro → abandonar → reocupar com OUTRA conta →
+confirmar que a obra fantasma não conclui], o `ZoneEvent` do upgrade perdido com o custo certo, o
+teto do canteiro com sobra voltando no veículo, o canteiro saqueado numa invasão de verdade
+[força bruta determinística], e o Depósito não concluindo mais na hora. Um teste existente
+[`BuildQueueTest::test_construcao_sem_tempo_no_gdd_e_bloqueada`] usava o Depósito de Zona Neutra
+como o exemplo de "sem tempo publicado" — atualizado para o Drone de Exploração, que continua
+genuinamente sem tempo). Sem migration — só dados de seeder (`build_times_base.json`) e
+comportamento; **passo à mão no deploy**: `artisan db:seed --class=BuildingSpecSeeder --force`
+no banco de produção, mesma classe de esquecimento que já mordeu o D-67 (RETOMAR.md, "o deploy.sh
+NÃO roda seeders"). `tsc`/`lint`/`build` limpos (sem mudança de frontend). e2e completo, 9/9 verde.

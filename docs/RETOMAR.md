@@ -1418,15 +1418,18 @@ ida→vigia→volta), sem tabela nova além de `drone_sightings` (as fotos).
      Ninguém decidiu isso: foi consistência. **Se ele quiser um tempo de fábrica, é decisão dele.**
    - **Ranking de guerras (§27.13)** — publicado por inteiro (percentis e pesos), mas **não há sistema
      de ranking** no jogo. Fora da Fatia 2.
-   - ~~Federação~~ — **fechada em cinco fatias (D-114, D-115, D-116, D-119, D-120; 2026-07-19).** O
+   - ~~Federação~~ — **fechada em seis fatias (D-114 a D-116, D-119 a D-121; 2026-07-19).** O
      núcleo (cargos, convite/pedido, fundo por entrega física), o canal de chat, o apoio de aliado
      ao romper cerco (o §28.10 agora vale por inteiro, não só pelo dono da zona), a outra metade do
      impedimento do conciliador, as missões cooperativas, a Central de Comunicação (visão ao vivo
      do aliado + alerta de cerco), o limite antimonopólio territorial (20% de todas as zonas
-     ocupadas do jogo) e o desconto de tributo entre aliados (50% no comércio entre DUAS colônias
-     da mesma federação — não na contribuição ao próprio fundo, que continua cheia). Os dois últimos
-     números moram no painel de Federações (`FederationSetting`). **Não reabra.** O que ficou de
-     fora, e por quê: o §04 tem mais dois eixos de antimonopólio (volume entre contas, estoque de
+     ocupadas do jogo), o desconto de tributo entre aliados (50% no comércio entre DUAS colônias
+     da mesma federação — não na contribuição ao próprio fundo, que continua cheia), confirmação
+     obrigatória ("SAIR") pra deixar a federação, e 6 das 9 ações sociais avisando pelo chat
+     (conta "Federação") em vez de silenciosas. Os dois números do antimonopólio moram no painel
+     de Federações (`FederationSetting`). **Não reabra.** O que ficou de fora, e por quê:
+     `SacarDoFundo`/`CriarFederacao`/pedido de entrada não ganharam aviso (D-121, escopo); o §04
+     tem mais dois eixos de antimonopólio (volume entre contas, estoque de
      minerais estratégicos) que ficaram fora por serem outra categoria de problema (antifraude) ou
      inertes por o governo ainda monopolizar os 8 minerais eletrônicos.
 

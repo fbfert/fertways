@@ -256,15 +256,22 @@ class BuildQueueTest extends TestCase
             ->assertStatus(422)->assertJsonPath('code', 'construcao_de_outra_colonia');
     }
 
-    /** D-10: construção sem tempo publicado no GDD não pode ser enfileirada. */
+    /**
+     * D-10: construção sem tempo publicado no GDD não pode ser enfileirada.
+     *
+     * O Depósito de Zona Neutra era o exemplo aqui até o D-122 — ele tinha `build_time_seconds`
+     * NULL nos 10 níveis por um esquecimento real (não por decisão), e por isso a obra pela zona
+     * concluía instantânea em vez de ser bloqueada. Corrigido: ganhou tempo real no seeder. O
+     * Drone de Exploração continua genuinamente sem tempo publicado, e serve de exemplo agora.
+     */
     public function test_construcao_sem_tempo_no_gdd_e_bloqueada(): void
     {
         $specs = app(BuildingSpecs::class);
 
         $this->expectException(DomainRuleException::class);
-        $this->expectExceptionMessage('O GDD não define tempo de construção para deposito_de_zona_neutra');
+        $this->expectExceptionMessage('O GDD não define tempo de construção para drone_de_exploracao');
 
-        $specs->para('deposito_de_zona_neutra', 1);
+        $specs->para('drone_de_exploracao', 1);
     }
 
     public function test_debito_de_recurso_vira_lancamento_no_ledger(): void

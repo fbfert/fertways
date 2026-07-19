@@ -87,6 +87,20 @@ class ConstruirNaZona
                 );
             }
 
+            /*
+             * O Depósito de Zona Neutra ficou com `build_time_seconds` NULL por um bom tempo sem
+             * ninguém notar (D-122): `(int) null` é `0`, e a obra concluía no PRÓXIMO tick, de
+             * graça. Corrigido na raiz (o tempo entrou no seeder), mas a trava fica aqui também —
+             * mesma proteção que `BuildingSpecs::para()` já dá ao lado da colônia, para qualquer
+             * OUTRA estrutura de zona que um dia fique sem tempo por engano.
+             */
+            if ($spec->build_time_seconds === null) {
+                throw new DomainRuleException(
+                    'tempo_indefinido',
+                    Estruturas::de($estrutura)['nome']." não tem tempo de construção definido no nível {$alvo}. Enfileiramento bloqueado.",
+                );
+            }
+
             $custo = json_decode($spec->cost_json, true) ?: [];
 
             $this->debitarDoCanteiro($zona, $custo, $estrutura, $alvo);

@@ -12,6 +12,7 @@
     "central_de_transportes": 6,
     "destilaria": 10,
     "furgao_de_comercio": 7,
-    "caminhao_de_carga": 14
+    "caminhao_de_carga": 14,
+    "deposito_de_zona_neutra": 120
   }
 }

@@ -3,6 +3,7 @@
 namespace App\Domain\Guerra;
 
 use App\Models\NeutralZone;
+use App\Models\ZoneMaterial;
 
 /**
  * O que é "estoque protegido" (docs/decisoes.md D-66).
@@ -54,41 +55,60 @@ class Protegido
      * metade de cada. O contrário — levar primeiro o refinado, que vale mais — premiaria o atacante
      * por uma escolha do defensor, e ninguém decidiu isso.
      *
+     * O canteiro (`zone_materials`, D-67) entra numa conta À PARTE, 100% exposta — revisão de
+     * 2026-07-19. Ele nunca foi o que o Depósito protege (não é minério extraído, é material
+     * importado à espera de virar construção), então não compete pela capacidade do Depósito nem
+     * pelo `estoqueTotal()`: toda unidade dele perde a MESMA fração `$bps` do resto do saque,
+     * sempre — não existe "canteiro protegido".
+     *
      * @param  int  $bps  5000 na Invasão Direta (§27.8), 3000 no Cerco (§28.10).
-     * @return array{bruto: int, refinado: int, minerais: array<string,int>, total: int}
+     * @return array{bruto: int, refinado: int, minerais: array<string,int>, canteiro: array<string,int>, total: int}
      */
     public function saqueDetalhado(NeutralZone $zona, int $bps): array
     {
+        $vazio = ['bruto' => 0, 'refinado' => 0, 'minerais' => [], 'canteiro' => [], 'total' => 0];
+
         $total = intdiv($this->exposto($zona) * $bps, 10000);
         $estoque = $zona->estoqueTotal();
 
-        if ($total <= 0 || $estoque <= 0) {
-            return ['bruto' => 0, 'refinado' => 0, 'minerais' => [], 'total' => 0];
-        }
+        if ($total > 0 && $estoque > 0) {
+            // Proporcional a cada pote, do mais valioso ao menos — cada um absorve o arredondamento
+            // do que vem depois, e o bruto (o menos valioso) absorve o resto de todos. O atacante
+            // não deve ganhar uma unidade a mais do que vale mais por um resto de divisão.
+            $restante = $total;
+            $minerais = [];
 
-        // Proporcional a cada pote, do mais valioso ao menos — cada um absorve o arredondamento
-        // do que vem depois, e o bruto (o menos valioso) absorve o resto de todos. O atacante não
-        // deve ganhar uma unidade a mais do que vale mais por um resto de divisão.
-        $restante = $total;
-        $minerais = [];
-
-        foreach ($zona->minerais as $m) {
-            $levado = min($m->amount, intdiv($total * $m->amount, $estoque));
-            if ($levado > 0) {
-                $minerais[$m->resource_type] = $levado;
+            foreach ($zona->minerais as $m) {
+                $levado = min($m->amount, intdiv($total * $m->amount, $estoque));
+                if ($levado > 0) {
+                    $minerais[$m->resource_type] = $levado;
+                }
+                $restante -= $levado;
             }
-            $restante -= $levado;
+
+            $refinado = min($zona->refined_amount, intdiv($total * $zona->refined_amount, $estoque));
+            $restante -= $refinado;
+            $bruto = min($zona->deposit_amount, $restante);
+        } else {
+            $bruto = 0;
+            $refinado = 0;
+            $minerais = [];
         }
 
-        $refinado = min($zona->refined_amount, intdiv($total * $zona->refined_amount, $estoque));
-        $restante -= $refinado;
-        $bruto = min($zona->deposit_amount, $restante);
+        $canteiro = [];
+        foreach (ZoneMaterial::where('zone_id', $zona->id)->get() as $material) {
+            $levado = intdiv($material->amount * $bps, 10_000);
+            if ($levado > 0) {
+                $canteiro[$material->resource_type] = $levado;
+            }
+        }
 
         return [
             'bruto' => $bruto,
             'refinado' => $refinado,
             'minerais' => $minerais,
-            'total' => $bruto + $refinado + array_sum($minerais),
+            'canteiro' => $canteiro,
+            'total' => $bruto + $refinado + array_sum($minerais) + array_sum($canteiro),
         ];
     }
 
