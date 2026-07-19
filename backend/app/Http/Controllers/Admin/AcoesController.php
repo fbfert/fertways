@@ -572,22 +572,29 @@ class AcoesController extends Controller
     }
 
     /**
-     * O limite antimonopólio territorial (§04, D-119): "20% → 10%", sem dizer de quê nem o
-     * gatilho da transição. Um teto fixo, do operador — mesmo padrão do resto da casa.
+     * Os dois números do §04 (D-119, D-120): o limite antimonopólio territorial ("20% → 10%") e o
+     * desconto de tributo entre aliados ("50%", v3.0) — nenhum dos dois vale de código, os dois são
+     * do operador, mesmo padrão do resto da casa.
      */
     public function federacaoParametros(Request $request): RedirectResponse
     {
         $dados = $request->validate([
             'teto_ocupacao_zonas_bps' => ['required', 'integer', 'min:0', 'max:10000'],
+            'desconto_tributo_aliados_bps' => ['required', 'integer', 'min:0', 'max:10000'],
         ]);
 
         $config = \App\Models\FederationSetting::singleton();
-        $antes = $config->teto_ocupacao_zonas_bps;
+        $antes = $config->only(array_keys($dados));
 
         return $this->tentar('federacao.parametros', function () use ($dados, $config, $antes) {
             $config->update($dados);
 
-            return "Limite antimonopólio: {$antes} → {$dados['teto_ocupacao_zonas_bps']} bps.";
+            $mudou = collect($dados)
+                ->reject(fn ($v, $k) => (int) $v === (int) $antes[$k])
+                ->map(fn ($v, $k) => "{$k}: {$antes[$k]} → {$v}")
+                ->implode('; ');
+
+            return 'Parâmetros da federação atualizados. '.($mudou !== '' ? $mudou : 'Nada mudou.');
         });
     }
 

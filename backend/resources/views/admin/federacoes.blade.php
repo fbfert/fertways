@@ -46,13 +46,21 @@
                            value="{{ $config->teto_ocupacao_zonas_bps }}" data-p="teto-antimonopolio" required>
                     <span class="mut pequeno">{{ $pct($config->teto_ocupacao_zonas_bps) }} de TODAS as zonas ocupadas do jogo</span>
                 </div>
+                <div style="flex:0">
+                    <label>Desconto de tributo entre aliados</label>
+                    <input type="number" min="0" max="10000" name="desconto_tributo_aliados_bps"
+                           value="{{ $config->desconto_tributo_aliados_bps }}" data-p="desconto-tributo" required>
+                    <span class="mut pequeno">{{ $pct($config->desconto_tributo_aliados_bps) }} de desconto no tributo entre colônias da mesma federação</span>
+                </div>
                 <button type="submit" data-salvar-federacao>Salvar</button>
             </div>
             <p class="mut pequeno">
                 O §04 escreve "limite antimonopólio dinâmico: 20% → 10%" e não diz de quê, nem o
                 gatilho da transição entre os dois números. Fica um teto FIXO, seu — barra a
                 PRÓXIMA ocupação de zona de uma federação que já está no limite ou acima dele;
-                zonas que ela já tem não são tocadas.
+                zonas que ela já tem não são tocadas. O desconto (v3.0, "50% entre aliadas") só vale
+                no comércio ENTRE duas colônias da mesma federação (§07) — a contribuição de uma
+                colônia ao próprio fundo (§04) continua tributada cheia, de propósito (D-120).
             </p>
         </form>
     </div>
