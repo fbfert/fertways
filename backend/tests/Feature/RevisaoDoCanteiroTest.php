@@ -32,8 +32,11 @@ use Tests\TestCase;
  *  1. O abandono por manutenção não limpava o canteiro nem a fila de obras — uma obra em curso
  *     sobrevivia e erguia a estrutura para quem quer que reocupasse a zona, de graça (a mesma
  *     "lavagem de zona" que o D-84 já dizia estar impedindo).
- *  2. O canteiro não tinha teto nem era saqueável — um depósito paralelo, sem fundo e imune à
- *     guerra, ao contrário do Depósito de verdade.
+ *  2. O canteiro não era saqueável — imune à guerra, ao contrário do Depósito de verdade. (O
+ *     D-122 também tinha dado um teto de REJEIÇÃO à entrega, capacidadeDeposito(); quebrou uma
+ *     zona real em produção que já tinha mais que isso acumulado, e foi corrigido no D-124: sem
+ *     teto de entrega, só saqueável — o mesmo caminho que o D-66 já tinha escolhido para a
+ *     extração.)
  *  3. O Depósito de Zona Neutra tinha `build_time_seconds` NULL nos 10 níveis: construí-lo pela
  *     zona era instantâneo, sem passar pela trava que o lado da colônia já tinha para esse caso.
  *  4. Um upgrade de nível já pago (Metal Bruto + Fert$) se perdia em silêncio se a manutenção
@@ -190,33 +193,9 @@ class RevisaoDoCanteiroTest extends TestCase
         );
     }
 
-    // ── 2: o canteiro ganha teto e vira saqueável ──────────────────────────────────────────────
+    // ── 2: o canteiro NÃO tem teto de rejeição (corrigido no D-124) e vira saqueável ───────────
 
-    public function test_o_canteiro_tem_teto_e_a_sobra_volta_no_veiculo(): void
-    {
-        $colono = $this->colonoAbastecido();
-        $zona = $this->zonaOcupada($colono);
-
-        // deposit_level 1 => capacidade 500 (§19.6). Já tem 400 no canteiro; despacha mais 300:
-        // só 100 cabem, 200 têm de voltar.
-        $this->encherCanteiro($zona, ['metal_bruto' => 400]);
-        $this->assertSame(500, $zona->fresh()->capacidadeDeposito());
-
-        $furgao = $colono->vehicles()->where('type', 'furgao_de_comercio')->firstOrFail();
-        app(DespacharVeiculo::class)->entregarMaterialNaZona($colono, $furgao, $zona, ['metal_bruto' => 300]);
-
-        $this->travelTo(now()->addHours(2));
-        app(ConcluirTrechos::class)->handle();
-
-        $this->assertSame(500, (int) ZoneMaterial::where('zone_id', $zona->id)->where('resource_type', 'metal_bruto')->value('amount'));
-
-        $furgao->refresh();
-        $this->assertSame('em_rota', $furgao->status);
-        $this->assertSame('volta', $furgao->leg);
-        $this->assertSame(['metal_bruto' => 200], $furgao->cargo_json, 'os 200 que não couberam voltam na carroceria');
-    }
-
-    public function test_o_canteiro_nao_trava_dentro_do_teto(): void
+    public function test_o_canteiro_nao_trava(): void
     {
         $colono = $this->colonoAbastecido();
         $zona = $this->zonaOcupada($colono);
@@ -229,6 +208,32 @@ class RevisaoDoCanteiroTest extends TestCase
 
         $this->assertSame(300, (int) ZoneMaterial::where('zone_id', $zona->id)->where('resource_type', 'metal_bruto')->value('amount'));
         $this->assertNull($furgao->fresh()->cargo_json, 'nada sobrou — não há carga de volta');
+    }
+
+    /**
+     * D-124: o D-122 tinha dado um teto de REJEIÇÃO ao canteiro (capacidadeDeposito()) — e uma
+     * zona real de produção já tinha mais que isso acumulado de antes (herança de quando não
+     * havia teto nenhum). `capacidade - ocupado` negativo travava QUALQUER entrega nova, sem
+     * aviso. Corrigido seguindo o MESMO caminho que o D-66 já tinha escolhido para a extração:
+     * sem teto de entrega — o risco é o saque, não uma porta fechada.
+     */
+    public function test_o_canteiro_aceita_alem_da_capacidade_do_deposito_sem_travar(): void
+    {
+        $colono = $this->colonoAbastecido();
+        $zona = $this->zonaOcupada($colono);
+
+        // deposit_level 1 => capacidade 500 (§19.6) — mas isso não limita mais o canteiro.
+        $this->encherCanteiro($zona, ['metal_bruto' => 1350]);
+        $this->assertSame(500, $zona->fresh()->capacidadeDeposito());
+
+        $furgao = $colono->vehicles()->where('type', 'furgao_de_comercio')->firstOrFail();
+        app(DespacharVeiculo::class)->entregarMaterialNaZona($colono, $furgao, $zona, ['metal_bruto' => 300]);
+
+        $this->travelTo(now()->addHours(2));
+        app(ConcluirTrechos::class)->handle();
+
+        $this->assertSame(1650, (int) ZoneMaterial::where('zone_id', $zona->id)->where('resource_type', 'metal_bruto')->value('amount'), 'a entrega inteira foi aceita, mesmo já estando bem acima da capacidade do Depósito');
+        $this->assertNull($furgao->fresh()->cargo_json, 'nada volta na carroceria — não há mais rejeição');
     }
 
     public function test_o_canteiro_e_saqueado_na_invasao_como_o_resto_do_estoque(): void
