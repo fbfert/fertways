@@ -5444,3 +5444,53 @@ as chaves corrigidas e o novo décimo-primeiro parâmetro da Guerra). MariaDB ef
 reais nele: o texto da Central de Comunicação (a asserção esperava a descrição velha) e uma falha
 transitória e não relacionada no Acordo de Troca, confirmada como instabilidade pré-existente ao
 rodar de novo (mesma classe de intermitência que o Mercado já tinha, RETOMAR.md).
+
+---
+
+## D-119 — O limite antimonopólio da Federação (§04): 20% de TODAS as zonas do jogo, teto do operador.
+**Data:** 2026-07-19 · **Status:** arbitrado com o usuário em três perguntas · **GDD §04**
+
+O D-114 tinha deixado o limite antimonopólio de fora da Fatia 1 por ser "vago demais para arbitrar
+sem mais contexto": o §04 escreve "Limite antimonopólio dinâmico: 20% → 10%" e não diz **de quê**,
+nem **o que dispara** a transição entre os dois estágios. A v3.2 "regra definitiva" (§07) é ainda
+mais vaga — "limites de concentração, volume entre contas e estoque de recursos estratégicos são
+monitorados... medidas são sistêmicas e auditáveis" — três eixos, nenhum mecanismo.
+
+Perguntado, o usuário decidiu os três pontos que faltavam:
+
+1. **O que medir**: a fatia de **todas as zonas neutras OCUPADAS do jogo** (120 no total — 4
+   distritos de 30) que uma federação detém. É o único eixo dos três que já tem sistema pronto pra
+   medir (território, D-84); volume-entre-contas e estoque de minerais estratégicos ficam de fora —
+   o segundo é vigilância antifraude, o terceiro está inerte por o governo ainda monopolizar os 8
+   minerais eletrônicos no lançamento (mesma inércia do D-17).
+2. **O que acontece ao cruzar**: bloqueia a PRÓXIMA ocupação de zona por qualquer colônia da
+   federação. Zonas que ela já tem não são tocadas — nada de "confiscar" ou forçar abandono.
+3. **20% → 10% vira um teto FIXO**, não os dois estágios: o GDD não publica o gatilho da transição
+   (tempo de servidor? número de federações? fase da temporada?), e inventá-lo seria a mesma
+   arbitragem vaga que o D-114 já tinha evitado. **2000 bps (20%) por padrão** — o mais frouxo dos
+   dois números do documento, para não morder o jogo pequeno de hoje — e ajustável sem deploy pelo
+   painel, para o operador apertar rumo aos 10% conforme o servidor crescer.
+
+### Onde mora, e por que "antes" e não "depois"
+
+`FederationSetting` — tabela singleton nova (`federation_settings`), mesmo molde de
+`TransportSetting`/`WarSetting` (D-60/D-66): defaults no banco, `singleton()` relê depois de criar.
+Painel: aba **Federações**, que até aqui era "sistema 100% jogador-a-jogador, o operador só
+observa" — deixou de ser: o §04 delega este número a ele, então ele mora lá.
+
+`OcuparZonaNeutra::handle()` ganhou um guard novo, logo depois do teto de 5 zonas por colônia
+(D-84) — mesmo lugar, mesmo padrão. ⚠️ **A checagem é do estado ANTES da ocupação, não depois**: se
+checasse "depois de somar esta zona, a federação passaria do teto?", a primeiríssima zona ocupada
+por QUALQUER federação do jogo inteiro sempre daria 100% de um total de 1 e travaria o próprio
+nascimento do sistema. Checando antes, o guard bloqueia a zona que levaria a federação a **crescer
+além** do teto que ela já tinha alcançado — não a que a levou até lá.
+
+### Validado
+
+`php artisan test` completo (773 — 6 novos em `LimiteAntimonopolioTest`: o caso de zero zonas no
+jogo não trava nada, o bloqueio no teto padrão, uma colônia solo nunca esbarra nisso por mais que a
+federação domine, o painel grava o número E o guard passa a lê-lo — mesmo cenário do bloqueio, só
+com o teto mais frouxo —, e as duas pontas do formulário do painel). MariaDB efêmero (fresh +
+rollback + migrate, duas vezes) para a migration nova (`federation_settings`). `tsc`/`lint`/`build`
+limpos (sem mudança de frontend — o teto só existe no painel de admin e no domínio). e2e completo,
+9/9 verde.
