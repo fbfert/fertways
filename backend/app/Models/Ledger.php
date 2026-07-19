@@ -71,6 +71,7 @@ class Ledger extends Model
         'estacionamento',      // §2.1, slot 6: a hora do Pátio Logístico da Capital (D-65)
         'custo_upgrade_zona',   // §07: Metal Bruto/Fert$/Robôs para subir o nível de uma zona (D-84)
         'manutencao_territorial', // §27.12: custo diário por nível de zona ocupada (D-84)
+        'reparo_de_modulo',     // §28.10: reparo de Sabotagem ou resgate antecipado de Apreensão (D-118)
         // Correção de estado feita pelo operador (D-61). É a ÚNICA coisa no jogo que cria valor sem
         // origem econômica — e por isso ela é obrigada a passar por aqui, com motivo escrito. O
         // `amount` é o delta, com sinal: uma correção também pode TIRAR o que um bug deu de graça.

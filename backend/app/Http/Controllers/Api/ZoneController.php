@@ -6,6 +6,7 @@ use App\Domain\Guerra\Protegido;
 use App\Domain\Logistics\DespacharVeiculo;
 use App\Domain\Zona\ConstruirNaZona;
 use App\Domain\Zona\Estruturas;
+use App\Domain\Zona\RepararModulo;
 use App\Http\Controllers\Controller;
 use App\Models\Combat;
 use App\Models\Ledger;
@@ -97,7 +98,7 @@ class ZoneController extends Controller
     }
 
     /** A ficha da zona. Só o dono a vê por dentro — para os outros, o mapa já diz o essencial. */
-    public function show(Request $request, NeutralZone $zone, Protegido $protegido): JsonResponse
+    public function show(Request $request, NeutralZone $zone, Protegido $protegido, RepararModulo $reparo): JsonResponse
     {
         $colony = $request->user()->colony()->firstOrFail();
 
@@ -167,7 +168,7 @@ class ZoneController extends Controller
                     ->sum(fn (Unit $u) => $u->defesa()),
             ],
 
-            'estruturas' => $this->estruturas($zone),
+            'estruturas' => $this->estruturas($zone, $reparo),
             'canteiro' => $zone->materiais()->orderBy('resource_type')->get(['resource_type', 'amount']),
             'obra' => $obra ? [
                 'structure' => $obra->structure,
@@ -268,6 +269,23 @@ class ZoneController extends Controller
         return response()->json(['obra' => $zone->fresh()->obras()->first()], 201);
     }
 
+    /**
+     * Repara uma estrutura sabotada, ou resgata antecipadamente uma apreendida (D-118). A Apreensão
+     * também repara sozinha em 24h (o tick de `ExpirarApreensoes`) — isto é o atalho pago.
+     */
+    public function reparar(Request $request, NeutralZone $zone, RepararModulo $reparo): JsonResponse
+    {
+        $dados = $request->validate([
+            'estrutura' => ['required', Rule::in(array_keys(Estruturas::COLUNA))],
+        ]);
+
+        $colony = $request->user()->colony()->firstOrFail();
+
+        $reparo->handle($colony, $zone, $dados['estrutura']);
+
+        return response()->json(['estruturas' => $this->estruturas($zone->fresh(), $reparo)]);
+    }
+
     /** Despacha um veículo com material de obra até o canteiro da zona (D-67). */
     public function entregarMaterial(
         Request $request,
@@ -327,7 +345,7 @@ class ZoneController extends Controller
      * o que o documento promete e o que o jogo entrega. Sem essa separação, o colono gasta 600 Metal
      * Bruto num Cemitério e só depois descobre que o próprio GDD o declara "apenas visual".
      */
-    private function estruturas(NeutralZone $zone): array
+    private function estruturas(NeutralZone $zone, RepararModulo $reparo): array
     {
         $out = [];
 
@@ -340,6 +358,11 @@ class ZoneController extends Controller
                 ->where('level', $nivel + 1)
                 ->first();
 
+            // Apreensão (Predador, binária) e Sabotagem (Infiltrador, proporcional) — D-118. Uma
+            // estrutura nunca está nas duas ao mesmo tempo (a Apreensão já zera `fracaoEfetiva`).
+            $apreendida = in_array($tipo, $zone->modules_offline ?? [], true);
+            $nivelSabotagem = ($zone->structures_saboted ?? [])[$tipo] ?? null;
+
             $out[] = [
                 'type' => $tipo,
                 'nome' => $info['nome'],
@@ -348,7 +371,19 @@ class ZoneController extends Controller
                 'hoje' => $info['hoje'],
                 'inerte' => $info['inerte'],
                 'construivel' => in_array($tipo, Estruturas::CONSTRUIVEIS, true),
-                'offline' => in_array($tipo, $zone->modules_offline ?? [], true),
+                'offline' => $apreendida,   // mantido: é o que a UI já lia para o badge.
+                'fracao_efetiva' => $zone->fracaoEfetiva($tipo),
+                'apreendida' => $apreendida ? [
+                    'expira_em' => ($zone->modules_offline_expira_em ?? [])[$tipo] ?? null,
+                ] : null,
+                'sabotada' => $nivelSabotagem !== null ? [
+                    'nivel_do_infiltrador' => $nivelSabotagem,
+                ] : null,
+                // Custo do reparo/resgate — só faz sentido pedir se há nível construído; nenhuma
+                // das duas degradações acontece numa estrutura em nível 0.
+                'custo_reparo' => ($apreendida || $nivelSabotagem !== null) && $nivel > 0
+                    ? $reparo->custo($tipo, $nivel)
+                    : null,
                 'proximo' => $proximo ? [
                     'level' => $nivel + 1,
                     'custo' => json_decode($proximo->cost_json, true),

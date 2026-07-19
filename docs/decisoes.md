@@ -5352,3 +5352,95 @@ Validado: `php artisan test` completo (752, mesma contagem — nenhum teste novo
 nome de `test_acordo_abaixo_do_piso_de_500_fert_nao_move_reputacao` atualizados para o piso novo; o
 cenário em si, 1 unidade de cada lado, já ficava abaixo tanto de 500 quanto de 5 F$, então continua
 provando a mesma coisa).
+
+> **Correção tardia (2026-07-19, achada validando o D-118):** `Acordos.tsx` tinha o texto "abaixo do
+> piso de 500" **hardcoded** — a mesma frase que o usuário colou de volta para pedir esta mudança,
+> ainda com o número velho na tela, porque o commit original só tocou o backend. O e2e do Acordo só
+> checa o valor do acordo (`Vale 3,95 Fert$...`), não o número do piso em si, então não pegou.
+> Corrigido para "5 Fert$ (D-117)".
+
+---
+
+## D-118 — O "Módulo Operacional" ganha as duas metades que faltavam (§28.10).
+**Data:** 2026-07-19 · **Status:** revisão pedida pelo usuário, arbitrada com ele em três perguntas
+
+Pedido do usuário: revisar as Zonas Neutras ocupadas e propor melhorias. O levantamento (research
+agent, sete eixos: mecânica central, as 13 estruturas, defesa/guerra, frontend vs. API, pendências
+já catalogadas, lacunas do GDD ainda não vistas, alavancas do admin) achou um bug real maior que
+todos os outros: **a Sabotagem e a Apreensão de Módulos não faziam NADA além de acender um badge**.
+
+### O bug: um verbo inteiro do combate sem efeito nenhum
+
+`ResolverCombates::desligarModulo()` gravava `modules_offline`, e **nada além do próprio ataque e da
+UI lia esse campo**. O bônus de construção (`Forcas::bonusDeConstrucao`), a detecção da Torre contra
+o Infiltrador, a resistência do Abrigo contra o Predador, a capacidade do Depósito — todos liam o
+nível cru da estrutura, ignorando se ela estava "desligada". Pior: o próprio código já previa um
+resgate automático (`Combat::RESGATE_HORAS = 24`, `$combate->prazo_at`) que **nunca era lido por
+ninguém** — a Apreensão nunca reparava sozinha, como o comentário do D-66 já dizia que deveria.
+
+Um segundo bug, menor, tornava tudo isso pior: `Atacar::conferirAlvoDeEstrutura()` usava as chaves
+`'deposito'`/`'muralha'`, enquanto `Estruturas::COLUNA` (a fonte que a UI e o resto do domínio leem)
+usa `'deposito_de_zona_neutra'`/`'muralha_de_perimetro'` — mesmo que a leitura existisse, essas duas
+estruturas nunca bateriam a chave certa.
+
+### O desenho, com o usuário decidindo os três pontos que o GDD deixa em aberto
+
+O GDD distingue as duas ações e nunca publica o mecanismo delas:
+
+- **Sabotagem (Infiltrador)**: "a estrutura-alvo perde capacidade **proporcional** ao nível do
+  Infiltrador" — não desliga por inteiro.
+- **Apreensão (Predador)**: "desliga uma estrutura **até resgate**" — binária, e o texto já promete
+  as 24h de auto-reparo que o código nunca cumpria. "Estruturas sob um Bastião são imunes" — só
+  nesta linha da tabela, não na da Sabotagem.
+
+Perguntado, o usuário escolheu: **(1)** a Apreensão repara sozinha em 24h **e** o dono pode pagar
+para reaver antes (as duas portas, não só uma); **(2)** implementar a proporcionalidade real da
+Sabotagem, com reparo ativo — não o mesmo binário da Apreensão por simplicidade; **(3)** o custo do
+reparo/resgate é uma fração do custo de CONSTRUÇÃO da estrutura, mesmo padrão da manutenção de
+veículos do Ministério dos Transportes (D-60), não um número novo inventado.
+
+### O modelo: duas colunas, duas semânticas que não se confundem
+
+`neutral_zones` ganha `modules_offline_expira_em` (mapa `estrutura → quando a Apreensão expira`) e
+`structures_saboted` (mapa `estrutura → nível de quem sabotou`) — `modules_offline` continua exatamente
+como era, sem mudar de forma. `NeutralZone::fracaoEfetiva(string $chave): int` (bps, 10.000 = cheia,
+0 = fora) é o ÚNICO ponto de leitura: 0 se apreendida, `10.000 − nível×2.000` se sabotada (nível 5 de
+5 equivale a 0 — tão inerte quanto uma Apreensão), 10.000 caso contrário. Uma estrutura nunca está
+nas duas ao mesmo tempo — a Apreensão já a zera.
+
+Todo ponto de consumo passou a multiplicar por ela: `Forcas::bonusDeConstrucao` (Muralha/Torre/
+Bastião), a detecção da Torre contra o Infiltrador, a resistência do Abrigo contra o Predador
+(nível efetivo, não o cru), e `NeutralZone::capacidadeDeposito()` (um Depósito apreendido protege
+menos — mais exposto ao saque, coerente com o D-66).
+
+`ExpirarApreensoes` (nova, roda no tick, depois do combate) lê `modules_offline_expira_em` vencido e
+restaura sozinha — é o "passado o prazo, ele repara normalmente" que o D-66 já tinha escrito e nunca
+implementado. `RepararModulo` (nova) é a porta paga: 10% (`WarSetting::reparo_bps_do_custo`, painel
+da Guerra) do custo de construção no nível atual, debitado da colônia, limpa a Sabotagem OU resgata
+a Apreensão antes da hora.
+
+`Atacar::conferirAlvoDeEstrutura()` corrigido para as chaves canônicas de `Estruturas::COLUNA`, e
+ganhou a checagem de imunidade do Bastião — só para `apreensao`, exatamente como o GDD escreve
+(confirmado por teste: a Sabotagem NÃO é bloqueada pelo Bastião).
+
+### Dois bugs a mais, achados corrigindo o primeiro
+
+1. **`Estruturas::TABELA['central_de_comunicacao']` mentia.** Ainda dizia "Nada. Só serve à
+   Federação, que não existe" — desatualizado desde o D-116 (19/07, mais cedo no mesmo dia), que já
+   tinha ativado a visão ao vivo do aliado e o alerta de cerco. `inerte` virou `false`, o texto
+   passou a descrever o que ela faz de verdade — para os aliados, não para o dono. `docs/RETOMAR.md`
+   também dizia "Federações não existem" na lista de frentes em aberto; corrigido.
+2. **`Acordos.tsx` (D-117) tinha "piso de 500" hardcoded** — ver a correção tardia registrada no
+   D-117 acima. Achado validando o e2e deste D-118, não relacionado à guerra, mas na mesma sessão.
+
+### Validado
+
+`php artisan test` completo (767 — 15 novos em `ReparoDeModulosTest`, cobrindo cada ponto de consumo
+da `fracaoEfetiva` isoladamente, a imunidade do Bastião nos dois sentidos, o tick de expiração e as
+quatro recusas do `RepararModulo`; mais ajustes em `DefesaTest`, `GuerraTest` e `ZonaLugarTest` para
+as chaves corrigidas e o novo décimo-primeiro parâmetro da Guerra). MariaDB efêmero (fresh + rollback
++ migrate, duas vezes) para a migration nova (duas colunas em `neutral_zones`, uma em `war_settings`).
+`tsc`/`lint`/`build` limpos. e2e completo, 9/9 verde — achei e corrigi de propósito duas quebras
+reais nele: o texto da Central de Comunicação (a asserção esperava a descrição velha) e uma falha
+transitória e não relacionada no Acordo de Troca, confirmada como instabilidade pré-existente ao
+rodar de novo (mesma classe de intermitência que o Mercado já tinha, RETOMAR.md).

@@ -150,7 +150,7 @@ class NeutralZone extends Model
         'extraction_level', 'communication_level', 'landing_pad_level',
         'refined_amount', 'last_refine_at',
         'industry_level', 'last_industry_at',
-        'sieged_at', 'modules_offline',
+        'sieged_at', 'modules_offline', 'modules_offline_expira_em', 'structures_saboted',
     ];
 
     /**
@@ -214,6 +214,8 @@ class NeutralZone extends Model
         'last_industry_at' => 'datetime',
         'sieged_at' => 'datetime',
         'modules_offline' => 'array',
+        'modules_offline_expira_em' => 'array',
+        'structures_saboted' => 'array',
     ];
 
     /**
@@ -323,6 +325,41 @@ class NeutralZone extends Model
             && $this->sieged_at->copy()->addMinutes(30)->isPast();
     }
 
+    /**
+     * O nível máximo de uma unidade de combate (Infiltrador incluído) — mesma curva de 5 níveis do
+     * §27.1 (`Unit::DEFESA`). A Sabotagem escala a perda de capacidade por ele, não por um teto novo.
+     */
+    public const NIVEL_MAXIMO_UNIDADE = 5;
+
+    /**
+     * Quanto de uma estrutura da zona está de pé AGORA, em bps (10.000 = cheia, 0 = totalmente
+     * fora). O "Módulo Operacional" (D-66, revisto no D-118) tem duas formas de degradar, e não se
+     * somam — uma estrutura não pode estar apreendida E sabotada ao mesmo tempo, porque a
+     * Apreensão já a zera:
+     *
+     * - **Apreensão (Predador)**: `modules_offline` — binário, 0 bps, até `RepararModulo` (resgate
+     *   antecipado) ou o tick de `ExpirarApreensoes` (24h, `modules_offline_expira_em`).
+     * - **Sabotagem (Infiltrador)**: `structures_saboted` — proporcional ao nível de quem sabotou,
+     *   "perde capacidade proporcional ao nível do Infiltrador" (§28.10, verbatim). Nível 5 de 5
+     *   equivale a 0 bps (tão inerte quanto uma Apreensão); nível 1, só 20% a menos. Só sai por
+     *   reparo ativo do dono — o GDD não dá prazo automático para a Sabotagem como dá para a
+     *   Apreensão.
+     */
+    public function fracaoEfetiva(string $chave): int
+    {
+        if (in_array($chave, $this->modules_offline ?? [], true)) {
+            return 0;
+        }
+
+        $nivel = ($this->structures_saboted ?? [])[$chave] ?? null;
+
+        if ($nivel === null) {
+            return 10_000;
+        }
+
+        return max(0, 10_000 - intdiv(10_000, self::NIVEL_MAXIMO_UNIDADE) * $nivel);
+    }
+
     public function owner(): BelongsTo
     {
         return $this->belongsTo(Colony::class, 'owner_colony_id');
@@ -344,10 +381,15 @@ class NeutralZone extends Model
         return ($agora ?? now())->greaterThanOrEqualTo($this->productive_at);
     }
 
-    /** Capacidade do Depósito, pela curva do §19.1 a partir da base do §19.6. */
+    /**
+     * Capacidade do Depósito, pela curva do §19.1 a partir da base do §19.6 — reduzida se o
+     * Depósito estiver apreendido ou sabotado (D-118): menos protegido, mais exposto ao saque.
+     */
     public function capacidadeDeposito(): int
     {
-        return (int) round(self::DEPOSITO_BASE * self::CURVA ** ($this->deposit_level - 1));
+        $cheia = (int) round(self::DEPOSITO_BASE * self::CURVA ** ($this->deposit_level - 1));
+
+        return intdiv($cheia * $this->fracaoEfetiva('deposito_de_zona_neutra'), 10_000);
     }
 
     /** Extração por hora, pela curva do §19.1 a partir da base arbitrada. */

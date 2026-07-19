@@ -88,14 +88,17 @@ class Forcas
      *
      * O Abrigo de Robôs **não dá bônus**: ele é onde os sobreviventes se recolhem (§27.6) e o que o
      * Predador tem de vencer (§28.10). O §27.3 não o lista, e não o inventamos.
+     *
+     * Cada termo é escalado pela `fracaoEfetiva()` da estrutura (D-118): uma Muralha apreendida
+     * (Predador) some do cálculo; uma sabotada pelo Infiltrador contribui na proporção que sobrou.
      */
     public function bonusDeConstrucao(NeutralZone $zona): int
     {
         $c = $this->config();
 
-        return $c->muralha_bonus_bps * $zona->wall_level
-            + $c->torre_bonus_bps * $zona->watchtower_level
-            + $c->bastiao_bonus_bps * $zona->bastion_level;
+        return intdiv($c->muralha_bonus_bps * $zona->wall_level * $zona->fracaoEfetiva('muralha_de_perimetro'), self::CHEIO)
+            + intdiv($c->torre_bonus_bps * $zona->watchtower_level * $zona->fracaoEfetiva('torre_de_vigia'), self::CHEIO)
+            + intdiv($c->bastiao_bonus_bps * $zona->bastion_level * $zona->fracaoEfetiva('bastiao'), self::CHEIO);
     }
 
     /**

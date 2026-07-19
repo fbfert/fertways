@@ -380,7 +380,7 @@ class GuerraTest extends TestCase
     // ── sabotagem (§28.10) ──────────────────────────────────────────────────────────────────────
 
     /** Sem Torre de Vigia não há quem o veja: passando o dado dos 60%, o módulo cai. */
-    public function test_a_sabotagem_desliga_a_estrutura_quando_nao_ha_torre(): void
+    public function test_a_sabotagem_reduz_a_estrutura_quando_nao_ha_torre(): void
     {
         $atacante = $this->colono('Atacante');
         $defensor = $this->colono('Defensor');
@@ -396,12 +396,15 @@ class GuerraTest extends TestCase
         // Dado: [detecção da Torre = false (não há torre), os 60% = true]
         $this->dado(false, true);
 
-        $combate = app(Atacar::class)->handle($atacante, $zona, 'sabotagem', [$id], 'deposito');
+        $combate = app(Atacar::class)->handle($atacante, $zona, 'sabotagem', [$id], 'deposito_de_zona_neutra');
         $fim = $this->correrAte($combate);
 
         $this->assertSame('vitoria_atacante', $fim->status);
-        $this->assertSame('deposito', $fim->resultado['sabotado']);
-        $this->assertContains('deposito', $zona->fresh()->modules_offline);
+        $this->assertSame('deposito_de_zona_neutra', $fim->resultado['sabotado']);
+        // A Sabotagem NÃO desliga por inteiro (isso é a Apreensão, D-118): reduz proporcionalmente
+        // ao nível do Infiltrador, em `structures_saboted` — `modules_offline` fica de fora.
+        $this->assertSame(1, $zona->fresh()->structures_saboted['deposito_de_zona_neutra']);
+        $this->assertEmpty($zona->fresh()->modules_offline ?? []);
 
         // A zona NÃO muda de dono: sabotagem não é conquista (§28.10).
         $this->assertSame($defensor->id, $zona->fresh()->owner_colony_id);
@@ -427,13 +430,14 @@ class GuerraTest extends TestCase
         $this->dado(true);   // a Torre o vê
 
         $fim = $this->correrAte(
-            app(Atacar::class)->handle($atacante, $zona, 'sabotagem', [$id], 'deposito'),
+            app(Atacar::class)->handle($atacante, $zona, 'sabotagem', [$id], 'deposito_de_zona_neutra'),
         );
 
         $this->assertSame('repelido', $fim->status);
         $this->assertSame('detectado_pela_torre', $fim->resultado['detectado']);
         $this->assertNull(Unit::find($id));                       // destruído
         $this->assertEmpty($zona->fresh()->modules_offline ?? []);   // nada foi desligado
+        $this->assertEmpty($zona->fresh()->structures_saboted ?? []);   // nem sabotado
     }
 
     // ── apreensão — o Predador (§28.10) ─────────────────────────────────────────────────────────
@@ -457,13 +461,16 @@ class GuerraTest extends TestCase
         $this->dado(true);   // passou
 
         $fim = $this->correrAte(
-            app(Atacar::class)->handle($atacante, $zona, 'apreensao', [$id], 'muralha'),
+            app(Atacar::class)->handle($atacante, $zona, 'apreensao', [$id], 'muralha_de_perimetro'),
         );
 
         $this->assertSame('vitoria_atacante', $fim->status);
         $this->assertSame(7000, $fim->resultado['chance_bps']);   // 50% + 10% × (3 − 1)
-        $this->assertSame('muralha', $fim->resultado['apreendido']);
+        $this->assertSame('muralha_de_perimetro', $fim->resultado['apreendido']);
         $this->assertNotNull($fim->prazo_at);   // as 24 h do resgate
+        // A Apreensão SIM desliga por inteiro, e grava quando expira sozinha (D-118).
+        $this->assertContains('muralha_de_perimetro', $zona->fresh()->modules_offline);
+        $this->assertNotNull($zona->fresh()->modules_offline_expira_em['muralha_de_perimetro']);
     }
 
     public function test_nao_se_mira_estrutura_que_a_zona_nao_tem(): void

@@ -197,16 +197,17 @@ try {
     'o Cemitério de Robôs diz que não faz nada — o próprio GDD o declara decorativo',
   )
 
-  // As três últimas do §17.4 (D-79): custeadas, mas também INERTES — sem sistema que as acione.
+  // A Central de Comunicação SAIU do grupo inerte no D-116/D-118: a Federação existe, e ela
+  // avisa e mostra a zona ao vivo pros aliados (o efeito é todo pro lado deles, não do dono).
   await page.click('[data-area="central_de_comunicacao"]')
   await assentar()
   checar(
-    await esperarTexto(page, /apenas visual|não faz nada/),
-    'a Central de Comunicação também diz que não faz nada — sem Federação, não há o que avisar',
+    await esperarTexto(page, /aliados|federação/i),
+    'a Central de Comunicação diz o que faz pelos aliados, não mais "não faz nada"',
   )
   checar(
     !!(await page.$('[data-construir="central_de_comunicacao"]')),
-    'e mesmo inerte, oferece o botão de construir — é gosto e futuro, não função (D-79)',
+    'e oferece o botão de construir, como qualquer estrutura de zona',
   )
 
   // E não sobra nenhum "buraco" do §17.4: as 12 estruturas de zona têm custo e função declarados.

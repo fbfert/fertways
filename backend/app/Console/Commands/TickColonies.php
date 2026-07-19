@@ -9,6 +9,7 @@ use App\Domain\Guerra\ResolverCombates;
 use App\Domain\Zona\ConcluirObrasDaZona;
 use App\Domain\Zona\ConcluirUpgradeDaZona;
 use App\Domain\Zona\CobrarManutencaoTerritorial;
+use App\Domain\Zona\ExpirarApreensoes;
 use App\Domain\Zona\ProcessarSiderurgicaNaZona;
 use App\Domain\Zona\RefinarNaZona;
 use App\Domain\Logistics\ExtrairZonasNeutras;
@@ -57,6 +58,7 @@ class TickColonies extends Command
         ConcluirObrasDaZona $obras,
         ConcluirUpgradeDaZona $upgrades,
         CobrarManutencaoTerritorial $manutencao,
+        ExpirarApreensoes $apreensoes,
         \App\Domain\Drone\ConcluirMissoes $drones,
         \App\Domain\Chat\PurgarMensagens $chat,
     ): int {
@@ -165,6 +167,13 @@ class TickColonies extends Command
         $batalhas = $combates->handle($agora);
 
         /*
+         * O resgate automático da Apreensão (§28.10, D-66/D-118): 24h depois de o Predador desligar
+         * um módulo, ele volta sozinho. Roda depois do combate, nunca antes — uma apreensão que
+         * ACABOU DE acontecer neste mesmo tick vence só daqui a 24h, não neste minuto.
+         */
+        $apreensoesExpiradas = $apreensoes->handle($agora);
+
+        /*
          * A zona vira lugar (D-67). **Depois da extração e do combate**, e a ordem importa nas duas
          * pontas: a Refinaria converte o minério que a extração acabou de creditar, e o saque já
          * levou o que tinha de levar — refinar o que o inimigo carregou embora seria refinar o nada.
@@ -182,7 +191,7 @@ class TickColonies extends Command
          */
         $processadasSiderurgica = $siderurgicas->handle($agora);
 
-        $this->info("tick: {$processadas} colônias, {$falhas} falhas, {$zonas} proteções expiradas, {$manutencaoCobrada} manutenções cobradas, {$zonasAbandonadas} zonas abandonadas, {$extraidas} zonas extraídas, {$entregas} trechos concluídos, {$vencidos} acordos vencidos, {$reatribuidos} casos reatribuídos, {$encerrados} casos encerrados, {$salarios} salários pagos, {$prontos} caminhões prontos, {$encomendados} encomendados, {$cobrados} horas de pátio cobradas, {$rebocados} rebocados, {$batalhas} batalhas, {$chegaram} reforços chegados, {$obrasFeitas} obras de zona, {$upgradesFeitos} upgrades de zona, {$refinadas} zonas refinaram, {$processadasSiderurgica} zonas com siderúrgica, {$missoes} pernas de drone, {$purgadas} mensagens purgadas");
+        $this->info("tick: {$processadas} colônias, {$falhas} falhas, {$zonas} proteções expiradas, {$manutencaoCobrada} manutenções cobradas, {$zonasAbandonadas} zonas abandonadas, {$extraidas} zonas extraídas, {$entregas} trechos concluídos, {$vencidos} acordos vencidos, {$reatribuidos} casos reatribuídos, {$encerrados} casos encerrados, {$salarios} salários pagos, {$prontos} caminhões prontos, {$encomendados} encomendados, {$cobrados} horas de pátio cobradas, {$rebocados} rebocados, {$batalhas} batalhas, {$chegaram} reforços chegados, {$apreensoesExpiradas} apreensões resgatadas sozinhas, {$obrasFeitas} obras de zona, {$upgradesFeitos} upgrades de zona, {$refinadas} zonas refinaram, {$processadasSiderurgica} zonas com siderúrgica, {$missoes} pernas de drone, {$purgadas} mensagens purgadas");
 
         return $falhas > 0 ? self::FAILURE : self::SUCCESS;
     }

@@ -168,10 +168,33 @@ class Atacar
     }
 
     /**
+     * As seis estruturas com efeito de combate de verdade (D-118: `Forcas`, a detecção da Torre, a
+     * resistência do Abrigo, a capacidade do Depósito). As outras sete de `Estruturas::COLUNA`
+     * (Refinaria, Estacionamento, Cemitério, Extração, Central de Comunicação, Plataforma de Pouso,
+     * Indústria Siderúrgica) ficam fora de propósito: nenhuma tem função que a Sabotagem/Apreensão
+     * possa degradar hoje — mirá-las seria desligar um módulo que ninguém lê.
+     *
+     * ⚠️ **As chaves aqui usavam `'deposito'`/`'muralha'`, e não as canônicas de
+     * `Estruturas::COLUNA`** (`'deposito_de_zona_neutra'`/`'muralha_de_perimetro'`) — o badge
+     * "offline" da UI e o `fracaoEfetiva()` do D-118 leem pela chave canônica, então os dois nunca
+     * batiam com um Depósito ou uma Muralha sabotados. Corrigido.
+     */
+    private const ALVOS_ATACAVEIS = [
+        'deposito_de_zona_neutra' => 'deposit_level',
+        'muralha_de_perimetro' => 'wall_level',
+        'torre_de_vigia' => 'watchtower_level',
+        'bastiao' => 'bastion_level',
+        'abrigo_de_robos' => 'shelter_level',
+        'posto_de_comando' => 'command_post_level',
+    ];
+
+    /**
      * Sabotagem e apreensão miram UMA estrutura da zona — o "Módulo Operacional" que a v3.2 nomeia
      * e nunca define (D-66: é uma estrutura da zona, que para de operar até resgate ou reparo).
      *
-     * Não se mira o que não existe, nem o que já está desligado.
+     * Não se mira o que não existe, nem o que já está desligado. E a Apreensão (só ela — o GDD só
+     * cita a imunidade nesta linha da tabela) não mira nada numa zona com Bastião: "estruturas sob
+     * um Bastião são imunes" (§28.10, D-66).
      */
     private function conferirAlvoDeEstrutura(NeutralZone $zona, string $tipo, ?string $alvo): void
     {
@@ -179,28 +202,26 @@ class Atacar
             return;
         }
 
-        $estruturas = [
-            'deposito' => $zona->deposit_level,
-            'muralha' => $zona->wall_level,
-            'torre_de_vigia' => $zona->watchtower_level,
-            'bastiao' => $zona->bastion_level,
-            'abrigo_de_robos' => $zona->shelter_level,
-            'posto_de_comando' => $zona->command_post_level,
-        ];
-
-        if ($alvo === null || ! array_key_exists($alvo, $estruturas)) {
+        if ($alvo === null || ! array_key_exists($alvo, self::ALVOS_ATACAVEIS)) {
             throw new DomainRuleException(
                 'alvo_invalido',
-                'Escolha a estrutura-alvo: '.implode(', ', array_keys($estruturas)).'.',
+                'Escolha a estrutura-alvo: '.implode(', ', array_keys(self::ALVOS_ATACAVEIS)).'.',
             );
         }
 
-        if ($estruturas[$alvo] < 1) {
+        if ($zona->{self::ALVOS_ATACAVEIS[$alvo]} < 1) {
             throw new DomainRuleException('alvo_inexistente', "A zona não tem {$alvo}.");
         }
 
         if (in_array($alvo, $zona->modules_offline ?? [], true)) {
             throw new DomainRuleException('alvo_ja_desligado', "O {$alvo} já está fora de operação.");
+        }
+
+        if ($tipo === 'apreensao' && $zona->bastion_level >= 1) {
+            throw new DomainRuleException(
+                'bastiao_imune',
+                'Esta zona tem Bastião — as estruturas dela são imunes à Apreensão de Módulos (§28.10).',
+            );
         }
     }
 

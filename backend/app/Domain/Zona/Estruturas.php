@@ -206,9 +206,11 @@ class Estruturas
             'nome' => 'Central de Comunicação',
             'gdd' => 'Permite que membros da federação vejam o status da zona em tempo real e recebam '
                 .'alertas de ataque mesmo sem abrir o slot principal.',
-            'hoje' => 'Nada. Só serve à Federação, que não existe no jogo (mesma inércia do D-44). Fica '
-                .'pronta para quando a Federação existir.',
-            'inerte' => true,
+            // Ativada no D-116: a Federação existe desde o D-114. As duas metades do GDD, de verdade:
+            'hoje' => 'Faz as DUAS coisas que promete, para quem é da SUA federação: aliados veem esta '
+                .'zona ao vivo sem gastar Drone (nível ≥ 1 já basta), e recebem um aviso quando ela '
+                .'entra em cerco. Para você, dono, não muda nada — o efeito é todo para os aliados.',
+            'inerte' => false,
         ],
 
         'plataforma_de_pouso_da_zona' => [

@@ -520,6 +520,9 @@ class AcoesController extends Controller
             // O preço do Nióbio, em micro-Fert$. É o freio de todo o exército do planeta: nada o
             // produz, e a Sentinela custa 3. Zerá-lo torna a guerra gratuita.
             'niobio_preco_micro' => ['required', 'integer', 'min:0'],
+
+            // RepararModulo (D-118): fração do custo de construção da estrutura no nível atual.
+            'reparo_bps_do_custo' => ['required', 'integer', 'min:0', 'max:10000'],
         ]);
 
         $config = WarSetting::singleton();
