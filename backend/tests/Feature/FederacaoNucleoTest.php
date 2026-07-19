@@ -289,16 +289,34 @@ class FederacaoNucleoTest extends TestCase
     {
         [, $membro] = $this->federacaoComMembro();
 
-        $this->actingAs($this->user($membro))->postJson('/federation/leave')->assertOk();
+        $this->actingAs($this->user($membro))
+            ->postJson('/federation/leave', ['confirmacao' => 'SAIR'])
+            ->assertOk();
 
         $this->assertNull($membro->fresh()->federation_id);
+    }
+
+    /** D-121: sem a palavra exata, a API recusa — mesmo sendo membro comum, livre para sair. */
+    public function test_sair_exige_a_palavra_exata(): void
+    {
+        [, $membro] = $this->federacaoComMembro();
+
+        $this->actingAs($this->user($membro))
+            ->postJson('/federation/leave', ['confirmacao' => 'sair'])
+            ->assertStatus(422)
+            ->assertJson(['code' => 'confirmacao_invalida']);
+
+        $this->assertNotNull($membro->fresh()->federation_id);
     }
 
     public function test_lider_com_outros_membros_e_bloqueado_ate_transferir(): void
     {
         [$lider] = $this->federacaoComMembro();
 
-        $this->actingAs($this->user($lider))->postJson('/federation/leave')->assertStatus(422);
+        $this->actingAs($this->user($lider))
+            ->postJson('/federation/leave', ['confirmacao' => 'SAIR'])
+            ->assertStatus(422)
+            ->assertJson(['code' => 'lider_precisa_transferir']);
         $this->assertNotNull($lider->fresh()->federation_id);
     }
 
@@ -307,7 +325,9 @@ class FederacaoNucleoTest extends TestCase
         $lider = $this->colonia('lider');
         $fed = Federation::find($this->actingAs($this->user($lider))->postJson('/federations', ['name' => 'Solo'])->json('id'));
 
-        $this->actingAs($this->user($lider))->postJson('/federation/leave')->assertOk();
+        $this->actingAs($this->user($lider))
+            ->postJson('/federation/leave', ['confirmacao' => 'SAIR'])
+            ->assertOk();
 
         $this->assertNull($lider->fresh()->federation_id);
         $this->assertNotNull($fed->fresh()->disbanded_at);

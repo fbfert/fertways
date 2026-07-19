@@ -1319,7 +1319,8 @@ export const api = {
   cancelarConviteDeFederacao: (invite: number) =>
     req<{ ok: true }>(`/federation/invites/${invite}`, { method: 'DELETE' }),
 
-  sairDaFederacao: () => req<{ ok: true }>('/federation/leave', { method: 'POST' }),
+  sairDaFederacao: (confirmacao: string) =>
+    req<{ ok: true }>('/federation/leave', { method: 'POST', body: JSON.stringify({ confirmacao }) }),
 
   transferirLiderancaDaFederacao: (colonyId: number) =>
     req<{ ok: true }>('/federation/transfer-leadership', {

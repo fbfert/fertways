@@ -2,6 +2,8 @@
 
 namespace App\Domain\Federacao;
 
+use App\Domain\Chat\ContaSistema;
+use App\Domain\Chat\EnviarMensagem;
 use App\Exceptions\DomainRuleException;
 use App\Models\Colony;
 use App\Models\Federation;
@@ -13,6 +15,8 @@ use Illuminate\Support\Facades\DB;
  */
 class TransferirLideranca
 {
+    public function __construct(private readonly EnviarMensagem $chat) {}
+
     public function handle(Colony $lider, Colony $alvo): void
     {
         DB::transaction(function () use ($lider, $alvo) {
@@ -39,8 +43,18 @@ class TransferirLideranca
                 throw new DomainRuleException('nao_e_membro', 'Esta colônia não é membro da sua federação.');
             }
 
+            $nomeFederacao = $lider->federation?->name ?? 'sua federação';
             $alvo->forceFill(['federation_role' => Federation::LIDER])->save();
             $lider->forceFill(['federation_role' => Federation::MEMBRO])->save();
+
+            // D-121.
+            if ($usuario = $alvo->user) {
+                $this->chat->sistema(
+                    ContaSistema::federacao(),
+                    $usuario,
+                    "Você agora é o Líder da federação «{$nomeFederacao}».",
+                );
+            }
         });
     }
 }

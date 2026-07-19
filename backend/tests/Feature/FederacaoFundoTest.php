@@ -241,7 +241,9 @@ class FederacaoFundoTest extends TestCase
             ->where('resource_type', 'agua')->value('amount');
         $tesouroAntes = (int) TreasuryHolding::whereKey('agua')->value('amount');
 
-        $this->actingAs($this->user($colonia))->postJson('/federation/leave')->assertOk();
+        $this->actingAs($this->user($colonia))
+            ->postJson('/federation/leave', ['confirmacao' => 'SAIR'])
+            ->assertOk();
 
         $this->assertSame($tesouroAntes + $saldoFundo, (int) TreasuryHolding::whereKey('agua')->value('amount'));
         $this->assertSame(0, (int) FederationHolding::where('federation_id', $fed->id)
