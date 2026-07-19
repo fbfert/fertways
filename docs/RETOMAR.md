@@ -1418,13 +1418,16 @@ ida→vigia→volta), sem tabela nova além de `drone_sightings` (as fotos).
      Ninguém decidiu isso: foi consistência. **Se ele quiser um tempo de fábrica, é decisão dele.**
    - **Ranking de guerras (§27.13)** — publicado por inteiro (percentis e pesos), mas **não há sistema
      de ranking** no jogo. Fora da Fatia 2.
-   - ~~Federação~~ — **fechada em três fatias (D-114, D-115, D-116; 2026-07-19).** O núcleo (cargos,
-     convite/pedido, fundo por entrega física), o canal de chat, o apoio de aliado ao romper cerco
-     (o §28.10 agora vale por inteiro, não só pelo dono da zona), a outra metade do impedimento do
-     conciliador, as missões cooperativas e a Central de Comunicação (visão ao vivo do aliado +
-     alerta de cerco). **Não reabra.** O que ficou de fora, e por quê: o desconto de tributo entre
-     aliados (v3.0 escolhida, mas a implementação ficou para depois) e o limite antimonopólio
-     (20%→10%, vago demais no GDD para arbitrar sem mais contexto).
+   - ~~Federação~~ — **fechada em quatro fatias (D-114, D-115, D-116, D-119; 2026-07-19).** O núcleo
+     (cargos, convite/pedido, fundo por entrega física), o canal de chat, o apoio de aliado ao
+     romper cerco (o §28.10 agora vale por inteiro, não só pelo dono da zona), a outra metade do
+     impedimento do conciliador, as missões cooperativas, a Central de Comunicação (visão ao vivo
+     do aliado + alerta de cerco), e o limite antimonopólio territorial (20% de todas as zonas
+     ocupadas do jogo, teto fixo do operador — painel de Federações, `FederationSetting`). **Não
+     reabra.** O que ficou de fora, e por quê: o desconto de tributo entre aliados (v3.0 escolhida,
+     mas a implementação ficou para depois) — o §04 tem mais dois eixos de antimonopólio (volume
+     entre contas, estoque de minerais estratégicos) que ficaram fora por serem outra categoria de
+     problema (antifraude) ou inertes por o governo ainda monopolizar os 8 minerais eletrônicos.
 
 3. ~~O Marco do GDD (§03)~~ — **existe desde o D-75** (XP por atos, curva 50×N²; ver a lista de
    frentes acima). O varchar `colonies.milestone` do D-38 segue intocado, dormindo: o Marco deriva

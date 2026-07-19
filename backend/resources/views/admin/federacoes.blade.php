@@ -5,13 +5,14 @@
     $cargo = [
         'lider' => 'Líder', 'diplomata' => 'Diplomata', 'intendente' => 'Intendente', 'membro' => 'Membro',
     ];
+    $pct = fn ($bps) => number_format(((int) $bps) / 100, 2, ",", ".") . "%";
 @endphp
 
 @section("content")
     <h2 class="secao">Federações</h2>
     <p class="mut pequeno">
-        Sistema 100% jogador-a-jogador (§04/§07) — criar, convidar, cargos e o fundo são todos
-        atos dos próprios colonos. O operador só observa, com uma alavanca de emergência.
+        Criar, convidar, cargos e o fundo são todos atos dos próprios colonos. O operador declara
+        o limite antimonopólio (o §04 delega o número) e tem uma alavanca de emergência.
     </p>
 
     <div class="cartao">
@@ -32,6 +33,28 @@
                 <tr><td colspan="4" class="mut pequeno">Nenhuma federação fundada ainda.</td></tr>
             @endforelse
         </table>
+    </div>
+
+    <h2 class="secao">Limite antimonopólio <span class="mut pequeno">— §04, D-119</span></h2>
+    <div class="cartao">
+        <form method="POST" action="{{ route('admin.federacoes.parametros') }}">
+            @csrf
+            <div class="linha-form">
+                <div style="flex:0">
+                    <label>Teto de ocupação, por federação</label>
+                    <input type="number" min="0" max="10000" name="teto_ocupacao_zonas_bps"
+                           value="{{ $config->teto_ocupacao_zonas_bps }}" data-p="teto-antimonopolio" required>
+                    <span class="mut pequeno">{{ $pct($config->teto_ocupacao_zonas_bps) }} de TODAS as zonas ocupadas do jogo</span>
+                </div>
+                <button type="submit" data-salvar-federacao>Salvar</button>
+            </div>
+            <p class="mut pequeno">
+                O §04 escreve "limite antimonopólio dinâmico: 20% → 10%" e não diz de quê, nem o
+                gatilho da transição entre os dois números. Fica um teto FIXO, seu — barra a
+                PRÓXIMA ocupação de zona de uma federação que já está no limite ou acima dele;
+                zonas que ela já tem não são tocadas.
+            </p>
+        </form>
     </div>
 
     @if ($federacao)

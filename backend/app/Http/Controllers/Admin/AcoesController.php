@@ -571,6 +571,26 @@ class AcoesController extends Controller
         }, "federation:{$federation->id}");
     }
 
+    /**
+     * O limite antimonopólio territorial (§04, D-119): "20% → 10%", sem dizer de quê nem o
+     * gatilho da transição. Um teto fixo, do operador — mesmo padrão do resto da casa.
+     */
+    public function federacaoParametros(Request $request): RedirectResponse
+    {
+        $dados = $request->validate([
+            'teto_ocupacao_zonas_bps' => ['required', 'integer', 'min:0', 'max:10000'],
+        ]);
+
+        $config = \App\Models\FederationSetting::singleton();
+        $antes = $config->teto_ocupacao_zonas_bps;
+
+        return $this->tentar('federacao.parametros', function () use ($dados, $config, $antes) {
+            $config->update($dados);
+
+            return "Limite antimonopólio: {$antes} → {$dados['teto_ocupacao_zonas_bps']} bps.";
+        });
+    }
+
     public function transporte(Request $request): RedirectResponse
     {
         $dados = $request->validate([

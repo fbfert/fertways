@@ -495,8 +495,9 @@ class PainelController extends Controller
     }
 
     /**
-     * Federação (§04/§07; D-114) — leitura + uma alavanca de emergência ("Dissolver"), mesmo
-     * perfil de Guerra/Transportes: sistema 100% jogador-a-jogador, o operador só observa.
+     * Federação (§04/§07; D-114) — leitura, o parâmetro do limite antimonopólio (D-119) e uma
+     * alavanca de emergência ("Dissolver"). Não é mais 100% observação: o §04 delega o número do
+     * teto ao operador, e é aqui que ele mora — mesmo perfil de Guerra/Transportes.
      */
     public function federacoes(Request $request): View
     {
@@ -505,7 +506,7 @@ class PainelController extends Controller
             ->orderBy('name')
             ->get();
 
-        $dados = ['federacoes' => $federacoes, 'federacao' => null];
+        $dados = ['federacoes' => $federacoes, 'federacao' => null, 'config' => \App\Models\FederationSetting::singleton()];
 
         $federacao = $request->query('ver') ? Federation::find($request->query('ver')) : null;
 

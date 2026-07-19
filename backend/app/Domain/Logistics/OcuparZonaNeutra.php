@@ -4,6 +4,7 @@ namespace App\Domain\Logistics;
 
 use App\Exceptions\DomainRuleException;
 use App\Models\Colony;
+use App\Models\FederationSetting;
 use App\Models\Ledger;
 use App\Models\NeutralZone;
 use App\Models\Unit;
@@ -52,6 +53,10 @@ class OcuparZonaNeutra
                     'teto_de_zonas',
                     'Você já ocupa o máximo de '.NeutralZone::TETO_ZONAS_POR_COLONIA.' zonas neutras.',
                 );
+            }
+
+            if ($colony->federation_id !== null) {
+                $this->conferirTetoDaFederacao($colony->federation_id);
             }
 
             $custo = $this->custoDeRecursos();
@@ -111,6 +116,39 @@ class OcuparZonaNeutra
 
             return $zona->fresh();
         });
+    }
+
+    /**
+     * O limite antimonopólio do §04 (D-119): uma federação não passa de X% de TODAS as zonas
+     * ocupadas do jogo (não só as suas — o denominador é o planeta inteiro). Parâmetro do operador
+     * (`FederationSetting`), porque o GDD escreve "20% → 10%" e nunca diz de quê.
+     *
+     * Checa o estado ANTES desta ocupação — mesmo padrão do teto de 5 zonas por colônia, acima:
+     * bloqueia a PRÓXIMA zona quando a federação já está no teto ou acima dele, não a que a levou
+     * até lá. Evita o caso degenerado de checar "depois" (a primeíssima zona do jogo inteiro
+     * sempre seria 100% de um total de 1, e travaria o próprio nascimento do sistema).
+     */
+    private function conferirTetoDaFederacao(int $federationId): void
+    {
+        $totalDeZonas = NeutralZone::whereNotNull('owner_colony_id')->count();
+
+        if ($totalDeZonas === 0) {
+            return;
+        }
+
+        $daFederacao = NeutralZone::whereNotNull('owner_colony_id')
+            ->whereHas('owner', fn ($q) => $q->where('federation_id', $federationId))
+            ->count();
+
+        $tetoBps = FederationSetting::singleton()->teto_ocupacao_zonas_bps;
+
+        if (intdiv($daFederacao * 10_000, $totalDeZonas) >= $tetoBps) {
+            throw new DomainRuleException(
+                'teto_antimonopolio_da_federacao',
+                'A sua federação já ocupa '.($tetoBps / 100)
+                    .'% (ou mais) de todas as zonas neutras do jogo — o limite antimonopólio do §04.',
+            );
+        }
     }
 
     /**
