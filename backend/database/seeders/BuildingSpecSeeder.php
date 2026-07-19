@@ -9,9 +9,16 @@ use Illuminate\Support\Facades\DB;
  * Semeia building_specs a partir de data/building_specs.json, gerado por
  * tools/extract_gdd_specs.py lendo as tabelas de §4.2 e §4.3 do GDD.
  *
- * build_time_seconds fica NULL para Central de Transportes, Destilaria, Depósito de
- * Zona Neutra e todos os veículos: o GDD não publica tempo de construção para eles.
- * NULL significa "o GDD não diz", não "instantâneo". Ver docs/decisoes.md D-10.
+ * build_time_seconds fica NULL para o que não tem entrada em `build_times_base.json`: o GDD não
+ * publica tempo de construção para eles. NULL significa "o GDD não diz", não "instantâneo". Ver
+ * docs/decisoes.md D-10.
+ *
+ * ⚠️ **O Depósito de Zona Neutra ficou NULL por um bom tempo sem que ninguém notasse** (revisão de
+ * 2026-07-19, D-122): `ConstruirNaZona` nunca passava por `BuildingSpecs::para()` — a classe que
+ * bloqueia enfileiramento com tempo indefinido do lado da colônia —, então em vez de falhar
+ * explicitamente, `(int) null` virava `0` e a estrutura concluía no PRÓXIMO tick, de graça.
+ * Corrigido nos dois lados: um tempo-base entrou aqui, e `ConstruirNaZona` passou a recusar
+ * também, caso outra estrutura de zona um dia fique sem tempo por engano.
  */
 class BuildingSpecSeeder extends Seeder
 {

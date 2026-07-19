@@ -6,6 +6,9 @@ use App\Models\Colony;
 use App\Models\Ledger;
 use App\Models\NeutralZone;
 use App\Models\Unit;
+use App\Models\ZoneBuild;
+use App\Models\ZoneEvent;
+use App\Models\ZoneMaterial;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
@@ -134,9 +137,35 @@ class CobrarManutencaoTerritorial
     {
         Unit::where('zone_id', $zona->id)->delete();
 
+        /*
+         * Revisão de 2026-07-19: o canteiro (`zone_materials`) e a fila de obras
+         * (`zone_build_queue`) NÃO eram limpos aqui — o reset "completo" que este comentário já
+         * prometia (abaixo) tinha um buraco de verdade. Uma obra em curso sobrevivia ao abandono
+         * e, quando o prazo vencesse, `ConcluirObrasDaZona` erguia a estrutura para quem quer que
+         * fosse o dono NAQUELE momento — inclusive uma segunda conta do mesmo jogador que
+         * reocupasse a zona de propósito. É exatamente a lavagem que este método diz impedir.
+         */
+        ZoneMaterial::where('zone_id', $zona->id)->delete();
+        ZoneBuild::where('zone_id', $zona->id)->delete();
+
+        // Um upgrade pago (Metal Bruto + Fert$ + reforço de guarnição, debitados na hora do
+        // pedido em `SubirNivelDaZona`) que ainda não tinha concluído se perde aqui, sem estorno —
+        // o reset é completo, de propósito (ver o comentário abaixo). Antes disso desaparecia em
+        // silêncio; agora fica registrado, coerente com "todo Fert$/recurso tem história".
+        if ($zona->level_target !== null) {
+            $perdido = NeutralZone::custoDeUpgrade($zona->level_target);
+
+            ZoneEvent::create([
+                'zone_id' => $zona->id, 'type' => 'upgrade_perdido_no_abandono',
+                'colony_id' => $zona->owner_colony_id,
+                'meta' => ['nivel_alvo' => $zona->level_target, 'custo_perdido' => $perdido],
+                'created_at' => now(),
+            ]);
+        }
+
         // Histórico da zona (D-86): a última linha antes de o dono sumir daqui — por isso o
         // evento registra QUEM perdeu, já que depois deste update `owner_colony_id` é nulo.
-        \App\Models\ZoneEvent::create([
+        ZoneEvent::create([
             'zone_id' => $zona->id, 'type' => 'abandonada', 'colony_id' => $zona->owner_colony_id,
             'created_at' => now(),
         ]);
