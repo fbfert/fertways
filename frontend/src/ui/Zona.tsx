@@ -239,6 +239,10 @@ export function Zona() {
         )
       : false
 
+  // A fila de obras: pode ter mais de uma ao mesmo tempo, conforme o teto do operador
+  // (`obras_vagas`, D-111) — travar o botão assim que UMA existisse já foi bug (achado #10).
+  const filaCheia = z.obras.length >= z.obras_vagas
+
   return moldura(
     <div className="space-y-6">
       {z.cercada && (
@@ -281,6 +285,27 @@ export function Zona() {
       {/* ══════════════════════════════════════════════════════ Zona Neutra ═══ */}
       {aba === 'zona' && (
         <div className="space-y-6" data-aba="zona">
+          {/*
+            A fila de obras — pedido do usuário (2026-07-19): antes a tela só sabia mostrar UMA
+            obra (o `.first()` da API), mesmo quando o operador libera mais de uma ao mesmo tempo
+            (`obras_vagas`, D-111) — e o colono não tinha como saber que a fila tinha vaga, ou
+            quantas obras já estavam em andamento.
+          */}
+          {z.obras.length > 0 && (
+            <div className="border-ink/10 border-l-4 p-3 text-sm" data-fila-de-obras>
+              <strong className="text-ink">
+                Fila de obras ({z.obras.length}/{z.obras_vagas})
+              </strong>
+              <ul className="mt-1 space-y-0.5">
+                {z.obras.map((o, i) => (
+                  <li key={i} className="text-ink-soft" data-obra-em-curso={o.structure}>
+                    {o.nome} nível {o.target_level} — pronta {dataHumana(o.finishes_at)}.
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
           <div className="grid gap-6 lg:grid-cols-[400px_1fr]">
             <svg viewBox="0 0 400 280" className="w-full" role="group" aria-label="Planta da zona">
               <rect x="0" y="0" width="400" height="280" fill="var(--color-sand)" />
@@ -435,10 +460,14 @@ export function Zona() {
                         colono levava um erro que a tela já sabia de antemão. A guarda do domínio
                         continua lá (é ela que vale contra requisição forjada); esta só evita prometer
                         o que não se pode cumprir.
+
+                        Até aqui, "há uma obra" travava o botão sozinho — mesmo com `obras_vagas` (o
+                        teto do operador, D-111) liberando mais de uma ao mesmo tempo. Agora compara
+                        a FILA com a VAGA de verdade.
                       */}
                       <button
                         className="botao mt-2 w-full"
-                        disabled={ocupado || z.obra !== null || z.cercada || !canteiroPaga(escolhida)}
+                        disabled={ocupado || filaCheia || z.cercada || !canteiroPaga(escolhida)}
                         data-construir={escolhida.type}
                         onClick={() =>
                           void agir(async () => {
@@ -448,24 +477,16 @@ export function Zona() {
                           })
                         }
                       >
-                        {z.obra
-                          ? 'Já há uma obra em curso'
+                        {filaCheia
+                          ? z.obras_vagas === 1
+                            ? 'Já há uma obra em curso'
+                            : `Fila cheia (${z.obras.length}/${z.obras_vagas})`
                           : z.cercada
                             ? 'Não se constrói sob sítio'
                             : !canteiroPaga(escolhida)
                               ? 'Falta material no canteiro'
                               : 'Construir'}
                       </button>
-
-                      {/*
-                        Sem isto, o colono via só "Já há uma obra em curso" e tinha de procurar no
-                        Canteiro, numa aba à parte, para descobrir O QUÊ.
-                      */}
-                      {z.obra && (
-                        <p className="text-ink-soft mt-1 text-xs" data-obra-em-curso>
-                          {z.obra.nome} nível {z.obra.target_level} — pronta {dataHumana(z.obra.finishes_at)}.
-                        </p>
-                      )}
                     </div>
                   ) : (
                     <p className="text-ink-soft mt-3 text-xs">No nível máximo.</p>
@@ -678,11 +699,17 @@ export function Zona() {
             </ul>
           )}
 
-          {z.obra && (
-            <p className="mt-2 text-sm">
-              Em obra: <strong>{z.obra.nome}</strong> nível {z.obra.target_level} — pronta{' '}
-              {dataHumana(z.obra.finishes_at)}.
-            </p>
+          {z.obras.length > 0 && (
+            <div className="mt-2 text-sm">
+              Em obra ({z.obras.length}/{z.obras_vagas}):
+              <ul className="mt-1">
+                {z.obras.map((o, i) => (
+                  <li key={i}>
+                    <strong>{o.nome}</strong> nível {o.target_level} — pronta {dataHumana(o.finishes_at)}.
+                  </li>
+                ))}
+              </ul>
+            </div>
           )}
 
           {/*
@@ -884,7 +911,20 @@ function EnviarMaterial({
   const veiculo = ociosos.find((v) => v.id === envioVeiculoId) ?? ociosos[0]
 
   const noCanteiro = (r: string) => zona.canteiro.find((c) => c.resource_type === r)?.amount ?? 0
-  const total = Object.values(envio).reduce((s, q) => s + (q || 0), 0)
+
+  /**
+   * O valor de VERDADE de cada recurso — o mesmo que o campo MOSTRA (`envio[r]`, e na falta
+   * dele, o que falta pra obra). Antes, `total` somava só `envio` cru: os campos já apareciam
+   * preenchidos com o padrão (o que falta), mas ninguém tinha DIGITADO nada ainda, então `envio`
+   * continuava `{}` e `total` dava 0 — o botão ficava travado mostrando números na tela inteiros.
+   */
+  const efetivo = (r: string) => {
+    const falta = Math.max(0, (alvo?.proximo?.custo[r] ?? 0) - noCanteiro(r))
+
+    return envio[r] ?? Math.min(falta, veiculo?.capacity_efetiva ?? 0)
+  }
+
+  const total = alvo ? Object.keys(alvo.proximo!.custo).reduce((s, r) => s + efetivo(r), 0) : 0
 
   return (
     <div className="mt-3">
@@ -944,7 +984,7 @@ function EnviarMaterial({
                     type="number"
                     min={0}
                     max={veiculo?.capacity_efetiva ?? 0}
-                    value={envio[r] ?? Math.min(falta, veiculo?.capacity_efetiva ?? 0)}
+                    value={efetivo(r)}
                     onChange={(e) =>
                       setEnvio((v) => ({
                         ...v,
@@ -970,8 +1010,8 @@ function EnviarMaterial({
             onClick={() => {
               if (!veiculo) return
               const carga = Object.fromEntries(
-                Object.entries(alvo.proximo!.custo)
-                  .map(([r]) => [r, envio[r] ?? Math.min(Math.max(0, alvo.proximo!.custo[r] - noCanteiro(r)), veiculo.capacity_efetiva)])
+                Object.keys(alvo.proximo!.custo)
+                  .map((r) => [r, efetivo(r)])
                   .filter(([, q]) => (q as number) > 0),
               )
               onDespachar(veiculo.id, carga)
