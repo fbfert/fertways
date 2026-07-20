@@ -141,6 +141,7 @@
                 'admin.auditoria' => 'Auditoria',
                 'admin.operacao' => 'Operação',
                 'admin.construcoes' => 'Gestão de Construções',
+                'admin.endurance' => 'Endurance',
                 'admin.feedback' => 'Bugs/Melhorias',
             ];
 

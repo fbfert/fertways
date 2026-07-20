@@ -6302,3 +6302,51 @@ visitava a Capital): abre a Endurance, confere os 8 destroços e as 8 seções d
 peça de verdade (o colono do e2e nasce no marco 20, acima do marco 10 exigido) e confere os dois
 atalhos de navegação mais delicados (Mercado Central direto, e Espaçoporto via estado de rota).
 Rodado isolado, verde ponta a ponta.
+
+---
+
+## D-133 — A Loja de Peças da Endurance ganha CRUD no painel: preço, marco e efeito, sem tocar código.
+
+**Data:** 2026-07-20 · **Status:** implementado
+
+Pedido direto do usuário: um CRUD em `/central/admin` para definir preço, marco, imagem e o efeito
+de cada uma das 32 peças do D-132 — que até aqui viviam hardcoded em `EnduranceSpecs.php`, com o
+próprio comentário da classe dizendo "mude aqui, não escondido". Agora "aqui" é o painel.
+
+### O catálogo saiu do código, virou tabela
+
+`endurance_piece_specs` (nova) guarda as 32 linhas; a migration que a cria já as **semeia** com os
+valores que já estavam em produção — ninguém perde estado. `EnduranceSpecs::catalogo()` continua
+sendo a única porta de leitura, com a MESMA assinatura pública: `ComprarPeca`, `DescontoDeEndurance`
+e `EnduranceController` não mudaram uma linha, só a fonte por baixo trocou de constante PHP para
+consulta ao banco.
+
+### A imagem não entrou no CRUD — e não é omissão
+
+O pedido citava "a imagem" entre os quatro campos. Mas a imagem de uma peça da Endurance não é uma
+propriedade DELA: é da SEÇÃO do casco (D-132, `Vinculaveis::SECOES_DA_ENDURANCE`) — as 4 camadas
+de "Anel Habitacional" compartilham a mesma arte, porque só existem 8 imagens (uma por seção), não
+32. Duplicar um seletor de imagem em cada uma das 32 linhas deixaria o operador escolher "uma
+imagem para a peça comum do Anel Habitacional" sem avisar que isso silenciosamente mudaria a arte
+das outras três camadas da mesma seção também — surpresa ruim. A tela nova mostra a miniatura atual
+de cada seção (lida de `image_bindings`, sem duplicar o mecanismo) e linka direto para
+`/admin/imagens?cat=destrocos-da-endurance`, que já resolve isso desde o D-132.
+
+### O padrão clonado — "grade salva de uma vez", não 32 forms soltos
+
+O painel já tinha dois moldes de CRUD: singleton (um form, N campos escalares — `WarSetting` etc.)
+e lista com form-por-linha (`MissionTemplate`, `admin.missoes`). Nenhum dos dois serve bem para "32
+linhas com identidade própria, editadas juntas": clonei um terceiro que já existe — **Gestão de
+Construções → Silo** (`AcoesController::construcoesSilo`), uma grade só, um `<form>` só, um POST só,
+`updateOrInsert`/`update` por linha, guardado contra `peca_key` forjado (só grava o que já existe
+no catálogo). Mesma auditoria automática do resto do painel (`$this->tentar()`).
+
+### Validado
+
+7 testes novos (`EnduranceAdminTest`): a migration semeia os 32 valores certos, a tela lista
+agrupada por seção, o admin edita uma peça e ela reflete de verdade na compra
+(`ComprarPeca`/`DescontoDeEndurance`, sem precisar reiniciar nada — é o mesmo banco), chave forjada
+no POST não cria linha, e as duas rotas exigem admin autenticado. Suíte completa: 852 passando —
+`LojaDaEnduranceTest` (D-132) segue verde sem alteração nenhuma, confirmando que a troca de fonte
+(código → banco) foi transparente para quem compra. Sem mudança de frontend — o painel admin é
+Blade puro, sem build.
