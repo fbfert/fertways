@@ -3,7 +3,7 @@
 namespace App\Domain\Logistics;
 
 use App\Domain\Capital\AvisoDoPatio;
-use App\Domain\Endurance\DescontoDeEndurance;
+use App\Domain\Endurance\EfeitosDaEndurance;
 use App\Domain\Market\Deposito;
 use App\Domain\Trade\CreditarEntrega;
 use App\Domain\Transport\Conservacao;
@@ -41,7 +41,7 @@ class ConcluirTrechos
         private Conservacao $conservacao,
         private MercadoDeUsados $usados,
         private AvisoDoPatio $avisoDoPatio,
-        private DescontoDeEndurance $descontoDeEndurance,
+        private EfeitosDaEndurance $descontoDeEndurance,
     ) {}
 
     /**
@@ -579,9 +579,11 @@ class ConcluirTrechos
             $bpsCheio = intdiv($bpsCheio * (10_000 - $desconto), 10_000);
         }
 
-        // D-132: o desconto de peças da Endurance é pessoal da colônia que entrega — vem por cima
-        // do que o desconto de aliados já reduziu, nunca antes dele.
-        return $this->descontoDeEndurance->aplicar($bpsCheio, $origem);
+        // D-132/D-135: o desconto de peças da Endurance é pessoal da colônia que entrega — vem por
+        // cima do que o desconto de aliados já reduziu, nunca antes dele.
+        $desconto = $this->descontoDeEndurance->descontoDeTributo($origem);
+
+        return \App\Domain\Endurance\EfeitosDaEndurance::aplicarDesconto($bpsCheio, $desconto);
     }
 
     /**

@@ -88,9 +88,12 @@ class Ledger extends Model
         // valores do Conciliador (§26.7) — o único número que o GDD publica para cargo cívico.
         'salario_cargo_civico',
         'bonus_cargo_civico',
-        // Loja de Peças da Endurance, §05/D-132: desconto de tributo é aplicado direto no cálculo,
-        // sem lançamento — só a compra em si gera ledger.
+        // Loja de Peças da Endurance, §05/D-132: efeitos são aplicados direto no cálculo, sem
+        // lançamento — só a compra em si gera ledger. `compra_peca_endurance` é o tipo antigo
+        // (D-132/D-133, catálogo fixo) — fica na lista porque o ledger é append-only e linhas de
+        // antes do D-135 (reconstrução, catálogo dinâmico) têm esse tipo de verdade.
         'compra_peca_endurance',
+        'compra_item_endurance',
     ];
 
     public function colony(): BelongsTo

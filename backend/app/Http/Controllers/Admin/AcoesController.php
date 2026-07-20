@@ -1063,44 +1063,167 @@ class AcoesController extends Controller
     }
 
     /**
-     * A Loja de Peças da Endurance (D-133): um POST só salva as 32 linhas de uma vez — mesmo
-     * formato do Silo, acima. Só a imagem fica de fora (é por seção, em `/admin/imagens`).
+     * Cria um item da Loja de Peças da Endurance (D-135): catálogo dinâmico, substitui as 32 linhas
+     * fixas do D-132/D-133. `tipo=unico` força `quantidade_total=1` — não é o admin que garante isto
+     * digitando certo, é o código (mesmo espírito do `ativa=true` do `missaoCriar`).
      */
-    public function enduranceEditar(Request $request): RedirectResponse
+    public function enduranceItemCriar(Request $request): RedirectResponse
     {
-        $dados = $request->validate([
-            'preco' => ['required', 'array'],
-            'preco.*' => ['required', 'numeric', 'min:0.000001'],
-            'marco' => ['required', 'array'],
-            'marco.*' => ['required', 'integer', 'min:1', 'max:100'],
-            'desconto' => ['required', 'array'],
-            'desconto.*' => ['required', 'integer', 'min:0', 'max:10000'],
-        ]);
+        // A validação de domínio (formato dos efeitos, tipo/alvo conhecidos) mora DENTRO de
+        // `tentar()` — ela lança `DomainRuleException`, e só o `catch` do `tentar()` a converte em
+        // mensagem de erro. Chamá-la antes deixaria a exceção escapar sem resposta amigável.
+        return $this->tentar('endurance.item.criar', function () use ($request) {
+            [$dados, $efeitos] = $this->validarEnduranceItem($request);
 
-        // Só as chaves que já existem no catálogo — um `peca_key` forjado no POST não cria linha.
-        $chaves = \App\Models\EndurancePieceSpec::pluck('peca_key');
+            $item = \App\Models\EnduranceItem::create($dados + ['admin_id' => auth('admin')->id()]);
+            $item->efeitos()->createMany($efeitos);
 
-        return $this->tentar('endurance.editar', function () use ($dados, $chaves) {
-            $agora = now();
-            $tocadas = 0;
+            return "Item «{$item->nome}» ({$item->item_key}) criado em ".
+                \App\Models\EnduranceItem::SECOES[$item->secao].', com '.count($efeitos).' efeito(s).';
+        });
+    }
 
-            foreach ($chaves as $chave) {
-                if (! isset($dados['preco'][$chave], $dados['marco'][$chave], $dados['desconto'][$chave])) {
-                    continue;
-                }
+    /**
+     * Edita um item — os efeitos são SUBSTITUÍDOS por completo (apaga e recria), mais simples que
+     * diff linha a linha e o volume é baixo (poucos efeitos por item).
+     */
+    public function enduranceItemEditar(Request $request, \App\Models\EnduranceItem $item): RedirectResponse
+    {
+        return $this->tentar('endurance.item.editar', function () use ($request, $item) {
+            [$dados, $efeitos] = $this->validarEnduranceItem($request, $item->id);
 
-                \App\Models\EndurancePieceSpec::where('peca_key', $chave)->update([
-                    'preco_micro' => (int) round($dados['preco'][$chave] * 1_000_000),
-                    'marco_minimo' => (int) $dados['marco'][$chave],
-                    'desconto_tributo_bps' => (int) $dados['desconto'][$chave],
-                    'admin_id' => auth('admin')->id(),
-                    'updated_at' => $agora,
-                ]);
-                $tocadas++;
+            if ($dados['quantidade_total'] < $item->quantidade_vendida) {
+                throw new DomainRuleException(
+                    'endurance.item.estoque_abaixo_do_vendido',
+                    "«{$item->nome}» já vendeu {$item->quantidade_vendida} unidade(s) — não dá para ".
+                    "baixar o total abaixo disso.",
+                );
             }
 
-            return "Loja de Peças da Endurance atualizada: {$tocadas} peça(s).";
-        });
+            $item->update($dados + ['admin_id' => auth('admin')->id()]);
+            $item->efeitos()->delete();
+            $item->efeitos()->createMany($efeitos);
+
+            return "Item «{$item->nome}» ({$item->item_key}) atualizado, com ".count($efeitos).' efeito(s).';
+        }, "endurance_item:{$item->id}");
+    }
+
+    /**
+     * Apaga um item — só se NENHUMA colônia o possui. Uma colônia que já comprou uma peça com
+     * bônus de produção teria o efeito arrancado silenciosamente do meio do jogo se isto não travasse
+     * (mesma cautela do `missaoApagar`, que trava se a missão já foi sorteada).
+     */
+    public function enduranceItemApagar(\App\Models\EnduranceItem $item): RedirectResponse
+    {
+        if (\App\Models\ColonyEnduranceItem::where('endurance_item_id', $item->id)->exists()) {
+            return $this->erro(
+                "«{$item->nome}» já foi comprado por alguma colônia — apagar arrancaria o efeito dela ".
+                'sem aviso. Baixe o estoque a zero em vez disso, se quiser parar de vender.',
+            );
+        }
+
+        return $this->tentar('endurance.item.apagar', function () use ($item) {
+            $nome = $item->nome;
+            $chave = $item->item_key;
+            $item->delete();
+
+            return "Item «{$nome}» ({$chave}) apagado — nenhuma colônia o possuía.";
+        }, "endurance_item:{$item->id}");
+    }
+
+    /**
+     * A validação comum de criar/editar item da Endurance. Os efeitos chegam como texto, uma linha
+     * `tipo_efeito:alvo:valor_bps` (ou `tipo_efeito:valor_bps` quando o tipo não usa alvo — tributo
+     * e drone) — mesmo padrão `chave:valor` por linha que `recompensa_recursos` já usa em
+     * `missaoCriar`, para não inventar um segundo jeito de digitar lista no mesmo painel.
+     *
+     * ⚠️ **`alvo` não é validado contra um catálogo** (não há um catálogo fechado de
+     * `building_type`/tipo de veículo aqui) — um `alvo` errado (ex. `mina_locl`) cria o efeito, mas
+     * ele nunca bate em nenhuma query de bônus, então some silenciosamente. Documentado, não
+     * corrigido: seria preciso importar `Building::MVP`/tipos de veículo aqui só para validar texto
+     * livre, e o painel já avisa o admin do formato esperado.
+     *
+     * @return array{0: array, 1: array<int, array{tipo_efeito: string, alvo: ?string, valor_bps: int}>}
+     */
+    private function validarEnduranceItem(Request $request, ?int $ignorarId = null): array
+    {
+        $dados = $request->validate([
+            'item_key' => [
+                'required', 'string', 'max:60', 'alpha_dash',
+                Rule::unique('endurance_items', 'item_key')->ignore($ignorarId),
+            ],
+            'secao' => ['required', Rule::in(array_keys(\App\Models\EnduranceItem::SECOES))],
+            'nome' => ['required', 'string', 'max:120'],
+            'tipo' => ['required', Rule::in(\App\Models\EnduranceItem::TIPOS)],
+            'quantidade_total' => ['required', 'integer', 'min:1', 'max:1000000'],
+            'preco' => ['required', 'numeric', 'min:0.000001'],
+            'marco' => ['nullable', 'integer', 'min:1', 'max:100'],
+            'vendavel_em_leilao' => ['nullable', 'boolean'],
+            'descricao' => ['nullable', 'string', 'max:2000'],
+            'efeitos' => ['nullable', 'string'],
+        ]);
+
+        if ($dados['tipo'] === \App\Models\EnduranceItem::UNICO) {
+            $dados['quantidade_total'] = 1;
+        }
+
+        $efeitos = [];
+        foreach (preg_split('/\R/', trim($dados['efeitos'] ?? '')) as $linha) {
+            $linha = trim($linha);
+            if ($linha === '') {
+                continue;
+            }
+
+            $partes = explode(':', $linha);
+            if (count($partes) === 2) {
+                [$tipoEfeito, $valor] = $partes;
+                $alvo = null;
+            } elseif (count($partes) === 3) {
+                [$tipoEfeito, $alvo, $valor] = $partes;
+            } else {
+                throw new DomainRuleException(
+                    'endurance.efeito.formato',
+                    "Linha de efeito inválida: «{$linha}». Use tipo_efeito:valor_bps ou tipo_efeito:alvo:valor_bps.",
+                );
+            }
+
+            if (! in_array($tipoEfeito, \App\Domain\Endurance\EfeitosDaEndurance::TIPOS, true)) {
+                throw new DomainRuleException(
+                    'endurance.efeito.tipo',
+                    "Tipo de efeito desconhecido: «{$tipoEfeito}».",
+                );
+            }
+
+            $alvoExigido = in_array($tipoEfeito, \App\Domain\Endurance\EfeitosDaEndurance::EXIGE_ALVO, true);
+            if ($alvoExigido && ($alvo === null || $alvo === '')) {
+                throw new DomainRuleException(
+                    'endurance.efeito.alvo',
+                    "O efeito «{$tipoEfeito}» exige um alvo (ex.: mina_local, furgao_de_comercio, global, todos).",
+                );
+            }
+
+            if (! is_numeric($valor) || (int) $valor < 1) {
+                throw new DomainRuleException(
+                    'endurance.efeito.valor',
+                    "Valor de bps inválido na linha «{$linha}» — precisa ser um inteiro positivo.",
+                );
+            }
+
+            $efeitos[] = [
+                'tipo_efeito' => $tipoEfeito,
+                'alvo' => $alvoExigido ? $alvo : null,
+                'valor_bps' => (int) $valor,
+            ];
+        }
+
+        $dados['preco_micro'] = (int) round($dados['preco'] * 1_000_000);
+        // Campo vazio ('') não é "integer" (a validação `nullable` o deixa passar como string vazia,
+        // não como null) — sem esta conversão, «marco» viraria 0 no banco, não "sem exigência".
+        $dados['marco_minimo'] = isset($dados['marco']) && $dados['marco'] !== '' ? (int) $dados['marco'] : null;
+        $dados['vendavel_em_leilao'] = (bool) ($dados['vendavel_em_leilao'] ?? false);
+        unset($dados['preco'], $dados['marco'], $dados['efeitos']);
+
+        return [$dados, $efeitos];
     }
 
     /**

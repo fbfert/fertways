@@ -697,26 +697,37 @@ class PainelController extends Controller
     }
 
     /**
-     * O CRUD da Loja de Peças da Endurance (D-133): preço, marco e o efeito de cada uma das 32
-     * peças (8 seções × 4 camadas do §05) — antes fixo em código (`EnduranceSpecs`, D-132), agora
-     * editável aqui. A imagem NÃO se edita nesta tela: é por SEÇÃO, não por peça (as 4 camadas de
-     * uma seção compartilham a mesma arte), e já tem o painel dela em `/admin/imagens` — aqui só
-     * mostramos a miniatura atual, com um link para lá.
+     * O CRUD da Loja de Peças da Endurance (D-135): catálogo DINÂMICO, uma aba por seção do casco —
+     * antes 32 linhas fixas (`EndurancePieceSpec`, D-132/D-133), agora o admin cria/edita/apaga item
+     * livremente, com efeitos empilháveis. A imagem NÃO se edita aqui: é por SEÇÃO (D-133), já tem
+     * painel próprio em `/admin/imagens` — aqui só mostramos a miniatura, com um link para lá.
      */
-    public function endurance(): View
+    public function endurance(Request $request): View
     {
-        $pecas = \App\Models\EndurancePieceSpec::orderBy('secao')->orderBy('marco_minimo')->get();
+        $secao = array_key_exists($request->query('secao'), \App\Models\EnduranceItem::SECOES)
+            ? $request->query('secao')
+            : array_key_first(\App\Models\EnduranceItem::SECOES);
 
-        $imagemPorSecao = ImageBinding::where('entity_key', 'like', 'endurance:secao:%')
-            ->with('asset')
+        $itens = \App\Models\EnduranceItem::where('secao', $secao)
+            ->with('efeitos')
+            ->orderBy('nome')
+            ->get();
+
+        $possePorItem = \App\Models\ColonyEnduranceItem::whereIn('endurance_item_id', $itens->pluck('id'))
+            ->selectRaw('endurance_item_id, COUNT(*) as colonias, SUM(quantidade) as unidades')
+            ->groupBy('endurance_item_id')
             ->get()
-            ->mapWithKeys(fn (ImageBinding $b) => [
-                str_replace('endurance:secao:', '', $b->entity_key) => $b->asset,
-            ]);
+            ->keyBy('endurance_item_id');
+
+        $img = ImageBinding::where('entity_key', 'endurance:secao:'.$secao)->with('asset')->first();
 
         return view('admin.endurance', [
-            'grupos' => $pecas->groupBy('secao'),
-            'imagemPorSecao' => $imagemPorSecao,
+            'secao' => $secao,
+            'secoes' => \App\Models\EnduranceItem::SECOES,
+            'itens' => $itens,
+            'possePorItem' => $possePorItem,
+            'imagemDaSecao' => $img?->asset,
+            'tiposEfeito' => \App\Domain\Endurance\EfeitosDaEndurance::TIPOS,
         ]);
     }
 

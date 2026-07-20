@@ -5,41 +5,46 @@ import { EnduranceMapa } from './EnduranceMapa'
 import { LojaDaEndurance } from './LojaDaEndurance'
 
 /**
- * Os destroços da Endurance of Mankind — agora uma tela própria (`/capital/endurance`, D-132), não
- * mais um painel de texto dentro do modal da Capital.
+ * Os destroços da Endurance of Mankind — uma tela própria (`/capital/endurance`, D-132), com um mapa
+ * zoomável dos destroços (D-132) e uma loja DINÂMICA por seção (D-135, reconstrução — ver D-134
+ * para o porquê: a versão de 4 camadas fixas não agradou).
  *
  * **Por que rota própria, e não mais um `sub` do `Capital.tsx`.** O padrão dominante do app já é
  * rota de verdade (`/mapa`, `/zona/:id`, `/mercado/:contexto`) — só a Capital ainda trocava painel
- * por `useState` local, sem URL, sem sobreviver a um recarregamento. Como esta tela ganhou um mapa
- * zoomável de verdade (pedido do usuário), ela se junta ao padrão dominante em vez de esticar o
- * antigo.
+ * por `useState` local, sem URL, sem sobreviver a um recarregamento.
  *
  * O GDD chama a Endurance de "fonte de peças históricas e missões narrativas" (§02) e liga peças ao
  * Marco (§05) sem publicar o que uma peça É. A Loja de Peças (`LojaDaEndurance`) é o que preenche
- * essa lacuna — ver `docs/decisoes.md` D-132 para a arbitragem completa (preço, bônus, teto). As
- * missões narrativas continuam sem existir; esta tela não finge o contrário.
+ * essa lacuna — ver `docs/decisoes.md` D-135 para a arbitragem completa (efeitos, tetos por tipo).
+ * As missões narrativas continuam sem existir; esta tela não finge o contrário.
  */
 export function Endurance() {
   const navegar = useNavigate()
-  const [lojaAberta, setLojaAberta] = useState(false)
-  const [dados, setDados] = useState<Awaited<ReturnType<typeof api.endurance>> | null>(null)
+  const [secaoAberta, setSecaoAberta] = useState<{ chave: string; nome: string } | null>(null)
+  const [dados, setDados] = useState<Awaited<ReturnType<typeof api.enduranceSecao>> | null>(null)
   const [erro, setErro] = useState<string | null>(null)
 
-  const carregar = useCallback(async () => {
+  const carregar = useCallback(async (secao: string) => {
     try {
-      setDados(await api.endurance())
+      setDados(await api.enduranceSecao(secao))
     } catch (e) {
       setErro(e instanceof ApiError ? e.message : 'Falha ao carregar a Loja de Peças.')
     }
   }, [])
 
   useEffect(() => {
-    void carregar()
-  }, [carregar])
+    if (secaoAberta) void carregar(secaoAberta.chave)
+  }, [carregar, secaoAberta])
 
-  async function comprar(chave: string) {
-    await api.comprarPecaDaEndurance(chave)
-    await carregar()
+  function abrirLoja(chave: string, nome: string) {
+    setDados(null)
+    setErro(null)
+    setSecaoAberta({ chave, nome })
+  }
+
+  async function comprar(itemKey: string) {
+    await api.comprarItemDaEndurance(itemKey)
+    if (secaoAberta) await carregar(secaoAberta.chave)
   }
 
   return (
@@ -49,7 +54,8 @@ export function Endurance() {
           <div className="text-rust eyebrow">Capital — Oeste</div>
           <h2 className="text-ink text-2xl font-black">Destroços da Endurance of Mankind</h2>
           <p className="text-ink-soft mt-1 text-sm">
-            Ela nunca voltará a voar. {lojaAberta ? 'A Loja de Peças, seção por seção.' : 'Clique num destroço para abrir a Loja de Peças.'}
+            Ela nunca voltará a voar.{' '}
+            {secaoAberta ? `A Loja de Peças — ${secaoAberta.nome}.` : 'Clique num destroço para abrir a Loja de Peças.'}
           </p>
         </header>
 
@@ -84,16 +90,22 @@ export function Endurance() {
           <div className="min-w-0 flex-1">
             {erro && <p className="text-rust mb-3 text-sm font-bold">{erro}</p>}
 
-            {!lojaAberta && (
+            {!secaoAberta && (
               <div className="h-[60vh] min-h-[360px]">
-                <EnduranceMapa aoAbrirLoja={() => setLojaAberta(true)} />
+                <EnduranceMapa aoAbrirLoja={abrirLoja} />
               </div>
             )}
 
-            {lojaAberta && dados && (
-              <LojaDaEndurance dados={dados} aoComprar={comprar} aoFechar={() => setLojaAberta(false)} />
+            {secaoAberta && dados && (
+              <LojaDaEndurance
+                secao={secaoAberta.chave}
+                nomeDaSecao={secaoAberta.nome}
+                dados={dados}
+                aoComprar={comprar}
+                aoFechar={() => setSecaoAberta(null)}
+              />
             )}
-            {lojaAberta && !dados && !erro && <p className="text-ink-soft text-sm">Carregando…</p>}
+            {secaoAberta && !dados && !erro && <p className="text-ink-soft text-sm">Carregando…</p>}
           </div>
         </div>
       </div>

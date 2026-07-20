@@ -3,6 +3,7 @@
 namespace App\Domain\Production;
 
 use App\Domain\Colony\TetoDoTanque;
+use App\Domain\Endurance\EfeitosDaEndurance;
 use App\Models\Building;
 use App\Models\BuildQueue;
 use App\Models\Colony;
@@ -61,7 +62,10 @@ class ColonyTick
     /** Receita usada pela Oficina quando o jogador não escolheu nenhuma. */
     public const RECEITA_PADRAO = 'basica';
 
-    public function __construct(private TetoDoTanque $tetoDoTanque) {}
+    public function __construct(
+        private TetoDoTanque $tetoDoTanque,
+        private EfeitosDaEndurance $efeitosDaEndurance,
+    ) {}
 
     public function handle(Colony $colony, CarbonInterface $agora): void
     {
@@ -169,6 +173,19 @@ class ColonyTick
         $erguidas = $this->erguidasComSpec($colony);
         $manutencao = $this->manutencaoPorTipo($erguidas);
 
+        /*
+         * Bônus de produção da Endurance (D-135) — uma query batched, não uma por construção
+         * erguida (mesmo espírito anti-N+1 de `manutencaoPorTipo()`, logo acima). `$bonusPara()`
+         * soma o bônus específico do tipo com o `'global'` (peça que bonifica TUDO) e aplica o
+         * teto agregado uma vez só — mesma leitura de `EfeitosDaEndurance::bonusDeProducao()`.
+         */
+        $bonusPorAlvo = $this->efeitosDaEndurance->bonusDeProducaoPorAlvo($colony);
+        $tetoProducao = EfeitosDaEndurance::tetoBps(EfeitosDaEndurance::PRODUCAO_BONUS);
+        $bonusPara = fn (string $tipo): int => min(
+            $tetoProducao,
+            max(0, ($bonusPorAlvo[$tipo] ?? 0) + ($bonusPorAlvo[EfeitosDaEndurance::ALVO_GLOBAL] ?? 0)),
+        );
+
         // Taxas por hora, somadas entre construções. Desde o D-59 a soma é por LINHA, não por
         // tipo: Mina Local, Oficina, Refinaria e Destilaria podem ocupar mais de um slot, e duas
         // Minas nível 1 produzem 15+15. Antes isto era indexado por tipo e a segunda cópia
@@ -200,33 +217,41 @@ class ColonyTick
             $producao = json_decode($spec->producao_hora_json, true);
 
             if ($tipo === 'destilaria') {
-                $taxaDestilaria += $producao['biocombustivel'];
+                // D-135: bônus de produção na Destilaria é THROUGHPUT — mais saída, mas também
+                // mais Biomassa/Energia consumida (a taxa de ENTRADA é o que se multiplica; quem
+                // decide isso é `converter()`, mais abaixo, pela receita).
+                $taxaDestilaria += EfeitosDaEndurance::aplicarBonus($producao['biocombustivel'], $bonusPara($tipo));
                 continue;
             }
 
             if ($tipo === 'industria_siderurgica') {
                 // O JSON reaproveita a chave `metal_bruto` da Mina, mas aqui é o que ela
                 // PROCESSA por hora, não o que produz (D-82) — por isso o tratamento à parte.
-                $taxaSiderurgica += $producao[Siderurgica::INSUMO] ?? 0;
+                // D-135: mesmo throughput da Destilaria — processa mais Metal Bruto por hora.
+                $taxaSiderurgica += EfeitosDaEndurance::aplicarBonus($producao[Siderurgica::INSUMO] ?? 0, $bonusPara($tipo));
                 continue;
             }
 
             if ($tipo === 'refinaria_quimica') {
-                $taxaCompostos += $producao['compostos_quimicos'] ?? 0;
+                $taxaCompostos += EfeitosDaEndurance::aplicarBonus($producao['compostos_quimicos'] ?? 0, $bonusPara($tipo));
                 continue;
             }
 
             if ($tipo === 'oficina') {
                 // Ligas Metálicas não estão mais no JSON da Oficina (D-83): só a Indústria
                 // Siderúrgica as produz agora. Só Componentes entram via §24.5.
-                $taxa = $producao['componentes_eletronicos'] ?? 0;
+                $taxa = EfeitosDaEndurance::aplicarBonus($producao['componentes_eletronicos'] ?? 0, $bonusPara($tipo));
                 $taxaComponentes[$recipe] = ($taxaComponentes[$recipe] ?? 0) + $taxa;
                 continue;
             }
 
             if (in_array($tipo, self::PRODUCAO_SEM_INSUMO, true)) {
+                // D-135: aqui o bônus é de graça — estas 5 construções não consomem insumo, então
+                // "mais saída" não custa nada a mais.
+                $bonus = $bonusPara($tipo);
+
                 foreach ($producao as $recurso => $qtd) {
-                    $taxas[$recurso] = ($taxas[$recurso] ?? 0) + $qtd;
+                    $taxas[$recurso] = ($taxas[$recurso] ?? 0) + EfeitosDaEndurance::aplicarBonus($qtd, $bonus);
                 }
             }
         }

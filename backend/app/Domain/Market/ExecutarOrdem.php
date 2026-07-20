@@ -2,7 +2,7 @@
 
 namespace App\Domain\Market;
 
-use App\Domain\Endurance\DescontoDeEndurance;
+use App\Domain\Endurance\EfeitosDaEndurance;
 use App\Domain\Trade\AcessoAoMercado;
 use App\Domain\Treasury\Tesouro;
 use App\Exceptions\DomainRuleException;
@@ -26,7 +26,7 @@ use Illuminate\Support\Facades\DB;
  */
 class ExecutarOrdem
 {
-    public function __construct(private Tesouro $tesouro, private DescontoDeEndurance $descontoDeEndurance) {}
+    public function __construct(private Tesouro $tesouro, private EfeitosDaEndurance $efeitosDaEndurance) {}
 
     public function handle(Colony $tomador, int $ordemId, int $qtd): MarketOrder
     {
@@ -155,13 +155,14 @@ class ExecutarOrdem
 
         $bps = (int) ResourceType::find($recurso)->tax_bps;
 
-        // D-132: o desconto de peças da Endurance é do vendedor. O Governo (`$vendedorId` nulo,
-        // D-87) não é colônia — nada a descontar.
+        // D-132/D-135: o desconto de peças da Endurance é do vendedor. O Governo (`$vendedorId`
+        // nulo, D-87) não é colônia — nada a descontar.
         if ($vendedorId !== null) {
             $vendedor = Colony::find($vendedorId);
 
             if ($vendedor) {
-                $bps = $this->descontoDeEndurance->aplicar($bps, $vendedor);
+                $desconto = $this->efeitosDaEndurance->descontoDeTributo($vendedor);
+                $bps = EfeitosDaEndurance::aplicarDesconto($bps, $desconto);
             }
         }
 

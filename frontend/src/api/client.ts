@@ -69,18 +69,33 @@ export type Colonia = {
   marco: Marco
 }
 
-/** Uma peça da Loja da Endurance (§05, D-132) — 8 seções × 4 camadas do Marco. */
-export type PecaDaEndurance = {
-  chave: string
-  secao: string
-  secao_nome: string
-  camada: 'comum' | 'reputacao_1' | 'reputacao_2' | 'unica'
+/** Um efeito empilhado de um item da Endurance (D-135) — o vocabulário fechado de `EfeitosDaEndurance`. */
+export type EfeitoDoItemDaEndurance = {
+  tipo_efeito:
+    | 'desconto_tributo'
+    | 'producao_bonus'
+    | 'velocidade_veiculo'
+    | 'capacidade_veiculo'
+    | 'drone_raio'
+    | 'drone_bateria'
+  alvo: string | null
+  valor_bps: number
+}
+
+/** Um item do catálogo dinâmico da Loja de Peças da Endurance (§05, D-135) — uma seção do casco. */
+export type ItemDaEndurance = {
+  item_key: string
   nome: string
-  marco_minimo: number
+  tipo: 'comum' | 'raro' | 'unico'
+  estoque_livre: number
+  quantidade_total: number
   preco_fert: number
-  desconto_tributo_pct: number
-  unica: boolean
-  estado: 'possuida' | 'bloqueada' | 'disponivel' | 'esgotada'
+  marco_minimo: number | null
+  vendavel_em_leilao: boolean
+  descricao: string | null
+  possuo: number
+  estado: 'disponivel' | 'bloqueado' | 'esgotado'
+  efeitos: EfeitoDoItemDaEndurance[]
 }
 
 /**
@@ -1118,18 +1133,26 @@ export const api = {
   imagens: () =>
     req<{ images: Record<string, { pequena: string; grande: string }> }>('/images'),
 
-  // ── A Loja de Peças da Endurance (§05, D-132) — 8 seções × 4 camadas do Marco ─────────────────
+  // ── A Loja de Peças da Endurance (§05, D-135) — catálogo dinâmico, uma loja por seção ─────────
 
-  endurance: () =>
+  enduranceEfeitos: () =>
     req<{
-      meu_marco: number
-      meu_desconto_pct: number
-      teto_desconto_pct: number
-      pecas: PecaDaEndurance[]
-    }>('/endurance'),
+      desconto_tributo_pct: number
+      teto_desconto_tributo_pct: number
+      teto_producao_pct: number
+      teto_veiculo_pct: number
+      teto_drone_pct: number
+    }>('/endurance/efeitos'),
 
-  comprarPecaDaEndurance: (chave: string) =>
-    req<{ chave: string }>(`/endurance/pecas/${chave}/comprar`, { method: 'POST' }),
+  enduranceSecao: (secao: string) =>
+    req<{
+      secao: string
+      meu_marco: number
+      itens: ItemDaEndurance[]
+    }>(`/endurance/secoes/${secao}`),
+
+  comprarItemDaEndurance: (itemKey: string) =>
+    req<{ item_key: string; quantidade: number }>(`/endurance/itens/${itemKey}/comprar`, { method: 'POST' }),
 
   // ── o perfil do colono (D-69) ───────────────────────────────────────────────────────────────
 
