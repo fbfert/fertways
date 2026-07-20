@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { api, ApiError } from '../api/client'
-import type { Combate, EstadoDaGuerra, Unidade } from '../api/client'
+import type { Combate, EstadoDaGuerra, LinhaDoRanking, Unidade } from '../api/client'
 import { dataHumana } from './recursos'
 
 /**
@@ -113,6 +113,7 @@ function Despacho({
 export function Quartel() {
   const [dados, setDados] = useState<EstadoDaGuerra | null>(null)
   const [combates, setCombates] = useState<Combate[]>([])
+  const [ranking, setRanking] = useState<LinhaDoRanking[]>([])
   const [erro, setErro] = useState<string | null>(null)
   const [recibo, setRecibo] = useState<string | null>(null)
   const [ocupado, setOcupado] = useState(false)
@@ -125,9 +126,10 @@ export function Quartel() {
 
   const carregar = useCallback(async () => {
     try {
-      const [g, c] = await Promise.all([api.guerra(), api.combates()])
+      const [g, c, r] = await Promise.all([api.guerra(), api.combates(), api.rankingDeGuerras()])
       setDados(g)
       setCombates(c.combats)
+      setRanking(r.ranking)
     } catch (e) {
       setErro(e instanceof ApiError ? e.message : 'Falha ao carregar o Quartel.')
     }
@@ -521,6 +523,55 @@ export function Quartel() {
               )
             })}
           </ul>
+        )}
+      </section>
+
+      {/* ── o ranking de guerras (§27.13, D-128) ──────────────────────────────────────────── */}
+      <section className="mt-6" data-secao="ranking-de-guerras">
+        <h3 className="font-bold">Ranking de Guerras</h3>
+        <p className="text-ink-soft mt-1 text-xs">
+          Cinco frentes, cada uma normalizada pelo máximo do servidor, somadas com o peso do GDD:
+          Zonas Conquistadas (25%), Vitórias (20%), Tempo de Controle (20%), Saque em Fert$ (15%) e
+          Maior Sequência (10%).
+        </p>
+
+        {ranking.length === 0 ? (
+          <p className="text-ink-soft mt-2 text-sm">Ninguém pontuou ainda.</p>
+        ) : (
+          <div className="mt-2 overflow-x-auto">
+            <table className="w-full text-left text-xs">
+              <thead>
+                <tr className="text-ink-soft border-ink-soft/20 border-b">
+                  <th className="py-1 pr-2">#</th>
+                  <th className="py-1 pr-2">Colônia</th>
+                  <th className="py-1 pr-2 text-right">Geral</th>
+                  <th className="py-1 pr-2 text-right">Zonas</th>
+                  <th className="py-1 pr-2 text-right">Vitórias</th>
+                  <th className="py-1 pr-2 text-right">Controle (h)</th>
+                  <th className="py-1 pr-2 text-right">Saque (F$)</th>
+                  <th className="py-1 pr-2 text-right">Sequência</th>
+                </tr>
+              </thead>
+              <tbody>
+                {ranking.map((l, i) => (
+                  <tr
+                    key={l.colony_id}
+                    className={`border-ink-soft/10 border-b ${l.mine ? 'text-rust font-bold' : ''}`}
+                    data-linha-do-ranking={l.colony_id}
+                  >
+                    <td className="py-1 pr-2 tabular-nums">{i + 1}</td>
+                    <td className="py-1 pr-2">{l.colony_name ?? `Colônia ${l.colony_id}`}</td>
+                    <td className="py-1 pr-2 text-right tabular-nums">{l.geral}</td>
+                    <td className="py-1 pr-2 text-right tabular-nums">{l.zonas_conquistadas}</td>
+                    <td className="py-1 pr-2 text-right tabular-nums">{l.vitorias}</td>
+                    <td className="py-1 pr-2 text-right tabular-nums">{l.tempo_de_controle_horas}</td>
+                    <td className="py-1 pr-2 text-right tabular-nums">{l.saque_fert}</td>
+                    <td className="py-1 pr-2 text-right tabular-nums">{l.sequencia}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </section>
 

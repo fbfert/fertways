@@ -75,6 +75,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // qual a Sentinela é inalcançável —, os quatro ataques, e as batalhas em curso.
     Route::get('/war', [WarController::class, 'index']);
     Route::get('/war/combats', [WarController::class, 'combates']);
+    Route::get('/war/ranking', [WarController::class, 'ranking']);
     Route::post('/war/units', [WarController::class, 'fabricar']);
     Route::post('/war/niobio', [WarController::class, 'niobio']);
     Route::post('/war/attack', [WarController::class, 'atacar']);
