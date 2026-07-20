@@ -6014,3 +6014,123 @@ com o código, e o `e2e.sh` cheio já tinha mostrado o mesmo tipo de falha aleat
 D-129 nunca tocou (Chat, mobile). A segunda passou nos 8 checks de Leilões; um check NÃO relacionado
 ("a carroceria soma os dois recursos", D-65, código que este D-129 não tocou) flakou uma vez — o
 próprio arquivo de teste já documenta corrida de tempo conhecida nesta suíte.
+
+---
+
+## D-130 — Cargos Públicos (§14.2): os 4 que sobravam depois do Conciliador. 3 implementados, 1 fora.
+
+**Data:** 2026-07-20 · **Status:** implementado — Repórter, Fiscal de Mercado, Auxiliar de Tesouro ·
+GDD: §14.2 (só existe nas revisões arquivadas do v35; a v36 não tem seção de cargos)
+
+Depois de Leilões (D-129), a próxima frente escolhida foi os Cargos Públicos. Diferente de Leilões,
+aqui o GDD tem texto — só que **contraditório entre duas revisões arquivadas do mesmo documento**,
+e nenhuma delas chegou a ser promovida à v36 consolidada.
+
+### A contradição de versão, e por que ela não trava a implementação
+
+`FERTWAYS_GDD_v35_MESTRE_UNIFICADO.html` guarda revisões arquivadas lado a lado. Duas tratam de
+Cargos Públicos e se contradizem:
+
+- **v30** ("14. Cargos Públicos Neutros"): os 5 cargos exigem status de **Neutro Registrado** e o
+  checklist inteiro do §14.3 (7 critérios: sem avaliação baixa em 7 dias, sem restrição comercial
+  em 7 dias, não bloqueado de leilões, 35% de contribuição à terraformação, 10 missões diárias
+  concluídas, entre outros).
+- **v32** ("09. Cargos cívicos e governança") **corrige isso explicitamente** — o changelog da v35
+  registra a mudança: *"Cargos cívicos: Neutro Registrado é exclusivo do Conciliador; demais
+  contratos têm limites e não aplicam sanções/dados privados."* Os outros 4 cargos viram
+  "contratos cívicos limitados": um índice de reputação "alto" cada, remuneração moderada com teto
+  semanal, sem o checklist inteiro do §14.3.
+
+Esta não é uma contradição entre duas seções do MESMO documento (onde a regra de precedência já
+usada em outras decisões mandaria olhar o § maior, dentro da mesma parte) — é entre duas REVISÕES
+arquivadas, e uma delas já tem o próprio changelog do documento dizendo que corrige a outra. Segui
+a v32, pelo mesmo
+motivo que o D-50 já seguiu: o Conciliador foi implementado citando exatamente essa frase do
+changelog ("Neutro Registrado é exclusivo do Conciliador"). Reabrir essa leitura agora, para os 4
+cargos que faltavam, seria contradizer uma decisão já tomada sem fato novo.
+
+### O que o §14.2 publica sobre CADA cargo — e o que fica de fora
+
+| Cargo | O que faz (§14.2) | Índice exigido (v32, §9) |
+|---|---|---|
+| Repórter | Escreve resumos/notícias de eventos do servidor, do Gagarin, da comunidade | Conduta Social |
+| Fiscal de Mercado | Monitora preços suspeitos, sinaliza manipulação à Secretaria de Finanças | Confiança Comercial |
+| Auxiliar de Tesouro | Aponta inconsistências financeiras, monitora arrecadação | Status Cívico |
+| Atendente do Espaçoporto | Ajuda com rotas, taxas, docas e estacionamento do Espaçoporto | Conduta Social |
+
+**Nenhum dos dois números do §14.2 é publicado** — nem em v30 nem em v32: "salário fixo/dia" e
+"bônus por X" aparecem sem valor nas duas revisões, para os 4 cargos novos (só o Conciliador tem
+os dois números, no §26.7). Em vez de inventar um valor solto, reusei os do Conciliador
+(`PunicaoSpecs::SALARIO_DIARIO_MICRO` = 50 Fert$/dia, `::BONUS_MICRO` = 3 Fert$) — é o único
+número que o GDD publica para cargo cívico, e a v32 descreve os 5 cargos como do mesmo porte
+("remuneração moderada", "nenhum cargo concede Fert$ suficiente para distorcer a economia").
+
+**O teto semanal da v32 também não tem número** ("remuneração moderada, com teto semanal"; sem
+valor). Arbitrei 400 Fert$/semana — um pouco acima do salário-base de 7 dias (350), com espaço para
+uma matéria ou sinalização confirmada a mais na semana, sem deixar bônus empilhar sem limite. Sem
+coluna nova para "quanto já ganhou": o teto lê o ledger dos últimos 7 dias
+(`App\Domain\Cargos\TetoSemanal`), mesma filosofia do D-129 de não duplicar o que o ledger já prova.
+
+**Atendente do Espaçoporto FICA DE FORA.** É 100% dependente do Espaçoporto (§17.5/§21.10/§23), que
+não existe — nenhuma rota, doca, taxa ou fila para "atender". Diferente de Leilões (D-49 a D-129),
+que pelo menos tinha o Mercado Central por baixo para ancorar enquanto esperava, aqui não há
+NADA: nem uma tela estática para o cargo mediar. O painel da Capital já "conta a verdade" sozinho
+("as rotas do Espaçoporto não abriram... ninguém viaja ainda", D-52). Nomear alguém para um cargo
+sem função nenhuma seria emissão pura — pagar 50 Fert$/dia por nada, pior que o "conciliador ganha
+kit inicial por dia sem jogar" que o próprio D-50 já sinalizou como risco a vigiar. Quando o
+Espaçoporto existir, este cargo entra do mesmo jeito que Leilões entrou: com o sistema que o
+sustenta já de pé.
+
+### Sem gate de elegibilidade automático — mesmo motivo do Conciliador
+
+O §14.2/v32 exige um índice "alto" por cargo, e nenhuma revisão publica o número. O Conciliador já
+resolveu isso ficando 100% na mão do operador (`fertways:conciliador`, D-44: "enquanto não houver
+substrato para a elegibilidade, o cargo é ligado à mão pelo operador"). Segui o mesmo caminho para
+os 3 novos — `fertways:cargo-civico` nomeia sem checar índice nenhum. Inventar um limiar numérico
+("alto" = 600? 700?) seria arbitragem sem base textual nenhuma, diferente do que já existe (D-43
+define 200 como limiar de BLOQUEIO, não de elegibilidade "alta" — os dois conceitos não são o
+mesmo número por acidente).
+
+### O que cada cargo FAZ de verdade
+
+- **Repórter**: publica no MESMO mural da Central de Notícias que o operador já usa (`News`,
+  D-55), com `kind = 'boletim'` em vez de `'comunicado'` — a distinção que o schema já reservava
+  desde o D-55 sem nada nunca ter usado o segundo valor. Sem fila de aprovação: a v32 pede
+  "conteúdo aprovado", mas nenhuma outra escrita de jogador no jogo (Chat, evidência de denúncia)
+  passa por moderação — construir uma só para isto seria inventar um mecanismo à parte.
+- **Fiscal de Mercado e Auxiliar de Tesouro**: sinalizam texto livre para a equipe
+  (`CivicFlag` — mesmo molde de uma denúncia do Ministério, sem punição do outro lado). O bônus só
+  paga quando a equipe CONFIRMA (`fertways:cargo-civico --confirmar-sinalizacao=`), nunca no ato
+  de sinalizar — senão qualquer texto renderia Fert$ de graça. Não implementei a parte que o
+  §14.2 descreve como "monitora painéis agregados" automaticamente (detecção de anomalia/cartel
+  de preço) — isso exigiria uma heurística que o GDD não especifica em número nenhum, e seria
+  inventar um SEGUNDO mecanismo (o de detecção) em cima de um cargo já sem número publicado.
+
+### Schema
+
+- `civic_posts` (nova, separada de `users`): não toquei nas colunas do Conciliador — evita risco
+  em dado de produção, e generaliza só os 3 cargos novos. `kind` é string, não enum (mesmo motivo
+  do D-58/D-129: não travar em ALTER se um cargo novo entrar).
+- `civic_flags` (nova): a sinalização do Fiscal/Auxiliar.
+- `Ledger::TIPOS` ganha `salario_cargo_civico`, `bonus_cargo_civico`.
+- Nenhuma migration em `news` — `kind = 'boletim'` já existia no enum desde o D-55.
+
+### A tela
+
+Perfil ganha a seção "Cargos Públicos": salário, e o formulário de sinalização para quem é Fiscal
+ou Auxiliar. A Central de Notícias ganha "Publicar matéria" para quem é Repórter, e as matérias
+aparecem marcadas "boletim" no mural, distintas dos comunicados oficiais.
+
+### Validado
+
+12 testes novos (`CargosCivicosTest`) cobrindo acumular cargos, pagamento diário com corte por
+tick duplicado, suspensão/reintegração, demissão revogando o ato do Repórter, o boletim saindo com
+o `kind` certo, o bônus só pagando na confirmação (nunca no ato de sinalizar), e o teto semanal
+barrando bônus além de 400 Fert$. Suíte completa: 830 passando (1 teste pré-existente do mural de
+Notícias precisou de ajuste mecânico — `CapitalController::news()` passou a exigir `Request` para
+saber quem pergunta — sem mudar o que ele prova). `tsc`/`lint`/`build` limpos. Estendi
+`capital.e2e.mjs` (já visitava a Central de Notícias) com o fluxo do Repórter publicando de
+verdade — o `tools/e2e.sh` agora nomeia o colono do e2e Repórter, do mesmo jeito que já o nomeia
+conciliador. Rodado isolado, verde ponta a ponta. O formulário de sinalização do Fiscal/Auxiliar
+(em Perfil.tsx, tela sem nenhuma suíte e2e própria) não ganhou e2e dedicado — coberto pelos testes
+de Feature do domínio inteiro (sinalizar, confirmar, teto semanal) e pela build/tsc limpos.

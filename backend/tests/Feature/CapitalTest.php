@@ -167,11 +167,17 @@ class CapitalTest extends TestCase
     {
         News::create(['title' => 'Abertura', 'body' => 'Bem-vindos.', 'kind' => 'comunicado', 'author' => 'Equipe', 'published_at' => now()]);
 
-        $dados = (new CapitalController())->news()->getData(true);
+        // D-130: `news()` passou a dizer também se ESTE colono pode publicar como Repórter.
+        $usuario = User::factory()->create(['email' => 'leitor@t.test', 'nickname' => 'leitor']);
+        $requisicao = \Illuminate\Http\Request::create('/news');
+        $requisicao->setUserResolver(fn () => $usuario);
+
+        $dados = (new CapitalController())->news($requisicao)->getData(true);
 
         $this->assertSame('Abertura', $dados['noticias'][0]['title']);
         $this->assertFalse($dados['gagarin']['ativo']);
         $this->assertSame(50, $dados['gagarin']['limiar_jogadores']);
+        $this->assertFalse($dados['posso_publicar'], 'quem não é Repórter não vê o formulário de matéria');
     }
 
     // ── Comandos do operador ─────────────────────────────────────────────────

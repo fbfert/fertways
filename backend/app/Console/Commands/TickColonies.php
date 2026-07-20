@@ -14,6 +14,7 @@ use App\Domain\Zona\ProcessarSiderurgicaNaZona;
 use App\Domain\Zona\RefinarNaZona;
 use App\Domain\Logistics\ExtrairZonasNeutras;
 use App\Domain\Transport\FabricarVeiculos;
+use App\Domain\Cargos\PagarCargosCivicos;
 use App\Domain\Leilao\FecharLeiloes;
 use App\Domain\Ministry\ExpirarPrazos;
 use App\Domain\Ministry\PagarConciliadores;
@@ -63,6 +64,7 @@ class TickColonies extends Command
         \App\Domain\Drone\ConcluirMissoes $drones,
         \App\Domain\Chat\PurgarMensagens $chat,
         FecharLeiloes $leiloes,
+        PagarCargosCivicos $cargosCivicos,
     ): int {
         $agora = now();
         $processadas = 0;
@@ -140,6 +142,9 @@ class TickColonies extends Command
         ['reatribuidos' => $reatribuidos, 'encerrados' => $encerrados] = $ministerio->handle();
         $salarios = $folha->handle();
 
+        // Cargos Públicos, §14.2 (D-130) — mesmo salário diário do Conciliador, mesmo lugar do tick.
+        $salariosCargos = $cargosCivicos->handle();
+
         /*
          * A linha de montagem do Ministério dos Transportes (D-60): fecha o que ficou pronto e
          * repõe a prateleira até 5, consumindo o Tesouro. Vem **depois** das entregas de propósito:
@@ -200,7 +205,7 @@ class TickColonies extends Command
          */
         $processadasSiderurgica = $siderurgicas->handle($agora);
 
-        $this->info("tick: {$processadas} colônias, {$falhas} falhas, {$zonas} proteções expiradas, {$manutencaoCobrada} manutenções cobradas, {$zonasAbandonadas} zonas abandonadas, {$extraidas} zonas extraídas, {$entregas} trechos concluídos, {$vencidos} acordos vencidos, {$leiloesArrematados} leilões arrematados, {$leiloesSemLance} leilões sem lance, {$reatribuidos} casos reatribuídos, {$encerrados} casos encerrados, {$salarios} salários pagos, {$prontos} caminhões prontos, {$encomendados} encomendados, {$cobrados} horas de pátio cobradas, {$rebocados} rebocados, {$batalhas} batalhas, {$chegaram} reforços chegados, {$apreensoesExpiradas} apreensões resgatadas sozinhas, {$obrasFeitas} obras de zona, {$upgradesFeitos} upgrades de zona, {$refinadas} zonas refinaram, {$processadasSiderurgica} zonas com siderúrgica, {$missoes} pernas de drone, {$purgadas} mensagens purgadas");
+        $this->info("tick: {$processadas} colônias, {$falhas} falhas, {$zonas} proteções expiradas, {$manutencaoCobrada} manutenções cobradas, {$zonasAbandonadas} zonas abandonadas, {$extraidas} zonas extraídas, {$entregas} trechos concluídos, {$vencidos} acordos vencidos, {$leiloesArrematados} leilões arrematados, {$leiloesSemLance} leilões sem lance, {$reatribuidos} casos reatribuídos, {$encerrados} casos encerrados, {$salarios} salários pagos, {$salariosCargos} salários de cargos cívicos pagos, {$prontos} caminhões prontos, {$encomendados} encomendados, {$cobrados} horas de pátio cobradas, {$rebocados} rebocados, {$batalhas} batalhas, {$chegaram} reforços chegados, {$apreensoesExpiradas} apreensões resgatadas sozinhas, {$obrasFeitas} obras de zona, {$upgradesFeitos} upgrades de zona, {$refinadas} zonas refinaram, {$processadasSiderurgica} zonas com siderúrgica, {$missoes} pernas de drone, {$purgadas} mensagens purgadas");
 
         return $falhas > 0 ? self::FAILURE : self::SUCCESS;
     }

@@ -3,10 +3,11 @@
  *
  * O hub é o diretório dos slots do governo. Este teste abre o hub pelo HUD, confere que os slots
  * aparecem, e entra nas três instituições construídas nesta rodada: Central de Tributos/Tesouro (2),
- * Secretaria de Finanças (4) e Central de Pesquisas e Notícias (3). É só leitura — não clica em
- * Mercado nem Ministério (slots 6/7), que apenas reusam as telas de topo.
+ * Secretaria de Finanças (4) e Central de Pesquisas e Notícias (3). Tesouro e Finanças são só
+ * leitura; Notícias ganhou uma escrita real no D-130 — o colono do e2e é Repórter, e publica.
  *
- * O `tools/e2e.sh` semeia um comunicado ("Servidor aberto") para o mural ter o que mostrar.
+ * O `tools/e2e.sh` semeia um comunicado ("Servidor aberto") para o mural ter o que mostrar, e nomeia
+ * o colono do e2e Repórter (§14.2, D-130).
  */
 import {
   abrirCapital,
@@ -94,6 +95,20 @@ try {
   checar(await esperarTexto(page, /Telescópio Gagarin/), 'a tela de Notícias abre')
   checar(await esperarTexto(page, /inativo/), 'o Gagarin aparece honestamente inativo (§12.1)')
   checar(await esperarTexto(page, /Servidor aberto/), 'o comunicado semeado aparece no mural')
+
+  console.log('\nO e2e é Repórter (§14.2, D-130): publica matéria no mesmo mural')
+  checar(await esperarTexto(page, /Publicar matéria/), 'o formulário aparece para quem ocupa o cargo')
+
+  await page.type('[data-form="publicar-materia"] input', 'Achado no Gagarin')
+  await page.type('[data-form="publicar-materia"] textarea', 'Um sinal novo, ainda sem explicação.')
+
+  const publicar = await acharPorTexto(page, 'button', /^Publicar$/)
+  checar(await publicar.evaluate((b) => !b.disabled), 'o botão de publicar habilita com título e corpo')
+  await publicar.click()
+  await page.waitForNetworkIdle({ idleTime: 800 })
+
+  checar(await esperarTexto(page, /Achado no Gagarin/), 'a matéria publicada aparece no mural')
+  checar(await esperarTexto(page, /boletim/), 'marcada como boletim, distinta de um comunicado oficial')
 
   console.log('\nOs destroços da Endurance (Oeste)')
   await page.click('[data-voltar-capital]')

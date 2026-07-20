@@ -84,6 +84,10 @@ class Ledger extends Model
         'escrow_leilao',
         'venda_leilao',  // crédito líquido ao vendedor, no fechamento (mesma forma de `venda_mercado`)
         'compra_leilao', // recurso creditado ao arrematante, no fechamento
+        // Cargos Públicos, §14.2 (D-130): Repórter, Fiscal de Mercado, Auxiliar de Tesouro. Mesmos
+        // valores do Conciliador (§26.7) — o único número que o GDD publica para cargo cívico.
+        'salario_cargo_civico',
+        'bonus_cargo_civico',
     ];
 
     public function colony(): BelongsTo
