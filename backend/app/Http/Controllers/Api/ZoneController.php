@@ -224,7 +224,10 @@ class ZoneController extends Controller
                 'em' => $l->created_at,
                 'tipo' => $l->type,
                 'recurso' => $l->resource_type,
-                'quantidade' => $l->amount,
+                // `resource_type` null é Fert$, guardado em micro (1 Fert$ = 1.000.000) — mesma
+                // escala de `colonies.fert_micro` (`ProfileController::extrato()` já converte
+                // assim). Sem isto, o Histórico mostrava "-300000000" em vez de "-300".
+                'quantidade' => $l->resource_type === null ? $l->amount / 1_000_000 : $l->amount,
                 'ref' => $l->ref,
             ]);
 

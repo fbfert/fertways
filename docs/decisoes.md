@@ -5846,3 +5846,26 @@ territorial — mesmo texto e mesma régua visual do bloco que o D-125 pôs na f
 `php artisan test` completo (795 — um teste novo, `test_o_painel_do_mapa_tambem_lista_a_fila_de_obras_so_para_o_dono`,
 afirma `obras`/`obras_vagas` preenchidos para o dono e `null` para qualquer outra colônia). Sem
 migration. `tsc`/`lint`/`build` limpos. e2e completo, 9/9 verde.
+
+---
+
+## D-127 — O Histórico da zona mostrava "Fert$: -300000000" em vez de "-300".
+**Data:** 2026-07-19 · **Status:** correção, achada pelo usuário em produção · D-86
+
+O usuário reportou o número errado no Histórico da zona. Causa: o Fert$ do Posto de Comando
+(ocupação, `OcuparZonaNeutra::debitarFert()`) e do upgrade de nível (`SubirNivelDaZona`) é
+debitado no `Ledger` em **micro** — 1 Fert$ = 1.000.000, a mesma escala de `colonies.fert_micro`,
+o mesmo padrão que qualquer lançamento de Fert$ no jogo já usa (`ProfileController::extrato()` já
+converte assim para o extrato financeiro da colônia). `ZoneController::historico()` devolvia
+`$l->amount` cru — certo para os lançamentos de recurso (`metal_bruto`, `ligas_metalicas`, já em
+unidade real), errado para os de Fert$ (`resource_type` nulo), que ninguém tinha convertido de
+volta. `Zona.tsx` só exibia o número que a API mandava — a tela nunca teve a culpa.
+
+Corrigido: `quantidade` divide por 1.000.000 quando `resource_type` é nulo, exatamente a mesma
+régua do `extrato()`. Os lançamentos de recurso continuam intocados.
+
+### Validado
+
+`php artisan test` completo (796 — um teste novo, `test_o_custo_em_fert_vem_convertido_de_micro`,
+afirma -300 no Histórico para um débito de -300.000.000 no Ledger). Sem migration.
+`tsc`/`lint`/`build` limpos. e2e completo, 9/9 verde.
