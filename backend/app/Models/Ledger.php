@@ -88,6 +88,9 @@ class Ledger extends Model
         // valores do Conciliador (§26.7) — o único número que o GDD publica para cargo cívico.
         'salario_cargo_civico',
         'bonus_cargo_civico',
+        // Loja de Peças da Endurance, §05/D-132: desconto de tributo é aplicado direto no cálculo,
+        // sem lançamento — só a compra em si gera ledger.
+        'compra_peca_endurance',
     ];
 
     public function colony(): BelongsTo

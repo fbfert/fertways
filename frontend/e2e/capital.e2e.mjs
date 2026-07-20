@@ -6,6 +6,10 @@
  * Secretaria de Finanças (4) e Central de Pesquisas e Notícias (3). Tesouro e Finanças são só
  * leitura; Notícias ganhou uma escrita real no D-130 — o colono do e2e é Repórter, e publica.
  *
+ * A Endurance (Oeste) virou rota própria no D-132: mapa de destroços clicável e Loja de Peças —
+ * este teste abre os dois, compra uma peça (o e2e nasce no marco 20, acima do marco 10 exigido) e
+ * confere os atalhos de navegação para Mercado Central e Espaçoporto.
+ *
  * O `tools/e2e.sh` semeia um comunicado ("Servidor aberto") para o mural ter o que mostrar, e nomeia
  * o colono do e2e Repórter (§14.2, D-130).
  */
@@ -17,6 +21,7 @@ import {
   entrar,
   esperarTexto,
   falhas,
+  irPara,
   relatar,
   textoDaPagina,
 } from './comum.mjs'
@@ -110,23 +115,35 @@ try {
   checar(await esperarTexto(page, /Achado no Gagarin/), 'a matéria publicada aparece no mural')
   checar(await esperarTexto(page, /boletim/), 'marcada como boletim, distinta de um comunicado oficial')
 
-  console.log('\nOs destroços da Endurance (Oeste)')
+  console.log('\nOs destroços da Endurance (Oeste): a Loja de Peças (D-132)')
   await page.click('[data-voltar-capital]')
   await page.click('[data-area="oeste"]')
   await page.waitForSelector('[data-tela="endurance"]')
-  checar(await esperarTexto(page, /nunca voltará a voar/), 'a Endurance conta a sua história')
-  checar(
-    await esperarTexto(page, /não repousa sobre o casco/),
-    'e resolve a contradição do GDD: o Gagarin é satélite orbital, não está no casco (D-47)',
-  )
-  checar(
-    await esperarTexto(page, /não há nada a fazer aqui ainda/),
-    'e admite honestamente que as missões não existem',
-  )
+  checar(await esperarTexto(page, /Destroços da Endurance/), 'a tela própria da Endurance abre')
 
-  console.log('\nO Espaçoporto (Sul)')
-  await page.click('[data-voltar-capital]')
-  await page.click('[data-area="sul"]')
+  const destrocos = await page.$$('[data-destroco]')
+  checar(destrocos.length === 8, `os 8 destroços aparecem no mapa (achou ${destrocos.length})`)
+
+  await destrocos[0].click()
+  await page.waitForSelector('[data-tela="loja-da-endurance"]')
+  const secoesDaLoja = await page.$$('[data-secao-loja]')
+  checar(secoesDaLoja.length === 8, `a loja mostra as 8 seções (achou ${secoesDaLoja.length})`)
+
+  console.log('\nCompra uma peça — o e2e nasce no marco 20 (Desbravador), acima do marco 10 exigido')
+  const comprar = await acharPorTexto(page, 'button', /^Comprar$/)
+  checar(!!comprar, 'ao menos uma peça "comum" está disponível no marco do e2e')
+  await comprar.click()
+  await page.waitForNetworkIdle({ idleTime: 800 })
+  checar(await esperarTexto(page, /Você tem esta peça/), 'a peça comprada muda de estado na hora')
+
+  console.log('\nO atalho "Mercado Central" da Endurance navega direto, sem voltar à praça')
+  await (await acharPorTexto(page, 'button', /Mercado Central/)).click()
+  checar(await esperarTexto(page, /Mercado Central/), 'o Mercado Central abre pelo atalho')
+
+  console.log('\nO atalho "Espaçoporto" da Endurance (Sul)')
+  await irPara(page, '/capital/endurance')
+  await page.waitForSelector('[data-tela="endurance"]')
+  await (await acharPorTexto(page, 'button', /Espaçoporto/)).click()
   await page.waitForSelector('[data-tela="espacoporto"]')
   checar(await esperarTexto(page, /Ninguém viaja daqui ainda/), 'o Espaçoporto admite que não abriu')
   for (const p of ['Kalidor', 'Veyra', 'Auryn', 'Solène', 'Drakmoor']) {

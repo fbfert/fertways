@@ -3,6 +3,7 @@
 namespace App\Domain\Logistics;
 
 use App\Domain\Capital\AvisoDoPatio;
+use App\Domain\Endurance\DescontoDeEndurance;
 use App\Domain\Market\Deposito;
 use App\Domain\Trade\CreditarEntrega;
 use App\Domain\Transport\Conservacao;
@@ -40,6 +41,7 @@ class ConcluirTrechos
         private Conservacao $conservacao,
         private MercadoDeUsados $usados,
         private AvisoDoPatio $avisoDoPatio,
+        private DescontoDeEndurance $descontoDeEndurance,
     ) {}
 
     /**
@@ -572,13 +574,14 @@ class ConcluirTrechos
             && $origem->federation_id !== null
             && $origem->federation_id === $destino->federation_id;
 
-        if (! $aliados) {
-            return $bpsCheio;
+        if ($aliados) {
+            $desconto = \App\Models\FederationSetting::singleton()->desconto_tributo_aliados_bps;
+            $bpsCheio = intdiv($bpsCheio * (10_000 - $desconto), 10_000);
         }
 
-        $desconto = \App\Models\FederationSetting::singleton()->desconto_tributo_aliados_bps;
-
-        return intdiv($bpsCheio * (10_000 - $desconto), 10_000);
+        // D-132: o desconto de peças da Endurance é pessoal da colônia que entrega — vem por cima
+        // do que o desconto de aliados já reduziu, nunca antes dele.
+        return $this->descontoDeEndurance->aplicar($bpsCheio, $origem);
     }
 
     /**

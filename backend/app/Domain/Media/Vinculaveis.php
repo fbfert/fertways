@@ -30,6 +30,21 @@ class Vinculaveis
         'capital:area:sul' => 'Capital — Espaçoporto (Sul)',
     ];
 
+    /**
+     * As 8 seções do casco da Endurance (D-132/Loja de Peças) — como as áreas da Capital, não são
+     * linha de tabela: são pontos soltos no campo de destroços (`EnduranceMapa.tsx`).
+     */
+    public const SECOES_DA_ENDURANCE = [
+        'endurance:secao:anel_habitacional' => 'Endurance — Anel Habitacional',
+        'endurance:secao:baia_criogenica' => 'Endurance — Baía Criogênica',
+        'endurance:secao:comando' => 'Endurance — Comando',
+        'endurance:secao:matriz_comunicacao' => 'Endurance — Matriz de Comunicação',
+        'endurance:secao:modulo_medico' => 'Endurance — Módulo Médico',
+        'endurance:secao:nucleo_propulsao' => 'Endurance — Núcleo de Propulsão',
+        'endurance:secao:secao_acoplagem' => 'Endurance — Seção de Acoplagem',
+        'endurance:secao:silo_suprimentos' => 'Endurance — Silo de Suprimentos',
+    ];
+
     /** Os 20 slots do Governo Central (§2.1). O 6 não está: ele **é** o Leste (D-63). */
     public const SLOTS_DA_CAPITAL = [
         1 => 'Administração Pública',
@@ -96,6 +111,10 @@ class Vinculaveis
                             array_keys(self::SLOTS_DA_CAPITAL), self::SLOTS_DA_CAPITAL),
                     ),
                 ),
+            ],
+            'destrocos-da-endurance' => [
+                'titulo' => 'A Loja de Peças — as 8 seções do casco (D-132)',
+                'itens' => self::SECOES_DA_ENDURANCE,
             ],
         ];
     }

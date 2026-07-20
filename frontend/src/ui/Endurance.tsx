@@ -1,66 +1,102 @@
+import { useCallback, useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { api, ApiError } from '../api/client'
+import { EnduranceMapa } from './EnduranceMapa'
+import { LojaDaEndurance } from './LojaDaEndurance'
+
 /**
- * Os destroços da Endurance of Mankind — a área Oeste da Capital (D-63).
+ * Os destroços da Endurance of Mankind — agora uma tela própria (`/capital/endurance`, D-132), não
+ * mais um painel de texto dentro do modal da Capital.
  *
- * **Ela conta a verdade**, que é o padrão que o D-55 fixou com o Gagarin: mostra o que o GDD publica
- * e **admite o que ainda não existe**. Um painel que prometesse missões faria o jogador esperar por
- * algo que ninguém construiu.
+ * **Por que rota própria, e não mais um `sub` do `Capital.tsx`.** O padrão dominante do app já é
+ * rota de verdade (`/mapa`, `/zona/:id`, `/mercado/:contexto`) — só a Capital ainda trocava painel
+ * por `useState` local, sem URL, sem sobreviver a um recarregamento. Como esta tela ganhou um mapa
+ * zoomável de verdade (pedido do usuário), ela se junta ao padrão dominante em vez de esticar o
+ * antigo.
  *
- * ---
- *
- * **A contradição que este painel resolve.** O §3 (v3.0) diz que o telescópio Gagarin *"repousa em
- * seu casco"*. A versão sanitizada diz o **contrário**: *"O Gagarin **não** repousa sobre seu casco:
- * é um satélite orbital lançado após o pouso"*. A tabela de precedência da seção 0 já decidia — *"É
- * satélite orbital do Governo; a Endurance permanece em solo"* — e é essa a versão que o jogador lê
- * aqui. Nenhuma decisão nova: é o D-47 aplicado, e o GDD v36 já nasce com a versão certa.
+ * O GDD chama a Endurance de "fonte de peças históricas e missões narrativas" (§02) e liga peças ao
+ * Marco (§05) sem publicar o que uma peça É. A Loja de Peças (`LojaDaEndurance`) é o que preenche
+ * essa lacuna — ver `docs/decisoes.md` D-132 para a arbitragem completa (preço, bônus, teto). As
+ * missões narrativas continuam sem existir; esta tela não finge o contrário.
  */
 export function Endurance() {
+  const navegar = useNavigate()
+  const [lojaAberta, setLojaAberta] = useState(false)
+  const [dados, setDados] = useState<Awaited<ReturnType<typeof api.endurance>> | null>(null)
+  const [erro, setErro] = useState<string | null>(null)
+
+  const carregar = useCallback(async () => {
+    try {
+      setDados(await api.endurance())
+    } catch (e) {
+      setErro(e instanceof ApiError ? e.message : 'Falha ao carregar a Loja de Peças.')
+    }
+  }, [])
+
+  useEffect(() => {
+    void carregar()
+  }, [carregar])
+
+  async function comprar(chave: string) {
+    await api.comprarPecaDaEndurance(chave)
+    await carregar()
+  }
+
   return (
-    <div className="mt-5 space-y-5" data-tela="endurance">
-      <blockquote className="border-rust text-ink-soft border-l-4 pl-4 text-sm italic">
-        “Ela não era bonita. Era enorme, funcional e improvisada — construída com peças de sete nações
-        diferentes em menos de quatro anos. Mas ela voou. E chegou.”
-      </blockquote>
+    <div className="bg-sand fixed inset-0 z-20 overflow-y-auto" data-tela="endurance">
+      <div className="bg-sand-light mx-auto flex min-h-screen w-full max-w-6xl flex-col px-6 pt-20 pb-24 md:pt-28 md:pb-6">
+        <header className="shrink-0">
+          <div className="text-rust eyebrow">Capital — Oeste</div>
+          <h2 className="text-ink text-2xl font-black">Destroços da Endurance of Mankind</h2>
+          <p className="text-ink-soft mt-1 text-sm">
+            Ela nunca voltará a voar. {lojaAberta ? 'A Loja de Peças, seção por seção.' : 'Clique num destroço para abrir a Loja de Peças.'}
+          </p>
+        </header>
 
-      <section className="border-rust/20 bg-sand border p-4">
-        <div className="text-rust eyebrow">Patrimônio histórico</div>
-        <h3 className="text-ink text-lg font-black">A nave que trouxe a humanidade</h3>
+        <div className="mt-4 flex flex-1 gap-4">
+          {/* Os atalhos: dentro da Capital, não há hoje como pular de uma área para outra sem
+              voltar à praça — esta barra existe só aqui, enquanto isso não for um padrão do app
+              inteiro. */}
+          <nav className="flex shrink-0 flex-col gap-2" aria-label="Atalhos da Capital" data-atalhos-capital>
+            <button
+              onClick={() => navegar('/capital')}
+              className="border-rust/25 bg-sand hover:bg-rust hover:text-sand-light text-ink-soft w-32 border px-2 py-2 text-left text-xs font-bold"
+              data-atalho="governo-central"
+            >
+              ‹ Governo Central
+            </button>
+            <button
+              onClick={() => navegar('/mercado/central')}
+              className="border-rust/25 bg-sand hover:bg-rust hover:text-sand-light text-ink-soft w-32 border px-2 py-2 text-left text-xs font-bold"
+              data-atalho="mercado-central"
+            >
+              Mercado Central
+            </button>
+            <button
+              onClick={() => navegar('/capital', { state: { abrirSub: 'espacoporto' } })}
+              className="border-rust/25 bg-sand hover:bg-rust hover:text-sand-light text-ink-soft w-32 border px-2 py-2 text-left text-xs font-bold"
+              data-atalho="espacoporto"
+            >
+              Espaçoporto
+            </button>
+          </nav>
 
-        <p className="text-ink-soft mt-2 text-sm leading-relaxed">
-          <b>2387.</b> A Terra deixou de sustentar a vida humana depois de décadas de colapso
-          climático. O Programa Arca enviou frotas improvisadas; a <b>Endurance of Mankind</b> foi a
-          única a alcançar Fertways. Pousou no ponto mais plano do continente principal.
-        </p>
+          <div className="min-w-0 flex-1">
+            {erro && <p className="text-rust mb-3 text-sm font-bold">{erro}</p>}
 
-        <p className="text-ink-soft mt-2 text-sm leading-relaxed">
-          Ela <b>nunca voltará a voar</b>. É o marco narrativo do servidor — e a razão de o slot
-          principal de cada colono ser inviolável: a humanidade não sobreviveu para se destruir de
-          novo.
-        </p>
-      </section>
+            {!lojaAberta && (
+              <div className="h-[60vh] min-h-[360px]">
+                <EnduranceMapa aoAbrirLoja={() => setLojaAberta(true)} />
+              </div>
+            )}
 
-      <section className="border-rust/20 bg-sand border p-4">
-        <h3 className="text-ink font-black">O telescópio Gagarin</h3>
-        <p className="text-ink-soft mt-1 text-sm leading-relaxed">
-          O Gagarin <b>não repousa sobre o casco</b> da Endurance, ao contrário do que a lenda conta:
-          é um <b>satélite orbital</b>, lançado depois do pouso e propriedade do Governo de Fertways.
-          Os dados dele alimentam a Central de Pesquisas e Notícias.
-        </p>
-      </section>
-
-      {/*
-        A honestidade que o D-55 fixou com o Gagarin: dizer o que ainda não existe, em vez de
-        prometer. O GDD chama a Endurance de "fonte de peças e missões narrativas" — e nada disso
-        foi construído.
-      */}
-      <section className="border-rust/40 bg-sand-light border border-dashed p-4">
-        <h3 className="text-ink font-black">O que ainda não existe</h3>
-        <p className="text-ink-soft mt-1 text-sm leading-relaxed">
-          O GDD chama a Endurance de <b>fonte de peças históricas e missões narrativas</b>. Nem as
-          peças nem as missões foram construídas — <b>não há nada a fazer aqui ainda</b>. Os destroços
-          estão no mapa porque a Capital é um lugar, e um lugar tem história; não porque haja um botão
-          escondido.
-        </p>
-      </section>
+            {lojaAberta && dados && (
+              <LojaDaEndurance dados={dados} aoComprar={comprar} aoFechar={() => setLojaAberta(false)} />
+            )}
+            {lojaAberta && !dados && !erro && <p className="text-ink-soft text-sm">Carregando…</p>}
+          </div>
+        </div>
+      </div>
     </div>
   )
 }

@@ -69,6 +69,20 @@ export type Colonia = {
   marco: Marco
 }
 
+/** Uma peça da Loja da Endurance (§05, D-132) — 8 seções × 4 camadas do Marco. */
+export type PecaDaEndurance = {
+  chave: string
+  secao: string
+  secao_nome: string
+  camada: 'comum' | 'reputacao_1' | 'reputacao_2' | 'unica'
+  nome: string
+  marco_minimo: number
+  preco_fert: number
+  desconto_tributo_pct: number
+  unica: boolean
+  estado: 'possuida' | 'bloqueada' | 'disponivel' | 'esgotada'
+}
+
 /**
  * Uma colônia alheia, como o diretório a publica.
  *
@@ -1103,6 +1117,19 @@ export const api = {
    */
   imagens: () =>
     req<{ images: Record<string, { pequena: string; grande: string }> }>('/images'),
+
+  // ── A Loja de Peças da Endurance (§05, D-132) — 8 seções × 4 camadas do Marco ─────────────────
+
+  endurance: () =>
+    req<{
+      meu_marco: number
+      meu_desconto_pct: number
+      teto_desconto_pct: number
+      pecas: PecaDaEndurance[]
+    }>('/endurance'),
+
+  comprarPecaDaEndurance: (chave: string) =>
+    req<{ chave: string }>(`/endurance/pecas/${chave}/comprar`, { method: 'POST' }),
 
   // ── o perfil do colono (D-69) ───────────────────────────────────────────────────────────────
 
