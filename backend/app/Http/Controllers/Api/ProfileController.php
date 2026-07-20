@@ -56,6 +56,15 @@ class ProfileController extends Controller
 
             'conciliador' => $user->conciliador_desde !== null,
 
+            // Cargos Públicos, §14.2 (D-130) — os 3 que não são o Conciliador.
+            'cargos' => \App\Models\CivicPost::where('user_id', $user->id)->get()->map(fn ($c) => [
+                'kind' => $c->kind,
+                'nome' => \App\Domain\Cargos\CargosCivicosSpecs::NOMES[$c->kind] ?? $c->kind,
+                'suspenso' => $c->suspenso_em !== null,
+                'salario_diario_fert' => \App\Domain\Cargos\CargosCivicosSpecs::SALARIO_DIARIO_MICRO / \App\Models\Colony::MICRO_POR_FERT,
+                'bonus_fert' => \App\Domain\Cargos\CargosCivicosSpecs::BONUS_MICRO / \App\Models\Colony::MICRO_POR_FERT,
+            ])->values(),
+
             // O Marco (§03 o chama de "Identidade"; D-75). Null para quem ainda não fundou.
             'marco' => $colony ? [
                 'numero' => $n = \App\Domain\Marco\Curva::marco((int) $colony->xp),

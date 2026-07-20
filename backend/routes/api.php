@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\AuctionController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\BuildingController;
 use App\Http\Controllers\Api\CapitalController;
+use App\Http\Controllers\Api\CargosController;
 use App\Http\Controllers\Api\ChatController;
 use App\Http\Controllers\Api\ColonyController;
 use App\Http\Controllers\Api\DroneController;
@@ -178,6 +179,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/auctions', [AuctionController::class, 'store']);
     Route::post('/auctions/{auction}/bid', [AuctionController::class, 'lance']);
     Route::delete('/auctions/{auction}', [AuctionController::class, 'destroy']);
+
+    // Cargos Públicos (§14.2, D-130). Nomeação continua só por artisan (`fertways:cargo-civico`) —
+    // estes dois são os únicos atos que o próprio jogador faz.
+    Route::post('/cargos/materia', [CargosController::class, 'publicarMateria']);
+    Route::post('/cargos/sinalizar', [CargosController::class, 'sinalizar']);
 
     // Capital — instituições do governo (§02). Só leitura: os atos do governo (intervenção de preço,
     // publicar comunicado) são artisan, não rota, porque o Governo é "operado pela equipe" (D-44).

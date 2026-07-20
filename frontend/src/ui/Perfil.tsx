@@ -307,8 +307,94 @@ export function Perfil({ aoSalvar }: { aoSalvar: () => void }) {
         )}
       </section>
 
+      {/* ── Cargos Públicos (§14.2, D-130) — os 3 que não são o Conciliador ────────────────── */}
+      {p.cargos.length > 0 && <CargosPublicos cargos={p.cargos} agir={agir} />}
+
       {erro && <p className="text-rust text-sm font-bold">{erro}</p>}
       {recibo && <p className="text-sm font-bold">{recibo}</p>}
     </div>,
+  )
+}
+
+/**
+ * Os Cargos Públicos que o colono ocupa (§14.2, D-130): salário diário, e — para o Fiscal de
+ * Mercado e o Auxiliar de Tesouro — o formulário de sinalização, o único ato que falta ao
+ * Repórter (que publica pela Central de Notícias, não daqui).
+ */
+function CargosPublicos({
+  cargos,
+  agir,
+}: {
+  cargos: PerfilDto['cargos']
+  agir: (a: () => Promise<string>) => Promise<void>
+}) {
+  const sinalizam = cargos.filter((c) => c.kind === 'fiscal_de_mercado' || c.kind === 'auxiliar_de_tesouro')
+  const [kind, setKind] = useState<'fiscal_de_mercado' | 'auxiliar_de_tesouro'>(
+    (sinalizam[0]?.kind as 'fiscal_de_mercado' | 'auxiliar_de_tesouro') ?? 'fiscal_de_mercado',
+  )
+  const [motivo, setMotivo] = useState('')
+
+  return (
+    <section data-secao="cargos-civicos">
+      <h3 className="font-bold">Cargos Públicos</h3>
+
+      <div className="mt-2 space-y-2">
+        {cargos.map((c) => (
+          <div key={c.kind} className="painel bg-sand p-3" data-cargo={c.kind}>
+            <div className="flex items-baseline justify-between text-sm">
+              <strong>{c.nome}</strong>
+              {c.suspenso && <span className="text-rust text-xs font-bold">suspenso</span>}
+            </div>
+            <p className="text-ink-soft mt-1 text-xs">
+              {c.salario_diario_fert.toLocaleString('pt-BR')} Fert$/dia
+              {c.kind !== 'reporter' && `, + ${c.bonus_fert.toLocaleString('pt-BR')} Fert$ por sinalização confirmada`}
+              {c.kind === 'reporter' && `, + ${c.bonus_fert.toLocaleString('pt-BR')} Fert$ por matéria publicada`}
+            </p>
+          </div>
+        ))}
+      </div>
+
+      {sinalizam.length > 0 && (
+        <div className="border-rust/20 mt-3 border p-3">
+          <p className="text-ink-soft text-xs">
+            Sinalize algo suspeito para a equipe. O bônus só paga se a sinalização for confirmada.
+          </p>
+          {sinalizam.length > 1 && (
+            <select
+              aria-label="Cargo"
+              className="border-rust/25 bg-sand focus:border-rust mt-2 w-full border px-2 py-1.5 text-sm outline-none"
+              value={kind}
+              onChange={(e) => setKind(e.target.value as 'fiscal_de_mercado' | 'auxiliar_de_tesouro')}
+            >
+              {sinalizam.map((c) => (
+                <option key={c.kind} value={c.kind}>
+                  {c.nome}
+                </option>
+              ))}
+            </select>
+          )}
+          <textarea
+            className="border-rust/25 bg-sand focus:border-rust mt-2 w-full border px-2 py-1.5 text-sm outline-none"
+            placeholder="O que parece suspeito?"
+            rows={2}
+            value={motivo}
+            onChange={(e) => setMotivo(e.target.value)}
+          />
+          <button
+            disabled={motivo.trim() === ''}
+            onClick={() =>
+              void agir(async () => {
+                await api.sinalizarCargo(kind, motivo)
+                setMotivo('')
+                return 'Sinalização enviada. A equipe confirma antes de qualquer bônus.'
+              })
+            }
+            className="bg-rust text-sand-light hover:bg-rust-bright mt-2 px-4 py-1.5 text-sm font-bold disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            Sinalizar
+          </button>
+        </div>
+      )}
+    </section>
   )
 }

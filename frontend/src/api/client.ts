@@ -386,8 +386,19 @@ export type Perfil = {
   /** Abaixo disto, a Confiança Comercial bloqueia o acesso ao Mercado (§26.2, D-43). */
   limiar_bloqueio: number
   conciliador: boolean
+  /** Cargos Públicos, §14.2 (D-130) — os 3 que não são o Conciliador. */
+  cargos: CargoCivico[]
   /** O Marco (§03/§05; D-75). Null para quem ainda não fundou colônia. */
   marco: Marco | null
+}
+
+/** Um Cargo Público ocupado por este colono (§14.2, D-130). */
+export type CargoCivico = {
+  kind: 'reporter' | 'fiscal_de_mercado' | 'auxiliar_de_tesouro'
+  nome: string
+  suspenso: boolean
+  salario_diario_fert: number
+  bonus_fert: number
 }
 
 /** Uma linha do extrato bancário — só Fert$, nunca recurso (o card de Fert$ do HUD abre isto). */
@@ -835,6 +846,8 @@ export type Noticias = {
     published_at: string
   }[]
   gagarin: { ativo: boolean; jogadores: number; limiar_jogadores: number; regra: string }
+  /** Só true para quem ocupa o cargo de Repórter, ativo (§14.2, D-130). */
+  posso_publicar: boolean
 }
 
 // ── Federação (§04/§07; D-114) — o Quartel de Alianças, Capital slot 9 ─────────────────────────
@@ -911,6 +924,20 @@ export const api = {
   tesouro: () => req<Tesouro>('/treasury'),
   financas: () => req<Financas>('/finance'),
   noticias: () => req<Noticias>('/news'),
+
+  /** O ato do Repórter (§14.2, D-130): publica no mesmo mural, como boletim. */
+  publicarMateria: (titulo: string, corpo: string) =>
+    req<{ id: number }>('/cargos/materia', {
+      method: 'POST',
+      body: JSON.stringify({ titulo, corpo }),
+    }),
+
+  /** O ato do Fiscal de Mercado e do Auxiliar de Tesouro (§14.2, D-130): sinaliza para a equipe. */
+  sinalizarCargo: (kind: 'fiscal_de_mercado' | 'auxiliar_de_tesouro', motivo: string) =>
+    req<{ id: number }>('/cargos/sinalizar', {
+      method: 'POST',
+      body: JSON.stringify({ kind, motivo }),
+    }),
 
   /**
    * Ministério dos Transportes (§16, slot 8): a vitrine da fábrica, a prateleira do governo e a

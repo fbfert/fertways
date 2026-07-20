@@ -191,6 +191,10 @@ $quebrado->forceFill(["status" => "quebrado"])->save();
 // O colono do e2e é conciliador: é o cargo que faz aparecer a aba "A julgar" (§9.3).
 $u->forceFill(["conciliador_desde" => now()])->save();
 
+// E também Repórter (§14.2, D-130): é o cargo que faz aparecer o formulário de "Publicar matéria"
+// na Central de Notícias.
+app(App\Domain\Cargos\GerirCargoCivico::class)->nomear($u, App\Domain\Cargos\CargosCivicosSpecs::REPORTER);
+
 /*
  * Duas colônias distantes, e um caso entre elas para o e2e julgar. **Distantes de propósito**: o
  * diretório ordena por distância, e o teste do Acordo propõe para a primeira da lista.

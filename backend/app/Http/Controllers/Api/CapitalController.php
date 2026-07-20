@@ -7,6 +7,7 @@ use App\Models\News;
 use App\Models\PriceIntervention;
 use App\Models\ResourceType;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -136,7 +137,7 @@ class CapitalController extends Controller
      * Central de Pesquisas e Notícias (slot 3): o mural + o estado honesto do Gagarin (inativo até
      * 50 jogadores ou 45 dias, §12.1).
      */
-    public function news(): JsonResponse
+    public function news(Request $request): JsonResponse
     {
         /*
          * `noMural()` é o que faz OCULTAR valer alguma coisa. Sem ele, o botão do painel esconderia a
@@ -156,8 +157,16 @@ class CapitalController extends Controller
 
         $jogadores = (int) DB::table('users')->count();
 
+        // O Repórter (§14.2, D-130) publica no mesmo mural, kind='boletim'. A tela só mostra o
+        // formulário de quem ocupa o cargo, ativo — mesmo padrão do `conciliador` no Perfil.
+        $possoPublicar = \App\Models\CivicPost::where('user_id', $request->user()->id)
+            ->where('kind', \App\Domain\Cargos\CargosCivicosSpecs::REPORTER)
+            ->whereNull('suspenso_em')
+            ->exists();
+
         return response()->json([
             'noticias' => $noticias,
+            'posso_publicar' => $possoPublicar,
             'gagarin' => [
                 'ativo' => false,
                 'jogadores' => $jogadores,
