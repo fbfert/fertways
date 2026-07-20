@@ -34,10 +34,21 @@ class CancelarLeilao
                 throw new DomainRuleException('leilao_com_lance', 'Este leilão já tem lance e não pode mais ser cancelado.');
             }
 
-            DB::table('market_accounts')
-                ->where('colony_id', $colonia->id)
-                ->where('resource_type', $l->resource_type)
-                ->increment('amount', $l->qty);
+            if ($l->ehItem()) {
+                DB::table('colony_endurance_items')->insertOrIgnore([
+                    'colony_id' => $colonia->id, 'endurance_item_id' => $l->endurance_item_id,
+                    'quantidade' => 0, 'created_at' => now(), 'updated_at' => now(),
+                ]);
+                DB::table('colony_endurance_items')
+                    ->where('colony_id', $colonia->id)
+                    ->where('endurance_item_id', $l->endurance_item_id)
+                    ->increment('quantidade', $l->qty);
+            } else {
+                DB::table('market_accounts')
+                    ->where('colony_id', $colonia->id)
+                    ->where('resource_type', $l->resource_type)
+                    ->increment('amount', $l->qty);
+            }
 
             Ledger::create([
                 'colony_id' => $colonia->id,

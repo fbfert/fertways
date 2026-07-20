@@ -1336,7 +1336,7 @@ rollback limpos — os outros três não mudam schema), `npx tsc -b`/lint/build 
 **Para retomar isto:** não há mais pendência — os cinco itens são o estado normal do painel
 agora.
 
-## Ponte D-100 a D-134 (2026-07-16 a 2026-07-20) — resumo, detalhe em `docs/decisoes.md`
+## Ponte D-100 a D-136 (2026-07-16 a 2026-07-20) — resumo, detalhe em `docs/decisoes.md`
 
 Esta página parou de ser atualizada decisão a decisão desde o D-99. Tudo abaixo está **no ar em
 produção**, cada um com sua entrada completa em `docs/decisoes.md` (arbitragens, testes,
@@ -1355,45 +1355,24 @@ federação) · D-122 a D-124 (teto do canteiro da zona, e o bug que ele causou 
 D-125 a D-127 (fila de obras na ficha e no Mapa; Histórico da zona corrigido) ·
 **D-128 (Ranking de Guerras, §27.13)** · **D-129 (Leilões — sistema desenhado do zero, sem base
 no GDD)** · **D-130 (Cargos Públicos — Repórter, Fiscal de Mercado, Auxiliar de Tesouro)** ·
-D-131 (Tanque de Combustível trava produção no teto) · **D-132/D-133 (Loja de Peças da
-Endurance v1 — 8 seções × 4 camadas fixas, CRUD admin)** · **D-134 (pendência: a v1 da Loja não
-diferenciava as camadas o bastante — ver a seção seguinte, é o que está em andamento agora)**.
+D-131 (Tanque de Combustível trava produção no teto) · D-132/D-133 (Loja de Peças da Endurance v1
+— 8 seções × 4 camadas fixas, CRUD admin) · D-134 (pendência: a v1 da Loja não diferenciava as
+camadas o bastante) · **D-135 (a Loja refeita: catálogo dinâmico, efeitos que mexem no motor de
+verdade)** · **D-136 (Leilões, D-129, vendem item da Endurance — Fase 2 do D-135)**.
 
 A partir do D-114, o usuário deu a instrução padrão: **avançar pelos próximos itens do GDD sem
 parar para perguntar, decidir e seguir** — é por isso que boa parte da lista acima foi escolhida
 e arbitrada sozinha, com o julgamento sempre registrado em `docs/decisoes.md`.
 
-## EM ANDAMENTO AGORA (2026-07-20): Fase 2 da reconstrução da Endurance — Leilões vendem item
+## A reconstrução da Loja de Peças da Endurance terminou — Fase 1 e Fase 2 no ar (2026-07-20)
 
-**A Fase 1 já está implementada e testada nesta sessão** (schema novo, `EfeitosDaEndurance` ligado
-nos 6 pontos do motor, admin CRUD de 8 abas, frontend do mapa/loja reescrito, 30 testes novos, 864
-passando na suíte inteira) — ver **D-135** em `docs/decisoes.md` para o desenho completo. Falta
-confirmar que o ciclo de entrega da Fase 1 (branch `feat/endurance-itens-dinamicos-fase1` → PR → CI
-→ merge → deploy) terminou; se `docs/decisoes.md` já mostra D-135 como "implementado" mas o site em
-produção ainda não reflete isso, retome o ciclo de entrega antes de tocar na Fase 2.
-
-**A Fase 2 (Leilões vendem item da Endurance) segue sem começar.** O usuário já disse "siga por
-todas as fases, não me faça mais perguntas" — não pergunte, comece direto pelo desenho abaixo, que
-já estava no plano aprovado:
-
-- Migration: `auctions.resource_type`/`qty` viram nullable (tira a FK obrigatória), nova
-  `endurance_item_id` nullable (FK). Um leilão é ou-ou: nunca os dois preenchidos (checado em
-  código, não em constraint).
-- `ListarLeilao`: anunciar item checa posse em `colony_endurance_items` (em vez de
-  `market_accounts`), decrementa a quantidade possuída, exige `vendavel_em_leilao=true` no item.
-- `CancelarLeilao`/`FecharLeiloes`: nos 3 pontos espelhados (devolução ao cancelar, devolução sem
-  lance, crédito ao arrematante) — branch por item, mexe em `colony_endurance_items` em vez de
-  `market_accounts`.
-- Tributo no fechamento: para item, grava `tax_events` com `tax_bps=0`/`tax_amount=0` (mantém a
-  trava de idempotência da chave única sem precisar calcular alíquota de um item).
-- Frontend: `Leilao` (`client.ts`) vira união discriminada (`resource_type` OU `endurance_item`);
-  `CardDeLeilao`/formulário de anunciar em `Mercado.tsx` ganham um branch — ícone/nome do item vêm
-  do catálogo (`nome`, imagem da SEÇÃO dele, D-133 não muda).
-- Testes: `LeilaoDeItemTest` — anunciar exige posse e `vendavel_em_leilao`, lance/fechamento
-  transferem posse em vez de `market_accounts`, tributo zerado não quebra idempotência.
-- `docs/decisoes.md` ganha uma entrada D-136 própria. Ciclo de entrega completo e separado do da
-  Fase 1 (risco: mexe num sistema — Leilões, D-129 — já em produção, com leilões de recurso talvez
-  em andamento).
+A pendência do D-134 está resolvida por completo: **D-135** (catálogo dinâmico, efeitos que mexem
+no motor de verdade — produção, veículo, drone, tributo — admin CRUD de 8 abas, frontend do
+mapa/loja) e **D-136** (Leilões, D-129, vendem item da Endurance, não só recurso) — as duas fases do
+plano aprovado, cada uma com seu próprio ciclo de entrega completo e no ar em produção. Ver as duas
+entradas em `docs/decisoes.md` para o desenho completo, arbitragens e testes. Nenhuma pendência
+conhecida deste trabalho — o que sobrar de ideia (ex.: as "Direções possíveis" que o D-134 chegou a
+listar antes de a reconstrução decidir por um caminho diferente) já não se aplica.
 
 ## O trabalho anterior: zonas neutras + Drone (D-52)
 

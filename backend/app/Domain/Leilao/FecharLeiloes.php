@@ -60,11 +60,7 @@ class FecharLeiloes
         }
 
         if ($l->lance_colony_id === null) {
-            DB::table('market_accounts')
-                ->where('colony_id', $l->colony_id)
-                ->where('resource_type', $l->resource_type)
-                ->increment('amount', $l->qty);
-
+            $this->creditarLote($l, $l->colony_id);
             $this->lancar($l->colony_id, 'estorno', $l->qty, $l->resource_type, "leilao:{$l->id}:sem_lance");
 
             $l->forceFill(['status' => 'sem_lance'])->save();
@@ -73,7 +69,10 @@ class FecharLeiloes
         }
 
         $valor = $l->lance_atual_micro;
-        $bps = (int) ResourceType::find($l->resource_type)->tax_bps;
+        // Item da Endurance (D-135, Fase 2): sem `tax_bps` nenhum — `EnduranceItem` não tem esse
+        // campo (o preço já é arbitragem do admin, não vale duplicar arbitragem com uma alíquota
+        // também inventada). Tributo zero, registrado como fato — não omitido.
+        $bps = $l->ehItem() ? 0 : (int) ResourceType::find($l->resource_type)->tax_bps;
         $taxa = intdiv($valor * $bps, 10_000);
         $liquido = $valor - $taxa;
         $ref = "leilao:{$l->id}:fechamento";
@@ -83,7 +82,8 @@ class FecharLeiloes
             'kind' => 'leilao_venda',
             'colony_id' => $l->colony_id,
             // Como em `mercado_venda`: a base é o valor em micro-Fert$, e `resource_type` só
-            // registra qual recurso gerou o fato tributável.
+            // registra qual recurso gerou o fato tributável — null para item (a FK exige um código
+            // de `resource_types`, que um item da Endurance não é).
             'resource_type' => $l->resource_type,
             'base_amount' => $valor,
             'tax_bps' => $bps,
@@ -105,14 +105,7 @@ class FecharLeiloes
             $this->tesouro->creditarFert($taxa, "tributo_leilao:{$ref}");
         }
 
-        DB::table('market_accounts')->insertOrIgnore([
-            'colony_id' => $l->lance_colony_id, 'resource_type' => $l->resource_type, 'amount' => 0,
-            'created_at' => now(), 'updated_at' => now(),
-        ]);
-        DB::table('market_accounts')
-            ->where('colony_id', $l->lance_colony_id)
-            ->where('resource_type', $l->resource_type)
-            ->increment('amount', $l->qty);
+        $this->creditarLote($l, $l->lance_colony_id);
         $this->lancar($l->lance_colony_id, 'compra_leilao', $l->qty, $l->resource_type, $ref);
 
         // Mesmo piso anti-farm do D-43/D-117: um lote a centavos não deve render XP de graça.
@@ -130,6 +123,38 @@ class FecharLeiloes
         $l->forceFill(['status' => 'arrematado'])->save();
 
         return 'arrematado';
+    }
+
+    /**
+     * Credita o lote a uma colônia — vendedor (sem lance) ou arrematante (fechado com lance). Os
+     * dois casos usam o MESMO `insertOrIgnore` + `increment`: para item da Endurance (D-135, Fase
+     * 2) o vendedor já tem a linha (ela nasceu no `decrement` de `ListarLeilao::handleItem`), mas o
+     * arrematante pode nunca ter possuído aquele item — `insertOrIgnore` cobre os dois sem
+     * precisar de dois caminhos.
+     */
+    private function creditarLote(Auction $l, int $colonyId): void
+    {
+        if ($l->ehItem()) {
+            DB::table('colony_endurance_items')->insertOrIgnore([
+                'colony_id' => $colonyId, 'endurance_item_id' => $l->endurance_item_id,
+                'quantidade' => 0, 'created_at' => now(), 'updated_at' => now(),
+            ]);
+            DB::table('colony_endurance_items')
+                ->where('colony_id', $colonyId)
+                ->where('endurance_item_id', $l->endurance_item_id)
+                ->increment('quantidade', $l->qty);
+
+            return;
+        }
+
+        DB::table('market_accounts')->insertOrIgnore([
+            'colony_id' => $colonyId, 'resource_type' => $l->resource_type, 'amount' => 0,
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+        DB::table('market_accounts')
+            ->where('colony_id', $colonyId)
+            ->where('resource_type', $l->resource_type)
+            ->increment('amount', $l->qty);
     }
 
     private function lancar(int $colonyId, string $tipo, int $valor, ?string $recurso, string $ref): void
