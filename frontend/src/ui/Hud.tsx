@@ -8,14 +8,33 @@ import { IconeRecurso } from './IconeRecurso'
 import { Popup } from './Popup'
 import { INDUSTRIAIS, nomeRecurso, PRIMARIOS, RAROS } from './recursos'
 
-function Linha({ codigo, valor }: { codigo: string; valor: number }) {
+/**
+ * A capacidade do Tanque de Combustível, por nível (§21.9, D-131) — a única curva de
+ * armazenamento que o GDD publica para um recurso do slot principal. "Armazena Gelo de Metano
+ * refinado" não bate com nenhum `resource_type` do catálogo; o Tanque capa Biocombustível, o
+ * recurso que o jogo já refina (Destilaria, §18.2) e cuja semântica de "combustível" já existe —
+ * arbitragem do usuário, D-131. Duplicada aqui só para exibição: quem TRAVA a produção é o tick
+ * (`App\Domain\Colony\TetoDoTanque`, backend); a curva em si é a mesma nos dois lugares.
+ */
+const CAPACIDADE_DO_TANQUE: Record<number, number> = { 1: 200, 2: 300, 3: 450, 4: 675, 5: 1012 }
+
+function capacidadeDoTanque(colonia: Colonia): number | null {
+  const nivel = colonia.buildings.find((b) => b.type === 'tanque_de_combustivel')?.level
+  return nivel ? (CAPACIDADE_DO_TANQUE[nivel] ?? null) : null
+}
+
+function Linha({ codigo, valor, capacidade }: { codigo: string; valor: number; capacidade?: number | null }) {
+  const cheio = capacidade != null && valor >= capacidade
   return (
     <div className="border-rust/10 flex items-center justify-between border-b py-1.5 last:border-0">
       <span className="text-ink-soft flex items-center gap-1.5 text-sm">
         <IconeRecurso codigo={codigo} />
         {nomeRecurso(codigo)}
       </span>
-      <span className="text-ink font-bold tabular-nums">{valor.toLocaleString('pt-BR')}</span>
+      <span className={`font-bold tabular-nums ${cheio ? 'text-rust' : 'text-ink'}`}>
+        {valor.toLocaleString('pt-BR')}
+        {capacidade != null && ` / ${capacidade.toLocaleString('pt-BR')}`}
+      </span>
     </div>
   )
 }
@@ -56,7 +75,12 @@ function Bloco({
       {aberto && (
         <div className="mt-2">
           {codigos.map((c) => (
-            <Linha key={c} codigo={c} valor={colonia.resources[c] ?? 0} />
+            <Linha
+              key={c}
+              codigo={c}
+              valor={colonia.resources[c] ?? 0}
+              capacidade={c === 'biocombustivel' ? capacidadeDoTanque(colonia) : null}
+            />
           ))}
         </div>
       )}

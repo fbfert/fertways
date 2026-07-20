@@ -205,6 +205,7 @@ class TickColoniesTest extends TestCase
         $user = $this->colono();
         $this->zerarMiolo($user->colony);        // a Fazenda do miolo produziria biomassa por fora
         $this->erguer($user, 'destilaria', 1);   // 20 biocombustível/h
+        $this->erguer($user, 'tanque_de_combustivel', 1); // teto 200 (§21.9, D-131) — espaço de sobra
         $user->colony->resources()->whereIn('resource_type', ['biomassa', 'energia'])
             ->update(['amount' => 1000]);
 
@@ -221,6 +222,7 @@ class TickColoniesTest extends TestCase
         $user = $this->colono();
         $this->zerarMiolo($user->colony);        // senão a Fazenda repõe a biomassa que deve faltar
         $this->erguer($user, 'destilaria', 1);
+        $this->erguer($user, 'tanque_de_combustivel', 1); // teto 200 (§21.9, D-131) — espaço de sobra
         $user->colony->resources()->where('resource_type', 'biomassa')->update(['amount' => 10]);
         $user->colony->resources()->where('resource_type', 'energia')->update(['amount' => 1000]);
 
@@ -230,6 +232,75 @@ class TickColoniesTest extends TestCase
         // 10 biomassa dão no máximo 5 biocombustíveis.
         $this->assertSame(5, $this->estoque($user, 'biocombustivel'));
         $this->assertSame(0, $this->estoque($user, 'biomassa'));
+    }
+
+    /** O Tanque de Combustível trava a produção no teto (§21.9, D-131) — 200 no nível 1. */
+    public function test_o_tanque_de_combustivel_trava_a_producao_no_teto(): void
+    {
+        $user = $this->colono();
+        $this->zerarMiolo($user->colony);
+        $this->erguer($user, 'destilaria', 1);      // 20 biocombustível/h
+        $this->erguer($user, 'tanque_de_combustivel', 1); // teto 200
+        $user->colony->resources()->whereIn('resource_type', ['biomassa', 'energia'])
+            ->update(['amount' => 1000]);
+        $user->colony->resources()->where('resource_type', 'biocombustivel')->update(['amount' => 195]);
+
+        $user->colony->update(['last_tick_at' => now()->subHour()]);
+        $this->tick($user, now());
+
+        // 20/h caberia inteiro; só cabem 5 até o teto de 200 — a conversão para exatamente aí.
+        $this->assertSame(200, $this->estoque($user, 'biocombustivel'));
+        // Só o insumo dos 5 convertidos foi gasto, não o dos 20 desejados.
+        $this->assertSame(1000 - 10, $this->estoque($user, 'biomassa'));
+        $this->assertSame(1000 - 15, $this->estoque($user, 'energia'));
+    }
+
+    /** Cheio, a Destilaria simplesmente não converte mais — sem gastar o insumo à toa. */
+    public function test_o_tanque_cheio_para_a_destilaria_por_completo(): void
+    {
+        $user = $this->colono();
+        $this->zerarMiolo($user->colony);
+        $this->erguer($user, 'destilaria', 1);
+        $this->erguer($user, 'tanque_de_combustivel', 1); // teto 200
+        $user->colony->resources()->whereIn('resource_type', ['biomassa', 'energia'])
+            ->update(['amount' => 1000]);
+        $user->colony->resources()->where('resource_type', 'biocombustivel')->update(['amount' => 200]);
+
+        $user->colony->update(['last_tick_at' => now()->subHour()]);
+        $this->tick($user, now());
+
+        $this->assertSame(200, $this->estoque($user, 'biocombustivel'));
+        $this->assertSame(1000, $this->estoque($user, 'biomassa'));
+        $this->assertSame(1000, $this->estoque($user, 'energia'));
+    }
+
+    /** Sem Tanque erguido, a capacidade é zero: a Destilaria nunca converte nada. */
+    public function test_sem_tanque_a_destilaria_nao_produz_biocombustivel(): void
+    {
+        $user = $this->colono();
+        $this->zerarMiolo($user->colony);
+        $this->erguer($user, 'destilaria', 1);
+        $user->colony->resources()->whereIn('resource_type', ['biomassa', 'energia'])
+            ->update(['amount' => 1000]);
+
+        $user->colony->update(['last_tick_at' => now()->subHour()]);
+        $this->tick($user, now());
+
+        $this->assertSame(0, $this->estoque($user, 'biocombustivel'));
+        $this->assertSame(1000, $this->estoque($user, 'biomassa'));
+        $this->assertSame(1000, $this->estoque($user, 'energia'));
+    }
+
+    /** A capacidade cresce 200/300/450/675/1.012 por nível (§21.9, D-131) — a curva publicada. */
+    public function test_a_capacidade_do_tanque_segue_a_curva_do_gdd(): void
+    {
+        $user = $this->colono();
+        $teto = app(\App\Domain\Colony\TetoDoTanque::class);
+
+        foreach ([1 => 200, 2 => 300, 3 => 450, 4 => 675, 5 => 1012] as $nivel => $capacidade) {
+            $this->erguer($user, 'tanque_de_combustivel', $nivel);
+            $this->assertSame($capacidade, $teto->capacidade($user->colony->fresh()));
+        }
     }
 
     // ---- Indústria Siderúrgica (D-82) ----
