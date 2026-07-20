@@ -2,6 +2,7 @@
 
 namespace App\Domain\Production;
 
+use App\Domain\Colony\TetoDoTanque;
 use App\Models\Building;
 use App\Models\BuildQueue;
 use App\Models\Colony;
@@ -59,6 +60,8 @@ class ColonyTick
 
     /** Receita usada pela Oficina quando o jogador não escolheu nenhuma. */
     public const RECEITA_PADRAO = 'basica';
+
+    public function __construct(private TetoDoTanque $tetoDoTanque) {}
 
     public function handle(Colony $colony, CarbonInterface $agora): void
     {
@@ -246,7 +249,10 @@ class ColonyTick
         // Ordem importa: a receita Avançada de Componentes consome Biocombustível, que a
         // Destilaria acabou de produzir neste mesmo segmento.
         if ($taxaDestilaria > 0) {
-            $this->converter($estoque, $taxaDestilaria * $segundos, self::RECEITA_DESTILARIA, 'biocombustivel');
+            // §21.9/D-131: o Tanque de Combustível trava a produção no teto — a Destilaria para
+            // de converter (sem gastar Biomassa/Energia à toa) assim que ele enche.
+            $teto = $this->tetoDoTanque->capacidade($colony);
+            $this->converter($estoque, $taxaDestilaria * $segundos, self::RECEITA_DESTILARIA, 'biocombustivel', $teto);
         }
 
         /*
@@ -305,9 +311,13 @@ class ColonyTick
      * `$numeradorDesejado` e o resultado estão em unidades de 1/3600, como o resto do tick.
      * Se faltar qualquer insumo, produz-se o máximo possível — nunca parcialmente debitado.
      *
+     * `$tetoSaida` (§21.9/D-131, só a Destilaria passa) trava a produção no que ainda cabe: o
+     * insumo não é gasto além do que o Tanque tem espaço para receber. Nula para as outras duas
+     * saídas (Compostos Químicos, Componentes Eletrônicos), que não têm teto publicado.
+     *
      * @param array<string,int> $receita insumo => quantidade por unidade produzida
      */
-    private function converter($estoque, int $numeradorDesejado, array $receita, string $saida): void
+    private function converter($estoque, int $numeradorDesejado, array $receita, string $saida, ?int $tetoSaida = null): void
     {
         $possivel = $numeradorDesejado;
 
@@ -317,6 +327,12 @@ class ColonyTick
             }
             $disponivel = $estoque[$insumo]->amount * 3600 + $estoque[$insumo]->production_remainder;
             $possivel = min($possivel, intdiv($disponivel, $porUnidade));
+        }
+
+        if ($tetoSaida !== null) {
+            $linhaSaida = $estoque[$saida];
+            $livre = $tetoSaida * 3600 - ($linhaSaida->amount * 3600 + $linhaSaida->production_remainder);
+            $possivel = min($possivel, max(0, $livre));
         }
 
         if ($possivel <= 0) {

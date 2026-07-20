@@ -6134,3 +6134,79 @@ verdade — o `tools/e2e.sh` agora nomeia o colono do e2e Repórter, do mesmo je
 conciliador. Rodado isolado, verde ponta a ponta. O formulário de sinalização do Fiscal/Auxiliar
 (em Perfil.tsx, tela sem nenhuma suíte e2e própria) não ganhou e2e dedicado — coberto pelos testes
 de Feature do domínio inteiro (sinalizar, confirmar, teto semanal) e pela build/tsc limpos.
+
+---
+
+## D-131 — O Tanque de Combustível trava produção no teto (§21.9); a Captação de Água não ganhou.
+
+**Data:** 2026-07-20 · **Status:** implementado, só o Tanque · GDD §21.9
+
+O usuário escolheu esta pendência específica de uma lista que eu tinha levantado. Diferente das
+frentes anteriores (Federação, Ranking de Guerras, Leilões, Cargos Públicos — sistemas inteiros
+faltando), esta é uma lacuna pontual dentro de um sistema que já existe: produção e estoque.
+
+### O que o §21.9 publica, e o que não publica
+
+O Tanque de Combustível tem capacidade publicada por nível, duas vezes redundante no v35:
+**200 / 300 / 450 / 675 / 1.012** (níveis 1 a 5, curva 1,50×). A Captação de Água **não tem
+nenhum número de capacidade em lugar nenhum do GDD** — só a produção por hora (§4.2, já
+implementada). A própria seção 10 do v36 erra ao tratar as duas como igualmente sem número; a
+tabela por-construção da mesma v36 acerta: só o Tanque tem capacidade publicada.
+
+**Por isso só o Tanque ganhou teto.** Inventar uma curva de capacidade para a Captação de Água
+seria arbitrar um número que nenhuma revisão do GDD sequer tenta publicar — diferente do teto
+semanal do D-130, que pelo menos tinha "com teto semanal" como conceito no texto para ancorar a
+arbitragem. Aqui não há nem o conceito.
+
+### Duas perguntas que exigiram decisão do usuário, não arbitragem solo
+
+**1. Que recurso o Tanque guarda.** "Armazena Gelo de Metano refinado" não bate com nenhum
+`resource_type` do catálogo: Gelo de Metano é o minério bruto (raro, insumo de construção), sem
+forma "refinada" própria nem processo de refino no jogo. Biocombustível é o recurso que o jogo já
+produz por refino (Destilaria, §18.2: 2 Biomassa + 3 Energia → 1 Biocombustível) e cuja semântica
+de "combustível" já existe no nome. Arbitrei o Tanque capando Biocombustível — sem perguntar,
+porque a única alternativa (Gelo de Metano) não tem processo de refino nenhum para "travar", então
+não havia ambiguidade real de comportamento, só de rótulo.
+
+**2. O que acontece ao bater o teto — esta sim perguntei.** O jogo já tem DOIS padrões que se
+contradizem: o Depósito da Capital BLOQUEIA a entrega que não cabe (D-58); o Depósito de Zona
+Neutra tinha um teto que travava a extração, e isso foi revertido de propósito em 2026-07-12
+porque zerava o saque de guerra — hoje ele só marca "exposto", nunca bloqueia produção nenhuma
+(`Protegido.php`). Implementar o Tanque como bloqueio duro arriscava reintroduzir exatamente o
+tipo de trava que já causou problema uma vez, num contexto estruturalmente parecido (capacidade de
+construção que cresce por nível). O usuário escolheu **travar a produção no teto** — a leitura
+literal de "guardar mais não faz diferença" — ciente do risco. Não há saque de colônia hoje (o
+saque do D-66 só mira Zona Neutra), então o motivo que forçou a reversão de 2026-07-12 não se
+aplica aqui.
+
+### Como trava
+
+A Destilaria (`ColonyTick::converter()`) ganhou um teto de saída opcional: quando o Biocombustível
+já ocupa todo o espaço do Tanque, a conversão **para por completo** — sem gastar Biomassa/Energia
+à toa, sem descartar excedente. Com espaço parcial, converte só o que cabe (arredondado pelo
+insumo disponível, como já fazia). Sem Tanque erguido, capacidade é 0: a Destilaria nunca produz
+nada — coerente com "não há onde guardar". As outras duas conversões da mesma função
+(Refinaria→Compostos Químicos, Oficina→Componentes) não ganharam teto: nenhuma das duas tem
+capacidade publicada em seção nenhuma.
+
+`App\Domain\Colony\TetoDoTanque` é a única fonte da curva — sem tabela nova no banco, é uma
+constante por nível, do mesmo jeito que `Deposito::TETOS` (Mercado Central) já faz por classe de
+recurso.
+
+### A tela
+
+O HUD já lista os 26 recursos (`Hud.tsx`); a linha de Biocombustível agora mostra "X / Y" quando
+há Tanque erguido, em vermelho quando cheio — para o jogador nunca descobrir o teto por tentativa e
+erro, mesma exigência que `Deposito::exigirEspaco` já cumpre no Mercado Central. A curva está
+duplicada no frontend (só para exibição; quem trava é o backend) — mesmo risco de duplicação que
+outras curvas de exibição já assumem neste código quando o valor é uma constante pequena e
+estática, não uma regra de negócio.
+
+### Validado
+
+5 testes novos em `TickColoniesTest` (curva por nível batendo com o GDD, trava parcial, trava
+total sem gastar insumo, ausência de Tanque zerando a produção) + 2 testes pré-existentes de
+Destilaria ajustados para erguer um Tanque com espaço de sobra, já que a conversão agora exige um
+onde guardar. Suíte completa: 834 passando. `tsc`/`lint`/`build` limpos. Sem e2e novo — mudança é
+backend + uma linha do HUD já coberta por type-check; a suíte de Mapa/Frota (`telas.e2e.mjs`), que
+abre o HUD, já rodou verde nesta sessão antes desta mudança.
