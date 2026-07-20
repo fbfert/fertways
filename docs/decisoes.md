@@ -6383,3 +6383,142 @@ retomar a conversa, antes de tocar em código.
 
 Nenhuma dessas é compromisso: são só o que ficou anotado nesta conversa para a próxima não recomeçar
 a leitura do zero.
+
+---
+
+## D-135 — A Loja de Peças da Endurance é refeita do zero: catálogo dinâmico, efeitos que mexem no jogo de verdade.
+
+**Data:** 2026-07-20 · **Status:** implementado (Fase 1 — a Fase 2, Leilões, fica para depois)
+
+Resposta ao D-134: o usuário pediu para refazer por completo, sem mais perguntas depois da primeira
+rodada. Pedido literal: um CRUD por seção (as 8 abas do casco), campos por item — id, tipo
+(comum/raro/único), quantidade, custo, vendável em Leilão, benefícios (produção, drones, veículos —
+"seja criativo"), descrição, imagem — e que cada aba do CRUD vire uma loja diferente no jogo, uma
+por destroço da Endurance. Quatro perguntas fechadas antes de desenhar: **efeitos empilhados por
+item** (não um só), **marco opcional por item** (não mais obrigatório), **Leilões integrados de
+verdade nesta fase** (não só uma marcação — mas ver adiante: virou Fase 2 por gestão de risco, não
+por recusa), **imagem continua por seção** (D-133, sem upload por item). Uma quinta pergunta, técnica,
+depois de eu pesquisar o motor: bônus de produção em construção que CONVERTE insumo (Siderúrgica,
+Destilaria, Refinaria Química, Oficina) devia ser throughput (mais saída E mais consumo) ou saída de
+graça? Resposta: **throughput** — mais simples, um único ponto de inserção para as 9 construções.
+
+### O catálogo virou dinâmico de verdade — não é mais "editar 32 linhas fixas"
+
+`endurance_piece_specs`/`colony_endurance_pieces` (D-132/D-133) são **substituídas**, não
+estendidas: `endurance_items` (o catálogo — `item_key`, `secao`, `tipo`, `quantidade_total`,
+`quantidade_vendida`, `preco_micro`, `marco_minimo` NULÁVEL, `vendavel_em_leilao`, `descricao`),
+`endurance_item_effects` (N efeitos por item — `tipo_efeito`, `alvo` nulável, `valor_bps`) e
+`colony_endurance_items` (posse, agora com `quantidade` — uma colônia pode ter mais de uma unidade
+do mesmo item). O admin cria, edita e apaga item livremente; não existe mais "32 peças fixas que só
+se editam".
+
+**Decisões que tomei sozinho, sem parar para perguntar (a instrução desta rodada foi "não me faça
+mais perguntas, siga suas sugestões"):**
+- **"Item Id"** virou `item_key`, uma chave única digitada no CRUD (não um UUID nem um enum fixo).
+- **A quantidade é estoque GLOBAL do servidor**, não por colônia — um item "único" tem
+  `quantidade_total=1` (o código força isto no `tipo=unico`, não confia em o admin digitar certo,
+  mesmo espírito do `ativa=true` automático de `missaoCriar`); um item comum pode ter estoque de
+  milhares, e QUALQUER colônia pode comprar mais de uma unidade dele enquanto houver estoque — os
+  efeitos empilham por unidade possuída.
+- **A única compra real que existia** (`colony_endurance_pieces`, "Maior Colônia" →
+  `baia_criogenica:comum`) **não foi migrada** — o formato antigo (`secao:camada`) não mapeia para
+  `item_key` dinâmico. Perda aceita e documentada na própria migration, não bug.
+
+### Os efeitos: vocabulário FECHADO, cada um ligado a um ponto real do motor
+
+`EfeitosDaEndurance` (substitui `DescontoDeEndurance`) tem 6 `tipo_efeito` possíveis — o admin
+**combina** efeitos existentes pelo CRUD, não inventa mecânica nova digitando texto livre:
+
+| `tipo_efeito` | `alvo` | Onde liga | Teto agregado por colônia |
+|---|---|---|---|
+| `desconto_tributo` | (nenhum) | `ConcluirTrechos::aliquota()`, `ExecutarOrdem::fechar()` | 30% (mesmo teto do D-132/D-133) |
+| `producao_bonus` | `building_type` ou `global` | `ColonyTick::produzir()` | 50% |
+| `velocidade_veiculo` | tipo de veículo ou `todos` | `Conservacao::segundosDoTrecho()` | 50% |
+| `capacidade_veiculo` | idem | `Conservacao::capacidadeEfetiva()` | 50% |
+| `drone_raio` | (nenhum) | `Avistamentos` (raio de vigia) | 100% |
+| `drone_bateria` | (nenhum) | `ConcluirMissoes` (duração da vigilância) | 100% |
+
+Cada efeito soma `valor_bps × quantidade possuída`, entre TODOS os itens da colônia que o têm, capado
+no teto do tipo — arbitragem nova, registrada aqui (só o 30% de tributo herda do D-132/D-133; os
+outros cinco tetos são inéditos). `EfeitosDaEndurance::bonusDeProducaoPorAlvo()` faz UMA query batched
+por tick (não uma por construção erguida) — mesmo espírito anti-N+1 de `manutencaoPorTipo()`.
+
+### A porta que o D-132 fechou de propósito, e que este D-135 reabre
+
+`EnduranceSpecs.php` (D-132) tinha o comentário explícito: o bônus reaproveita o ponto de extensão
+do tributo "em vez de abrir uma segunda frente na fórmula de produção do `ColonyTick`, que atravessa
+26 recursos". Aquilo era uma decisão deliberada de NÃO tocar produção. Este D-135 reabre essa porta
+a pedido explícito do usuário ("um item único pode dar bônus de 20% na indústria siderúrgica, ou na
+mina, ou nas fazendas") — registrado aqui para deixar claro que é decisão nova por cima da antiga,
+não descuido.
+
+**Produção grátis vs. throughput — a distinção que a pesquisa técnica revelou.** Mina Local, Fazenda,
+Captação de Água, Gerador de Atmosfera e Reator de Energia produzem do nada (sem insumo): o bônus aí
+é saída extra de graça. Destilaria, Indústria Siderúrgica, Refinaria Química e Oficina CONVERTEM um
+insumo — um bônus ali multiplica a TAXA DE ENTRADA (o que `converter()`/`processarSiderurgica()`
+consomem), não a saída isolada: mais bônus processa mais Metal Bruto/Biomassa/etc. por hora, e por
+isso também CONSOME mais insumo por hora. Escolha explícita do usuário para o v1: mais simples (um
+único ponto de inserção comum às 9 construções) do que a alternativa (saída de graça também nas
+construções de conversão, que exigiria mexer na lógica de lote/batch em vez da taxa de entrada).
+
+### O painel — três ações de verdade, não mais um POST de grade
+
+`PainelController::endurance(?secao=)` troca o padrão "uma tela só com 8 grupos" pelo padrão de abas
+já usado em `admin.construcoes` (`?aba=`) e `admin.missoes`. `AcoesController` ganha
+`enduranceItemCriar`/`enduranceItemEditar`/`enduranceItemApagar` — `criar` e `editar` validam o
+formulário E o texto dos efeitos (uma linha por efeito, `tipo_efeito:valor_bps` ou
+`tipo_efeito:alvo:valor_bps` — mesmo padrão `chave:valor` por linha que `recompensa_recursos` já usa
+em `missaoCriar`, para não inventar um segundo jeito de digitar lista no mesmo painel); `editar`
+SUBSTITUI os efeitos por completo (apaga e recria — o volume por item é baixo, não vale a pena fazer
+diff); `apagar` trava se alguma colônia já possui o item (mesma cautela do `missaoApagar`, que trava
+se a missão já foi sorteada) — e `editar` trava se `quantidade_total` cair abaixo do que já foi
+vendido. A validação de domínio (formato de efeito, tipo/alvo desconhecidos) mora DENTRO do
+`$this->tentar()` de cada ação — ficou de fora na primeira versão do código e um teste pegou: uma
+`DomainRuleException` lançada antes de entrar no `tentar()` escapava sem virar mensagem de erro
+amigável, e quebrava a tela com um 500.
+
+**Achado da validação do Laravel, registrado para não repetir o erro:** um campo `nullable`+`integer`
+(o Marco) que chega **vazio** (`''`) de um `<input>` HTML não vira `null` sozinho — a regra
+`nullable` só pula a validação de `integer`/`min`/`max`, mas o valor guardado em `$request->validate()`
+continua sendo a string vazia. Sem tratar isto explicitamente, "marco em branco" salvaria `0` no
+banco, não "sem exigência". `validarEnduranceItem()` converte `''` para `null` manualmente.
+
+### A imagem — mesma decisão do D-133, não repensada
+
+Continua por SEÇÃO, não por item — 8 imagens, não uma por item. O pedido original citava "imagem:
+permita o upload aqui", mas a resposta do usuário à pergunta específica ("não, manter a imagem da
+seção") confirmou que isto não mudou.
+
+### Leilões (D-129) — virou Fase 2, não recusa
+
+O usuário pediu integração de verdade com os Leilões nesta rodada. Fica para uma entrega separada,
+depois desta estar em produção e verificada: mexer em `ListarLeilao`/`CancelarLeilao`/`FecharLeiloes`
+(sistema já em produção, com usuários podendo ter leilões de recurso em andamento) é mais arriscado
+misturado com a reconstrução inteira do catálogo/posse. `vendavel_em_leilao` já existe no schema
+desta fase — o campo está pronto, só a mecânica de anunciar/arrematar item ainda não liga nele.
+
+### Frontend — o mapa continua, a loja virou uma tela por seção
+
+`EnduranceMapa.tsx` (D-132) muda pouco: `aoAbrirLoja` agora recebe QUAL seção foi clicada, em vez de
+só abrir "a loja" genérica. `LojaDaEndurance.tsx` é reescrita: mostra os itens de UMA seção (não mais
+8 grupos de 4 camadas fixas) — tipo, estoque (`vendido/total`), preço, marco (se houver), os efeitos
+em texto legível, se é vendável em Leilão, e o botão de compra. `client.ts`: `PecaDaEndurance`/
+`api.endurance()`/`comprarPecaDaEndurance()` saem; entram `ItemDaEndurance`/`EfeitoDoItemDaEndurance`/
+`api.enduranceSecao()`/`api.enduranceEfeitos()`/`api.comprarItemDaEndurance()`.
+
+### Validado
+
+30 testes novos substituem os 18 antigos (`LojaDaEnduranceTest` D-132 e `EnduranceAdminTest` D-133
+foram apagados, não deixados quebrados ao lado): `EnduranceItemsTest` (19) cobre a compra (marco
+opcional, estoque global entre colônias, item único esgota, Fert$ debita/credita/Ledger), os efeitos
+empilhando por quantidade possuída e capando no teto certo, o tributo nos dois pontos de sempre
+(transporte e Mercado Central), produção grátis numa construção sem insumo vs. throughput numa de
+conversão (Siderúrgica: 2 lotes em vez de 1 com o bônus), bônus de capacidade e velocidade de
+veículo, bônus de raio e bateria de Drone (revela zona fora do raio base; vigilância dura além da
+bateria base), e as duas rotas player-facing. `EnduranceAdminTest` (11) cobre as 8 abas, criar item
+com efeitos empilhados, `tipo=unico` forçando quantidade 1, `item_key` duplicada recusada, efeito
+com tipo desconhecido ou sem alvo exigido recusado, editar substituindo efeitos, recusa de baixar
+estoque abaixo do vendido, apagar bloqueado com posse, e autenticação exigida. Suíte completa: 864
+passando, sem regressão em `ConcluirTrechos`/`ExecutarOrdem`/`Conservacao`/`ConcluirMissoes`/
+`Avistamentos`/`ColonyTick` — todos tinham cobertura extensa antes desta mudança tocar neles.
+`tsc`/`lint`/`build` do frontend limpos.

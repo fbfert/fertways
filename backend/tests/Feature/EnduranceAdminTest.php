@@ -3,24 +3,25 @@
 namespace Tests\Feature;
 
 use App\Domain\Colony\CreateColony;
-use App\Domain\Endurance\ComprarPeca;
-use App\Domain\Endurance\DescontoDeEndurance;
+use App\Domain\Endurance\ComprarItem;
+use App\Domain\Endurance\EfeitosDaEndurance;
 use App\Domain\Marco\Curva;
 use App\Models\Admin;
 use App\Models\Colony;
-use App\Models\EndurancePieceSpec;
+use App\Models\EnduranceItem;
 use App\Models\User;
 use Database\Seeders\BuildingSpecSeeder;
 use Database\Seeders\ComponentRecipeSeeder;
 use Database\Seeders\ResourceTypeSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 /**
- * O CRUD da Loja de Peças da Endurance no painel (D-133) — preço, marco e o efeito (desconto de
- * tributo) de cada uma das 32 peças, antes fixo em `EnduranceSpecs` (D-132).
+ * O CRUD da Loja de Peças da Endurance no painel (D-135) — catálogo dinâmico, uma aba por seção,
+ * criar/editar/apagar item com efeitos empilháveis. Substitui `EnduranceAdminTest` do D-133 (o POST
+ * salvava 32 linhas fixas de uma vez; agora é um CRUD de verdade).
  */
 class EnduranceAdminTest extends TestCase
 {
@@ -36,10 +37,10 @@ class EnduranceAdminTest extends TestCase
 
     private function operador(): Admin
     {
-        return Admin::create([
-            'name' => 'Op', 'email' => 'op@fertways.test',
-            'password' => Hash::make('segredo-forte-1234'), 'role' => Admin::OPERADOR,
-        ]);
+        return Admin::firstOrCreate(
+            ['email' => 'op@fertways.test'],
+            ['name' => 'Op', 'password' => Hash::make('segredo-forte-1234'), 'role' => Admin::OPERADOR],
+        );
     }
 
     private function colonia(string $nick, int $marco = 1): Colony
@@ -51,19 +52,23 @@ class EnduranceAdminTest extends TestCase
         return $colony->fresh();
     }
 
-    #[\PHPUnit\Framework\Attributes\Test]
-    public function a_migration_semeia_as_32_pecas_com_os_valores_de_antes(): void
+    private function dadosDoItem(array $sobrepor = []): array
     {
-        $this->assertSame(32, EndurancePieceSpec::count());
-
-        $comum = EndurancePieceSpec::where('peca_key', 'anel_habitacional:comum')->first();
-        $this->assertSame(10, $comum->marco_minimo);
-        $this->assertSame(20_000_000, $comum->preco_micro);
-        $this->assertSame(100, $comum->desconto_tributo_bps);
+        return array_merge([
+            'secao' => 'anel_habitacional',
+            'item_key' => 'reator_experimental',
+            'tipo' => EnduranceItem::COMUM,
+            'nome' => 'Reator Experimental',
+            'quantidade_total' => 10,
+            'preco' => '35.5',
+            'marco' => '',
+            'descricao' => 'Um item de teste.',
+            'efeitos' => "producao_bonus:mina_local:2000\nvelocidade_veiculo:todos:1000",
+        ], $sobrepor);
     }
 
-    #[\PHPUnit\Framework\Attributes\Test]
-    public function a_tela_lista_as_pecas_agrupadas_por_secao(): void
+    #[Test]
+    public function a_tela_lista_as_abas_das_8_secoes(): void
     {
         $this->actingAs($this->operador(), 'admin')
             ->get('/admin/endurance')
@@ -72,75 +77,137 @@ class EnduranceAdminTest extends TestCase
             ->assertSee('Silo de Suprimentos');
     }
 
-    #[\PHPUnit\Framework\Attributes\Test]
-    public function o_admin_edita_preco_marco_e_desconto_de_uma_peca(): void
+    #[Test]
+    public function o_admin_cria_um_item_com_efeitos_empilhados(): void
     {
-        $dados = EndurancePieceSpec::pluck('peca_key')->mapWithKeys(fn ($k) => [$k => true])->all();
-
-        $preco = array_fill_keys(array_keys($dados), '20');
-        $marco = array_fill_keys(array_keys($dados), 10);
-        $desconto = array_fill_keys(array_keys($dados), 100);
-
-        // Só uma linha muda de verdade: as outras 31 recebem o mesmo valor que já tinham.
-        $preco['anel_habitacional:comum'] = '35.5';
-        $marco['anel_habitacional:comum'] = 15;
-        $desconto['anel_habitacional:comum'] = 200;
-
         $this->actingAs($this->operador(), 'admin')
-            ->post('/admin/endurance', compact('preco', 'marco', 'desconto'))
+            ->post('/admin/endurance', $this->dadosDoItem())
             ->assertRedirect();
 
-        $peca = EndurancePieceSpec::where('peca_key', 'anel_habitacional:comum')->first();
-        $this->assertSame(35_500_000, $peca->preco_micro);
-        $this->assertSame(15, $peca->marco_minimo);
-        $this->assertSame(200, $peca->desconto_tributo_bps);
+        $item = EnduranceItem::where('item_key', 'reator_experimental')->first();
+        $this->assertNotNull($item);
+        $this->assertSame('anel_habitacional', $item->secao);
+        $this->assertSame(35_500_000, $item->preco_micro);
+        $this->assertNull($item->marco_minimo);
+        $this->assertSame(2, $item->efeitos()->count());
+
+        $producao = $item->efeitos()->where('tipo_efeito', EfeitosDaEndurance::PRODUCAO_BONUS)->first();
+        $this->assertSame('mina_local', $producao->alvo);
+        $this->assertSame(2000, $producao->valor_bps);
     }
 
-    #[\PHPUnit\Framework\Attributes\Test]
-    public function a_edicao_do_admin_reflete_na_compra_de_verdade(): void
+    #[Test]
+    public function tipo_unico_forca_a_quantidade_total_em_1(): void
     {
-        EndurancePieceSpec::where('peca_key', 'anel_habitacional:comum')->update([
-            'preco_micro' => 999_000_000, // 999 Fert$: acima do que a colônia tem
-        ]);
-
-        $a = $this->colonia('a', 10);
-
-        $this->expectExceptionMessage('Faltam');
-        app(ComprarPeca::class)->handle($a, 'anel_habitacional:comum');
-    }
-
-    #[\PHPUnit\Framework\Attributes\Test]
-    public function a_edicao_do_desconto_reflete_no_bonus_de_tributo(): void
-    {
-        EndurancePieceSpec::where('peca_key', 'anel_habitacional:comum')->update([
-            'desconto_tributo_bps' => 777,
-        ]);
-
-        $a = $this->colonia('a', 10);
-        app(ComprarPeca::class)->handle($a, 'anel_habitacional:comum');
-
-        $this->assertSame(777, app(DescontoDeEndurance::class)->desconto($a->fresh()));
-    }
-
-    #[\PHPUnit\Framework\Attributes\Test]
-    public function chave_forjada_no_post_nao_cria_linha_nova(): void
-    {
-        $antes = EndurancePieceSpec::count();
-
         $this->actingAs($this->operador(), 'admin')
-            ->post('/admin/endurance', [
-                'preco' => ['peca_inventada' => '20'],
-                'marco' => ['peca_inventada' => 10],
-                'desconto' => ['peca_inventada' => 100],
-            ])
+            ->post('/admin/endurance', $this->dadosDoItem(['tipo' => EnduranceItem::UNICO, 'quantidade_total' => 50]))
             ->assertRedirect();
 
-        $this->assertSame($antes, EndurancePieceSpec::count());
-        $this->assertFalse(EndurancePieceSpec::where('peca_key', 'peca_inventada')->exists());
+        $item = EnduranceItem::where('item_key', 'reator_experimental')->first();
+        $this->assertSame(1, $item->quantidade_total);
     }
 
-    #[\PHPUnit\Framework\Attributes\Test]
-    public function as_duas_rotas_exigem_admin_autenticado(): void
+    #[Test]
+    public function item_key_duplicada_e_recusada(): void
+    {
+        $this->actingAs($this->operador(), 'admin')->post('/admin/endurance', $this->dadosDoItem());
+
+        $this->actingAs($this->operador(), 'admin')
+            ->post('/admin/endurance', $this->dadosDoItem(['nome' => 'Outro nome']))
+            ->assertSessionHasErrors('item_key');
+    }
+
+    #[Test]
+    public function efeito_com_tipo_desconhecido_e_recusado(): void
+    {
+        $this->actingAs($this->operador(), 'admin')
+            ->post('/admin/endurance', $this->dadosDoItem(['efeitos' => 'efeito_inventado:1000']))
+            ->assertSessionHas('erro');
+
+        $this->assertFalse(EnduranceItem::where('item_key', 'reator_experimental')->exists());
+    }
+
+    #[Test]
+    public function efeito_que_exige_alvo_sem_alvo_e_recusado(): void
+    {
+        $this->actingAs($this->operador(), 'admin')
+            ->post('/admin/endurance', $this->dadosDoItem(['efeitos' => 'producao_bonus:2000']))
+            ->assertSessionHas('erro');
+
+        $this->assertFalse(EnduranceItem::where('item_key', 'reator_experimental')->exists());
+    }
+
+    #[Test]
+    public function o_admin_edita_um_item_e_substitui_os_efeitos(): void
+    {
+        $this->actingAs($this->operador(), 'admin')->post('/admin/endurance', $this->dadosDoItem());
+        $item = EnduranceItem::where('item_key', 'reator_experimental')->first();
+
+        $this->actingAs($this->operador(), 'admin')
+            ->post("/admin/endurance/{$item->id}/editar", $this->dadosDoItem([
+                'nome' => 'Reator Experimental Mk2',
+                'preco' => '50',
+                'efeitos' => 'drone_raio:5000',
+            ]))
+            ->assertRedirect();
+
+        $item = $item->fresh();
+        $this->assertSame('Reator Experimental Mk2', $item->nome);
+        $this->assertSame(50_000_000, $item->preco_micro);
+        $this->assertSame(1, $item->efeitos()->count());
+        $this->assertSame(EfeitosDaEndurance::DRONE_RAIO, $item->efeitos()->first()->tipo_efeito);
+    }
+
+    #[Test]
+    public function nao_se_baixa_a_quantidade_total_abaixo_do_ja_vendido(): void
+    {
+        $this->actingAs($this->operador(), 'admin')->post('/admin/endurance', $this->dadosDoItem(['quantidade_total' => 3]));
+        $item = EnduranceItem::where('item_key', 'reator_experimental')->first();
+
+        $a = $this->colonia('a', 1);
+        \Illuminate\Support\Facades\DB::table('colonies')->where('id', $a->id)->increment('fert_micro', 1000 * 1_000_000);
+        app(ComprarItem::class)->handle($a, 'reator_experimental');
+        app(ComprarItem::class)->handle($a->fresh(), 'reator_experimental');
+
+        $this->actingAs($this->operador(), 'admin')
+            ->post("/admin/endurance/{$item->id}/editar", $this->dadosDoItem(['quantidade_total' => 1]))
+            ->assertSessionHas('erro');
+
+        $this->assertSame(3, $item->fresh()->quantidade_total);
+    }
+
+    #[Test]
+    public function o_admin_apaga_um_item_sem_posse(): void
+    {
+        $this->actingAs($this->operador(), 'admin')->post('/admin/endurance', $this->dadosDoItem());
+        $item = EnduranceItem::where('item_key', 'reator_experimental')->first();
+
+        $this->actingAs($this->operador(), 'admin')
+            ->post("/admin/endurance/{$item->id}/apagar")
+            ->assertRedirect();
+
+        $this->assertFalse(EnduranceItem::where('item_key', 'reator_experimental')->exists());
+    }
+
+    #[Test]
+    public function apagar_e_bloqueado_se_alguma_colonia_ja_possui(): void
+    {
+        $this->actingAs($this->operador(), 'admin')->post('/admin/endurance', $this->dadosDoItem());
+        $item = EnduranceItem::where('item_key', 'reator_experimental')->first();
+
+        $a = $this->colonia('a', 1);
+        \Illuminate\Support\Facades\DB::table('colonies')->where('id', $a->id)->increment('fert_micro', 1000 * 1_000_000);
+        app(ComprarItem::class)->handle($a, 'reator_experimental');
+
+        $this->actingAs($this->operador(), 'admin')
+            ->post("/admin/endurance/{$item->id}/apagar")
+            ->assertSessionHas('erro');
+
+        $this->assertTrue(EnduranceItem::where('item_key', 'reator_experimental')->exists());
+    }
+
+    #[Test]
+    public function as_rotas_exigem_admin_autenticado(): void
     {
         $this->get('/admin/endurance')->assertRedirect('/admin/login');
         $this->post('/admin/endurance', [])->assertRedirect('/admin/login');

@@ -27,7 +27,11 @@ const SECOES: { chave: string; nome: string; cx: number; cy: number }[] = [
   { chave: 'nucleo_propulsao', nome: 'Núcleo de Propulsão', cx: 0.7, cy: 0.86 },
 ]
 
-export function EnduranceMapa({ aoAbrirLoja }: { aoAbrirLoja: () => void }) {
+export function EnduranceMapa({
+  aoAbrirLoja,
+}: {
+  aoAbrirLoja: (secao: string, nome: string) => void
+}) {
   const [arte, setArte] = useState<Arte>({})
   const [tamanho, setTamanho] = useState({ largura: 0, altura: 0 })
   const container = useRef<HTMLDivElement>(null)
@@ -80,7 +84,7 @@ export function EnduranceMapa({ aoAbrirLoja }: { aoAbrirLoja: () => void }) {
           return (
             <button
               key={s.chave}
-              onClick={aoAbrirLoja}
+              onClick={() => aoAbrirLoja(s.chave, s.nome)}
               aria-label={`${s.nome} — abrir a Loja de Peças`}
               title={s.nome}
               data-destroco={s.chave}

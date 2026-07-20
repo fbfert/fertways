@@ -64,9 +64,11 @@ Route::prefix('admin')->group(function () {
         Route::post('/construcoes/fila', [AcoesController::class, 'construcoesFila'])->name('admin.construcoes.fila');
         Route::post('/construcoes/manutencao', [AcoesController::class, 'construcoesManutencao'])->name('admin.construcoes.manutencao');
 
-        // A Loja de Peças da Endurance (D-133): preço, marco e efeito de cada peça, editáveis.
+        // A Loja de Peças da Endurance (D-135): catálogo dinâmico, uma aba por seção do casco.
         Route::get('/endurance', [PainelController::class, 'endurance'])->name('admin.endurance');
-        Route::post('/endurance', [AcoesController::class, 'enduranceEditar'])->name('admin.endurance.parametros');
+        Route::post('/endurance', [AcoesController::class, 'enduranceItemCriar'])->name('admin.endurance.item.criar');
+        Route::post('/endurance/{item}/editar', [AcoesController::class, 'enduranceItemEditar'])->name('admin.endurance.item.editar');
+        Route::post('/endurance/{item}/apagar', [AcoesController::class, 'enduranceItemApagar'])->name('admin.endurance.item.apagar');
 
         // Bugs/Melhorias (D-95): o jogador manda pelo jogo; o admin lê, responde (o rádio avisa,
         // D-91) e marca como feito. Aba própria — mistura CRUD com o dashboard não caberia num card.

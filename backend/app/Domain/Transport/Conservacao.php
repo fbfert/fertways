@@ -2,7 +2,9 @@
 
 namespace App\Domain\Transport;
 
+use App\Domain\Endurance\EfeitosDaEndurance;
 use App\Domain\Logistics\VeiculoSpecs;
+use App\Models\Colony;
 use App\Models\TransportSetting;
 use App\Models\Vehicle;
 
@@ -37,9 +39,20 @@ class Conservacao
     /** 100% em bps. A unidade de fração do projeto inteiro (as alíquotas do §8.3 são bps). */
     public const CHEIO = 10_000;
 
+    public function __construct(private EfeitosDaEndurance $efeitosDaEndurance) {}
+
     public function config(): TransportSetting
     {
         return TransportSetting::singleton();
+    }
+
+    /**
+     * A colônia dona do veículo, ou `null` para a frota do Governo (frete público, D-76) — que não
+     * tem colônia nenhuma para ter comprado peça da Endurance.
+     */
+    private function colonia(Vehicle $veiculo): ?Colony
+    {
+        return $veiculo->colony_id !== null ? Colony::find($veiculo->colony_id) : null;
     }
 
     /**
@@ -101,10 +114,23 @@ class Conservacao
         return in_array($veiculo->trip_purpose, ['entrega_de_fabrica', 'venda_usado', 'frete'], true);
     }
 
-    /** A capacidade efetiva, já descontado o desgaste. É ela que o despacho tem de respeitar. */
+    /**
+     * A capacidade efetiva, já descontado o desgaste e somado o bônus de peça da Endurance
+     * (D-135, `EfeitosDaEndurance::CAPACIDADE_VEICULO`). É ela que o despacho tem de respeitar.
+     */
     public function capacidadeEfetiva(Vehicle $veiculo): int
     {
-        return intdiv((int) $veiculo->capacity * $this->desempenhoBps($veiculo), self::CHEIO);
+        $base = intdiv((int) $veiculo->capacity * $this->desempenhoBps($veiculo), self::CHEIO);
+
+        $colonia = $this->colonia($veiculo);
+
+        if (! $colonia) {
+            return $base;
+        }
+
+        $bonus = $this->efeitosDaEndurance->bonusDeCapacidade($colonia, $veiculo->type);
+
+        return EfeitosDaEndurance::aplicarBonus($base, $bonus);
     }
 
     /**
@@ -121,8 +147,18 @@ class Conservacao
     public function segundosDoTrecho(Vehicle $veiculo, int $distanciaSlots): int
     {
         $base = VeiculoSpecs::segundosDoTrecho($veiculo->type, $distanciaSlots);
+        $comDesgaste = (int) ceil($base * self::CHEIO / $this->desempenhoBps($veiculo));
 
-        return (int) ceil($base * self::CHEIO / $this->desempenhoBps($veiculo));
+        // Bônus de velocidade da Endurance (D-135): reduz a duração, por cima do desgaste — nunca
+        // some inteiramente porque o teto agregado (`EfeitosDaEndurance`) nunca chega a 100%.
+        $colonia = $this->colonia($veiculo);
+        $bonus = $colonia ? $this->efeitosDaEndurance->bonusDeVelocidade($colonia, $veiculo->type) : 0;
+
+        if ($bonus <= 0) {
+            return $comDesgaste;
+        }
+
+        return (int) ceil($comDesgaste * self::CHEIO / (self::CHEIO + $bonus));
     }
 
     /**

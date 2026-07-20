@@ -2,66 +2,90 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Domain\Endurance\ComprarPeca;
-use App\Domain\Endurance\EnduranceSpecs;
+use App\Domain\Endurance\ComprarItem;
+use App\Domain\Endurance\EfeitosDaEndurance;
 use App\Domain\Marco\Curva;
 use App\Exceptions\DomainRuleException;
 use App\Http\Controllers\Controller;
 use App\Models\Colony;
-use App\Models\ColonyEndurancePiece;
+use App\Models\ColonyEnduranceItem;
+use App\Models\EnduranceItem;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 /**
- * A Loja de Peças da Endurance (D-132) — 8 seções × 4 camadas, ligadas ao Marco do §05.
+ * A Loja de Peças da Endurance (D-135) — uma loja POR SEÇÃO do casco, catálogo dinâmico, efeitos
+ * empilháveis. Substitui `EnduranceController` do D-132/D-133 (catálogo fixo, um efeito só).
  */
 class EnduranceController extends Controller
 {
-    public function index(Request $request): JsonResponse
+    /** Os itens de UMA seção — a loja que abre quando o jogador clica naquele destroço no mapa. */
+    public function secao(Request $request, string $secao): JsonResponse
     {
         $colony = $this->colonia($request);
         $marco = Curva::marco((int) $colony->xp);
 
-        $minhas = ColonyEndurancePiece::where('colony_id', $colony->id)->pluck('peca_key')->all();
-        $esgotadas = ColonyEndurancePiece::pluck('peca_key')->unique()->all();
+        $itens = EnduranceItem::where('secao', $secao)->with('efeitos')->orderBy('preco_micro')->get();
 
-        $catalogo = collect(EnduranceSpecs::catalogo())->map(function (array $p) use ($marco, $minhas, $esgotadas) {
-            $possuida = in_array($p['chave'], $minhas, true);
+        $minhas = ColonyEnduranceItem::where('colony_id', $colony->id)
+            ->pluck('quantidade', 'endurance_item_id');
+
+        $catalogo = $itens->map(function (EnduranceItem $item) use ($marco, $minhas) {
+            $possuo = (int) ($minhas[$item->id] ?? 0);
 
             $estado = match (true) {
-                $possuida => 'possuida',
-                $p['unica'] && in_array($p['chave'], $esgotadas, true) => 'esgotada',
-                $marco < $p['marco_minimo'] => 'bloqueada',
+                $item->esgotado() && $possuo === 0 => 'esgotado',
+                $item->marco_minimo !== null && $marco < $item->marco_minimo => 'bloqueado',
                 default => 'disponivel',
             };
 
             return [
-                'chave' => $p['chave'],
-                'secao' => $p['secao'],
-                'secao_nome' => $p['secao_nome'],
-                'camada' => $p['camada'],
-                'nome' => $p['nome'],
-                'marco_minimo' => $p['marco_minimo'],
-                'preco_fert' => $p['preco_micro'] / \App\Models\Colony::MICRO_POR_FERT,
-                'desconto_tributo_pct' => $p['desconto_tributo_bps'] / 100,
-                'unica' => $p['unica'],
+                'item_key' => $item->item_key,
+                'nome' => $item->nome,
+                'tipo' => $item->tipo,
+                'estoque_livre' => $item->estoqueLivre(),
+                'quantidade_total' => $item->quantidade_total,
+                'preco_fert' => $item->preco_micro / Colony::MICRO_POR_FERT,
+                'marco_minimo' => $item->marco_minimo,
+                'vendavel_em_leilao' => $item->vendavel_em_leilao,
+                'descricao' => $item->descricao,
+                'possuo' => $possuo,
                 'estado' => $estado,
+                'efeitos' => $item->efeitos->map(fn ($e) => [
+                    'tipo_efeito' => $e->tipo_efeito,
+                    'alvo' => $e->alvo,
+                    'valor_bps' => $e->valor_bps,
+                ]),
             ];
         })->values();
 
         return response()->json([
+            'secao' => $secao,
             'meu_marco' => $marco,
-            'meu_desconto_pct' => app(\App\Domain\Endurance\DescontoDeEndurance::class)->desconto($colony) / 100,
-            'teto_desconto_pct' => EnduranceSpecs::TETO_DESCONTO_BPS / 100,
-            'pecas' => $catalogo,
+            'itens' => $catalogo,
         ]);
     }
 
-    public function comprar(Request $request, string $peca, ComprarPeca $comprar): JsonResponse
+    /** Os efeitos ATIVOS da colônia hoje — para a tela mostrar "seu bônus atual" por tipo. */
+    public function meusEfeitos(Request $request): JsonResponse
     {
-        $registro = $comprar->handle($this->colonia($request), $peca);
+        $colony = $this->colonia($request);
+        $efeitos = app(EfeitosDaEndurance::class);
 
-        return response()->json(['chave' => $registro->peca_key], 201);
+        return response()->json([
+            'desconto_tributo_pct' => $efeitos->descontoDeTributo($colony) / 100,
+            'teto_desconto_tributo_pct' => EfeitosDaEndurance::tetoBps(EfeitosDaEndurance::DESCONTO_TRIBUTO) / 100,
+            'teto_producao_pct' => EfeitosDaEndurance::tetoBps(EfeitosDaEndurance::PRODUCAO_BONUS) / 100,
+            'teto_veiculo_pct' => EfeitosDaEndurance::tetoBps(EfeitosDaEndurance::VELOCIDADE_VEICULO) / 100,
+            'teto_drone_pct' => EfeitosDaEndurance::tetoBps(EfeitosDaEndurance::DRONE_RAIO) / 100,
+        ]);
+    }
+
+    public function comprar(Request $request, string $item, ComprarItem $comprar): JsonResponse
+    {
+        $posse = $comprar->handle($this->colonia($request), $item);
+
+        return response()->json(['item_key' => $item, 'quantidade' => $posse->quantidade], 201);
     }
 
     private function colonia(Request $request): Colony

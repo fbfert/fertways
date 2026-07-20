@@ -2,6 +2,8 @@
 
 namespace App\Domain\Drone;
 
+use App\Domain\Endurance\EfeitosDaEndurance;
+use App\Models\Colony;
 use App\Models\DroneSighting;
 use App\Models\NeutralZone;
 use App\Models\Vehicle;
@@ -27,6 +29,8 @@ use Illuminate\Support\Facades\DB;
  */
 class ConcluirMissoes
 {
+    public function __construct(private EfeitosDaEndurance $efeitosDaEndurance) {}
+
     public function handle(CarbonInterface $agora): int
     {
         $avancados = 0;
@@ -70,10 +74,20 @@ class ConcluirMissoes
         // Vigilância: fica. O fim da bateria é o novo horizonte da perna — e a bateria conta a
         // partir da CHEGADA (o §21.4 a publica como autonomia de operação, e o voo de minutos
         // contra horas de bateria não paga a complicação de ser descontado).
+        $horas = DroneSpecs::BATERIA_HORAS[$d->level] ?? 24;
+
+        // Bônus de bateria da Endurance (D-135): estica a autonomia, por cima do nível do drone.
+        $colonia = $d->colony_id !== null ? Colony::find($d->colony_id) : null;
+
+        if ($colonia) {
+            $bonus = $this->efeitosDaEndurance->bonusDeDroneBateria($colonia);
+            $horas = EfeitosDaEndurance::aplicarBonus($horas, $bonus);
+        }
+
         $d->forceFill([
             'leg' => 'vigia',
             'departs_at' => $d->arrives_at,
-            'arrives_at' => $d->arrives_at->copy()->addHours(DroneSpecs::BATERIA_HORAS[$d->level] ?? 24),
+            'arrives_at' => $d->arrives_at->copy()->addHours($horas),
         ])->save();
     }
 
@@ -125,6 +139,15 @@ class ConcluirMissoes
         }
 
         $raio = DroneSpecs::RAIO[$d->level] ?? 6;
+
+        // Bônus de raio da Endurance (D-135), mesmo padrão da bateria em `chegou()`.
+        $colonia = $d->colony_id !== null ? Colony::find($d->colony_id) : null;
+
+        if ($colonia) {
+            $bonus = $this->efeitosDaEndurance->bonusDeDroneRaio($colonia);
+            $raio = EfeitosDaEndurance::aplicarBonus($raio, $bonus);
+        }
+
         $agora = now();
 
         $linhas = NeutralZone::whereBetween('x', [$alvo->x - $raio, $alvo->x + $raio])

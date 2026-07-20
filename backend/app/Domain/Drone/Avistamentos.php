@@ -2,6 +2,7 @@
 
 namespace App\Domain\Drone;
 
+use App\Domain\Endurance\EfeitosDaEndurance;
 use App\Domain\Logistics\MapaFertways;
 use App\Models\Colony;
 use App\Models\DroneSighting;
@@ -33,6 +34,8 @@ class Avistamentos
     private ?array $memo = null;
 
     private ?int $memoColonia = null;
+
+    public function __construct(private EfeitosDaEndurance $efeitosDaEndurance) {}
 
     /**
      * @return array{intel: string, garrison: int|null, deposit_amount: int|null, visto_em: ?string}
@@ -92,6 +95,10 @@ class Avistamentos
 
         $agora = now();
 
+        // Bônus de raio da Endurance (D-135) — colônia inteira, um valor só, aplicado a cada drone
+        // dela abaixo (mesmo formato de `ConcluirMissoes::fotografar()`).
+        $bonusRaio = $this->efeitosDaEndurance->bonusDeDroneRaio($colonia);
+
         $vigias = Vehicle::where('colony_id', $colonia->id)
             ->where('type', DroneSpecs::TIPO)
             ->where('status', 'em_rota')
@@ -99,13 +106,13 @@ class Avistamentos
             ->where('departs_at', '<=', $agora)
             ->where('arrives_at', '>', $agora)
             ->get()
-            ->map(function (Vehicle $d) {
+            ->map(function (Vehicle $d) use ($bonusRaio) {
                 $alvo = NeutralZone::find($d->destination_id);
 
                 return $alvo ? (object) [
                     'alvo_x' => $alvo->x,
                     'alvo_y' => $alvo->y,
-                    'raio' => DroneSpecs::RAIO[$d->level] ?? 6,
+                    'raio' => EfeitosDaEndurance::aplicarBonus(DroneSpecs::RAIO[$d->level] ?? 6, $bonusRaio),
                 ] : null;
             })
             ->filter()

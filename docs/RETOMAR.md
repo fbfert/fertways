@@ -1363,119 +1363,37 @@ A partir do D-114, o usuário deu a instrução padrão: **avançar pelos próxi
 parar para perguntar, decidir e seguir** — é por isso que boa parte da lista acima foi escolhida
 e arbitrada sozinha, com o julgamento sempre registrado em `docs/decisoes.md`.
 
-## EM ANDAMENTO AGORA (2026-07-20): reconstrução da Loja de Peças da Endurance — plano aprovado
+## EM ANDAMENTO AGORA (2026-07-20): Fase 2 da reconstrução da Endurance — Leilões vendem item
 
-**Não faça perguntas sobre isto ao retomar — o usuário já disse "siga por todas as fases, não me
-faça mais perguntas, siga suas sugestões a partir de agora. Quero que me entregue pronto."** Se a
-Fase 1 e a Fase 2 abaixo já estiverem no ar (confira `docs/decisoes.md` por um D-135/D-136 ou
-similar), esta seção está obsoleta — apague-a. Se não, continue de onde a lista de tarefas parou
-(uma sessão organizada com `TaskCreate`/`TaskList` deve estar registrando o progresso; se não
-houver task list viva, releia esta seção inteira e recomece do início da Fase 1).
+**A Fase 1 já está implementada e testada nesta sessão** (schema novo, `EfeitosDaEndurance` ligado
+nos 6 pontos do motor, admin CRUD de 8 abas, frontend do mapa/loja reescrito, 30 testes novos, 864
+passando na suíte inteira) — ver **D-135** em `docs/decisoes.md` para o desenho completo. Falta
+confirmar que o ciclo de entrega da Fase 1 (branch `feat/endurance-itens-dinamicos-fase1` → PR → CI
+→ merge → deploy) terminou; se `docs/decisoes.md` já mostra D-135 como "implementado" mas o site em
+produção ainda não reflete isso, retome o ciclo de entrega antes de tocar na Fase 2.
 
-### Por que está sendo refeita
+**A Fase 2 (Leilões vendem item da Endurance) segue sem começar.** O usuário já disse "siga por
+todas as fases, não me faça mais perguntas" — não pergunte, comece direto pelo desenho abaixo, que
+já estava no plano aprovado:
 
-A v1 (D-132/D-133: 8 seções do casco × 4 camadas fixas — comum/reputação I/reputação II/única,
-efeito único de desconto de tributo) não agradou o usuário ao revisar (D-134): as camadas só
-diferiam em magnitude, sem diferença qualitativa real, e o nome "reputação" não tinha relação
-nenhuma com os índices de reputação de verdade do jogo.
-
-### O pedido novo, e as respostas que fecharam a arquitetura
-
-CRUD completo (criar/editar/apagar, não mais linhas fixas) em `/central/admin/endurance`, uma
-aba por seção (Anel Habitacional, Baía Criogênica, Comando, Matriz de Comunicação, Módulo
-Médico, Núcleo de Propulsão, Seção de Acoplagem, Silo de Suprimentos). Cada item: chave própria,
-tipo (comum/raro/único), quantidade (estoque **global do servidor** — único trava em 1), preço em
-Fert$, marco mínimo **opcional**, se é vendável em Leilões, **vários efeitos empilhados** por
-item (não um só), descrição, e a imagem **continua por seção** (D-133, sem upload por item — essa
-parte não muda).
-
-No jogo: cada destroço clicado no mapa (`EnduranceMapa.tsx`, D-132, já existe) abre a loja
-**daquela seção só**, não mais o painel combinado de 8 grupos.
-
-**Achado da pesquisa que mudou o plano**: `EnduranceSpecs.php` (v1) tinha decidido *de propósito*
-NÃO tocar `ColonyTick` (a fórmula de produção, que atravessa 26 recursos) para bônus de posse de
-item — só desconto de tributo, que reaproveita o ponto de extensão do desconto de aliados (D-120).
-Este plano **reabre essa porta**, a pedido explícito do usuário, para bônus de produção/veículo/
-drone de verdade. Ficou perguntado e confirmado: para as 4 construções que CONVERTEM insumo
-(Siderúrgica, Destilaria, Refinaria Química, Oficina), o bônus é **throughput** (mais saída E mais
-consumo de insumo, proporcional) — não saída de graça, que exigiria mexer num ponto mais
-delicado (a saída do lote, não a taxa de entrada).
-
-### Arquitetura (o plano completo, com pontos de arquivo:linha já pesquisados, está — ou estava —
-em `/root/.claude/plans/quizzical-pondering-milner.md`; se esse arquivo não existir mais, o
-resumo abaixo é o que resta dele)
-
-**Schema novo** (substitui `endurance_piece_specs` e `colony_endurance_pieces` — a 1 compra real
-que existia, `baia_criogenica:comum` da colônia "Maior Colonia", **não migra**, documentado como
-perda aceita, não bug):
-- `endurance_items` — `id, item_key (unique), secao, nome, tipo (comum|raro|unico),
-  quantidade_total, quantidade_vendida, preco_micro, marco_minimo (nullable),
-  vendavel_em_leilao (bool), descricao (nullable), admin_id, timestamps`. Regra:
-  `tipo=unico ⇒ quantidade_total=1`.
-- `endurance_item_effects` — `id, endurance_item_id (FK cascade), tipo_efeito, alvo (nullable),
-  valor_bps, timestamps`. `tipo_efeito` é vocabulário FECHADO (6 valores, cada um ligado no motor
-  do jogo — não é texto livre que o admin possa inventar mecânica nova sozinho):
-  `desconto_tributo` (alvo ignorado) · `producao_bonus` (alvo = building_type ou `global`) ·
-  `velocidade_veiculo` (alvo = tipo de veículo ou `todos`) · `capacidade_veiculo` (idem) ·
-  `drone_raio` (alvo ignorado) · `drone_bateria` (alvo ignorado).
-- `colony_endurance_items` — `id, colony_id, endurance_item_id, quantidade (default 1),
-  timestamps`, `unique(colony_id, endurance_item_id)`. Uma colônia pode ter mais de 1 unidade de
-  item não-único (efeitos empilham por quantidade possuída, capados por TIPO de efeito — 30%
-  tributo como hoje, 50% produção, 50% veículo, 100% drone — números arbitrados, documentar como
-  tal).
-
-**Domínio**: `EfeitosDaEndurance` (substitui `DescontoDeEndurance`) — query batched por colônia,
-soma `valor_bps * quantidade` por `(tipo_efeito, alvo)`, com teto por tipo. Métodos:
-`descontoDeTributo`, `bonusDeProducao($buildingType)`, `bonusDeVelocidade($tipoVeiculo)`,
-`bonusDeCapacidade($tipoVeiculo)`, `bonusDeDroneRaio`, `bonusDeDroneBateria`.
-`ComprarItem` (substitui `ComprarPeca`): marco só se `marco_minimo` não-nulo; lock na linha do
-item; checa `quantidade_vendida < quantidade_total`; debita Fert$/credita Tesouro; incrementa
-`quantidade_vendida` e a posse da colônia (upsert).
-
-**Pontos de aplicação, já mapeados pela pesquisa (arquivo:linha no relatório original — se o
-plano sumiu, regrep pelos nomes de método abaixo)**:
-- `ColonyTick::produzir()` — query batched no início (mesmo padrão de `manutencaoPorTipo()`),
-  monta `building_type => bonusBps`, multiplica a taxa da instância ANTES de somar, nos 5 pontos:
-  loop `PRODUCAO_SEM_INSUMO` (grátis: mina_local, fazenda, captacao_de_agua, gerador_de_atmosfera,
-  reator_de_energia), Destilaria/Siderúrgica/Refinaria/Oficina (throughput, via `converter()`/
-  `processarSiderurgica()`).
-- `Conservacao::desempenhoBps()` — um ponto único (já é a raiz de `capacidadeEfetiva()` e
-  `segundosDoTrecho()`), compõe bônus de veículo com o desgaste existente.
-- `App\Domain\Drone\ConcluirMissoes::chegou()` (bateria) e `::fotografar()` +
-  `App\Domain\Drone\Avistamentos::da()` (raio) — 3 pontos, via `$d->colony_id`.
-- `ConcluirTrechos::aliquota()` e `ExecutarOrdem::fechar()` — repontar de `DescontoDeEndurance`
-  para `EfeitosDaEndurance::descontoDeTributo()`.
-
-**Admin CRUD**: 8 abas (`PainelController::endurance(?secao=)`), criar/editar/apagar item de
-verdade (`AcoesController::enduranceItemCriar/Editar/Apagar` — apagar bloqueado se alguma colônia
-já possui), formulário com sub-lista DINÂMICA de efeitos (JS vanilla mínimo — clona linha-molde,
-incrementa índice `efeitos[N][tipo_efeito]` etc., mesmo espírito do toggle de
-`missoes.blade.php`).
-
-**Leilões (D-129) — FASE 2, depois da Fase 1 no ar e verificada** (risco: mexe num sistema já em
-produção, com leilões de recurso talvez em andamento — separar reduz risco): `auctions.
-resource_type`/`qty` viram nullable (tira a FK obrigatória), nova `endurance_item_id` nullable.
-`ListarLeilao`/`CancelarLeilao`/`FecharLeiloes` ganham branch por item (mexe em
-`colony_endurance_items`, exige `vendavel_em_leilao=true`, exige posse) nos pontos espelhados de
-escrow/devolução/crédito que já mexem em `market_accounts` para recurso. Tributo do fechamento de
-item: grava `tax_events` com `tax_bps=0`/`tax_amount=0` (mantém a trava de idempotência sem
-precisar de alíquota). Frontend (`Mercado.tsx`, `client.ts`): `Leilao` vira união discriminada
-(`resource_type` OU `endurance_item`), `CardDeLeilao` ganha branch de ícone/nome (o item usa a
-imagem da SEÇÃO dele, D-133 não muda).
-
-**Frontend do mapa/loja**: `EnduranceMapa.tsx` passa a seção clicada pro `aoAbrirLoja`;
-`LojaDaEndurance.tsx` reescrita pra mostrar só os itens de UMA seção (estoque "12/50"/"ESGOTADO",
-efeitos em texto legível, badge de tipo, indicador de leilão); `Endurance.tsx` ganha um "voltar ao
-mapa" (hoje só tem os 3 atalhos pra outras áreas da Capital).
-
-**Testes**: `EnduranceItemsTest` substitui `LojaDaEnduranceTest`; `EnduranceAdminTest` reescrito
-pras 8 abas + CRUD completo; Fase 2 ganha `LeilaoDeItemTest`. Migrations novas exercitadas no
-MariaDB de verdade via CI (SQLite não prova DDL — D-14/D-27). `docs/decisoes.md` ganha uma
-entrada por fase, com os tetos/valores arbitrados explícitos (nenhum vem do GDD).
-
-**Ciclo de entrega**: o padrão de sempre — branch como `fertways`, commit, push como `root`, PR,
-esperar CI (Backend/MariaDB precisa estar verde — as migrations são o risco real), squash-merge,
-`chown -R fertways:fertways .git`, `sudo ./tools/deploy.sh`, `chown` de novo.
+- Migration: `auctions.resource_type`/`qty` viram nullable (tira a FK obrigatória), nova
+  `endurance_item_id` nullable (FK). Um leilão é ou-ou: nunca os dois preenchidos (checado em
+  código, não em constraint).
+- `ListarLeilao`: anunciar item checa posse em `colony_endurance_items` (em vez de
+  `market_accounts`), decrementa a quantidade possuída, exige `vendavel_em_leilao=true` no item.
+- `CancelarLeilao`/`FecharLeiloes`: nos 3 pontos espelhados (devolução ao cancelar, devolução sem
+  lance, crédito ao arrematante) — branch por item, mexe em `colony_endurance_items` em vez de
+  `market_accounts`.
+- Tributo no fechamento: para item, grava `tax_events` com `tax_bps=0`/`tax_amount=0` (mantém a
+  trava de idempotência da chave única sem precisar calcular alíquota de um item).
+- Frontend: `Leilao` (`client.ts`) vira união discriminada (`resource_type` OU `endurance_item`);
+  `CardDeLeilao`/formulário de anunciar em `Mercado.tsx` ganham um branch — ícone/nome do item vêm
+  do catálogo (`nome`, imagem da SEÇÃO dele, D-133 não muda).
+- Testes: `LeilaoDeItemTest` — anunciar exige posse e `vendavel_em_leilao`, lance/fechamento
+  transferem posse em vez de `market_accounts`, tributo zerado não quebra idempotência.
+- `docs/decisoes.md` ganha uma entrada D-136 própria. Ciclo de entrega completo e separado do da
+  Fase 1 (risco: mexe num sistema — Leilões, D-129 — já em produção, com leilões de recurso talvez
+  em andamento).
 
 ## O trabalho anterior: zonas neutras + Drone (D-52)
 

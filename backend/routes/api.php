@@ -186,9 +186,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/cargos/materia', [CargosController::class, 'publicarMateria']);
     Route::post('/cargos/sinalizar', [CargosController::class, 'sinalizar']);
 
-    // A Loja de Peças da Endurance (§05, D-131) — 8 seções × 4 camadas do Marco.
-    Route::get('/endurance', [EnduranceController::class, 'index']);
-    Route::post('/endurance/pecas/{peca}/comprar', [EnduranceController::class, 'comprar']);
+    // A Loja de Peças da Endurance (§05, D-135) — catálogo dinâmico, uma loja por seção do casco.
+    Route::get('/endurance/efeitos', [EnduranceController::class, 'meusEfeitos']);
+    Route::get('/endurance/secoes/{secao}', [EnduranceController::class, 'secao']);
+    Route::post('/endurance/itens/{item}/comprar', [EnduranceController::class, 'comprar']);
 
     // Capital — instituições do governo (§02). Só leitura: os atos do governo (intervenção de preço,
     // publicar comunicado) são artisan, não rota, porque o Governo é "operado pela equipe" (D-44).
