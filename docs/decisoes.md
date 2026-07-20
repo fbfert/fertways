@@ -5823,3 +5823,26 @@ recém-criada) ficaram como estavam — nenhum dos dois precisa da fila inteira.
 `php artisan test` completo (794 — um teste novo, `test_a_ficha_da_zona_lista_a_fila_inteira_de_obras`,
 afirma `obras`/`obras_vagas` com duas obras simultâneas e `zona_vagas = 2`). Sem migration.
 `tsc`/`lint`/`build` limpos. e2e completo, 9/9 verde.
+
+---
+
+## D-126 — A fila de obras também faltava no painel do Mapa, não só na ficha da zona.
+**Data:** 2026-07-19 · **Status:** extensão do D-125, pedida pelo usuário logo depois de publicado
+· GDD §17.4 · D-111, D-125
+
+O D-125 pôs `obras`/`obras_vagas` na ficha inteira da zona (`GET /zones/{id}`) — mas o painel
+compacto que abre ao clicar num marcador do Mapa, sem entrar na tela cheia, usa um endpoint
+DIFERENTE (`GET /zones`, `NeutralZoneController::index()`, a lista das 120) que nunca teve esses
+campos. Quem só espiava o mapa não via nada em obra — nem sabia que havia uma fila, nem quanto
+faltava.
+
+Mesmo par de campos, mesmo formato, mesmo segredo do D-74 (só o dono vê — para os outros, `obras`
+e `obras_vagas` vêm `null`, igual a `upgrade`/`manutencao` já faziam). `Mapa.tsx` ganhou um bloco
+"Fila de obras (N/vagas)" no painel do marcador, entre o upgrade de nível e a manutenção
+territorial — mesmo texto e mesma régua visual do bloco que o D-125 pôs na ficha inteira.
+
+### Validado
+
+`php artisan test` completo (795 — um teste novo, `test_o_painel_do_mapa_tambem_lista_a_fila_de_obras_so_para_o_dono`,
+afirma `obras`/`obras_vagas` preenchidos para o dono e `null` para qualquer outra colônia). Sem
+migration. `tsc`/`lint`/`build` limpos. e2e completo, 9/9 verde.

@@ -276,6 +276,10 @@ export type ZonaNeutra = {
     inadimplente_desde: string | null
     penalidade_bps: number
   } | null
+  /** A fila de construção (D-125). Só o dono vê — nulo para qualquer outra colônia. */
+  obras: { structure: string; nome: string; target_level: number; finishes_at: string }[] | null
+  /** O teto de obras simultâneas na zona (`FilaSetting.zona_vagas`, do operador, D-111). */
+  obras_vagas: number | null
 }
 
 /** Um Drone de Exploração no hangar do Quartel (§21.4; D-74). */

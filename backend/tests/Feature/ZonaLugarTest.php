@@ -253,6 +253,33 @@ class ZonaLugarTest extends TestCase
             ->assertJsonPath('obras_vagas', 2);
     }
 
+    /**
+     * O painel do Mapa (`/zones`, a lista das 120) também precisa da fila — não só a ficha inteira
+     * da zona. Antes deste D-125, quem só abria o painel do marcador no mapa não via NADA em obra;
+     * era preciso entrar na tela cheia. Só o dono vê (mesmo segredo do D-74 que já vale para
+     * `upgrade`/`manutencao`); para os outros, `obras` e `obras_vagas` vêm nulos.
+     */
+    public function test_o_painel_do_mapa_tambem_lista_a_fila_de_obras_so_para_o_dono(): void
+    {
+        $colono = $this->colono();
+        $outro = app(CreateColony::class)->handle(User::factory()->create(), 'Outro', 25, 25);
+        $zona = $this->zonaDe($colono);
+
+        $this->encherCanteiro($zona, ['metal_bruto' => 400, 'ligas_metalicas' => 100]);
+        app(ConstruirNaZona::class)->handle($colono, $zona, 'muralha_de_perimetro');
+
+        $minha = collect($this->actingAs($colono->user)->getJson('/zones')->assertOk()->json('zones'))
+            ->firstWhere('id', $zona->id);
+        $this->assertCount(1, $minha['obras']);
+        $this->assertSame('muralha_de_perimetro', $minha['obras'][0]['structure']);
+        $this->assertSame(1, $minha['obras_vagas']);
+
+        $vista = collect($this->actingAs($outro->user)->getJson('/zones')->assertOk()->json('zones'))
+            ->firstWhere('id', $zona->id);
+        $this->assertNull($vista['obras']);
+        $this->assertNull($vista['obras_vagas']);
+    }
+
     // ── o cerco impede fortificar ───────────────────────────────────────────────────────────────
 
     /**

@@ -4,8 +4,10 @@ namespace App\Http\Controllers\Api;
 
 use App\Domain\Logistics\DespacharVeiculo;
 use App\Domain\Logistics\OcuparZonaNeutra;
+use App\Domain\Zona\Estruturas;
 use App\Domain\Zona\SubirNivelDaZona;
 use App\Http\Controllers\Controller;
+use App\Models\FilaSetting;
 use App\Models\NeutralZone;
 use App\Models\Vehicle;
 use Illuminate\Http\JsonResponse;
@@ -85,6 +87,16 @@ class NeutralZoneController extends Controller
                         'inadimplente_desde' => $z->maintenance_unpaid_since,
                         'penalidade_bps' => $z->penalidadeManutencaoBps(),
                     ] : null,
+                    // A fila de construção (D-125) — o painel do Mapa nunca mostrou isso, só a
+                    // ficha inteira da zona (`/zones/{id}`) mostrava. Só o dono vê, como o resto
+                    // da seção de obras (canteiro, upgrade) — de fora, é o mesmo segredo do D-74.
+                    'obras' => $mine ? $z->obras()->orderBy('id')->get()->map(fn ($o) => [
+                        'structure' => $o->structure,
+                        'nome' => Estruturas::de($o->structure)['nome'],
+                        'target_level' => $o->target_level,
+                        'finishes_at' => $o->finishes_at,
+                    ])->values() : null,
+                    'obras_vagas' => $mine ? FilaSetting::singleton()->zona_vagas : null,
                 ];
             });
 
