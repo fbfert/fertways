@@ -6350,3 +6350,36 @@ no POST não cria linha, e as duas rotas exigem admin autenticado. Suíte comple
 `LojaDaEnduranceTest` (D-132) segue verde sem alteração nenhuma, confirmando que a troca de fonte
 (código → banco) foi transparente para quem compra. Sem mudança de frontend — o painel admin é
 Blade puro, sem build.
+
+---
+
+## D-134 — Pendência: as 4 camadas da Loja de Peças da Endurance não se diferenciam o bastante.
+
+**Data:** 2026-07-20 · **Status:** pendente de revisão — não é reversão, é sinalização
+
+O usuário revisou o D-132/D-133 e não gostou: perguntou "qual a diferença entre comprar um item
+comum ou de reputações?", e a resposta honesta é **pouca**. Hoje as 4 camadas (comum, reputação I,
+reputação II, única) são a MESMA mecânica (desconto de tributo) em 4 magnitudes crescentes — marco,
+preço e desconto sobem juntos, sem nenhuma diferença qualitativa entre elas. O nome "reputação" é
+herdado literalmente do vocabulário do §05 do GDD ("peças de reputação nível 1/2"), mas a mecânica
+não olha pros quatro índices do Ministério (Confiança Comercial etc.) — só pro Marco. A única
+diferença estrutural de verdade é a camada `unica`, que tem estoque global de 1; as outras três são
+ilimitadas.
+
+**Isto fica registrado como pendência a revisar, não como algo a desfazer agora.** O usuário disse
+"vamos ter que revisar isso depois" — não pediu reversão nem correção imediata. O sistema continua
+em produção como está (D-132/D-133); isto é a marca do lugar exato onde a próxima sessão deve
+retomar a conversa, antes de tocar em código.
+
+**Direções possíveis para a revisão** (não decididas, só levantadas para não começar do zero):
+- Ligar "reputação" à mecânica de verdade: exigir também um piso num dos quatro índices do §26.2
+  (ex.: Confiança Comercial ≥ X), não só o Marco — faria o nome dizer a verdade.
+  - Efeitos DIFERENTES por camada, não só maiores — ex.: a camada comum dá desconto de tributo (o
+  que já existe), reputação dá outra coisa (bônus de produção? redução de tempo de construção?),
+  única dá algo realmente exclusivo (cosmético + funcional). Evita que colecionar as 32 seja só
+  "comprar a mesma coisa 4x mais cara".
+- Repensar se "camada" devia ser eixo de PREÇO ou eixo de RARIDADE/tipo de efeito — hoje confunde
+  os dois.
+
+Nenhuma dessas é compromisso: são só o que ficou anotado nesta conversa para a próxima não recomeçar
+a leitura do zero.
