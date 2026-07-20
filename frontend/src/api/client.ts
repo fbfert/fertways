@@ -557,6 +557,28 @@ export type OfertaGlobal = {
   minha: boolean
 }
 
+/**
+ * Um leilão (D-129) — sem seção no GDD, desenhado sobre o Mercado Central: lote único, tudo ou
+ * nada, lance em escrow, fechamento automático no tick quando `deadline_at` passa.
+ */
+export type Leilao = {
+  id: number
+  resource_type: string
+  qty: number
+  colony_id: number
+  colonia: string | null
+  /** A própria colônia não dá lance no próprio leilão — a UI troca "Dar lance" por "Cancelar". */
+  minha: boolean
+  lance_minimo_fert: number
+  lance_atual_fert: number | null
+  proximo_lance_minimo_fert: number
+  lance_colony_id: number | null
+  lance_colonia: string | null
+  meu_lance: boolean
+  status: 'aberto' | 'arrematado' | 'sem_lance' | 'cancelado'
+  deadline_at: string
+}
+
 export type RecursoDoCatalogo = {
   code: string
   nome: string
@@ -1312,6 +1334,25 @@ export const api = {
 
   cancelar: (ordem: number) =>
     req<{ id: number; status: string }>(`/market/orders/${ordem}`, { method: 'DELETE' }),
+
+  // ── Leilões (D-129) — sem seção no GDD, desenho nosso sobre o Mercado Central ──────────────
+
+  leiloes: () => req<{ abertos: Leilao[]; minhas: Leilao[] }>('/auctions'),
+
+  anunciarLeilao: (b: { resource_type: string; qty: number; lance_minimo_fert: number; duracao_horas: number }) =>
+    req<{ id: number; status: string; deadline_at: string }>('/auctions', {
+      method: 'POST',
+      body: JSON.stringify(b),
+    }),
+
+  darLance: (leilao: number, lance_fert: number) =>
+    req<{ id: number; lance_atual_fert: number }>(`/auctions/${leilao}/bid`, {
+      method: 'POST',
+      body: JSON.stringify({ lance_fert }),
+    }),
+
+  cancelarLeilao: (leilao: number) =>
+    req<{ id: number; status: string }>(`/auctions/${leilao}`, { method: 'DELETE' }),
 
   /** O mural: as ofertas abertas de todos os colonos, sem contraparte definida (D-58). */
   mural: () => req<{ ofertas: OfertaDeColono[] }>('/trade/board'),

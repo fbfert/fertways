@@ -171,6 +171,41 @@ try {
   await (await acharPorTexto(page, 'button', /Pátio e depósito/)).click()
   checar(await esperarTexto(page, /500/), 'o recurso volta ao depósito, não ao estoque')
 
+  /*
+   * Leilões (D-129): sem seção no GDD, tela nova, nunca aberta num navegador antes deste teste.
+   * Com uma colônia só logada aqui, não há como dar lance no PRÓPRIO leilão (a regra proíbe) —
+   * o que dá para provar é que a aba existe, que anunciar reserva o lote, e que cancelar (sem
+   * lance) devolve. O fechamento por prazo e o lance de outra colônia ficam para o teste de
+   * Feature do backend, que já cobre os dois.
+   */
+  console.log('\nLeilões: anunciar um lote e cancelar antes de qualquer lance')
+  await (await acharPorTexto(page, 'button', /^Leilões$/)).click()
+  checar(await esperarTexto(page, /Leilões abertos/), 'a aba de Leilões abre')
+
+  const [campoQtdLeilao, campoLance] = await page.$$('input[inputmode]')
+  await campoQtdLeilao.type('50')
+  await campoLance.type('0,05')
+
+  const anunciarLeilao = await acharPorTexto(page, 'button', /Anunciar leilão/)
+  checar(await anunciarLeilao.evaluate((b) => !b.disabled), 'o botão habilita com quantidade e lance mínimo')
+  await anunciarLeilao.click()
+  await page.waitForNetworkIdle({ idleTime: 800 })
+
+  checar(await esperarTexto(page, /Seus leilões/), 'o leilão anunciado aparece na lista da própria colônia')
+  checar(await esperarTexto(page, /50 de Metal Bruto/), 'com a quantidade e o recurso certos')
+  checar(await esperarTexto(page, /Aberto/), 'e o status "Aberto"')
+
+  await (await acharPorTexto(page, 'button', /Pátio e depósito/)).click()
+  checar(await esperarTexto(page, /450/), 'o lote saiu do depósito para o escrow do leilão')
+
+  await (await acharPorTexto(page, 'button', /^Leilões$/)).click()
+  await (await acharPorTexto(page, 'button', /^Cancelar$/)).click()
+  await page.waitForNetworkIdle({ idleTime: 800 })
+  checar(await esperarTexto(page, /Cancelado/), 'cancelar sem lance muda o status, sem apagar o histórico')
+
+  await (await acharPorTexto(page, 'button', /Pátio e depósito/)).click()
+  checar(await esperarTexto(page, /500/), 'o lote volta ao depósito, não ao estoque')
+
   // ═══════════════════════════════════════════════════════ o Mercado Local, na colônia
   console.log('\nVolta à colônia e abre o Mercado Local, pela construção')
   /*
