@@ -118,6 +118,34 @@ class HistoricoDaZonaTest extends TestCase
         $this->assertSame('Base', $eventos[0]['defensor']);
     }
 
+    /**
+     * O Fert$ do Posto de Comando é debitado em MICRO no Ledger (`OcuparZonaNeutra`,
+     * `SubirNivelDaZona` — mesma escala de `colonies.fert_micro`), como qualquer lançamento de
+     * Fert$ no jogo (`ProfileController::extrato()` já converte assim). Sem a conversão, o
+     * Histórico mostrava "-300000000" em vez de "-300" — a tela nunca escondeu o zero a mais,
+     * só ninguém tinha convertido de volta.
+     */
+    public function test_o_custo_em_fert_vem_convertido_de_micro(): void
+    {
+        $dono = $this->colonoAbastecido();
+
+        $zona = NeutralZone::create([
+            'x' => 50, 'y' => 50, 'district' => 'nordeste', 'mineral' => 'metal_bruto',
+            'level' => 1, 'status' => 'protegida', 'owner_colony_id' => $dono->id, 'deposit_level' => 1,
+        ]);
+
+        Ledger::create([
+            'colony_id' => $dono->id, 'type' => 'custo_ocupacao', 'amount' => -300 * 1_000_000,
+            'resource_type' => null, 'ref' => "zona:{$zona->id}:posto",
+        ]);
+
+        $eventos = $this->actingAs($dono->user)->getJson("/zones/{$zona->id}/historico")
+            ->assertOk()->json('eventos');
+
+        $this->assertNull($eventos[0]['recurso']);
+        $this->assertSame(-300, $eventos[0]['quantidade']);
+    }
+
     public function test_historico_e_so_do_dono(): void
     {
         $dono = $this->colonoAbastecido();
