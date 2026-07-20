@@ -2,8 +2,6 @@
 
 namespace App\Domain\Endurance;
 
-use App\Models\Colony;
-
 /**
  * A Loja de Peças da Endurance (D-132) — 8 seções do casco × as 4 camadas do §05.
  *
@@ -29,6 +27,12 @@ use App\Models\Colony;
  * o D-129 (Leilões) só vende `resource_type` fungível, não item de catálogo. Fica com escassez real
  * (só uma colônia no servidor pode comprar cada única) dentro da MESMA loja; integrar com D-129 é
  * extensão futura, não construída agora.
+ *
+ * **D-133**: o catálogo saiu do código e virou tabela (`endurance_piece_specs`) — o usuário pediu
+ * um CRUD no painel para editar preço, marco e o efeito de cada peça. Esta classe continua sendo a
+ * única porta de leitura (`catalogo()`/`existe()`/`peca()`), então `ComprarPeca`,
+ * `DescontoDeEndurance` e `EnduranceController` não mudaram uma linha — só a fonte, por baixo,
+ * trocou de constante para banco.
  */
 final class EnduranceSpecs
 {
@@ -54,42 +58,25 @@ final class EnduranceSpecs
         'silo_suprimentos' => 'Silo de Suprimentos',
     ];
 
-    /** @var array<string,array{camada:string, marco_minimo:int, preco_micro:int, desconto_tributo_bps:int, unica:bool, rotulo:string}> */
-    private const CAMADAS_SPEC = [
-        self::COMUM => ['marco' => 10, 'preco' => 20, 'desconto' => 100, 'rotulo' => 'Fragmento'],
-        self::REPUTACAO_1 => ['marco' => 35, 'preco' => 60, 'desconto' => 250, 'rotulo' => 'Relíquia'],
-        self::REPUTACAO_2 => ['marco' => 75, 'preco' => 150, 'desconto' => 500, 'rotulo' => 'Artefato Raro'],
-        self::UNICA => ['marco' => 100, 'preco' => 500, 'desconto' => 1000, 'rotulo' => 'Peça Única'],
-    ];
-
     /** O teto agregado (D-132): mesmo colono não passa disto de desconto, por mais peças que tenha. */
     public const TETO_DESCONTO_BPS = 3000;
 
-    /** Todo o catálogo, achatado — `peca_key` = `"{secao}:{camada}"`. */
+    /** Todo o catálogo, achatado — `peca_key` = `"{secao}:{camada}"`. Lido do banco (D-133). */
     public static function catalogo(): array
     {
-        $out = [];
-
-        foreach (self::SECOES as $secaoChave => $secaoNome) {
-            foreach (self::CAMADAS as $camada) {
-                $spec = self::CAMADAS_SPEC[$camada];
-                $chave = "{$secaoChave}:{$camada}";
-
-                $out[$chave] = [
-                    'chave' => $chave,
-                    'secao' => $secaoChave,
-                    'secao_nome' => $secaoNome,
-                    'camada' => $camada,
-                    'nome' => "{$secaoNome} — {$spec['rotulo']}",
-                    'marco_minimo' => $spec['marco'],
-                    'preco_micro' => $spec['preco'] * Colony::MICRO_POR_FERT,
-                    'desconto_tributo_bps' => $spec['desconto'],
-                    'unica' => $camada === self::UNICA,
-                ];
-            }
-        }
-
-        return $out;
+        return \App\Models\EndurancePieceSpec::all()
+            ->mapWithKeys(fn ($p) => [$p->peca_key => [
+                'chave' => $p->peca_key,
+                'secao' => $p->secao,
+                'secao_nome' => $p->secao_nome,
+                'camada' => $p->camada,
+                'nome' => $p->nome,
+                'marco_minimo' => $p->marco_minimo,
+                'preco_micro' => $p->preco_micro,
+                'desconto_tributo_bps' => $p->desconto_tributo_bps,
+                'unica' => $p->unica,
+            ]])
+            ->all();
     }
 
     public static function existe(string $pecaKey): bool

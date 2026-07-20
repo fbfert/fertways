@@ -697,6 +697,30 @@ class PainelController extends Controller
     }
 
     /**
+     * O CRUD da Loja de Peças da Endurance (D-133): preço, marco e o efeito de cada uma das 32
+     * peças (8 seções × 4 camadas do §05) — antes fixo em código (`EnduranceSpecs`, D-132), agora
+     * editável aqui. A imagem NÃO se edita nesta tela: é por SEÇÃO, não por peça (as 4 camadas de
+     * uma seção compartilham a mesma arte), e já tem o painel dela em `/admin/imagens` — aqui só
+     * mostramos a miniatura atual, com um link para lá.
+     */
+    public function endurance(): View
+    {
+        $pecas = \App\Models\EndurancePieceSpec::orderBy('secao')->orderBy('marco_minimo')->get();
+
+        $imagemPorSecao = ImageBinding::where('entity_key', 'like', 'endurance:secao:%')
+            ->with('asset')
+            ->get()
+            ->mapWithKeys(fn (ImageBinding $b) => [
+                str_replace('endurance:secao:', '', $b->entity_key) => $b->asset,
+            ]);
+
+        return view('admin.endurance', [
+            'grupos' => $pecas->groupBy('secao'),
+            'imagemPorSecao' => $imagemPorSecao,
+        ]);
+    }
+
+    /**
      * Toda `building_specs`, base + o ajuste do admin quando existir, agrupada como o painel de
      * imagens já agrupa (`Vinculaveis`) — essenciais, progressão, zona neutra, veículos/unidades —
      * mais um grupo "outras" pro que nenhum dos quatro cobre (hoje só o Depósito Local, que não

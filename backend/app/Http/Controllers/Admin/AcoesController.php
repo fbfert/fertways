@@ -1063,6 +1063,47 @@ class AcoesController extends Controller
     }
 
     /**
+     * A Loja de Peças da Endurance (D-133): um POST só salva as 32 linhas de uma vez — mesmo
+     * formato do Silo, acima. Só a imagem fica de fora (é por seção, em `/admin/imagens`).
+     */
+    public function enduranceEditar(Request $request): RedirectResponse
+    {
+        $dados = $request->validate([
+            'preco' => ['required', 'array'],
+            'preco.*' => ['required', 'numeric', 'min:0.000001'],
+            'marco' => ['required', 'array'],
+            'marco.*' => ['required', 'integer', 'min:1', 'max:100'],
+            'desconto' => ['required', 'array'],
+            'desconto.*' => ['required', 'integer', 'min:0', 'max:10000'],
+        ]);
+
+        // Só as chaves que já existem no catálogo — um `peca_key` forjado no POST não cria linha.
+        $chaves = \App\Models\EndurancePieceSpec::pluck('peca_key');
+
+        return $this->tentar('endurance.editar', function () use ($dados, $chaves) {
+            $agora = now();
+            $tocadas = 0;
+
+            foreach ($chaves as $chave) {
+                if (! isset($dados['preco'][$chave], $dados['marco'][$chave], $dados['desconto'][$chave])) {
+                    continue;
+                }
+
+                \App\Models\EndurancePieceSpec::where('peca_key', $chave)->update([
+                    'preco_micro' => (int) round($dados['preco'][$chave] * 1_000_000),
+                    'marco_minimo' => (int) $dados['marco'][$chave],
+                    'desconto_tributo_bps' => (int) $dados['desconto'][$chave],
+                    'admin_id' => auth('admin')->id(),
+                    'updated_at' => $agora,
+                ]);
+                $tocadas++;
+            }
+
+            return "Loja de Peças da Endurance atualizada: {$tocadas} peça(s).";
+        });
+    }
+
+    /**
      * Gestão de Construções — Fila (D-111): quantos itens cabem na fila da colônia (novato e
      * padrão, preservando a regra dos 5 dias de onboarding) e quantas obras a zona neutra
      * comporta em curso ao mesmo tempo.
