@@ -6522,3 +6522,79 @@ estoque abaixo do vendido, apagar bloqueado com posse, e autenticação exigida.
 passando, sem regressão em `ConcluirTrechos`/`ExecutarOrdem`/`Conservacao`/`ConcluirMissoes`/
 `Avistamentos`/`ColonyTick` — todos tinham cobertura extensa antes desta mudança tocar neles.
 `tsc`/`lint`/`build` do frontend limpos.
+
+---
+
+## D-136 — Fase 2 do D-135: os Leilões (D-129) vendem item da Endurance, não só recurso.
+
+**Data:** 2026-07-20 · **Status:** implementado
+
+A parte que o D-135 deixou para depois, de propósito — "menor risco fazer depois de a Fase 1 provar
+que o catálogo/posse novos estão corretos, do que misturar as duas mudanças na mesma entrega". Fase
+1 no ar e verificada (deploy, fumaça, migration exercitada no MariaDB de verdade); esta entrega
+estende o D-129 sem tocar no que já funcionava para recurso.
+
+### O lote virou OU-OU, não uma segunda tabela de leilão
+
+`auctions.resource_type` tinha FK obrigatória para `resource_types.code` — não cabia um `item_key`
+da Endurance ali. Em vez de duplicar toda a máquina de lance/fechamento do D-129 numa tabela nova
+só para item, a migration torna `resource_type` e `qty` nuláveis e acrescenta `endurance_item_id`
+(FK nulável para `endurance_items`). Um leilão é `resource_type` OU `endurance_item_id`, nunca os
+dois — `Auction::ehItem()` é o único jeito certo de perguntar qual é qual (checado em código, não
+em constraint: o SQLite dos testes não tem um jeito direto de expressar "exatamente uma de duas
+colunas nulas preenchida", e a aplicação já teria de confiar no código de qualquer forma).
+
+### A posse do item é o novo "depósito da Capital"
+
+`ListarLeilao::handle()` (recurso) não mudou uma linha — ganhou uma irmã, `handleItem()`, que
+decrementa `colony_endurance_items.quantidade` em vez de `market_accounts.amount` (mesma trava
+`where('quantidade', '>=', $qtd)->decrement(...)`, mesmo formato de erro). Duas exigências que o
+recurso não tinha: o item precisa estar `vendavel_em_leilao=true` (o admin decide isso por item no
+CRUD do D-135 — a Fase 1 já modelava o campo, só ninguém o lia ainda) e a quantidade continua
+vinculada ao dono depois do leilão fechar sem lance (a linha de posse nunca é apagada pelo
+`decrement`, só zera — o mesmo motivo pelo qual o `apagar` do admin continua bloqueado mesmo com um
+leilão em andamento: a linha de posse "existe" o tempo todo, só a quantidade viaja).
+
+`CancelarLeilao` e `FecharLeiloes` ganham um branch por `Auction::ehItem()` nos MESMOS pontos onde
+já mexiam em `market_accounts` — devolução ao cancelar, devolução sem lance, crédito ao arrematante.
+`FecharLeiloes` unificou os dois casos de crédito (devolver ao vendedor / entregar ao arrematante)
+num único método privado (`creditarLote()`) — os dois já faziam exatamente a mesma coisa
+(`insertOrIgnore` + `increment`), só que um pouco divergentes por acidente (o caminho "sem lance" da
+versão anterior pulava o `insertOrIgnore`, sem motivo — o vendedor sempre tem a linha, mas não
+custava nada estar simétrico). `DarLance` não mudou nada: já era agnóstico ao que está sendo
+leiloado (só mexe em `colonies.fert_micro`).
+
+### O tributo do item é zero — arbitragem nova, não omissão
+
+`EnduranceItem` não tem `tax_bps` (o preço já é arbitragem do admin no CRUD do D-135; empilhar uma
+segunda arbitragem — a alíquota — em cima da primeira não teria base nenhuma para se ancorar). Em
+vez de inventar um número, o fechamento de leilão de item grava `tax_bps=0`/`tax_amount=0` em
+`tax_events` — o FATO fica registrado (inclusive para a chave única de idempotência que já protegia
+o Mercado Central contra o tick rodar duas vezes o mesmo fechamento), só que o vendedor recebe o
+lance inteiro, sem desconto, e nada vai para o Tesouro. `tax_events.resource_type` fica `null` para
+item (a FK exige um código de `resource_types`, que um item não é — a coluna já era nulável desde a
+criação da tabela, D-58).
+
+### O painel de anunciar ganhou uma segunda origem, sem espionar seção por seção
+
+Não havia endpoint nenhum que respondesse "quais itens da Endurance esta colônia possui, vendáveis
+em Leilão, de QUALQUER seção" — `/endurance/secoes/{secao}` (D-135) é por seção só, e o formulário
+de anunciar não tem como saber quais das 8 o jogador já visitou. `EnduranceController::
+meusItensVendaveis()` resolve isto com uma query só (`colony_endurance_items` com `quantidade > 0`,
+filtrado por `item.vendavel_em_leilao`). O formulário do Mercado (`Leiloes` em `Mercado.tsx`) ganhou
+uma aba Recurso/Item — a mesma tela, dois catálogos diferentes por baixo. `CardDeLeilao` e "seus
+leilões" leem `item_key`/`item_nome` quando presentes; o ícone do lote vira uma sigla neutra (não
+reaproveita `IconeRecurso`, que colore por classe primário/industrial/raro — um item da Endurance
+não é nenhuma das três, e forçar a cor mentiria sobre a classe).
+
+### Validado
+
+6 testes novos (`LeilaoDeItemTest`), espelhando o `LeiloesTest` do D-129: anunciar exige
+`vendavel_em_leilao` e posse suficiente, anunciar reserva a posse em escrow (ledger
+`escrow_leilao` com `resource_type` nulo), cancelar sem lance devolve a posse, o tick fecha sem
+lance devolvendo a posse, e o tick fecha arrematado transferindo a posse ao vencedor com tributo
+ZERO (o vendedor recebe o lance inteiro, o Tesouro não recebe nada, `tax_events` grava
+`tax_bps=0`/`resource_type=null`) — mais XP dos dois lados pela mesma trilha `mercado_executado`
+que qualquer negócio fechado já concede. Suíte completa: 870 passando — `LeiloesTest` (D-129) segue
+verde sem alteração nenhuma, confirmando que o branch por `ehItem()` não mudou o caminho de recurso
+em nada. `tsc`/`lint`/`build` do frontend limpos.

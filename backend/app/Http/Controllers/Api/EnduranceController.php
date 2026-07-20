@@ -88,6 +88,31 @@ class EnduranceController extends Controller
         return response()->json(['item_key' => $item, 'quantidade' => $posse->quantidade], 201);
     }
 
+    /**
+     * Os itens que esta colônia possui, DE QUALQUER SEÇÃO, e que podem ser anunciados em Leilão
+     * (D-135, Fase 2) — alimenta o formulário de anunciar leilão do Mercado Central, que não tem
+     * como saber sozinho quais das 8 seções o jogador já visitou.
+     */
+    public function meusItensVendaveis(Request $request): JsonResponse
+    {
+        $colony = $this->colonia($request);
+
+        $itens = ColonyEnduranceItem::where('colony_id', $colony->id)
+            ->where('quantidade', '>', 0)
+            ->with('item')
+            ->get()
+            ->filter(fn (ColonyEnduranceItem $p) => $p->item !== null && $p->item->vendavel_em_leilao)
+            ->map(fn (ColonyEnduranceItem $p) => [
+                'item_key' => $p->item->item_key,
+                'nome' => $p->item->nome,
+                'secao' => $p->item->secao,
+                'quantidade' => $p->quantidade,
+            ])
+            ->values();
+
+        return response()->json(['itens' => $itens]);
+    }
+
     private function colonia(Request $request): Colony
     {
         $colony = $request->user()->colony;

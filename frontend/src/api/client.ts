@@ -600,10 +600,16 @@ export type OfertaGlobal = {
 /**
  * Um leilão (D-129) — sem seção no GDD, desenhado sobre o Mercado Central: lote único, tudo ou
  * nada, lance em escrow, fechamento automático no tick quando `deadline_at` passa.
+ *
+ * **OU-OU (D-135, Fase 2)**: `resource_type` (recurso do catálogo) OU `item_key` (item da Loja de
+ * Peças da Endurance), nunca os dois juntos — sempre confira `item_key !== null` para saber qual é
+ * qual, nunca confie em `resource_type` sozinho.
  */
 export type Leilao = {
   id: number
-  resource_type: string
+  resource_type: string | null
+  item_key: string | null
+  item_nome: string | null
   qty: number
   colony_id: number
   colonia: string | null
@@ -617,6 +623,14 @@ export type Leilao = {
   meu_lance: boolean
   status: 'aberto' | 'arrematado' | 'sem_lance' | 'cancelado'
   deadline_at: string
+}
+
+/** Um item da Endurance que esta colônia possui e pode anunciar em Leilão (D-135, Fase 2). */
+export type ItemVendavelEmLeilao = {
+  item_key: string
+  nome: string
+  secao: string
+  quantidade: number
 }
 
 export type RecursoDoCatalogo = {
@@ -1154,6 +1168,10 @@ export const api = {
   comprarItemDaEndurance: (itemKey: string) =>
     req<{ item_key: string; quantidade: number }>(`/endurance/itens/${itemKey}/comprar`, { method: 'POST' }),
 
+  /** Os itens que esta colônia possui e pode anunciar em Leilão (D-135, Fase 2) — todas as seções. */
+  meusItensVendaveisEmLeilao: () =>
+    req<{ itens: ItemVendavelEmLeilao[] }>('/endurance/meus-itens-vendaveis'),
+
   // ── o perfil do colono (D-69) ───────────────────────────────────────────────────────────────
 
   perfil: () => req<Perfil>('/profile'),
@@ -1416,7 +1434,12 @@ export const api = {
 
   leiloes: () => req<{ abertos: Leilao[]; minhas: Leilao[] }>('/auctions'),
 
-  anunciarLeilao: (b: { resource_type: string; qty: number; lance_minimo_fert: number; duracao_horas: number }) =>
+  anunciarLeilao: (
+    b: { qty: number; lance_minimo_fert: number; duracao_horas: number } & (
+      | { resource_type: string; item_key?: never }
+      | { resource_type?: never; item_key: string }
+    ),
+  ) =>
     req<{ id: number; status: string; deadline_at: string }>('/auctions', {
       method: 'POST',
       body: JSON.stringify(b),

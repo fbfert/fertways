@@ -25,7 +25,7 @@ class AuctionController extends Controller
         $colony = $this->colonia($request);
 
         $abertos = Auction::where('status', 'aberto')
-            ->with(['colony:id,name', 'lanceColony:id,name'])
+            ->with(['colony:id,name', 'lanceColony:id,name', 'item:id,item_key,nome'])
             ->orderBy('deadline_at')
             ->get()
             ->map(fn (Auction $a) => $this->linha($a, $colony));
@@ -33,7 +33,7 @@ class AuctionController extends Controller
         $minhas = Auction::where(fn ($q) => $q
                 ->where('colony_id', $colony->id)
                 ->orWhere('lance_colony_id', $colony->id))
-            ->with(['colony:id,name', 'lanceColony:id,name'])
+            ->with(['colony:id,name', 'lanceColony:id,name', 'item:id,item_key,nome'])
             ->orderByDesc('updated_at')
             ->limit(20)
             ->get()
@@ -49,6 +49,8 @@ class AuctionController extends Controller
         return [
             'id' => $a->id,
             'resource_type' => $a->resource_type,
+            'item_key' => $a->item?->item_key,
+            'item_nome' => $a->item?->nome,
             'qty' => (int) $a->qty,
             'colony_id' => $a->colony_id,
             'colonia' => $a->colony?->name,
@@ -64,25 +66,34 @@ class AuctionController extends Controller
         ];
     }
 
-    /** Anuncia um leilão. Exige o lote já entregue na doca (§25.8, como o Mercado Central). */
+    /**
+     * Anuncia um leilão — de recurso (exige o lote já entregue na doca, §25.8) ou de item da
+     * Endurance (D-135, Fase 2 — exige posse e `vendavel_em_leilao`). Exatamente um dos dois
+     * campos, nunca os dois: é o mesmo OU-OU que `Auction::ehItem()` documenta.
+     */
     public function store(Request $request, ListarLeilao $listar): JsonResponse
     {
         $dados = $request->validate([
-            'resource_type' => ['required', 'string'],
+            'resource_type' => ['nullable', 'string'],
+            'item_key' => ['nullable', 'string'],
             'qty' => ['required', 'integer', 'min:1'],
             'lance_minimo_fert' => ['required', 'numeric', 'min:0.000001'],
             'duracao_horas' => ['required', 'integer', 'min:'.ListarLeilao::DURACAO_MIN_HORAS, 'max:'.ListarLeilao::DURACAO_MAX_HORAS],
         ]);
 
-        $micro = (int) round($dados['lance_minimo_fert'] * Colony::MICRO_POR_FERT);
+        $ehRecurso = filled($dados['resource_type'] ?? null);
+        $ehItem = filled($dados['item_key'] ?? null);
 
-        $leilao = $listar->handle(
-            $this->colonia($request),
-            $dados['resource_type'],
-            $dados['qty'],
-            $micro,
-            $dados['duracao_horas'],
-        );
+        if ($ehRecurso === $ehItem) {
+            throw new DomainRuleException('leilao_alvo_invalido', 'Informe um recurso OU um item da Endurance, nunca os dois nem nenhum.');
+        }
+
+        $micro = (int) round($dados['lance_minimo_fert'] * Colony::MICRO_POR_FERT);
+        $colonia = $this->colonia($request);
+
+        $leilao = $ehItem
+            ? $listar->handleItem($colonia, $dados['item_key'], $dados['qty'], $micro, $dados['duracao_horas'])
+            : $listar->handle($colonia, $dados['resource_type'], $dados['qty'], $micro, $dados['duracao_horas']);
 
         return response()->json(['id' => $leilao->id, 'status' => $leilao->status, 'deadline_at' => $leilao->deadline_at], 201);
     }
