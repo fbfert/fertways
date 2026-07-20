@@ -5929,3 +5929,88 @@ quebra na derrota, tempo de controle com posse em curso e com abandono, convers�
 catálogo, o exemplo numérico do próprio GDD, e o endpoint marcando `mine`). Sem migration.
 `tsc`/`lint`/`build` limpos. Sem e2e dedicado — a tela do Quartel/guerra nunca teve suíte própria;
 rodei a suíte completa (9/9) como checagem de regressão.
+
+---
+
+## D-129 — Leilões: a única frente que sobrava do GDD não tem seção nenhuma. Desenhei do zero.
+
+**Data:** 2026-07-20 · **Status:** implementado, desenho nosso · GDD: nenhuma seção — só duas
+citações, como alvo de uma punição inerte (§9.4/D-49/D-50)
+
+Depois do D-128, sobrava só Leilões. Fui procurar a seção no GDD (`FERTWAYS_GDD_v36_CONSOLIDADO.html`)
+e não existe: "leilão" aparece DUAS vezes no documento inteiro, e as duas são a mesma frase —
+"reputação negativa bloqueia acesso a leilões" — citada como o alvo de uma punição que o D-49/D-50
+já registrou como inerte. Sem tabela, sem fórmula, sem prazo, sem incremento de lance, sem dizer
+quem lista o quê. Diferente da Federação (que tinha canais de chat, cargos e tratados desenhados no
+texto) e do Ranking de Guerras (fórmula publicada por inteiro), aqui não havia lacuna para arbitrar
+— havia mecanismo inteiro para inventar.
+
+Perguntei ao usuário antes de comprometer código a isso. A resposta: **desenhar do zero**, com o
+julgamento registrado aqui, como fiz no D-116 e no D-128.
+
+### O desenho: em cima do Mercado Central, não ao lado dele
+
+Um leilão é **um lote único, tudo ou nada** — sem arremate parcial, diferente de `market_orders`.
+Ele sai do MESMO depósito que o Mercado Central usa (`market_accounts`, §25.8): quem quer leiloar
+já entregou a carga na doca da Capital, a mesma exigência física do §07. Não inventei um segundo
+depósito para um mecanismo que é, na essência, mais uma forma de vender na doca.
+
+- **Acesso**: a MESMA `AcessoAoMercado::exigir()` que já fecha o Mercado Central — o próprio
+  docblock daquela classe já cita leilões: "§26.2: Confiança Comercial baixa bloqueia o acesso a
+  leilões, Mercado Central e ao cargo de Fiscal de Mercado." Não precisei escrever gate nenhum.
+- **Anunciar** (`ListarLeilao`): escrowa o lote do depósito, como uma venda comum. Duração
+  arbitrada entre 1 e 72 horas — o GDD não dá pista nenhuma de prazo; usei a mesma ordem de
+  grandeza do cerco (48h) e do Acordo de Troca, sem exceder três dias.
+  Lance mínimo é arbitrado pelo próprio anunciante — não há preço-base de leilão no GDD.
+- **Lance** (`DarLance`): escrowa o Fert$ NA HORA, como a compra no Mercado Central. Quem é
+  superado recebe de volta NO MESMO INSTANTE, não no fechamento — ninguém fica com Fert$ preso
+  torcendo contra o próprio lance. Sem incremento mínimo formal: qualquer valor acima do lance
+  vigente (ou do mínimo, se ainda não há lance) vale.
+- **Cancelar** (`CancelarLeilao`): só enquanto NINGUÉM deu lance. Uma vez que alguém comprometeu
+  Fert$ contando com o prazo publicado, tirar o lote da mesa seria calote do lado do vendedor —
+  a mesma leitura que o §26.5 já faz do calote no Acordo de Troca, só que aqui a regra IMPEDE o
+  cancelamento em vez de puni-lo depois.
+- **Fechamento** (`FecharLeiloes`, chamado pelo tick, no mesmo ponto do `ExpirarAcordos`): sem
+  lance, devolve o lote a quem anunciou, sem tributo — nada foi vendido. Com lance, transfere o
+  lote ao arrematante e credita o vendedor líquido de tributo, pela MESMA `resource_types.tax_bps`
+  do Mercado Central (`tax_events.kind = 'leilao_venda'`, novo). Sem corrida com o calote: o lance
+  já estava em escrow desde que foi dado, então fechar é só liquidação.
+- **XP e missão**: reaproveitei a trilha `mercado_executado` (Marco, D-75) para os dois lados do
+  arremate — o GDD não publica um ato "leilão vencido", e inventar uma trilha nova (que exigiria
+  coluna nova em `milestone_settings`) para um mecanismo que ELE MESMO não desenhou pareceu ir
+  longe demais. Um leilão fechado é, para o Marco, mais um negócio fechado no Mercado.
+- **Sem desconto de tributo entre aliados (D-120)**: o desconto só existe no caminho de entrega
+  por transporte, nunca no de venda no Mercado Central — segui a MESMA ausência aqui, por ser o
+  precedente mais próximo (leilão é Governo/Capital-mediado, como o Mercado Central, não comércio
+  direto entre colonos).
+
+### O que mudou no schema
+
+- `auctions` (nova): `colony_id`, `resource_type`, `qty`, `lance_minimo_micro`,
+  `lance_atual_micro`/`lance_colony_id` (só o lance VIGENTE — cada lance superado já foi devolvido
+  em `estorno` no instante em que perdeu, então não há tabela de histórico de lances: o ledger é o
+  histórico), `status` (`aberto`/`arrematado`/`sem_lance`/`cancelado`), `deadline_at`.
+- `tax_events.kind` saiu do enum e virou `string(30)` — mesmo motivo que tirou `ledger.type` do
+  enum no D-58: acrescentar um `kind` (`leilao_venda`) não deveria exigir ALTER de enum, caro no
+  MariaDB e mal suportado no SQLite dos testes.
+- `Ledger::TIPOS` ganhou três: `escrow_leilao`, `venda_leilao`, `compra_leilao`.
+
+### A tela
+
+Nova aba "Leilões" no Mercado Central (`Mercado.tsx`, ao lado de "Ofertas globais") — o mesmo
+critério do D-49 já tratava leilões como parceiro do Mercado Central, não do comércio informal
+entre colonos. Anuncia, vê os leilões abertos com contagem regressiva, dá lance, e "Seus leilões"
+mostra o histórico (qualquer status) de quem anunciou ou dá o lance vigente.
+
+### Validado
+
+13 testes novos (`LeiloesTest`) + suíte completa: 818 passando. `tsc`/`lint`/`build` limpos.
+Estendi `mercado.e2e.mjs` (a única suíte que já tinha o Mercado Central de pé) com o fluxo que dá
+para provar com uma colônia só logada — anunciar, ver o escrow sair do depósito, cancelar sem
+lance e ver o lote voltar; o lance de OUTRA colônia e o fechamento por prazo já estão cobertos no
+Feature test do backend. Rodei a suíte isolada (`mercado.e2e.mjs`) duas vezes: a primeira falhou no
+lançamento do Chromium (`TargetCloseError`) sob pressão de memória do servidor de 4 GB — nada a ver
+com o código, e o `e2e.sh` cheio já tinha mostrado o mesmo tipo de falha aleatória em telas que este
+D-129 nunca tocou (Chat, mobile). A segunda passou nos 8 checks de Leilões; um check NÃO relacionado
+("a carroceria soma os dois recursos", D-65, código que este D-129 não tocou) flakou uma vez — o
+próprio arquivo de teste já documenta corrida de tempo conhecida nesta suíte.

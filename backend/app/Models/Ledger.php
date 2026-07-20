@@ -77,6 +77,13 @@ class Ledger extends Model
         // `amount` é o delta, com sinal: uma correção também pode TIRAR o que um bug deu de graça.
         'ajuste_admin',
         'estorno',
+        /*
+         * Leilões (D-129, sem sistema no GDD): o lote fica em escrow ao anunciar, e cada lance vira
+         * escrow de Fert$ — devolvido em `estorno` se for superado ou se o leilão fechar sem vencer.
+         */
+        'escrow_leilao',
+        'venda_leilao',  // crédito líquido ao vendedor, no fechamento (mesma forma de `venda_mercado`)
+        'compra_leilao', // recurso creditado ao arrematante, no fechamento
     ];
 
     public function colony(): BelongsTo

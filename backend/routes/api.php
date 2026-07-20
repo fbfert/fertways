@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\AuctionController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\BuildingController;
 use App\Http\Controllers\Api\CapitalController;
@@ -169,6 +170,14 @@ Route::middleware('auth:sanctum')->group(function () {
     // e o D-42 (prazo × distância) só pode ser cobrado aí, quando enfim existe um par de verdade.
     Route::get('/trade/board', [TradeController::class, 'mural']);
     Route::post('/trade/agreements/{agreement}/accept', [TradeController::class, 'aceitar']);
+
+    // Leilões (D-129). Sem seção no GDD — só citado como alvo de uma punição inerte. O mecanismo
+    // (lote único, lance em escrow, fechamento por prazo no tick) é desenho nosso sobre o Mercado
+    // Central.
+    Route::get('/auctions', [AuctionController::class, 'index']);
+    Route::post('/auctions', [AuctionController::class, 'store']);
+    Route::post('/auctions/{auction}/bid', [AuctionController::class, 'lance']);
+    Route::delete('/auctions/{auction}', [AuctionController::class, 'destroy']);
 
     // Capital — instituições do governo (§02). Só leitura: os atos do governo (intervenção de preço,
     // publicar comunicado) são artisan, não rota, porque o Governo é "operado pela equipe" (D-44).

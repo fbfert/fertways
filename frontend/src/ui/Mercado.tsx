@@ -5,6 +5,7 @@ import type {
   ColoniaVizinha,
   ContaDoMercado,
   Frota,
+  Leilao,
   MinhaZona,
   OfertaGlobal,
   SaldoDoRecurso,
@@ -14,7 +15,15 @@ import type {
 import { IconeCompra, IconeRecurso, IconeVende } from './IconeRecurso'
 import { Popup } from './Popup'
 import { OfertarEntreColonos, VerOfertasDeColonos } from './Acordos'
-import { fert, nomeRecurso, nomeVeiculo, paraMicro, relogio, segundosRestantes } from './recursos'
+import {
+  fert,
+  nomeRecurso,
+  nomeVeiculo,
+  paraMicro,
+  prazoHumano,
+  relogio,
+  segundosRestantes,
+} from './recursos'
 
 const INTERVALO_MS = 3000
 
@@ -36,7 +45,14 @@ const INTERVALO_MS = 3000
  */
 export type ContextoDoMercado = 'local' | 'central'
 
-type Aba = 'doca' | 'ofertar_colono' | 'ver_colonos' | 'patio' | 'ofertar_central' | 'globais'
+type Aba =
+  | 'doca'
+  | 'ofertar_colono'
+  | 'ver_colonos'
+  | 'patio'
+  | 'ofertar_central'
+  | 'globais'
+  | 'leiloes'
 
 const ABAS: Record<ContextoDoMercado, { chave: Aba; rotulo: string }[]> = {
   local: [
@@ -48,6 +64,7 @@ const ABAS: Record<ContextoDoMercado, { chave: Aba; rotulo: string }[]> = {
     { chave: 'patio', rotulo: 'Pátio e depósito' },
     { chave: 'ofertar_central', rotulo: 'Ofertar no Mercado Central' },
     { chave: 'globais', rotulo: 'Ofertas globais' },
+    { chave: 'leiloes', rotulo: 'Leilões' },
   ],
 }
 
@@ -69,6 +86,7 @@ export function Mercado({
   const [frota, setFrota] = useState<Frota | null>(null)
   const [conta, setConta] = useState<ContaDoMercado | null>(null)
   const [vitrine, setVitrine] = useState<Vitrine | null>(null)
+  const [leiloes, setLeiloes] = useState<{ abertos: Leilao[]; minhas: Leilao[] } | null>(null)
   const [vizinhas, setVizinhas] = useState<ColoniaVizinha[]>([])
   const [zonas, setZonas] = useState<MinhaZona[]>([])
   const [erro, setErro] = useState<string | null>(null)
@@ -76,10 +94,11 @@ export function Mercado({
   const carregar = useCallback(async () => {
     try {
       // A vitrine vem inteira, sem filtro de recurso: é o que faz as ofertas dos outros aparecerem.
-      const [f, c, v] = await Promise.all([api.frota(), api.conta(), api.vitrine()])
+      const [f, c, v, l] = await Promise.all([api.frota(), api.conta(), api.vitrine(), api.leiloes()])
       setFrota(f)
       setConta(c)
       setVitrine(v)
+      setLeiloes(l)
     } catch (e) {
       if (e instanceof ApiError) setErro(e.message)
     }
@@ -205,6 +224,7 @@ export function Mercado({
           <OfertarNoMercadoCentral vitrine={vitrine} conta={conta} agir={agir} />
         )}
         {aba === 'globais' && <OfertasGlobais vitrine={vitrine} conta={conta} agir={agir} />}
+        {aba === 'leiloes' && <Leiloes leiloes={leiloes} vitrine={vitrine} conta={conta} agir={agir} />}
       </div>
     </div>
   )
@@ -1280,6 +1300,228 @@ function LinhaDaVitrine({
             O recurso já está no seu depósito, na Capital.
           </p>
         </Popup>
+      )}
+    </div>
+  )
+}
+
+const DURACOES_LEILAO = [1, 6, 12, 24, 48, 72] as const
+
+/**
+ * Leilões (D-129) — sem seção no GDD, desenho nosso sobre o Mercado Central: um lote, tudo ou
+ * nada, sai do mesmo depósito da Capital que a venda comum usa. Lance é escrow na hora; quem é
+ * superado recebe de volta no mesmo instante. Fecha sozinho, no tick, quando o prazo vence.
+ */
+function Leiloes({
+  leiloes,
+  vitrine,
+  conta,
+  agir,
+}: {
+  leiloes: { abertos: Leilao[]; minhas: Leilao[] } | null
+  vitrine: Vitrine | null
+  conta: ContaDoMercado | null
+  agir: (a: () => Promise<unknown>) => Promise<void>
+}) {
+  const [recurso, setRecurso] = useState('metal_bruto')
+  const [qtd, setQtd] = useState('')
+  const [lanceMinimo, setLanceMinimo] = useState('')
+  const [duracao, setDuracao] = useState<number>(24)
+
+  const saldo = conta?.deposito.find((d) => d.resource_type === recurso)
+  const quantidade = Number(qtd)
+  const lanceMinimoValido = /^\d+([.,]\d{1,6})?$/.test(lanceMinimo.trim()) && Number(lanceMinimo.replace(',', '.')) > 0
+
+  const impedimento =
+    !Number.isInteger(quantidade) || quantidade <= 0
+      ? null
+      : saldo && quantidade > saldo.no_deposito
+        ? `Seu depósito na Capital tem ${saldo.no_deposito.toLocaleString('pt-BR')}. Leve carga até lá primeiro.`
+        : null
+
+  const valido = Number.isInteger(quantidade) && quantidade > 0 && lanceMinimoValido && !impedimento
+
+  return (
+    <div className="mt-5">
+      <p className="text-ink-soft text-sm">
+        O lote sai do <strong className="text-ink">depósito da Capital</strong>, como uma venda
+        comum — só que aqui quem leva é quem der o maior lance até o prazo. Sem lance nenhum, o
+        lote volta ao depósito de quem anunciou.
+      </p>
+
+      <div className="border-rust/20 mt-4 border p-3">
+        <select
+          aria-label="Recurso"
+          className="border-rust/25 bg-sand focus:border-rust w-full border px-2 py-1.5 text-sm outline-none"
+          value={recurso}
+          onChange={(e) => setRecurso(e.target.value)}
+        >
+          {(vitrine?.catalogo ?? []).map((c) => (
+            <option key={c.code} value={c.code}>
+              {c.nome}
+            </option>
+          ))}
+        </select>
+
+        <DoisEstoques saldo={saldo} />
+
+        <div className="mt-3 grid gap-2 md:grid-cols-3">
+          <input
+            className="border-rust/25 bg-sand focus:border-rust border px-2 py-1.5 text-sm outline-none"
+            placeholder="Quantidade"
+            inputMode="numeric"
+            value={qtd}
+            onChange={(e) => setQtd(e.target.value.replace(/\D/g, ''))}
+          />
+          <input
+            className="border-rust/25 bg-sand focus:border-rust border px-2 py-1.5 text-sm outline-none"
+            placeholder="Lance mínimo, em Fert$"
+            inputMode="decimal"
+            value={lanceMinimo}
+            onChange={(e) => setLanceMinimo(e.target.value)}
+          />
+          <select
+            aria-label="Duração"
+            className="border-rust/25 bg-sand focus:border-rust border px-2 py-1.5 text-sm outline-none"
+            value={duracao}
+            onChange={(e) => setDuracao(Number(e.target.value))}
+          >
+            {DURACOES_LEILAO.map((h) => (
+              <option key={h} value={h}>
+                {h < 24 ? `${h} h` : `${h / 24} dia${h > 24 ? 's' : ''}`}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {impedimento && <p className="text-rust mt-2 text-xs font-bold">{impedimento}</p>}
+
+        <button
+          disabled={!valido}
+          onClick={() => {
+            void agir(() =>
+              api.anunciarLeilao({
+                resource_type: recurso,
+                qty: quantidade,
+                lance_minimo_fert: Number(lanceMinimo.replace(',', '.')),
+                duracao_horas: duracao,
+              }),
+            ).then(() => {
+              setQtd('')
+              setLanceMinimo('')
+            })
+          }}
+          className="bg-rust text-sand-light hover:bg-rust-bright mt-3 w-full py-2 text-sm font-bold disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          Anunciar leilão
+        </button>
+      </div>
+
+      <div className="text-rust eyebrow mt-6">Leilões abertos</div>
+      {(leiloes?.abertos.length ?? 0) === 0 ? (
+        <p className="text-ink-soft mt-2 text-sm">Nenhum leilão aberto agora.</p>
+      ) : (
+        <div className="mt-2 grid gap-2 md:grid-cols-2 lg:grid-cols-3">
+          {leiloes?.abertos.map((l) => <CardDeLeilao key={l.id} leilao={l} agir={agir} />)}
+        </div>
+      )}
+
+      {(leiloes?.minhas.length ?? 0) > 0 && (
+        <>
+          <div className="text-rust eyebrow mt-6">Seus leilões</div>
+          <div className="mt-2 space-y-1">
+            {leiloes?.minhas.map((l) => (
+              <div key={l.id} className="border-rust/15 flex items-center justify-between border p-2 text-sm">
+                <span className="text-ink-soft">
+                  {l.qty.toLocaleString('pt-BR')} de {nomeRecurso(l.resource_type)}
+                  {l.lance_atual_fert !== null && (
+                    <> · maior lance {l.lance_atual_fert.toLocaleString('pt-BR')} Fert$</>
+                  )}
+                </span>
+                <span className="text-ink font-bold">{ROTULO_STATUS_LEILAO[l.status]}</span>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
+const ROTULO_STATUS_LEILAO: Record<Leilao['status'], string> = {
+  aberto: 'Aberto',
+  arrematado: 'Arrematado',
+  sem_lance: 'Encerrado sem lance',
+  cancelado: 'Cancelado',
+}
+
+function CardDeLeilao({
+  leilao,
+  agir,
+}: {
+  leilao: Leilao
+  agir: (a: () => Promise<unknown>) => Promise<void>
+}) {
+  const [lance, setLance] = useState('')
+  const restam = segundosRestantes(leilao.deadline_at)
+  const lanceNumero = Number(lance.replace(',', '.'))
+  const lanceValido = /^\d+([.,]\d{1,6})?$/.test(lance.trim()) && lanceNumero >= leilao.proximo_lance_minimo_fert
+
+  return (
+    <div className="border-rust/15 flex h-full flex-col justify-between gap-2 border p-3">
+      <div>
+        <div className="text-sm">
+          <span className="text-ink inline-flex items-center gap-1 font-bold">
+            <IconeRecurso codigo={leilao.resource_type} />
+            {leilao.qty.toLocaleString('pt-BR')} de {nomeRecurso(leilao.resource_type)}
+          </span>
+        </div>
+        <p className="text-ink-soft mt-0.5 text-xs">
+          De {leilao.colonia ?? `colônia #${leilao.colony_id}`} · encerra em{' '}
+          <span className={restam < 3600 ? 'text-rust font-bold' : ''}>{prazoHumano(restam)}</span>
+        </p>
+        <p className="text-ink-soft mt-1 text-xs">
+          Mínimo {leilao.lance_minimo_fert.toLocaleString('pt-BR')} Fert$
+          {leilao.lance_atual_fert !== null && (
+            <>
+              {' · '}
+              <span className="text-ink font-bold">
+                lance atual {leilao.lance_atual_fert.toLocaleString('pt-BR')} Fert$
+              </span>
+              {leilao.meu_lance && <span className="text-rust font-bold"> (seu)</span>}
+            </>
+          )}
+        </p>
+      </div>
+
+      {leilao.minha ? (
+        leilao.lance_colony_id === null ? (
+          <button
+            onClick={() => void agir(() => api.cancelarLeilao(leilao.id))}
+            className="text-ink-soft hover:text-rust self-start text-xs font-bold"
+          >
+            Cancelar
+          </button>
+        ) : (
+          <p className="text-ink-soft text-xs">Já tem lance; não pode mais ser cancelado.</p>
+        )
+      ) : (
+        <div className="flex gap-1">
+          <input
+            className="border-rust/25 bg-sand focus:border-rust w-full border px-2 py-1 text-sm outline-none"
+            placeholder={`Mín. ${leilao.proximo_lance_minimo_fert.toLocaleString('pt-BR')}`}
+            inputMode="decimal"
+            value={lance}
+            onChange={(e) => setLance(e.target.value)}
+          />
+          <button
+            disabled={!lanceValido}
+            onClick={() => void agir(() => api.darLance(leilao.id, lanceNumero)).then(() => setLance(''))}
+            className="bg-rust text-sand-light hover:bg-rust-bright px-3 py-1 text-xs font-bold whitespace-nowrap disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            Dar lance
+          </button>
+        </div>
       )}
     </div>
   )
