@@ -347,6 +347,29 @@ export type Combate = {
   cercada: boolean
 }
 
+/**
+ * Uma linha do Ranking de Guerras (§27.13; D-128). Cinco sub-rankings normalizados por percentil
+ * (0-100, o valor do jogador sobre o MÁXIMO do servidor) e o Ranking Geral, soma ponderada deles.
+ */
+export type LinhaDoRanking = {
+  colony_id: number
+  colony_name: string | null
+  zonas_conquistadas: number
+  vitorias: number
+  sequencia: number
+  tempo_de_controle_horas: number
+  saque_fert: number
+  percentil: {
+    zonas_conquistadas: number
+    vitorias: number
+    tempo_de_controle: number
+    saque: number
+    sequencia: number
+  }
+  geral: number
+  mine: boolean
+}
+
 /** O perfil do colono (D-69). Os quatro índices são do Ministério e NÃO se editam. */
 export type Perfil = {
   name: string
@@ -935,6 +958,9 @@ export const api = {
 
   /** As batalhas em curso — atacando E defendendo: o §27.5 quer que o defensor veja e socorra. */
   combates: () => req<{ combats: Combate[] }>('/war/combats'),
+
+  /** O Ranking de Guerras (§27.13; D-128) — cinco sub-rankings por percentil, e o Geral. */
+  rankingDeGuerras: () => req<{ ranking: LinhaDoRanking[] }>('/war/ranking'),
 
   /** Fabrica no Quartel. Instantâneo: o freio do exército é o Nióbio, não o relógio (D-66). */
   fabricarUnidade: (type: Unidade['type'], level: number, quantidade: number) =>

@@ -5869,3 +5869,63 @@ régua do `extrato()`. Os lançamentos de recurso continuam intocados.
 `php artisan test` completo (796 — um teste novo, `test_o_custo_em_fert_vem_convertido_de_micro`,
 afirma -300 no Histórico para um débito de -300.000.000 no Ledger). Sem migration.
 `tsc`/`lint`/`build` limpos. e2e completo, 9/9 verde.
+
+---
+
+## D-128 — O Ranking de Guerras (§27.13): a frente escolhida sozinho entre as que sobravam do GDD.
+**Data:** 2026-07-19 · **Status:** implementado, cinco dos seis sub-rankings publicados · GDD §27.13
+
+Com a Federação fechada (D-114 a D-127), sobravam duas frentes do GDD sem sistema algum: Leilões e
+o Ranking de Guerras. Escolhi o Ranking — GDD com a fórmula publicada por inteiro, exemplo
+numérico incluído, e cinco dos seis dados já existem no jogo sem precisar de tabela nova (Leilões
+exigiria um mecanismo inteiro do zero: lances, prazo, fechamento).
+
+### A fórmula é do documento, ao pé da letra — inclusive o nome "percentil" que não é bem um
+
+Cada sub-ranking vira "percentil" (0–100) dividindo o valor do jogador pelo MÁXIMO do servidor —
+não é um rank estatístico de verdade (não ordena por posição), é a escala linear que o próprio GDD
+chama assim, com exemplo: "5 vitórias, máximo 200 → percentil = 2,5; contribuição = 20% × 2,5 =
+0,5". O Ranking Geral é a soma ponderada dos cinco percentis. Testado contra esse exato exemplo
+(`test_percentil_segue_o_exemplo_publicado_no_gdd`).
+
+### O que cada sub-ranking lê, sem tabela nova nenhuma
+
+- **Zonas Neutras Conquistadas (25%)** — conta os `ZoneEvent` do tipo `conquistada` (D-86):
+  ocupar zona LIVRE não conta, só tomar de outra colônia por guerra.
+- **Vitórias Totais (20%) e Maior Sequência (10%)** — seguem a MESMA régua que o jogo já usa para
+  "vitória", o `combate_vencido` do Marco (D-75, `ConcederXp`): invasão vencida pelo atacante,
+  invasão repelida pelo defensor, cerco rompido por quem socorreu. Cerco por prazo (`rendido`,
+  saque de 30% mas a zona não muda de dono) e sabotagem/apreensão NUNCA disparam `combate_vencido`
+  no motor — ficam de fora por não inventarmos uma segunda definição de vitória.
+- **Tempo de Controle (20%)** — reconstruído do histórico de posse (`ZoneEvent`, D-86): soma os
+  intervalos entre "começou a controlar" e "parou" (conquistada por outro, abandonada, ou agora —
+  se ainda é dono), zona por zona.
+- **Recursos Saqueados em Fert$ (15%)** — soma o `Ledger` tipo `saque_de_guerra`, convertido pelo
+  preço do catálogo (`resource_types.preco_base_micro`, D-34).
+
+### O que ficou de fora, sinalizado para o usuário revisitar
+
+**"Guerras Vencidas (Federação)" (10%, o sexto sub-ranking) não entrou.** O próprio GDD diz que é
+"só no ranking de federações" — mas o jogo não tem o conceito de "guerra da federação": todo
+combate é sempre entre DUAS COLÔNIAS. Preenchê-lo exigiria inventar uma mecânica nova (guerra
+declarada entre federações — o GDD não descreve isso em lugar nenhum) ou uma leitura arbitrária
+(somar as vitórias dos membros por federação, duplicando o sub-ranking 2 sem base clara no texto).
+As duas são arbitragem nova. **Os cinco pesos publicados somam 90, não 100 — não renormalizamos**:
+é a régua do documento, não correção nossa. Também não construí um ranking SEPARADO por federação
+(só o de colônia) — mesma pausa: exigiria decidir como agregar cada sub-ranking por federação
+(soma? média por membro?), pergunta que o GDD não responde.
+
+### A tela
+
+`GET /war/ranking`, novo, dentro do Quartel (`WarController::ranking`, `RankingDeGuerras`, sem
+migration — os quatro dados já existiam). O Quartel ganhou a seção "Ranking de Guerras": tabela
+ordenada pelo Geral, a própria colônia destacada (`mine`, mesmo padrão do Mapa, D-74).
+
+### Validado
+
+`php artisan test` completo (805 — 9 testes novos em `RankingDeGuerrasTest`: conquista vs. mera
+ocupação, a régua do `combate_vencido` excluindo `rendido`/sabotagem/apreensão, sequência que
+quebra na derrota, tempo de controle com posse em curso e com abandono, conversão de saque pelo
+catálogo, o exemplo numérico do próprio GDD, e o endpoint marcando `mine`). Sem migration.
+`tsc`/`lint`/`build` limpos. Sem e2e dedicado — a tela do Quartel/guerra nunca teve suíte própria;
+rodei a suíte completa (9/9) como checagem de regressão.

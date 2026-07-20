@@ -6,6 +6,7 @@ use App\Domain\Guerra\Atacar;
 use App\Domain\Guerra\ComprarNiobio;
 use App\Domain\Guerra\FabricarUnidade;
 use App\Domain\Guerra\Forcas;
+use App\Domain\Guerra\RankingDeGuerras;
 use App\Domain\Guerra\Reforcar;
 use App\Domain\Guerra\RomperCerco;
 use App\Domain\Guerra\Protegido;
@@ -264,5 +265,20 @@ class WarController extends Controller
             ]);
 
         return response()->json(['combats' => $combates]);
+    }
+
+    /**
+     * O Ranking de Guerras (§27.13, D-128) — cinco sub-rankings normalizados por percentil, com o
+     * Ranking Geral publicado. `mine` marca a linha da própria colônia, como o Mapa já faz (D-74).
+     */
+    public function ranking(Request $request, RankingDeGuerras $ranking): JsonResponse
+    {
+        $colony = $request->user()->colony()->first();
+
+        $linhas = $ranking->geral()->map(fn (array $l) => array_merge($l, [
+            'mine' => $colony !== null && $l['colony_id'] === $colony->id,
+        ]));
+
+        return response()->json(['ranking' => $linhas]);
     }
 }
