@@ -200,6 +200,19 @@ class ImportarImagens extends Command
         'plataforma-pouso-zona' => 'plataforma_de_pouso_da_zona', // vazio até aqui
         'estacionamento-caminhoes' => 'estacionamento_da_zona',   // vazio até aqui
         'cemiterio-robos' => 'cemiterio_de_robos',         // vazio até aqui — fecha o buraco do D-72
+
+        // As 8 seções do casco da Endurance (D-132, Loja de Peças). Conferidas visualmente, uma a
+        // uma — não por nome de arquivo. `casco-principal-endurance` e `secao-comando-endurance`
+        // NÃO estão aqui de propósito: são variantes visuais de arte já vinculada
+        // (`casco-endurance.png`/`comando-endurance.png`), não seções novas.
+        'anel-habitacional-endurance' => 'endurance:secao:anel_habitacional',
+        'baia-criogenica-endurance' => 'endurance:secao:baia_criogenica',
+        'comando-endurance' => 'endurance:secao:comando',
+        'matriz-comunicacao-endurance' => 'endurance:secao:matriz_comunicacao',
+        'modulo-medico-endurance' => 'endurance:secao:modulo_medico',
+        'nucleo-propulsao-endurance' => 'endurance:secao:nucleo_propulsao',
+        'secao-acoplagem-endurance' => 'endurance:secao:secao_acoplagem',
+        'silo-suprimentos-endurance' => 'endurance:secao:silo_suprimentos',
     ];
 
     public function handle(Biblioteca $biblioteca): int

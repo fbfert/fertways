@@ -3,6 +3,7 @@ import { api, ApiError, token } from './api/client'
 import type { Catalogo, Colonia, Fila, Spec } from './api/client'
 import { ColonyCanvas } from './game/ColonyCanvas'
 import { Capital } from './ui/Capital'
+import { Endurance } from './ui/Endurance'
 import { Extrato } from './ui/Extrato'
 import { Frota } from './ui/Frota'
 import { Fundacao } from './ui/Fundacao'
@@ -389,6 +390,10 @@ export default function App() {
         />
 
         <Route path="/ministerio" element={<Ministerio />} />
+
+        {/* Os destroços da Endurance (D-132): rota própria, com mapa e Loja de Peças — não mais
+            um `sub` de dentro do modal da Capital. */}
+        <Route path="/capital/endurance" element={<Endurance />} />
 
         {/* O contexto do Mercado está na URL desde o D-67: o Local é a construção do colono, o Central
             é a instituição do governo. São duas telas, e agora são dois endereços. */}

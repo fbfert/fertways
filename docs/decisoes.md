@@ -6210,3 +6210,95 @@ Destilaria ajustados para erguer um Tanque com espaço de sobra, já que a conve
 onde guardar. Suíte completa: 834 passando. `tsc`/`lint`/`build` limpos. Sem e2e novo — mudança é
 backend + uma linha do HUD já coberta por type-check; a suíte de Mapa/Frota (`telas.e2e.mjs`), que
 abre o HUD, já rodou verde nesta sessão antes desta mudança.
+
+---
+
+## D-132 — Os Destroços da Endurance ganham mapa próprio e a Loja de Peças (§05): 8 seções × 4 camadas.
+
+**Data:** 2026-07-20 · **Status:** implementado · GDD: §02 (narrativa), §05 (curva do Marco), §9.4
+(cita "leilões da Endurance")
+
+Pedido do usuário: ler as artes das 8 seções do casco e o GDD, conversar sobre uma "loja de
+artefatos" por seção antes de implementar, e — depois de eu relatar o que o GDD publica e o que
+não publica — desenhar a tela e o sistema. Registrado em duas rodadas de pesquisa e um plano
+aprovado antes de qualquer código (ver histórico da conversa; não repito aqui o que já está no
+plano).
+
+### O que o GDD publica, e o que não
+
+`Endurance.tsx` (área Oeste da Capital) era só texto, e admitia: "nem as peças nem as missões
+foram construídas". O §05 liga peças históricas ao Marco — já implementado (`Curva.php`,
+`ExigirMarco.php`, que já tinha o comentário "os demais desbloqueios do §05 ganham gate no dia em
+que os sistemas existirem"):
+
+| Marco | Título | Desbloqueio |
+|---|---|---|
+| 10 | Pioneiro | Peças comuns da Endurance |
+| 35 | Construtor | Peças de reputação nível 1 |
+| 75 | Guardião | Peças de reputação nível 2 |
+| 100 | Lenda de Fertways | Leilões de peças únicas |
+
+O §9.4 ("reputação negativa bloqueia acesso a leilões da Endurance") mostra que o D-129 (Leilões)
+é, no vocabulário do próprio GDD, o mecanismo de "peças únicas" — mas os dois sistemas não se
+encaixam de graça: `Auction` só vende `resource_type` fungível, não item de catálogo único.
+**Não integrei com o D-129 nesta rodada** — a camada "única" fica na mesma loja, com escassez real
+(só uma colônia no servidor pode ter cada peça única, checado sob lock na compra, não por
+constraint de banco). Uma integração de verdade com Leilões é extensão futura, sinalizada aqui,
+não construída.
+
+Nem o que uma peça FAZ, nem o preço, nem se são 8 ou 32 itens — nada disso o GDD publica. Perguntei
+ao usuário as três coisas antes de desenhar:
+
+1. **O que a peça faz**: dá um bônus real (não só cosmético).
+2. **Como se adquire**: compra com Fert$, liberada pelo Marco.
+3. **Escopo**: as 8 seções × as 4 camadas do §05 — 32 itens.
+
+### Os números — todos arbitrados, nenhum do GDD
+
+- **Preço** (Fert$): comum 20 · reputação 1 60 · reputação 2 150 · única 500.
+- **Bônus**: desconto de tributo, não bônus de produção — reaproveita o MESMO ponto de extensão do
+  desconto de aliados (D-120: `intdiv($bpsCheio * (10_000 - $desconto), 10_000)`), em vez de abrir
+  uma segunda frente na fórmula de produção do `ColonyTick`, que atravessa 26 recursos e é código
+  bem mais sensível. Por peça: comum 1% · reputação 1 2,5% · reputação 2 5% · única 10% — somado
+  entre todas as peças possuídas, com **teto agregado de 30%** (`EnduranceSpecs::TETO_DESCONTO_BPS`),
+  para uma coleção completa nunca chegar perto de zerar o tributo do raro (que já é só 1% cheio).
+  Aplicado nos dois pontos onde o jogo já calcula tributo — `ConcluirTrechos::aliquota()` (entrega
+  por transporte) e `ExecutarOrdem::fechar()` (venda no Mercado Central) — depois do desconto de
+  aliados, nunca antes. `FecharLeiloes` (D-129) não ganhou o desconto nesta rodada, para não mexer
+  em três sistemas de tributo na mesma entrega.
+- O catálogo (32 peças) vive em código (`App\Domain\Endurance\EnduranceSpecs`), não em tabela —
+  mesmo argumento já usado para `PunicaoSpecs::VIOLACOES`: é dado de design arbitrado, não conteúdo
+  administrável.
+
+### A tela — por que não é Phaser
+
+A Capital já ensinou essa lição uma vez: cenas de Phaser são canvas, sem DOM, e o e2e não clica em
+pixel — foi por isso que os sete ministérios "saíram pálidos" no D-63, e por isso que `Zona.tsx` já
+é SVG à mão, não Phaser. Para os destroços fui mais direto ainda: como as 8 artes já são imagens
+reais (não vetores), a tela é **DOM puro** — `<img>` de verdade, posicionadas por CSS, dentro de um
+contêiner com a MESMA câmera que Colônia e Capital já usam (`useVista()`, `ControlesDeZoom` —
+zero código de zoom novo). Testável por e2e de verdade, sem inventar um terceiro motor de
+renderização.
+
+**Rota própria** (`/capital/endurance`), não mais um `sub` local dentro do modal da Capital — o
+padrão dominante do app já é rota de verdade (`/mapa`, `/zona/:id`, `/mercado/:contexto`); só a
+Capital ainda trocava painel por `useState`, sem sobreviver a um recarregamento. Os atalhos à
+esquerda (Governo Central, Mercado Central, Espaçoporto) não têm precedente no app — hoje não existe
+um jeito de pular entre áreas da Capital sem voltar à praça — então a barra é local desta tela, não
+um padrão novo do Header global. O Espaçoporto continua sendo um `sub` da Capital (fora de escopo
+mudar isso agora): o atalho navega para `/capital` levando um pedido no estado da rota
+(`location.state.abrirSub`), que `Capital.tsx` lê num `useEffect` — sem promovê-lo a rota própria.
+
+### Validado
+
+11 testes novos (`LojaDaEnduranceTest`): o catálogo tem 32 peças, o marco trava a compra, Fert$
+debita e credita o Tesouro certo, ninguém compra a mesma peça duas vezes, peça única esgota depois
+da primeira compra (segunda colônia recusada) mas colônias diferentes podem ter a mesma camada em
+seções diferentes, Fert$ insuficiente é recusado, o desconto soma e respeita o teto de 30%, e o
+desconto reduz o tributo nos dois pontos onde ele se calcula (transporte e Mercado Central).
+Suíte completa: 845 passando — sem regressão em `ConcluirTrechos`/`ExecutarOrdem`, que já tinham
+cobertura extensa antes desta mudança. `tsc`/`lint`/`build` limpos. Estendi `capital.e2e.mjs` (já
+visitava a Capital): abre a Endurance, confere os 8 destroços e as 8 seções da loja, compra uma
+peça de verdade (o colono do e2e nasce no marco 20, acima do marco 10 exigido) e confere os dois
+atalhos de navegação mais delicados (Mercado Central direto, e Espaçoporto via estado de rota).
+Rodado isolado, verde ponta a ponta.

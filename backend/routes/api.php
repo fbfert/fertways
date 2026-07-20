@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\CargosController;
 use App\Http\Controllers\Api\ChatController;
 use App\Http\Controllers\Api\ColonyController;
 use App\Http\Controllers\Api\DroneController;
+use App\Http\Controllers\Api\EnduranceController;
 use App\Http\Controllers\Api\EstatisticasController;
 use App\Http\Controllers\Api\FederationController;
 use App\Http\Controllers\Api\FeedbackController;
@@ -184,6 +185,10 @@ Route::middleware('auth:sanctum')->group(function () {
     // estes dois são os únicos atos que o próprio jogador faz.
     Route::post('/cargos/materia', [CargosController::class, 'publicarMateria']);
     Route::post('/cargos/sinalizar', [CargosController::class, 'sinalizar']);
+
+    // A Loja de Peças da Endurance (§05, D-131) — 8 seções × 4 camadas do Marco.
+    Route::get('/endurance', [EnduranceController::class, 'index']);
+    Route::post('/endurance/pecas/{peca}/comprar', [EnduranceController::class, 'comprar']);
 
     // Capital — instituições do governo (§02). Só leitura: os atos do governo (intervenção de preço,
     // publicar comunicado) são artisan, não rota, porque o Governo é "operado pela equipe" (D-44).

@@ -56,7 +56,7 @@ export function MobileNav({
       ? 'colonia'
       : pathname === '/mapa'
         ? 'mapa'
-        : pathname === '/capital' || pathname === '/ministerio' || pathname.startsWith('/mercado/')
+        : pathname === '/capital' || pathname.startsWith('/capital/') || pathname === '/ministerio' || pathname.startsWith('/mercado/')
           ? 'capital'
           : null
 

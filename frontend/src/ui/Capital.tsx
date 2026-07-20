@@ -1,7 +1,7 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { CapitalCanvas } from '../game/CapitalCanvas'
 import type { AreaId, SlotDaCapital } from '../game/CapitalScene'
-import { Endurance } from './Endurance'
 import { Espacoporto } from './Espacoporto'
 import { Federacao } from './Federacao'
 import { Financas } from './Financas'
@@ -25,7 +25,7 @@ import { Transportes } from './Transportes'
  * o D-55. Mercado e Pátio são a mesma área, e os caminhões desenhados ali são **desenho**, não uma
  * segunda porta.
  */
-type Sub = 'tesouro' | 'financas' | 'noticias' | 'transportes' | 'endurance' | 'espacoporto' | 'federacao'
+type Sub = 'tesouro' | 'financas' | 'noticias' | 'transportes' | 'espacoporto' | 'federacao'
 
 /**
  * Os slots do Governo Central. **O 6 não está aqui**: ele é a área do Leste.
@@ -56,7 +56,6 @@ const TITULO: Record<Sub, string> = {
   financas: 'Secretaria de Finanças',
   noticias: 'Central de Pesquisas e Notícias',
   transportes: 'Ministério dos Transportes',
-  endurance: 'Endurance of Mankind',
   espacoporto: 'Espaçoporto',
   federacao: 'Quartel de Alianças',
 }
@@ -69,6 +68,17 @@ export function Capital({
   aoAbrirMinisterio: () => void
 }) {
   const [sub, setSub] = useState<Sub | null>(null)
+  const navegar = useNavigate()
+  const location = useLocation()
+
+  // O atalho "Espaçoporto" da tela da Endurance (D-132) chega por aqui: `/capital` de novo, com um
+  // pedido de sub-painel no estado da navegação — sem promover Espaçoporto a rota própria só para
+  // isto.
+  useEffect(() => {
+    const pedido = (location.state as { abrirSub?: Sub } | null)?.abrirSub
+
+    if (pedido) setSub(pedido)
+  }, [location.state])
 
   function clicarSlot(slot: SlotDaCapital) {
     // O Ministério das Reputações reusa a tela de topo do HUD, como antes do D-63.
@@ -89,7 +99,8 @@ export function Capital({
       return
     }
 
-    if (area === 'oeste') setSub('endurance')
+    // Os destroços da Endurance viraram rota própria (D-132), com mapa e Loja de Peças.
+    if (area === 'oeste') navegar('/capital/endurance')
     if (area === 'sul') setSub('espacoporto')
   }
 
@@ -121,7 +132,6 @@ export function Capital({
             {sub === 'financas' && <Financas />}
             {sub === 'noticias' && <Noticias />}
             {sub === 'transportes' && <Transportes />}
-            {sub === 'endurance' && <Endurance />}
             {sub === 'espacoporto' && <Espacoporto />}
             {sub === 'federacao' && <Federacao />}
           </div>
