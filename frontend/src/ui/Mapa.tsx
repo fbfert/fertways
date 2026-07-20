@@ -879,6 +879,25 @@ function PainelZona({
         </div>
       )}
 
+      {/*
+        Sua: a fila de construção (D-125) — antes só a ficha inteira da zona (`/zona/{id}`)
+        mostrava isso; quem só abria o painel do mapa não via nada em obra.
+      */}
+      {z.mine && z.obras && z.obras.length > 0 && (
+        <div className="border-rust/20 mt-3 border-t pt-2" data-fila-de-obras>
+          <p className="text-ink eyebrow">
+            Fila de obras ({z.obras.length}/{z.obras_vagas})
+          </p>
+          <ul className="text-ink-soft mt-1 space-y-0.5 text-xs">
+            {z.obras.map((o, i) => (
+              <li key={i} data-obra-em-curso={o.structure}>
+                {o.nome} nível {o.target_level} — pronta {new Date(o.finishes_at).toLocaleString('pt-BR')}.
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       {/* Sua: manutenção territorial (§27.12, D-84) — sem pagar, a defesa decai; 72h, abandona. */}
       {z.mine && z.manutencao && z.manutencao.inadimplente_desde && (
         <p className="text-rust mt-2 text-xs font-bold" data-manutencao-atrasada>
