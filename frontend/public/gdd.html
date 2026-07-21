@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>FERTWAYS — GDD v36 (consolidado)</title>
+<title>FERTWAYS — GDD v38 (consolidado)</title>
 <style>
   :root{--rust:#b4450b;--rust-bright:#cd5512;--ember:#eaae65;--sand:#f8e7d6;--sand-light:#fdf0e2;
         --ink:#1e1c17;--ink-soft:#4a4038;--ok:#2f5e1e;--prom:#8a6a00;--lac:#8a2f08;--arb:#1e4a6e;}
@@ -49,14 +49,15 @@
 
 <header class="capa">
   <div class="env">
-    <small>Game Design Document · versão 36 · consolidada</small>
+    <small>Game Design Document · versão 38 · consolidada</small>
     <h1>FERTWAYS</h1>
     <p>
       A base de produção do jogo. Este documento <b>substitui o v35</b> e, ao contrário dele,
-      <b>não se contradiz</b>.
+      <b>não se contradiz</b>. É a segunda regeneração do v36 (D-62) — a primeira foi até o D-101;
+      esta chega até o <b>D-140</b>, com <b>Federação</b> e <b>a Endurance</b> como frentes novas.
     </p>
     <p style="font-size:.85rem;color:rgba(253,240,226,.55);margin-top:20px">
-      Gerado em 17/07/2026 · As tabelas numéricas são lidas do mesmo banco de onde o jogo lê.
+      Gerado em 21/07/2026 · As tabelas numéricas são lidas do mesmo banco de onde o jogo lê.
     </p>
   </div>
 </header>
@@ -74,8 +75,11 @@
 </p>
 
 <p>
-  Das <b>83 decisões</b> já mescladas que este projeto registrou até hoje, boa parte existe
-  porque o GDD se contradiz ou é omisso. Este v36 resolve isso de raiz:
+  Das <b>140 decisões</b> já mescladas que este projeto registrou até hoje, boa parte existe
+  porque o GDD se contradiz ou é omisso — e uma parte crescente (Leilões, o Ranking de Guerras, a
+  Federação, a Loja de Peças da Endurance) não tem seção nenhuma no GDD: são sistemas inteiros que
+  o documento só cita de passagem, e que teve de ser desenhados do zero. Este documento resolve as
+  duas coisas de raiz:
 </p>
 
 <ul>
@@ -84,11 +88,15 @@
       foi descartada e por quê.</li>
   <li><b>As lacunas são marcadas como lacunas.</b> Onde o GDD nunca publicou um número, este
       documento <b>não inventa um</b>: escreve <span class="sel sel-lac">Lacuna aberta</span> e segue. É a regra de ouro do projeto
-      aplicada ao próprio documento — e faz do v36, de quebra, a lista de tudo o que ainda falta
-      decidir.</li>
+      aplicada ao próprio documento — e faz deste documento, de quebra, a lista de tudo o que ainda
+      falta decidir.</li>
   <li><b>O que o jogo entrega é separado do que ele promete.</b> Sete construções o GDD descreve com
       uma frase bonita e nunca quantifica. Um documento que as apresentasse como funcionalidades
       faria um jogador gastar 90 Ligas num prédio inerte.</li>
+  <li><b>O que foi desenhado sem base no GDD é marcado como tal, não disfarçado de "regra do
+      documento".</b> Leilões, o Ranking de Guerras e boa parte da Endurance são arbitragem
+      registrada — a régua continua sendo "não inventar sem avisar", só que agora vale também para
+      sistemas inteiros, não só para números soltos.</li>
 </ul>
 
 <div class="nota">
@@ -116,28 +124,35 @@
 </p>
 
 <div class="nota">
-  <b>Duas decisões recentes não mudam regra de jogo — mudam só a tela — e por isso não têm
+  <b>Várias decisões recentes não mudam regra de jogo — mudam só a tela — e por isso não têm
   seção própria neste documento</b>, que descreve mecânica, não interface: o ícone de Sair e a
-  ordem da lateral da colônia (D-88), e o painel da Indústria Siderúrgica deixar de dizer que
-  "produz" o Metal Bruto que na verdade processa (correção de exibição, sem D-nn). O D-86 (zona
-  em cinco abas, Canteiro que pergunta a obra, Histórico novo) é, na maior parte, a mesma
-  história — é UI —, mas o Histórico é conteúdo de jogo novo (uma linha do tempo da zona que não
-  existia) e está registrado em <span class="d">§8.6</span>.
+  ordem da lateral da colônia (D-88); o painel da Indústria Siderúrgica deixar de dizer que
+  "produz" o Metal Bruto que na verdade processa (correção de exibição, sem D-nn); o HUD virar
+  mobile-first e a navegação virar global, header/barra em toda tela (D-103, D-105); o canal
+  Região sair do chat e a aba acender sozinha (D-104); o lote de arte de 68 estruturas (D-107);
+  ícones de recurso e cards em Ofertas Globais (D-110). O D-86 (zona em cinco abas, Canteiro que
+  pergunta a obra, Histórico novo) é, na maior parte, a mesma história — é UI —, mas o Histórico é
+  conteúdo de jogo novo (uma linha do tempo da zona que não existia) e está registrado em
+  <span class="d">§8.6</span>. O mesmo vale para o D-109, item 4 (recibo de compra) e o D-113
+  (Subsídios é a mesma <code>Tesouro::distribuir()</code> de sempre, só o formulário mudou) —
+  ambos citados nas seções que descrevem a regra que eles não mudaram.
 </div>
 
 <nav class="indice">
   <b>Índice</b>
   <ol>
     <li><a href="#s1">O mundo e a Capital</a></li>
-    <li><a href="#s2">A colônia: os 21 slots</a></li>
+    <li><a href="#s2">A colônia: os 22 slots</a></li>
     <li><a href="#s3">Recursos e economia</a></li>
     <li><a href="#s4">Construções</a></li>
     <li><a href="#s5">Logística e frota</a></li>
-    <li><a href="#s6">O Mercado e o comércio</a></li>
-    <li><a href="#s7">Reputação e o Ministério</a></li>
+    <li><a href="#s6">O Mercado e o comércio — e os Leilões</a></li>
+    <li><a href="#s7">Reputação, o Ministério e os Cargos Públicos</a></li>
     <li><a href="#s8">Território e zonas neutras</a></li>
-    <li><a href="#s9">Operação e administração</a></li>
-    <li><a href="#s10">Tudo o que ainda falta decidir</a></li>
+    <li><a href="#s9">A Federação</a></li>
+    <li><a href="#s10">A Endurance</a></li>
+    <li><a href="#s11">Operação e administração</a></li>
+    <li><a href="#s12">Tudo o que ainda falta decidir</a></li>
   </ol>
 </nav>
 
@@ -187,7 +202,7 @@
 <table>
   <tr><th>Área</th><th>O que tem</th><th>Estado</th></tr>
   <tr><td><b>Norte</b></td><td>Governo Central — a grade dos 19 slots institucionais (1–5, 7–8, 9–20; o 9–20 aparece <b>visível e travado</b>, expansão futura)</td><td><span class="sel sel-ok">Implementado</span></td></tr>
-  <tr><td><b>Oeste</b></td><td>Os destroços da <b>Endurance</b> — conta a própria história e admite honestamente o que ainda não existe (as missões narrativas)</td><td><span class="sel sel-ok">Implementado</span></td></tr>
+  <tr><td><b>Oeste</b></td><td>Os destroços da <b>Endurance</b> — mapa das 8 seções do casco, uma Loja de Peças dinâmica por seção, e as missões narrativas que contam a história da escavação. Ver <span class="d">§10</span></td><td><span class="sel sel-ok">Implementado</span> <span class="d">D-132 a D-140</span></td></tr>
   <tr><td><b>Leste</b></td><td>O <b>slot 6 inteiro</b>: Mercado Central + Pátio Logístico, juntos. Clicar abre o Mercado</td><td><span class="sel sel-ok">Implementado</span> <span class="d">D-65</span></td></tr>
   <tr><td><b>Sul</b></td><td>O futuro <b>Espaçoporto</b> — mostra os 5 planetas do §23 com distância e risco, e diz que ninguém viaja ainda</td><td><span class="sel sel-prom">Promessa</span></td></tr>
   <tr><td><b>Centro</b></td><td>A praça — 1 slot de tamanho, decorativa</td><td><span class="sel sel-ok">Implementado</span></td></tr>
@@ -218,18 +233,19 @@
 </div>
 
 <!-- ══════════════════════════════════════════════════════════════ 2 -->
-<h2 id="s2">2. A colônia: os 21 slots</h2>
+<h2 id="s2">2. A colônia: os 22 slots</h2>
 
 <div class="nota grave">
   <b>Isto não existe no v35.</b> Procuramos <code>slot</code>, <code>terreno</code>,
   <code>lote</code>, <code>grade</code>: no v35, "slot" é a <i>colônia vista do mapa do planeta</i>,
-  nunca um espaço de construção. <b>O documento não põe teto espacial nenhum.</b> Os 21 slots são
-  arbitragem nossa. <span class="d">D-59</span>
+  nunca um espaço de construção. <b>O documento não põe teto espacial nenhum.</b> Os 21 slots
+  originais são arbitragem nossa <span class="d">D-59</span>; o 22º (o Depósito Local, abaixo) é
+  arbitragem posterior, <span class="d">D-106</span>.
 </div>
 
 <p>
-  A colônia é uma <b>colmeia de 21 slots</b>, em linhas de
-  4/4/5/4/4. Toda construção tem <b>posição</b>, e
+  A colônia é uma <b>colmeia de 22 slots</b>, em linhas de
+  4/4/5/4/4/1. Toda construção tem <b>posição</b>, e
   <b>construção não erguida não ocupa slot</b> — ela passa a existir quando o colono aponta o buraco.
 </p>
 
@@ -239,6 +255,7 @@
    ⬡ ⬡ ⬢ ⬡ ⬡           8  9 10 11 12
     ⬡ ⬡ ⬡ ⬡           13 14 15 16
      ⬡ ⬡ ⬡ ⬡          17 18 19 20
+        ⬡              21
 </pre>
 
 <h3>2.1 O miolo — as cinco essenciais</h3>
@@ -269,7 +286,50 @@
   nível 2 ao 3. <span class="d">D-59, revisa o D-13</span>
 </div>
 
-<h3>2.2 Repetíveis e únicas</h3>
+<h3>2.2 O Depósito Local — o Silo <span class="d">D-105, D-106, D-108</span></h3>
+
+<p>
+  O 22º slot, sozinho na última linha da colmeia — não muda a posição de nenhum dos 21 originais.
+  Nasce <b>pronto, no nível 1</b>, subsidiado pelo Governo como as cinco essenciais, mas
+  <b>indemolível sem ser "essencial"</b>: não entra no auto-subsídio do §24.7 nem ganha o selo de
+  essencial, porque nenhuma das duas coisas é verdade para ele.
+</p>
+
+<p>
+  <b>É por causa dele que os recursos deixam de ficar sempre visíveis na tela.</b> Antes, uma barra
+  lateral fixa mostrava o depósito da colônia o tempo todo; desde o D-106, é preciso abrir o
+  Depósito Local para ver — mesmo comportamento em desktop e mobile.
+</p>
+
+<div class="nota">
+  <b>"Silo" é o mesmo Depósito Local, estendido</b> <span class="d">D-108</span>. O usuário pediu
+  uma sub-aba de admin para configurar "o que poderá ser saqueado" por nível — perguntei se era uma
+  construção nova; não é. O nível máximo subiu de 5 para <b>10</b>, e uma tabela nova
+  (<code>silo_capacidades</code>) guarda quanto de CADA recurso cabe protegido, por nível —
+  editável pelo painel, sem deploy. <b>Só a regra e o dado existem nesta entrega</b>: não há guerra
+  de colônia no jogo hoje (o saque do §8.1 mira só Zona Neutra), então "protegido/exposto" não tem
+  nenhuma tela nem consequência ainda — fica pronto para quando existir.
+</div>
+
+<table>
+  <tr><th class="num">Nível</th><th class="num">Capacidade por recurso</th></tr>
+    <tr><td class="num">1</td><td class="num">10.000</td></tr>
+    <tr><td class="num">2</td><td class="num">10.000</td></tr>
+    <tr><td class="num">3</td><td class="num">10.000</td></tr>
+    <tr><td class="num">4</td><td class="num">10.000</td></tr>
+    <tr><td class="num">5</td><td class="num">10.000</td></tr>
+    <tr><td class="num">6</td><td class="num">10.000</td></tr>
+    <tr><td class="num">7</td><td class="num">10.000</td></tr>
+    <tr><td class="num">8</td><td class="num">10.000</td></tr>
+    <tr><td class="num">9</td><td class="num">10.000</td></tr>
+    <tr><td class="num">10</td><td class="num">10.000</td></tr>
+  </table>
+
+<p style="margin-top:-6px">
+  <span class="sel sel-arb">Arbitrado · 10.000 em todos os 26 recursos, em todos os 10 níveis, é só o valor de partida</span>  — o operador ajusta célula a célula pelo painel (Gestão de Construções → Silo).
+</p>
+
+<h3>2.3 Repetíveis e únicas</h3>
 
 <p>
   Quatro construções podem ocupar <b>mais de um slot</b>, cada cópia com o seu nível:
@@ -284,7 +344,7 @@
   enésima Fazenda sairia de graça.
 </div>
 
-<h3>2.3 Demolição <span class="d">D-59, D-61</span></h3>
+<h3>2.4 Demolição <span class="d">D-59, D-61</span></h3>
 
 <ul>
   <li><b>O investido não volta.</b> Nada é estornado. O <code>custo_construcao</code> lançado na obra
@@ -297,7 +357,7 @@
 
 <p>O v35 <b>não fala em demolição</b>, nem na palavra nem no conceito. <span class="sel sel-arb">Arbitrado · tudo acima</span></p>
 
-<h3>2.4 O Marco <span class="d">D-75, §03/§05</span></h3>
+<h3>2.5 O Marco <span class="d">D-75, §03/§05</span></h3>
 
 <p>
   O v35 nomeia os oito marcos e nunca diz como se sobe. A fórmula: <b>XP acumulado = 50 × N²</b>
@@ -327,7 +387,7 @@
   retroativo, idempotente.
 </p>
 
-<h3>2.5 As Missões <span class="d">D-78, §06</span></h3>
+<h3>2.6 As Missões <span class="d">D-78, §06</span></h3>
 
 <table>
   <tr><th>Categoria</th><th>Quantas</th><th>Janela</th></tr>
@@ -335,6 +395,8 @@
   <tr><td>Diária</td><td>3, sorteadas de um pool de 30+</td><td><b>07h → 07h</b> — a régua da semanal, aplicada ao dia inteiro</td></tr>
   <tr><td>Semanal</td><td>1</td><td>quarta 07h → terça 23h59, textual do GDD</td></tr>
   <tr><td>Eventuais <span class="d">D-99</span></td><td>fora do pool — atribuição manual</td><td>sem sorteio automático (evento, sazonal, lançamento)</td></tr>
+  <tr><td>Federação <span class="d">D-116</span></td><td>2 por semana, cooperativa — uma linha POR COLÔNIA-MEMBRO, "irmãs" do mesmo objetivo</td><td>mesma janela da semanal</td></tr>
+  <tr><td>Narrativa (Endurance) <span class="d">D-140</span></td><td>4 capítulos, encadeados</td><td>sem janela — um capítulo, uma vez, só depois do anterior concluído. Ver <span class="d">§10.5</span></td></tr>
 </table>
 
 <p>
@@ -342,6 +404,8 @@
   sem botão de resgate —, generoso por arbitragem (2× a proposta modesta original). <b>A tutoria
   recompensa e não trava</b> o subsídio: contradição deliberada com o §03 ("mediante conclusão da
   tutoria"), porque o tutorial já é auto-completo na fundação desde antes das Missões existirem.
+  Desde o <span class="d">D-102</span>, uma missão concluída também avisa pelo rádio (conta de
+  sistema "Missões") o que foi pago — a mesma lacuna que o D-91 já tinha fechado para o Pátio.
 </p>
 
 <p>
@@ -350,8 +414,17 @@
   Nióbio, chat, frete público, manutenção), agora inclui <b>comprar do Governo no Mercado
   Central</b> (distinto de comprar de outro colono), <b>comprar um veículo novo</b> (do
   Ministério), <b>comprar um veículo usado</b> e <b>vender um veículo usado</b> — este último só
-  dispara na entrega, quando o Fert$ de fato chega ao vendedor (§5.5, §6.5).
+  dispara na entrega, quando o Fert$ de fato chega ao vendedor (§5.5, §6.5). O D-140 acrescentou
+  <b>comprar item da Loja de Peças da Endurance</b>, o único gancho novo dedicado à narrativa.
 </p>
+
+<div class="nota">
+  <b>A categoria Federação é a primeira missão com progresso COMPARTILHADO</b> — não somado por
+  colônia, é o MESMO placar espelhado entre todas as irmãs do grupo (<span class="d">§9.4</span>).
+  <b>A categoria Narrativa é a primeira com PRÉ-REQUISITO</b> — um capítulo só chega à mão quando o
+  anterior está concluído (<code>mission_templates.requer_template_id</code>, auto-referente). São
+  as duas únicas extensões estruturais que o motor genérico do D-78 ganhou desde que nasceu.
+</div>
 
 <!-- ══════════════════════════════════════════════════════════════ 3 -->
 <h2 id="s3">3. Recursos e economia</h2>
@@ -865,7 +938,7 @@
     <td>Recruta e treina Robôs Mineradores, Infiltradores e Predadores. Necessário para ocupar zonas neutras ou atacar.</td>
     <td>§17.2</td>
     <td>
-      <span class="sel sel-prom">Só consome energia</span>              <div style="font-size:.8rem;color:var(--ink-soft);margin-top:4px">A guerra do §27 está fora do MVP e nenhuma unidade é recrutada aqui ainda. Hoje só consome energia.</div>
+      <span class="sel sel-ok">Converte</span>              <div style="font-size:.8rem;color:var(--ink-soft);margin-top:4px">Recruta Sentinela, Robô Minerador, Infiltrador e Predador — consome recurso e credita a unidade (§27.1), desde o D-66. Exige o Quartel nível 1 ou mais.</div>
           </td>
   </tr>
     <tr>
@@ -881,7 +954,7 @@
     <td>Produção e gestão de Caminhões de Carga e Naves de Transporte Planetária.</td>
     <td>§17.2</td>
     <td>
-      <span class="sel sel-ok">Porta</span>              <div style="font-size:.8rem;color:var(--ink-soft);margin-top:4px">É por aqui que se vê a Frota. O §28.5 diz que o nível dela deveria limitar quantos Caminhões o colono pode ter — isso ainda não vale no jogo, e nenhum Caminhão é fabricado aqui.</div>
+      <span class="sel sel-ok">Porta</span>              <div style="font-size:.8rem;color:var(--ink-soft);margin-top:4px">É por aqui que se vê a Frota, e o nível dela LIMITA quantos Caminhões o colono pode ter — máximo(1, nível), desde o D-60. Nenhum Caminhão é fabricado aqui: quem fabrica é o Ministério dos Transportes (D-60); a Central só dá vaga.</div>
           </td>
   </tr>
     <tr>
@@ -2017,23 +2090,23 @@
     <td class="num">
               40 min          </td>
           <td class="num">103</td>
-          <td class="num">34</td>
+          <td class="num">35</td>
         <td class="num">—</td>
   </tr>
     <tr>
     <td class="num">4</td>
     <td class="num">
               59 min          </td>
-          <td class="num">169</td>
-          <td class="num">56</td>
+          <td class="num">171</td>
+          <td class="num">58</td>
         <td class="num">—</td>
   </tr>
     <tr>
     <td class="num">5</td>
     <td class="num">
               89 min          </td>
-          <td class="num">278</td>
-          <td class="num">93</td>
+          <td class="num">282</td>
+          <td class="num">96</td>
         <td class="num">—</td>
   </tr>
   </table>
@@ -2043,6 +2116,29 @@
   publicado; onde não, <b>derivamos pela curva</b> e marcamos como <span class="d">derivado</span> —
   para que ninguém confunda o que o documento disse com o que nós deduzimos.
   <span class="d">D-10</span>
+</div>
+
+<div class="nota">
+  <b>Custo, tempo e nível máximo deixaram de ser fixos no código</b> <span class="d">D-108</span>.
+  A tabela acima é a curva BASE do GDD, mas o operador pode sobrepor custo e tempo por
+  (construção, nível) numa tabela à parte (<code>building_specs_overrides</code>), sem deploy e
+  sem risco de o ajuste se perder no próximo <code>db:seed</code> — o Silo (§2.2) foi o primeiro a
+  usar esse mecanismo (nível máximo 5→10), mas ele vale para qualquer uma das 18.
+  Ver <span class="d">§11.3</span>.
+</div>
+
+<h3>4.3 Manutenção de estruturas <span class="d">D-112</span></h3>
+
+<p>
+  Além do consumo de energia do §19.x (que continua exatamente como sempre foi — balanceamento do
+  GDD, intocado), o operador pode ligar um consumo <b>extra</b> de qualquer recurso primário ou
+  industrial, por hora, por TIPO de construção — não por nível. <span class="sel sel-arb">Arbitrado · recurso primário/industrial apenas; os 9 raros ficam de fora de propósito, para não mexer na escassez que já é o mecanismo do §22.4</span></p>
+
+<div class="nota">
+  <b>Aditivo, nunca substitui.</b> Enquanto o operador não configurar nada, nenhuma construção
+  consome um grama a mais do que consumia antes do D-112 — a tabela nasce vazia. Soma linearmente
+  entre cópias da mesma construção (duas Minas, duas Oficinas...), do mesmo jeito que a produção já
+  soma. O estoque trava em zero, nunca fica negativo — mesma regra de sempre <span class="d">D-20</span>.
 </div>
 
 <!-- ══════════════════════════════════════════════════════════════ 5 -->
@@ -2057,7 +2153,7 @@
     <td class="num">6.000 un. (6 m³)</td>
     <td class="num">4 slots/min</td>
     <td class="num">1 kW/h por min</td>
-    <td><span class="sel sel-ok">Implementado</span> — 1× no kit inicial <span class="d">D-92</span></td>
+    <td><span class="sel sel-ok">Implementado</span> — 1× no kit, e fabricado pelo Ministério desde o D-109 <span class="d">D-92, D-109</span></td>
   </tr>
   <tr>
     <td><b>Caminhão de Carga</b></td>
@@ -2131,29 +2227,57 @@
   <b>O §28.5 do v35 prometia caminhões de graça, e estava revogado desde sempre.</b> Ele dizia que "os
   caminhões correspondentes ao nível atual já estão incluídos no upgrade da Central — sem custo
   adicional". A tabela de precedência da seção 0 já dizia o contrário: <i>"libera vagas de frota;
-  veículo é fabricado ou adquirido separadamente"</i>. <b>Neste v36 há uma só redação.</b>
+  veículo é fabricado ou adquirido separadamente"</i>. <b>Neste documento há uma só redação.</b>
   <br><br>
-  O piso de 1 existe porque, desde os 21 slots, <b>colônia nova não tem Central</b> — e o Furgão do
-  kit precisava caber em algum lugar. A fórmula preserva as duas tabelas do v35: a Central dá 1..10
+  O piso de 1 existe porque, desde a colmeia original de 21 slots, <b>colônia nova não tem
+  Central</b> — e o Furgão do kit precisava caber em algum lugar. A fórmula preserva as duas
+  tabelas do v35: a Central dá 1..10
   (§19.5), e o Terminal de Cargas, que "acrescenta duas vagas", dá 3..12 (§17.3).
 </div>
 
-<h3>5.5 O Ministério dos Transportes <span class="d">D-60</span></h3>
+<h3>5.5 O Ministério dos Transportes <span class="d">D-60, D-109</span></h3>
+
+<p>
+  <b>Fabrica dois veículos hoje</b>: o Caminhão de Carga (GDD §21.3, nível 1 — desde o D-60) e,
+  desde o <span class="d">D-109</span>, o <b>Furgão de Comércio</b> também — antes, o Furgão só
+  vinha no kit inicial. <span class="sel sel-arb">Arbitrado · contraria o §17.2, que atribui a fábrica à Central de Transportes</span></p>
 
 <table>
-  <tr><th>Regra</th><th>Valor</th><th>Origem</th></tr>
-  <tr><td>Fabricar caminhão</td><td><b>Privativo do Ministério</b></td><td><span class="sel sel-arb">Arbitrado · contraria o §17.2</span></td></tr>
-  <tr><td>Preço do Caminhão (nível 1)</td><td><b>300 F$</b></td><td><span class="sel sel-arb">Arbitrado · ~9× o valor dos recursos</span></td></tr>
-  <tr><td>Custo de fabricação (sai do Tesouro)</td><td>90 Ligas Metálicas · 25 Componentes Eletrônicos · 16 Metal Bruto</td><td>GDD §21.3</td></tr>
-  <tr><td>Tempo de fabricação</td><td>60 min</td><td><span class="sel sel-arb">Arbitrado · </span></td></tr>
-  <tr><td>Prateleira do governo</td><td>5 prontos, reposta no tick</td><td><span class="sel sel-arb">Arbitrado · </span></td></tr>
-  <tr><td>Entrega</td><td><b>Física</b> — o caminhão dirige-se da Capital até a colônia</td><td><span class="sel sel-arb">Arbitrado · </span></td></tr>
-  <tr><td>Placa (§16.3)</td><td><code>FW-00001-C</code> — sequencial global, inicial do tipo</td><td>GDD §16.3</td></tr>
-</table>
+  <tr><th>Veículo</th><th class="num">Preço</th><th>Custo de fabricação (Tesouro)</th><th class="num">Tempo</th><th class="num">Prateleira</th></tr>
+    <tr>
+    <td><b>Caminhão de Carga</b></td>
+    <td class="num">300 F$</td>
+    <td>90 Ligas Metálicas · 25 Componentes Eletrônicos · 16 Metal Bruto</td>
+    <td class="num">60 min</td>
+    <td class="num">5 prontos</td>
+  </tr>
+    <tr>
+    <td><b>Furgão de Comércio</b></td>
+    <td class="num">150 F$</td>
+    <td>36 Ligas Metálicas · 10 Componentes Eletrônicos · 6 Metal Bruto</td>
+    <td class="num">24 min</td>
+    <td class="num">5 prontos</td>
+  </tr>
+  </table>
+
+<p>
+  <span class="sel sel-arb">Arbitrado · todos os números da tabela — inclusive o Furgão a 40% do Caminhão em cada coluna, arredondado</span>,
+  editáveis pelo painel (Gestão de Construções → Fábrica, <span class="d">§11.3</span>), sem
+  deploy, desde o D-109 — antes eram constantes de PHP. <b>Entrega física</b> nos dois: o veículo
+  dirige-se sozinho da Capital até a colônia. Placa sequencial global (§16.3):
+  <code>FW-00001-C</code> para Caminhão, <code>FW-00001-F</code> para Furgão.
+</p>
 
 <div class="nota">
-  <b>Se o Tesouro secar, não há caminhão.</b> O Ministério fabrica com o caixa do governo — a
+  <b>Se o Tesouro secar, não há veículo novo.</b> O Ministério fabrica com o caixa do governo — a
   redistribuição do §2.1 passa a ter consequência.
+  <br><br>
+  <b>Um veículo vazio pode agora estacionar numa zona neutra sua</b> <span class="d">D-109</span> —
+  um terceiro lugar, ao lado de "em casa" e "no Pátio". Do Pátio ou de casa, ele pode ir para a
+  Capital, para casa ou para uma zona sua; de uma zona, <b>só de volta para casa</b> — ir direto de
+  uma zona para a Capital ou para outra zona fica de fora de propósito (a distância nunca foi
+  calculada em lugar nenhum do jogo; "voltar pra casa" continua sendo a válvula de escape, nenhum
+  veículo fica preso).
 </div>
 
 <h3>5.6 O serviço logístico público (§07) <span class="d">D-76</span></h3>
@@ -2285,14 +2409,53 @@
 </p>
 
 <div class="nota">
-  <b>O teto de revenda do Furgão foi fechado</b> <span class="d">D-73</span>. Ele não tem preço
-  de fábrica (o Ministério não o vende), então o risco era real: um Furgão sucateado podia ser
-  anunciado por 5.000 F$, e duas contas do mesmo jogador lavarem Fert$ por aí, sem tributo. A
-  correção: uma <b>âncora de 60 F$</b>, parâmetro do operador (proporcional à capacidade — o
-  Furgão carrega 1/5 do Caminhão, cuja âncora é 300 F$), editável no painel dos Transportes sem
-  deploy. O teto de revenda passa a ser <code>âncora × conservação</code>, igual a qualquer
-  outro veículo.
+  <b>O teto de revenda do Furgão foi fechado</b> <span class="d">D-73</span>, e depois herdou uma
+  âncora melhor. Até o D-109, o Furgão não tinha preço de fábrica (o Ministério não o vendia), e o
+  risco era real: um Furgão sucateado podia ser anunciado por 5.000 F$, e duas contas do mesmo
+  jogador lavarem Fert$ por aí, sem tributo. A correção original: uma <b>âncora de 60 F$</b>,
+  parâmetro do operador. Desde o <span class="d">D-109</span>, o Furgão TEM preço de fábrica
+  (§5.5) — o teto de revenda passa a ancorar nele, igual ao Caminhão (<code>preço de fábrica ×
+  conservação</code>); a âncora antiga fica no schema, sem migration só para tirá-la, mas não é
+  mais lida.
 </div>
+
+<h3>6.6 Leilões <span class="d">D-129, D-136</span></h3>
+
+<div class="nota grave">
+  <b>O GDD não descreve isto.</b> "Leilão" aparece DUAS vezes no documento inteiro, e as duas são a
+  mesma frase — "reputação negativa bloqueia acesso a leilões" (§9.4) — citando um mecanismo que o
+  próprio texto nunca desenha: sem tabela, sem fórmula, sem prazo, sem incremento de lance, sem
+  dizer quem lista o quê. Diferente da Federação e do Ranking de Guerras (que tinham fórmula ou
+  estrutura publicada para ancorar a arbitragem), aqui não havia lacuna para preencher — havia um
+  mecanismo inteiro para inventar. Perguntei ao usuário antes de comprometer código; a resposta foi
+  desenhar do zero.
+</div>
+
+<p>
+  Um leilão é <b>um lote único, tudo ou nada</b> — sem arremate parcial, diferente de uma ordem do
+  Mercado Central. Sai do MESMO depósito que o Mercado Central usa: quem quer leiloar já entregou a
+  carga na doca da Capital, a mesma exigência física do §07 — não existe um segundo depósito para
+  um mecanismo que é, na essência, mais uma forma de vender na doca.
+</p>
+
+<table>
+  <tr><th>Regra</th><th>Valor</th></tr>
+  <tr><td>Acesso</td><td>A MESMA Confiança Comercial que já fecha o Mercado Central (&lt; 200, §9.4/D-43) — nenhum gate novo</td></tr>
+  <tr><td>Duração</td><td><b>1 a 72 horas</b>, escolhida por quem anuncia</td></tr>
+  <tr><td>Lance mínimo</td><td>Arbitrado por quem anuncia — não há preço-base de leilão no GDD</td></tr>
+  <tr><td>Lance</td><td>Escrow NA HORA. Quem é superado recebe de volta NO MESMO INSTANTE, não no fechamento</td></tr>
+  <tr><td>Incremento mínimo</td><td>Nenhum — qualquer valor acima do lance vigente (ou do mínimo) vale</td></tr>
+  <tr><td>Cancelar</td><td>Só enquanto NINGUÉM deu lance — depois disso, tirar o lote da mesa seria calote do vendedor</td></tr>
+  <tr><td>Fechamento sem lance</td><td>O lote volta a quem anunciou, sem tributo — nada foi vendido</td></tr>
+  <tr><td>Fechamento com lance</td><td>O lote vai ao arrematante; o vendedor recebe líquido de tributo (mesma alíquota do recurso no Mercado Central)</td></tr>
+</table>
+
+<p>
+  <span class="sel sel-arb">Arbitrado · todos os números acima — duração, ausência de incremento mínimo, a exigência física de já estar na doca</span>  Desde o <span class="d">D-136</span>, um leilão também pode vender <b>um item da Loja de Peças da
+  Endurance</b> (§10.3) em vez de um recurso — a mesma máquina de escrow/lance/fechamento, só
+  trocando o depósito de origem (a posse do item, não o recurso) e zerando o tributo (a Endurance
+  não tem alíquota publicada).
+</p>
 
 <!-- ══════════════════════════════════════════════════════════════ 7 -->
 <h2 id="s7">7. Reputação e o Ministério</h2>
@@ -2328,32 +2491,62 @@
   <span class="sel sel-arb">Arbitrado · a tabela inteira</span></div>
 
 <div class="nota">
-  <b>Parte do Ministério segue inerte, por decisão.</b> O bloqueio de leilões precisa de leilões;
-  o impedimento por federação precisa de federações. <b>Tudo grava com índice e prazo, e passa a
-  morder sozinho</b> no dia em que esses sistemas existirem. Duas punições já mordem: a
-  <b>restrição comercial</b> (fecha a saída de carga por 7 dias) e, desde o D-77, o
-  <b>silêncio</b> — fecha os canais públicos do Chat pelo prazo; a privada continua.
-  <span class="d">D-44, D-50, D-77</span>
+  <b>As duas punições que ficaram inertes desde o D-44 já mordem.</b> O <b>bloqueio de leilões</b>
+  passou a valer sozinho quando os Leilões nasceram (§6.6, D-129) — eles usam a MESMA Confiança
+  Comercial que já fecha o Mercado Central, sem gate novo. O <b>impedimento por federação</b>
+  (conciliador não julga caso de sua própria federação, nem de uma das partes) fechou no
+  <span class="d">D-115</span>. Já mordiam desde antes: a <b>restrição comercial</b> (fecha a
+  saída de carga por 7 dias) e, desde o D-77, o <b>silêncio</b> — fecha os canais públicos do Chat
+  pelo prazo; a privada continua. <span class="d">D-44, D-50, D-77, D-115, D-129</span>
 </div>
 
 <h3>7.3 O Chat <span class="d">D-77</span></h3>
 
-<p>O rádio do planeta. Cinco canais, publicados no §10:</p>
+<p>O rádio do planeta. Quatro canais hoje:</p>
 
 <table>
   <tr><th>Canal</th><th>Escopo</th><th>Retenção</th></tr>
   <tr><td>Global</td><td>Todo o planeta</td><td>180 dias</td></tr>
-  <tr><td>Região</td><td>4 quadrantes (D-52) + o Núcleo — 5 regiões, pela posição da colônia</td><td>180 dias</td></tr>
   <tr><td>Vizinhança</td><td><b>Um raio, não uma sala.</b> A mensagem carrega a posição de quem falou; cada leitor vê quem está a N slots <span class="d">operador</span> DELE, não de quem falou</td><td>90 dias</td></tr>
   <tr><td>Privada</td><td>1 a 1</td><td><b>Indefinida</b></td></tr>
-  <tr><td>Federação</td><td>Existe no esquema, dormente</td><td><span class="sel sel-prom">federações não existem, D-44</span></td></tr>
+  <tr><td>Federação <span class="d">D-115</span></td><td>Só entre membros da mesma federação — a aba só aparece pra quem tem uma</td><td>180 dias</td></tr>
 </table>
 
 <div class="nota">
-  <b>O silêncio "cala a praça, não a boca".</b> A punição do §9.4 fecha Global, Região e
-  Vizinhança; a privada segue funcionando. É a mesma tabela de penas do D-49, só que com um
-  canal de verdade para morder agora.
+  <b>O canal Região saiu</b> <span class="d">D-104</span>. Era 100% um construto calculado
+  on-the-fly da posição da colônia (4 quadrantes + Núcleo, arbitragem do D-77) — nenhum outro
+  domínio do jogo o usava. As mensagens antigas de Região continuam expurgando sozinhas pelo prazo
+  já publicado (180 dias); ninguém escreve lá desde então.
 </div>
+
+<div class="nota">
+  <b>O silêncio "cala a praça, não a boca".</b> A punição do §9.4 fecha Global e Vizinhança; a
+  privada segue funcionando. <b>O canal Federação foi deixado FORA do silêncio</b>, por leitura
+  minha, não do GDD: um círculo de aliados está mais para conversa fechada do que para praça
+  pública. <span class="sel sel-arb">Arbitrado · a isenção do canal Federação à pena de silêncio</span></div>
+
+<h3>7.4 Cargos Públicos <span class="d">D-130</span></h3>
+
+<p>
+  Depois do Conciliador (§7.2), o §14.2 nomeia mais quatro cargos cívicos. O texto existe só em
+  duas revisões ARQUIVADAS do v35 que se contradizem entre si (v30 exige o checklist inteiro do
+  Neutro Registrado; v32 corrige isso, "Neutro Registrado é exclusivo do Conciliador") — seguimos a
+  v32, o mesmo precedente que já valia para o próprio Conciliador.
+</p>
+
+<table>
+  <tr><th>Cargo</th><th>O que faz</th><th>Estado</th></tr>
+  <tr><td><b>Repórter</b></td><td>Publica no mesmo mural da Central de Notícias, marcado "boletim" — distinto do comunicado oficial</td><td><span class="sel sel-ok">Implementado</span></td></tr>
+  <tr><td><b>Fiscal de Mercado</b></td><td>Sinaliza preço suspeito para a equipe; bônus só paga quando a equipe CONFIRMA, nunca no ato de sinalizar</td><td><span class="sel sel-ok">Implementado</span></td></tr>
+  <tr><td><b>Auxiliar de Tesouro</b></td><td>Aponta inconsistência financeira, mesmo desenho do Fiscal</td><td><span class="sel sel-ok">Implementado</span></td></tr>
+  <tr><td>Atendente do Espaçoporto</td><td>Ajuda com rotas, taxas e docas do Espaçoporto</td><td><span class="sel sel-prom">100% dependente do Espaçoporto, que não existe</span></td></tr>
+</table>
+
+<p>
+  <b>Salário e bônus reaproveitam os números do Conciliador</b> (50 F$/dia,
+  3 F$/bônus) — é o
+  único número que QUALQUER revisão do §14 publica para cargo cívico, e a v32 descreve todos os
+  cinco como do mesmo porte. <span class="sel sel-arb">Arbitrado · teto semanal de 400 F$, e nomeação 100% manual do operador — mesmo caminho do Conciliador, sem gate de elegibilidade automático</span></p>
 
 <!-- ══════════════════════════════════════════════════════════════ 8 -->
 <h2 id="s8">8. Território e zonas neutras</h2>
@@ -2522,15 +2715,277 @@
   nele.
 </p>
 
+<h3>8.8 O canteiro de obras ganha teto, e vira saqueável <span class="d">D-122</span></h3>
+
+<p>
+  Uma revisão pedida pelo usuário achou o canteiro de obras (<code>zone_materials</code>) como um
+  <b>depósito paralelo</b>: sem teto, imune a Invasão e Cerco — ao contrário do Depósito de verdade
+  (§8.1). Fechado: o canteiro passou a usar a MESMA capacidade do Depósito, e o que não coube numa
+  entrega volta na carroceria, sem tributo — o mesmo padrão do Mercado Central (§6.3). No saque, o
+  canteiro entra à parte, <b>sempre 100% exposto</b> (não é minério extraído, é material à espera
+  de virar construção) — perde a mesma fração do resto do saque (50% Invasão, 30% Cerco).
+</p>
+
+<div class="nota">
+  <b>Um segundo achado, mais grave: o abandono vazava obra e upgrade em curso.</b> Reocupar uma
+  zona abandonada com OUTRA conta do mesmo jogador herdava a obra que já estava no canteiro — a
+  mesma lavagem que o §04 já fecha para veículo (D-73), só que para zonas. Corrigido: abandonar
+  apaga canteiro e fila de obras junto com o resto do reset.
+</div>
+
+<h3>8.9 Sabotagem e Apreensão passam a valer de verdade <span class="d">D-118</span></h3>
+
+<p>
+  Um bug real, achado numa revisão: a Sabotagem e a Apreensão de Módulos (§28.10) marcavam um
+  selo na tela e <b>nada mais</b> — o bônus de construção, a detecção da Torre, a resistência do
+  Abrigo, a capacidade do Depósito, todos liam o nível cru da estrutura, ignorando se ela estava
+  desligada. O resgate automático de 24h que o próprio texto já previa também nunca rodava.
+</p>
+
+<table>
+  <tr><th>Ataque</th><th>Efeito</th></tr>
+  <tr><td>Sabotagem (Infiltrador)</td><td><b>Proporcional</b> ao nível de quem sabotou — nível 5 equivale a 0% de capacidade. Reparo pago pelo dono limpa na hora</td></tr>
+  <tr><td>Apreensão (Predador)</td><td><b>Binária</b> — desliga até resgate. Repara sozinha em <b>24h</b>, ou o dono paga para reaver antes</td></tr>
+</table>
+
+<p>
+  Custo de reparo/resgate: <span class="sel sel-arb">Arbitrado · uma fração do custo de CONSTRUÇÃO da estrutura no nível atual, mesmo padrão da manutenção de veículos do Ministério (§5.3), ajustável no painel da Guerra</span>.
+  Estruturas sob um Bastião são imunes só à Apreensão — a Sabotagem não é bloqueada, como o próprio
+  GDD distingue.
+</p>
+
+<h3>8.10 Demolição de estrutura de zona <span class="d">D-138</span></h3>
+
+<p>
+  Uma assimetria real com a colônia (§2.4), nunca decidida — só nunca tinha sido levantada: as 12
+  estruturas erguíveis de uma zona (todas menos o Posto de Comando, indemolível) podem ser
+  demolidas de volta ao nível 0, com a mesma palavra de confirmação que a colônia já exige. O
+  investido não volta — nenhum material do canteiro é devolvido. <b>A manutenção territorial NÃO
+  cai</b>: ela é função só do nível da zona (§8.6), nunca leu o nível das 12 estruturas — demolir
+  uma delas não move um número que já não dependia dela. Bloqueado sob cerco e com obra em curso na
+  mesma estrutura.
+</p>
+
+<h3>8.11 O Ranking de Guerras <span class="d">D-128, §27.13</span></h3>
+
+<p>
+  O §27.13 publica a fórmula por inteiro, com exemplo numérico — cada sub-ranking vira um
+  "percentil" (0–100) dividindo o valor do jogador pelo MÁXIMO do servidor; o Ranking Geral é a
+  soma ponderada. Cinco dos seis sub-rankings entraram, todos lendo dado que já existia:
+</p>
+
+<table>
+  <tr><th>Sub-ranking</th><th class="num">Peso</th><th>Lê de</th></tr>
+  <tr><td>Zonas Neutras Conquistadas</td><td class="num">25%</td><td>Conquista por guerra (não ocupação de zona livre)</td></tr>
+  <tr><td>Vitórias Totais</td><td class="num">20%</td><td>A mesma régua de "vitória" que já paga XP do Marco</td></tr>
+  <tr><td>Tempo de Controle</td><td class="num">20%</td><td>Histórico de posse da zona (§8.7)</td></tr>
+  <tr><td>Recursos Saqueados em Fert$</td><td class="num">15%</td><td>Ledger de saque, convertido pelo preço-base do catálogo</td></tr>
+  <tr><td>Maior Sequência</td><td class="num">10%</td><td>A mesma régua de vitória, em série</td></tr>
+  <tr><td>Guerras Vencidas (Federação)</td><td class="num">10%</td><td><span class="sel sel-prom">o jogo não tem &quot;guerra de federação&quot; — todo combate é entre DUAS COLÔNIAS</span></td></tr>
+</table>
+
+<p>
+  <b>Os cinco pesos publicados somam 90, não 100 — não renormalizamos</b>: é a régua do documento,
+  não correção nossa. Tela em <code>GET /war/ranking</code>, dentro do Quartel.
+</p>
+
 <!-- ══════════════════════════════════════════════════════════════ 9 -->
-<h2 id="s9">9. Operação e administração</h2>
+<h2 id="s9">9. A Federação</h2>
+
+<div class="nota grave">
+  <b>O GDD se contradiz entre duas revisões, das poucas vezes em que a divergência é genuína, não
+  um documento incompleto.</b> A v3.0 (§04 "Sistema de Federações") e a v3.2 "regra definitiva"
+  (dentro do §07) discordam em dois pontos, e o usuário decidiu os dois — não pela regra de
+  precedência automática (§ maior na mesma parte), porque aqui as duas partes descrevem sistemas
+  diferentes o bastante para merecerem decisão própria.
+</div>
+
+<table>
+  <tr><th>Ponto de divergência</th><th>v3.0 diz</th><th>v3.2 "definitiva" diz</th><th>Decisão do usuário</th></tr>
+  <tr><td>Desconto de tributo entre aliados</td><td>50% automático</td><td>Sem desconto — só obrigações e defesa</td><td><b>v3.0</b> — 50%, ver §9.5</td></tr>
+  <tr><td>Como o fundo recebe contribuição</td><td>Taxa automática, 1–10% da produção diária</td><td>"Armazém/fundo por rota física" — soa como entrega manual</td><td><b>v3.2</b> — entrega física, mesma logística do resto do jogo</td></tr>
+</table>
+
+<h3>9.1 O núcleo <span class="d">D-114</span></h3>
+
+<p>
+  Fundar, convidar ou pedir entrada, aceitar/recusar, sair, transferir liderança, expulsar, alterar
+  cargo, dissolver. <b>Quatro cargos</b> (a v3.2 completa o que a v3.0 só citava dois): Líder,
+  Diplomata, Intendente, Membro. <b>Teto de 12 colônias por federação.</b> Uma colônia pertence a
+  no máximo uma federação por vez.
+</p>
+
+<p>
+  O <b>fundo</b> (<code>federation_holdings</code>/<code>federation_ledger</code>, espelho do
+  Tesouro — §3.3) recebe contribuição por <b>entrega física</b>: um veículo despachado até a
+  Capital, mesma logística de sempre, tributado NORMALMENTE (o desconto do §9.5 vale só entre duas
+  colônias, não na entrega ao próprio fundo). Saque é só administrativo, pelos cargos com permissão.
+</p>
+
+<div class="nota">
+  <b>Se a federação dissolve, o saldo do fundo vai para o Tesouro</b> — não para quem saiu por
+  último. Evita o exploit óbvio (expulsar todo mundo e embolsar o fundo sozinho) e segue a
+  convenção de sempre: valor não reclamado cai no Tesouro. <span class="sel sel-arb">Arbitrado · </span></div>
+
+<h3>9.2 O limite antimonopólio <span class="d">D-119, §04</span></h3>
+
+<p>
+  O §04 diz "20% → 10%, dinâmico" e não publica de quê, nem o gatilho da transição. Decisão: mede a
+  fatia de <b>todas as zonas neutras ocupadas do jogo</b> que a federação detém; cruzar o teto
+  bloqueia a PRÓXIMA ocupação (zonas já detidas não são tocadas); os dois estágios viram um
+  <b>teto fixo</b>, ajustável no painel.
+</p>
+
+<p><b>Teto hoje: 20%</b> das 120 zonas do jogo, editável em Federações → sem deploy.</p>
+
+<h3>9.3 Desconto de tributo entre aliados <span class="d">D-120, §04/§07</span></h3>
+
+<p>
+  A v3.0 publica o número com todas as letras: <b>50%</b>
+  de desconto — mora no painel mesmo assim, pelo mesmo precedente do §9.2. Vale só entre
+  <b>DUAS colônias federadas</b> na mesma federação, entrega física entre elas — nunca na
+  contribuição ao próprio fundo (§9.1), e nunca quando origem e destino são a MESMA colônia
+  (retirada do próprio depósito no Mercado Central não "desconta de si mesma").
+</p>
+
+<h3>9.4 Apoio de aliado, missões cooperativas, e o alerta de cerco <span class="d">D-115, D-116</span></h3>
+
+<ul>
+  <li><b>Romper cerco (§28.10)</b>: não é mais só o dono da zona — qualquer colônia da MESMA
+      federação pode mandar Sentinelas para socorrer. Quem luta, ganha o crédito de XP e missão.</li>
+  <li><b>Missões "Federação"</b> (§2.6): 2 por semana, cooperativas — <b>uma linha por
+      colônia-membro</b>, "irmãs" do mesmo objetivo, com o MESMO progresso espelhado entre todas.
+      Cruzou a meta, todas concluem e todas são pagas.</li>
+  <li><b>Central de Comunicação da zona</b> (nível ≥ 1): aliados da mesma federação veem a zona AO
+      VIVO, sem gastar vigia de Drone, e recebem um aviso pelo rádio (conta "Federação") assim que
+      ela entra em cerco.</li>
+  <li><b>Canal de chat "Federação"</b> (§7.3): só entre membros, retenção de 180 dias.</li>
+</ul>
+
+<h3>9.5 O impedimento do Ministério, fechado <span class="d">D-115, §26.8</span></h3>
+
+<p>
+  O conciliador agora também é impedido de julgar um caso quando ele OU uma das partes é da mesma
+  federação do outro — a metade que o §26.8 previa e ficava inerte desde o D-44 (§7.2).
+</p>
+
+<!-- ══════════════════════════════════════════════════════════════ 10 -->
+<h2 id="s10">10. A Endurance</h2>
+
+<div class="nota grave">
+  <b>O GDD só nomeia a Endurance — "fonte de peças históricas e missões narrativas" (§02),
+  "patrimônio histórico" (§16.2) — e nunca descreve NENHUMA das duas.</b> Nem preço, nem efeito,
+  nem capítulo, nem número. A primeira versão (D-132/D-133: 8 seções × 4 camadas FIXAS, um efeito
+  só — desconto de tributo) foi rejeitada pelo próprio usuário ao revisar ("as 4 camadas não se
+  diferenciam o bastante", D-134) e refeita do zero no <span class="d">D-135</span>.
+</div>
+
+<h3>10.1 O casco: 8 seções, cada uma com destroço próprio <span class="d">D-132</span></h3>
+
+<p>
+  A área Oeste da Capital (§1.2) mostra os destroços da nave-mãe em 8 seções clicáveis — Comando,
+  Anel Habitacional, Matriz de Comunicação, Baía Criogênica, Módulo Médico, Seção de Acoplagem,
+  Silo de Suprimentos, Núcleo de Propulsão. Cada uma abre a Loja de Peças SÓ daquela seção — um
+  catálogo dinâmico, não mais 8 grupos numa tela só.
+</p>
+
+<h3>10.2 O catálogo dinâmico, e os efeitos que mexem no motor de verdade <span class="d">D-135</span></h3>
+
+<p>
+  O admin cria/edita/apaga itens à vontade pelo painel — nada de linha fixa. Cada item tem tipo
+  (comum/raro/único), estoque GLOBAL do servidor (não por colônia), preço em Fert$, marco mínimo
+  OPCIONAL, e uma lista de efeitos EMPILHÁVEIS — um item pode ter vários. Hoje o catálogo tem
+  <b>0</b> item(ns) cadastrado(s).
+</p>
+
+<table>
+  <tr><th>Tipo de efeito</th><th>Alvo</th><th class="num">Teto agregado</th></tr>
+    <tr>
+    <td><code>desconto_tributo</code></td>
+    <td>— (sem alvo)</td>
+    <td class="num">30%</td>
+  </tr>
+    <tr>
+    <td><code>producao_bonus</code></td>
+    <td>building_type ou veículo, ou "global"/"todos"</td>
+    <td class="num">50%</td>
+  </tr>
+    <tr>
+    <td><code>velocidade_veiculo</code></td>
+    <td>building_type ou veículo, ou "global"/"todos"</td>
+    <td class="num">50%</td>
+  </tr>
+    <tr>
+    <td><code>capacidade_veiculo</code></td>
+    <td>building_type ou veículo, ou "global"/"todos"</td>
+    <td class="num">50%</td>
+  </tr>
+    <tr>
+    <td><code>drone_raio</code></td>
+    <td>— (sem alvo)</td>
+    <td class="num">100%</td>
+  </tr>
+    <tr>
+    <td><code>drone_bateria</code></td>
+    <td>— (sem alvo)</td>
+    <td class="num">100%</td>
+  </tr>
+  </table>
+
+<p>
+  Cada efeito soma <code>valor_bps × quantidade possuída</code>, entre TODOS os itens da colônia
+  que o têm, capado pelo teto da tabela acima. <b>Produção em construção sem insumo é bônus de
+  graça; em construção de conversão (Destilaria, Indústria Siderúrgica, Refinaria Química,
+  Oficina) é THROUGHPUT</b> — mais saída, mas também mais insumo consumido, proporcionalmente.
+  <span class="sel sel-arb">Arbitrado · os 6 tipos de efeito, os tetos por tipo, e a distinção grátis/throughput</span></p>
+
+<h3>10.3 Leilões vendendo item <span class="d">D-136</span></h3>
+
+<p>
+  Um item marcado "vendável em leilão" pode ir a leilão (§6.6) como qualquer recurso — mesma
+  máquina de escrow/lance/fechamento, tributo zerado (a Endurance não tem alíquota publicada).
+</p>
+
+<h3>10.4 O Manual dos Benefícios <span class="d">D-137</span></h3>
+
+<p>
+  O painel de admin ganhou uma aba de documentação — formato de linha
+  (<code>tipo_efeito:valor_bps</code> ou <code>tipo_efeito:alvo:valor_bps</code>, 100 bps = 1%),
+  os alvos válidos por tipo, os tetos, e a distinção grátis/throughput — para o operador arbitrar
+  um item novo sem precisar ler código.
+</p>
+
+<h3>10.5 As missões narrativas <span class="d">D-140</span></h3>
+
+<p>
+  A promessa do §02 que nunca foi cumprida. Quatro capítulos, encadeados por
+  <code>requer_template_id</code> — o capítulo N+1 só chega à mão da colônia quando o N está
+  concluído, o primeiro encadeamento do motor de Missões (§2.6). Sem ciclo: não sorteia, não
+  expira.
+</p>
+
+<table>
+  <tr><th>#</th><th>Capítulo</th><th>Ação</th></tr>
+  <tr><td>1</td><td>O Primeiro Achado</td><td>Comprar 1 item da Loja de Peças (gancho novo)</td></tr>
+  <tr><td>2</td><td>O Preço da Escavação</td><td>3 negócios no Mercado Central</td></tr>
+  <tr><td>3</td><td>Reconstrução</td><td>2 níveis de construção concluídos</td></tr>
+  <tr><td>4</td><td>O Legado da Endurance</td><td>2 despachos</td></tr>
+</table>
+
+<p>
+  <span class="sel sel-arb">Arbitrado · tema, ordem e recompensa dos 4 capítulos — o GDD só dá o rótulo &quot;missões narrativas&quot;, nenhum conteúdo</span>  Só o capítulo 1 ganhou uma ação dedicada (<code>comprar_item_endurance</code>); os demais
+  reaproveitam ações genéricas já existentes, tematizadas como a "escavação" continuando.
+</p>
+
+<!-- ══════════════════════════════════════════════════════════════ 11 -->
+<h2 id="s11">11. Operação e administração</h2>
 
 <p>
   Fora do escopo do v35, que descreve o <i>jogo</i> e não a <i>ferramenta</i>. Está aqui porque quem
   opera o jogo precisa saber que existe. <span class="d">D-56, D-61</span>
 </p>
 
-<h3>9.1 A auditoria</h3>
+<h3>11.1 A auditoria</h3>
 
 <div class="nota">
   <b>O painel de administração era o único lugar do sistema onde se podia criar valor sem deixar
@@ -2542,7 +2997,7 @@
   apaga.
 </div>
 
-<h3>9.2 Os dois papéis</h3>
+<h3>11.2 Os dois papéis</h3>
 
 <table>
   <tr><th>Papel</th><th>Pode</th></tr>
@@ -2555,25 +3010,37 @@
   restrição do §9.4. A colônia <b>continua produzindo</b>: o mundo não para, e nada se perde.
 </p>
 
-<h3>9.3 O que o operador arbitra sem deploy</h3>
+<h3>11.3 O que o operador arbitra sem deploy</h3>
 
 <p>
   Um número que só existe em código exige um deploy para mudar — e um deploy é risco e demora que
   nem sempre a decisão merece. Cada vez mais desses números viraram linhas de banco, editáveis em
-  <code>/central/admin</code> → Operação, sem tocar em código:
+  <code>/central/admin</code>, sem tocar em código:
 </p>
 
 <ul>
   <li><b>O Marco</b> — os cinco valores de XP por ato <span class="d">D-75</span>.</li>
   <li><b>O Ministério dos Transportes</b> — a curva de depreciação, o piso de desempenho, o custo
-      de manutenção, o teto de revenda do Furgão, o frete público <span class="d">D-60, D-73, D-76</span>.</li>
+      de manutenção, o teto de revenda, o frete público, e desde o D-109 a <b>Fábrica</b> (preço,
+      estoque-alvo, tempo e custo de cada veículo) <span class="d">D-60, D-73, D-76, D-109</span>.</li>
   <li><b>O kit inicial</b> — Fert$, os 26 recursos e a frota de toda colônia nova
       <span class="d">D-92</span>, ver §3.2.1.</li>
   <li><b>O Governo no Mercado Central</b> — o que o Tesouro tem à venda, e por quanto
       <span class="d">D-87</span>, ver §6.2.1.</li>
+  <li><b>Gestão de Construções</b> <span class="d">D-108, D-111, D-112</span> — três sub-abas
+      novas: <b>Tempo/Custo</b> (sobrepõe a curva do GDD por construção e nível, sem apagar a
+      base), <b>Silo</b> (a capacidade por recurso e nível do Depósito Local, §2.2), e
+      <b>Manutenção</b> (o consumo extra por hora, por tipo de construção, §4.3). Uma quarta,
+      <b>Fila</b>, define quantas obras cabem ao mesmo tempo — na colônia (2 vagas de partida) e
+      na zona neutra (1 obra simultânea de partida, antes cravado no código).</li>
+  <li><b>Subsídios</b> <span class="d">D-113</span> — o antigo "Enviar Recursos" (um recurso por
+      vez) virou dois modos: vários recursos de uma vez para um colono, ou a mesma cesta para
+      TODOS os colonos fundados — os dois todo-ou-nada, para nunca entregar pela metade.</li>
+  <li><b>A Federação</b> — o teto antimonopólio e o desconto de tributo entre aliados
+      <span class="d">D-119, D-120</span>, ver §9.2/§9.3.</li>
 </ul>
 
-<h3>9.4 O painel em abas, e o que o jogador ganhou de volta <span class="d">D-93 a D-99</span></h3>
+<h3>11.4 O painel em abas, e o que o jogador ganhou de volta <span class="d">D-93 a D-99</span></h3>
 
 <p>
   Quatro telas do painel — Economia, Transportes, Visão Geral, Missões — separadas em abas: cada
@@ -2591,8 +3058,25 @@
   D-91). Sem tela de acompanhamento: só o envio, e a resposta pelo canal que o jogador já olha.
 </p>
 
-<!-- ══════════════════════════════════════════════════════════════ 10 -->
-<h2 id="s10">10. Tudo o que ainda falta decidir</h2>
+<h3>11.5 Federações e Cargos Públicos, do lado do operador <span class="d">D-114, D-130</span></h3>
+
+<p>
+  Nova aba <b>Federações</b>: leitura de todas as federações, membros, fundo e extrato, mais uma
+  alavanca de emergência — "Dissolver" (exige escrever <code>DISSOLVER</code>, mesma palavra-padrão
+  do resto do painel). Sem criar federação nem mover membro pelo admin: o operador intervém no
+  extremo, não no meio do fluxo do jogador.
+</p>
+
+<p>
+  Os três Cargos Públicos novos (§7.4) são nomeados por comando — <code>fertways:cargo-civico</code>,
+  o mesmo caminho do Conciliador (<code>fertways:conciliador</code>) — porque o §14.2 exige um
+  índice de reputação "alto" e nenhuma revisão do GDD publica o número; inventar um limiar seria
+  arbitragem sem base nenhuma. A confirmação de uma sinalização do Fiscal/Auxiliar, que libera o
+  bônus, também é por comando (<code>--confirmar-sinalizacao=</code>).
+</p>
+
+<!-- ══════════════════════════════════════════════════════════════ 12 -->
+<h2 id="s12">12. Tudo o que ainda falta decidir</h2>
 
 <p>
   <b>Esta é a seção mais útil do documento.</b> Nenhum número aqui foi inventado, e nenhum será até
@@ -2605,7 +3089,12 @@
   Compostos (D-83), o serviço logístico público (D-76), o teto de revenda do Furgão (D-73), o
   teto e o upgrade de zona e a manutenção territorial (D-84, §8.6), o kit inicial e a frota que
   ele concede (D-85/D-92, §3.2.1), a zona em abas e o Histórico (D-86, §8.7), o Governo vendendo
-  no Mercado Central (D-87, §6.2.1), e chamar o veículo de volta do Pátio vazio (D-91, §6.3.1).
+  no Mercado Central (D-87, §6.2.1), chamar o veículo de volta do Pátio vazio (D-91, §6.3.1), a
+  <b>Federação inteira</b> (D-114 a D-121, §9), o <b>Ranking de Guerras</b> (D-128, §8.11), os
+  <b>Leilões</b> (D-129, §6.6), três dos quatro <b>Cargos Públicos</b> restantes (D-130, §7.4), o
+  teto do <b>Tanque de Combustível</b> (D-131, §4.3), a <b>Loja de Peças da Endurance</b> por
+  inteiro e as <b>missões narrativas</b> (D-132 a D-140, §10), e a demolição de estrutura de zona
+  (D-138, §8.10).
 </p>
 
 <table>
@@ -2621,37 +3110,46 @@
     <td>A Estrutura, que hoje só consome energia</td>
   </tr>
   <tr>
-    <td><b>Teto de estoque</b></td>
-    <td>O v35 fala em "armazenamento" (Captação de Água, Tanque de Combustível) e <b>nunca publica um teto</b></td>
-    <td>O Tanque, inerte. Guardar mais não faz diferença</td>
+    <td><b>Teto de estoque de outras construções</b></td>
+    <td>O Tanque de Combustível já tem teto (D-131, §4.3); a Captação de Água e o "armazenamento"
+        do §19.6 de outros recursos <b>continuam sem nenhum número publicado</b></td>
+    <td>Nenhum outro recurso além de Biocombustível trava por capacidade de construção</td>
   </tr>
   <tr>
     <td><b>Níveis de veículo</b></td>
     <td><b>O que o nível muda.</b> O v35 publica custo até o nível 5 e nunca diz o que se ganha</td>
-    <td>Só o nível 1 é vendido. E as <b>duas tabelas de custo do Caminhão divergem</b> a partir do nível 2 <span class="d">D-37</span></td>
+    <td>Só o nível 1 é vendido (dos dois tipos, desde o D-109). E as <b>duas tabelas de custo do Caminhão divergem</b> a partir do nível 2 <span class="d">D-37</span></td>
   </tr>
   <tr>
-    <td><b>Cargueiro Interplanetário</b></td>
-    <td>O <b>Espaçoporto</b> e os 5 planetas NPC</td>
-    <td>A 5ª atribuição do Ministério dos Transportes</td>
+    <td><b>Cargueiro Interplanetário / Espaçoporto</b></td>
+    <td>O <b>Espaçoporto</b> e os 5 planetas NPC — nenhuma rota, doca ou taxa existe</td>
+    <td>A 5ª atribuição do Ministério dos Transportes, e o cargo de <b>Atendente do Espaçoporto</b> (§7.4, D-130) — 100% dependente disto, fica de fora até o Espaçoporto existir</td>
   </tr>
   <tr>
-    <td><b>Federação</b></td>
-    <td><b>Não existe.</b> O §28.10 diz que uma federação aliada pode romper um cerco por outro; hoje só o dono rompe</td>
-    <td>Metade do Ministério (impedimento por federação), a Central de Comunicação da zona, o canal Federação do Chat</td>
-  </tr>
-  <tr>
-    <td><b>Ranking de guerras (§27.13)</b></td>
-    <td>O GDD publica percentis e pesos por inteiro — <b>não existe sistema de ranking nenhum</b></td>
-    <td>Nada trava; é um painel a mais que ninguém pediu ainda</td>
+    <td><b>Guerra entre federações</b></td>
+    <td>O 6º sub-ranking do §27.13 ("Guerras Vencidas — Federação", 10%) pressupõe uma guerra
+        DECLARADA por federação; o jogo só tem combate entre DUAS COLÔNIAS</td>
+    <td>O Ranking de Guerras soma 90%, não 100% — não renormalizado, de propósito (§8.11)</td>
   </tr>
 </table>
 
 <div class="nota">
-  <b>Um número que vale revisitar mesmo sem ser lacuna:</b> o <b>salário do conciliador</b> é emissão
-  contínua (50 F$/dia), e o kit inicial de um colono é 50 F$. <b>Um conciliador ganha um kit inicial
-  por dia sem jogar.</b> Com cinco colônias não importa; quando o jogo abrir, importa.
-  <span class="d">D-50</span>
+  <b>Dois números que valem revisitar mesmo sem serem lacuna:</b> o <b>salário do conciliador</b>
+  é emissão contínua (50 F$/dia), e o kit inicial de um colono é 50 F$ — um conciliador ganha um
+  kit inicial por dia sem jogar (D-50). E o piso anti-farming do §26.3 desceu de 500 para
+  <b>5 Fert$</b> (D-117) — reduz 100× o custo de entrada de um farm de reputação; se aparecer, é
+  o primeiro número a subir de novo.
+</div>
+
+<div class="nota">
+  <b>Julgamentos do desenvolvedor, registrados para o usuário revisitar</b> (não são lacunas do
+  GDD — são leituras minhas onde o texto não decide, sinalizadas em vez de escondidas): o fundo da
+  Federação vai para o Tesouro na dissolução, não dividido pelo histórico de contribuição
+  (<span class="d">D-114</span>); o canal Federação do Chat é isento da pena de silêncio
+  (<span class="d">D-115</span>); uma colônia que sai da federação no meio de uma missão
+  cooperativa ainda recebe se o grupo terminar (<span class="d">D-116</span>); e demolir uma
+  estrutura de zona não reduz a manutenção territorial, porque ela nunca dependeu do nível de
+  nenhuma das 12 estruturas — só do nível da zona (<span class="d">D-138</span>).
 </div>
 
 </main>
@@ -2659,12 +3157,13 @@
 <footer>
   <div class="env">
     <p>
-      <b>FERTWAYS — GDD v36.</b> Substitui o v35, que fica como registro histórico do que se pensava
-      antes.
+      <b>FERTWAYS — GDD v38.</b> Substitui o v36 (D-62), que substituiu o v35 — os dois ficam como
+      registro histórico do que se pensava antes.
     </p>
     <p>
-      As tabelas numéricas são geradas de <code>building_specs</code> e <code>resource_types</code> —
-      as mesmas de onde o jogo lê — por <code>tools/gdd-v36.php</code>. O documento <b>não pode
+      As tabelas numéricas são geradas de <code>building_specs</code>, <code>resource_types</code>,
+      <code>fabrica_veiculos</code>, <code>federation_settings</code> e <code>silo_capacidades</code> —
+      as mesmas de onde o jogo lê — por <code>tools/gdd-v38.php</code>. O documento <b>não pode
       divergir do jogo</b>.
     </p>
     <p>
