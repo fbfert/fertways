@@ -102,6 +102,22 @@ App\Models\MarketAccount::create([
     "colony_id" => $c->id, "resource_type" => "metal_bruto", "amount" => 500,
 ]);
 
+/*
+ * Um item da Loja de Peças da Endurance (D-135/D-138), na seção "comando" — a primeira que
+ * `EnduranceMapa.tsx` desenha, logo `destrocos[0]` no e2e. Sem isto, o catálogo nasce vazio (o
+ * admin é quem cria itens, e o e2e não passa pelo painel), e o fluxo de compra não teria o que
+ * clicar — o mesmo esquecimento que a suíte antiga (D-132/D-133, 32 linhas fixas) nunca precisou
+ * evitar.
+ */
+$itemEndurance = App\Models\EnduranceItem::create([
+    "item_key" => "reator_de_teste_e2e", "secao" => "comando", "nome" => "Reator de Teste",
+    "tipo" => "comum", "quantidade_total" => 10, "quantidade_vendida" => 0,
+    "preco_micro" => 10 * 1000000, "marco_minimo" => null, "vendavel_em_leilao" => false,
+]);
+$itemEndurance->efeitos()->create([
+    "tipo_efeito" => "desconto_tributo", "alvo" => null, "valor_bps" => 500,
+]);
+
 // Mais dois furgões. A colônia nasce com um só; o teste do Mercado deixa dois em rota (Capital e
 // vizinha), e o do Acordo precisa de um terceiro ocioso para despachar a entrega.
 foreach ([1, 2] as $ignorado) {

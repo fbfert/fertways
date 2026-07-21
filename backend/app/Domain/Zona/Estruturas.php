@@ -14,16 +14,12 @@ namespace App\Domain\Zona;
  * que o GDD **promete** do que o jogo **entrega hoje**. Sem isso, o colono gasta 600 Metal Bruto num
  * prédio inerte e só descobre depois.
  *
- * ⚠️ **Não existe demolição nem downgrade de estrutura de zona — assimetria real com a colônia
- * (`Domain\Building\Demolir`), nunca decidida nem discutida** (achado numa revisão de 2026-07-19,
- * D-122). `ConcluirObrasDaZona`/`SubirNivelDaZona` só SOBEM nível (o `max()` do primeiro é
- * deliberado — "nunca se BAIXA um nível", inclusive na conquista por guerra), e não há endpoint,
- * classe de domínio nem botão de tela para reduzir uma estrutura já erguida. Diferente das outras
- * contradições/assimetrias do jogo (tributo do D-32, frota que nunca trava do D-60), esta nunca foi
- * registrada como escolha — parece só nunca ter sido levantada. Fica registrada agora como o que é:
- * uma lacuna real, não uma decisão. Implementá-la abriria perguntas de design que esta revisão não
- * respondeu (demolir devolve material? reduz o custo de manutenção na hora? undo de saque de
- * guerra?) — **não implementar sem antes decidir essas perguntas com o usuário.**
+ * **Demolição existe desde o D-138** (`Domain\Zona\DemolirEstruturaDaZona`) — fecha a assimetria com
+ * a colônia (`Domain\Building\Demolir`) achada em 2026-07-19 (D-122/D-123, achado 7) e registrada
+ * ali como lacuna, não decisão. `ConcluirObrasDaZona`/`SubirNivelDaZona` continuam só SUBINDO nível
+ * (o `max()` do primeiro segue deliberado — "nunca se BAIXA um nível" por upgrade/conquista); é a
+ * demolição, um ato deliberado do dono, que agora zera uma coluna de volta a zero. Downgrade parcial
+ * (reduzir sem zerar) não existe — nem na colônia, nem na zona: a lacuna era só a ausência total.
  */
 class Estruturas
 {

@@ -2,11 +2,14 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Domain\Building\Demolir;
 use App\Domain\Guerra\Protegido;
 use App\Domain\Logistics\DespacharVeiculo;
 use App\Domain\Zona\ConstruirNaZona;
+use App\Domain\Zona\DemolirEstruturaDaZona;
 use App\Domain\Zona\Estruturas;
 use App\Domain\Zona\RepararModulo;
+use App\Exceptions\DomainRuleException;
 use App\Http\Controllers\Controller;
 use App\Models\Combat;
 use App\Models\FilaSetting;
@@ -279,6 +282,34 @@ class ZoneController extends Controller
         $construir->handle($colony, $zone, $dados['structure']);
 
         return response()->json(['obra' => $zone->fresh()->obras()->first()], 201);
+    }
+
+    /**
+     * Demole uma estrutura da zona — o espelho de `BuildingController::demolir` que faltava
+     * (D-122/D-123, achado 7; fechado no D-138). O investido não volta, e a API **exige a mesma
+     * palavra** que a colônia já exige, pelo mesmo motivo: uma confirmação que vivesse só no React
+     * protegeria contra o dedo escorregando e contra mais nada.
+     */
+    public function demolir(
+        Request $request,
+        NeutralZone $zone,
+        string $structure,
+        DemolirEstruturaDaZona $demolir,
+    ): JsonResponse {
+        $confirmacao = (string) $request->input('confirmacao');
+
+        if ($confirmacao !== Demolir::PALAVRA) {
+            throw new DomainRuleException(
+                'confirmacao_invalida',
+                'Para demolir, escreva '.Demolir::PALAVRA.'. Nada é devolvido, e não há volta.',
+            );
+        }
+
+        $colony = $request->user()->colony()->firstOrFail();
+
+        $demolir->handle($colony, $zone, $structure);
+
+        return response()->json(['demolida' => true]);
     }
 
     /**

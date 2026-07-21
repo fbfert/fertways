@@ -1114,6 +1114,16 @@ export const api = {
       body: JSON.stringify({ structure }),
     }),
 
+  /**
+   * Demole uma estrutura da zona (D-138). A API **exige a palavra**, mesma exigência de
+   * `demolir()` da colônia (D-61) — uma confirmação que vivesse só no React não protegeria nada.
+   */
+  demolirEstruturaDaZona: (id: number, structure: string) =>
+    req<{ demolida: boolean }>(`/zones/${id}/build/${structure}`, {
+      method: 'DELETE',
+      body: JSON.stringify({ confirmacao: 'DEMOLIR' }),
+    }),
+
   /** Repara uma estrutura sabotada, ou resgata antecipadamente uma apreendida (D-118). */
   repararModulo: (id: number, estrutura: string) =>
     req<{ estruturas: EstruturaDaZona[] }>(`/zones/${id}/reparar`, {
