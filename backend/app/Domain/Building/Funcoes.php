@@ -189,7 +189,7 @@ class Funcoes
 
         // ---------------------------------------------------------------- fora do GDD (D-105)
         'deposito_local' => [
-            'frase' => 'Não está no GDD — nasce erguido em todo colono, no slot 21 (pedido do usuário).',
+            'frase' => 'Não está no GDD — nasce erguido em todo colono, no centro da colmeia, slot 10 (pedido do usuário; D-142).',
             'fonte' => '—',
             'efeito' => 'mostra',
             'nota' => 'É por aqui que se vê o que a colônia tem guardado: os recursos deixaram de '

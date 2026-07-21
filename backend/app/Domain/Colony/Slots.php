@@ -26,7 +26,8 @@ use App\Exceptions\DomainRuleException;
  *        ⬢               21
  *
  * 21 não é número de anel hexagonal fechado (os anéis fecham em 1, 7 e 19), então a colmeia não
- * é feita de anéis: são linhas alternadas, e o centro é uma célula única (o 10).
+ * é feita de anéis: são linhas alternadas, e o centro é uma célula única (o 10) — mas o CENTRO
+ * não pertence mais ao Reator, ver abaixo (D-142).
  */
 class Slots
 {
@@ -38,29 +39,34 @@ class Slots
     /**
      * O miolo: as 5 essenciais nascem no nível 1 na fundação (D-59), em posição fixa.
      *
-     * O trio que o usuário nomeou ocupa o centro da linha do meio — o Reator no centro exato
-     * (10), o Gerador e a Estrutura ladeando-o. Fazenda e Captação de Água ficam nas duas
-     * células adjacentes ao centro, uma acima e outra abaixo, simétricas em relação a ele.
+     * O Gerador e a Estrutura ladeiam o centro da linha do meio; Fazenda e Captação de Água
+     * ficam nas duas células adjacentes, uma acima e outra abaixo, simétricas em relação a ele.
+     * O Reator, que nasceu no centro exato (10), foi trocado de lugar com o Depósito Local
+     * (21) por pedido do usuário — o Depósito é a construção que o colono mais abre (é onde os
+     * recursos moram desde o D-106), e o centro da colmeia é o slot mais visível/alcançável dela.
+     * <span class="d">D-142</span>
      *
      * Isto vai **além** do §24.7, que subsidia o custo das 5 essenciais até o nível 3 mas não as
      * constrói ("o custo aparece normalmente na interface"). Nascer pronto é decisão do usuário.
      */
     public const MIOLO = [
         'gerador_de_atmosfera' => 9,
-        'reator_de_energia' => 10,
+        'reator_de_energia' => 21,
         'estrutura_de_sobrevivencia' => 11,
         'fazenda' => 5,
         'captacao_de_agua' => 15,
     ];
 
     /**
-     * O Depósito Local (D-105, fora do GDD): a linha solta do final, slot 21. Nasce erguido junto
-     * do miolo — mesma razão: sem ele não há como ver os recursos (a barra que sempre mostrava a
-     * lista saiu do HUD; agora é preciso abrir uma construção pra ver), e um colono não pode
-     * nascer sem enxergar o que tem no depósito.
+     * O Depósito Local (D-105, fora do GDD): nasce erguido junto do miolo — mesma razão: sem ele
+     * não há como ver os recursos (a barra que sempre mostrava a lista saiu do HUD; agora é
+     * preciso abrir uma construção pra ver), e um colono não pode nascer sem enxergar o que tem
+     * no depósito. **No centro exato da colmeia (10) desde o D-142** — trocou de lugar com o
+     * Reator (era a linha solta do final, 21); é o slot mais visível/alcançável, e o Depósito é a
+     * construção mais aberta pelo colono.
      */
     public const DEPOSITO_LOCAL = [
-        'deposito_local' => 21,
+        'deposito_local' => 10,
     ];
 
     /** Todo slot com dono fixo — miolo ou Depósito — nunca escolhível pelo colono. */

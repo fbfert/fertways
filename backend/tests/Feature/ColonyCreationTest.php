@@ -58,8 +58,8 @@ class ColonyCreationTest extends TestCase
         $this->assertSame(100.0, (float) $resposta->json('fert'));
 
         // D-59: só as CINCO essenciais existem, e já erguidas no nível 1, cada uma no seu slot do
-        // miolo — mais o Depósito Local (D-105), no slot 21. As de progressão não têm linha
-        // nenhuma — construção não erguida não ocupa slot.
+        // miolo — mais o Depósito Local (D-105), no centro da colmeia desde o D-142. As de
+        // progressão não têm linha nenhuma — construção não erguida não ocupa slot.
         $this->assertCount(count(Building::ESSENCIAIS) + count(Slots::DEPOSITO_LOCAL), $colony->buildings);
         $this->assertTrue($colony->buildings->every(fn ($b) => $b->level === 1));
 

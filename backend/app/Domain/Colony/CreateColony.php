@@ -84,9 +84,10 @@ class CreateColony
             app(\App\Domain\Marco\ConcederXp::class)->handle($colony->id, 'obra_concluida', 'fundacao', vezes: 5);
 
             // As cinco essenciais, já no nível 1, cada uma no seu slot do miolo (D-59) — e o
-            // Depósito Local (D-105, fora do GDD) junto, no slot 21: sem ele não há como ver os
-            // recursos, e um colono não pode nascer sem enxergar o que tem no depósito. O resto
-            // dos slots nasce vazio, e uma construção só ganha linha quando o colono escolhe.
+            // Depósito Local (D-105, fora do GDD) junto, no slot 10, o centro exato da colmeia
+            // desde o D-142: sem ele não há como ver os recursos, e um colono não pode nascer sem
+            // enxergar o que tem no depósito. O resto dos slots nasce vazio, e uma construção só
+            // ganha linha quando o colono escolhe.
             $colony->buildings()->createMany([
                 ...array_map(
                     fn (string $tipo) => ['type' => $tipo, 'level' => 1, 'slot' => Slots::MIOLO[$tipo]],

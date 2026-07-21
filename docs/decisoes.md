@@ -6918,3 +6918,62 @@ docs/FERTWAYS_GDD_v38_CONSOLIDADO.html frontend/public/gdd.html` — `cp` sem `-
 `cp -i` do root (a mesma armadilha já documentada em `docs/RETOMAR.md`, "Frontend — o bundle") e
 não copiou nada, em silêncio; conferido por `diff` antes de seguir. `dist/gdd.html` confirmado
 idêntico ao v38 depois do `npm run build`. `tsc`/`lint`/`build` limpos.
+
+---
+
+## D-142 — O Reator de Energia e o Depósito Local trocam de slot: o Depósito vai para o centro.
+
+**Data:** 2026-07-21 · **Status:** pedido direto do usuário · **Dado de colônia, toda existente e futura**
+
+Pedido do usuário: trocar a posição do slot 21 pelo 10 — em toda colônia que já existe e em toda
+que vai nascer. O slot 10 é o centro exato da colmeia (`Domain\Colony\Slots`, D-59); o 21 é a
+linha solta do final, onde o Depósito Local nasceu (D-105/D-106). Antes: Reator de Energia no 10,
+Depósito Local no 21. Depois do pedido: os dois trocam de lugar — o Depósito assume o centro, o
+Reator vai para a borda. Nenhuma outra das cinco essenciais muda (Gerador, Estrutura, Fazenda e
+Captação de Água continuam exatamente onde estavam).
+
+### Código: só dois números trocam de lugar
+
+`Slots::MIOLO['reator_de_energia']` (10 → 21) e `Slots::DEPOSITO_LOCAL['deposito_local']` (21 →
+10). Nenhum outro lugar do jogo referencia slot por número fixo fora dessas duas constantes —
+`CreateColony` (fundação), a cena do front (`ColonyScene.ts`, que só desenha o que a linha
+`buildings.slot` de cada colônia manda) e o resto do domínio leem sempre a constante, nunca um
+literal. Toda colônia FUTURA já nasce certa, sem trabalho extra.
+
+### As colônias que já existem: uma migration, não um passo manual
+
+Diferente do backfill do D-106 (`fertways:slots --aplicar`, um comando à parte que o operador tem
+de lembrar de rodar — e que **não seria seguro aqui**: ele atualiza o Reator para o slot 21 ANTES
+de mover o Depósito, e uma colônia que já tem os dois construídos bateria de frente no
+`unique(colony_id, slot)` no meio do caminho, com o Depósito ainda ocupando o 21), esta troca virou
+uma migration de dado (`2026_07_21_100000_troca_slot_do_reator_com_o_deposito_local`), que roda
+sozinha no `deploy.sh` — sem depender de ninguém lembrar de um passo extra, a mesma lição que o
+D-106 já tinha deixado ("o passo ficou fácil de esquecer").
+
+**Troca em três passos, não em dois**: o Reator vai primeiro para um slot de passagem (255, dentro
+do teto do `unsignedTinyInteger` e fora da faixa 0–21 em uso) — só então o Depósito ocupa o 10
+livre, e só então o Reator entra no 21, agora livre. Duas atualizações diretas bateriam na
+constraint composta; a de passagem não.
+
+### Validado contra o cenário real, não só o feliz
+
+Rodei a migration contra o banco de dev (`fertwaysdev`) **depois de recriar de propósito o estado
+de colisão real**: as 5 colônias de dev nunca tinham passado pelo backfill do D-106 (não tinham
+`deposito_local` nenhum) — inseri manualmente uma linha de Depósito no slot 21 para cada uma,
+reproduzindo o formato exato da produção (que já passou pelo backfill), antes de rodar a migration.
+Sem isso, o teste teria corrido no caminho fácil (slot 21 vazio) e nunca teria provado que a troca
+de três passos evita a colisão que o `unique(colony_id, slot)` proíbe.
+
+- `up()`: as 5 colônias terminaram com Reator no 21 e Depósito no 10 — conferido por `SELECT` direto.
+- `down()`: revertido para o estado original (Reator 10, Depósito 21) — mesma verificação.
+- `up()` de novo, para deixar o dev no estado final que a produção também vai ter.
+
+Testes atualizados: `SlotsDaColoniaTest` (as duas asserções que citavam os números fixos, mais um
+teste de backfill que assumia o Depósito no 21), `ColonyCreationTest` (comentário). Textos de
+erro/documentação corrigidos onde citavam o número antigo: `Demolir.php` (a mensagem que o colono
+lê se tentar demolir o Depósito), `Building.php`, `Funcoes.php` (o catálogo do slot vazio),
+`CreateColony.php`, `SlotsDaColonia.php`. Suíte completa: **892 passando**, sem alteração de
+contagem — só os dois valores trocaram dentro dos testes existentes. `docs/FERTWAYS_GDD_v38_CONSOLIDADO.html`
+regenerado (a tabela do miolo, §2.1, lê `Slots::MIOLO` direto do código) e recopiado para
+`frontend/public/gdd.html`, para o documento publicado não ficar desatualizado no mesmo dia em que
+foi gerado.
