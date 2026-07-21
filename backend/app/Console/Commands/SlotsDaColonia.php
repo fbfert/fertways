@@ -19,7 +19,7 @@ use Illuminate\Support\Facades\DB;
  *
  * O que ele faz em cada colônia, nesta ordem:
  *
- *  1. **Põe as cinco essenciais no miolo, e o Depósito Local no slot 21.** Quem já existe ganha o
+ *  1. **Põe as cinco essenciais no miolo, e o Depósito Local no slot 10 (D-142; era o 21).** Quem já existe ganha o
  *     slot fixo; quem estiver no nível 0 é promovido ao nível 1 (nascem erguidos — D-59/D-105),
  *     com o custo lançado no ledger como `subsidio_governo`, exatamente como na fundação. O
  *     Depósito é o mesmo tratamento do miolo, só que fora dele: sem ele a colônia já migrada não
