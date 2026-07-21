@@ -6598,3 +6598,44 @@ ZERO (o vendedor recebe o lance inteiro, o Tesouro não recebe nada, `tax_events
 que qualquer negócio fechado já concede. Suíte completa: 870 passando — `LeiloesTest` (D-129) segue
 verde sem alteração nenhuma, confirmando que o branch por `ehItem()` não mudou o caminho de recurso
 em nada. `tsc`/`lint`/`build` do frontend limpos.
+
+## D-137 — O painel da Loja de Peças da Endurance ganha uma aba de Manual dos Benefícios.
+
+O campo `efeitos` do CRUD (D-135) é texto livre — `tipo_efeito:valor_bps` ou
+`tipo_efeito:alvo:valor_bps` — e o formulário só cabia uma linha de ajuda curta. Um admin
+arbitrando um item novo precisava saber de cor os 6 `tipo_efeito`, quais exigem `alvo`, quais
+`building_type`/veículo são alvos válidos, e o que cada um realmente faz no motor (grátis vs.
+throughput, por exemplo) — informação que só existia espalhada pelo código
+(`EfeitosDaEndurance.php`, `ColonyTick::produzir()`) ou nesta entrada de decisões.
+
+**Resolvido com uma aba nova, não um tooltip.** `/central/admin/endurance` ganhou uma aba
+`Manual`, ANTES das 8 seções do casco — e virou a aba **inicial**: `PainelController::endurance()`
+agora trata `secao=manual` (e qualquer `secao` ausente/desconhecida) como esse manual, não mais
+"primeira seção do array" (`array_key_first`). A view (`admin/endurance-manual.blade.php`,
+incluída por `admin/endurance.blade.php` dentro de um `@if($secao === 'manual') ... @else ...
+@endif`, para não corromper a pilha de `@section` do Blade com um `return` no meio do template)
+documenta:
+
+- o formato de linha e a regra `100 bps = 1%`;
+- a tabela dos 6 tipos com o teto agregado por tipo (os mesmos de `EfeitosDaEndurance::TETO_BPS`,
+  sem duplicar o número por engano — copiados direto da constante ao escrever a view);
+- quais `alvo` são válidos por tipo: para `producao_bonus`, as 9 construções que produzem de fato
+  (as únicas 9 que `ColonyTick::produzir()` lê `$bonusPara($tipo)`) mais `global`, separadas em
+  "sem insumo → bônus de graça" (Mina Local, Fazenda, Captação de Água, Gerador de Atmosfera,
+  Reator de Energia) e "de conversão → throughput" (Destilaria, Indústria Siderúrgica, Refinaria
+  Química, Oficina) — a MESMA distinção que já existia só em comentário de código
+  (D-135: "reabrir uma porta fechada de propósito"); para `velocidade_veiculo`/
+  `capacidade_veiculo`, `furgao_de_comercio`/`caminhao_de_carga`/`todos`;
+  `desconto_tributo`/`drone_raio`/`drone_bateria` não têm alvo;
+- como o bônus empilha (soma `valor_bps × quantidade` entre TODOS os itens da colônia, teto
+  cortando o excedente sem erro) com um exemplo numérico (3 unidades de +20% somam 60% cru, mas o
+  teto de 50% corta o efetivo em 50%);
+- uma tabela de 8 exemplos completos, um por tipo (mais um repetido para `producao_bonus` com
+  alvo `global` e outro para `throughput`), cada um com a linha exata e o efeito em português.
+
+Escolhi aba (não modal/tooltip) porque o admin já navega por aba nesta tela (D-132/D-133) — zero
+JS novo, mesma convenção. Verificado com um teste de renderização ad-hoc (GET `/admin/endurance`
+sem `secao` mostra o manual por padrão; GET com `?secao=anel_habitacional` continua mostrando o
+catálogo normalmente) e descartado depois de confirmar — não é uma regra de negócio nova, é
+documentação, então não ganhou um teste permanente na suíte. Suíte completa (870 testes)
+inalterada, sem regressão em `EnduranceAdminTest`.
