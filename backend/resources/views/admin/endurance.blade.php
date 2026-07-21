@@ -34,6 +34,13 @@
     </p>
 
     <nav class="abas" style="background:transparent;padding:0;margin-bottom:16px">
+        <a href="{{ route('admin.endurance', ['secao' => 'manual']) }}"
+           data-aba-endurance="manual"
+           style="color:{{ $secao === 'manual' ? 'var(--rust)' : 'var(--ink-soft)' }};
+                  background:{{ $secao === 'manual' ? 'var(--sand-light)' : 'transparent' }};
+                  border:1px solid rgba(180,69,11,.2);font-weight:600">
+            📖 Manual
+        </a>
         @foreach ($secoes as $slug => $rotulo)
             <a href="{{ route('admin.endurance', ['secao' => $slug]) }}"
                data-aba-endurance="{{ $slug }}"
@@ -44,6 +51,10 @@
             </a>
         @endforeach
     </nav>
+
+    @if ($secao === 'manual')
+        @include('admin.endurance-manual')
+    @else
 
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
         @if ($imagemDaSecao)
@@ -226,5 +237,7 @@
             <div style="margin-top:8px"><button data-criar-item-endurance>Criar item</button></div>
         </form>
     </div>
+
+    @endif
 
 @endsection

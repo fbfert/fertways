@@ -704,9 +704,23 @@ class PainelController extends Controller
      */
     public function endurance(Request $request): View
     {
-        $secao = array_key_exists($request->query('secao'), \App\Models\EnduranceItem::SECOES)
-            ? $request->query('secao')
-            : array_key_first(\App\Models\EnduranceItem::SECOES);
+        // A aba MANUAL não é uma seção do casco — é a inicial (nem query, nem valor
+        // desconhecido caem numa seção "aleatória": caem no manual, que é o ponto de partida).
+        $secao = $request->query('secao');
+        if ($secao !== 'manual' && ! array_key_exists($secao, \App\Models\EnduranceItem::SECOES)) {
+            $secao = 'manual';
+        }
+
+        if ($secao === 'manual') {
+            return view('admin.endurance', [
+                'secao' => 'manual',
+                'secoes' => \App\Models\EnduranceItem::SECOES,
+                'itens' => collect(),
+                'possePorItem' => collect(),
+                'imagemDaSecao' => null,
+                'tiposEfeito' => \App\Domain\Endurance\EfeitosDaEndurance::TIPOS,
+            ]);
+        }
 
         $itens = \App\Models\EnduranceItem::where('secao', $secao)
             ->with('efeitos')
