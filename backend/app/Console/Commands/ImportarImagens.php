@@ -139,9 +139,11 @@ class ImportarImagens extends Command
         'gerador-atmosfera' => 'gerador_de_atmosfera',
         'reator-energia' => 'reator_de_energia',
 
-        // Progressão da colônia: 12 das 13 batem com uma chave de `Building::MVP`. A 13ª,
-        // `deposito-local`, NÃO tem chave — `deposito_local` é o Depósito Local do D-105/D-106 (22º
-        // slot), que nasce fora do catálogo de `Vinculaveis` e não está em `Building::MVP`.
+        // Progressão da colônia: as 13 batem com uma chave. `deposito-local` NÃO batia em D-107 —
+        // `deposito_local` nasce fora de `Building::MVP` — mas `Vinculaveis::porCategoria()` já o
+        // inclui à parte (a arte própria dele, D-105/106), e ninguém tinha atualizado esta lista
+        // desde então: a imagem já estava na biblioteca (D-107), só sem vínculo. Fechado no D-143.
+        'deposito-local' => 'deposito_local',
         'oficina' => 'oficina',                             // vazio até aqui
         'refinaria-quimica' => 'refinaria_quimica',         // vazio até aqui
         'laboratorio' => 'laboratorio',                     // vazio até aqui
@@ -213,6 +215,38 @@ class ImportarImagens extends Command
         'nucleo-propulsao-endurance' => 'endurance:secao:nucleo_propulsao',
         'secao-acoplagem-endurance' => 'endurance:secao:secao_acoplagem',
         'silo-suprimentos-endurance' => 'endurance:secao:silo_suprimentos',
+
+        // ── A "Lista Mestra de Assets de Estruturas" (D-143): o usuário colou um manifesto novo.
+        //    A maior parte dos ~70 nomes já batia, letra por letra, com o lote do D-107
+        //    (`administracao-publica`, as 5 essenciais, a Progressão, a zona neutra, a frota, as
+        //    8 seções da Endurance) — nenhuma entrada nova precisou nascer para esses; se os
+        //    arquivos chegarem com o MESMO nome de antes, o `unique(category, filename)` já os
+        //    reconhece, e um vínculo que já existe nunca é trocado (a mesma trava de sempre).
+        //
+        //    O que era genuinamente novo: quatro artes DEDICADAS às 4 áreas da Capital (D-63) —
+        //    até aqui, cada área usava a arte de UM slot/seção dela emprestada (o Oeste usava
+        //    `casco-endurance`, por exemplo); `capital:area:norte` nunca teve NENHUM candidato, em
+        //    nenhum lote. As outras três áreas já tinham arte — estas entram como candidatas a
+        //    mais, do mesmo jeito que `casco-principal-endurance` já tinha entrado no D-107 sem
+        //    tirar `casco-endurance` de cena.
+        'governo-central-norte' => 'capital:area:norte',      // a primeira arte que a área Norte já teve
+        'mercado-central-leste' => 'capital:area:leste',
+        'espacoporto-sul' => 'capital:area:sul',
+        'destrocos-endurance-oeste' => 'capital:area:oeste',
+
+        //    `secao-comando-endurance` também está no manifesto — de propósito, FICA DE FORA daqui,
+        //    pela mesma razão que `casco-principal-endurance` não é uma das 8 seções: é variante
+        //    visual do casco, não conteúdo novo (D-107 já tinha decidido isso para o nome idêntico).
+        //
+        //    O resto do manifesto continua sem lar, pelos MESMOS motivos já registrados no D-72/
+        //    D-107: `patio-logistico` (a área Leste já é Mercado+Pátio, D-65); as 7 "Especializações
+        //    da Colônia" que não são `building_type` (Estufa Bioluminescente, Aquífero Profundo,
+        //    Torre Geotérmica, Complexo Metalúrgico, Terminal de Cargas, Observatório, Salão de
+        //    Negociações); `cargueiro-interplanetario`, `torre-trafego-orbital`,
+        //    `terminal-aduaneiro` (Espaçoporto não existe como feature); `mercado-central`,
+        //    `doca-mercado`, `camara-escrow` (Mercado e Comércio não tem catálogo próprio de
+        //    itens vinculáveis); `fortim-defesa`, `centro-cerco` (o jogo só tem `bastiao` e
+        //    `abrigo_de_robos` para isso, os dois já reivindicados).
     ];
 
     public function handle(Biblioteca $biblioteca): int
