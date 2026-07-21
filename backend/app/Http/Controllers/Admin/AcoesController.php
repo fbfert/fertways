@@ -1458,6 +1458,9 @@ class AcoesController extends Controller
             'recompensa_fert' => ['nullable', 'numeric', 'min:0', 'max:1000'],
             'recompensa_xp' => ['nullable', 'integer', 'min:0', 'max:100000'],
             'recompensa_recursos' => ['nullable', 'string', 'max:2000'],
+            // Narrativa (D-140): o capítulo anterior, se este só libera depois de outro concluído.
+            // Nulo = sem pré-requisito (o primeiro capítulo, ou qualquer missão fora de cadeia).
+            'requer_template_id' => ['nullable', 'integer', Rule::exists('mission_templates', 'id')->whereNot('id', $ignorarId ?? 0)],
         ]);
 
         $recursos = [];
@@ -1498,6 +1501,11 @@ class AcoesController extends Controller
             'recompensa_fert_micro' => (int) round((float) ($dados['recompensa_fert'] ?? 0) * 1_000_000),
             'recompensa_xp' => (int) ($dados['recompensa_xp'] ?? 0),
             'recompensa_recursos' => $recursos ?: null,
+            // D-135 já achou esta armadilha para `marco_minimo`: `nullable` não converte '' em
+            // null, só dispensa os demais checks — sem isto, '' viraria 0 no FK e quebraria a
+            // constraint (ou apontaria pro template errado).
+            'requer_template_id' => isset($dados['requer_template_id']) && $dados['requer_template_id'] !== ''
+                ? (int) $dados['requer_template_id'] : null,
         ];
     }
 

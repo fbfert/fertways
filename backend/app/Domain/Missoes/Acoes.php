@@ -33,5 +33,7 @@ final class Acoes
         'compra_veiculo_novo' => 'Compre um veículo Novo',
         'compra_veiculo_usado' => 'Compre um veículo Usado',
         'venda_veiculo_usado' => 'Venda seu primeiro veículo',
+        // D-140: a narrativa da Endurance começa com o primeiro achado nos destroços.
+        'comprar_item_endurance' => 'Comprar item da Loja de Peças da Endurance',
     ];
 }

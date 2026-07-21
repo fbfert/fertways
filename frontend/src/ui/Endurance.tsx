@@ -16,7 +16,9 @@ import { LojaDaEndurance } from './LojaDaEndurance'
  * O GDD chama a Endurance de "fonte de peças históricas e missões narrativas" (§02) e liga peças ao
  * Marco (§05) sem publicar o que uma peça É. A Loja de Peças (`LojaDaEndurance`) é o que preenche
  * essa lacuna — ver `docs/decisoes.md` D-135 para a arbitragem completa (efeitos, tetos por tipo).
- * As missões narrativas continuam sem existir; esta tela não finge o contrário.
+ * **As missões narrativas existem desde o D-140** — 4 capítulos encadeados, entregues pelo motor
+ * genérico de Missões (D-78/D-140), lidos pelo botão "Missões" do header, o mesmo de qualquer
+ * outra missão; esta tela não abriu uma segunda aba para elas de propósito.
  */
 export function Endurance() {
   const navegar = useNavigate()

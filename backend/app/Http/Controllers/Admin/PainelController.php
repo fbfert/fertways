@@ -888,6 +888,9 @@ class PainelController extends Controller
             'aba' => $aba,
             'acoes' => \App\Domain\Missoes\Acoes::TODAS,
             'nomeCategoria' => \App\Models\MissionTemplate::CATEGORIAS,
+            // D-140: o seletor de pré-requisito da narrativa — só ela encadeia capítulos.
+            'capitulosNarrativos' => \App\Models\MissionTemplate::where('categoria', 'narrativa')
+                ->orderBy('id')->get(['id', 'titulo', 'chave']),
         ];
 
         /*

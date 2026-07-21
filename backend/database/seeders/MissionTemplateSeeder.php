@@ -23,6 +23,8 @@ class MissionTemplateSeeder extends Seeder
         foreach ($this->catalogo() as $t) {
             MissionTemplate::updateOrCreate(['chave' => $t['chave']], $t);
         }
+
+        $this->encadearNarrativa();
     }
 
     private function catalogo(): array
@@ -137,6 +139,74 @@ class MissionTemplateSeeder extends Seeder
             $montar($diarias, 'diaria'),
             $montar($semanais, 'semanal'),
             $montar($federacao, 'federacao'),
+            $montar($this->narrativa(), 'narrativa'),
         );
+    }
+
+    /**
+     * A narrativa da Endurance (D-140) — 4 capítulos, encadeados por `requer_template_id`. O GDD
+     * só publica o rótulo ("fonte de missões narrativas", §02/§16.2) — tema, ordem, ação escutada
+     * e recompensa são 100% arbitragem, aqui documentada, e outra vez em `docs/decisoes.md` D-140.
+     *
+     * Cada capítulo reaproveita uma AÇÃO JÁ EXISTENTE — só o 1º ganhou gancho novo
+     * (`comprar_item_endurance`, para prender a narrativa a um ato de verdade na própria
+     * Endurance). Os demais tematizam a escavação/reconstrução sobre ações genéricas que já têm
+     * gancho (mercado, obra, despacho) — o mesmo espírito de "não inventar mecânica nova pelo
+     * catálogo" que os efeitos da Loja de Peças já seguem (D-135).
+     */
+    private function narrativa(): array
+    {
+        return [
+            [
+                'chave' => 'end_cap1_primeiro_achado', 'titulo' => 'O Primeiro Achado',
+                'descricao' => 'Os destroços da Endurance guardam mais que sucata. Compre a primeira '
+                    .'peça recuperável na Loja de Peças — o começo de uma escavação que vai revelar '
+                    .'o que a nave-mãe ainda tem a contar.',
+                'acao' => 'comprar_item_endurance', 'meta' => 1, 'fert' => 10.0, 'xp' => 150, 'rec' => null,
+            ],
+            [
+                'chave' => 'end_cap2_preco_da_escavacao', 'titulo' => 'O Preço da Escavação', 'requer' => 'end_cap1_primeiro_achado',
+                'descricao' => 'Vasculhar os destroços custa caro. Feche 3 negócios no Mercado Central '
+                    .'para bancar o resto da escavação — cada Fert$ movimentado é combustível para ir '
+                    .'mais fundo no casco.',
+                'acao' => 'mercado_executado', 'meta' => 3, 'fert' => 15.0, 'xp' => 300, 'rec' => null,
+            ],
+            [
+                'chave' => 'end_cap3_reconstrucao', 'titulo' => 'Reconstrução', 'requer' => 'end_cap2_preco_da_escavacao',
+                'descricao' => 'Com o que foi recuperado, é hora de erguer. Conclua 2 níveis de '
+                    .'construção — as peças da Endurance não valem nada empilhadas; valem integradas '
+                    .'à colônia que ela ajudou a fundar.',
+                'acao' => 'obra_concluida', 'meta' => 2, 'fert' => 20.0, 'xp' => 400,
+                'rec' => ['metal_bruto' => 500],
+            ],
+            [
+                'chave' => 'end_cap4_o_legado', 'titulo' => 'O Legado da Endurance', 'requer' => 'end_cap3_reconstrucao',
+                'descricao' => 'A escavação termina, mas o legado viaja. Despache 2 cargas — é assim '
+                    .'que o que foi encontrado nos destroços chega a quem precisa dele, pelo mesmo '
+                    .'planeta que a Endurance um dia tentou alcançar.',
+                'acao' => 'despacho', 'meta' => 2, 'fert' => 50.0, 'xp' => 1000,
+                'rec' => ['componentes_eletronicos' => 100],
+            ],
+        ];
+    }
+
+    /**
+     * A cadeia narrativa (D-140) precisa de dois passos: o molde referencia o ANTERIOR pela
+     * `chave`, mas `requer_template_id` só existe depois de o anterior ter ID — não dá para
+     * resolver isso no mesmo `updateOrCreate` que cria os dois. Rodado depois de `catalogo()`
+     * já ter semeado tudo, então toda `chave` da cadeia já tem linha (e id) no banco.
+     */
+    private function encadearNarrativa(): void
+    {
+        $porChave = MissionTemplate::where('categoria', 'narrativa')->pluck('id', 'chave');
+
+        foreach ($this->narrativa() as $t) {
+            if (! isset($t['requer'])) {
+                continue;
+            }
+
+            MissionTemplate::where('chave', $t['chave'])
+                ->update(['requer_template_id' => $porChave[$t['requer']] ?? null]);
+        }
     }
 }

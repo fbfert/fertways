@@ -19,6 +19,10 @@ class MissionTemplate extends Model
      * "Federação" (D-116, Fatia 3): cooperativa, 2 por semana (§06). Cada colônia-membro ganha a
      * própria linha em `mission_assignments`, todas marcadas com o mesmo `federation_id` — ver
      * `Atribuir::garantirFederacao()` e `Progresso::registrar()`.
+     *
+     * "Narrativa" (D-140): a categoria que o D-78 deixou de fora de propósito. Sem ciclo (não
+     * sorteia, não expira) — encadeada por `requer_template_id`: um capítulo só chega à mão da
+     * colônia quando o anterior está concluído (`Atribuir::garantirNarrativa()`).
      */
     public const CATEGORIAS = [
         'tutoria' => 'Tutoria',
@@ -26,10 +30,11 @@ class MissionTemplate extends Model
         'semanal' => 'Semanal',
         'federacao' => 'Federação',
         'eventuais' => 'Eventuais',
+        'narrativa' => 'Narrativa',
     ];
 
     protected $fillable = [
-        'chave', 'categoria', 'titulo', 'descricao', 'acao', 'meta',
+        'chave', 'categoria', 'requer_template_id', 'titulo', 'descricao', 'acao', 'meta',
         'recompensa_fert_micro', 'recompensa_xp', 'recompensa_recursos', 'ativa',
     ];
 
@@ -45,5 +50,11 @@ class MissionTemplate extends Model
     public function assignments(): HasMany
     {
         return $this->hasMany(MissionAssignment::class, 'template_id');
+    }
+
+    /** O capítulo anterior da cadeia narrativa (D-140) — nulo fora de uma cadeia, ou no 1º capítulo. */
+    public function requer(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(self::class, 'requer_template_id');
     }
 }
