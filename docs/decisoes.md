@@ -6835,3 +6835,77 @@ mas passa pelas mesmas telas de base). Decisão: **enviar mesmo assim**, apoiado
 + `tsc`/`lint`/`build` limpos — a mesma leitura já registrada no D-122 ("`exit 137` não é teste
 reprovado"). Sinalizado aqui para o usuário, não escondido, e não é motivo para reverter: se um
 próximo e2e completo achar algo real na tela de Missões/Endurance, é dali que se conserta.
+
+---
+
+## D-141 — O GDD v38: a segunda regeneração do v36, D-101 a D-140.
+
+**Data:** 2026-07-21 · **Status:** pedido direto do usuário · **Documento, não código de jogo**
+
+Pedido do usuário: "vamos criar a versão 38 do GDD com todas as atualizações que foram feitas".
+O v36 (D-62) é um GERADOR (`tools/gdd-v36.php`), não um documento escrito à mão — as tabelas
+numéricas vêm ao vivo de `building_specs`/`resource_types`, a prosa é curada à mão no próprio
+arquivo. A última regeneração tinha ido até o D-101 (commit `06226f9`, 2026-07-16); desde então, 39
+decisões (D-102 a D-140) nunca entraram no documento — entre elas duas frentes inteiras que o v36
+nem sabia que existiam: **Federação** e a **Loja de Peças da Endurance** por completo.
+
+### O método: copiar, não regravar por cima
+
+`tools/gdd-v38.php` é uma cópia evoluída de `gdd-v36.php` — o v36 fica intocado, exatamente como o
+v35 ficou intocado quando o v36 nasceu (D-62: "o v35 fica como registro histórico do que se
+pensava antes"). Cada geração nova do documento é um arquivo novo, nunca uma edição destrutiva do
+gerador anterior — o rastro de como o próprio GDD evoluiu fica no git, do mesmo jeito que o rastro
+de como o jogo evoluiu fica em `docs/decisoes.md`.
+
+### O que mudou na estrutura, não só no conteúdo
+
+O v36 tinha 10 seções (0 a 10, terminando em "o que falta decidir"). O v38 tem 12: duas seções
+NOVAS de nível 1 — **§9 A Federação** e **§10 A Endurance** — inseridas antes de "Operação e
+administração" (que virou §11) e "O que falta decidir" (que virou §12). As duas mereceram seção
+própria, não uma nota dentro de outra, pelo mesmo critério que já vale para Guerra (§8) e Mercado
+(§6): são sistemas inteiros, com o próprio vocabulário e as próprias tabelas, não um apêndice de
+outra coisa. Leilões entrou como §6.6 (dentro do Mercado, não seção própria) — é literalmente "em
+cima do Mercado Central", pela própria definição de arquitetura do D-129.
+
+### Live-data: quatro fontes novas
+
+Além de `building_specs`/`resource_types`, o v38 lê ao vivo de mais quatro lugares para nunca
+digitar um número que o jogo já guarda: `fabrica_veiculos` (preço/custo/tempo de Caminhão e
+Furgão, D-109), `federation_settings` (o teto antimonopólio e o desconto entre aliados, D-119/
+D-120), `silo_capacidades` (a capacidade do Depósito Local por nível, D-108) e uma contagem de
+`endurance_items` (quantos itens o catálogo dinâmico tem hoje, D-135). Achei DUAS armadilhas
+rodando o gerador contra o banco de dev antes de publicar:
+
+- `Ministerio::precoFert()`/`::custoFabricacao()`/`::MINUTOS_FABRICACAO`/`::ESTOQUE_ALVO` — as
+  constantes que o v36 lia direto — **não existem mais**: o D-109 generalizou a fábrica por tipo
+  (`Ministerio::config($tipo)`, uma linha por veículo em `fabrica_veiculos`). A tabela §5.5 do
+  gerador antigo quebraria com um erro de método inexistente se eu só tivesse copiado — reescrita
+  para iterar `Ministerio::TIPOS` (Caminhão + Furgão) e usar `config()`.
+- **O banco de dev (`fertwaysdev`) estava com 7 migrations pendentes** — Leilões, Cargos Cívicos e
+  as duas fases da reconstrução da Endurance nunca tinham rodado ali, só em produção (via
+  `deploy.sh`) e nos testes (SQLite efêmero). O gerador quebrou na primeira tentativa
+  (`endurance_items` não existe). `php artisan migrate --force` contra o dev antes de gerar —
+  mesma disciplina que o próprio gerador já pede no seu docblock ("rode-o com o banco de DEV").
+
+### O que ficou de fora, e por quê
+
+Não reescrevi cada seção do zero — as que não mudaram (Marco, Chat na sua forma nova, Acordo de
+Troca, os dois estoques do Mercado) ficaram como o v36 já as descrevia, só renumeradas onde a
+inserção das duas seções novas empurrou os números. Duas mudanças pequenas de conteúdo, achadas
+relendo o documento antigo contra o código atual, não pedidas explicitamente mas necessárias para
+o documento continuar verdadeiro:
+
+- O canal **Região** saiu do Chat (D-104) — a tabela de canais do v36 ainda o listava.
+- A âncora de revenda do Furgão usada (D-73) ficou obsoleta desde que ele ganhou preço de fábrica
+  (D-109) — a nota do v36 dizia "ele não tem preço de fábrica", que deixou de ser verdade.
+
+### Validado
+
+`/usr/bin/php84 -l` sem erro de sintaxe; rodado contra o dev (`fertwaysdev`, já migrado em
+`--force`) sem warning nem exceção; um script de balanceamento de tags (`div`/`table`/`tr`/`td`/
+`th`/`p`/`h2`/`h3`/`ul`/`ol`/`li`/`b`/`code`/`span`) confere abertura=fechamento em todas as 14
+tags checadas — sem isso, um `</div>` a mais ou a menos no meio de ~450 linhas novas de HTML
+passaria despercebido até alguém abrir o navegador. `tests/Gdd/*` (35 testes) seguem verdes, sem
+alteração — nenhum código de jogo mudou, só um gerador de documento novo. Sem migration, sem
+deploy: `docs/FERTWAYS_GDD_v38_CONSOLIDADO.html` é o artefato gerado, commitado como o v36 já era
+(commit `06226f9`).

@@ -1336,7 +1336,7 @@ rollback limpos — os outros três não mudam schema), `npx tsc -b`/lint/build 
 **Para retomar isto:** não há mais pendência — os cinco itens são o estado normal do painel
 agora.
 
-## Ponte D-100 a D-140 (2026-07-16 a 2026-07-20) — resumo, detalhe em `docs/decisoes.md`
+## Ponte D-100 a D-141 (2026-07-16 a 2026-07-21) — resumo, detalhe em `docs/decisoes.md`
 
 Esta página parou de ser atualizada decisão a decisão desde o D-99. Tudo abaixo está **no ar em
 produção**, cada um com sua entrada completa em `docs/decisoes.md` (arbitragens, testes,
@@ -1363,7 +1363,11 @@ D-137 (aba Manual dos Benefícios no painel da Endurance) · **D-138 (demoliçã
 zona neutra — fecha o achado 7 do D-122/D-123, nunca decidido antes)** · D-139 (e2e da Endurance
 estava quebrado desde o D-135, achado ao verificar o D-138 e corrigido no mesmo ciclo) ·
 **D-140 (as missões narrativas da Endurance existem — 4 capítulos encadeados, o primeiro
-encadeamento do motor de Missões, D-78)**.
+encadeamento do motor de Missões, D-78)** · **D-141 (GDD v38 — segunda regeneração do v36,
+D-101 a D-140, com Federação e a Endurance como seções novas de nível 1)**.
+
+**O GDD agora é a v38** (`docs/FERTWAYS_GDD_v38_CONSOLIDADO.html`, gerador em
+`tools/gdd-v38.php`). O v36 fica intocado como histórico, como o v35 ficou quando o v36 nasceu.
 
 A partir do D-114, o usuário deu a instrução padrão: **avançar pelos próximos itens do GDD sem
 parar para perguntar, decidir e seguir** — é por isso que boa parte da lista acima foi escolhida
