@@ -1336,7 +1336,7 @@ rollback limpos — os outros três não mudam schema), `npx tsc -b`/lint/build 
 **Para retomar isto:** não há mais pendência — os cinco itens são o estado normal do painel
 agora.
 
-## Ponte D-100 a D-136 (2026-07-16 a 2026-07-20) — resumo, detalhe em `docs/decisoes.md`
+## Ponte D-100 a D-139 (2026-07-16 a 2026-07-20) — resumo, detalhe em `docs/decisoes.md`
 
 Esta página parou de ser atualizada decisão a decisão desde o D-99. Tudo abaixo está **no ar em
 produção**, cada um com sua entrada completa em `docs/decisoes.md` (arbitragens, testes,
@@ -1358,7 +1358,10 @@ no GDD)** · **D-130 (Cargos Públicos — Repórter, Fiscal de Mercado, Auxilia
 D-131 (Tanque de Combustível trava produção no teto) · D-132/D-133 (Loja de Peças da Endurance v1
 — 8 seções × 4 camadas fixas, CRUD admin) · D-134 (pendência: a v1 da Loja não diferenciava as
 camadas o bastante) · **D-135 (a Loja refeita: catálogo dinâmico, efeitos que mexem no motor de
-verdade)** · **D-136 (Leilões, D-129, vendem item da Endurance — Fase 2 do D-135)**.
+verdade)** · **D-136 (Leilões, D-129, vendem item da Endurance — Fase 2 do D-135)** ·
+D-137 (aba Manual dos Benefícios no painel da Endurance) · **D-138 (demolição de estrutura de
+zona neutra — fecha o achado 7 do D-122/D-123, nunca decidido antes)** · D-139 (e2e da Endurance
+estava quebrado desde o D-135, achado ao verificar o D-138 e corrigido no mesmo ciclo).
 
 A partir do D-114, o usuário deu a instrução padrão: **avançar pelos próximos itens do GDD sem
 parar para perguntar, decidir e seguir** — é por isso que boa parte da lista acima foi escolhida

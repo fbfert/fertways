@@ -115,7 +115,7 @@ try {
   checar(await esperarTexto(page, /Achado no Gagarin/), 'a matéria publicada aparece no mural')
   checar(await esperarTexto(page, /boletim/), 'marcada como boletim, distinta de um comunicado oficial')
 
-  console.log('\nOs destroços da Endurance (Oeste): a Loja de Peças (D-132)')
+  console.log('\nOs destroços da Endurance (Oeste): a Loja de Peças (D-132, reconstruída no D-135)')
   await page.click('[data-voltar-capital]')
   await page.click('[data-area="oeste"]')
   await page.waitForSelector('[data-tela="endurance"]')
@@ -124,17 +124,21 @@ try {
   const destrocos = await page.$$('[data-destroco]')
   checar(destrocos.length === 8, `os 8 destroços aparecem no mapa (achou ${destrocos.length})`)
 
+  // D-135: cada destroço abre SÓ a própria seção — não mais 8 grupos na mesma tela (D-132/D-133).
+  // `destrocos[0]` é "comando", a primeira seção que `EnduranceMapa.tsx` desenha; o e2e semeia o
+  // "Reator de Teste" lá (tools/e2e.sh) para o catálogo não nascer vazio.
   await destrocos[0].click()
   await page.waitForSelector('[data-tela="loja-da-endurance"]')
-  const secoesDaLoja = await page.$$('[data-secao-loja]')
-  checar(secoesDaLoja.length === 8, `a loja mostra as 8 seções (achou ${secoesDaLoja.length})`)
+  const secaoDaLoja = await page.$eval('[data-secao-loja]', (el) => el.getAttribute('data-secao-loja'))
+  checar(secaoDaLoja === 'comando', `a loja abre na seção clicada, "comando" (achou "${secaoDaLoja}")`)
+  checar(await esperarTexto(page, /Reator de Teste/), 'o item semeado aparece no catálogo')
 
-  console.log('\nCompra uma peça — o e2e nasce no marco 20 (Desbravador), acima do marco 10 exigido')
+  console.log('\nCompra um item — o e2e nasce no marco 20 (Desbravador), sem exigência de marco no item')
   const comprar = await acharPorTexto(page, 'button', /^Comprar$/)
-  checar(!!comprar, 'ao menos uma peça "comum" está disponível no marco do e2e')
+  checar(!!comprar, 'o item "comum" semeado está disponível para compra')
   await comprar.click()
   await page.waitForNetworkIdle({ idleTime: 800 })
-  checar(await esperarTexto(page, /Você tem esta peça/), 'a peça comprada muda de estado na hora')
+  checar(await esperarTexto(page, /Você tem 1/), 'o item comprado muda de estado na hora')
 
   console.log('\nO atalho "Mercado Central" da Endurance navega direto, sem voltar à praça')
   await (await acharPorTexto(page, 'button', /Mercado Central/)).click()

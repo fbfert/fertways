@@ -93,6 +93,15 @@ export function Zona() {
   const [retirar, setRetirar] = useState<Record<string, number>>({})
   const [nome, setNome] = useState('')
 
+  // Demolir (D-138): a mesma confirmação por escrito que a colônia já exige (D-61).
+  const [confirmandoDemolicao, setConfirmandoDemolicao] = useState(false)
+  const [palavraDemolicao, setPalavraDemolicao] = useState('')
+
+  useEffect(() => {
+    setConfirmandoDemolicao(false)
+    setPalavraDemolicao('')
+  }, [sel])
+
   // Guarnição: os defensores em casa, para o reforço (D-70, trazido para dentro da zona no D-86).
   const [guerra, setGuerra] = useState<EstadoDaGuerra | null>(null)
   const [reforcoQtd, setReforcoQtd] = useState(1)
@@ -227,6 +236,7 @@ export function Zona() {
 
   const porTipo = new Map(z.estruturas.map((e) => [e.type, e]))
   const escolhida = sel ? porTipo.get(sel) : null
+  const emObraNestaEstrutura = escolhida ? z.obras.some((o) => o.structure === escolhida.type) : false
   const ociosos = frota.filter((v) => v.status === 'ocioso')
   // A parede engrossa com o nível da Muralha — é o único sinal que se lê de longe.
   const nivelMuralha = porTipo.get('muralha_de_perimetro')?.level ?? 0
@@ -490,6 +500,88 @@ export function Zona() {
                     </div>
                   ) : (
                     <p className="text-ink-soft mt-3 text-xs">No nível máximo.</p>
+                  )}
+
+                  {/*
+                    Demolir (D-138): o espelho do que a colônia já tem (D-59/D-61) — nunca existia
+                    do lado da zona. O investido não volta, e a manutenção NÃO cai (ela nunca
+                    dependeu do nível desta estrutura, só do nível da zona).
+                  */}
+                  {escolhida.construivel && escolhida.level > 0 && (
+                    <div className="border-rust/30 mt-3 border-t pt-3">
+                      {!confirmandoDemolicao ? (
+                        <button
+                          onClick={() => setConfirmandoDemolicao(true)}
+                          className="text-ink-soft hover:text-rust w-full py-1 text-xs"
+                          data-demolir-zona={escolhida.type}
+                        >
+                          Demolir
+                        </button>
+                      ) : (
+                        <>
+                          <p className="text-ink-soft text-xs leading-snug">
+                            Demolir libera esta estrutura de volta ao nível 0.{' '}
+                            <span className="text-rust font-bold">Nada é devolvido</span> — o
+                            material investido nos {escolhida.level} níveis se perde, e a
+                            manutenção da zona não muda (ela nunca dependeu desta estrutura).
+                          </p>
+
+                          {emObraNestaEstrutura && (
+                            <p className="text-rust mt-2 text-xs font-bold">
+                              Há uma obra em curso nesta estrutura — espere-a terminar.
+                            </p>
+                          )}
+                          {z.cercada && (
+                            <p className="text-rust mt-2 text-xs font-bold">
+                              Não se demole sob sítio.
+                            </p>
+                          )}
+
+                          <label className="text-ink-soft mt-2 block text-xs">
+                            Escreva <span className="text-rust font-bold">DEMOLIR</span> para
+                            confirmar:
+                            <input
+                              value={palavraDemolicao}
+                              onChange={(e) => setPalavraDemolicao(e.target.value)}
+                              autoFocus
+                              data-palavra-demolir-zona
+                              className="border-rust/40 bg-sand text-ink mt-1 w-full border px-2 py-1 font-mono text-sm"
+                            />
+                          </label>
+
+                          <button
+                            onClick={() =>
+                              void agir(async () => {
+                                await api.demolirEstruturaDaZona(z.id, escolhida.type)
+                                setConfirmandoDemolicao(false)
+                                setPalavraDemolicao('')
+
+                                return `${escolhida.nome} demolida.`
+                              })
+                            }
+                            disabled={
+                              ocupado ||
+                              z.cercada ||
+                              emObraNestaEstrutura ||
+                              palavraDemolicao !== 'DEMOLIR'
+                            }
+                            data-demolir-zona-confirmar={escolhida.type}
+                            className="border-rust text-rust hover:bg-rust hover:text-sand-light disabled:border-ink-soft/25 disabled:text-ink-soft/40 mt-2 w-full border py-2 text-sm font-bold disabled:cursor-not-allowed disabled:hover:bg-transparent"
+                          >
+                            Demolir mesmo assim
+                          </button>
+                          <button
+                            onClick={() => {
+                              setConfirmandoDemolicao(false)
+                              setPalavraDemolicao('')
+                            }}
+                            className="text-ink-soft hover:text-rust mt-1 w-full py-1 text-xs"
+                          >
+                            cancelar
+                          </button>
+                        </>
+                      )}
+                    </div>
                   )}
                 </div>
               )}

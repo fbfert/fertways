@@ -6639,3 +6639,105 @@ sem `secao` mostra o manual por padrão; GET com `?secao=anel_habitacional` cont
 catálogo normalmente) e descartado depois de confirmar — não é uma regra de negócio nova, é
 documentação, então não ganhou um teste permanente na suíte. Suíte completa (870 testes)
 inalterada, sem regressão em `EnduranceAdminTest`.
+
+---
+
+## D-138 — A zona neutra ganha demolição de estrutura: a assimetria com a colônia, fechada.
+
+**Data:** 2026-07-20 · **Status:** implementado, decisão própria · GDD: nenhuma seção (mesmo caso
+do D-59/D-129) · Fecha o achado 7 do D-122/D-123
+
+Depois do D-137, fui atrás do próximo item do GDD sem base já arbitrada pendente. A revisão de
+zonas de 2026-07-19 (D-122/D-123) tinha achado onze pontos e escolhido seis para fechar; o achado 7
+ficou de fora, registrado como o que era — **uma lacuna real, nunca decidida nem discutida**, não
+uma contradição deliberada como o tributo (D-32) ou a frota que nunca trava (D-60):
+
+> "Não existe demolição nem downgrade de estrutura de zona (...). Implementá-la abriria perguntas
+> de design que esta revisão não respondeu (demolir devolve material? reduz o custo de manutenção
+> na hora? undo de saque de guerra?) — não implementar sem antes decidir essas perguntas com o
+> usuário." (`Domain\Zona\Estruturas`, docblock, D-122/D-123)
+
+O usuário já tinha dado a instrução padrão ("siga por todas as fases, não me faça mais perguntas,
+siga suas sugestões") — inclusive reiterada nesta sessão. As três perguntas ficam respondidas aqui,
+com o MESMO julgamento que a colônia já usa para o problema idêntico (`Domain\Building\Demolir`,
+D-59), não uma regra nova:
+
+1. **O investido não volta.** Nenhum material do canteiro é devolvido, nenhum Fert$ — a mesma
+   perda seca que `Demolir::handle()` já aplica à colônia (D-59: "o custo já foi lançado, e a
+   construção vira pó").
+2. **A manutenção NÃO cai — e essa resposta exigiu ler o código antes de prometer.** Fui conferir
+   `NeutralZone::custoDeManutencao()` antes de escrever a resposta óbvia ("reduz, é claro"): ela é
+   função só de `level` — o Posto de Comando, por `SubirNivelDaZona` — e **nunca leu** Muralha,
+   Torre, Bastião nem nenhuma das outras 12 colunas de `Estruturas::COLUNA`. Demolir uma delas não
+   move um número que já não dependia dela. Não é um efeito que este trabalho decide não ter; é um
+   efeito que a manutenção nunca teve, para nenhuma estrutura, mesmo antes de demolição existir —
+   e documentar isso errado seria pior do que não demolir nada.
+3. **Não desfaz saque de guerra.** O `Ledger`/`ZoneEvent` de um saque já sofrido não muda: demolir
+   é sobre o AGORA da estrutura, e nada aqui apaga ou reescreve um evento passado — a mesma régua
+   de "todo Fert$/recurso tem história" que o item 4 do D-122 já defendia para o upgrade perdido no
+   abandono.
+
+**Duas guardas vêm de fora dessas três perguntas, por analogia direta com o que já existe, não por
+arbitragem nova:** o Posto de Comando é indemolível (nasce com a ocupação, D-52 — mesmo motivo que
+torna as cinco essenciais da colônia indemolíveis: sem ele não há controle territorial sobre a
+zona), e não se demole sob cerco nem com uma obra em curso sobre a mesma estrutura — o espelho
+exato de "não se constrói/investe sob sítio" (`ConstruirNaZona`/`SubirNivelDaZona`) e "não se
+demole o que está em obra" (`Demolir`, colônia).
+
+### O desenho
+
+`Domain\Zona\DemolirEstruturaDaZona` — zera a coluna (`Estruturas::COLUNA[$estrutura]`) de volta a
+0, em vez de apagar uma linha: a zona é uma tabela de NÍVEIS, não um catálogo de slots como a
+colônia, então "demolir" aqui é o mesmo estado de quem nunca ergueu nada ali, só que sem `delete()`
+— não há linha para apagar. Grava um `ZoneEvent` (`estrutura_demolida`, com `meta.nivel_perdido`)
+para o Histórico da zona já mostrar, mesma prática do D-122 item 4.
+
+`ZoneController::demolir()` — nova rota `DELETE /zones/{zone}/build/{structure}`, ao lado de
+`POST /zones/{zone}/build` (`ConstruirNaZona`). Exige a MESMA palavra `Demolir::PALAVRA` que a
+colônia já exige (D-61) — reaproveitada da classe da colônia, não duplicada, porque é a mesma
+guarda pelo mesmo motivo: uma confirmação que vivesse só no React protegeria contra o dedo
+escorregando e contra mais nada.
+
+`Zona.tsx` ganha o mesmo padrão visual que `Hud.tsx` já usa para a colônia (botão discreto →
+confirmação por escrito → "Demolir mesmo assim"), com um aviso extra específico da zona: a
+manutenção não muda (para não deixar o colono achar que está "economizando" ao demolir).
+
+### Validado
+
+11 testes novos (`DemolirEstruturaDaZonaTest`): zera o nível, grava o `ZoneEvent` com o nível
+perdido, não devolve material do canteiro, a manutenção de fato não muda (comparação antes/depois),
+Posto de Comando indemolível, recusa demolir o que nunca foi erguido, recusa com obra em curso na
+MESMA estrutura, recusa sob cerco, recusa dono errado, a rota HTTP exige a palavra (3 tentativas
+erradas + 1 certa), e a obra seguinte após demolir começa do nível 1 — não do nível anterior. Suíte
+completa: **881 passando** (870 + 11), sem regressão. `tsc`/`lint`/`build` do frontend limpos. e2e
+completo, **9/9 verde** (`zonas.e2e.mjs` incluso, sem regressão nas 12 estruturas já cobertas).
+
+---
+
+## D-139 — O e2e da Endurance estava quebrado desde o D-135, e ninguém tinha notado.
+
+**Data:** 2026-07-20 · **Status:** correção, achada verificando o D-138 · GDD: nenhuma (bug de teste)
+
+Rodando o e2e completo para validar o D-138 (que não toca a Endurance em nada), `capital.e2e.mjs`
+deu vermelho na seção da Endurance — não por causa da zona: `capital.e2e.mjs` ainda testava a
+Loja de Peças no formato do D-132/D-133 (8 seções numa tela só, texto "Você tem esta peça"), e o
+D-135 (2026-07-20, mais cedo nesta mesma sessão) **reescreveu a tela inteira** para mostrar UMA
+seção por vez (`LojaDaEndurance.tsx`) sem nunca reexecutar este e2e — a entrada de decisões do
+D-135 registra "870 testes PHP" e "`tsc`/`lint`/`build` limpos", mas **não** menciona e2e, então
+não foi uma alegação falsa, só uma verificação que nunca aconteceu.
+
+**Um segundo problema, descoberto ao consertar o primeiro**: o catálogo dinâmico do D-135 nasce
+VAZIO num banco novo (o admin é quem cria itens pelo painel; a v1 tinha 32 linhas fixas sempre
+presentes via migration). Sem nenhum item semeado, a tela da Endurance no e2e não teria o que
+mostrar nem comprar — `tools/e2e.sh` ganhou um item de teste (`reator_de_teste_e2e`, seção
+`comando`, comum, 10 Fert$, um efeito de `desconto_tributo`) para o fluxo de compra continuar
+exercitável.
+
+`capital.e2e.mjs` corrigido: confere que `destrocos[0]` (seção "comando") abre SÓ a própria seção
+(`data-secao-loja="comando"`, não mais `.length === 8`), que o item semeado aparece no catálogo, e
+que comprá-lo mostra "Você tem 1" (o texto novo de `item.possuo`, não mais "Você tem esta peça").
+
+### Validado
+
+e2e completo, **9/9 verde**, incluindo a Endurance corrigida. Nenhuma mudança de backend. Achado e
+corrigido dentro do mesmo ciclo de verificação do D-138 — não abriu PR separado.
