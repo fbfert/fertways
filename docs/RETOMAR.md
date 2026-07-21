@@ -1336,7 +1336,7 @@ rollback limpos — os outros três não mudam schema), `npx tsc -b`/lint/build 
 **Para retomar isto:** não há mais pendência — os cinco itens são o estado normal do painel
 agora.
 
-## Ponte D-100 a D-142 (2026-07-16 a 2026-07-21) — resumo, detalhe em `docs/decisoes.md`
+## Ponte D-100 a D-143 (2026-07-16 a 2026-07-21) — resumo, detalhe em `docs/decisoes.md`
 
 Esta página parou de ser atualizada decisão a decisão desde o D-99. Tudo abaixo está **no ar em
 produção**, cada um com sua entrada completa em `docs/decisoes.md` (arbitragens, testes,
@@ -1372,6 +1372,12 @@ D-101 a D-140, com Federação e a Endurance como seções novas de nível 1)**.
 **D-142**: o Reator de Energia e o Depósito Local trocaram de slot — o Depósito agora nasce no
 centro exato da colmeia (10), o Reator na borda (21). Vale para toda colônia, existente (migration
 de dado) e futura (`Slots::MIOLO`/`Slots::DEPOSITO_LOCAL`).
+
+**D-143**: `ImportarImagens::EVIDENTES` ganhou 5 entradas novas (as 4 áreas dedicadas da Capital +
+`deposito-local`, um gap achado, não trazido pelo manifesto) — preparação de código só; os
+arquivos do novo lote ainda não chegaram ao servidor. Quando chegarem:
+`fertways:importar-imagens --aplicar` em produção. Há também uma imagem já esperando vínculo
+manual no painel: `governo-central-norte-u4yh0m.png` (upload avulso anterior a este pedido).
 
 A partir do D-114, o usuário deu a instrução padrão: **avançar pelos próximos itens do GDD sem
 parar para perguntar, decidir e seguir** — é por isso que boa parte da lista acima foi escolhida

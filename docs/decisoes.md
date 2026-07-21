@@ -6977,3 +6977,74 @@ contagem — só os dois valores trocaram dentro dos testes existentes. `docs/FE
 regenerado (a tabela do miolo, §2.1, lê `Slots::MIOLO` direto do código) e recopiado para
 `frontend/public/gdd.html`, para o documento publicado não ficar desatualizado no mesmo dia em que
 foi gerado.
+
+---
+
+## D-143 — A "Lista Mestra de Assets de Estruturas": um manifesto novo, cinco vínculos genuínos.
+
+**Data:** 2026-07-21 · **Status:** pedido direto do usuário · **Preparação de código — sem arquivo ainda**
+
+O usuário colou um manifesto novo (markdown, ~70 estruturas em 10 grupos) e pediu para o
+`/central/admin/imagens` ficar pronto para recebê-las. Antes de mexer em código, cruzei o
+manifesto inteiro contra `ImportarImagens::EVIDENTES` (o mapa "nome de arquivo → chave do jogo",
+D-68/D-72/D-107) — não linha a linha por confiança, por *script*: **~50 dos ~70 nomes já batiam,
+letra por letra**, com entradas que o lote do `structures.zip` (D-107) já tinha registrado. Se os
+arquivos chegarem com o MESMO nome de antes, não precisam de entrada nova — o `unique(category,
+filename)` já os reconhece, e um vínculo que já existe nunca é sobrescrito (trava de sempre).
+
+### O que era genuinamente novo, dos ~70
+
+**Cinco entradas, e só essas, mereceram código:**
+
+1. **Quatro artes DEDICADAS às 4 áreas da Capital** (`governo-central-norte`,
+   `mercado-central-leste`, `espacoporto-sul`, `destrocos-endurance-oeste`) — até aqui, cada área
+   usava emprestada a arte de UM slot/seção dela (o Oeste usava `casco-endurance`, por exemplo).
+   `capital:area:norte` **nunca tinha tido nenhum candidato, em nenhum lote** — é o primeiro
+   vínculo evidente que esta chave já viu. As outras três entram como candidatas A MAIS (mesmo
+   tratamento que `casco-principal-endurance` já teve no D-107, sem tirar a arte que já está lá).
+2. **`deposito-local` → `deposito_local`, um gap achado, não trazido pelo manifesto.** Investigando
+   por que esse nome não batia, achei que `Vinculaveis::porCategoria()` **já inclui** `deposito_local`
+   como coisa vinculável (desde que a classe existe) — mas `EVIDENTES` nunca foi atualizado para
+   acompanhar: o comentário do D-107 ainda dizia "não tem chave", uma alegação que parou de ser
+   verdade em algum commit anterior a este, sem ninguém notar. A imagem (`deposito-local.png`) já
+   estava na biblioteca desde o D-107, só sem vínculo — fechado agora.
+
+**`secao-comando-endurance` está no manifesto e fica de fora, de propósito** — mesma leitura que o
+D-107 já tinha dado ao nome idêntico: é variante visual do casco, não uma 9ª seção.
+
+**O resto continua sem lar, pelos MESMOS motivos já registrados** (D-72/D-107, não repetidos
+aqui): `patio-logistico` (a área Leste já é Mercado+Pátio); as 7 "Especializações da Colônia" que
+não são `building_type`; `cargueiro-interplanetario`/`torre-trafego-orbital`/`terminal-aduaneiro`
+(Espaçoporto não existe como feature); `mercado-central`/`doca-mercado`/`camara-escrow` (Mercado e
+Comércio não tem catálogo de itens vinculáveis); `fortim-defesa`/`centro-cerco` (o jogo só tem
+`bastiao` e `abrigo_de_robos`, os dois já reivindicados).
+
+### O painel em si não precisou de nenhuma mudança
+
+`PainelController::imagens()` já lê `Biblioteca::CATEGORIAS`/`Vinculaveis::porCategoria()`/
+`::todas()` inteiramente ao vivo — nenhuma categoria, nenhum grupo, nenhuma contagem é hardcoded
+na view ou no controller. As duas categorias de pasta que o manifesto usa (`Mercado e Comércio`,
+`Espaçoporto`) já existiam em `Biblioteca::CATEGORIAS` desde sempre. Atualizar `EVIDENTES` é
+suficiente: o painel "recebe" o vínculo novo assim que o código publica.
+
+### Achado ao investigar, não corrigido aqui: uma imagem já esperando
+
+`governo-central-norte-u4yh0m.png` (categoria `capital`) já está na biblioteca — um upload manual
+avulso pelo painel, ANTES deste pedido, com o sufixo aleatório de sempre (`Biblioteca::enviar()`).
+Como o nome não é exato, o importador em lote nunca o teria pego mesmo com a entrada nova — mas
+ele já pode ser vinculado a "Capital — Governo Central (Norte)" **agora mesmo, pelo painel**, sem
+esperar o resto do lote chegar. Sinalizado para o usuário, não vinculado por mim: é uma escolha
+visual, e o painel existe exatamente para isso.
+
+### Ainda falta: os arquivos de verdade
+
+Este PR é só a preparação do código — **nenhuma imagem nova chegou ao servidor**. Quando o
+restante do lote for colocado em `/home/fertways/media/<categoria>/` (fora do git, como sempre —
+D-68), o passo de sempre fecha: `php84 artisan fertways:importar-imagens --aplicar` em produção.
+
+### Validado
+
+`test_todo_vinculo_evidente_aponta_para_algo_que_existe` (guarda que já existia, D-72) confere as
+5 entradas novas contra `Vinculaveis::todas()` de graça — nenhum teste novo precisou nascer.
+Suíte completa: **892 passando** (5181 assertions, +5 da mesma guarda cobrindo mais entradas).
+Sem migration, sem mudança de frontend.
