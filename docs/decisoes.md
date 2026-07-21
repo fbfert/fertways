@@ -6909,3 +6909,12 @@ passaria despercebido até alguém abrir o navegador. `tests/Gdd/*` (35 testes) 
 alteração — nenhum código de jogo mudou, só um gerador de documento novo. Sem migration, sem
 deploy: `docs/FERTWAYS_GDD_v38_CONSOLIDADO.html` é o artefato gerado, commitado como o v36 já era
 (commit `06226f9`).
+
+**Complemento (mesmo dia): a landing page ainda linkava o v36.** `LandingNav.tsx` aponta
+`/gdd.html` — um arquivo ESTÁTICO em `frontend/public/gdd.html` (copiado para `dist/` no build,
+fora do alcance de `tools/gdd-v38.php`, que só escreve em `docs/`). Gerar o v38 não bastava: o
+site continuaria servindo o v36 até alguém copiar o arquivo por cima. `/bin/cp -f
+docs/FERTWAYS_GDD_v38_CONSOLIDADO.html frontend/public/gdd.html` — `cp` sem `-f` esbarrou no alias
+`cp -i` do root (a mesma armadilha já documentada em `docs/RETOMAR.md`, "Frontend — o bundle") e
+não copiou nada, em silêncio; conferido por `diff` antes de seguir. `dist/gdd.html` confirmado
+idêntico ao v38 depois do `npm run build`. `tsc`/`lint`/`build` limpos.
