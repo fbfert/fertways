@@ -449,7 +449,7 @@ export type Extrato = {
 /** Uma missão na sua mão (§06; D-78). Concluir paga na hora — não há botão de resgate. */
 export type Missao = {
   id: number
-  categoria: 'tutoria' | 'diaria' | 'semanal' | 'federacao'
+  categoria: 'tutoria' | 'diaria' | 'semanal' | 'federacao' | 'narrativa'
   titulo: string
   descricao: string
   progresso: number

@@ -225,4 +225,60 @@ class Atribuir
             MissionAssignment::insert($linhas);
         });
     }
+
+    /**
+     * As missões narrativas (D-140) — lazy, como as demais: chamada por `MissoesController::index()`
+     * a cada pedido. Sem ciclo (não sorteia, não expira, `expires_at` fica nulo): cada capítulo
+     * (`categoria = narrativa`) chega à mão UMA VEZ SÓ, na ordem do catálogo, e só depois de o
+     * capítulo anterior (`requer_template_id`) estar `concluida`. Um capítulo já entregue nunca é
+     * entregue de novo — o `where` por `template_id` já visto cobre isso, o mesmo padrão de
+     * `sortear()` (não repetir template na mesma janela), só que aqui a "janela" é a vida inteira
+     * da colônia.
+     */
+    public function garantirNarrativa(Colony $colony): void
+    {
+        DB::transaction(function () use ($colony) {
+            Colony::whereKey($colony->id)->lockForUpdate()->first();
+
+            $templates = MissionTemplate::where('categoria', 'narrativa')->where('ativa', true)
+                ->orderBy('id')
+                ->get();
+
+            if ($templates->isEmpty()) {
+                return;
+            }
+
+            $existentes = MissionAssignment::where('colony_id', $colony->id)
+                ->where('categoria', 'narrativa')
+                ->get()
+                ->keyBy('template_id');
+
+            $agora = now();
+
+            foreach ($templates as $t) {
+                if ($existentes->has($t->id)) {
+                    continue;
+                }
+
+                $liberado = $t->requer_template_id === null
+                    || $existentes->get($t->requer_template_id)?->status === 'concluida';
+
+                if (! $liberado) {
+                    continue;
+                }
+
+                MissionAssignment::create([
+                    'colony_id' => $colony->id,
+                    'template_id' => $t->id,
+                    'categoria' => 'narrativa',
+                    'acao' => $t->acao,
+                    'progresso' => 0,
+                    'meta' => $t->meta,
+                    'status' => 'ativa',
+                    'expires_at' => null,
+                    'created_at' => $agora,
+                ]);
+            }
+        });
+    }
 }

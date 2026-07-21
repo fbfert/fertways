@@ -33,6 +33,16 @@ class MissoesController extends Controller
             );
         }
 
+        // Narrativa (D-140): sem janela — um capítulo, uma vez, entregue quando o anterior fecha.
+        $atribuir->garantirNarrativa($colony);
+        $missoes = $missoes->concat(
+            MissionAssignment::with('template')
+                ->where('colony_id', $colony->id)
+                ->where('categoria', 'narrativa')
+                ->orderBy('id')
+                ->get()
+        );
+
         return response()->json([
             'missoes' => $missoes->map($this->linha(...)),
             'rejeicoes_restantes' => $this->rejeicoesRestantes($colony->id),

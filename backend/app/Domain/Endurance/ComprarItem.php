@@ -71,6 +71,8 @@ class ComprarItem
             $posse->quantidade = ($posse->exists ? $posse->quantidade : 0) + 1;
             $posse->save();
 
+            app(\App\Domain\Missoes\Progresso::class)->registrar($colonia->id, 'comprar_item_endurance');
+
             return $posse;
         });
     }

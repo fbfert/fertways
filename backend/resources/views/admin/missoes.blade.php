@@ -121,6 +121,17 @@
                     </div>
                 </div>
                 <div class="linha-form" style="margin-top:8px">
+                    <div>
+                        <label>Requer (só narrativa — vazio = 1º capítulo, ou sem cadeia)</label>
+                        <select name="requer_template_id" style="width:100%">
+                            <option value="">— nenhum —</option>
+                            @foreach ($capitulosNarrativos as $c)
+                                <option value="{{ $c->id }}">{{ $c->titulo }} ({{ $c->chave }})</option>
+                            @endforeach
+                        </select>
+                    </div>
+                </div>
+                <div class="linha-form" style="margin-top:8px">
                     <div style="flex:0">
                         <label>Recompensa em Fert$</label>
                         <input type="number" step="0.01" min="0" max="1000" name="recompensa_fert" value="0" style="width:110px">
@@ -239,6 +250,19 @@
                                     <div style="flex:0">
                                         <label>Meta</label>
                                         <input type="number" name="meta" min="1" max="999" value="{{ $m->meta }}" required style="width:90px">
+                                    </div>
+                                </div>
+                                <div class="linha-form" style="margin-top:8px">
+                                    <div>
+                                        <label>Requer (só narrativa)</label>
+                                        <select name="requer_template_id" style="width:100%">
+                                            <option value="">— nenhum —</option>
+                                            @foreach ($capitulosNarrativos as $c)
+                                                @if ($c->id !== $m->id)
+                                                    <option value="{{ $c->id }}" @selected($m->requer_template_id === $c->id)>{{ $c->titulo }} ({{ $c->chave }})</option>
+                                                @endif
+                                            @endforeach
+                                        </select>
                                     </div>
                                 </div>
                                 <div class="linha-form" style="margin-top:8px">

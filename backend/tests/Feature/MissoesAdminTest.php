@@ -309,4 +309,42 @@ class MissoesAdminTest extends TestCase
         $conteudo = $resp->getContent();
         $this->assertStringContainsString('data-catalogo-molde="teste_molde"', $conteudo);
     }
+
+    // ---------------------------------------------------------------- narrativa (D-140)
+
+    public function test_o_painel_cria_um_capitulo_com_pre_requisito(): void
+    {
+        $cap1 = $this->molde(['chave' => 'end_cap1_teste', 'categoria' => 'narrativa', 'acao' => 'comprar_item_endurance']);
+
+        $this->actingAs($this->operador(), 'admin')->post('/admin/missoes', [
+            'chave' => 'end_cap2_teste', 'categoria' => 'narrativa', 'titulo' => 'Capítulo 2',
+            'descricao' => 'O segundo capítulo.', 'acao' => 'mercado_executado', 'meta' => 3,
+            'requer_template_id' => $cap1->id,
+        ])->assertRedirect();
+
+        $cap2 = MissionTemplate::where('chave', 'end_cap2_teste')->firstOrFail();
+        $this->assertSame($cap1->id, $cap2->requer_template_id);
+    }
+
+    public function test_requer_template_id_vazio_vira_nulo(): void
+    {
+        $this->actingAs($this->operador(), 'admin')->post('/admin/missoes', [
+            'chave' => 'end_cap1_teste', 'categoria' => 'narrativa', 'titulo' => 'Capítulo 1',
+            'descricao' => 'O primeiro capítulo.', 'acao' => 'comprar_item_endurance', 'meta' => 1,
+            'requer_template_id' => '',
+        ])->assertRedirect();
+
+        $this->assertNull(MissionTemplate::where('chave', 'end_cap1_teste')->firstOrFail()->requer_template_id);
+    }
+
+    public function test_requer_template_id_inexistente_e_recusado(): void
+    {
+        $this->actingAs($this->operador(), 'admin')->post('/admin/missoes', [
+            'chave' => 'end_cap1_teste', 'categoria' => 'narrativa', 'titulo' => 'Capítulo 1',
+            'descricao' => 'x', 'acao' => 'comprar_item_endurance', 'meta' => 1,
+            'requer_template_id' => 999999,
+        ])->assertSessionHasErrors('requer_template_id');
+
+        $this->assertDatabaseMissing('mission_templates', ['chave' => 'end_cap1_teste']);
+    }
 }

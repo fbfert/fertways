@@ -6741,3 +6741,97 @@ que comprá-lo mostra "Você tem 1" (o texto novo de `item.possuo`, não mais "V
 
 e2e completo, **9/9 verde**, incluindo a Endurance corrigida. Nenhuma mudança de backend. Achado e
 corrigido dentro do mesmo ciclo de verificação do D-138 — não abriu PR separado.
+
+---
+
+## D-140 — As missões narrativas da Endurance existem: 4 capítulos, encadeados pela primeira vez.
+
+**Data:** 2026-07-20 · **Status:** implementado, decisão própria · GDD: §02/§16.2 (rótulo, sem
+mecânica) · Fecha a exclusão deliberada de "Narrativa" do D-78
+
+Depois do D-138/D-139, fui atrás do próximo item. `Endurance.tsx` (D-132) tinha uma nota que nunca
+deixou de ser verdade até hoje: **"As missões narrativas continuam sem existir; esta tela não
+finge o contrário."** O GDD nomeia a Endurance "fonte de... missões narrativas" em três lugares
+(§02, §16.2, e a tabela do §11 do v35) — e nunca descreve UMA missão, um capítulo, um gatilho ou
+uma recompensa. É a mesma vagueza que os Leilões tinham (D-129): um rótulo, zero mecânica. O D-78
+já tinha reconhecido isso e excluído "Narrativa" do escopo do motor genérico de propósito
+("espera o seu sistema").
+
+Diferente dos Leilões, aqui não perguntei antes de comprometer código — a instrução do usuário
+nesta sessão ("não me faça mais perguntas, siga suas sugestões... investigue e coloque em
+prática") já supera o precedente do D-129. A arbitragem fica registrada aqui, como sempre.
+
+### O que faltava no motor genérico, e só isso
+
+O motor de Missões (D-78: `mission_templates` + `mission_assignments` + `Atribuir` + `Progresso`)
+já resolve sorteio, progresso, pagamento e aviso — genérico o bastante para qualquer categoria
+nova sem tocar `Progresso::pagar()`. O que faltava era só **encadeamento**: nenhuma categoria
+existente depende de outra ter sido concluída antes de aparecer. Uma coluna resolve —
+`mission_templates.requer_template_id` (nullable, auto-referente) — e `Atribuir::garantirNarrativa()`
+(nova, chamada lazy por `MissoesController::index()`, o mesmo padrão de `garantirFederacao()`): por
+capítulo, na ordem do catálogo, entrega se ainda não foi entregue E (não tem pré-requisito OU o
+pré-requisito está `concluida`). Sem ciclo — `expires_at` fica nulo, um capítulo não vence.
+
+### Os 4 capítulos — 100% arbitragem, tema e números
+
+O GDD não dá pista de conteúdo nenhuma, então a história e os valores são meus, documentados para
+não passar por dado do documento:
+
+1. **"O Primeiro Achado"** — comprar 1 item da Loja de Peças (`comprar_item_endurance`, gancho
+   NOVO em `ComprarItem::handle()` — o único capítulo que precisou de ação dedicada, para prender
+   a narrativa a um ato de verdade na própria Endurance). 10 F$ + 150 XP.
+2. **"O Preço da Escavação"** — 3 negócios no Mercado Central (`mercado_executado`, ação já
+   existente, tematizada como "financiar a expedição"). 15 F$ + 300 XP.
+3. **"Reconstrução"** — 2 níveis de construção concluídos (`obra_concluida`, tematizado como
+   "integrar o que foi recuperado"). 20 F$ + 400 XP + 500 Metal Bruto.
+4. **"O Legado da Endurance"** — 2 despachos (`despacho`, o fechamento, "o legado viaja pelo
+   planeta"). 50 F$ + 1000 XP + 100 Componentes Eletrônicos.
+
+**Por que só o capítulo 1 ganhou gancho novo, e os outros reaproveitam ações genéricas**: inventar
+uma ação nova por capítulo exigiria 4 pontos de instrumentação novos no motor do jogo, para uma
+categoria que é, na essência, cosmética/narrativa — custo que a "recompensa itens
+cosméticos/narrativos e contratos" do §11 (v35) não pede. O mesmo julgamento econômico que já guiou
+D-129 (não inventar mais do que o necessário) e D-135 (vocabulário fechado de efeitos).
+
+**Por que os capítulos não entregam um item da Endurance como prêmio** (o §11 v35 sugere "itens...
+narrativos"): `Progresso::pagar()` só sabe pagar Fert$/recursos fungíveis/XP — dar um `EnduranceItem`
+de graça exigiria um tipo de recompensa novo no motor genérico, usado por UMA categoria só. Mais
+barato e igualmente coerente: a narrativa paga em Fert$/recursos, e a Loja de Peças (D-135) continua
+sendo a única via de aquisição de item — a mesma separação que já existe entre "ganhar dinheiro" e
+"gastar dinheiro" em todo o resto do jogo.
+
+### Dois retoques fora do backend
+
+- **Admin** (`missoes.blade.php`/`PainelController::missoes()`): um seletor "Requer" nos formulários
+  de criar/editar, populado só com capítulos de narrativa (`capitulosNarrativos`) — a mesma
+  filosofia CRUD-primeiro da Loja de Peças (D-135): o operador escreve capítulo novo sem deploy.
+  **Achei a MESMA armadilha do D-135 antes de ela morder**: `nullable` não converte `''` em `null`
+  na validação — sem a conversão explícita, "sem pré-requisito" salvaria `0` na FK e quebraria a
+  constraint. Corrigido (e testado) antes de existir em produção, não depois.
+- **Frontend** (`Missoes.tsx`): achei, ao revisar a tela ANTES de rodar qualquer teste, que
+  `grupos`/`NOME_CATEGORIA` eram uma lista fechada de 4 categorias (`tutoria`/`diaria`/`semanal`/
+  `federacao`) — sem `narrativa`, o capítulo chegaria pela API e **sumiria em silêncio** na tela,
+  a mesma classe de bug do vínculo com chave errada (D-72). Corrigido antes de gerar qualquer
+  teste que pudesse mascarar a lacuna.
+
+### Validado
+
+8 testes novos (`MissoesNarrativaTest`): o seeder encadeia os 4 na ordem certa, só o 1º chega de
+saída, concluir o 1º libera o 2º (e só no PEDIDO SEGUINTE — a mesma preguiça lazy do resto do
+motor), não pula capítulo, a cadeia inteira conclui e paga o último, um capítulo entregue nunca
+repete, narrativa não expira, a rota `/missions` devolve o capítulo ativo. 3 testes novos em
+`MissoesAdminTest` (criar com pré-requisito, `''` vira `null`, id inexistente recusado). Suíte
+completa: **892 passando** (889 + 3 admin). `tsc`/`lint`/`build` do frontend limpos.
+
+**e2e: inconclusivo, por infraestrutura, não por código.** Três tentativas de `tools/e2e.sh` nesta
+sessão — a mesma classe de falha do servidor de 4 GB documentada em memória
+(`servidor-4gb-nao-sobrecarregar.md`, "uma carga pesada por vez; `exit 137` é OOM, não teste
+reprovado"): Chrome derruba com `Protocol error: Target closed` em pontos **sempre diferentes e
+sempre alheios** a este trabalho (HUD, Mapa — nunca Missões nem Endurance). Na 3ª tentativa,
+`telas.e2e.mjs` e `chat.e2e.mjs` passaram inteiros e verdes antes de o Chrome cair ao ABRIR
+`mobile.e2e.mjs` — nem chegou a rodar a suíte que checa o painel de Missões. A MESMA infraestrutura
+já tinha passado 9/9 minutos antes, para o D-138/D-139 (que não mexeu em Missões/Endurance,
+mas passa pelas mesmas telas de base). Decisão: **enviar mesmo assim**, apoiado em 892 testes PHP
++ `tsc`/`lint`/`build` limpos — a mesma leitura já registrada no D-122 ("`exit 137` não é teste
+reprovado"). Sinalizado aqui para o usuário, não escondido, e não é motivo para reverter: se um
+próximo e2e completo achar algo real na tela de Missões/Endurance, é dali que se conserta.
