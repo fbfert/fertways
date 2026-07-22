@@ -9,6 +9,7 @@ use App\Models\Ledger;
 use App\Models\NeutralZone;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\Concerns\ErgueEstruturasDaZona;
 use Tests\TestCase;
 
 /**
@@ -18,6 +19,7 @@ use Tests\TestCase;
 class OcuparZonaNeutraTest extends TestCase
 {
     use RefreshDatabase;
+    use ErgueEstruturasDaZona;
 
     protected function setUp(): void
     {
@@ -46,7 +48,7 @@ class OcuparZonaNeutraTest extends TestCase
 
     private function zonaLivre(): NeutralZone
     {
-        return NeutralZone::create([
+        return $this->criarZonaComEstruturas([
             'x' => 50, 'y' => 50, 'district' => 'nordeste', 'mineral' => 'metal_bruto',
             'level' => 1, 'status' => 'livre', 'deposit_level' => 1,
         ]);
@@ -65,7 +67,7 @@ class OcuparZonaNeutraTest extends TestCase
         $this->assertSame($colony->id, $zona->owner_colony_id);
         $this->assertSame('protegida', $zona->status);
         $this->assertSame(20, $zona->guarnicao());
-        $this->assertSame(1, $zona->command_post_level);
+        $this->assertSame(1, $zona->nivelDe('posto_de_comando'));
 
         // Metal Bruto debitado: 800 (Posto) + 20×11 (robôs) = 1020.
         $depois = $colony->resources()->where('resource_type', 'metal_bruto')->value('amount');

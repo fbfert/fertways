@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Models\ZoneBuild;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
+use Tests\Concerns\ErgueEstruturasDaZona;
 use Tests\TestCase;
 
 /**
@@ -20,6 +21,7 @@ use Tests\TestCase;
 class PerfilTest extends TestCase
 {
     use RefreshDatabase;
+    use ErgueEstruturasDaZona;
 
     protected function setUp(): void
     {
@@ -211,7 +213,7 @@ class PerfilTest extends TestCase
         $outro = app(CreateColony::class)->handle(User::factory()->create(), 'Outra', 25, 25);
 
         // A minha: 900 no depósito, 500 protegidos → 400 EXPOSTOS. Cercada, e com obra.
-        $minha = NeutralZone::create([
+        $minha = $this->criarZonaComEstruturas([
             'x' => 47, 'y' => 47, 'district' => 'NE', 'mineral' => 'metal_bruto', 'level' => 1,
             'owner_colony_id' => $c->id, 'status' => 'ocupada',
             'occupied_at' => now()->subDays(30), 'productive_at' => now()->subDays(20),
@@ -235,7 +237,7 @@ class PerfilTest extends TestCase
         ]);
 
         // A do vizinho: NÃO pode aparecer na minha lista.
-        NeutralZone::create([
+        $this->criarZonaComEstruturas([
             'x' => 48, 'y' => 48, 'district' => 'NE', 'mineral' => 'metal_bruto', 'level' => 1,
             'owner_colony_id' => $outro->id, 'status' => 'ocupada',
             'occupied_at' => now(), 'command_post_level' => 1, 'deposit_level' => 1,

@@ -11,6 +11,7 @@ use App\Models\NeutralZone;
 use App\Models\User;
 use App\Models\ZoneEvent;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\Concerns\ErgueEstruturasDaZona;
 use Tests\TestCase;
 
 /**
@@ -21,6 +22,7 @@ use Tests\TestCase;
 class RankingDeGuerrasTest extends TestCase
 {
     use RefreshDatabase;
+    use ErgueEstruturasDaZona;
 
     protected function setUp(): void
     {
@@ -45,7 +47,7 @@ class RankingDeGuerrasTest extends TestCase
     {
         $cel = [[47, 47], [48, 48], [49, 49], [45, 46], [46, 47], [49, 48]][$this->proximaZona++];
 
-        return NeutralZone::create([
+        return $this->criarZonaComEstruturas([
             'x' => $cel[0], 'y' => $cel[1], 'district' => 'NE', 'mineral' => 'metal_bruto',
             'level' => 1, 'status' => 'livre', 'deposit_level' => 1,
         ]);

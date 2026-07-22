@@ -35,7 +35,7 @@ class ProcessarSiderurgicaNaZona
 
         $ids = NeutralZone::whereNotNull('owner_colony_id')
             ->where('mineral', Siderurgica::INSUMO)
-            ->where('industry_level', '>=', 1)
+            ->whereHas('zoneStructures', fn ($q) => $q->where('type', 'industria_siderurgica'))
             ->where('deposit_amount', '>', 0)
             ->pluck('id');
 
@@ -55,7 +55,7 @@ class ProcessarSiderurgicaNaZona
         return DB::transaction(function () use ($id, $agora) {
             $zona = NeutralZone::whereKey($id)->lockForUpdate()->first();
 
-            if (! $zona || $zona->industry_level < 1 || $zona->deposit_amount <= 0) {
+            if (! $zona || $zona->nivelDe('industria_siderurgica') < 1 || $zona->deposit_amount <= 0) {
                 return false;
             }
 
@@ -67,7 +67,7 @@ class ProcessarSiderurgicaNaZona
                 return false;
             }
 
-            $taxa = $this->taxaPorHora($zona->industry_level);
+            $taxa = $this->taxaPorHora($zona);
 
             if ($taxa <= 0) {
                 return false;
@@ -122,13 +122,28 @@ class ProcessarSiderurgicaNaZona
         });
     }
 
-    /** A mesma taxa da colônia (D-82) — lida direto de `building_specs`, não recalculada. */
-    private function taxaPorHora(int $nivel): int
+    /**
+     * A mesma taxa da colônia (D-82) — lida direto de `building_specs`, não recalculada. Soma entre
+     * TODAS as cópias da Indústria Siderúrgica na zona (D-144: repetível) — mesmo padrão de
+     * `NeutralZone::refinoPorHora()`.
+     */
+    private function taxaPorHora(NeutralZone $zona): int
     {
-        $producao = DB::table('building_specs')
-            ->where(['building_type' => 'industria_siderurgica', 'level' => $nivel])
-            ->value('producao_hora_json');
+        $niveis = $zona->zoneStructures->where('type', 'industria_siderurgica')->pluck('level')->unique();
 
-        return $producao ? (int) (json_decode($producao, true)[Siderurgica::INSUMO] ?? 0) : 0;
+        if ($niveis->isEmpty()) {
+            return 0;
+        }
+
+        $porNivel = DB::table('building_specs')
+            ->where('building_type', 'industria_siderurgica')
+            ->whereIn('level', $niveis)
+            ->pluck('producao_hora_json', 'level');
+
+        return (int) $zona->zoneStructures->where('type', 'industria_siderurgica')->sum(function ($s) use ($porNivel) {
+            $producao = $porNivel->get($s->level);
+
+            return $producao ? (int) (json_decode($producao, true)[Siderurgica::INSUMO] ?? 0) : 0;
+        });
     }
 }

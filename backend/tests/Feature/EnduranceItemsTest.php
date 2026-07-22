@@ -34,6 +34,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use PHPUnit\Framework\Attributes\Test;
+use Tests\Concerns\ErgueEstruturasDaZona;
 use Tests\TestCase;
 
 /**
@@ -44,6 +45,7 @@ use Tests\TestCase;
 class EnduranceItemsTest extends TestCase
 {
     use RefreshDatabase;
+    use ErgueEstruturasDaZona;
 
     protected function setUp(): void
     {
@@ -374,7 +376,7 @@ class EnduranceItemsTest extends TestCase
 
     private function zona(int $x, int $y, ?Colony $dona = null, int $robos = 0): NeutralZone
     {
-        $z = NeutralZone::create([
+        $z = $this->criarZonaComEstruturas([
             'x' => $x, 'y' => $y, 'district' => 'nordeste', 'mineral' => 'metal_bruto',
             'level' => 1, 'status' => $dona ? 'ocupada' : 'livre', 'deposit_level' => 1,
             'owner_colony_id' => $dona?->id, 'deposit_amount' => $dona ? 777 : 0,

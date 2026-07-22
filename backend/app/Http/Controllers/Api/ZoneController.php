@@ -183,6 +183,7 @@ class ZoneController extends Controller
             'canteiro' => $zone->materiais()->orderBy('resource_type')->get(['resource_type', 'amount']),
             'obras' => $obras->map(fn ($o) => [
                 'structure' => $o->structure,
+                'slot' => $o->slot,
                 'nome' => Estruturas::de($o->structure)['nome'],
                 'target_level' => $o->target_level,
                 'finishes_at' => $o->finishes_at,
@@ -275,13 +276,14 @@ class ZoneController extends Controller
     {
         $dados = $request->validate([
             'structure' => ['required', Rule::in(Estruturas::CONSTRUIVEIS)],
+            'slot' => ['required', 'integer', 'min:0', 'max:'.(\App\Domain\Zona\ZonaSlots::TOTAL - 1)],
         ]);
 
         $colony = $request->user()->colony()->firstOrFail();
 
-        $construir->handle($colony, $zone, $dados['structure']);
+        $construir->handle($colony, $zone, $dados['structure'], $dados['slot']);
 
-        return response()->json(['obra' => $zone->fresh()->obras()->first()], 201);
+        return response()->json(['obra' => $zone->fresh()->obras()->latest('id')->first()], 201);
     }
 
     /**
@@ -293,7 +295,7 @@ class ZoneController extends Controller
     public function demolir(
         Request $request,
         NeutralZone $zone,
-        string $structure,
+        int $slot,
         DemolirEstruturaDaZona $demolir,
     ): JsonResponse {
         $confirmacao = (string) $request->input('confirmacao');
@@ -307,7 +309,7 @@ class ZoneController extends Controller
 
         $colony = $request->user()->colony()->firstOrFail();
 
-        $demolir->handle($colony, $zone, $structure);
+        $demolir->handle($colony, $zone, $slot);
 
         return response()->json(['demolida' => true]);
     }
@@ -319,7 +321,7 @@ class ZoneController extends Controller
     public function reparar(Request $request, NeutralZone $zone, RepararModulo $reparo): JsonResponse
     {
         $dados = $request->validate([
-            'estrutura' => ['required', Rule::in(array_keys(Estruturas::COLUNA))],
+            'estrutura' => ['required', Rule::in(Estruturas::TODAS)],
         ]);
 
         $colony = $request->user()->colony()->firstOrFail();
@@ -382,7 +384,9 @@ class ZoneController extends Controller
     }
 
     /**
-     * As estruturas da zona: o que está erguido, o que se pode erguer, e o que cada uma FAZ.
+     * As estruturas da zona (D-144: colmeia de slots) — o que está erguido em CADA slot, o que
+     * cada uma FAZ, e o mapa da colmeia (linhas, slots desbloqueados no nível atual, slots
+     * ocupados) para o front desenhar a planta em SVG.
      *
      * O `hoje` e o `gdd` vêm de `Domain\Zona\Estruturas` e são duas coisas diferentes de propósito —
      * o que o documento promete e o que o jogo entrega. Sem essa separação, o colono gasta 600 Metal
@@ -390,10 +394,11 @@ class ZoneController extends Controller
      */
     private function estruturas(NeutralZone $zone, RepararModulo $reparo): array
     {
-        $out = [];
+        $erguidas = $zone->zoneStructures()->orderBy('slot')->get();
 
-        foreach (Estruturas::COLUNA as $tipo => $coluna) {
-            $nivel = (int) $zone->{$coluna};
+        $porSlot = $erguidas->map(function ($linha) use ($zone, $reparo) {
+            $tipo = $linha->type;
+            $nivel = $linha->level;
             $info = Estruturas::de($tipo);
 
             $proximo = DB::table('building_specs')
@@ -403,17 +408,20 @@ class ZoneController extends Controller
 
             // Apreensão (Predador, binária) e Sabotagem (Infiltrador, proporcional) — D-118. Uma
             // estrutura nunca está nas duas ao mesmo tempo (a Apreensão já zera `fracaoEfetiva`).
+            // As duas só miram tipos ÚNICOS (`Domain\Guerra\Atacar::ALVOS_ATACAVEIS`), então o tipo
+            // ainda identifica a estrutura sem ambiguidade de slot.
             $apreendida = in_array($tipo, $zone->modules_offline ?? [], true);
             $nivelSabotagem = ($zone->structures_saboted ?? [])[$tipo] ?? null;
 
-            $out[] = [
+            return [
+                'slot' => $linha->slot,
                 'type' => $tipo,
                 'nome' => $info['nome'],
                 'level' => $nivel,
                 'gdd' => $info['gdd'],
                 'hoje' => $info['hoje'],
                 'inerte' => $info['inerte'],
-                'construivel' => in_array($tipo, Estruturas::CONSTRUIVEIS, true),
+                'indemolivel' => $linha->slot === \App\Domain\Zona\ZonaSlots::POSTO_SLOT,
                 'offline' => $apreendida,   // mantido: é o que a UI já lia para o badge.
                 'fracao_efetiva' => $zone->fracaoEfetiva($tipo),
                 'apreendida' => $apreendida ? [
@@ -424,7 +432,7 @@ class ZoneController extends Controller
                 ] : null,
                 // Custo do reparo/resgate — só faz sentido pedir se há nível construído; nenhuma
                 // das duas degradações acontece numa estrutura em nível 0.
-                'custo_reparo' => ($apreendida || $nivelSabotagem !== null) && $nivel > 0
+                'custo_reparo' => ($apreendida || $nivelSabotagem !== null)
                     ? $reparo->custo($tipo, $nivel)
                     : null,
                 'proximo' => $proximo ? [
@@ -433,8 +441,41 @@ class ZoneController extends Controller
                     'segundos' => (int) $proximo->build_time_seconds,
                 ] : null,
             ];
-        }
+        })->values();
 
-        return $out;
+        // O catálogo: o que se PODE erguer num slot vazio, e o que cada tipo faz — mesmo padrão de
+        // `BuildingController::catalogo()` (D-59), com `repetivel`/`quantas` no lugar de
+        // `disponivel` booleano: um tipo repetível está sempre disponível, com N cópias.
+        $quantasPorTipo = $erguidas->groupBy('type')->map->count();
+
+        $catalogo = collect(Estruturas::CONSTRUIVEIS)->map(function (string $tipo) use ($quantasPorTipo) {
+            $info = Estruturas::de($tipo);
+            $spec = DB::table('building_specs')->where('building_type', $tipo)->where('level', 1)->first();
+            $repetivel = in_array($tipo, Estruturas::REPETIVEIS, true);
+
+            return [
+                'type' => $tipo,
+                'nome' => $info['nome'],
+                'gdd' => $info['gdd'],
+                'hoje' => $info['hoje'],
+                'inerte' => $info['inerte'],
+                'repetivel' => $repetivel,
+                'quantas' => $quantasPorTipo->get($tipo, 0),
+                'disponivel' => $repetivel || $quantasPorTipo->get($tipo, 0) === 0,
+                'custo_nivel_1' => $spec ? json_decode($spec->cost_json, true) : null,
+                'segundos_nivel_1' => $spec ? (int) $spec->build_time_seconds : null,
+            ];
+        })->values();
+
+        return [
+            'colmeia' => [
+                'linhas' => \App\Domain\Zona\ZonaSlots::LINHAS,
+                'total' => \App\Domain\Zona\ZonaSlots::TOTAL,
+                'slot_do_posto' => \App\Domain\Zona\ZonaSlots::POSTO_SLOT,
+                'desbloqueados' => \App\Domain\Zona\ZonaSlots::desbloqueadosAte($zone->level),
+            ],
+            'erguidas' => $porSlot,
+            'catalogo' => $catalogo,
+        ];
     }
 }

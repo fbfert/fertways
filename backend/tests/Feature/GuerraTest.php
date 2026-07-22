@@ -15,6 +15,7 @@ use App\Models\Unit;
 use App\Models\User;
 use App\Models\ZoneMineral;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\Concerns\ErgueEstruturasDaZona;
 use Tests\TestCase;
 
 /**
@@ -27,6 +28,7 @@ use Tests\TestCase;
 class GuerraTest extends TestCase
 {
     use RefreshDatabase;
+    use ErgueEstruturasDaZona;
 
     protected function setUp(): void
     {
@@ -66,7 +68,7 @@ class GuerraTest extends TestCase
         // Células do distrito NE (x∈[45,50], y∈[46,50]). Uma por zona: o unique(x,y) vale aqui também.
         $cel = [[47, 47], [48, 48], [49, 49], [45, 46]][$this->proximaZona++];
 
-        $zona = NeutralZone::create(array_merge([
+        $zona = $this->criarZonaComEstruturas(array_merge([
             'x' => $cel[0], 'y' => $cel[1], 'district' => 'NE', 'mineral' => 'metal_bruto', 'level' => 1,
             'owner_colony_id' => $dono->id,
             'status' => 'ocupada',

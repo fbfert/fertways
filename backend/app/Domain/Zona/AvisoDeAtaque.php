@@ -21,7 +21,7 @@ class AvisoDeAtaque
 
     public function avisar(NeutralZone $zona): void
     {
-        if ($zona->communication_level < 1 || $zona->owner_colony_id === null) {
+        if ($zona->nivelDe('central_de_comunicacao') < 1 || $zona->owner_colony_id === null) {
             return;
         }
 

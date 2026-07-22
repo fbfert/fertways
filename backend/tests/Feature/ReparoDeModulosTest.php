@@ -16,6 +16,7 @@ use App\Models\NeutralZone;
 use App\Models\Unit;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\Concerns\ErgueEstruturasDaZona;
 use Tests\TestCase;
 
 /**
@@ -30,6 +31,7 @@ use Tests\TestCase;
 class ReparoDeModulosTest extends TestCase
 {
     use RefreshDatabase;
+    use ErgueEstruturasDaZona;
 
     protected function setUp(): void
     {
@@ -60,7 +62,7 @@ class ReparoDeModulosTest extends TestCase
     {
         $cel = [[47, 47], [48, 48], [49, 49], [45, 46]][$this->proximaZona++];
 
-        $zona = NeutralZone::create(array_merge([
+        $zona = $this->criarZonaComEstruturas(array_merge([
             'x' => $cel[0], 'y' => $cel[1], 'district' => 'NE', 'mineral' => 'metal_bruto', 'level' => 1,
             'owner_colony_id' => $dono->id,
             'status' => 'ocupada',

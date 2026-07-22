@@ -12,6 +12,7 @@ use App\Models\NeutralZone;
 use App\Models\User;
 use App\Models\ZoneEvent;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\Concerns\ErgueEstruturasDaZona;
 use Tests\TestCase;
 
 /**
@@ -21,6 +22,7 @@ use Tests\TestCase;
 class HistoricoDaZonaTest extends TestCase
 {
     use RefreshDatabase;
+    use ErgueEstruturasDaZona;
 
     protected function setUp(): void
     {
@@ -47,7 +49,7 @@ class HistoricoDaZonaTest extends TestCase
     public function test_ocupar_grava_o_evento_de_posse(): void
     {
         $colony = $this->colonoAbastecido();
-        $zona = NeutralZone::create([
+        $zona = $this->criarZonaComEstruturas([
             'x' => 50, 'y' => 50, 'district' => 'nordeste', 'mineral' => 'metal_bruto',
             'level' => 1, 'status' => 'livre', 'deposit_level' => 1,
         ]);
@@ -62,7 +64,7 @@ class HistoricoDaZonaTest extends TestCase
     public function test_abandonar_grava_o_evento_com_o_dono_que_perdeu(): void
     {
         $colony = $this->colonoAbastecido();
-        $zona = NeutralZone::create([
+        $zona = $this->criarZonaComEstruturas([
             'x' => 50, 'y' => 50, 'district' => 'nordeste', 'mineral' => 'metal_bruto',
             'level' => 1, 'status' => 'protegida', 'owner_colony_id' => $colony->id,
             'productive_at' => now()->subDay(), 'deposit_level' => 1,
@@ -83,7 +85,7 @@ class HistoricoDaZonaTest extends TestCase
         $dono = $this->colonoAbastecido();
         $outro = app(CreateColony::class)->handle(User::factory()->create(), 'Rival', 30, 30);
 
-        $zona = NeutralZone::create([
+        $zona = $this->criarZonaComEstruturas([
             'x' => 50, 'y' => 50, 'district' => 'nordeste', 'mineral' => 'metal_bruto',
             'level' => 1, 'status' => 'protegida', 'owner_colony_id' => $dono->id,
             'deposit_level' => 1,
@@ -129,7 +131,7 @@ class HistoricoDaZonaTest extends TestCase
     {
         $dono = $this->colonoAbastecido();
 
-        $zona = NeutralZone::create([
+        $zona = $this->criarZonaComEstruturas([
             'x' => 50, 'y' => 50, 'district' => 'nordeste', 'mineral' => 'metal_bruto',
             'level' => 1, 'status' => 'protegida', 'owner_colony_id' => $dono->id, 'deposit_level' => 1,
         ]);
@@ -151,7 +153,7 @@ class HistoricoDaZonaTest extends TestCase
         $dono = $this->colonoAbastecido();
         $outro = app(CreateColony::class)->handle(User::factory()->create(), 'Curioso', 30, 30);
 
-        $zona = NeutralZone::create([
+        $zona = $this->criarZonaComEstruturas([
             'x' => 50, 'y' => 50, 'district' => 'nordeste', 'mineral' => 'metal_bruto',
             'level' => 1, 'status' => 'protegida', 'owner_colony_id' => $dono->id, 'deposit_level' => 1,
         ]);

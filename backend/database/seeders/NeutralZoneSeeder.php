@@ -22,15 +22,22 @@ class NeutralZoneSeeder extends Seeder
                 continue;
             }
 
-            NeutralZone::create([
+            $criada = NeutralZone::create([
                 'x' => $zona['x'],
                 'y' => $zona['y'],
                 'district' => $zona['distrito'],
                 'mineral' => $zona['mineral'],
                 'level' => 1,
                 'status' => 'livre',
-                'deposit_level' => 1,
                 'deposit_amount' => 0,
+            ]);
+
+            // O Depósito nasce erguido mesmo numa zona livre (D-52) — a colmeia de slots (D-144)
+            // não muda isso, só move onde o nível mora.
+            $criada->zoneStructures()->create([
+                'slot' => \App\Domain\Zona\ZonaSlots::NIVEL1_SLOTS[0],
+                'type' => 'deposito_de_zona_neutra',
+                'level' => 1,
             ]);
         }
     }

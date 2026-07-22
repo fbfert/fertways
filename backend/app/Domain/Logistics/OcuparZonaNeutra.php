@@ -72,9 +72,7 @@ class OcuparZonaNeutra
                 'status' => 'protegida',
                 'occupied_at' => $agora,
                 'protected_until' => $agora->copy()->addDays(NeutralZone::DIAS_DE_PROTECAO),
-                'command_post_level' => 1,
                 'productive_at' => $produtiva,
-                'deposit_level' => 1,
                 'deposit_amount' => 0,
                 // A extração é creditada a partir daqui: nada rende durante o estabelecimento.
                 'last_extraction_at' => $produtiva,
@@ -84,6 +82,18 @@ class OcuparZonaNeutra
                 'maintenance_next_due_at' => $produtiva->copy()->addHours(24),
                 'maintenance_unpaid_since' => null,
             ]);
+
+            // O Posto de Comando (centro da colmeia) e o Depósito nascem com a ocupação (D-52),
+            // como sempre — só que agora como linhas de `zone_structures`, não colunas (D-144). O
+            // Depósito pode já existir (zonas livres nascem com ele, `NeutralZoneSeeder`).
+            $zona->zoneStructures()->firstOrCreate(
+                ['slot' => \App\Domain\Zona\ZonaSlots::POSTO_SLOT],
+                ['type' => 'posto_de_comando', 'level' => 1],
+            );
+            $zona->zoneStructures()->firstOrCreate(
+                ['slot' => \App\Domain\Zona\ZonaSlots::NIVEL1_SLOTS[0]],
+                ['type' => 'deposito_de_zona_neutra', 'level' => 1],
+            );
 
             // Desbravador de fato: ocupar rende XP (D-75) — dentro da transação, com o resto.
             app(\App\Domain\Marco\ConcederXp::class)->handle($colony->id, 'zona_ocupada', "zona:{$zona->id}");

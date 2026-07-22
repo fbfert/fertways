@@ -340,15 +340,15 @@ class DespacharVeiculo
 
         foreach ($pedido as $recurso => $qtd) {
             $ehBruto = $recurso === $zona->mineral;
-            $ehRefinado = $refinado !== null && $recurso === $refinado && $zona->refinery_level >= 1;
+            $ehRefinado = $refinado !== null && $recurso === $refinado && $zona->nivelDe('refinaria_de_campo') >= 1;
             $ehMineral = in_array($recurso, Siderurgica::SAIDAS_MINERAIS, true)
-                && $zona->industry_level >= 1;
+                && $zona->nivelDe('industria_siderurgica') >= 1;
 
             if (! $ehBruto && ! $ehRefinado && ! $ehMineral) {
                 throw new DomainRuleException(
                     'recurso_nao_e_da_zona',
                     "Esta zona rende {$zona->mineral}"
-                    .($zona->refinery_level >= 1 && $refinado ? " e {$refinado} (Refinaria)" : '')
+                    .($zona->nivelDe('refinaria_de_campo') >= 1 && $refinado ? " e {$refinado} (Refinaria)" : '')
                     ."; não há {$recurso} para retirar.",
                 );
             }

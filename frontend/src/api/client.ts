@@ -1107,26 +1107,30 @@ export const api = {
   /** A ficha da zona: estruturas, canteiro, depósito, guarnição (D-67). Só o dono a vê. */
   zona: (id: number) => req<ZonaDetalhe>(`/zones/${id}`),
 
-  /** Ergue ou evolui uma estrutura da zona. O material sai do CANTEIRO, não do estoque da colônia. */
-  construirNaZona: (id: number, structure: string) =>
+  /**
+   * Ergue ou evolui uma estrutura da zona, num slot da colmeia (D-144). O material sai do
+   * CANTEIRO, não do estoque da colônia.
+   */
+  construirNaZona: (id: number, structure: string, slot: number) =>
     req<{ obra: unknown }>(`/zones/${id}/build`, {
       method: 'POST',
-      body: JSON.stringify({ structure }),
+      body: JSON.stringify({ structure, slot }),
     }),
 
   /**
-   * Demole uma estrutura da zona (D-138). A API **exige a palavra**, mesma exigência de
-   * `demolir()` da colônia (D-61) — uma confirmação que vivesse só no React não protegeria nada.
+   * Demole a estrutura de um slot da zona (D-138/D-144). A API **exige a palavra**, mesma
+   * exigência de `demolir()` da colônia (D-61) — uma confirmação que vivesse só no React não
+   * protegeria nada.
    */
-  demolirEstruturaDaZona: (id: number, structure: string) =>
-    req<{ demolida: boolean }>(`/zones/${id}/build/${structure}`, {
+  demolirEstruturaDaZona: (id: number, slot: number) =>
+    req<{ demolida: boolean }>(`/zones/${id}/build/${slot}`, {
       method: 'DELETE',
       body: JSON.stringify({ confirmacao: 'DEMOLIR' }),
     }),
 
   /** Repara uma estrutura sabotada, ou resgata antecipadamente uma apreendida (D-118). */
   repararModulo: (id: number, estrutura: string) =>
-    req<{ estruturas: EstruturaDaZona[] }>(`/zones/${id}/reparar`, {
+    req<{ estruturas: ZonaDetalhe['estruturas'] }>(`/zones/${id}/reparar`, {
       method: 'POST',
       body: JSON.stringify({ estrutura }),
     }),
@@ -1534,7 +1538,9 @@ export const api = {
 
 // ── a zona como LUGAR (§17.4, D-67) ───────────────────────────────────────────────────────────────
 
+/** Uma estrutura ERGUIDA — uma linha por slot (D-144; até o D-144 era uma entrada por TIPO). */
 export type EstruturaDaZona = {
+  slot: number
   type: string
   nome: string
   level: number
@@ -1544,7 +1550,8 @@ export type EstruturaDaZona = {
   hoje: string
   /** O Cemitério é declarado "apenas visual" pelo próprio GDD. */
   inerte: boolean
-  construivel: boolean
+  /** Só o Posto de Comando (slot fixo) — nasce com a ocupação, não se demole. */
+  indemolivel: boolean
   /** Desligada por uma apreensão (§28.10) — mantido por compatibilidade, é o mesmo que `apreendida`. */
   offline: boolean
   /** Quanto do efeito normal está de pé agora, em bps (10000 = cheio, 0 = totalmente fora, D-118). */
@@ -1556,6 +1563,21 @@ export type EstruturaDaZona = {
   /** Custo do reparo/resgate, só quando `apreendida` ou `sabotada`. */
   custo_reparo: Record<string, number> | null
   proximo: { level: number; custo: Record<string, number>; segundos: number } | null
+}
+
+/** Um tipo do catálogo — o que se PODE erguer num slot vazio (D-144, mirror de `Erguivel`). */
+export type ErguivelNaZona = {
+  type: string
+  nome: string
+  gdd: string
+  hoje: string
+  inerte: boolean
+  /** As produtoras (Refinaria, Indústria Siderúrgica, Estrutura de Extração) podem repetir. */
+  repetivel: boolean
+  quantas: number
+  disponivel: boolean
+  custo_nivel_1: Record<string, number> | null
+  segundos_nivel_1: number | null
 }
 
 export type ZonaDetalhe = {
@@ -1598,11 +1620,22 @@ export type ZonaDetalhe = {
   extracao_hora: number
   refino_hora: number
   guarnicao: { robos: number; sentinelas: number; defesa: number }
-  estruturas: EstruturaDaZona[]
+  /**
+   * A colmeia de slots (D-144) — mesma geometria da colônia (`Domain\Colony\Slots`), 22 slots,
+   * com o Posto de Comando fixo no centro. `desbloqueados` cresce com o nível da zona: o que não
+   * está nela é um slot ainda TRANCADO, não um slot vazio comum.
+   */
+  estruturas: {
+    colmeia: { linhas: number[]; total: number; slot_do_posto: number; desbloqueados: number[] }
+    /** Uma entrada por slot OCUPADO — repetíveis podem aparecer mais de uma vez, em slots diferentes. */
+    erguidas: EstruturaDaZona[]
+    /** O que se pode erguer num slot vazio e desbloqueado. */
+    catalogo: ErguivelNaZona[]
+  }
   /** O canteiro de obras: material entregue de veículo, à espera de virar construção. */
   canteiro: { resource_type: string; amount: number }[]
   /** A fila de obras inteira — pode ter mais de uma ao mesmo tempo, conforme `obras_vagas`. */
-  obras: { structure: string; nome: string; target_level: number; finishes_at: string }[]
+  obras: { structure: string; slot: number; nome: string; target_level: number; finishes_at: string }[]
   /** O teto de obras simultâneas na zona (`FilaSetting.zona_vagas`, do operador, D-111). */
   obras_vagas: number
   /** O que o §17.4 lista e o jogo NÃO tem, com o porquê. */

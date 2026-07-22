@@ -593,7 +593,7 @@ class ResolverCombates
 
         // Torre sabotada/apreendida detecta menos (D-118) — é a mesma degradação que a vigia sofre.
         $deteccao = intdiv(
-            $this->forcas->config()->torre_deteccao_bps_por_nivel * $zona->watchtower_level
+            $this->forcas->config()->torre_deteccao_bps_por_nivel * $zona->nivelDe('torre_de_vigia')
                 * $zona->fracaoEfetiva('torre_de_vigia'),
             10_000,
         );
@@ -647,7 +647,7 @@ class ResolverCombates
         $c = $this->forcas->config();
 
         // Abrigo sabotado/apreendido resiste menos (D-118) — o nível efetivo cai com ele.
-        $abrigoEfetivo = intdiv($zona->shelter_level * $zona->fracaoEfetiva('abrigo_de_robos'), 10_000);
+        $abrigoEfetivo = intdiv($zona->nivelDe('abrigo_de_robos') * $zona->fracaoEfetiva('abrigo_de_robos'), 10_000);
 
         $chance = $c->predador_base_bps
             + $c->predador_por_nivel_bps * ($predador->level - $abrigoEfetivo);

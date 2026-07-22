@@ -23,6 +23,7 @@ use App\Models\ZoneBuild;
 use App\Models\ZoneEvent;
 use App\Models\ZoneMaterial;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\Concerns\ErgueEstruturasDaZona;
 use Tests\TestCase;
 
 /**
@@ -46,6 +47,7 @@ use Tests\TestCase;
 class RevisaoDoCanteiroTest extends TestCase
 {
     use RefreshDatabase;
+    use ErgueEstruturasDaZona;
 
     protected function setUp(): void
     {
@@ -77,7 +79,7 @@ class RevisaoDoCanteiroTest extends TestCase
 
     private function zonaLivre(int $x, int $y): NeutralZone
     {
-        return NeutralZone::create([
+        return $this->criarZonaComEstruturas([
             'x' => $x, 'y' => $y, 'district' => 'nordeste', 'mineral' => 'metal_bruto',
             'level' => 1, 'status' => 'livre', 'deposit_level' => 1,
         ]);
@@ -88,10 +90,24 @@ class RevisaoDoCanteiroTest extends TestCase
         return app(OcuparZonaNeutra::class)->handle($colony, $this->zonaLivre($x, $y));
     }
 
+    /** Um slot livre e desbloqueado, para `ConstruirNaZona` erguer algo novo nesta zona. */
+    private function slotLivre(NeutralZone $zona): int
+    {
+        $zona = $zona->fresh();
+
+        $ocupados = [
+            ...$zona->zoneStructures()->pluck('slot')->all(),
+            ...$zona->obras()->pluck('slot')->all(),
+        ];
+
+        return collect(\App\Domain\Zona\ZonaSlots::NIVEL1_SLOTS)
+            ->first(fn ($s) => ! in_array($s, $ocupados, true));
+    }
+
     /** Zona direta, sem passar pela ocupação — para os testes de canteiro que não precisam dela. */
     private function zonaDe(Colony $dono, array $extra = []): NeutralZone
     {
-        return NeutralZone::create(array_merge([
+        return $this->criarZonaComEstruturas(array_merge([
             'x' => 47, 'y' => 47, 'district' => 'NE', 'mineral' => 'metal_bruto', 'level' => 1,
             'owner_colony_id' => $dono->id,
             'status' => 'ocupada',
@@ -120,7 +136,7 @@ class RevisaoDoCanteiroTest extends TestCase
         $zona = $this->zonaOcupada($colono);
 
         $this->encherCanteiro($zona, ['metal_bruto' => 400, 'ligas_metalicas' => 100]);
-        app(ConstruirNaZona::class)->handle($colono, $zona, 'muralha_de_perimetro');
+        app(ConstruirNaZona::class)->handle($colono, $zona, 'muralha_de_perimetro', $this->slotLivre($zona));
 
         $this->assertTrue($zona->fresh()->obraEmCurso(), 'a obra tem de estar em curso pro teste valer algo');
 
@@ -145,7 +161,7 @@ class RevisaoDoCanteiroTest extends TestCase
         $this->travelTo(now()->addHours(5));
         app(ConcluirObrasDaZona::class)->handle();
 
-        $this->assertSame(0, $zona->fresh()->wall_level, 'sem lavagem: quem reocupou não herda muralha nenhuma de graça');
+        $this->assertSame(0, $zona->fresh()->nivelDe('muralha_de_perimetro'), 'sem lavagem: quem reocupou não herda muralha nenhuma de graça');
     }
 
     // ── 4: upgrade perdido no abandono fica auditável ──────────────────────────────────────────
@@ -287,7 +303,8 @@ class RevisaoDoCanteiroTest extends TestCase
         $zona = $this->zonaOcupada($colono);
 
         $this->encherCanteiro($zona, ['ligas_metalicas' => 200, 'compostos_quimicos' => 60]);
-        app(ConstruirNaZona::class)->handle($colono, $zona, 'deposito_de_zona_neutra');
+        $slotDoDeposito = $zona->zoneStructures()->where('type', 'deposito_de_zona_neutra')->value('slot');
+        app(ConstruirNaZona::class)->handle($colono, $zona, 'deposito_de_zona_neutra', $slotDoDeposito);
 
         $spec = \Illuminate\Support\Facades\DB::table('building_specs')
             ->where('building_type', 'deposito_de_zona_neutra')->where('level', 2)->first();
@@ -296,11 +313,11 @@ class RevisaoDoCanteiroTest extends TestCase
 
         // Sem o tempo passar, a obra NÃO conclui — era exatamente isso que faltava.
         app(ConcluirObrasDaZona::class)->handle();
-        $this->assertSame(1, $zona->fresh()->deposit_level, 'nao concluiu na hora — antes concluía');
+        $this->assertSame(1, $zona->fresh()->nivelDe('deposito_de_zona_neutra'), 'nao concluiu na hora — antes concluía');
 
         $this->travelTo(now()->addSeconds($spec->build_time_seconds + 60));
         app(ConcluirObrasDaZona::class)->handle();
-        $this->assertSame(2, $zona->fresh()->deposit_level, 'passado o tempo de verdade, conclui');
+        $this->assertSame(2, $zona->fresh()->nivelDe('deposito_de_zona_neutra'), 'passado o tempo de verdade, conclui');
     }
 
     // ── item 6 da revisão: ConstruirNaZona passa a obedecer building_specs_overrides ───────────
@@ -318,12 +335,12 @@ class RevisaoDoCanteiroTest extends TestCase
         ]);
 
         $this->encherCanteiro($zona, ['metal_bruto' => 1]);
-        app(ConstruirNaZona::class)->handle($colono, $zona, 'muralha_de_perimetro');
+        app(ConstruirNaZona::class)->handle($colono, $zona, 'muralha_de_perimetro', $this->slotLivre($zona));
 
         $this->assertSame(0, (int) ZoneMaterial::where('zone_id', $zona->id)->where('resource_type', 'metal_bruto')->value('amount'), 'debitou o custo do OVERRIDE (1), não o do GDD (400)');
 
         $this->travelTo(now()->addSeconds(31));
         app(ConcluirObrasDaZona::class)->handle();
-        $this->assertSame(1, $zona->fresh()->wall_level, 'concluiu no tempo do OVERRIDE (30s), não nas 4h do GDD');
+        $this->assertSame(1, $zona->fresh()->nivelDe('muralha_de_perimetro'), 'concluiu no tempo do OVERRIDE (30s), não nas 4h do GDD');
     }
 }

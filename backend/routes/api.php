@@ -70,7 +70,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/zones/{zone}', [ZoneController::class, 'show']);
     Route::get('/zones/{zone}/historico', [ZoneController::class, 'historico']);
     Route::post('/zones/{zone}/build', [ZoneController::class, 'construir']);
-    Route::delete('/zones/{zone}/build/{structure}', [ZoneController::class, 'demolir']);
+    Route::delete('/zones/{zone}/build/{slot}', [ZoneController::class, 'demolir']);
     Route::post('/zones/{zone}/material', [ZoneController::class, 'entregarMaterial']);
     Route::patch('/zones/{zone}/name', [ZoneController::class, 'renomear']);
     Route::post('/zones/{zone}/reparar', [ZoneController::class, 'reparar']);

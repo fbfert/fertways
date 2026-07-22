@@ -91,7 +91,7 @@ class Vinculaveis
             ],
             'zonas-neutras-e-conflito' => [
                 'titulo' => 'As estruturas da zona neutra (§17.4)',
-                'itens' => self::rotular(array_keys(Estruturas::COLUNA)),
+                'itens' => self::rotular(Estruturas::TODAS),
             ],
             'logistica-e-frota' => [
                 'titulo' => 'Veículos e unidades',

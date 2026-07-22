@@ -11,6 +11,7 @@ use App\Models\ResourceType;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\Concerns\ErgueEstruturasDaZona;
 use Tests\TestCase;
 
 /**
@@ -20,6 +21,7 @@ use Tests\TestCase;
 class RetirarDeZonaTest extends TestCase
 {
     use RefreshDatabase;
+    use ErgueEstruturasDaZona;
 
     protected function setUp(): void
     {
@@ -41,7 +43,7 @@ class RetirarDeZonaTest extends TestCase
 
     private function zonaComDeposito(Colony $dona, int $amount): NeutralZone
     {
-        return NeutralZone::create([
+        return $this->criarZonaComEstruturas([
             'x' => 50, 'y' => 50, 'district' => 'nordeste', 'mineral' => 'metal_bruto',
             'level' => 1, 'status' => 'protegida',
             'owner_colony_id' => $dona->id, 'command_post_level' => 1,

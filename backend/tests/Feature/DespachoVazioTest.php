@@ -12,6 +12,7 @@ use App\Models\Vehicle;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\Concerns\ErgueEstruturasDaZona;
 use Tests\TestCase;
 
 /**
@@ -23,6 +24,7 @@ use Tests\TestCase;
 class DespachoVazioTest extends TestCase
 {
     use RefreshDatabase;
+    use ErgueEstruturasDaZona;
 
     protected function setUp(): void
     {
@@ -42,7 +44,7 @@ class DespachoVazioTest extends TestCase
 
     private function zonaPropria(Colony $dona, int $x = 50, int $y = 50): NeutralZone
     {
-        return NeutralZone::create([
+        return $this->criarZonaComEstruturas([
             'x' => $x, 'y' => $y, 'district' => 'nordeste', 'mineral' => 'metal_bruto',
             'level' => 1, 'status' => 'protegida',
             'owner_colony_id' => $dona->id, 'command_post_level' => 1,

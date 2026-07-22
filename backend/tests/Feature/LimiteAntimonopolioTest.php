@@ -11,6 +11,7 @@ use App\Models\FederationSetting;
 use App\Models\NeutralZone;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\Concerns\ErgueEstruturasDaZona;
 use Tests\TestCase;
 
 /**
@@ -22,6 +23,7 @@ use Tests\TestCase;
 class LimiteAntimonopolioTest extends TestCase
 {
     use RefreshDatabase;
+    use ErgueEstruturasDaZona;
 
     protected function setUp(): void
     {
@@ -62,7 +64,7 @@ class LimiteAntimonopolioTest extends TestCase
     {
         $cel = $this->proximaZonaOcupada++;
 
-        return NeutralZone::create([
+        return $this->criarZonaComEstruturas([
             'x' => $cel, 'y' => $cel, 'district' => 'NE', 'mineral' => 'metal_bruto', 'level' => 1,
             'owner_colony_id' => $dono->id, 'status' => 'ocupada', 'deposit_level' => 1,
         ]);
@@ -74,7 +76,7 @@ class LimiteAntimonopolioTest extends TestCase
     {
         $cel = $this->proximaZonaLivre++;
 
-        return NeutralZone::create([
+        return $this->criarZonaComEstruturas([
             'x' => $cel, 'y' => $cel, 'district' => 'nordeste', 'mineral' => 'metal_bruto',
             'level' => 1, 'status' => 'livre', 'deposit_level' => 1,
         ]);

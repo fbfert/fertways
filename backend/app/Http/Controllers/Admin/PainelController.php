@@ -798,7 +798,7 @@ class PainelController extends Controller
         return [
             'As cinco essenciais' => \App\Models\Building::ESSENCIAIS,
             'Progressão da colônia' => \App\Models\Building::PROGRESSAO,
-            'Zona neutra' => array_keys(\App\Domain\Zona\Estruturas::COLUNA),
+            'Zona neutra' => \App\Domain\Zona\Estruturas::TODAS,
             'Veículos e unidades' => [
                 'furgao_de_comercio', 'caminhao_de_carga', 'nave_de_transporte_planetaria',
                 'drone_de_exploracao', 'sentinela', 'robo_minerador', 'infiltrador', 'predador',

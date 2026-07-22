@@ -13,6 +13,7 @@ use App\Models\ZoneBuild;
 use App\Models\ZoneEvent;
 use App\Models\ZoneMaterial;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\Concerns\ErgueEstruturasDaZona;
 use Tests\TestCase;
 
 /**
@@ -23,6 +24,7 @@ use Tests\TestCase;
 class DemolirEstruturaDaZonaTest extends TestCase
 {
     use RefreshDatabase;
+    use ErgueEstruturasDaZona;
 
     protected function setUp(): void
     {
@@ -47,7 +49,7 @@ class DemolirEstruturaDaZonaTest extends TestCase
 
     private function zonaDe(Colony $dono, array $extra = []): NeutralZone
     {
-        return NeutralZone::create(array_merge([
+        return $this->criarZonaComEstruturas(array_merge([
             'x' => 47, 'y' => 47, 'district' => 'NE', 'mineral' => 'metal_bruto', 'level' => 1,
             'owner_colony_id' => $dono->id,
             'status' => 'ocupada',
@@ -61,22 +63,29 @@ class DemolirEstruturaDaZonaTest extends TestCase
         ], $extra));
     }
 
+    private function slotDe(NeutralZone $zona, string $tipo): int
+    {
+        return (int) $zona->zoneStructures()->where('type', $tipo)->value('slot');
+    }
+
     public function test_demole_uma_estrutura_erguida_e_zera_o_nivel(): void
     {
         $colono = $this->colono();
         $zona = $this->zonaDe($colono, ['wall_level' => 3]);
+        $slot = $this->slotDe($zona, 'muralha_de_perimetro');
 
-        app(DemolirEstruturaDaZona::class)->handle($colono, $zona, 'muralha_de_perimetro');
+        app(DemolirEstruturaDaZona::class)->handle($colono, $zona, $slot);
 
-        $this->assertSame(0, $zona->fresh()->wall_level);
+        $this->assertSame(0, $zona->fresh()->nivelDe('muralha_de_perimetro'));
     }
 
     public function test_grava_um_zone_event_com_o_nivel_perdido(): void
     {
         $colono = $this->colono();
         $zona = $this->zonaDe($colono, ['watchtower_level' => 2]);
+        $slot = $this->slotDe($zona, 'torre_de_vigia');
 
-        app(DemolirEstruturaDaZona::class)->handle($colono, $zona, 'torre_de_vigia');
+        app(DemolirEstruturaDaZona::class)->handle($colono, $zona, $slot);
 
         $evento = ZoneEvent::where('zone_id', $zona->id)->where('type', 'estrutura_demolida')->first();
         $this->assertNotNull($evento);
@@ -89,10 +98,11 @@ class DemolirEstruturaDaZonaTest extends TestCase
     {
         $colono = $this->colono();
         $zona = $this->zonaDe($colono, ['bastion_level' => 1]);
+        $slot = $this->slotDe($zona, 'bastiao');
 
         ZoneMaterial::create(['zone_id' => $zona->id, 'resource_type' => 'metal_bruto', 'amount' => 777]);
 
-        app(DemolirEstruturaDaZona::class)->handle($colono, $zona, 'bastiao');
+        app(DemolirEstruturaDaZona::class)->handle($colono, $zona, $slot);
 
         $this->assertSame(777, (int) $zona->materiais()->where('resource_type', 'metal_bruto')->value('amount'));
     }
@@ -101,10 +111,11 @@ class DemolirEstruturaDaZonaTest extends TestCase
     {
         $colono = $this->colono();
         $zona = $this->zonaDe($colono, ['wall_level' => 5, 'watchtower_level' => 5, 'level' => 3]);
+        $slot = $this->slotDe($zona, 'muralha_de_perimetro');
 
         $antes = $zona->fresh()->custoDeManutencao();
 
-        app(DemolirEstruturaDaZona::class)->handle($colono, $zona, 'muralha_de_perimetro');
+        app(DemolirEstruturaDaZona::class)->handle($colono, $zona, $slot);
 
         $this->assertSame($antes, $zona->fresh()->custoDeManutencao());
     }
@@ -117,7 +128,7 @@ class DemolirEstruturaDaZonaTest extends TestCase
         $this->expectException(DomainRuleException::class);
         $this->expectExceptionMessageMatches('/Posto de Comando/');
 
-        app(DemolirEstruturaDaZona::class)->handle($colono, $zona, 'posto_de_comando');
+        app(DemolirEstruturaDaZona::class)->handle($colono, $zona, \App\Domain\Zona\ZonaSlots::POSTO_SLOT);
     }
 
     public function test_nao_se_demole_estrutura_nunca_erguida(): void
@@ -126,7 +137,7 @@ class DemolirEstruturaDaZonaTest extends TestCase
         $zona = $this->zonaDe($colono);
 
         try {
-            app(DemolirEstruturaDaZona::class)->handle($colono, $zona, 'muralha_de_perimetro');
+            app(DemolirEstruturaDaZona::class)->handle($colono, $zona, \App\Domain\Zona\ZonaSlots::NIVEL1_SLOTS[1]);
             $this->fail('deveria ter recusado');
         } catch (DomainRuleException $e) {
             $this->assertSame('nada_para_demolir', $e->codigo);
@@ -137,14 +148,15 @@ class DemolirEstruturaDaZonaTest extends TestCase
     {
         $colono = $this->colono();
         $zona = $this->zonaDe($colono, ['wall_level' => 1]);
+        $slot = $this->slotDe($zona, 'muralha_de_perimetro');
 
         ZoneBuild::create([
-            'zone_id' => $zona->id, 'structure' => 'muralha_de_perimetro',
+            'zone_id' => $zona->id, 'structure' => 'muralha_de_perimetro', 'slot' => $slot,
             'target_level' => 2, 'finishes_at' => now()->addHours(4),
         ]);
 
         try {
-            app(DemolirEstruturaDaZona::class)->handle($colono, $zona, 'muralha_de_perimetro');
+            app(DemolirEstruturaDaZona::class)->handle($colono, $zona, $slot);
             $this->fail('deveria ter recusado');
         } catch (DomainRuleException $e) {
             $this->assertSame('demolir_em_obra', $e->codigo);
@@ -155,9 +167,10 @@ class DemolirEstruturaDaZonaTest extends TestCase
     {
         $colono = $this->colono();
         $zona = $this->zonaDe($colono, ['wall_level' => 1, 'sieged_at' => now()]);
+        $slot = $this->slotDe($zona, 'muralha_de_perimetro');
 
         try {
-            app(DemolirEstruturaDaZona::class)->handle($colono, $zona, 'muralha_de_perimetro');
+            app(DemolirEstruturaDaZona::class)->handle($colono, $zona, $slot);
             $this->fail('deveria ter recusado');
         } catch (DomainRuleException $e) {
             $this->assertSame('zona_cercada', $e->codigo);
@@ -169,9 +182,10 @@ class DemolirEstruturaDaZonaTest extends TestCase
         $dono = $this->colono();
         $outro = $this->colono(21, 20);
         $zona = $this->zonaDe($dono, ['wall_level' => 1]);
+        $slot = $this->slotDe($zona, 'muralha_de_perimetro');
 
         try {
-            app(DemolirEstruturaDaZona::class)->handle($outro, $zona, 'muralha_de_perimetro');
+            app(DemolirEstruturaDaZona::class)->handle($outro, $zona, $slot);
             $this->fail('deveria ter recusado');
         } catch (DomainRuleException $e) {
             $this->assertSame('zona_nao_e_sua', $e->codigo);
@@ -184,35 +198,37 @@ class DemolirEstruturaDaZonaTest extends TestCase
     {
         $colono = $this->colono();
         $zona = $this->zonaDe($colono, ['wall_level' => 1]);
+        $slot = $this->slotDe($zona, 'muralha_de_perimetro');
 
         foreach ([[], ['confirmacao' => 'sim'], ['confirmacao' => 'demolir']] as $tentativa) {
             $this->actingAs($colono->user)
-                ->deleteJson("/zones/{$zona->id}/build/muralha_de_perimetro", $tentativa)
+                ->deleteJson("/zones/{$zona->id}/build/{$slot}", $tentativa)
                 ->assertStatus(422)
                 ->assertJsonPath('code', 'confirmacao_invalida');
         }
 
-        $this->assertSame(1, $zona->fresh()->wall_level, 'nada deve ter demolido ainda');
+        $this->assertSame(1, $zona->fresh()->nivelDe('muralha_de_perimetro'), 'nada deve ter demolido ainda');
 
         $this->actingAs($colono->user)
-            ->deleteJson("/zones/{$zona->id}/build/muralha_de_perimetro", ['confirmacao' => 'DEMOLIR'])
+            ->deleteJson("/zones/{$zona->id}/build/{$slot}", ['confirmacao' => 'DEMOLIR'])
             ->assertOk()
             ->assertJsonPath('demolida', true);
 
-        $this->assertSame(0, $zona->fresh()->wall_level);
+        $this->assertSame(0, $zona->fresh()->nivelDe('muralha_de_perimetro'));
     }
 
     public function test_a_obra_seguinte_comeca_do_zero_depois_da_demolicao(): void
     {
         $colono = $this->colono();
         $zona = $this->zonaDe($colono, ['wall_level' => 2]);
+        $slot = $this->slotDe($zona, 'muralha_de_perimetro');
 
-        app(DemolirEstruturaDaZona::class)->handle($colono, $zona, 'muralha_de_perimetro');
+        app(DemolirEstruturaDaZona::class)->handle($colono, $zona, $slot);
 
         ZoneMaterial::create(['zone_id' => $zona->id, 'resource_type' => 'metal_bruto', 'amount' => 400]);
         ZoneMaterial::create(['zone_id' => $zona->id, 'resource_type' => 'ligas_metalicas', 'amount' => 100]);
 
-        app(ConstruirNaZona::class)->handle($colono, $zona->fresh(), 'muralha_de_perimetro');
+        app(ConstruirNaZona::class)->handle($colono, $zona->fresh(), 'muralha_de_perimetro', $slot);
 
         $obra = ZoneBuild::where('zone_id', $zona->id)->where('structure', 'muralha_de_perimetro')->first();
         $this->assertSame(1, $obra->target_level, 'a próxima obra é o nível 1, como se nunca tivesse sido erguida');

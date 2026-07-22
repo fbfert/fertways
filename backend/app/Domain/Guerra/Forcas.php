@@ -96,9 +96,9 @@ class Forcas
     {
         $c = $this->config();
 
-        return intdiv($c->muralha_bonus_bps * $zona->wall_level * $zona->fracaoEfetiva('muralha_de_perimetro'), self::CHEIO)
-            + intdiv($c->torre_bonus_bps * $zona->watchtower_level * $zona->fracaoEfetiva('torre_de_vigia'), self::CHEIO)
-            + intdiv($c->bastiao_bonus_bps * $zona->bastion_level * $zona->fracaoEfetiva('bastiao'), self::CHEIO);
+        return intdiv($c->muralha_bonus_bps * $zona->nivelDe('muralha_de_perimetro') * $zona->fracaoEfetiva('muralha_de_perimetro'), self::CHEIO)
+            + intdiv($c->torre_bonus_bps * $zona->nivelDe('torre_de_vigia') * $zona->fracaoEfetiva('torre_de_vigia'), self::CHEIO)
+            + intdiv($c->bastiao_bonus_bps * $zona->nivelDe('bastiao') * $zona->fracaoEfetiva('bastiao'), self::CHEIO);
     }
 
     /**

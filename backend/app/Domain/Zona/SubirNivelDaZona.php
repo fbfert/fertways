@@ -47,7 +47,10 @@ class SubirNivelDaZona
             }
 
             if ($zona->level >= NeutralZone::NIVEL_MAXIMO) {
-                throw new DomainRuleException('nivel_maximo', 'Esta zona já está no nível máximo (5).');
+                throw new DomainRuleException(
+                    'nivel_maximo',
+                    'Esta zona já está no nível máximo ('.NeutralZone::NIVEL_MAXIMO.').',
+                );
             }
 
             $alvo = $zona->level + 1;

@@ -7,6 +7,7 @@ use App\Models\Colony;
 use App\Models\NeutralZone;
 use App\Models\ZoneBuild;
 use App\Models\ZoneEvent;
+use App\Models\ZoneStructure;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -22,7 +23,7 @@ use Illuminate\Support\Facades\DB;
  *    perda seca de `Demolir::handle()` — o custo já virou construção, e a construção agora vira pó.
  *  - **A manutenção NÃO cai.** Fui conferir antes de prometer isso: `NeutralZone::custoDeManutencao()`
  *    é função só de `level` (o Posto de Comando, por `SubirNivelDaZona`) — nunca leu Muralha, Torre
- *    nem nenhuma das outras 12 colunas de `Estruturas::COLUNA`. Demolir uma delas não move o número
+ *    nem nenhum dos outros 12 tipos de `Estruturas::TODAS`. Demolir uma delas não move o número
  *    que já não dependia dela. Não é um efeito que este serviço decide não ter; é um efeito que a
  *    manutenção nunca teve, para NENHUMA estrutura, mesmo antes de demolição existir.
  *  - **Não desfaz saque de guerra.** O `Ledger`/`ZoneEvent` de um saque já sofrido não muda: demolir
@@ -42,16 +43,20 @@ use Illuminate\Support\Facades\DB;
  */
 class DemolirEstruturaDaZona
 {
-    public function handle(Colony $colony, NeutralZone $zona, string $estrutura): void
+    /**
+     * @param  int  $slot  desde o D-144 a zona é uma colmeia de linhas (`zone_structures`), como a
+     *                      colônia — demolir é apagar a linha do slot, não zerar uma coluna.
+     */
+    public function handle(Colony $colony, NeutralZone $zona, int $slot): void
     {
-        if (! in_array($estrutura, Estruturas::CONSTRUIVEIS, true)) {
+        if ($slot === ZonaSlots::POSTO_SLOT) {
             throw new DomainRuleException(
                 'estrutura_indemolivel',
                 'O Posto de Comando nasce com a ocupação e não se demole — sem ele não há controle territorial sobre a zona.',
             );
         }
 
-        DB::transaction(function () use ($colony, $zona, $estrutura) {
+        DB::transaction(function () use ($colony, $zona, $slot) {
             $zona = NeutralZone::whereKey($zona->id)->lockForUpdate()->firstOrFail();
 
             if ($zona->owner_colony_id !== $colony->id) {
@@ -65,17 +70,16 @@ class DemolirEstruturaDaZona
                 );
             }
 
-            $coluna = Estruturas::COLUNA[$estrutura];
-            $nivelAtual = (int) $zona->{$coluna};
+            $linha = ZoneStructure::where('neutral_zone_id', $zona->id)->where('slot', $slot)->first();
 
-            if ($nivelAtual <= 0) {
+            if ($linha === null) {
                 throw new DomainRuleException(
                     'nada_para_demolir',
-                    Estruturas::de($estrutura)['nome'].' ainda não foi erguida nesta zona.',
+                    'Este slot ainda não tem estrutura erguida.',
                 );
             }
 
-            $emObra = ZoneBuild::where('zone_id', $zona->id)->where('structure', $estrutura)->exists();
+            $emObra = ZoneBuild::where('zone_id', $zona->id)->where('slot', $slot)->exists();
 
             if ($emObra) {
                 throw new DomainRuleException(
@@ -84,10 +88,14 @@ class DemolirEstruturaDaZona
                 );
             }
 
-            // A coluna some, não a linha: a zona não é um catálogo de linhas como os slots da
-            // colônia — é uma tabela de níveis. Voltar a zero é o mesmo estado de quem nunca
-            // ergueu nada ali, exatamente como o `delete()` de `Demolir` faz para o slot da colônia.
-            $zona->update([$coluna => 0]);
+            $estrutura = $linha->type;
+            $nivelAtual = $linha->level;
+
+            // A linha some, e com ela o slot volta a ficar vazio: o mesmo estado de quem nunca
+            // construiu nada ali — exatamente como o `delete()` de `Demolir` já faz para o slot da
+            // colônia (D-59). Até o D-144 a zona zerava uma coluna em vez de apagar uma linha,
+            // porque não havia linha; agora há, e o padrão se unifica.
+            $linha->delete();
 
             ZoneEvent::create([
                 'zone_id' => $zona->id,

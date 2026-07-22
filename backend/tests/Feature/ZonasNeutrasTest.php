@@ -6,6 +6,7 @@ use App\Domain\Logistics\MapaFertways;
 use App\Domain\Logistics\ZonasNeutras;
 use App\Models\NeutralZone;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\Concerns\ErgueEstruturasDaZona;
 use Tests\TestCase;
 
 /**
@@ -15,6 +16,7 @@ use Tests\TestCase;
 class ZonasNeutrasTest extends TestCase
 {
     use RefreshDatabase;
+    use ErgueEstruturasDaZona;
 
     public function test_o_dominio_tem_120_zonas_em_4_distritos(): void
     {
@@ -71,12 +73,15 @@ class ZonasNeutrasTest extends TestCase
 
     public function test_capacidade_e_extracao_seguem_a_curva(): void
     {
-        $zona = new NeutralZone(['level' => 1, 'deposit_level' => 1]);
+        $zona = $this->criarZonaComEstruturas([
+            'x' => 50, 'y' => 50, 'district' => 'nordeste', 'mineral' => 'metal_bruto',
+            'level' => 1, 'status' => 'livre', 'deposit_level' => 1,
+        ]);
         $this->assertSame(100, $zona->extracaoPorHora());   // base
         $this->assertSame(500, $zona->capacidadeDeposito()); // §19.6 base
 
         // Nível 10 do Depósito: 500 × 1,5^9 = 19.222 (a ponta alta publicada do §19.6).
-        $zona->deposit_level = 10;
+        $zona = $this->ergueEstruturas($zona, ['deposito_de_zona_neutra' => 10]);
         $this->assertSame(19222, $zona->capacidadeDeposito());
     }
 }

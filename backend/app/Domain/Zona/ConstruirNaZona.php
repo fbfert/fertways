@@ -28,7 +28,12 @@ class ConstruirNaZona
 {
     public function __construct(private readonly BuildingSpecs $specs) {}
 
-    public function handle(Colony $colony, NeutralZone $zona, string $estrutura): void
+    /**
+     * @param  int  $slot  o buraco da colmeia (`ZonaSlots`) onde erguer, ou o slot já ocupado pela
+     *                      estrutura que se quer evoluir. Escolhido pelo colono — mesma UX do
+     *                      `ConstruirEmSlot` da colônia (D-59).
+     */
+    public function handle(Colony $colony, NeutralZone $zona, string $estrutura, int $slot): void
     {
         if (! in_array($estrutura, Estruturas::CONSTRUIVEIS, true)) {
             throw new DomainRuleException(
@@ -37,11 +42,47 @@ class ConstruirNaZona
             );
         }
 
-        DB::transaction(function () use ($colony, $zona, $estrutura) {
+        DB::transaction(function () use ($colony, $zona, $estrutura, $slot) {
             $zona = NeutralZone::whereKey($zona->id)->lockForUpdate()->firstOrFail();
 
             if ($zona->owner_colony_id !== $colony->id) {
                 throw new DomainRuleException('zona_nao_e_sua', 'Esta zona neutra não é sua.');
+            }
+
+            ZonaSlots::exigirEscolhivel($slot, $zona->level);
+
+            $existente = $zona->zoneStructures()->where('slot', $slot)->first();
+
+            if ($existente !== null && $existente->type !== $estrutura) {
+                throw new DomainRuleException(
+                    'slot_ocupado',
+                    'Este slot já tem '.Estruturas::de($existente->type)['nome'].'.',
+                );
+            }
+
+            if ($existente === null
+                && ! in_array($estrutura, Estruturas::REPETIVEIS, true)
+                && $zona->zoneStructures()->where('type', $estrutura)->exists()
+            ) {
+                throw new DomainRuleException(
+                    'estrutura_unica',
+                    Estruturas::de($estrutura)['nome'].' só pode existir uma vez na zona.',
+                );
+            }
+
+            /*
+             * O slot pode estar vazio em `zone_structures` e AINDA ASSIM já ter obra em curso — o
+             * teto de obras simultâneas (`FilaSetting::zona_vagas`, abaixo) permite mais de uma ao
+             * mesmo tempo, e a estrutura só vira linha quando a obra CONCLUI (`ConcluirObrasDaZona`).
+             * Sem esta trava, duas obras concorrentes no mesmo slot vazio - digamos, Muralha e
+             * Abrigo - nasceriam sem conflito e a segunda a terminar sobrescreveria o tipo da
+             * primeira quando `ConcluirObrasDaZona` gravasse a linha.
+             */
+            if ($zona->obras()->where('slot', $slot)->exists()) {
+                throw new DomainRuleException(
+                    'slot_em_obra',
+                    'Este slot já tem uma obra em curso. Espere-a terminar.',
+                );
             }
 
             /*
@@ -74,8 +115,7 @@ class ConstruirNaZona
                 );
             }
 
-            $coluna = Estruturas::COLUNA[$estrutura];
-            $atual = (int) $zona->{$coluna};
+            $atual = $existente?->level ?? 0;
             $alvo = $atual + 1;
             $max = $this->specs->nivelMaximo($estrutura);
 
@@ -100,6 +140,7 @@ class ConstruirNaZona
 
             $zona->obras()->create([
                 'structure' => $estrutura,
+                'slot' => $slot,
                 'target_level' => $alvo,
                 'finishes_at' => now()->addSeconds($spec['tempo_segundos']),
             ]);

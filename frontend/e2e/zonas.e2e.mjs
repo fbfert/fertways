@@ -91,10 +91,16 @@ try {
     'e o campo mostra o nome salvo, não mais o placeholder das coordenadas',
   )
 
-  // A planta: as áreas existem e são clicáveis.
-  for (const area of ['muralha_de_perimetro', 'torre_de_vigia', 'deposito_de_zona_neutra']) {
-    checar(!!(await page.$(`[data-area="${area}"]`)), `a planta tem a área "${area}"`)
-  }
+  /*
+   * A colmeia (D-144): 22 slots hexagonais, mesma geometria da colônia. Uma zona recém-ocupada
+   * só tem o Posto (fixo, centro) e o Depósito erguidos — o resto dos slots do nível 1 está vazio
+   * e desbloqueado, e os do nível 2+ estão trancados.
+   */
+  checar((await page.$$eval('[data-hex]', (n) => n.length)) === 22, 'a colmeia tem 22 slots')
+  checar(!!(await page.$('[data-hex-estado="posto"]')), 'o Posto de Comando ocupa o centro fixo')
+  checar(!!(await page.$('[data-hex-estado="erguida"]')), 'o Depósito já nasce erguido')
+  checar(!!(await page.$('[data-hex-estado="vazio"]')), 'há slots vazios e desbloqueados no nível 1')
+  checar(!!(await page.$('[data-hex-estado="trancado"]')), 'e slots ainda trancados, acima do nível 1')
 
   // ═══════════════════════════════════════════════════ as abas (D-86)
   console.log('\nA zona virou cinco abas')
@@ -124,21 +130,18 @@ try {
    * comentário do topo), não pode CONTAR com um: Mercado, Acordo e Ministério, rodados antes,
    * despacham o Furgão do e2e e ele pode não ter voltado ainda. Testa o formulário se houver
    * veículo; senão, confirma a mensagem de "nenhum ocioso" — as duas são o comportamento certo.
+   *
+   * Sem slot escolhido na colmeia (D-144), o Canteiro pede para escolher um antes de qualquer
+   * coisa — é o slot, não mais um `<select>` de tipo, que decide qual obra este formulário paga.
    */
-  const obraDoCanteiro = await page.$('[data-obra-do-canteiro]')
-  if (obraDoCanteiro) {
-    checar(true, 'o formulário pergunta para qual obra, antes de pedir recurso nenhum')
-    await page.select('[data-obra-do-canteiro]', 'muralha_de_perimetro')
-    await assentar()
+  const semVeiculoOcioso = await esperarTexto(page, /Nenhum veículo ocioso para levar material/, 1500)
+  if (!semVeiculoOcioso) {
     checar(
-      await esperarTexto(page, /falta \d+ de \d+/),
-      'escolhida a obra, os campos já mostram o que falta — não mais três recursos fixos adivinhados',
+      await esperarTexto(page, /Nenhum slot escolhido/),
+      'sem slot escolhido, o Canteiro manda voltar à colmeia',
     )
   } else {
-    checar(
-      await esperarTexto(page, /Nenhum veículo ocioso para levar material/),
-      'sem veículo ocioso agora (outro teste o despachou antes), a tela diz isso em vez de sumir',
-    )
+    checar(true, 'sem veículo ocioso agora (outro teste o despachou antes), a tela diz isso em vez de sumir')
   }
 
   console.log('\nA aba Guarnição mostra a defesa e o formulário de reforço')
@@ -155,12 +158,21 @@ try {
   await page.click('[data-aba-zona="zona"]')
   await assentar()
 
-  // Clicar na Muralha abre o painel dela, com o que o GDD promete e o que o jogo entrega.
-  await page.click('[data-area="muralha_de_perimetro"]')
+  /*
+   * Clicar num slot vazio e desbloqueado abre o painel de escolha (D-144) — um `<select>` do
+   * catálogo, em vez de uma área fixa por estrutura. É o mesmo slot para as quatro checagens
+   * abaixo: nada é de fato construído (sem material no canteiro), então trocar a escolha no
+   * `<select>` não precisa de um slot novo a cada vez.
+   */
+  await page.click('[data-hex-estado="vazio"]')
+  await assentar()
+  checar(await esperarTexto(page, /Slot vazio/), 'clicar num slot vazio abre o painel de escolha')
+
+  await page.select('[data-escolher-tipo-slot]', 'muralha_de_perimetro')
   await assentar()
   checar(
     await esperarTexto(page, /Muralha de Perímetro/),
-    'clicar no perímetro abre o painel da Muralha',
+    'escolher a Muralha no catálogo mostra o painel dela',
   )
   checar(
     await esperarTexto(page, /Dificulta a Invasão Direta/),
@@ -190,7 +202,7 @@ try {
   )
 
   // O Cemitério é declarado INERTE pelo próprio GDD, e a tela tem de dizê-lo.
-  await page.click('[data-area="cemiterio_de_robos"]')
+  await page.select('[data-escolher-tipo-slot]', 'cemiterio_de_robos')
   await assentar()
   checar(
     await esperarTexto(page, /apenas visual|não faz nada/),
@@ -199,7 +211,7 @@ try {
 
   // A Central de Comunicação SAIU do grupo inerte no D-116/D-118: a Federação existe, e ela
   // avisa e mostra a zona ao vivo pros aliados (o efeito é todo pro lado deles, não do dono).
-  await page.click('[data-area="central_de_comunicacao"]')
+  await page.select('[data-escolher-tipo-slot]', 'central_de_comunicacao')
   await assentar()
   checar(
     await esperarTexto(page, /aliados|federação/i),
@@ -217,7 +229,7 @@ try {
   )
 
   // A Indústria Siderúrgica (D-82): construção nova, não está no GDD, mas É FUNCIONAL.
-  await page.click('[data-area="industria_siderurgica"]')
+  await page.select('[data-escolher-tipo-slot]', 'industria_siderurgica')
   await assentar()
   checar(
     await esperarTexto(page, /Não está no GDD/),

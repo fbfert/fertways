@@ -137,6 +137,10 @@ class CobrarManutencaoTerritorial
     {
         Unit::where('zone_id', $zona->id)->delete();
 
+        // Reset completo (comentário abaixo): até o Posto de Comando some — a zona volta ao estado
+        // de quem nunca foi ocupada, não a um "congelamento" com os níveis preservados (D-144).
+        \App\Models\ZoneStructure::where('neutral_zone_id', $zona->id)->delete();
+
         /*
          * Revisão de 2026-07-19: o canteiro (`zone_materials`) e a fila de obras
          * (`zone_build_queue`) NÃO eram limpos aqui — o reset "completo" que este comentário já
@@ -175,29 +179,16 @@ class CobrarManutencaoTerritorial
             'status' => 'livre',
             'occupied_at' => null,
             'protected_until' => null,
-            'command_post_level' => 0,
             'productive_at' => null,
             'level' => 1,
             'level_target' => null,
             'level_upgrade_finishes_at' => null,
-            'deposit_level' => 0,
             'deposit_amount' => 0,
             'last_extraction_at' => null,
             'maintenance_next_due_at' => null,
             'maintenance_unpaid_since' => null,
-            'wall_level' => 0,
-            'watchtower_level' => 0,
-            'bastion_level' => 0,
-            'shelter_level' => 0,
-            'refinery_level' => 0,
-            'parking_level' => 0,
-            'cemetery_level' => 0,
-            'extraction_level' => 0,
-            'communication_level' => 0,
-            'landing_pad_level' => 0,
             'refined_amount' => 0,
             'last_refine_at' => null,
-            'industry_level' => 0,
             'last_industry_at' => null,
             'sieged_at' => null,
             'modules_offline' => null,

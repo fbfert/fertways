@@ -4,6 +4,7 @@ namespace App\Domain\Zona;
 
 use App\Models\NeutralZone;
 use App\Models\ZoneBuild;
+use App\Models\ZoneStructure;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
@@ -55,9 +56,7 @@ class ConcluirObrasDaZona
                 return false;
             }
 
-            $coluna = Estruturas::COLUNA[$obra->structure] ?? null;
-
-            if ($coluna === null) {
+            if (! in_array($obra->structure, Estruturas::TODAS, true) || $obra->slot === null) {
                 $obra->delete();
 
                 return false;
@@ -67,7 +66,18 @@ class ConcluirObrasDaZona
              * `max` e não atribuição direta: se dois processos fecharem a mesma obra, ou se a zona
              * tiver sido tomada e o novo dono já a tiver evoluído, nunca se BAIXA um nível.
              */
-            $zona->update([$coluna => max((int) $zona->{$coluna}, $obra->target_level)]);
+            $linha = ZoneStructure::where('neutral_zone_id', $zona->id)->where('slot', $obra->slot)->first();
+
+            if ($linha) {
+                $linha->update(['level' => max($linha->level, $obra->target_level)]);
+            } else {
+                ZoneStructure::create([
+                    'neutral_zone_id' => $zona->id,
+                    'slot' => $obra->slot,
+                    'type' => $obra->structure,
+                    'level' => $obra->target_level,
+                ]);
+            }
 
             /*
              * A Refinaria recém-erguida começa a contar o relógio dela AGORA. Sem isto, ela

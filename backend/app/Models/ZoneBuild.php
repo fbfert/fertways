@@ -16,9 +16,10 @@ class ZoneBuild extends Model
 {
     protected $table = 'zone_build_queue';
 
-    protected $fillable = ['zone_id', 'structure', 'target_level', 'finishes_at'];
+    protected $fillable = ['zone_id', 'structure', 'slot', 'target_level', 'finishes_at'];
 
     protected $casts = [
+        'slot' => 'integer',
         'target_level' => 'integer',
         'finishes_at' => 'datetime',
     ];

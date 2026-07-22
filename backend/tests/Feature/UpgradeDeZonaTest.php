@@ -15,6 +15,7 @@ use App\Models\NeutralZone;
 use App\Models\Unit;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\Concerns\ErgueEstruturasDaZona;
 use Tests\TestCase;
 
 /**
@@ -23,6 +24,7 @@ use Tests\TestCase;
 class UpgradeDeZonaTest extends TestCase
 {
     use RefreshDatabase;
+    use ErgueEstruturasDaZona;
 
     protected function setUp(): void
     {
@@ -51,7 +53,7 @@ class UpgradeDeZonaTest extends TestCase
 
     private function zonaLivre(int $x, int $y): NeutralZone
     {
-        return NeutralZone::create([
+        return $this->criarZonaComEstruturas([
             'x' => $x, 'y' => $y, 'district' => 'nordeste', 'mineral' => 'metal_bruto',
             'level' => 1, 'status' => 'livre', 'deposit_level' => 1,
         ]);
@@ -223,7 +225,7 @@ class UpgradeDeZonaTest extends TestCase
         $this->assertNull($zona->owner_colony_id);
         $this->assertSame('livre', $zona->status);
         $this->assertSame(1, $zona->level);
-        $this->assertSame(0, $zona->command_post_level);
+        $this->assertSame(0, $zona->nivelDe('posto_de_comando'));
         $this->assertSame(0, Unit::where('zone_id', $zona->id)->count());
     }
 

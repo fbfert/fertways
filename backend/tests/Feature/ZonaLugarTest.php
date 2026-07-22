@@ -17,6 +17,7 @@ use App\Models\User;
 use App\Models\Vehicle;
 use App\Models\ZoneMaterial;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\Concerns\ErgueEstruturasDaZona;
 use Tests\TestCase;
 
 /**
@@ -31,6 +32,7 @@ use Tests\TestCase;
 class ZonaLugarTest extends TestCase
 {
     use RefreshDatabase;
+    use ErgueEstruturasDaZona;
 
     protected function setUp(): void
     {
@@ -55,7 +57,7 @@ class ZonaLugarTest extends TestCase
 
     private function zonaDe(Colony $dono, array $extra = []): NeutralZone
     {
-        return NeutralZone::create(array_merge([
+        return $this->criarZonaComEstruturas(array_merge([
             'x' => 47, 'y' => 47, 'district' => 'NE', 'mineral' => 'metal_bruto', 'level' => 1,
             'owner_colony_id' => $dono->id,
             'status' => 'ocupada',
@@ -77,6 +79,24 @@ class ZonaLugarTest extends TestCase
         }
     }
 
+    /**
+     * Um slot livre e desbloqueado, para `ConstruirNaZona` erguer algo novo — o tipo em si não
+     * decide o slot (D-144: colmeia livre), então qualquer vazio serve. Livre = nem já erguido
+     * (`zone_structures`) nem já reservado por uma obra em curso (`zone_build_queue`).
+     */
+    private function slotLivre(NeutralZone $zona): int
+    {
+        $zona = $zona->fresh();
+
+        $ocupados = [
+            ...$zona->zoneStructures()->pluck('slot')->all(),
+            ...$zona->obras()->pluck('slot')->all(),
+        ];
+
+        return collect(\App\Domain\Zona\ZonaSlots::NIVEL1_SLOTS)
+            ->first(fn ($s) => ! in_array($s, $ocupados, true));
+    }
+
     // ── o buraco que o D-66 abriu ───────────────────────────────────────────────────────────────
 
     /**
@@ -91,11 +111,11 @@ class ZonaLugarTest extends TestCase
         $colono = $this->colono();
         $zona = $this->zonaDe($colono);
 
-        $this->assertSame(0, $zona->wall_level, 'começa nua — era assim que ficava para sempre');
+        $this->assertSame(0, $zona->nivelDe('muralha_de_perimetro'), 'começa nua — era assim que ficava para sempre');
 
         $this->encherCanteiro($zona, ['metal_bruto' => 400, 'ligas_metalicas' => 100]);
 
-        app(ConstruirNaZona::class)->handle($colono, $zona, 'muralha_de_perimetro');
+        app(ConstruirNaZona::class)->handle($colono, $zona, 'muralha_de_perimetro', $this->slotLivre($zona));
 
         // A obra começou e o canteiro pagou.
         $this->assertTrue($zona->fresh()->obraEmCurso());
@@ -106,7 +126,7 @@ class ZonaLugarTest extends TestCase
         app(ConcluirObrasDaZona::class)->handle();
 
         $zona->refresh();
-        $this->assertSame(1, $zona->wall_level);
+        $this->assertSame(1, $zona->nivelDe('muralha_de_perimetro'));
         $this->assertFalse($zona->obraEmCurso());
     }
 
@@ -120,7 +140,9 @@ class ZonaLugarTest extends TestCase
 
         $this->assertSame(0, $forcas->bonusDeConstrucao($zona), 'sem estruturas, o bônus é zero');
 
-        $zona->update(['wall_level' => 1, 'watchtower_level' => 1, 'bastion_level' => 1]);
+        $zona = $this->ergueEstruturas($zona, [
+            'muralha_de_perimetro' => 1, 'torre_de_vigia' => 1, 'bastiao' => 1,
+        ]);
 
         // +20 +30 +50 = +100%: as três juntas dobram a defesa (D-66).
         $this->assertSame(10000, $forcas->bonusDeConstrucao($zona->fresh()));
@@ -137,7 +159,7 @@ class ZonaLugarTest extends TestCase
         $this->expectException(DomainRuleException::class);
         $this->expectExceptionMessageMatches('/canteiro|Despache um veículo/');
 
-        app(ConstruirNaZona::class)->handle($colono, $zona, 'muralha_de_perimetro');
+        app(ConstruirNaZona::class)->handle($colono, $zona, 'muralha_de_perimetro', $this->slotLivre($zona));
     }
 
     /**
@@ -182,7 +204,7 @@ class ZonaLugarTest extends TestCase
 
         $this->encherCanteiro($zona, ['metal_bruto' => 500, 'ligas_metalicas' => 300]);
 
-        app(ConstruirNaZona::class)->handle($colono, $zona, 'muralha_de_perimetro');   // 400 + 100
+        app(ConstruirNaZona::class)->handle($colono, $zona, 'muralha_de_perimetro', $this->slotLivre($zona));   // 400 + 100
 
         $this->assertSame(100, (int) $zona->materiais()->where('resource_type', 'metal_bruto')->value('amount'));
         $this->assertSame(200, (int) $zona->materiais()->where('resource_type', 'ligas_metalicas')->value('amount'));
@@ -196,10 +218,10 @@ class ZonaLugarTest extends TestCase
 
         $this->encherCanteiro($zona, ['metal_bruto' => 5000, 'ligas_metalicas' => 5000]);
 
-        app(ConstruirNaZona::class)->handle($colono, $zona, 'muralha_de_perimetro');
+        app(ConstruirNaZona::class)->handle($colono, $zona, 'muralha_de_perimetro', $this->slotLivre($zona));
 
         $this->expectException(DomainRuleException::class);
-        app(ConstruirNaZona::class)->handle($colono, $zona->fresh(), 'abrigo_de_robos');
+        app(ConstruirNaZona::class)->handle($colono, $zona->fresh(), 'abrigo_de_robos', $this->slotLivre($zona));
     }
 
     /**
@@ -217,14 +239,14 @@ class ZonaLugarTest extends TestCase
 
         $this->encherCanteiro($zona, ['metal_bruto' => 10000, 'ligas_metalicas' => 10000]);
 
-        app(ConstruirNaZona::class)->handle($colono, $zona, 'muralha_de_perimetro');
-        app(ConstruirNaZona::class)->handle($colono, $zona->fresh(), 'abrigo_de_robos');
+        app(ConstruirNaZona::class)->handle($colono, $zona, 'muralha_de_perimetro', $this->slotLivre($zona));
+        app(ConstruirNaZona::class)->handle($colono, $zona->fresh(), 'abrigo_de_robos', $this->slotLivre($zona));
 
         $this->assertSame(2, $zona->fresh()->obras()->count());
 
         // A terceira, essa sim, estoura o teto de 2.
         $this->expectException(DomainRuleException::class);
-        app(ConstruirNaZona::class)->handle($colono, $zona->fresh(), 'torre_de_vigia');
+        app(ConstruirNaZona::class)->handle($colono, $zona->fresh(), 'torre_de_vigia', $this->slotLivre($zona));
     }
 
     /**
@@ -241,8 +263,8 @@ class ZonaLugarTest extends TestCase
 
         $this->encherCanteiro($zona, ['metal_bruto' => 10000, 'ligas_metalicas' => 10000]);
 
-        app(ConstruirNaZona::class)->handle($colono, $zona, 'muralha_de_perimetro');
-        app(ConstruirNaZona::class)->handle($colono, $zona->fresh(), 'abrigo_de_robos');
+        app(ConstruirNaZona::class)->handle($colono, $zona, 'muralha_de_perimetro', $this->slotLivre($zona));
+        app(ConstruirNaZona::class)->handle($colono, $zona->fresh(), 'abrigo_de_robos', $this->slotLivre($zona));
 
         $this->actingAs($colono->user)
             ->getJson("/zones/{$zona->id}")
@@ -266,7 +288,7 @@ class ZonaLugarTest extends TestCase
         $zona = $this->zonaDe($colono);
 
         $this->encherCanteiro($zona, ['metal_bruto' => 400, 'ligas_metalicas' => 100]);
-        app(ConstruirNaZona::class)->handle($colono, $zona, 'muralha_de_perimetro');
+        app(ConstruirNaZona::class)->handle($colono, $zona, 'muralha_de_perimetro', $this->slotLivre($zona));
 
         $minha = collect($this->actingAs($colono->user)->getJson('/zones')->assertOk()->json('zones'))
             ->firstWhere('id', $zona->id);
@@ -295,7 +317,7 @@ class ZonaLugarTest extends TestCase
 
         // Nem construir com o material que já está lá…
         try {
-            app(ConstruirNaZona::class)->handle($colono, $zona, 'muralha_de_perimetro');
+            app(ConstruirNaZona::class)->handle($colono, $zona, 'muralha_de_perimetro', $this->slotLivre($zona));
             $this->fail('a obra não devia começar sob cerco');
         } catch (DomainRuleException $e) {
             $this->assertStringContainsString('cercada', $e->getMessage());
@@ -492,7 +514,9 @@ class ZonaLugarTest extends TestCase
         $this->encherCanteiro($zona, ['ligas_metalicas' => 38, 'compostos_quimicos' => 13]);
 
         $this->actingAs($colono->user)
-            ->postJson("/zones/{$zona->id}/build", ['structure' => 'industria_siderurgica'])
+            ->postJson("/zones/{$zona->id}/build", [
+                'structure' => 'industria_siderurgica', 'slot' => $this->slotLivre($zona),
+            ])
             ->assertCreated();
 
         $this->assertTrue($zona->fresh()->obraEmCurso());
@@ -554,7 +578,7 @@ class ZonaLugarTest extends TestCase
             ->assertOk()->assertJsonCount(0, 'combats');
 
         // Com uma Torre nível 3, ele passa a ver 30 min antes da chegada.
-        $zona->update(['watchtower_level' => 3]);
+        $zona = $this->ergueEstruturas($zona, ['torre_de_vigia' => 3]);
 
         $this->actingAs($defensor->user)->getJson('/war/combats')
             ->assertOk()->assertJsonCount(1, 'combats');
@@ -567,26 +591,25 @@ class ZonaLugarTest extends TestCase
         $colono = $this->colono();
         $zona = $this->zonaDe($colono, ['deposit_amount' => 900]);
 
-        $this->actingAs($colono->user)
+        $resp = $this->actingAs($colono->user)
             ->getJson("/zones/{$zona->id}")
             ->assertOk()
             ->assertJsonPath('deposito.exposto', 400)      // 900 − 500 de capacidade
             ->assertJsonPath('deposito.protegido', 500)
-            // O Cemitério é declarado INERTE pelo próprio GDD, e a tela tem de dizê-lo.
-            ->assertJsonPath('estruturas.8.type', 'cemiterio_de_robos')
-            ->assertJsonPath('estruturas.8.inerte', true)
-            // Duas das três últimas do §17.4 (D-79) continuam INERTES — nenhuma tem sistema que a
-            // acione (extração já funciona sem ferramenta; sem Nave de Transporte Planetária). A
-            // Central de Comunicação SAIU da lista no D-116/D-118: a Federação existe, e ela já
-            // avisa e mostra a zona ao vivo pros aliados.
-            ->assertJsonPath('estruturas.9.type', 'estrutura_de_extracao')
-            ->assertJsonPath('estruturas.9.inerte', true)
-            ->assertJsonPath('estruturas.10.type', 'central_de_comunicacao')
-            ->assertJsonPath('estruturas.10.inerte', false)
-            ->assertJsonPath('estruturas.11.type', 'plataforma_de_pouso_da_zona')
-            ->assertJsonPath('estruturas.11.inerte', true)
             // E não sobrou nada do §17.4 marcado como "buraco" — o D-79 fechou a lista.
             ->assertJsonPath('ausentes', []);
+
+        $catalogo = collect($resp->json('estruturas.catalogo'))->keyBy('type');
+
+        // O Cemitério é declarado INERTE pelo próprio GDD, e a tela tem de dizê-lo.
+        $this->assertTrue($catalogo['cemiterio_de_robos']['inerte']);
+        // Duas das três últimas do §17.4 (D-79) continuam INERTES — nenhuma tem sistema que a
+        // acione (extração já funciona sem ferramenta; sem Nave de Transporte Planetária). A
+        // Central de Comunicação SAIU da lista no D-116/D-118: a Federação existe, e ela já avisa
+        // e mostra a zona ao vivo pros aliados.
+        $this->assertTrue($catalogo['estrutura_de_extracao']['inerte']);
+        $this->assertFalse($catalogo['central_de_comunicacao']['inerte']);
+        $this->assertTrue($catalogo['plataforma_de_pouso_da_zona']['inerte']);
     }
 
     /** A ficha da zona publica os minerais da Indústria Siderúrgica junto do resto do depósito. */
@@ -699,7 +722,9 @@ class ZonaLugarTest extends TestCase
         $this->encherCanteiro($zona, ['metal_bruto' => 500, 'ligas_metalicas' => 200]);
 
         $this->actingAs($colono->user)
-            ->postJson("/zones/{$zona->id}/build", ['structure' => 'abrigo_de_robos'])
+            ->postJson("/zones/{$zona->id}/build", [
+                'structure' => 'abrigo_de_robos', 'slot' => $this->slotLivre($zona),
+            ])
             ->assertCreated();
 
         $this->assertTrue($zona->fresh()->obraEmCurso());
@@ -727,14 +752,13 @@ class ZonaLugarTest extends TestCase
             $this->assertContains($estrutura, Estruturas::CONSTRUIVEIS);
             $this->assertSame($deveSerInerte, Estruturas::de($estrutura)['inerte']);
 
-            app(ConstruirNaZona::class)->handle($colono, $zona, $estrutura);
+            app(ConstruirNaZona::class)->handle($colono, $zona, $estrutura, $this->slotLivre($zona));
 
             // A mais lenta (Plataforma de Pouso) leva 6 h — 7 h basta para qualquer uma das três.
             $this->travelTo(now()->addHours(7));
             app(ConcluirObrasDaZona::class)->handle();
 
-            $coluna = Estruturas::COLUNA[$estrutura];
-            $this->assertSame(1, $zona->fresh()->{$coluna});
+            $this->assertSame(1, $zona->fresh()->nivelDe($estrutura));
         }
     }
 
@@ -747,6 +771,6 @@ class ZonaLugarTest extends TestCase
         $zona = $this->zonaDe($colono);
 
         $this->expectException(DomainRuleException::class);
-        app(ConstruirNaZona::class)->handle($colono, $zona, 'posto_de_comando');
+        app(ConstruirNaZona::class)->handle($colono, $zona, 'posto_de_comando', 0);
     }
 }

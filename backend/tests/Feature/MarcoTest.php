@@ -14,6 +14,7 @@ use App\Models\User;
 use App\Models\XpEntry;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
+use Tests\Concerns\ErgueEstruturasDaZona;
 use Tests\TestCase;
 
 /**
@@ -25,6 +26,7 @@ use Tests\TestCase;
 class MarcoTest extends TestCase
 {
     use RefreshDatabase;
+    use ErgueEstruturasDaZona;
 
     protected function setUp(): void
     {
@@ -140,7 +142,7 @@ class MarcoTest extends TestCase
     public function test_ocupar_zona_exige_o_marco_20_e_a_mensagem_diz_o_que_falta(): void
     {
         $user = $this->colono();
-        $zona = \App\Models\NeutralZone::create([
+        $zona = $this->criarZonaComEstruturas([
             'x' => 50, 'y' => 50, 'district' => 'nordeste', 'mineral' => 'metal_bruto',
             'level' => 1, 'status' => 'livre', 'deposit_level' => 1,
         ]);
@@ -161,7 +163,7 @@ class MarcoTest extends TestCase
         }
         $colony->update(['fert_micro' => 1000 * 1_000_000]);
 
-        $zona = \App\Models\NeutralZone::create([
+        $zona = $this->criarZonaComEstruturas([
             'x' => 50, 'y' => 50, 'district' => 'nordeste', 'mineral' => 'metal_bruto',
             'level' => 1, 'status' => 'livre', 'deposit_level' => 1,
         ]);
@@ -198,7 +200,7 @@ class MarcoTest extends TestCase
 
         // Histórico: mais 3 níveis de prédio (além das 5 essenciais) e uma zona possuída.
         $colony->buildings()->create(['type' => 'oficina', 'level' => 3, 'slot' => 0]);
-        \App\Models\NeutralZone::create([
+        $this->criarZonaComEstruturas([
             'x' => 50, 'y' => 50, 'district' => 'nordeste', 'mineral' => 'metal_bruto',
             'level' => 1, 'status' => 'ocupada', 'deposit_level' => 1, 'owner_colony_id' => $colony->id,
         ]);

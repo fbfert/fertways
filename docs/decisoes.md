@@ -7048,3 +7048,97 @@ D-68), o passo de sempre fecha: `php84 artisan fertways:importar-imagens --aplic
 5 entradas novas contra `Vinculaveis::todas()` de graça — nenhum teste novo precisou nascer.
 Suíte completa: **892 passando** (5181 assertions, +5 da mesma guarda cobrindo mais entradas).
 Sem migration, sem mudança de frontend.
+
+---
+
+## D-144 — A Zona Neutra vira colmeia de slots: crescimento por nível e três repetíveis
+
+**Data:** 2026-07-21 · **Status:** pedido direto do usuário ("mecanismos de crescimento e visual
+como o da colônia") · **Arbitrado, em conjunto com o usuário**
+
+O pedido tinha duas metades, e a primeira pergunta era se elas puxavam pra caminhos diferentes.
+`Zona.tsx` já registrava, desde o D-67/D-86, uma decisão deliberada de manter a zona em **SVG, não
+Phaser** — as cenas de Phaser da colônia e da Capital não são testáveis por e2e (é canvas: sem DOM,
+sem `click` por seletor), e essa lacuna já tinha custado cobertura real duas vezes (D-54, D-63).
+"Visual como o da colônia" podia significar reabrir aquilo. Perguntei antes de mexer.
+
+### As quatro decisões, na ordem em que foram fechadas com o usuário
+
+1. **Tecnologia**: SVG continua. Só a linguagem visual muda (paleta, composição hexagonal) — a
+   decisão de testabilidade do D-67 não é reaberta.
+2. **Layout**: a "planta com áreas fixas" (Muralha no perímetro, Torre no alto) vira **colmeia de
+   slots livres**, como a colônia. Antes de aceitar, confirmei que nada no motor de combate
+   dependia de POSIÇÃO — `Forcas::bonusDeConstrucao()` já lia só tipo+nível — então a mudança não
+   quebra regra nenhuma, só a semântica de lugar, que sempre foi arbitragem (D-67, nunca esteve no
+   GDD).
+3. **Crescimento**: repetíveis (mirror de `Building::REPETIVEIS`, D-59) + mais slots por nível
+   (mecanismo NOVO — a colônia não tem isto: seus 22 slots existem todos desde a fundação).
+4. **Escopo**: implementar já, não só desenhar.
+
+### A geometria é literalmente a da colônia
+
+`Domain\Zona\ZonaSlots::LINHAS = [4, 4, 5, 4, 4, 1]`, `TOTAL = 22` — os mesmos números de
+`Domain\Colony\Slots`. O slot 10 (centro da colmeia) é fixo para o Posto de Comando, pelo mesmo
+motivo que o centro da colônia é fixo para o Depósito Local desde o D-142: o centro pertence à
+construção mais essencial/mais aberta. É o "visual como o da colônia" cumprido ao pé da letra — a
+mesma matemática de hexágonos, a mesma proporção — só que desenhada em SVG (`ColmeiaDaZona` em
+`Zona.tsx`, um port de `game/ColonyScene.ts:colmeia()` sem `vista`/zoom, que a zona não precisa).
+
+### Crescimento por nível — sem regressão nas 120 zonas já em produção
+
+O nível 1 já desbloqueia 12 dos 21 slots livres (`ZonaSlots::NIVEL1_SLOTS`) — o bastante para as 12
+`Estruturas::CONSTRUIVEIS` de hoje, uma cada, **não importa em que nível 1–5 uma zona estivesse**.
+Do nível 2 ao 10 desbloqueia +1 slot por nível (`ORDEM_DESBLOQUEIO`), fechando em 22 no nível 10 —
+mesmo total da colônia. `NeutralZone::NIVEL_MAXIMO` sobe de 5 para 10, mesmo precedente do Depósito
+da colônia (D-108, também 5→10, mesma curva `1.65`).
+
+### Repetíveis: só as três que PROCESSAM
+
+`Estruturas::REPETIVEIS = ['refinaria_de_campo', 'industria_siderurgica', 'estrutura_de_extracao']`
+— mirror de `Building::REPETIVEIS`. As outras 9 continuam únicas. A escolha não foi arbitrária:
+conferi contra `Domain\Guerra\Atacar::ALVOS_ATACAVEIS` (as seis estruturas que sabotagem/apreensão
+miram, D-118) e nenhuma das três repetíveis está lá — sabotagem e apreensão continuam identificando
+o alvo só pelo TIPO, sem ambiguidade de qual cópia, porque as únicas repetíveis são justamente as
+que a guerra nunca mirou. Não foi sorte: as seis atacáveis (Depósito, Muralha, Torre, Bastião,
+Abrigo, Posto) são todas de defesa/controle — coisas que fazem sentido únicas — e as produtoras
+sempre foram a família natural de repetível (mesma lógica do D-59 para a colônia).
+
+### A migration: coluna vira linha, com backfill determinístico
+
+Até aqui `neutral_zones` tinha 13 colunas de nível, uma por tipo (`Domain\Zona\Estruturas::COLUNA`).
+Nasce `zone_structures` (mirror de `buildings`: `neutral_zone_id`, `slot`, `type`, `level`,
+`unique(neutral_zone_id, slot)`). O backfill migra cada estrutura já erguida (coluna > 0) para um
+slot fixo dentro do conjunto desbloqueado-desde-o-nível-1, numa bijeção com a ordem antiga de
+`COLUNA`: nenhuma zona existente pode ficar com estrutura sem lugar, não importa o nível em que
+estivesse. `Estruturas::COLUNA` morreu — quem lia `$zona->{coluna}` agora lê
+`NeutralZone::nivelDe(tipo)` (soma entre cópias, para as repetíveis; a única linha, para o resto).
+`Estruturas::TODAS` substitui `array_keys(COLUNA)` nos poucos lugares que só precisavam da lista de
+tipos (validação de `RepararModulo`, o painel de admin, `Vinculaveis`).
+
+`ConstruirNaZona` ganhou uma trava nova, achada escrevendo o teste de duas obras simultâneas
+(`FilaSetting::zona_vagas > 1`, D-111): um slot pode estar vazio em `zone_structures` e AINDA
+ASSIM já ter obra em curso — a estrutura só vira linha quando a obra CONCLUI. Sem checar
+`zone_build_queue.slot` também, duas obras concorrentes no mesmo slot vazio nasceriam sem conflito,
+e a segunda a terminar sobrescreveria o tipo da primeira.
+
+### Frontend: `Zona.tsx` — seleção por SLOT, não por tipo
+
+A antiga seleção (`sel: string`, o tipo clicado na planta) virou `sel: number` (o slot clicado na
+colmeia) — necessário porque um tipo repetível pode ter mais de uma cópia, em slots diferentes, e
+"clique na Muralha" deixou de fazer sentido sozinho. Um slot ocupado abre o painel de sempre
+(evoluir/reparar/demolir); um slot vazio e desbloqueado abre um catálogo (`<select>`) do que se
+pode erguer ali; um slot trancado só diz que está trancado. `EnviarMaterial` (aba Canteiro) segue o
+slot escolhido, não mais um `<select>` de tipo — é o slot que identifica a obra sem ambiguidade
+agora. `api.construirNaZona`/`demolirEstruturaDaZona` passaram a exigir `slot`; a rota HTTP de
+demolir foi de `DELETE /zones/{zone}/build/{structure}` para `.../build/{slot}`.
+
+### Validado
+
+Suíte completa: **891 passando** (5170 assertions) — a única falha, `MissoesFederacaoTest`, não
+toca `NeutralZone`/`Estruturas`/`ZoneStructure` em nenhuma linha e já falhava antes desta mudança;
+fora de escopo, não investigada aqui. Testes de zona atualizados com um trait novo,
+`Tests\Concerns\ErgueEstruturasDaZona`, que faz as fábricas de zona de teste continuarem aceitando
+as chaves antigas (`'wall_level' => 3`) e roteá-las para `zone_structures` por baixo — a maioria dos
+arquivos de teste não precisou mudar além da fábrica. e2e (`frontend/e2e/zonas.e2e.mjs`) reescrito
+para a colmeia (22 slots, estados posto/erguida/vazio/trancado, catálogo por `<select>`) e verde de
+ponta a ponta contra a stack real (`tools/e2e.sh`), migration incluída.

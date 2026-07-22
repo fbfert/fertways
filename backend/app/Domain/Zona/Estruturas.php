@@ -23,21 +23,44 @@ namespace App\Domain\Zona;
  */
 class Estruturas
 {
-    /** A coluna de `neutral_zones` onde vive o nível de cada uma. */
-    public const COLUNA = [
-        'posto_de_comando' => 'command_post_level',
-        'deposito_de_zona_neutra' => 'deposit_level',
-        'muralha_de_perimetro' => 'wall_level',
-        'torre_de_vigia' => 'watchtower_level',
-        'bastiao' => 'bastion_level',
-        'abrigo_de_robos' => 'shelter_level',
-        'refinaria_de_campo' => 'refinery_level',
-        'estacionamento_da_zona' => 'parking_level',
-        'cemiterio_de_robos' => 'cemetery_level',
-        'estrutura_de_extracao' => 'extraction_level',
-        'central_de_comunicacao' => 'communication_level',
-        'plataforma_de_pouso_da_zona' => 'landing_pad_level',
-        'industria_siderurgica' => 'industry_level',
+    /**
+     * Os 13 tipos de estrutura da zona (o Posto de Comando incluído). Até o D-144 isto era um mapa
+     * tipo→coluna de `neutral_zones` (`COLUNA`); a colmeia de slots (`ZoneStructure`) matou a
+     * coluna, e o que sobrou é só a lista de tipos válidos — quem precisava do nível de um tipo
+     * agora lê `NeutralZone::nivelDe()`.
+     */
+    public const TODAS = [
+        'posto_de_comando',
+        'deposito_de_zona_neutra',
+        'muralha_de_perimetro',
+        'torre_de_vigia',
+        'bastiao',
+        'abrigo_de_robos',
+        'refinaria_de_campo',
+        'estacionamento_da_zona',
+        'cemiterio_de_robos',
+        'estrutura_de_extracao',
+        'central_de_comunicacao',
+        'plataforma_de_pouso_da_zona',
+        'industria_siderurgica',
+    ];
+
+    /**
+     * As que podem ocupar mais de um slot, cada cópia com o seu nível (D-144) — mirror de
+     * `Building::REPETIVEIS` (D-59).
+     *
+     * Só as três que PROCESSAM/produzem: a Refinaria de Campo e a Indústria Siderúrgica convertem
+     * minério (§17.4, D-82), e a Estrutura de Extração — inerte hoje — é da mesma família de
+     * "produtora", pronta para quando ganhar função, como o próprio `Estruturas::TABELA` já erguia
+     * o Cemitério "por gosto e futuro". As outras 9 continuam únicas: repetir uma Muralha não
+     * significa nada que a curva de nível já não signifique, e as seis com efeito de combate
+     * (`Domain\Guerra\Atacar::ALVOS_ATACAVEIS`) não incluem nenhuma das três repetíveis — sabotagem
+     * e apreensão continuam mirando um tipo só, sem ambiguidade de qual cópia.
+     */
+    public const REPETIVEIS = [
+        'refinaria_de_campo',
+        'industria_siderurgica',
+        'estrutura_de_extracao',
     ];
 
     /**

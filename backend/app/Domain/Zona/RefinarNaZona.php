@@ -31,7 +31,7 @@ class RefinarNaZona
         $agora ??= now();
 
         $ids = NeutralZone::whereNotNull('owner_colony_id')
-            ->where('refinery_level', '>=', 1)
+            ->whereHas('zoneStructures', fn ($q) => $q->where('type', 'refinaria_de_campo'))
             ->where('deposit_amount', '>', 0)
             ->pluck('id');
 
@@ -51,7 +51,7 @@ class RefinarNaZona
         return DB::transaction(function () use ($id, $agora) {
             $zona = NeutralZone::whereKey($id)->lockForUpdate()->first();
 
-            if (! $zona || $zona->refinery_level < 1 || $zona->deposit_amount <= 0) {
+            if (! $zona || $zona->nivelDe('refinaria_de_campo') < 1 || $zona->deposit_amount <= 0) {
                 return false;
             }
 

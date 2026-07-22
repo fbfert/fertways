@@ -169,23 +169,22 @@ class Atacar
 
     /**
      * As seis estruturas com efeito de combate de verdade (D-118: `Forcas`, a detecção da Torre, a
-     * resistência do Abrigo, a capacidade do Depósito). As outras sete de `Estruturas::COLUNA`
+     * resistência do Abrigo, a capacidade do Depósito). As outras sete de `Estruturas::TODAS`
      * (Refinaria, Estacionamento, Cemitério, Extração, Central de Comunicação, Plataforma de Pouso,
      * Indústria Siderúrgica) ficam fora de propósito: nenhuma tem função que a Sabotagem/Apreensão
      * possa degradar hoje — mirá-las seria desligar um módulo que ninguém lê.
      *
-     * ⚠️ **As chaves aqui usavam `'deposito'`/`'muralha'`, e não as canônicas de
-     * `Estruturas::COLUNA`** (`'deposito_de_zona_neutra'`/`'muralha_de_perimetro'`) — o badge
-     * "offline" da UI e o `fracaoEfetiva()` do D-118 leem pela chave canônica, então os dois nunca
-     * batiam com um Depósito ou uma Muralha sabotados. Corrigido.
+     * As seis são justamente as NÃO-repetíveis (`Estruturas::REPETIVEIS` são as outras três) —
+     * sabotagem/apreensão miram um TIPO, e um tipo só faz sentido como alvo sem ambiguidade quando
+     * há no máximo uma cópia por zona (D-144).
      */
     private const ALVOS_ATACAVEIS = [
-        'deposito_de_zona_neutra' => 'deposit_level',
-        'muralha_de_perimetro' => 'wall_level',
-        'torre_de_vigia' => 'watchtower_level',
-        'bastiao' => 'bastion_level',
-        'abrigo_de_robos' => 'shelter_level',
-        'posto_de_comando' => 'command_post_level',
+        'deposito_de_zona_neutra',
+        'muralha_de_perimetro',
+        'torre_de_vigia',
+        'bastiao',
+        'abrigo_de_robos',
+        'posto_de_comando',
     ];
 
     /**
@@ -202,14 +201,14 @@ class Atacar
             return;
         }
 
-        if ($alvo === null || ! array_key_exists($alvo, self::ALVOS_ATACAVEIS)) {
+        if ($alvo === null || ! in_array($alvo, self::ALVOS_ATACAVEIS, true)) {
             throw new DomainRuleException(
                 'alvo_invalido',
-                'Escolha a estrutura-alvo: '.implode(', ', array_keys(self::ALVOS_ATACAVEIS)).'.',
+                'Escolha a estrutura-alvo: '.implode(', ', self::ALVOS_ATACAVEIS).'.',
             );
         }
 
-        if ($zona->{self::ALVOS_ATACAVEIS[$alvo]} < 1) {
+        if ($zona->nivelDe($alvo) < 1) {
             throw new DomainRuleException('alvo_inexistente', "A zona não tem {$alvo}.");
         }
 
@@ -217,7 +216,7 @@ class Atacar
             throw new DomainRuleException('alvo_ja_desligado', "O {$alvo} já está fora de operação.");
         }
 
-        if ($tipo === 'apreensao' && $zona->bastion_level >= 1) {
+        if ($tipo === 'apreensao' && $zona->nivelDe('bastiao') >= 1) {
             throw new DomainRuleException(
                 'bastiao_imune',
                 'Esta zona tem Bastião — as estruturas dela são imunes à Apreensão de Módulos (§28.10).',

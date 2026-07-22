@@ -239,7 +239,7 @@ class WarController extends Controller
                     return true;
                 }
 
-                $antecedencia = $aviso * (int) ($c->zone->watchtower_level ?? 0);
+                $antecedencia = $aviso * $c->zone->nivelDe('torre_de_vigia');
 
                 return $c->chega_at->copy()->subMinutes($antecedencia)->isPast();
             })

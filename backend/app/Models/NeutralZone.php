@@ -54,7 +54,12 @@ class NeutralZone extends Model
     /** Teto de zonas por jogador — arbitrado no D-84. O GDD nunca publica um teto de posse. */
     public const TETO_ZONAS_POR_COLONIA = 5;
 
-    public const NIVEL_MAXIMO = 5;
+    /**
+     * 5 → 10 no D-144, mesmo precedente do Depósito da colônia (D-108): mais fôlego de evolução,
+     * mesma curva. É o que sustenta o crescimento por nível de `Domain\Zona\ZonaSlots` — os slots
+     * 13 a 21 só desbloqueiam entre os níveis 2 e 10.
+     */
+    public const NIVEL_MAXIMO = 10;
 
     /**
      * Custo e guarnição do upgrade seguem a curva 1,65× do catálogo (Muralha/Torre/Bastião/Drone,
@@ -142,45 +147,25 @@ class NeutralZone extends Model
     protected $fillable = [
         'x', 'y', 'name', 'district', 'mineral', 'level', 'level_target', 'level_upgrade_finishes_at',
         'owner_colony_id', 'status', 'occupied_at', 'protected_until',
-        'command_post_level', 'productive_at',
-        'deposit_level', 'deposit_amount', 'last_extraction_at',
+        'productive_at',
+        'deposit_amount', 'last_extraction_at',
         'maintenance_next_due_at', 'maintenance_unpaid_since',
-        'wall_level', 'watchtower_level', 'bastion_level', 'shelter_level',
-        'refinery_level', 'parking_level', 'cemetery_level',
-        'extraction_level', 'communication_level', 'landing_pad_level',
         'refined_amount', 'last_refine_at',
-        'industry_level', 'last_industry_at',
+        'last_industry_at',
         'sieged_at', 'modules_offline', 'modules_offline_expira_em', 'structures_saboted',
     ];
 
     /**
      * ⚠️ **Os defaults têm de estar AQUI, e não só no banco.**
      *
-     * O Eloquent insere a linha e **não relê os defaults que o banco aplicou**: um
-     * `NeutralZone::create()` devolve um modelo cujo `wall_level` é `null`, não `0`. O `Forcas`
-     * então soma `bonus × null` e o bônus some — e nada reclama, porque `null` em contexto numérico
-     * vira zero em silêncio.
-     *
-     * É a **terceira vez** que esta pegadinha aparece: o `Vehicle` já tinha aprendido (o
-     * `conservacao_bps` nascia nulo), e o `WarSetting` a repetiu (a primeira leitura dos parâmetros
-     * da guerra vinha zerada). Quando um default vive no banco, ele precisa viver no model também.
+     * O Eloquent insere a linha e **não relê os defaults que o banco aplicou**. É a **terceira
+     * vez** que esta pegadinha aparece: o `Vehicle` já tinha aprendido (o `conservacao_bps` nascia
+     * nulo), e o `WarSetting` a repetiu. Quando um default vive no banco, ele precisa viver no
+     * model também.
      */
     protected $attributes = [
-        'command_post_level' => 0,
-        'deposit_level' => 0,
         'deposit_amount' => 0,
-        'wall_level' => 0,
-        'watchtower_level' => 0,
-        'bastion_level' => 0,
-        'shelter_level' => 0,
-        'refinery_level' => 0,
-        'parking_level' => 0,
-        'cemetery_level' => 0,
-        'extraction_level' => 0,
-        'communication_level' => 0,
-        'landing_pad_level' => 0,
         'refined_amount' => 0,
-        'industry_level' => 0,
     ];
 
     protected $casts = [
@@ -191,26 +176,13 @@ class NeutralZone extends Model
         'level_upgrade_finishes_at' => 'datetime',
         'maintenance_next_due_at' => 'datetime',
         'maintenance_unpaid_since' => 'datetime',
-        'command_post_level' => 'integer',
-        'deposit_level' => 'integer',
         'deposit_amount' => 'integer',
-        'wall_level' => 'integer',
-        'watchtower_level' => 'integer',
-        'bastion_level' => 'integer',
-        'shelter_level' => 'integer',
         'occupied_at' => 'datetime',
         'protected_until' => 'datetime',
         'productive_at' => 'datetime',
         'last_extraction_at' => 'datetime',
-        'refinery_level' => 'integer',
-        'parking_level' => 'integer',
-        'cemetery_level' => 'integer',
-        'extraction_level' => 'integer',
-        'communication_level' => 'integer',
-        'landing_pad_level' => 'integer',
         'refined_amount' => 'integer',
         'last_refine_at' => 'datetime',
-        'industry_level' => 'integer',
         'last_industry_at' => 'datetime',
         'sieged_at' => 'datetime',
         'modules_offline' => 'array',
@@ -228,6 +200,38 @@ class NeutralZone extends Model
     public function units(): HasMany
     {
         return $this->hasMany(Unit::class, 'zone_id');
+    }
+
+    /**
+     * As estruturas erguidas, uma linha por slot (D-144) — o espelho de `Colony::buildings()`.
+     *
+     * Substitui as 13 colunas de nível que `neutral_zones` tinha até aqui. `Domain\Zona\Estruturas`
+     * continua sendo o catálogo de TIPOS; esta relação é onde cada cópia mora, com o slot e o
+     * nível dela.
+     */
+    public function zoneStructures(): HasMany
+    {
+        return $this->hasMany(ZoneStructure::class, 'neutral_zone_id');
+    }
+
+    /**
+     * O nível de uma estrutura da zona. Para as 9 únicas, é o nível da única linha (0 se nunca
+     * erguida); para as 3 repetíveis (`Estruturas::REPETIVEIS`), é a SOMA entre as cópias — o
+     * mesmo padrão que a colônia já usa para produção repetível desde o D-59 (duas Minas nível 1
+     * produzem 15+15, não "nível 2"; ver `Domain\Production\ColonyTick`).
+     *
+     * Todo call site que lia `$zona->wall_level`/`$zona->refinery_level`/etc. antes do D-144 lê
+     * daqui agora.
+     */
+    public function nivelDe(string $tipo): int
+    {
+        $linhas = $this->zoneStructures->where('type', $tipo);
+
+        if (in_array($tipo, \App\Domain\Zona\Estruturas::REPETIVEIS, true)) {
+            return (int) $linhas->sum('level');
+        }
+
+        return (int) ($linhas->first()?->level ?? 0);
     }
 
     /**
@@ -271,20 +275,20 @@ class NeutralZone extends Model
     }
 
     /**
-     * Quanto a Refinaria de Campo processa por hora, no nível construído.
+     * Quanto a Refinaria de Campo processa por hora, somando TODAS as cópias (D-144: repetível).
      *
-     * Zero sem Refinaria. A curva é a do §19.1 (`Base × 1,5^(N−1)`), como tudo o mais; a base é
-     * **metade da extração da zona** (D-67) — não um número novo, uma fração de um que já existe.
+     * Zero sem Refinaria. A curva é a do §19.1 (`Base × 1,5^(N−1)`), como tudo o mais, aplicada por
+     * LINHA — duas Refinarias nível 1 somam 2×, não viram uma "nível 2" (mesmo padrão de
+     * `Building`/`ColonyTick` para produção repetível). A base é **metade da extração da zona**
+     * (D-67) — não um número novo, uma fração de um que já existe.
      */
     public function refinoPorHora(): int
     {
-        if ($this->refinery_level < 1) {
-            return 0;
-        }
-
-        return (int) round(
-            \App\Domain\Zona\Estruturas::REFINO_BASE_HORA * self::CURVA ** ($this->refinery_level - 1),
-        );
+        return (int) $this->zoneStructures
+            ->where('type', 'refinaria_de_campo')
+            ->sum(fn (ZoneStructure $s) => round(
+                \App\Domain\Zona\Estruturas::REFINO_BASE_HORA * self::CURVA ** ($s->level - 1),
+            ));
     }
 
     /** Em que o minério desta zona se transforma, se houver Refinaria. Nulo se o mineral não refina. */
@@ -387,7 +391,7 @@ class NeutralZone extends Model
      */
     public function capacidadeDeposito(): int
     {
-        $cheia = (int) round(self::DEPOSITO_BASE * self::CURVA ** ($this->deposit_level - 1));
+        $cheia = (int) round(self::DEPOSITO_BASE * self::CURVA ** ($this->nivelDe('deposito_de_zona_neutra') - 1));
 
         return intdiv($cheia * $this->fracaoEfetiva('deposito_de_zona_neutra'), 10_000);
     }

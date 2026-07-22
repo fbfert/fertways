@@ -31,7 +31,7 @@ class RepararModulo
 
     public function handle(Colony $colony, NeutralZone $zona, string $estrutura): void
     {
-        if (! array_key_exists($estrutura, Estruturas::COLUNA)) {
+        if (! in_array($estrutura, Estruturas::TODAS, true)) {
             throw new DomainRuleException('estrutura_invalida', "Estrutura desconhecida: {$estrutura}.");
         }
 
@@ -52,7 +52,7 @@ class RepararModulo
                 throw new DomainRuleException('nada_a_reparar', "{$nome} está operando normalmente.");
             }
 
-            $nivel = (int) $zona->{Estruturas::COLUNA[$estrutura]};
+            $nivel = $zona->nivelDe($estrutura);
 
             $this->cobrar($colony, $zona, $estrutura, $this->custo($estrutura, $nivel));
 

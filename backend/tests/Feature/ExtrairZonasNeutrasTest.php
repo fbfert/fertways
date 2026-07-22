@@ -8,6 +8,7 @@ use App\Models\Colony;
 use App\Models\NeutralZone;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\Concerns\ErgueEstruturasDaZona;
 use Tests\TestCase;
 
 /**
@@ -17,6 +18,7 @@ use Tests\TestCase;
 class ExtrairZonasNeutrasTest extends TestCase
 {
     use RefreshDatabase;
+    use ErgueEstruturasDaZona;
 
     protected function setUp(): void
     {
@@ -33,7 +35,7 @@ class ExtrairZonasNeutrasTest extends TestCase
 
     private function zonaProdutivaDesde($productiveAt, int $depositLevel = 1): NeutralZone
     {
-        return NeutralZone::create([
+        return $this->criarZonaComEstruturas([
             'x' => 50, 'y' => 50, 'district' => 'nordeste', 'mineral' => 'metal_bruto',
             'level' => 1, 'status' => 'protegida',
             'owner_colony_id' => $this->colonia()->id,

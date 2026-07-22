@@ -46,7 +46,7 @@ class Avistamentos
             return $this->aoVivo($zona, $zona->owner_colony_id === null ? 'livre' : 'dona');
         }
 
-        if ($colonia->federation_id !== null && $zona->communication_level >= 1) {
+        if ($colonia->federation_id !== null && $zona->nivelDe('central_de_comunicacao') >= 1) {
             // Não usa `$zona->owner` (relação eager-loaded pelo chamador, D-37, `NeutralZoneController`,
             // que restringe as colunas a `id,name,user_id` — sem `federation_id`): busca fresca.
             $dona = Colony::find($zona->owner_colony_id);

@@ -17,6 +17,7 @@ use App\Models\NeutralZone;
 use App\Models\Unit;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\Concerns\ErgueEstruturasDaZona;
 use Tests\TestCase;
 
 /**
@@ -33,6 +34,7 @@ use Tests\TestCase;
 class DefesaTest extends TestCase
 {
     use RefreshDatabase;
+    use ErgueEstruturasDaZona;
 
     protected function setUp(): void
     {
@@ -57,7 +59,7 @@ class DefesaTest extends TestCase
 
     private function zonaDe(Colony $dono, int $robos = 20, array $extra = []): NeutralZone
     {
-        $z = NeutralZone::create(array_merge([
+        $z = $this->criarZonaComEstruturas(array_merge([
             'x' => 47, 'y' => 47, 'district' => 'NE', 'mineral' => 'metal_bruto', 'level' => 1,
             'owner_colony_id' => $dono->id, 'status' => 'ocupada',
             'occupied_at' => now()->subDays(30), 'protected_until' => now()->subDays(20),
