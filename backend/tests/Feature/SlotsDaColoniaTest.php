@@ -66,10 +66,12 @@ class SlotsDaColoniaTest extends TestCase
         // O Gerador e a Estrutura ladeiam o centro da linha do meio.
         $this->assertSame([9, 11], [Slots::MIOLO['gerador_de_atmosfera'], Slots::MIOLO['estrutura_de_sobrevivencia']]);
 
-        // D-142: o Depósito Local trocou de lugar com o Reator — o Depósito fica no centro exato
-        // da colmeia (10), o Reator na linha solta do final (21).
-        $this->assertSame(10, Slots::DEPOSITO_LOCAL['deposito_local']);
+        // D-142: o Reator ficou na linha solta do final (21). D-149: o Depósito Local, que o
+        // D-142 pôs no centro exato da colmeia (10), trocou de novo — agora no 14, e o centro
+        // volta a ser um slot comum, escolhível pelo colono.
+        $this->assertSame(14, Slots::DEPOSITO_LOCAL['deposito_local']);
         $this->assertSame(21, Slots::MIOLO['reator_de_energia']);
+        $this->assertNotContains(10, Slots::reservados());
     }
 
     /**
@@ -448,7 +450,7 @@ class SlotsDaColoniaTest extends TestCase
         $deposito = $colony->buildings->firstWhere('type', 'deposito_local');
         $this->assertNotNull($deposito, 'o backfill criou o Depósito Local');
         $this->assertSame(1, $deposito->level);
-        $this->assertSame(10, $deposito->slot);
+        $this->assertSame(Slots::DEPOSITO_LOCAL['deposito_local'], $deposito->slot);
 
         // A Oficina manteve o nível 4 e ganhou um slot de fora do miolo.
         $oficina = $colony->buildings->firstWhere('type', 'oficina');

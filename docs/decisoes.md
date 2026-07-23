@@ -7467,3 +7467,47 @@ delas no enquadramento fixo de sempre virou mirar um alvo de poucos pixels. `Map
 o mesmo par zoom/`Vista` que `Mapa.tsx` já usa (roda do mouse ancorada no cursor, arrastar, +/− e
 "ver tudo") — autocontido dentro do componente, porque nenhuma outra tela da Fundação precisa disso.
 Abre exatamente como antes (planeta inteiro, escala 1); só passou a dar pra aproximar.
+
+## D-149 — O Depósito Local troca do centro (10) para o slot 14
+
+**Data:** 2026-07-23 · **Status:** pedido direto do usuário ("troque a posição do slot 10 pelo 14
+em todas as colônias e nas futuras colônias"), sem motivo publicado · **Arbitrado**
+
+Segunda troca de slot do Depósito Local em duas semanas — o D-142 já tinha movido ele da linha
+solta do final (21) pro centro exato da colmeia (10), trocando de lugar com o Reator de Energia.
+Este pedido move o Depósito de novo, do centro (10) pro slot 14 — o centro volta a ser um slot
+comum, escolhível pelo colono como outro qualquer.
+
+### Por que isto não foi tão simples quanto parecia
+
+O D-142 trocava dois NOMES fixos (Reator ↔ Depósito), os dois sempre presentes, os dois com tipo
+conhecido de antemão — a migration só precisava casar `type = X AND slot = Y`. Este pedido é
+assimétrico: só um lado tem nome (o Depósito, sempre no 10); o outro lado, o slot 14, é um slot
+comum desde sempre — qualquer coisa pode estar lá, ou nada. Conferi antes de escrever a migration:
+em produção, **15 das 28 colônias já tinham construção de jogador no 14** (minas, laboratório, uma
+oficina). Uma migration que só movesse o Depósito pro 14 sem primeiro tirar o que já estava lá
+teria colidido com `unique(colony_id, slot)` — ou pior, sobrescrito sem trocar, se a ordem das
+instruções desse margem a isso.
+
+A correção: a migration troca os DOIS lados sempre, por um valor de passagem (255, como o D-142 já
+fazia) — move o Depósito pro 255, move o que estiver no 14 (seja lá o que for, ou nada) pro 10,
+move o Depósito do 255 pro 14. Funciona igual para os dois casos (14 vazio ou ocupado) sem
+precisar de lógica condicional: `WHERE slot = 14` sem filtro de tipo pega "o que houver ali".
+Testada `up`/`down`/`up` contra o MariaDB de dev nos dois cenários — inclusive inserindo uma
+construção de teste no 14 pra reproduzir o caso real de produção antes de rodar contra ela de
+verdade.
+
+`App\Domain\Colony\Slots::DEPOSITO_LOCAL['deposito_local']` mudou de `10` para `14` — é a única
+mudança de código; `CreateColony` e `ColonyScene.ts` (front) sempre leram a constante, nunca um
+número solto, então nenhum dos dois precisou mudar (mesmo padrão do D-142). O centro da colmeia
+(10) saiu de `Slots::reservados()` e virou um slot comum.
+
+### Validado
+
+`SlotsDaColoniaTest.php` tinha uma asserção com o número 10 solto (`assertSame(10, ...)`, duas
+ocorrências) — corrigidas pra usar a constante ou o valor novo (14), e uma nova asserção prova que
+o 10 saiu de `reservados()`. Suíte inteira: **916 passando** (5281 assertions). `tools/e2e.sh`
+rodado três vezes — as duas falhas que apareceram em rodadas isoladas (Chat, Capital) não se
+repetiram de forma consistente entre rodadas e desapareceram sem nenhuma mudança de código,
+confirmando serem instabilidade de tempo/carga do ambiente compartilhado, não regressão desta
+troca.

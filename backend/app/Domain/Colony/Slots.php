@@ -44,7 +44,8 @@ class Slots
      * O Reator, que nasceu no centro exato (10), foi trocado de lugar com o Depósito Local
      * (21) por pedido do usuário — o Depósito é a construção que o colono mais abre (é onde os
      * recursos moram desde o D-106), e o centro da colmeia é o slot mais visível/alcançável dela.
-     * <span class="d">D-142</span>
+     * <span class="d">D-142</span> O Reator ficou no 21; o centro (10) passou pro Depósito, e
+     * do centro pro 14 no D-149 — ver `DEPOSITO_LOCAL` abaixo.
      *
      * Isto vai **além** do §24.7, que subsidia o custo das 5 essenciais até o nível 3 mas não as
      * constrói ("o custo aparece normalmente na interface"). Nascer pronto é decisão do usuário.
@@ -61,12 +62,18 @@ class Slots
      * O Depósito Local (D-105, fora do GDD): nasce erguido junto do miolo — mesma razão: sem ele
      * não há como ver os recursos (a barra que sempre mostrava a lista saiu do HUD; agora é
      * preciso abrir uma construção pra ver), e um colono não pode nascer sem enxergar o que tem
-     * no depósito. **No centro exato da colmeia (10) desde o D-142** — trocou de lugar com o
-     * Reator (era a linha solta do final, 21); é o slot mais visível/alcançável, e o Depósito é a
-     * construção mais aberta pelo colono.
+     * no depósito.
+     *
+     * **No slot 14 desde o D-149** (pedido direto do usuário, sem motivo publicado — trocou de
+     * lugar com o centro exato da colmeia, 10, que era o dele desde o D-142). O centro (10) volta
+     * a ser um slot comum, escolhível pelo colono; deixou de estar em `reservados()`.
+     *
+     * `database/migrations/2026_07_23_100000_troca_slot_do_deposito_com_o_14.php` moveu o dado de
+     * toda colônia já fundada — inclusive as que já tinham uma construção do jogador no 14 (o
+     * slot era livre até aqui; a migration troca os dois lados, não só escreve por cima).
      */
     public const DEPOSITO_LOCAL = [
-        'deposito_local' => 10,
+        'deposito_local' => 14,
     ];
 
     /** Todo slot com dono fixo — miolo ou Depósito — nunca escolhível pelo colono. */
