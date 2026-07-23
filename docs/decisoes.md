@@ -7574,3 +7574,24 @@ não dois).
 Dois testes novos em `FretePublicoTest.php`: uma viagem leva dois recursos, cada um debitado do
 seu próprio saldo, um caminhão só; e a SOMA dos dois é que não pode passar de 30.000 (mesmo que
 cada um sozinho coubesse). Suíte inteira: **918 passando** (5288 assertions).
+
+## D-152 — O Reator de Energia vai pro slot 6
+
+**Data:** 2026-07-23 · **Status:** pedido direto do usuário ("quero que o reator de energia fique
+no slot 6 sempre"), sem motivo publicado · **Arbitrado**
+
+Terceira troca de slot em pouco mais de uma hora (depois do D-149/D-150, Depósito Local). O Reator,
+que o D-142 tinha posto na linha solta do final (21), vai pro slot 6 — linha de cima, ao lado da
+Fazenda. Mesmo tratamento das trocas anteriores: `Slots::MIOLO['reator_de_energia']` mudou de `21`
+para `6` no código, e uma migration nova moveu o dado de toda colônia já fundada.
+
+Conferi antes de escrever a migration: em produção, **18 das 28 colônias já tinham construção de
+jogador no slot 6** (minas, oficinas, laboratório, torre de defesa, refinaria química, até um
+Mercado Local) — o 6 é um slot comum desde sempre, sem nome fixo, como o 14 já tinha sido pro
+D-149. A migration troca os dois lados sempre, pelo mesmo valor de passagem (255) das trocas
+anteriores — testada `up`/`down`/`up` contra o MariaDB de dev, com casos reais de slot 6 ocupado E
+vazio (o próprio banco de dev já tinha as duas situações, sem precisar inserir dado de teste).
+
+### Validado
+
+`SlotsDaColoniaTest.php` atualizado pro slot 6; suíte inteira: **918 passando** (5289 assertions).

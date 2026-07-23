@@ -44,16 +44,16 @@ class Slots
      * O Reator, que nasceu no centro exato (10), foi trocado de lugar com o Depósito Local
      * (21) por pedido do usuário — o Depósito é a construção que o colono mais abre (é onde os
      * recursos moram desde o D-106), e o centro da colmeia é o slot mais visível/alcançável dela.
-     * <span class="d">D-142</span> O Reator ficou no 21 — isso não mudou mais. O centro (10) foi
-     * do Depósito, passou pro 14 no D-149, e voltou pro Depósito no D-150 — ver `DEPOSITO_LOCAL`
-     * abaixo.
+     * <span class="d">D-142</span> O centro (10) foi do Depósito, passou pro 14 no D-149, e voltou
+     * pro Depósito no D-150 — ver `DEPOSITO_LOCAL` abaixo. O Reator, esse, saiu do 21 e foi pro 6
+     * (linha de cima, ao lado da Fazenda) no <span class="d">D-152</span>, sem motivo publicado.
      *
      * Isto vai **além** do §24.7, que subsidia o custo das 5 essenciais até o nível 3 mas não as
      * constrói ("o custo aparece normalmente na interface"). Nascer pronto é decisão do usuário.
      */
     public const MIOLO = [
         'gerador_de_atmosfera' => 9,
-        'reator_de_energia' => 21,
+        'reator_de_energia' => 6,
         'estrutura_de_sobrevivencia' => 11,
         'fazenda' => 5,
         'captacao_de_agua' => 15,
