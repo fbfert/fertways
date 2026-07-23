@@ -14,6 +14,7 @@ import { InfoJogador } from './InfoJogador'
 import {
   JANELA_PADRAO,
   LADO_SVG,
+  CALHA,
   calhaDe,
   celulaEm,
   celulasNaJanela,
@@ -21,7 +22,6 @@ import {
   passoDaGrade,
   pontoNoSvg,
   projecaoDoPlaneta,
-  totalComReguas,
   viewBoxComReguas,
 } from './geometria'
 import type { Caixa, Projecao } from './geometria'
@@ -75,6 +75,40 @@ function distanciaEMeio(a: { x: number; y: number }, b: { x: number; y: number }
   return { dist: Math.hypot(a.x - b.x, a.y - b.y), meio: { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 } }
 }
 
+/**
+ * As dimensões (em unidades do SVG) da janela visível, a partir da escala e da proporção real do
+ * contêiner (D-156) — a mesma conta que o `viewBox` e a conversão de pixel-de-tela-em-unidade-do-
+ * jogo (zoom e arraste) usam. Uma função só, pro mesmo motivo de sempre: duas contas divergem.
+ *
+ * A MENOR dimensão sempre vale `LADO_SVG / escala`, o de sempre (D-64: `scale = side/JANELA_PADRAO`
+ * mostra exatamente 15 células nela) — só a MAIOR cresce, na proporção do contêiner, pra mostrar
+ * mais colunas (ou linhas) numa tela larga (ou alta) em vez de esticar a grade numa elipse.
+ *
+ * **A proporção final tem que ser a do `viewBox` COM a calha, não a da janela sozinha** — senão o
+ * `preserveAspectRatio` padrão do SVG faz o mesmo letterboxing que este card inteiro existe pra
+ * evitar. `viewBoxComReguas` soma a MESMA calha `g` (absoluta, tirada da menor dimensão) aos dois
+ * eixos — e somar um valor absoluto igual a dois números diferentes muda a razão entre eles. A
+ * conta abaixo já nasce compensando isso: resolve pra proporção final (largura+2g)/(altura+2g)
+ * bater exatamente com a proporção do contêiner, não só a proporção largura/altura sem calha.
+ */
+function dimensoesDaJanela(
+  escala: number,
+  tamanhoSvg: { largura: number; altura: number },
+): { largura: number; altura: number } {
+  const ladoBase = LADO_SVG / escala
+
+  if (tamanhoSvg.largura <= 0 || tamanhoSvg.altura <= 0) {
+    return { largura: ladoBase, altura: ladoBase } // antes da primeira medição — quadrado, provisório
+  }
+
+  const aspecto = tamanhoSvg.largura / tamanhoSvg.altura
+  const k = 1 + 2 * CALHA
+
+  return aspecto >= 1
+    ? { largura: ladoBase * (aspecto * k - 2 * CALHA), altura: ladoBase }
+    : { largura: ladoBase, altura: ladoBase * (k / aspecto - 2 * CALHA) }
+}
+
 type Selecao =
   | { tipo: 'colonia'; c: ColoniaVizinha }
   | { tipo: 'zona'; z: ZonaNeutra }
@@ -112,6 +146,29 @@ export function Mapa({
     svgRef.current = node
     setSvgPronto(node !== null)
   }, [])
+  // O tamanho de tela do SVG (D-156) — dois lugares pro mesmo número: a `ref` pra leitura sem
+  // closure velha dentro de `zoomAncoradoEm`/do arraste (que não podem depender de re-render pra
+  // enxergar o valor novo), o `useState` pra fazer o `<Desenho>` recalcular o viewBox quando o
+  // contêiner muda de tamanho (redimensionar a janela, girar o celular).
+  const tamanhoSvgRef = useRef({ largura: 0, altura: 0 })
+  const [tamanhoSvg, setTamanhoSvg] = useState({ largura: 0, altura: 0 })
+
+  useEffect(() => {
+    const svg = svgRef.current
+    if (!svg) return
+
+    const medir = () => {
+      const r = svg.getBoundingClientRect()
+      tamanhoSvgRef.current = { largura: r.width, altura: r.height }
+      setTamanhoSvg({ largura: r.width, altura: r.height })
+    }
+
+    medir()
+    const observador = new ResizeObserver(medir)
+    observador.observe(svg)
+
+    return () => observador.disconnect()
+  }, [svgPronto])
   // Marca que o último gesto foi um arraste, para o pointerup não virar seleção de zona/colônia.
   const arrastou = useRef(false)
 
@@ -165,13 +222,14 @@ export function Mapa({
       const escala = limitarEscala(v.scale * fator)
       if (escala === v.scale) return v
 
-      const lado = LADO_SVG / escala
-      const g = calhaDe(lado)
-      const total = totalComReguas(lado)
-      const x0 = p.x - fx * total + g
-      const y0 = p.y - fy * total + g
+      const { largura, altura } = dimensoesDaJanela(escala, tamanhoSvgRef.current)
+      const g = calhaDe(Math.min(largura, altura))
+      const totalLargura = largura + 2 * g
+      const totalAltura = altura + 2 * g
+      const x0 = p.x - fx * totalLargura + g
+      const y0 = p.y - fy * totalAltura + g
 
-      return { cx: limitarCentro(x0 + lado / 2), cy: limitarCentro(y0 + lado / 2), scale: escala }
+      return { cx: limitarCentro(x0 + largura / 2), cy: limitarCentro(y0 + altura / 2), scale: escala }
     })
   }, [])
 
@@ -246,13 +304,14 @@ export function Mapa({
 
       // A conversão de pixel de tela pra unidade do SVG depende da escala ATUAL — lida de dentro
       // do updater pra nunca ficar presa à escala de quando o gesto começou (a pinça pode ter
-      // mudado a escala no meio do caminho).
+      // mudado a escala no meio do caminho). Largura e altura em separado (D-156): numa janela
+      // retangular elas não são mais o mesmo número, e cada eixo converte contra o seu par.
       setVista((v) => {
         if (!v) return v
-        const lado = LADO_SVG / v.scale
-        const largura = totalComReguas(lado)
-        const dx = ((b.x - a.x) / r.width) * largura
-        const dy = ((b.y - a.y) / r.height) * largura
+        const { largura, altura } = dimensoesDaJanela(v.scale, tamanhoSvgRef.current)
+        const g = calhaDe(Math.min(largura, altura))
+        const dx = ((b.x - a.x) / r.width) * (largura + 2 * g)
+        const dy = ((b.y - a.y) / r.height) * (altura + 2 * g)
 
         return { ...v, cx: limitarCentro(v.cx - dx), cy: limitarCentro(v.cy - dy) }
       })
@@ -337,6 +396,7 @@ export function Mapa({
                 dir={dir}
                 proj={proj}
                 vista={vista}
+                tamanhoSvg={tamanhoSvg}
                 zonas={zonas}
                 selecao={selecao}
                 cursor={cursor}
@@ -489,6 +549,7 @@ function Desenho({
   dir,
   proj,
   vista,
+  tamanhoSvg,
   zonas,
   selecao,
   cursor,
@@ -504,6 +565,8 @@ function Desenho({
   dir: Diretorio
   proj: Projecao
   vista: Vista
+  /** O tamanho de tela do SVG (D-156) — antes da primeira medição, {0,0} (janela quadrada). */
+  tamanhoSvg: { largura: number; altura: number }
   zonas: ZonaNeutra[]
   selecao: Selecao
   cursor: { x: number; y: number } | null
@@ -515,8 +578,8 @@ function Desenho({
   aoEscolher: (s: Selecao) => void
   aoAbrirCapital?: () => void
 }) {
-  const lado = LADO_SVG / vista.scale
-  const caixa: Caixa = { x0: vista.cx - lado / 2, y0: vista.cy - lado / 2, lado }
+  const { largura, altura } = dimensoesDaJanela(vista.scale, tamanhoSvg)
+  const caixa: Caixa = { x0: vista.cx - largura / 2, y0: vista.cy - altura / 2, largura, altura }
 
   // Duas faixas, e não uma: os números são das células inteiras na janela; as linhas ganham uma
   // célula de folga em cada ponta, para a da beirada não ficar sem risco. O recorte apara o resto.
@@ -542,10 +605,10 @@ function Desenho({
       onPointerDown={aoArrastar}
       onPointerMove={aoMoverCursor}
       onPointerLeave={aoSairCursor}
-      // `h-full`, não `h-auto`: em tela cheia (D-154) o contêiner raramente é quadrado, e o
-      // `viewBox` continua quadrado de propósito (a grade não pode distorcer) — o
-      // `preserveAspectRatio` padrão (`xMidYMid meet`) centraliza o quadrado e deixa a calha de
-      // fora exposta pelo fundo `bg-sand` do contêiner, em vez de esticar a grade numa elipse.
+      // `h-full`, não `h-auto`: em tela cheia (D-154) o contêiner raramente é quadrado. Ao
+      // contrário da primeira versão desta tela cheia, o `viewBox` agora SEGUE a proporção real do
+      // contêiner (`dimensoesDaJanela`, D-156) — sem isto a grade ficava presa num quadrado
+      // centrado, com barras vazias nas laterais de telas largas (o mapa "não preenchia a tela").
       className={`block h-full w-full touch-none select-none ${
         pegando ? 'cursor-grabbing' : 'cursor-grab'
       }`}
@@ -553,7 +616,7 @@ function Desenho({
       <defs>
         {/* Recorta o desenho na janela: sem isto, o planeta invadiria a calha das réguas. */}
         <clipPath id={recorte}>
-          <rect x={caixa.x0} y={caixa.y0} width={lado} height={lado} />
+          <rect x={caixa.x0} y={caixa.y0} width={caixa.largura} height={caixa.altura} />
         </clipPath>
       </defs>
 

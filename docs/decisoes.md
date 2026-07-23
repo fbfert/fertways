@@ -7726,3 +7726,57 @@ render isso acontece. Mesmo padrão resolveria qualquer efeito futuro que precis
 Verificação em navegador de verdade (SQLite efêmero, nunca produção/dev): um `WheelEvent` sintético
 despachado no `<svg>` chama `preventDefault()` (prova que o listener rodou, não só que existe) e o
 `viewBox` encolhe (zoom in de verdade) — o mesmo teste tinha voltado `false` antes da correção.
+
+## D-156 — `/mapa` de verdade preenche a tela: o `viewBox` vira retangular
+
+**Data:** 2026-07-23 · **Status:** pedido do usuário ("o mapa deveria ser mostrado em toda tela"),
+segunda metade do que o D-154 tinha deixado incompleta · **Arbitrado**
+
+O D-154 fez o `<svg>` do mapa ocupar o viewport inteiro, mas o DESENHO continuava preso num
+`viewBox` quadrado — numa tela larga (a maioria dos monitores), o `preserveAspectRatio` padrão
+centralizava o quadrado e sobravam barras vazias `bg-sand` nas duas laterais. Tecnicamente o SVG já
+enchia a tela; visualmente, o mapa não.
+
+### A janela vira retangular, na proporção real do contêiner
+
+`geometria.ts`'s `Caixa` era `{x0, y0, lado}` — sempre quadrada, usada pelas duas telas que
+desenham o planeta (`Mapa` e `Fundacao`, que continua quadrada, dentro de uma caixa limitada).
+Virou `{x0, y0, largura, altura}`; `Fundacao.tsx` só passou a escrever `largura`/`altura` iguais
+nos seus dois pontos de construção — comportamento idêntico, zero mudança visual lá (confirmado
+pelo `fundacao.e2e.mjs`, que continua verde).
+
+`Mapa.tsx` mede o próprio `<svg>` com um `ResizeObserver` (mesmo padrão que `ColonyCanvas` já usa
+pro canvas do Phaser) e computa `largura`/`altura` a partir da MENOR dimensão — que continua
+valendo `LADO_SVG / escala` (o de sempre: no zoom de abertura, exatamente `JANELA_PADRAO` = 15
+células, D-64) — e da MAIOR, esticada pela proporção real da tela: mais colunas numa tela larga,
+mais linhas numa tela alta, nunca célula esticada numa elipse. Uma função só
+(`dimensoesDaJanela`), reaproveitada pelo `viewBox` (dentro de `Desenho`) E pela conversão de
+pixel-de-tela-em-unidade-do-jogo do zoom (roda/pinça) e do arraste — a mesma razão de sempre pra
+extrair: duas contas divergem.
+
+**A pegadinha:** a calha das réguas (`viewBoxComReguas`) soma o MESMO valor absoluto aos dois
+eixos — e somar um número igual a duas dimensões diferentes muda a razão entre elas. Sem
+compensar isso, o `viewBox` final (janela + calha) ficava com uma proporção ligeiramente diferente
+da tela de verdade, e o letterboxing voltava, só que menor. `dimensoesDaJanela` resolve a conta de
+trás pra frente: a proporção que tem que bater com a tela é a do viewBox JÁ COM a calha, não a da
+janela sozinha.
+
+### Testes a atualizar (e2e)
+
+`telas.e2e.mjs` tinha uma asserção hardcoded ("a régua de X numera 15 colunas, de -7 a 7") que
+media exatamente o comportamento antigo (janela sempre quadrada). O viewport do e2e é 1400×900
+(`comum.mjs`, mais largo que alto) — com a janela retangular, a régua de X passa a mostrar mais de
+15 colunas de verdade (achou 25, de -12 a 12), enquanto a de Y (o eixo que não muda) continua
+exatamente 15, de -4 a 10. Trocada a asserção de X por uma que prova a propriedade nova (mais de 15
+colunas, simétrica em torno de você) sem prender um número exato que já nasce amarrado ao viewport
+do teste.
+
+### Validado
+
+`npx tsc --noEmit`/lint limpos. `tools/e2e.sh` completo: **332 verificações, zero falhas** —
+incluindo `fundacao.e2e.mjs` (prova que a generalização da `Caixa` não mudou nada na tela que
+continua quadrada). Verificação em navegador de verdade (SQLite efêmero, nunca produção/dev), duas
+proporções de tela: 1920×1080 (paisagem) e 420×900 (retrato) — nos dois casos a proporção do
+`viewBox` bate EXATAMENTE com a da tela (diferença < 0,01), inclusive depois de um zoom pela roda
+do mouse (a proporção não deriva no meio do gesto); screenshot confirma zero barra vazia nas
+laterais em qualquer dos dois casos.

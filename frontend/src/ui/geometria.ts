@@ -24,7 +24,7 @@ export const JANELA_PADRAO = 15
  * proporcional cresce e encolhe junto — cancelando-o. O resultado é uma calha com a mesma
  * espessura em pixels em qualquer zoom, sem ninguém ter de medir o elemento na tela.
  */
-const CALHA = 0.075
+export const CALHA = 0.075
 
 /** A célula do jogo → o ponto do SVG. */
 export type Projecao = {
@@ -36,8 +36,12 @@ export type Projecao = {
   passo: number
 }
 
-/** A janela visível do desenho, em unidades do SVG. Quadrada. */
-export type Caixa = { x0: number; y0: number; lado: number }
+/**
+ * A janela visível do desenho, em unidades do SVG. Nasceu quadrada (`Fundacao` continua abrindo
+ * assim); o `Mapa` em tela cheia (D-154/D-156) é retangular — a proporção do contêiner de verdade,
+ * não a do planeta.
+ */
+export type Caixa = { x0: number; y0: number; largura: number; altura: number }
 
 /** A faixa de células que a janela alcança. */
 export type FaixaDeCelulas = { xDe: number; xAte: number; yDe: number; yAte: number }
@@ -99,9 +103,9 @@ export function celulasNaJanela(caixa: Caixa, side: number): FaixaDeCelulas {
 
   return {
     xDe: preso(Math.ceil(cel(caixa.x0))),
-    xAte: preso(Math.floor(cel(caixa.x0 + caixa.lado))),
+    xAte: preso(Math.floor(cel(caixa.x0 + caixa.largura))),
     // O Y é espelhado: o topo do SVG é o maior y do jogo.
-    yDe: preso(Math.ceil(cel(LADO_SVG - caixa.y0 - caixa.lado))),
+    yDe: preso(Math.ceil(cel(LADO_SVG - caixa.y0 - caixa.altura))),
     yAte: preso(Math.floor(cel(LADO_SVG - caixa.y0))),
   }
 }
@@ -130,12 +134,17 @@ export const calhaDe = (lado: number) => lado * CALHA
  */
 export const totalComReguas = (lado: number) => lado + 2 * calhaDe(lado)
 
-/** O viewBox que reserva a calha das réguas em volta da janela. */
+/**
+ * O viewBox que reserva a calha das réguas em volta da janela.
+ *
+ * A calha usa a MENOR das duas dimensões — numa janela retangular (D-156), uma calha proporcional
+ * à largura ficaria enorme numa tela bem larga; à altura, ela fica do mesmo tamanho físico que já
+ * tinha no caso quadrado (largura === altura), sem depender de qual eixo cresceu.
+ */
 export function viewBoxComReguas(c: Caixa): string {
-  const g = calhaDe(c.lado)
-  const total = totalComReguas(c.lado)
+  const g = calhaDe(Math.min(c.largura, c.altura))
 
-  return `${c.x0 - g} ${c.y0 - g} ${total} ${total}`
+  return `${c.x0 - g} ${c.y0 - g} ${c.largura + 2 * g} ${c.altura + 2 * g}`
 }
 
 /**

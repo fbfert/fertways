@@ -82,7 +82,7 @@ export function Reguas({
   passo: number
 }) {
   const { xDe, xAte, yDe, yAte } = faixa
-  const g = calhaDe(caixa.lado)
+  const g = calhaDe(Math.min(caixa.largura, caixa.altura))
 
   // O zero é o da Capital: sai destacado, para o jogador achar o referencial num relance.
   const cor = (v: number) => (v === 0 ? 'var(--color-rust)' : 'var(--color-ink-soft)')

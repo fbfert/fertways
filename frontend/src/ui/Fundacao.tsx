@@ -231,7 +231,7 @@ function DiscoDeFounders({
   const PASSO = 42
   const centro = (R + 0.5) * PASSO // meia célula de folga em cada ponta
   const proj = projecaoAmpliada(PASSO, centro)
-  const caixa: Caixa = { x0: 0, y0: 0, lado: centro * 2 }
+  const caixa: Caixa = { x0: 0, y0: 0, largura: centro * 2, altura: centro * 2 }
   const faixa = { xDe: -R, xAte: R, yDe: -R, yAte: R }
 
   return (
@@ -323,7 +323,7 @@ function MapaPeriferia({
   const arrastou = useRef(false)
 
   const lado = LADO_SVG / vista.scale
-  const caixa: Caixa = { x0: vista.cx - lado / 2, y0: vista.cy - lado / 2, lado }
+  const caixa: Caixa = { x0: vista.cx - lado / 2, y0: vista.cy - lado / 2, largura: lado, altura: lado }
   const numeradas = celulasNaJanela(caixa, mapa.side)
   const riscadas = comFolga(numeradas, mapa.side)
   const passo = passoDaGrade(mapa.side / vista.scale)
