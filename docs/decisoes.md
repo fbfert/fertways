@@ -7850,3 +7850,26 @@ assertions). `tools/e2e.sh` completo: **332 verificações, zero falhas**.
 Mesma lição do D-106/D-108, repetida: os níveis novos só existem depois de `php artisan db:seed
 --class=BuildingSpecSeeder --force` rodar contra o banco de produção — o deploy sozinho não
 resemeia `building_specs`.
+
+## D-158 — A legenda do `/mapa` ganha o ícone da zona neutra livre
+
+**Data:** 2026-07-23 · **Status:** pedido direto do usuário ("falta o icone da zona neutra
+disponível para ocupar") · **Correção**
+
+`Legenda()` juntava "Vizinhas / zonas livres" numa única linha, com um swatch REDONDO só — mas no
+mapa de verdade uma vizinha é um `<circle>` e uma zona é um `<rect>` (`corDaZona()`), da mesma cor
+(`--color-ink-soft`) só quando a zona está livre. Quem via um quadrado escuro no mapa e procurava
+o ícone dele na legenda só achava um círculo — o quadrado nunca tinha um ícone próprio.
+
+Mesmo problema, mesma causa, num segundo lugar: "Você / suas zonas" também juntava o círculo da
+sua colônia com o quadrado das suas zonas (cor ember) numa linha só. Corrigido nos dois: cada linha
+agora tem a FORMA de verdade do marcador que representa — Capital (losango), Você (círculo), Suas
+zonas (quadrado), Vizinhas (círculo), Zona neutra livre (quadrado, novo), Zonas de outros
+(quadrado), Disco de founders e Anel livre (sem mudança, já eram quadrados de fundo).
+
+### Validado
+
+`npx tsc --noEmit`/lint limpos. `tools/e2e.sh` completo: **332 verificações, zero falhas** (nenhum
+e2e dependia do texto antigo das duas linhas combinadas). Verificação em navegador de verdade
+(SQLite efêmero, nunca produção/dev): as 8 linhas da legenda renderizam, cada uma com o ícone
+certo — conferido por screenshot.

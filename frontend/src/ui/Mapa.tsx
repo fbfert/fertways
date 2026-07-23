@@ -1135,6 +1135,13 @@ function Linha({ termo, valor }: { termo: string; valor: string }) {
   )
 }
 
+/**
+ * Cada linha tem o ícone da FORMA de verdade que aparece no mapa — círculo pra colônia, quadrado
+ * pra zona (o `<rect data-zona>` de `Desenho`, `corDaZona()`) — não um círculo genérico pra tudo
+ * da mesma cor. "Você" e "suas zonas" são cores iguais (ember) mas FORMAS diferentes; "Vizinhas" e
+ * "zona neutra livre" também (ink-soft) — juntar as duas num swatch redondo só escondia o quadrado
+ * de quem procurava a zona disponível pra ocupar no mapa e não achava o ícone dela na legenda.
+ */
 function Legenda() {
   return (
     <ul className="text-ink-soft space-y-1 text-xs">
@@ -1143,11 +1150,18 @@ function Legenda() {
       </li>
       <li>
         <span className="bg-ember border-ink mr-2 inline-block h-3 w-3 rounded-full border align-middle" />{' '}
-        Você / suas zonas
+        Você
       </li>
       <li>
-        <span className="bg-ink-soft mr-2 inline-block h-3 w-3 rounded-full align-middle" /> Vizinhas /
-        zonas livres
+        <span className="bg-ember border-ink mr-2 inline-block h-3 w-3 border align-middle" /> Suas
+        zonas
+      </li>
+      <li>
+        <span className="bg-ink-soft mr-2 inline-block h-3 w-3 rounded-full align-middle" /> Vizinhas
+      </li>
+      <li>
+        <span className="bg-ink-soft mr-2 inline-block h-3 w-3 align-middle" /> Zona neutra livre —
+        disponível pra ocupar
       </li>
       <li>
         <span className="bg-rust mr-2 inline-block h-3 w-3 align-middle" /> Zonas de outros
