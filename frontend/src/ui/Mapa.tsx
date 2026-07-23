@@ -101,7 +101,17 @@ export function Mapa({
   const [pegando, setPegando] = useState(false)
   // A célula sob o cursor. Só realce e leitura: célula vazia não é alvo de clique (D-64).
   const [cursor, setCursor] = useState<{ x: number; y: number } | null>(null)
-  const svgRef = useRef<SVGSVGElement>(null)
+  const svgRef = useRef<SVGSVGElement | null>(null)
+  // Dispara de novo os efeitos que precisam do nó do SVG assim que ele existe de verdade — um
+  // `useEffect` que dependesse de `dir`/`vista` chegaria tarde demais: `dir` vira não-nulo ANTES
+  // de `vista` (que só nasce num efeito separado, um render depois), e o `<svg>` só existe quando
+  // os DOIS já são verdadeiros. Um ref callback dispara exatamente quando o nó monta/desmonta,
+  // sem depender de acertar a sequência de renders.
+  const [svgPronto, setSvgPronto] = useState(false)
+  const anexarSvgRef = useCallback((node: SVGSVGElement | null) => {
+    svgRef.current = node
+    setSvgPronto(node !== null)
+  }, [])
   // Marca que o último gesto foi um arraste, para o pointerup não virar seleção de zona/colônia.
   const arrastou = useRef(false)
 
@@ -179,7 +189,11 @@ export function Mapa({
     svg.addEventListener('wheel', aoRolar, { passive: false })
 
     return () => svg.removeEventListener('wheel', aoRolar)
-  }, [zoomAncoradoEm])
+    // `svgPronto` não é lido no corpo — é o gatilho: dispara de novo assim que `anexarSvgRef`
+    // confirma que o nó existe (ver o comentário dele, acima). Sem isto o efeito prende pra
+    // sempre no `if (!svg) return` do primeiro render e a roda do mouse nunca liga (regressão do
+    // D-154, corrigida aqui).
+  }, [svgPronto, zoomAncoradoEm])
 
   const zoom = (fator: number) =>
     setVista((v) => (v ? { ...v, scale: limitarEscala(v.scale * fator) } : v))
@@ -319,7 +333,7 @@ export function Mapa({
           <div className="absolute inset-0">
             <div className="absolute inset-0">
               <Desenho
-                svgRef={svgRef}
+                svgRef={anexarSvgRef}
                 dir={dir}
                 proj={proj}
                 vista={vista}
@@ -486,7 +500,7 @@ function Desenho({
   aoEscolher,
   aoAbrirCapital,
 }: {
-  svgRef: React.RefObject<SVGSVGElement | null>
+  svgRef: (node: SVGSVGElement | null) => void
   dir: Diretorio
   proj: Projecao
   vista: Vista

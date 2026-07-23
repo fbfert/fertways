@@ -7700,3 +7700,29 @@ de verdade (SQLite efêmero, nunca produção/dev, Puppeteer com dois `PointerEv
 cheia confirmada (a caixa do SVG bate exatamente com o viewport), cabeçalho e parágrafo antigos
 sumidos, status+legenda dentro de um card, a pinça sintética encolhe o `viewBox` (zoom in de
 verdade), e clicar numa vizinha troca o card da legenda pela ficha dela.
+
+## D-155 — A roda do mouse do `/mapa` (D-154) tinha ficado muda — corrigido
+
+**Data:** 2026-07-23 · **Status:** regressão relatada pelo usuário direto em produção ("o zoom in
+e out não está ocorrendo pelo mouse") · **Correção**
+
+O D-154 tinha quebrado a roda do mouse no `/mapa` — os botões +/−/⌖ continuavam funcionando, só a
+roda ficava muda. Verificação em navegador (não só `tsc`/lint/e2e, que não pegam isto) achou a
+causa: o `useEffect` que liga `svg.addEventListener('wheel', ...)` dependia de `[dir,
+zoomAncoradoEm]`, mas `svgRef.current` só existe depois que **dir E vista** são verdadeiros — e
+`vista` só nasce num efeito SEPARADO, um render depois de `dir` carregar. No render em que `dir`
+vira não-nulo, `vista` ainda é nulo, o `<svg>` ainda não existe, o efeito da roda bate no `if
+(!svg) return` e nunca mais dispara (não muda de novo quando só `vista`, e não `dir`, muda).
+
+Corrigido com **ref callback** em vez de depender de acertar a sequência de renders:
+`anexarSvgRef` (substitui o `svgRef` de `RefObject` por uma função) atualiza `svgRef.current` E um
+`useState` (`svgPronto`) toda vez que o nó do `<svg>` monta ou desmonta — os efeitos que precisam
+dele passam a depender de `svgPronto`, que muda exatamente no momento certo, sem importar em qual
+render isso acontece. Mesmo padrão resolveria qualquer efeito futuro que precise do ref do SVG.
+
+### Validado
+
+`npx tsc --noEmit`/lint limpos. `tools/e2e.sh` completo: **332 verificações, zero falhas**.
+Verificação em navegador de verdade (SQLite efêmero, nunca produção/dev): um `WheelEvent` sintético
+despachado no `<svg>` chama `preventDefault()` (prova que o listener rodou, não só que existe) e o
+`viewBox` encolhe (zoom in de verdade) — o mesmo teste tinha voltado `false` antes da correção.
