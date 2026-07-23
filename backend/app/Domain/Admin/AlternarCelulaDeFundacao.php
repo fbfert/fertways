@@ -3,9 +3,9 @@
 namespace App\Domain\Admin;
 
 use App\Domain\Logistics\MapaFertways;
-use App\Domain\Logistics\ZonasNeutras;
 use App\Exceptions\DomainRuleException;
 use App\Models\FoundingCell;
+use App\Models\NeutralZone;
 
 /**
  * Liga ou desliga uma célula de periferia na lista de fundação (D-147). **Só o dono.**
@@ -20,6 +20,10 @@ use App\Models\FoundingCell;
  * de marcar uma célula do disco, para a lista nunca divergir da regra que `podeFundar()` já aplica
  * a ele. Capital, anel livre e zona neutra são travas estruturais: nem chegam a ser avaliadas
  * como "periferia", então nunca entram na lista de nenhum jeito.
+ *
+ * **A checagem de zona neutra é contra o banco, não `ZonasNeutras::ehZonaNeutra()` (D-148).** Desde
+ * que o Dôno passou a poder criar zona fora dos 4 distritos originais (`AlternarZonaNeutra`), a
+ * função pura ficaria cega pra elas — só a tabela `neutral_zones` sabe a verdade completa.
  */
 class AlternarCelulaDeFundacao
 {
@@ -38,7 +42,7 @@ class AlternarCelulaDeFundacao
             throw new DomainRuleException('celula_da_capital', 'A Capital nunca é fundável.');
         }
 
-        if (ZonasNeutras::ehZonaNeutra($x, $y)) {
+        if (NeutralZone::where('x', $x)->where('y', $y)->exists()) {
             throw new DomainRuleException('celula_de_zona_neutra', 'Zona neutra nunca é fundável.');
         }
 

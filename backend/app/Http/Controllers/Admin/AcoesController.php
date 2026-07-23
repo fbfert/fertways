@@ -4,9 +4,11 @@ namespace App\Http\Controllers\Admin;
 
 use App\Console\Commands\TickColonies;
 use App\Domain\Admin\AlternarCelulaDeFundacao;
+use App\Domain\Admin\AlternarZonaNeutra;
 use App\Domain\Admin\Auditoria;
 use App\Domain\Admin\Contas;
 use App\Domain\Admin\CorrigirEstado;
+use App\Domain\Logistics\ZonasNeutras;
 use App\Domain\Admin\RealocarColonia;
 use App\Domain\Admin\Suspender;
 use App\Domain\Federacao\DissolverFederacao;
@@ -1801,6 +1803,26 @@ class AcoesController extends Controller
         $liberada = $alternar->handle((int) $dados['x'], (int) $dados['y']);
 
         return response()->json(['liberada' => $liberada]);
+    }
+
+    /**
+     * Cria ou remove uma zona neutra fora dos 4 distritos originais (D-148), a partir do mapa.
+     *
+     * JSON, mesmo motivo de `alternarCelulaDeFundacao`: o Dôno pode marcar várias zonas numa
+     * sessão. `mineral` só é exigido pelo domínio quando a célula ainda não é zona (criando); ao
+     * remover, o campo é ignorado — não precisa nem chegar no corpo do POST.
+     */
+    public function alternarZonaNeutra(Request $request, AlternarZonaNeutra $alternar): JsonResponse
+    {
+        $dados = $request->validate([
+            'x' => ['required', 'integer', 'between:-50,50'],
+            'y' => ['required', 'integer', 'between:-50,50'],
+            'mineral' => ['nullable', 'string', Rule::in(ZonasNeutras::MINERAIS)],
+        ]);
+
+        $criada = $alternar->handle((int) $dados['x'], (int) $dados['y'], $dados['mineral'] ?? null);
+
+        return response()->json(['criada' => $criada]);
     }
 
     // ── Gestão de imagens (D-68) ─────────────────────────────────────────────

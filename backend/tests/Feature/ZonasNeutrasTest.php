@@ -53,13 +53,17 @@ class ZonasNeutrasTest extends TestCase
     public function test_celula_de_zona_neutra_nao_e_fundavel(): void
     {
         // (50,50) é periferia — seria fundável se liberada — mas é zona neutra, então não, nem
-        // liberando (D-147: o distrito é conferido antes da lista de liberadas).
+        // liberando (a checagem de zona vem antes da de periferia). Desde o D-148
+        // `$ehZonaNeutra` é quem chama que decide (consulta real, não mais só a fórmula dos 4
+        // distritos) — aqui simulamos "esta célula É uma zona", que é o que `ehZonaNeutra` já
+        // responde pra (50,50).
         $this->assertTrue(MapaFertways::faixaDe(50, 50) === 'periferia');
-        $this->assertFalse(MapaFertways::podeFundar(50, 50, true));
+        $this->assertTrue(ZonasNeutras::ehZonaNeutra(50, 50));
+        $this->assertFalse(MapaFertways::podeFundar(50, 50, true, true));
 
         // Uma periferia fora dos distritos só é fundável se estiver liberada.
-        $this->assertFalse(MapaFertways::podeFundar(0, 10, false));
-        $this->assertTrue(MapaFertways::podeFundar(0, 10, true));
+        $this->assertFalse(MapaFertways::podeFundar(0, 10, false, false));
+        $this->assertTrue(MapaFertways::podeFundar(0, 10, true, false));
     }
 
     public function test_o_seeder_cria_as_120_zonas_livres_e_e_idempotente(): void

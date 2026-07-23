@@ -8,6 +8,7 @@ use App\Exceptions\DomainRuleException;
 use App\Http\Controllers\Controller;
 use App\Models\Colony;
 use App\Models\FoundingCell;
+use App\Models\NeutralZone;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -40,9 +41,12 @@ class ColonyController extends Controller
         // de fundação, não uma invariante permanente de onde uma colônia pode existir. Mantê-la
         // fora do `handle()` também poupa toda ferramenta interna (testes, scaffolding) de ter
         // que liberar uma célula de periferia só para ter uma colônia de teste em algum lugar.
+        // `$ehZonaNeutra` é consulta real, não `ZonasNeutras::ehZonaNeutra()` (D-148): desde que o
+        // Dôno pode criar zona fora dos 4 distritos originais, só a tabela sabe a verdade inteira.
         $periferiaLiberada = FoundingCell::where('x', $dados['x'])->where('y', $dados['y'])->exists();
+        $ehZonaNeutra = NeutralZone::where('x', $dados['x'])->where('y', $dados['y'])->exists();
 
-        if (! MapaFertways::podeFundar($dados['x'], $dados['y'], $periferiaLiberada)) {
+        if (! MapaFertways::podeFundar($dados['x'], $dados['y'], $periferiaLiberada, $ehZonaNeutra)) {
             throw new DomainRuleException(
                 'celula_invalida',
                 'Esta célula não pode ser fundada: escolha um slot de founder livre ou uma célula de periferia já liberada.',

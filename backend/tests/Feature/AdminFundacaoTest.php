@@ -88,9 +88,16 @@ class AdminFundacaoTest extends TestCase
             ->postJson('/admin/mapa/fundacao/alternar', ['x' => 0, 'y' => 1])
             ->assertStatus(422)->assertJson(['code' => 'nao_e_periferia']);
 
-        // Zona neutra — periferia geometricamente, mas trava estrutural (D-52).
+        // Zona neutra — periferia geometricamente, mas trava estrutural (D-52). Desde o D-148 a
+        // checagem é contra o banco, não a fórmula dos 4 distritos — precisa de uma zona de
+        // verdade aqui pra provar a rejeição (e prova, de quebra, que uma zona ADMIN-CRIADA fora
+        // dos distritos originais também bloqueia, não só as 120 fixas).
+        \App\Models\NeutralZone::create([
+            'x' => 20, 'y' => 20, 'district' => 'nordeste', 'mineral' => 'metal_bruto',
+            'level' => 1, 'status' => 'livre', 'deposit_amount' => 0,
+        ]);
         $this->actingAs($dono, 'admin')
-            ->postJson('/admin/mapa/fundacao/alternar', ['x' => 50, 'y' => 50])
+            ->postJson('/admin/mapa/fundacao/alternar', ['x' => 20, 'y' => 20])
             ->assertStatus(422)->assertJson(['code' => 'celula_de_zona_neutra']);
 
         // Fora do mapa.

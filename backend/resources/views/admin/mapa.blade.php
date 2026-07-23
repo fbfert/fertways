@@ -21,7 +21,8 @@
         {{ $zonas->count() }} zonas neutras. Arraste para mover, role o mouse ou use os botões para o
         zoom.
         @if ($dono)
-            As únicas ações daqui são mover colônia e liberar fundação — o resto é leitura.
+            As únicas ações daqui são mover colônia, liberar fundação e criar zona neutra — o resto
+            é leitura.
         @else
             Só leitura: nenhuma ação parte daqui.
         @endif
@@ -29,14 +30,16 @@
 
     @if ($dono)
         {{--
-            Mover Colônias (D-146) e Liberar Fundação (D-147): os dois botões ligam modos
-            mutuamente exclusivos — um desliga o outro. "Mover" é um-de-cada-vez com confirmação
-            (mexe em colônia já existente); "Liberar" alterna na hora, sem confirmação (só decide
-            onde um jogador NOVO poderá fundar, reversível com um segundo clique).
+            Mover Colônias (D-146), Liberar Fundação (D-147) e Criar Zona Neutra (D-148): os três
+            botões ligam modos mutuamente exclusivos — ligar um desliga os outros. "Mover" é
+            um-de-cada-vez com confirmação (mexe em colônia já existente); os outros dois alternam
+            na hora, sem confirmação — só decidem onde é possível fundar/existe zona, reversível com
+            um segundo clique enquanto ninguém ocupou.
         --}}
         <div class="cartao" style="margin-bottom:10px;display:flex;align-items:center;gap:14px;flex-wrap:wrap">
             <button type="button" class="leve" id="mapa-mover-toggle" data-mover-colonias>Mover Colônias</button>
             <button type="button" class="leve" id="mapa-fundacao-toggle" data-marcar-fundacao>Liberar Fundação</button>
+            <button type="button" class="leve" id="mapa-zona-toggle" data-criar-zona>Criar Zona Neutra</button>
             <span id="mapa-mover-instrucao" class="mut pequeno" style="min-height:1.2em"></span>
         </div>
     @endif
@@ -90,9 +93,16 @@
                 @endforeach
             </g>
 
-            {{-- As 120 zonas neutras: quadradinhos, cinza se livres, rust se ocupadas. --}}
+            {{--
+                As zonas neutras: quadradinhos, cinza se livres, rust se ocupadas — as 120
+                originais (D-51/D-52) e as que o Dôno criou depois (D-148), sem distinção visual,
+                porque não há diferença nenhuma pro jogo. `data-x`/`data-y`/`data-zona-ocupada`
+                dão ao modo "Criar Zona Neutra" o que precisa pra remover sem recalcular nada a
+                partir do clique, e pra recusar no cliente uma remoção óbvia (zona com dono).
+            --}}
             @foreach ($zonas as $z)
-                <rect data-zona="{{ $z->id }}"
+                <rect data-zona="{{ $z->id }}" data-x="{{ $z->x }}" data-y="{{ $z->y }}"
+                      data-zona-ocupada="{{ $z->owner_colony_id ? '1' : '0' }}"
                       x="{{ $px($z->x) - 0.5 }}" y="{{ $py($z->y) - 0.5 }}" width="1" height="1"
                       fill="{{ $z->owner_colony_id ? 'var(--rust)' : 'rgba(30,28,23,.35)' }}">
                     <title>Zona {{ ucfirst($z->district) }} ({{ $z->x }}, {{ $z->y }}) — {{ $z->mineral }}{{ $z->owner ? ' · '.$z->owner->name : ' · livre' }}</title>
@@ -210,6 +220,30 @@
                             <button type="button" id="mapa-mover-cancelar" class="leve">Cancelar</button>
                         </div>
                     </form>
+                </div>
+
+                {{--
+                    Criar zona neutra (D-148): a ÚNICA das três ações do mapa que precisa de um
+                    passo a mais antes de confirmar — falta uma informação que só o Dôno tem, o
+                    mineral. Não é `<form>`/POST comum como o de mover: um `fetch` (JS abaixo) evita
+                    o reload, porque criar zona é algo que o Dôno pode repetir várias vezes seguidas.
+                --}}
+                <div id="mapa-form-zona" style="display:none">
+                    <h3 style="margin:0 0 8px;color:var(--rust);text-transform:uppercase;letter-spacing:.08em;font-size:.7rem">Criar zona neutra</h3>
+                    <p class="pequeno" id="mapa-zona-resumo" style="margin:0 0 12px"></p>
+                    <div style="margin-bottom:10px">
+                        <label class="pequeno mut">Mineral</label>
+                        <select id="mapa-zona-mineral">
+                            <option value="metal_bruto">Metal Bruto</option>
+                            <option value="agua">Água</option>
+                            <option value="oxigenio">Oxigênio</option>
+                            <option value="biomassa">Biomassa</option>
+                        </select>
+                    </div>
+                    <div style="display:flex;gap:8px;margin-top:8px">
+                        <button type="button" id="mapa-zona-criar" class="perigo" style="flex:1">Criar</button>
+                        <button type="button" id="mapa-zona-cancelar" class="leve">Cancelar</button>
+                    </div>
                 </div>
             @endif
         </div>
@@ -345,14 +379,16 @@
             var modal = document.getElementById('mapa-modal');
             var modalConteudo = document.getElementById('mapa-modal-conteudo');
             var formMover = document.getElementById('mapa-form-mover'); // não existe pra quem não é dono
+            var formZona = document.getElementById('mapa-form-zona'); // idem
 
-            // Os dois modos do mapa (D-146/D-147) são mutuamente exclusivos: `modo` é
-            // `null | 'mover' | 'fundacao'`, e ligar um desliga o outro.
+            // Os três modos do mapa (D-146/D-147/D-148) são mutuamente exclusivos: `modo` é
+            // `null | 'mover' | 'fundacao' | 'zona'`, e ligar um desliga os outros.
             var modo = null;
             var origem = null; // { id, x, y, nome } — só usado em 'mover'
             var circuloOrigem = null;
             var btnMover = document.getElementById('mapa-mover-toggle');
             var btnFundacao = document.getElementById('mapa-fundacao-toggle');
+            var btnZona = document.getElementById('mapa-zona-toggle');
             var instrucao = document.getElementById('mapa-mover-instrucao');
 
             function definirInstrucao(texto, ehErro) {
@@ -371,6 +407,7 @@
             function atualizarBotoes() {
                 estilizarBotao(btnMover, modo === 'mover');
                 estilizarBotao(btnFundacao, modo === 'fundacao');
+                estilizarBotao(btnZona, modo === 'zona');
             }
 
             function realcarOrigem(circulo) {
@@ -387,22 +424,33 @@
                 }
             }
 
-            // Fecha o modal. Se era a confirmação de mover, NÃO cancela a origem — o admin volta a
-            // "aguardando destino" pra tentar outra célula, sem escolher a colônia de novo.
+            // Esconde as três vistas do modal, pra quem for abrir uma decidir sozinho o que mostrar
+            // — sem isto, trocar de vista deixaria as outras duas por baixo, escondidas mas vivas.
+            function esconderVistasDoModal() {
+                modalConteudo.style.display = 'none';
+                if (formMover) formMover.style.display = 'none';
+                if (formZona) formZona.style.display = 'none';
+            }
+
+            // Fecha o modal. Se era a confirmação de mover ou de criar zona, NÃO cancela a
+            // origem/o modo — o admin volta a "aguardando destino/célula" pra tentar de novo, sem
+            // reescolher a colônia ou sair do modo.
             function fecharModal() {
                 modal.style.display = 'none';
                 if (modo === 'mover' && origem) {
                     definirInstrucao('Mover ' + origem.nome + ': clique no destino.');
+                } else if (modo === 'zona') {
+                    definirInstrucao('Clique numa célula da periferia pra criar ou remover uma zona.');
                 }
             }
 
             function abrirFicha(circulo) {
                 var tpl = document.getElementById('ficha-colonia-' + circulo.getAttribute('data-abrir-colonia'));
                 if (!tpl) return;
+                esconderVistasDoModal();
                 modalConteudo.innerHTML = '';
                 modalConteudo.appendChild(tpl.content.cloneNode(true));
                 modalConteudo.style.display = 'block';
-                if (formMover) formMover.style.display = 'none';
                 modal.style.display = 'flex';
             }
 
@@ -422,7 +470,7 @@
                     ' de (' + origem.x + ', ' + origem.y + ') para (' + x + ', ' + y + ')?'
                 ));
 
-                modalConteudo.style.display = 'none';
+                esconderVistasDoModal();
                 formMover.style.display = 'block';
                 modal.style.display = 'flex';
             }
@@ -503,9 +551,119 @@
                 });
             }
 
+            // Criar Zona Neutra (D-148): clique numa célula vazia abre o seletor de mineral
+            // (a única informação que falta); clique numa zona já existente e livre remove na
+            // hora. Zona com dono nem chega ao servidor — o cliente já sabe pelo
+            // `data-zona-ocupada` do próprio `<rect>`.
+            var camadaZonas = svg; // as zonas não têm <g> próprio — já nascem soltas no SVG
+            var zonaPendente = null; // { x, y } — a célula aguardando escolha de mineral
+
+            function marcadorDeZona(x, y) {
+                return camadaZonas.querySelector('[data-zona][data-x="' + x + '"][data-y="' + y + '"]');
+            }
+
+            function criarMarcadorDeZona(x, y) {
+                var el = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+                el.setAttribute('data-zona', 'admin');
+                el.setAttribute('data-x', x);
+                el.setAttribute('data-y', y);
+                el.setAttribute('data-zona-ocupada', '0');
+                el.setAttribute('x', px(x) - 0.5);
+                el.setAttribute('y', py(y) - 0.5);
+                el.setAttribute('width', '1');
+                el.setAttribute('height', '1');
+                el.setAttribute('fill', 'rgba(30,28,23,.35)');
+                camadaZonas.appendChild(el);
+            }
+
+            function abrirCriacaoDeZona(x, y) {
+                zonaPendente = { x: x, y: y };
+                document.getElementById('mapa-zona-resumo').textContent =
+                    'Criar zona neutra em (' + x + ', ' + y + ')?';
+                esconderVistasDoModal();
+                formZona.style.display = 'block';
+                modal.style.display = 'flex';
+            }
+
+            function removerZona(x, y) {
+                fetch('{{ route('admin.mapa.zonas.alternar') }}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': csrfToken,
+                    },
+                    body: JSON.stringify({ x: x, y: y }),
+                })
+                    .then(function (resp) {
+                        return resp.json().then(function (corpo) { return { ok: resp.ok, corpo: corpo }; });
+                    })
+                    .then(function (r) {
+                        if (!r.ok) {
+                            definirInstrucao(r.corpo.message || 'Não foi possível remover esta zona.', true);
+                            return;
+                        }
+                        var el = marcadorDeZona(x, y);
+                        if (el) el.remove();
+                        definirInstrucao('Zona (' + x + ', ' + y + ') removida.');
+                    })
+                    .catch(function () {
+                        definirInstrucao('Falha de rede ao remover a zona.', true);
+                    });
+            }
+
+            var btnZonaCriar = document.getElementById('mapa-zona-criar');
+            if (btnZonaCriar) {
+                btnZonaCriar.addEventListener('click', function () {
+                    var mineral = document.getElementById('mapa-zona-mineral').value;
+                    var x = zonaPendente.x, y = zonaPendente.y;
+
+                    fetch('{{ route('admin.mapa.zonas.alternar') }}', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json',
+                            'X-CSRF-TOKEN': csrfToken,
+                        },
+                        body: JSON.stringify({ x: x, y: y, mineral: mineral }),
+                    })
+                        .then(function (resp) {
+                            return resp.json().then(function (corpo) { return { ok: resp.ok, corpo: corpo }; });
+                        })
+                        .then(function (r) {
+                            modal.style.display = 'none';
+                            if (!r.ok) {
+                                definirInstrucao(r.corpo.message || 'Não foi possível criar esta zona.', true);
+                                return;
+                            }
+                            criarMarcadorDeZona(x, y);
+                            definirInstrucao('Zona (' + x + ', ' + y + ') criada.');
+                        })
+                        .catch(function () {
+                            modal.style.display = 'none';
+                            definirInstrucao('Falha de rede ao criar a zona.', true);
+                        });
+                });
+            }
+
+            var btnZonaCancelar = document.getElementById('mapa-zona-cancelar');
+            if (btnZonaCancelar) {
+                btnZonaCancelar.addEventListener('click', fecharModal);
+            }
+
+            if (btnZona) {
+                btnZona.addEventListener('click', function () {
+                    modo = modo === 'zona' ? null : 'zona';
+                    origem = null;
+                    realcarOrigem(null);
+                    atualizarBotoes();
+                    definirInstrucao(modo === 'zona' ? 'Clique numa célula da periferia pra criar ou remover uma zona.' : '');
+                });
+            }
+
             document.querySelectorAll('[data-abrir-colonia]').forEach(function (circulo) {
                 circulo.addEventListener('click', function () {
-                    if (modo === 'fundacao') {
+                    if (modo === 'fundacao' || modo === 'zona') {
                         return; // deixa o clique borbulhar pro handler genérico do svg, abaixo
                     }
 
@@ -541,7 +699,8 @@
                 });
             });
 
-            // O clique genérico no SVG: destino do Mover, ou a célula a alternar da Fundação.
+            // O clique genérico no SVG: destino do Mover, a célula a alternar da Fundação, ou a
+            // célula/zona a criar/remover da aba Zona Neutra.
             svg.addEventListener('click', function (e) {
                 if (modo === 'mover') {
                     if (!origem) return;
@@ -576,6 +735,36 @@
                     }
 
                     alternarFundacao(alvo.x, alvo.y);
+                    return;
+                }
+
+                if (modo === 'zona') {
+                    // Clicou numa zona já existente: remove (ou recusa na hora se tem dono — o
+                    // `data-zona-ocupada` do próprio elemento evita o round-trip óbvio).
+                    if (e.target.hasAttribute && e.target.hasAttribute('data-zona')) {
+                        if (e.target.getAttribute('data-zona-ocupada') === '1') {
+                            definirInstrucao('Esta zona tem dono — não pode ser removida pelo mapa.', true);
+                            return;
+                        }
+                        var zx = Number(e.target.getAttribute('data-x'));
+                        var zy = Number(e.target.getAttribute('data-y'));
+                        removerZona(zx, zy);
+                        return;
+                    }
+
+                    var alvoZona = celulaEm(e.clientX, e.clientY);
+                    if (!alvoZona) return;
+
+                    if (Math.hypot(alvoZona.x, alvoZona.y) <= raioAnel) {
+                        definirInstrucao('Zona neutra só na periferia — o disco de founders é território de colono.', true);
+                        return;
+                    }
+                    if (marcadorDeFundacao(alvoZona.x, alvoZona.y)) {
+                        definirInstrucao('Esta célula está liberada para fundação — não pode virar zona.', true);
+                        return;
+                    }
+
+                    abrirCriacaoDeZona(alvoZona.x, alvoZona.y);
                 }
             });
 

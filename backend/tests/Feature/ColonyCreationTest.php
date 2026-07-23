@@ -221,6 +221,29 @@ class ColonyCreationTest extends TestCase
         $this->assertDatabaseMissing('colonies', ['name' => 'Fechada']);
     }
 
+    /**
+     * A trava do D-148: uma zona neutra criada pelo Dôno FORA dos 4 distritos originais também
+     * bloqueia fundação — mesmo que a célula esteja liberada pra fundação ao mesmo tempo (o que a
+     * própria `AlternarZonaNeutra` já deveria ter impedido, mas este teste prova a segunda linha
+     * de defesa: mesmo que aconteça, `podeFundar` recusa). Antes do D-148,
+     * `ZonasNeutras::ehZonaNeutra()` — fórmula pura, só os 4 distritos — ficaria cego pra esta
+     * célula; a checagem agora é contra `neutral_zones` de verdade.
+     */
+    public function test_nao_funda_em_cima_de_zona_neutra_criada_pelo_admin(): void
+    {
+        \App\Models\FoundingCell::create(['x' => 20, 'y' => 20]);
+        \App\Models\NeutralZone::create([
+            'x' => 20, 'y' => 20, 'district' => 'nordeste', 'mineral' => 'metal_bruto',
+            'level' => 1, 'status' => 'livre', 'deposit_amount' => 0,
+        ]);
+
+        $this->actingAs($this->colono())
+            ->postJson('/colony', ['name' => 'Em Cima da Zona', 'x' => 20, 'y' => 20])
+            ->assertStatus(422)->assertJson(['code' => 'celula_invalida']);
+
+        $this->assertDatabaseMissing('colonies', ['name' => 'Em Cima da Zona']);
+    }
+
     public function test_nao_funda_em_celula_ja_ocupada(): void
     {
         $this->actingAs($this->colono())

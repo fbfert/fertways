@@ -171,6 +171,10 @@ Route::prefix('admin')->group(function () {
             // aqui entra na lista que `MapaFertways::podeFundar` consulta. JSON, não redirect — o
             // clique alterna na hora, sem recarregar a página.
             Route::post('/mapa/fundacao/alternar', [AcoesController::class, 'alternarCelulaDeFundacao'])->name('admin.mapa.fundacao.alternar');
+
+            // As 120 zonas fixas deixam de ser a única fonte de zona neutra (D-148): o Dôno cria
+            // mais pelo mapa, fora dos 4 distritos originais. Mesmo padrão JSON/sem reload.
+            Route::post('/mapa/zonas/alternar', [AcoesController::class, 'alternarZonaNeutra'])->name('admin.mapa.zonas.alternar');
         });
     });
 });

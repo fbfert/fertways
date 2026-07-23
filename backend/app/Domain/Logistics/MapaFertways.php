@@ -173,24 +173,25 @@ final class MapaFertways
     /**
      * Uma célula é **fundável** se está no mapa e é founder populável **ou** periferia LIBERADA
      * (D-51 pro disco de founders; D-147 pra periferia). Capital, anel livre, os slots reservados
-     * e as **células de zona neutra** (D-52: os 4 distritos dos cantos) ficam de fora sempre. A
-     * colisão com colônia já instalada é conferida à parte, contra o banco.
+     * e as **células de zona neutra** ficam de fora sempre — os 4 distritos originais (D-52) e
+     * qualquer zona que o Dôno tenha criado depois (D-148).
      *
-     * **`$periferiaLiberada` não tem default de propósito (D-147).** Até o D-147 a periferia
-     * inteira era fundável — "o colono escolhe a célula, inclusive uma periférica, se quiser". O
-     * usuário decidiu fechar isso: só é fundável a célula de periferia que o admin marcou em
-     * `founding_cells` (`Domain\Admin\AlternarCelulaDeFundacao`). Esta função continua PURA — sem
-     * tocar banco — porque quem chama já sabe se a célula está na lista; obrigar o argumento
-     * (em vez de um `= false`) força cada call site a decidir isso explicitamente, não a esquecer.
+     * **Nem `$periferiaLiberada` nem `$ehZonaNeutra` têm default, de propósito.** Os dois exigem
+     * uma consulta real a uma tabela (`founding_cells`, `neutral_zones`) que só quem chama sabe
+     * fazer — esta função continua PURA, sem tocar banco. `$ehZonaNeutra` também não pode mais vir
+     * de `ZonasNeutras::ehZonaNeutra()` sozinha (D-148): essa função só enxerga os 120 distritos
+     * originais, e ficaria cega pra uma zona nova que o Dôno criou fora deles. Obrigar os dois
+     * argumentos (em vez de um `= false`) força cada call site a decidir explicitamente, não a
+     * esquecer.
      */
-    public static function podeFundar(int $x, int $y, bool $periferiaLiberada): bool
+    public static function podeFundar(int $x, int $y, bool $periferiaLiberada, bool $ehZonaNeutra): bool
     {
         if (! self::dentroDoMapa($x, $y)) {
             return false;
         }
 
         // Zona neutra não é chão de colônia: os cantos são disputados, não colonizados (D-52).
-        if (ZonasNeutras::ehZonaNeutra($x, $y)) {
+        if ($ehZonaNeutra) {
             return false;
         }
 

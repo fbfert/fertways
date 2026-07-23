@@ -170,20 +170,24 @@ class LogisticaSpecsTest extends TestCase
         }
 
         // Fundável = founder populável OU periferia LIBERADA (D-147); nunca Capital, anel ou
-        // reservado. O terceiro argumento (`$periferiaLiberada`) é irrelevante pros casos que nem
-        // chegam a ser periferia — passado `false` neles só por exigência da assinatura.
-        $this->assertFalse(MapaFertways::podeFundar(0, 0, false));        // Capital
-        $this->assertFalse(MapaFertways::podeFundar(3, 3, false));        // anel
-        $this->assertFalse(MapaFertways::podeFundar(1, 0, false));        // founder reservado (índice 0)
-        $this->assertTrue(MapaFertways::podeFundar(0, 1, false));         // founder populável (índice 1)
+        // reservado. O 3º/4º argumentos (`$periferiaLiberada`/`$ehZonaNeutra`) são irrelevantes
+        // pros casos que nem chegam a ser periferia — passados `false` só por exigência da
+        // assinatura (D-148: nenhum dos dois tem default, de propósito).
+        $this->assertFalse(MapaFertways::podeFundar(0, 0, false, false));        // Capital
+        $this->assertFalse(MapaFertways::podeFundar(3, 3, false, false));        // anel
+        $this->assertFalse(MapaFertways::podeFundar(1, 0, false, false));        // founder reservado (índice 0)
+        $this->assertTrue(MapaFertways::podeFundar(0, 1, false, false));         // founder populável (índice 1)
 
         // Periferia (fora dos distritos): só é fundável se estiver na lista do admin (D-147) — a
         // MESMA célula, nos dois estados, é a prova de que a trava funciona nos dois sentidos.
-        $this->assertFalse(MapaFertways::podeFundar(0, 10, false));       // não liberada: recusa
-        $this->assertTrue(MapaFertways::podeFundar(0, 10, true));         // liberada: aceita
+        $this->assertFalse(MapaFertways::podeFundar(0, 10, false, false));       // não liberada: recusa
+        $this->assertTrue(MapaFertways::podeFundar(0, 10, true, false));         // liberada: aceita
 
-        // Zona neutra recusa mesmo liberada — a checagem de distrito vem ANTES da de periferia.
-        $this->assertFalse(MapaFertways::podeFundar(50, 50, true));       // periferia, mas é zona neutra (D-52)
-        $this->assertFalse(MapaFertways::podeFundar(51, 0, false));       // fora do mapa
+        // Zona neutra recusa mesmo liberada — a checagem de zona vem ANTES da de periferia. Desde
+        // o D-148 `$ehZonaNeutra` é quem chama que decide (consulta real a `neutral_zones`, não
+        // mais só a fórmula dos 4 distritos) — aqui simulamos os dois casos.
+        $this->assertFalse(MapaFertways::podeFundar(50, 50, true, true));        // é zona: recusa mesmo liberada
+        $this->assertTrue(MapaFertways::podeFundar(50, 50, true, false));        // não é zona (mais): aceita
+        $this->assertFalse(MapaFertways::podeFundar(51, 0, false, false));       // fora do mapa
     }
 }

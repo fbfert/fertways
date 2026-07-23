@@ -7365,3 +7365,105 @@ dedicada em navegador real, em duas partes: o admin marcando uma célula e tenta
 (stack Blade, sem Vite — o painel não precisa dele); e um jogador novo, contra o bundle de verdade
 (`npm run build` + `npm run preview`, D-70), vendo só a célula liberada, tentando clicar fora dela
 sem efeito, e fundando com sucesso na célula certa.
+
+## D-148 — "Criar Zona Neutra": os 4 distritos deixam de ser a única fonte de zona
+
+**Data:** 2026-07-23 · **Status:** pedido direto do usuário ("uma função com um botão para que o
+dono possa definir onde ficam as zonas neutras ocupáveis"), no mesmo formato do D-147 · **Arbitrado,
+em conjunto com o usuário**
+
+Até aqui as 120 zonas neutras eram inteiramente fixas: 4 distritos de 30 células nos cantos do mapa
+(`ZonasNeutras::DISTRITOS`, D-51/D-52), cada um com um mineral próprio por quadrante. O usuário
+pediu pra "repensar" isso — não só abrir mais zonas, mas tirar dos 4 cantos o monopólio de onde uma
+zona pode existir. O Dôno agora cria zona em qualquer célula de periferia, escolhendo o mineral.
+
+### O que ficou combinado
+
+1. **As 120 originais — incluindo a única já ocupada em produção, com 5 estruturas — ficam
+   intocadas.** Nenhuma migration mexeu numa linha de `neutral_zones` existente.
+2. **A regra dos 4 cantos deixa de ser a ÚNICA fonte de zona nova**, não é revogada — o disco de
+   founders e a lógica de `NeutralZoneSeeder` continuam existindo do jeito de sempre; só ganham
+   companhia.
+3. **Zona criada pelo Dôno é reversível** enquanto estiver livre: clicar de nova na mesma célula
+   remove. Zona com dono trava — a fricção que existe pras ações difíceis de desfazer (D-61) não é
+   necessária aqui PORQUE remover uma zona livre não afeta ninguém que já joga; uma zona OCUPADA já
+   não é mais essa mesma categoria de coisa, e por isso a remoção dela é recusada, não facilitada.
+
+### O achado que mudou o desenho: "é zona neutra?" virou pergunta de banco
+
+`ZonasNeutras::ehZonaNeutra()` sempre foi uma função pura — verdade só pelas 4 faixas fixas, sem
+tocar banco. Ela é usada em dois lugares de produção: `MapaFertways::podeFundar()` (zona não é
+fundável) e `Domain\Admin\AlternarCelulaDeFundacao` (D-147: zona não pode virar célula de fundação).
+**Os dois ficariam cegos pra uma zona criada pelo Dôno fora dos 4 cantos** — sem correção, um
+jogador poderia fundar em cima dela, ou o Dôno poderia liberá-la pra fundação por engano, com a
+mesma célula sendo as duas coisas ao mesmo tempo.
+
+A correção: as duas checagens trocaram a função pura por uma consulta real a `neutral_zones`
+(`NeutralZone::where('x',$x)->where('y',$y)->exists()`), que responde certo pros 120 originais E
+pros novos, uniformemente. `ZonasNeutras::DISTRITOS`/`ehZonaNeutra()`/`todas()` não morreram —
+continuam sendo a fórmula determinística que `NeutralZoneSeeder` usa pra semear os 120 originais, e
+os testes que já provam essa fórmula (`ZonasNeutrasTest`) continuam válidos exatamente como estavam.
+Só deixaram de ser a autoridade em tempo de execução.
+
+Consequência direta: `MapaFertways::podeFundar()` foi de 3 para 4 argumentos —
+`podeFundar(x, y, $periferiaLiberada, $ehZonaNeutra)`, sem default nos dois últimos, mesmo espírito
+do D-147 (cada call site decide explicitamente, não esquece). Só 3 call sites pra atualizar:
+`ColonyController::store()` (produção) e os dois arquivos de teste já tocados no D-147.
+
+### Sem migration nova
+
+`NeutralZone` já tinha todas as colunas que uma zona nova precisa. Criar é só mais uma linha,
+seguindo exatamente o que `NeutralZoneSeeder` já fazia pros 120 originais (incluindo a linha de
+`deposito_de_zona_neutra` em `zone_structures`, no slot `ZonaSlots::NIVEL1_SLOTS[0]`). Toda FK que
+aponta pra `neutral_zones.id` já era `cascadeOnDelete()` — remover uma zona livre é seguro no nível
+de banco; a trava real (não remover zona com dono) é inteiramente da aplicação
+(`Domain\Admin\AlternarZonaNeutra`).
+
+**Rótulo de distrito pra zona fora dos 4 cantos fixos**: `ZonasNeutras::quadranteDe(x, y)` — divide
+por SINAL de x/y, reaproveitando as MESMAS 4 palavras que a exibição (front e admin) já conhece.
+`distritoDe()` (que responde `null` fora dos blocos fixos, usado por quem precisa saber
+especificamente "é um dos 120 originais?") não mudou uma linha — `quadranteDe()` é função nova, só
+pra rotular zona nova de um jeito que já faz sentido em toda tela existente.
+
+### `Domain\Admin\AlternarZonaNeutra` — mirror do D-147, com um passo a mais
+
+Mesmas guardas estruturais (dentro do mapa, não é Capital, só periferia — o disco de founders é
+território de colono, não de zona). Cria exige um mineral da whitelist (`ZonasNeutras::MINERAIS`) e
+recusa colidir com uma `FoundingCell` liberada ou com uma `Colony` já fundada — uma célula não pode
+ser fundação E zona ao mesmo tempo, nem zona em cima de colônia. Remove recusa se
+`owner_colony_id !== null` (`zona_ocupada`). Audita `zona_neutra.criar`/`zona_neutra.remover`, mesmo
+padrão auto-auditado de `RealocarColonia`/`AlternarCelulaDeFundacao`.
+
+É a única das três ações do mapa (Mover, Liberar Fundação, Criar Zona) que precisa de um passo a
+mais antes de confirmar — não por causa de risco, mas porque falta uma informação real que só o
+Dôno tem (o mineral). O modal do D-145/D-146 ganhou uma TERCEIRA vista (`#mapa-form-zona`), ao lado
+da ficha rápida e da confirmação de mover — só uma visível de cada vez. Criar continua sendo
+`fetch`, não formulário: o Dôno pode repetir a ação várias vezes seguidas, e recarregar a página a
+cada zona perderia zoom e posição.
+
+No mapa admin, zona nova aparece automaticamente — nenhuma view nova precisou ser escrita, porque
+`PainelController::mapa()` já passava TODAS as `NeutralZone` (sem filtro geométrico) pro mesmo
+`@foreach` que desenha as 120 originais. Só os `<rect>` de zona ganharam `data-x`/`data-y`/
+`data-zona-ocupada` (mesmo padrão dos círculos de colônia do D-146), pra o modo "Criar Zona Neutra"
+remover sem recalcular nada a partir do clique, e recusar no cliente uma remoção óbvia sem
+round-trip.
+
+### Validado
+
+Suíte inteira: **916 passando** (5280 assertions), incluindo `AdminZonaNeutraTest.php` novo (cria
+com os 4 minerais; cria e remove a mesma célula, round-trip; zona com dono não remove; operador e
+colono barrados; recusa Capital/anel/founder/fora-do-mapa/mineral-inválido; recusa colidir com
+`FoundingCell` ou `Colony`; audita os dois atos) e um novo teste em `ColonyCreationTest.php` provando
+que fundar é recusado numa zona ADMIN-CRIADA fora dos 4 distritos — a garantia de que a checagem
+virou consulta real, não só a fórmula antiga que teria deixado passar. Verificação em navegador de
+verdade (SQLite efêmero + Puppeteer, nunca produção/dev): criar uma zona com mineral escolhido, ver
+o marcador aparecer sem reload; tentar criar na Capital (erro, sem abrir o seletor); clicar de novo
+na mesma célula pra remover, e ver o marcador sumir.
+
+### D-147 (complemento) — zoom e arraste na aba Periferia
+
+Pedido do usuário: com só as células liberadas (D-147) marcadas num planeta de 101×101, achar uma
+delas no enquadramento fixo de sempre virou mirar um alvo de poucos pixels. `MapaPeriferia` ganhou
+o mesmo par zoom/`Vista` que `Mapa.tsx` já usa (roda do mouse ancorada no cursor, arrastar, +/− e
+"ver tudo") — autocontido dentro do componente, porque nenhuma outra tela da Fundação precisa disso.
+Abre exatamente como antes (planeta inteiro, escala 1); só passou a dar pra aproximar.
