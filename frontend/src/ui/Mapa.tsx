@@ -70,6 +70,11 @@ const DISTRITO: Record<string, string> = {
 /** Zoom e centro do que se vê, em unidades do SVG. */
 type Vista = { cx: number; cy: number; scale: number }
 
+/** A distância e o ponto médio entre dois pontos de TELA — usada pela pinça de dois dedos (D-154). */
+function distanciaEMeio(a: { x: number; y: number }, b: { x: number; y: number }) {
+  return { dist: Math.hypot(a.x - b.x, a.y - b.y), meio: { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 } }
+}
+
 type Selecao =
   | { tipo: 'colonia'; c: ColoniaVizinha }
   | { tipo: 'zona'; z: ZonaNeutra }
@@ -130,72 +135,122 @@ export function Mapa({
     if (dir && !vista) setVista(enquadrarEmMim(dir))
   }, [dir, vista, enquadrarEmMim])
 
-  // Zoom pela roda do mouse, ancorado no cursor. Nativo e não-passivo para segurar o scroll do
-  // modal enquanto se aproxima o mapa; o React registra onWheel como passivo e não deixaria.
+  /**
+   * Zoom ancorado num ponto de TELA — a roda do mouse ancora no cursor, a pinça ancora no ponto
+   * médio dos dois dedos. É a mesma conta pros dois gestos, extraída daqui: o ponto sob a âncora
+   * tem de ficar parado; resolvo por ele o novo canto do viewBox, e daí o centro. A conta inclui a
+   * calha — o viewBox é maior que o mapa, e ignorá-la desviaria o zoom.
+   */
+  const zoomAncoradoEm = useCallback((ancoraX: number, ancoraY: number, fator: number) => {
+    const svg = svgRef.current
+    if (!svg) return
+    const p = pontoNoSvg(svg, { clientX: ancoraX, clientY: ancoraY })
+    if (!p) return
+    const r = svg.getBoundingClientRect()
+    const fx = (ancoraX - r.left) / r.width
+    const fy = (ancoraY - r.top) / r.height
+
+    setVista((v) => {
+      if (!v) return v
+      const escala = limitarEscala(v.scale * fator)
+      if (escala === v.scale) return v
+
+      const lado = LADO_SVG / escala
+      const g = calhaDe(lado)
+      const total = totalComReguas(lado)
+      const x0 = p.x - fx * total + g
+      const y0 = p.y - fy * total + g
+
+      return { cx: limitarCentro(x0 + lado / 2), cy: limitarCentro(y0 + lado / 2), scale: escala }
+    })
+  }, [])
+
+  // Zoom pela roda do mouse, ancorado no cursor. Nativo e não-passivo para segurar o scroll da
+  // página enquanto se aproxima o mapa; o React registra onWheel como passivo e não deixaria.
   useEffect(() => {
     const svg = svgRef.current
     if (!svg) return
 
     const aoRolar = (e: WheelEvent) => {
       e.preventDefault()
-      const p = pontoNoSvg(svg, e)
-      if (!p) return
-      const r = svg.getBoundingClientRect()
-      const fx = (e.clientX - r.left) / r.width
-      const fy = (e.clientY - r.top) / r.height
-      const fator = e.deltaY < 0 ? 1.2 : 1 / 1.2
-
-      setVista((v) => {
-        if (!v) return v
-        const escala = limitarEscala(v.scale * fator)
-        if (escala === v.scale) return v
-
-        // O ponto sob o cursor tem de ficar parado: resolvo por ele o novo canto, e daí o centro.
-        // A conta inclui a calha — o viewBox é maior que o mapa, e ignorá-la desviaria o zoom.
-        const lado = LADO_SVG / escala
-        const g = calhaDe(lado)
-        const total = totalComReguas(lado)
-        const x0 = p.x - fx * total + g
-        const y0 = p.y - fy * total + g
-
-        return { cx: limitarCentro(x0 + lado / 2), cy: limitarCentro(y0 + lado / 2), scale: escala }
-      })
+      zoomAncoradoEm(e.clientX, e.clientY, e.deltaY < 0 ? 1.2 : 1 / 1.2)
     }
 
     svg.addEventListener('wheel', aoRolar, { passive: false })
 
     return () => svg.removeEventListener('wheel', aoRolar)
-  }, [dir])
+  }, [zoomAncoradoEm])
 
   const zoom = (fator: number) =>
     setVista((v) => (v ? { ...v, scale: limitarEscala(v.scale * fator) } : v))
 
-  // Arrastar para mover o mapa. Sem setPointerCapture (ele desviaria o `click` da zona para o SVG):
-  // ouço o move/up na janela e desligo no fim. O limiar de 4 px separa clique de arraste.
+  // Um dedo (ou o mouse) arrasta; dois fazem pinça, ancorada no ponto médio deles (D-154). A
+  // conta compara sempre com o frame ANTERIOR de `pointermove`, nunca com o início do gesto — e
+  // por isso soltar um dos dois dedos no meio da pinça retoma o arraste sem salto nenhum: o
+  // ponteiro que sobrou já está com a posição certa no mapa.
+  const ponteiros = useRef<Map<number, { x: number; y: number }>>(new Map())
+
+  // Arrastar/pinçar para mover e ampliar o mapa. Sem setPointerCapture (ele desviaria o `click` da
+  // zona/colônia para o SVG): ouço o move/up na janela e desligo no fim. O limiar de 4 px separa
+  // clique de arraste.
   const iniciarArrasto = (e: React.PointerEvent<SVGSVGElement>) => {
     if (e.button !== 0 || !vista) return
+
+    const jaTinhaAlgumPonteiro = ponteiros.current.size > 0
+    ponteiros.current.set(e.pointerId, { x: e.clientX, y: e.clientY })
+
+    // Uma segunda ponta chegando no meio de um gesto já em curso: só registra a posição dela — os
+    // listeners de window do primeiro dedo já ouvem TODO ponteiro, não só o que os criou.
+    if (jaTinhaAlgumPonteiro) return
+
     const r = e.currentTarget.getBoundingClientRect()
-    const lado = LADO_SVG / vista.scale
-    // O elemento cobre o mapa MAIS a calha: é essa a largura que o arraste percorre.
-    const largura = totalComReguas(lado)
-    const inicio = { cx: vista.cx, cy: vista.cy, clientX: e.clientX, clientY: e.clientY }
     arrastou.current = false
     setPegando(true)
 
     const mover = (ev: PointerEvent) => {
-      const dx = ((ev.clientX - inicio.clientX) / r.width) * largura
-      const dy = ((ev.clientY - inicio.clientY) / r.height) * largura
-      if (!arrastou.current && Math.hypot(ev.clientX - inicio.clientX, ev.clientY - inicio.clientY) > 4) {
+      if (!ponteiros.current.has(ev.pointerId)) return
+
+      const antes = [...ponteiros.current.values()]
+      ponteiros.current.set(ev.pointerId, { x: ev.clientX, y: ev.clientY })
+      const agora = [...ponteiros.current.values()]
+
+      if (agora.length >= 2) {
+        // Pinça: só os dois primeiros ponteiros contam — uma eventual terceira ponta é ignorada.
+        const p = distanciaEMeio(antes[0], antes[1])
+        const q = distanciaEMeio(agora[0], agora[1])
+        if (p.dist > 0 && q.dist > 0) zoomAncoradoEm(q.meio.x, q.meio.y, q.dist / p.dist)
+        arrastou.current = true // pinça nunca é clique
+
+        return
+      }
+
+      const a = antes[0]
+      const b = agora[0]
+      if (!arrastou.current && Math.hypot(b.x - a.x, b.y - a.y) > 4) {
         arrastou.current = true
       }
-      setVista((v) =>
-        v ? { ...v, cx: limitarCentro(inicio.cx - dx), cy: limitarCentro(inicio.cy - dy) } : v,
-      )
+
+      // A conversão de pixel de tela pra unidade do SVG depende da escala ATUAL — lida de dentro
+      // do updater pra nunca ficar presa à escala de quando o gesto começou (a pinça pode ter
+      // mudado a escala no meio do caminho).
+      setVista((v) => {
+        if (!v) return v
+        const lado = LADO_SVG / v.scale
+        const largura = totalComReguas(lado)
+        const dx = ((b.x - a.x) / r.width) * largura
+        const dy = ((b.y - a.y) / r.height) * largura
+
+        return { ...v, cx: limitarCentro(v.cx - dx), cy: limitarCentro(v.cy - dy) }
+      })
     }
 
-    const soltar = () => {
+    const soltar = (ev: PointerEvent) => {
+      ponteiros.current.delete(ev.pointerId)
+      if (ponteiros.current.size > 0) return // ainda tem dedo: o gesto continua
+
       window.removeEventListener('pointermove', mover)
       window.removeEventListener('pointerup', soltar)
+      window.removeEventListener('pointercancel', soltar)
       setPegando(false)
       // Zera só depois que o `click` deste gesto já correu, para o arraste não selecionar nada.
       setTimeout(() => {
@@ -205,6 +260,7 @@ export function Mapa({
 
     window.addEventListener('pointermove', mover)
     window.addEventListener('pointerup', soltar)
+    window.addEventListener('pointercancel', soltar)
   }
 
   // A célula sob o cursor, para o realce e para a leitura da coordenada. Só reage quando a célula
@@ -241,52 +297,27 @@ export function Mapa({
 
   return (
     <>
-      <div className="bg-sand fixed inset-0 z-20 overflow-y-auto">
-      <div className="bg-sand-light mx-auto min-h-screen w-full max-w-5xl px-6 pt-20 pb-24 md:pt-28 md:pb-6">
-        <header>
-          <div className="text-rust eyebrow">Mapa</div>
-          <h2 className="text-ink text-2xl font-black">Fertways</h2>
-          {dir && (
-            <p className="text-ink-soft mt-1 text-sm">
-              Grade {dir.side}×{dir.side}. Capital em ({dir.capital.x}, {dir.capital.y}). Você em (
-              {dir.me.x}, {dir.me.y}), a {distancia(dir.me, dir.capital)} slots dela.
-            </p>
-          )}
-        </header>
-
-        {erro && <p className="text-rust mt-4 text-sm">{erro}</p>}
+      {/* Tela cheia, como a colônia abre (`App.tsx`: `<div className="relative h-screen w-screen
+          overflow-hidden">` em volta do `ColonyCanvas`) — mesmas classes, de propósito, e não
+          `fixed inset-0`: `position:fixed` cria um contexto de empilhamento PRÓPRIO mesmo sem
+          z-index nenhum, e prenderia os botões de zoom (`z-[26]`, abaixo) lá dentro — por mais
+          alto que fosse o z deles, nunca escapariam pra vencer o header global (`z-[25]`), porque
+          a COMPARAÇÃO que decide a pintura final é entre este contêiner (sem z, perde do header)
+          e o header, não entre o botão e o header diretamente. Foi exatamente isto que aconteceu
+          (os botões +/− sumiam atrás do header) até esta troca pra `relative`. */}
+      <div className="bg-sand relative h-screen w-screen overflow-hidden">
+        {erro && (
+          <p
+            data-erro-mapa
+            className="text-rust bg-sand-light border-rust/25 absolute left-1/2 top-24 z-30 -translate-x-1/2 border px-4 py-2 text-sm"
+          >
+            {erro}
+          </p>
+        )}
 
         {dir && vista && (
-          <div className="mt-5 grid gap-6 md:grid-cols-[1fr_18rem]">
-            <div className="border-rust/20 bg-sand relative border">
-              {/* Ferramentas de zoom e foco. Ficam sobre o mapa, ABAIXO da régua de X — no topo,
-                  elas tapavam o número da última coluna. */}
-              <div className="absolute right-1 top-12 z-10 flex flex-col gap-1">
-                <BotaoMapa aoClicar={() => zoom(1.5)} rotulo="Aproximar" data-zoom-in>
-                  +
-                </BotaoMapa>
-                <BotaoMapa aoClicar={() => zoom(1 / 1.5)} rotulo="Afastar" data-zoom-out>
-                  −
-                </BotaoMapa>
-                <BotaoMapa
-                  aoClicar={() => setVista(enquadrarEmMim(dir))}
-                  rotulo="Centralizar na sua colônia"
-                  data-centrar
-                >
-                  <Alvo />
-                </BotaoMapa>
-              </div>
-
-              {/* A coordenada da célula sob o cursor. */}
-              {cursor && (
-                <div
-                  data-coordenada-cursor
-                  className="bg-sand-light/90 border-rust/25 text-ink absolute bottom-2 left-2 z-10 border px-2 py-0.5 text-xs tabular-nums"
-                >
-                  ({cursor.x}, {cursor.y})
-                </div>
-              )}
-
+          <div className="absolute inset-0">
+            <div className="absolute inset-0">
               <Desenho
                 svgRef={svgRef}
                 dir={dir}
@@ -305,91 +336,122 @@ export function Mapa({
               />
             </div>
 
-            <div>
-              <Legenda />
+            {/* Ferramentas de zoom e foco — mesma posição/z-index que `ControlesDeZoom` já usa
+                na colônia: acima do header global (z-[25]). */}
+            <div className="absolute top-3 right-3 z-[26] flex flex-col gap-1">
+              <BotaoMapa aoClicar={() => zoom(1.5)} rotulo="Aproximar" data-zoom-in>
+                +
+              </BotaoMapa>
+              <BotaoMapa aoClicar={() => zoom(1 / 1.5)} rotulo="Afastar" data-zoom-out>
+                −
+              </BotaoMapa>
+              <BotaoMapa
+                aoClicar={() => setVista(enquadrarEmMim(dir))}
+                rotulo="Centralizar na sua colônia"
+                data-centrar
+              >
+                <Alvo />
+              </BotaoMapa>
+            </div>
 
-              {selecao?.tipo === 'colonia' && (
-                <PainelColonia
-                  c={selecao.c}
-                  aoVerInfo={() => setInfoAberta(selecao.c.user_id)}
-                  aoConversar={aoAbrirChatPrivado}
-                />
-              )}
+            {/* A coordenada da célula sob o cursor. */}
+            {cursor && (
+              <div
+                data-coordenada-cursor
+                className="bg-sand-light/90 border-rust/25 text-ink absolute bottom-2 left-2 z-10 border px-2 py-0.5 text-xs tabular-nums"
+              >
+                ({cursor.x}, {cursor.y})
+              </div>
+            )}
 
-              {selecao?.tipo === 'zona' && (
-                <PainelZona
-                  // A versão fresca da zona (após ocupar/retirar, a lista já veio recarregada).
-                  z={zonas.find((zz) => zz.id === selecao.z.id) ?? selecao.z}
-                  me={dir.me}
-                  frota={frota}
-                  aoAgir={recarregar}
-                  aoFocar={() => focar(selecao.z.x, selecao.z.y)}
-                  aoVerInfo={setInfoAberta}
-                />
-              )}
-
-              {!selecao && (
-                <p className="text-ink-soft mt-4 text-sm">
-                  O mapa abre em 15×15, centrado em você. Clique numa colônia ou numa zona neutra.
-                  Arraste para mover, role o mouse ou use + / − para o zoom; o botão da mira devolve
-                  o enquadramento. As zonas ficam nos cantos: para chegar a elas, afaste.
+            {/* Os cards flutuantes — em qualquer largura de tela (não só desktop): aqui o
+                painel de seleção não é acessório como a fila de obras da colônia, é a resposta
+                direta ao clique numa zona/colônia. */}
+            <div className="absolute top-24 right-5 z-20 max-h-[calc(100vh-7rem)] w-72 space-y-4 overflow-y-auto">
+              <div className="painel bg-sand-light p-4">
+                <p className="text-ink-soft text-sm">
+                  Grade {dir.side}×{dir.side}. Capital em ({dir.capital.x}, {dir.capital.y}). Você
+                  em ({dir.me.x}, {dir.me.y}), a {distancia(dir.me, dir.capital)} slots dela.
                 </p>
-              )}
 
-              <h3 className="text-ink eyebrow mt-5">Zonas ({zonas.filter((z) => z.mine).length} suas)</h3>
-              <ul className="mt-2 max-h-32 space-y-1 overflow-y-auto">
-                {zonas
-                  .filter((z) => z.mine)
-                  .map((z) => (
-                    <li key={z.id}>
+                {!selecao && <Legenda />}
+
+                {selecao?.tipo === 'colonia' && (
+                  <PainelColonia
+                    c={selecao.c}
+                    aoVerInfo={() => setInfoAberta(selecao.c.user_id)}
+                    aoConversar={aoAbrirChatPrivado}
+                  />
+                )}
+
+                {selecao?.tipo === 'zona' && (
+                  <PainelZona
+                    // A versão fresca da zona (após ocupar/retirar, a lista já veio recarregada).
+                    z={zonas.find((zz) => zz.id === selecao.z.id) ?? selecao.z}
+                    me={dir.me}
+                    frota={frota}
+                    aoAgir={recarregar}
+                    aoFocar={() => focar(selecao.z.x, selecao.z.y)}
+                    aoVerInfo={setInfoAberta}
+                  />
+                )}
+              </div>
+
+              <div className="painel bg-sand-light p-4">
+                <h3 className="text-ink eyebrow">Zonas ({zonas.filter((z) => z.mine).length} suas)</h3>
+                <ul className="mt-2 max-h-32 space-y-1 overflow-y-auto">
+                  {zonas
+                    .filter((z) => z.mine)
+                    .map((z) => (
+                      <li key={z.id}>
+                        <button
+                          onClick={() => {
+                            setSelecao({ tipo: 'zona', z })
+                            focar(z.x, z.y)
+                          }}
+                          className="text-ink-soft hover:bg-sand flex w-full items-baseline justify-between px-2 py-1 text-left text-sm"
+                        >
+                          <span className="truncate">
+                            {DISTRITO[z.district]} ({z.x}, {z.y})
+                          </span>
+                          <span className="ml-2 shrink-0 tabular-nums">{z.deposit_amount}</span>
+                        </button>
+                      </li>
+                    ))}
+                  {zonas.filter((z) => z.mine).length === 0 && (
+                    <li className="text-ink-soft/70 px-2 text-xs">Nenhuma zona ocupada ainda.</li>
+                  )}
+                </ul>
+
+                <h3 className="text-ink eyebrow mt-5">
+                  {dir.colonies.length === 0
+                    ? 'Nenhuma vizinha'
+                    : `${dir.colonies.length} ${dir.colonies.length === 1 ? 'vizinha' : 'vizinhas'}`}
+                </h3>
+                <ul className="mt-2 max-h-32 space-y-1 overflow-y-auto">
+                  {dir.colonies.map((c) => (
+                    <li key={c.id}>
                       <button
                         onClick={() => {
-                          setSelecao({ tipo: 'zona', z })
-                          focar(z.x, z.y)
+                          setSelecao({ tipo: 'colonia', c })
+                          focar(c.x, c.y)
                         }}
-                        className="text-ink-soft hover:bg-sand flex w-full items-baseline justify-between px-2 py-1 text-left text-sm"
+                        className={`flex w-full items-baseline justify-between px-2 py-1 text-left text-sm ${
+                          selecao?.tipo === 'colonia' && selecao.c.id === c.id
+                            ? 'bg-rust text-sand-light'
+                            : 'text-ink-soft hover:bg-sand'
+                        }`}
                       >
-                        <span className="truncate">
-                          {DISTRITO[z.district]} ({z.x}, {z.y})
-                        </span>
-                        <span className="ml-2 shrink-0 tabular-nums">{z.deposit_amount}</span>
+                        <span className="truncate">{c.name}</span>
+                        <span className="ml-2 shrink-0 tabular-nums">{c.distance}</span>
                       </button>
                     </li>
                   ))}
-                {zonas.filter((z) => z.mine).length === 0 && (
-                  <li className="text-ink-soft/70 px-2 text-xs">Nenhuma zona ocupada ainda.</li>
-                )}
-              </ul>
-
-              <h3 className="text-ink eyebrow mt-5">
-                {dir.colonies.length === 0
-                  ? 'Nenhuma vizinha'
-                  : `${dir.colonies.length} ${dir.colonies.length === 1 ? 'vizinha' : 'vizinhas'}`}
-              </h3>
-              <ul className="mt-2 max-h-32 space-y-1 overflow-y-auto">
-                {dir.colonies.map((c) => (
-                  <li key={c.id}>
-                    <button
-                      onClick={() => {
-                        setSelecao({ tipo: 'colonia', c })
-                        focar(c.x, c.y)
-                      }}
-                      className={`flex w-full items-baseline justify-between px-2 py-1 text-left text-sm ${
-                        selecao?.tipo === 'colonia' && selecao.c.id === c.id
-                          ? 'bg-rust text-sand-light'
-                          : 'text-ink-soft hover:bg-sand'
-                      }`}
-                    >
-                      <span className="truncate">{c.name}</span>
-                      <span className="ml-2 shrink-0 tabular-nums">{c.distance}</span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
+                </ul>
+              </div>
             </div>
           </div>
         )}
-      </div>
       </div>
 
       {infoAberta !== null && (
@@ -466,7 +528,11 @@ function Desenho({
       onPointerDown={aoArrastar}
       onPointerMove={aoMoverCursor}
       onPointerLeave={aoSairCursor}
-      className={`block h-auto w-full touch-none select-none ${
+      // `h-full`, não `h-auto`: em tela cheia (D-154) o contêiner raramente é quadrado, e o
+      // `viewBox` continua quadrado de propósito (a grade não pode distorcer) — o
+      // `preserveAspectRatio` padrão (`xMidYMid meet`) centraliza o quadrado e deixa a calha de
+      // fora exposta pelo fundo `bg-sand` do contêiner, em vez de esticar a grade numa elipse.
+      className={`block h-full w-full touch-none select-none ${
         pegando ? 'cursor-grabbing' : 'cursor-grab'
       }`}
     >

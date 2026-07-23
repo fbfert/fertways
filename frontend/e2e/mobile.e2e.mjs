@@ -54,7 +54,7 @@ try {
   await page.click('[data-nav="mapa"]')
   await assentar()
   checar(page.url().endsWith('/mapa'), 'a URL vira /mapa')
-  checar(await esperarTexto(page, /Fertways/), 'o Mapa carrega')
+  checar(await esperarTexto(page, /Grade \d+×\d+/), 'o Mapa carrega')
   checar(!!(await page.$('[data-nav-mobile]')), 'a barra inferior continua visível fora da colônia')
   checar(await estaAtivo('mapa'), 'Mapa passa a estar ativo')
   checar(!(await estaAtivo('colonia')), 'Colônia deixa de estar ativa')

@@ -7636,3 +7636,67 @@ o bônus de produção da Endurance batendo com o número que `EnduranceItemsTes
 de verdade (18 = 15 × 1,2). Suíte inteira: **924 passando** (5312 assertions). Verificação em
 navegador de verdade (SQLite efêmero, nunca produção/dev): card aparece na barra lateral da
 colônia, com Oxigênio +100, Água +80, Biomassa +60, Energia +150/−62 — os mesmos números do §19.8.
+
+## D-154 — `/mapa` em tela cheia, com pinça de dois dedos, e a legenda virando card
+
+**Data:** 2026-07-23 · **Status:** pedido direto do usuário ("quero que ele abra da mesma forma
+que abre a colônia... zoom com o mouse ou os dedos no mobile") · **Arbitrado**
+
+O `/mapa` abria numa caixa limitada (`max-w-5xl`, grade de duas colunas), com um cabeçalho de
+página e um parágrafo de instrução por extenso. Pedido: tela cheia, como a colônia — e pinça de
+dois dedos pra zoom no mobile. Achado antes de mexer: **nem a colônia tinha pinça** — só roda do
+mouse (ancorada no centro) e arraste de um dedo, em `game/vista.ts` (`useVista()`, compartilhado
+por `ColonyCanvas`/`CapitalCanvas`). Decidido com o usuário: a pinça vai pras três telas (mapa,
+colônia, Capital — mesmo idioma de zoom, D-63); o mapa vira tela cheia com cards soltos por cima,
+como a colônia; a seleção de uma colônia/zona SUBSTITUI o card da legenda; e no mobile o card
+flutua por cima do mapa em qualquer largura — não é uma gaveta que só abre ao toque.
+
+### A pinça: duas contas, cada uma no seu sistema de coordenadas
+
+`vista.ts` e `Mapa.tsx` já tinham zoom com filosofias DIFERENTES antes desta mudança (a roda do
+mouse da colônia ancora no centro da tela; a do mapa ancora no cursor) — não dava pra só religar um
+código genérico nos dois; cada pinça teve que nascer no idioma que a própria tela já falava.
+
+- `vista.ts`: um `Map<pointerId, {x,y}>` substitui o `arrastando: {x,y}|null` de antes. Com 2
+  ponteiros, a pinça ancora no CENTRO (mesmo que a roda do mouse já fazia ali) — o fator de escala
+  vem da razão de distância entre o frame ATUAL e o ANTERIOR (nunca o início do gesto), e o
+  deslocamento do ponto médio entre os dois mesmos frames soma direto em `dx`/`dy`.
+- `Mapa.tsx`: a conta de "âncora de tela + fator → novo canto do viewBox", que já morava dentro do
+  handler da roda do mouse, saiu pra uma função (`zoomAncoradoEm`), reaproveitada pelos dois
+  gestos; a pinça chama ela com o ponto médio dos dois dedos. Continua usando listeners de
+  `window`, não `setPointerCapture` — capturar o ponteiro desviaria o `click` de uma zona/colônia
+  pro SVG, quebrando a seleção por clique.
+
+Em ambos, comparar sempre com o frame ANTERIOR (nunca com o início do gesto) significa que soltar
+um dos dois dedos no meio de uma pinça retoma o arraste do dedo que sobrou sem salto nenhum — o
+ponto que ele já estava tocando continua sendo o mesmo ponto do mapa.
+
+### Um bug de z-index que só apareceu ao testar em navegador de verdade
+
+O card e os botões de zoom novos (`top-3 right-3 z-[26]`, mesma posição que `ControlesDeZoom` já
+usa na colônia) nasceram escondidos atrás do header global (`z-[25]`) — verificação em navegador
+pegou isto, os testes de tipo/lint não tinham como. Causa: o `<div>` raiz do Mapa usava `fixed
+inset-0`, e `position:fixed` cria um contexto de empilhamento PRÓPRIO mesmo sem z-index nenhum —
+prendendo o `z-[26]` dos botões lá dentro, incapaz de escapar pra vencer o header (a comparação que
+decide a pintura final é entre o contêiner do Mapa, sem z, e o header, não entre o botão e o
+header). A correção: trocar `fixed inset-0` por `relative h-screen w-screen`, as MESMAS classes que
+o wrapper da colônia já usa em `App.tsx` — `position:relative` sem z-index não cria contexto
+nenhum, e o `z-[26]` do botão passa a competir direto contra o `z-[25]` do header, como devia.
+
+### Testes a atualizar (e2e, não a suíte PHPUnit)
+
+Quatro arquivos (`telas`, `zonas`, `mobile`, `chat`) checavam que o Mapa abriu procurando o texto
+"Fertways" — o `<h2>` que este card remove. Trocado por `/Grade \d+×\d+/`, que continua existindo
+(só mudou de lugar) e prova mais (dados reais da API, não só um título estático).
+
+### Validado
+
+`npx tsc --noEmit` e `npm run lint` limpos. `tools/e2e.sh` completo, duas vezes (antes e depois do
+fix de z-index): **332 verificações, zero falhas**, incluindo o zoom da colônia (`telas.e2e.mjs`,
+que prova que o alvo de clique cresce junto com o hexágono — a pinça não quebrou o alinhamento
+canvas/DOM que o D-63 já exigia) e o zoom da Capital (`capital.e2e.mjs`). Verificação em navegador
+de verdade (SQLite efêmero, nunca produção/dev, Puppeteer com dois `PointerEvent` sintéticos de
+`pointerId` distintos simulando a pinça, já que não há gesto de pinça nativo no Puppeteer): tela
+cheia confirmada (a caixa do SVG bate exatamente com o viewport), cabeçalho e parágrafo antigos
+sumidos, status+legenda dentro de um card, a pinça sintética encolhe o `viewBox` (zoom in de
+verdade), e clicar numa vizinha troca o card da legenda pela ficha dela.

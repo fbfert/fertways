@@ -28,7 +28,7 @@ try {
 
   console.log('\nAbre o Mapa')
   await (await acharPorTexto(page, 'button', /^Mapa$/)).click()
-  checar(await esperarTexto(page, /Fertways/), 'o painel do Mapa abre')
+  checar(await esperarTexto(page, /Grade \d+×\d+/), 'o painel do Mapa abre')
 
   console.log('\nAs 120 zonas desenham')
   // O mapa carrega colônias, zonas e frota de forma assíncrona; espera as zonas aparecerem.

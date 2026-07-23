@@ -69,7 +69,7 @@ try {
   await page.click('[data-fechar-chat]')
   await assentar()
   await (await acharPorTexto(page, 'button', /^Mapa$/)).click()
-  checar(await esperarTexto(page, /Fertways/), 'o painel do Mapa abre')
+  checar(await esperarTexto(page, /Grade \d+×\d+/), 'o painel do Mapa abre')
 
   console.log('\nClica na vizinha no diretório do mapa')
   const vizinhaNoMapa = await acharPorTexto(page, 'button', /Colônia vizinha/)

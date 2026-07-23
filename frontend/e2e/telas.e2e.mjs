@@ -77,7 +77,7 @@ try {
   // ---------------------------------------------------------------- Mapa
   console.log('\nAbre o Mapa')
   await (await acharPorTexto(page, 'button', /^Mapa$/)).click()
-  checar(await esperarTexto(page, /Fertways/), 'o painel do Mapa abre')
+  checar(await esperarTexto(page, /Grade \d+×\d+/), 'o painel do Mapa abre')
 
   // O seeder põe o colono no slot de founder (0,3) e a Capital fica em (0,0): 3 slots (D-51).
   checar(await esperarTexto(page, /Grade 101×101/), 'o mapa diz o lado da grade, vindo da API')

@@ -22,9 +22,16 @@ import { useCallback, useEffect, useRef, useState } from 'react'
  *
  * ---
  *
- * **O idioma é o do mapa do planeta**, de propósito: roda do mouse, botões −/+, e "centralizar". O
- * jogador aprende uma vez e usa nos três lugares. **O zoom não persiste** entre aberturas — a tela
- * abre sempre enquadrada, e quem volta depois de semanas não encontra a câmera onde a esqueceu.
+ * **O idioma é o do mapa do planeta**, de propósito: roda do mouse, botões −/+, "centralizar", e
+ * pinça de dois dedos (docs/decisoes.md D-154). O jogador aprende uma vez e usa nos três lugares.
+ * **O zoom não persiste** entre aberturas — a tela abre sempre enquadrada, e quem volta depois de
+ * semanas não encontra a câmera onde a esqueceu.
+ *
+ * **A pinça ancora no CENTRO da tela, não nos dedos** — mesmo idioma que a roda do mouse já tem
+ * aqui (ela também ignora onde o cursor está). O deslocamento do ponto médio entre um frame de
+ * `pointermove` e o anterior soma direto em `dx`/`dy`: pan e zoom saem do mesmo gesto sem precisar
+ * resolver "que ponto do jogo estava sob os dedos" — só compara com o frame de ANTES, nunca com o
+ * início do gesto, o que evita divergir depois de muitos frames.
  */
 export type Vista = { escala: number; dx: number; dy: number }
 
@@ -52,6 +59,11 @@ export function transformar(
   return [cx + (x - cx) * vista.escala + vista.dx, cy + (y - cy) * vista.escala + vista.dy]
 }
 
+/** A distância e o ponto médio entre dois pontos de tela — usada pela pinça, abaixo. */
+function distanciaEMeio(a: { x: number; y: number }, b: { x: number; y: number }) {
+  return { dist: Math.hypot(a.x - b.x, a.y - b.y), meio: { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 } }
+}
+
 /**
  * O estado da câmera, e os gestos que a movem.
  *
@@ -60,7 +72,9 @@ export function transformar(
  */
 export function useVista() {
   const [vista, setVista] = useState<Vista>(VISTA_INICIAL)
-  const arrastando = useRef<{ x: number; y: number } | null>(null)
+  // Um dedo (ou o mouse) arrasta; dois fazem pinça. A chave é o `pointerId` — sem isto não dá pra
+  // saber, no meio do gesto, quais dois pontos de tela pertencem a quais dedos.
+  const ponteiros = useRef<Map<number, { x: number; y: number }>>(new Map())
   const alvo = useRef<HTMLDivElement | null>(null)
 
   const ampliar = useCallback((fator: number) => {
@@ -101,23 +115,45 @@ export function useVista() {
     // trêmulo, não uma panorâmica — e roubar esse gesto tornaria os hexágonos difíceis de acertar.
     if ((e.target as HTMLElement).closest('button')) return
 
-    arrastando.current = { x: e.clientX, y: e.clientY }
+    ponteiros.current.set(e.pointerId, { x: e.clientX, y: e.clientY })
     ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
   }
 
   const aoMover = (e: React.PointerEvent) => {
-    const a = arrastando.current
-    if (!a) return
+    if (!ponteiros.current.has(e.pointerId)) return
 
-    const dx = e.clientX - a.x
-    const dy = e.clientY - a.y
-    arrastando.current = { x: e.clientX, y: e.clientY }
+    const antes = [...ponteiros.current.values()]
+    ponteiros.current.set(e.pointerId, { x: e.clientX, y: e.clientY })
+    const agora = [...ponteiros.current.values()]
 
-    setVista((v) => ({ ...v, dx: v.dx + dx, dy: v.dy + dy }))
+    if (agora.length >= 2) {
+      // Pinça: só os dois primeiros ponteiros contam — uma eventual terceira ponta (raro, mas
+      // possível) é ignorada, não estraga a conta dos dois primeiros.
+      const p = distanciaEMeio(antes[0], antes[1])
+      const q = distanciaEMeio(agora[0], agora[1])
+      if (p.dist === 0 || q.dist === 0) return
+
+      const fator = q.dist / p.dist
+      const dxMeio = q.meio.x - p.meio.x
+      const dyMeio = q.meio.y - p.meio.y
+
+      setVista((v) => {
+        const escala = limitarEscala(v.escala * fator)
+        const k = escala / v.escala
+
+        return { escala, dx: v.dx * k + dxMeio, dy: v.dy * k + dyMeio }
+      })
+
+      return
+    }
+
+    const a = antes[0]
+    const b = agora[0]
+    setVista((v) => ({ ...v, dx: v.dx + (b.x - a.x), dy: v.dy + (b.y - a.y) }))
   }
 
-  const aoSoltar = () => {
-    arrastando.current = null
+  const aoSoltar = (e: React.PointerEvent) => {
+    ponteiros.current.delete(e.pointerId)
   }
 
   return {
@@ -125,7 +161,13 @@ export function useVista() {
     alvo,
     ampliar,
     centralizar,
-    arrastando: arrastando.current !== null,
-    gestos: { onPointerDown: aoPressionar, onPointerMove: aoMover, onPointerUp: aoSoltar, onPointerLeave: aoSoltar },
+    arrastando: ponteiros.current.size > 0,
+    gestos: {
+      onPointerDown: aoPressionar,
+      onPointerMove: aoMover,
+      onPointerUp: aoSoltar,
+      onPointerCancel: aoSoltar,
+      onPointerLeave: aoSoltar,
+    },
   }
 }
