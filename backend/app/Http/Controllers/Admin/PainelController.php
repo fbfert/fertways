@@ -98,8 +98,12 @@ class PainelController extends Controller
             'lado' => MapaFertways::LADO,
             'raioFounder' => MapaFertways::RAIO_FOUNDER,
             'raioAnel' => MapaFertways::RAIO_ANEL,
-            'colonias' => Colony::with('user:id,nickname')->orderBy('id')->get(['id', 'name', 'x', 'y', 'user_id']),
-            'zonas' => NeutralZone::with('owner:id,name')->orderBy('id')->get(['id', 'x', 'y', 'district', 'mineral', 'owner_colony_id']),
+            // 'name'/'email' a mais que o marcador precisa: são pro modal da ficha rápida
+            // (clique na colônia), que mostra jogador + colônia + zonas sem sair do mapa.
+            'colonias' => Colony::with('user:id,nickname,name,email')->orderBy('id')
+                ->get(['id', 'name', 'x', 'y', 'user_id', 'fert_micro']),
+            'zonas' => NeutralZone::with('owner:id,name')->orderBy('id')
+                ->get(['id', 'x', 'y', 'district', 'mineral', 'owner_colony_id', 'deposit_amount']),
         ]);
     }
 

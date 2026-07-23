@@ -71,21 +71,70 @@
                 <title>Capital — Governo de Fertways</title>
             </rect>
 
-            {{-- As colônias: círculo, clicável — abre a ficha do jogador numa aba nova. --}}
+            {{-- As colônias: círculo, clicável — abre a ficha rápida (modal), sem sair do mapa. --}}
             @foreach ($colonias as $c)
-                @if ($c->user_id)
-                    <a href="{{ route('admin.jogador', $c->user_id) }}" target="_blank" data-colonia="{{ $c->id }}">
-                        <circle cx="{{ $px($c->x) }}" cy="{{ $py($c->y) }}" r="0.55" fill="var(--ink)" style="cursor:pointer">
-                            <title>{{ $c->name }} ({{ $c->user->nickname ?? '—' }}) — ({{ $c->x }}, {{ $c->y }}) · abrir ficha</title>
-                        </circle>
-                    </a>
-                @else
-                    <circle cx="{{ $px($c->x) }}" cy="{{ $py($c->y) }}" r="0.55" fill="var(--ink)">
-                        <title>{{ $c->name }} — ({{ $c->x }}, {{ $c->y }})</title>
-                    </circle>
-                @endif
+                <circle cx="{{ $px($c->x) }}" cy="{{ $py($c->y) }}" r="0.55" fill="var(--ink)"
+                        data-abrir-colonia="{{ $c->id }}" style="cursor:pointer">
+                    <title>{{ $c->name }} ({{ $c->user->nickname ?? '—' }}) — ({{ $c->x }}, {{ $c->y }}) · ver ficha</title>
+                </circle>
             @endforeach
         </svg>
+
+        {{--
+            Uma ficha por colônia, pronta desde o carregamento — não há requisição nenhuma no
+            clique. Nesta escala (poucas centenas de colônias no máximo) é mais simples que um
+            endpoint novo, e o `<template>` não pesa nada enquanto não é clonado.
+        --}}
+        @foreach ($colonias as $c)
+            <template id="ficha-colonia-{{ $c->id }}">
+                <h3 style="margin:0 0 4px;color:var(--rust);text-transform:uppercase;letter-spacing:.08em;font-size:.7rem">Jogador</h3>
+                <p style="margin:0 0 12px">
+                    <b>{{ $c->user->nickname ?? '—' }}</b>
+                    <span class="mut">({{ $c->user->name ?? '—' }})</span><br>
+                    <span class="mut pequeno">{{ $c->user->email ?? '—' }}</span>
+                    @if ($c->user && \App\Domain\Admin\Suspender::estaSuspenso($c->user))
+                        <br><span class="pilula alerta" style="margin-top:4px;display:inline-block">Suspenso</span>
+                    @endif
+                </p>
+
+                <h3 style="margin:0 0 4px;color:var(--rust);text-transform:uppercase;letter-spacing:.08em;font-size:.7rem">Colônia</h3>
+                <p style="margin:0 0 12px">
+                    <b>{{ $c->name }}</b> — ({{ $c->x }}, {{ $c->y }})<br>
+                    <span class="mut pequeno">Fert$ {{ number_format($c->fert_micro / 1000000, 2, ',', '.') }}</span>
+                </p>
+
+                <h3 style="margin:0 0 4px;color:var(--rust);text-transform:uppercase;letter-spacing:.08em;font-size:.7rem">Zonas neutras ocupadas</h3>
+                @php $zonasDaColonia = $zonas->where('owner_colony_id', $c->id); @endphp
+                @if ($zonasDaColonia->isEmpty())
+                    <p class="mut pequeno" style="margin:0">Nenhuma zona ocupada.</p>
+                @else
+                    <table style="margin:0">
+                        <tr><th>Distrito</th><th>Mineral</th><th class="num">Depósito</th></tr>
+                        @foreach ($zonasDaColonia as $z)
+                            <tr>
+                                <td>{{ ucfirst($z->district) }}</td>
+                                <td>{{ $z->mineral }}</td>
+                                <td class="num">{{ $z->deposit_amount }}</td>
+                            </tr>
+                        @endforeach
+                    </table>
+                @endif
+
+                @if ($c->user_id)
+                    <a href="{{ route('admin.jogador', $c->user_id) }}" target="_blank" class="pequeno"
+                       style="display:inline-block;margin-top:14px">Ver ficha completa →</a>
+                @endif
+            </template>
+        @endforeach
+    </div>
+
+    {{-- O modal da ficha rápida (D-145): overlay + caixa, escondido até um clique numa colônia. --}}
+    <div id="mapa-modal" style="display:none;position:fixed;inset:0;z-index:50;background:rgba(30,28,23,.55);align-items:center;justify-content:center">
+        <div class="cartao" style="max-width:420px;width:92%;max-height:80vh;overflow-y:auto;position:relative">
+            <button type="button" id="mapa-modal-fechar" title="Fechar"
+                    style="position:absolute;right:8px;top:8px;width:26px;height:26px;padding:0;line-height:1;background:transparent;color:var(--ink-soft);border:1px solid rgba(180,69,11,.3)">×</button>
+            <div id="mapa-modal-conteudo"></div>
+        </div>
     </div>
 
     <h2 class="secao">Legenda</h2>
@@ -197,6 +246,34 @@
             });
 
             aplicar();
+
+            // A ficha rápida (D-145): clonar o <template> da colônia clicada pra dentro do modal —
+            // sem requisição nenhuma, os dados já vieram todos no carregamento da página.
+            var modal = document.getElementById('mapa-modal');
+            var modalConteudo = document.getElementById('mapa-modal-conteudo');
+
+            function fecharModal() {
+                modal.style.display = 'none';
+            }
+
+            document.querySelectorAll('[data-abrir-colonia]').forEach(function (circulo) {
+                circulo.addEventListener('click', function () {
+                    var tpl = document.getElementById('ficha-colonia-' + circulo.getAttribute('data-abrir-colonia'));
+                    if (!tpl) return;
+                    modalConteudo.innerHTML = '';
+                    modalConteudo.appendChild(tpl.content.cloneNode(true));
+                    modal.style.display = 'flex';
+                });
+            });
+
+            document.getElementById('mapa-modal-fechar').addEventListener('click', fecharModal);
+            // Clicar no fundo escuro fecha; clicar dentro da caixa, não (o alvo não seria o overlay).
+            modal.addEventListener('click', function (e) {
+                if (e.target === modal) fecharModal();
+            });
+            document.addEventListener('keydown', function (e) {
+                if (e.key === 'Escape') fecharModal();
+            });
         })();
     </script>
 
