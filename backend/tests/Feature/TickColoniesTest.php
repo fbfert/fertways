@@ -85,6 +85,23 @@ class TickColoniesTest extends TestCase
     }
 
     /**
+     * O Reator no nível 15 (docs/decisoes.md D-157, curva estendida além do que o GDD publica —
+     * que vai só até o 5) produz 43.789 energia/h: 150 × 1,5¹⁴ arredondado half-even, a mesma
+     * curva de sempre. Sem o Gerador/Fazenda/Captação (zeradas): só o saldo do Reator sozinho.
+     */
+    public function test_o_reator_no_nivel_15_produz_o_topo_da_curva_estendida(): void
+    {
+        $user = $this->colono();
+        $this->zerarMiolo($user->colony);
+        $this->erguer($user, 'reator_de_energia', 15);
+
+        $user->colony->update(['last_tick_at' => now()->subHour()]);
+        $this->tick($user, now());
+
+        $this->assertSame(43789, $this->estoque($user, 'energia'));
+    }
+
+    /**
      * Sem carregar o resto, 100/h num tick de 1 minuto viraria floor(1,67) = 1 unidade,
      * e sessenta ticks renderiam 60 em vez de 100. Perda silenciosa de 40% da economia.
      */

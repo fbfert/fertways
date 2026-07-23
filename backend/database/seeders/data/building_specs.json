@@ -178,7 +178,7 @@
     {
         "type": "reator_de_energia",
         "nome": "Reator de Energia",
-        "max_level": 5,
+        "max_level": 15,
         "levels": [
             {
                 "level": 1,
@@ -233,6 +233,116 @@
                     "compostos_quimicos": 74,
                     "oxigenio": 59,
                     "biomassa": 37
+                }
+            },
+            {
+                "level": 6,
+                "build_time_seconds": 3180,
+                "cost": {
+                    "agua": 183,
+                    "ligas_metalicas": 489,
+                    "compostos_quimicos": 122,
+                    "oxigenio": 98,
+                    "biomassa": 61
+                }
+            },
+            {
+                "level": 7,
+                "build_time_seconds": 4800,
+                "cost": {
+                    "agua": 303,
+                    "ligas_metalicas": 807,
+                    "compostos_quimicos": 202,
+                    "oxigenio": 161,
+                    "biomassa": 101
+                }
+            },
+            {
+                "level": 8,
+                "build_time_seconds": 7200,
+                "cost": {
+                    "agua": 499,
+                    "ligas_metalicas": 1332,
+                    "compostos_quimicos": 333,
+                    "oxigenio": 266,
+                    "biomassa": 166
+                }
+            },
+            {
+                "level": 9,
+                "build_time_seconds": 10740,
+                "cost": {
+                    "agua": 824,
+                    "ligas_metalicas": 2198,
+                    "compostos_quimicos": 549,
+                    "oxigenio": 440,
+                    "biomassa": 275
+                }
+            },
+            {
+                "level": 10,
+                "build_time_seconds": 16140,
+                "cost": {
+                    "agua": 1360,
+                    "ligas_metalicas": 3626,
+                    "compostos_quimicos": 906,
+                    "oxigenio": 725,
+                    "biomassa": 453
+                }
+            },
+            {
+                "level": 11,
+                "build_time_seconds": 24240,
+                "cost": {
+                    "agua": 2244,
+                    "ligas_metalicas": 5983,
+                    "compostos_quimicos": 1496,
+                    "oxigenio": 1197,
+                    "biomassa": 748
+                }
+            },
+            {
+                "level": 12,
+                "build_time_seconds": 36300,
+                "cost": {
+                    "agua": 3702,
+                    "ligas_metalicas": 9872,
+                    "compostos_quimicos": 2468,
+                    "oxigenio": 1974,
+                    "biomassa": 1234
+                }
+            },
+            {
+                "level": 13,
+                "build_time_seconds": 54480,
+                "cost": {
+                    "agua": 6108,
+                    "ligas_metalicas": 16288,
+                    "compostos_quimicos": 4072,
+                    "oxigenio": 3258,
+                    "biomassa": 2036
+                }
+            },
+            {
+                "level": 14,
+                "build_time_seconds": 81720,
+                "cost": {
+                    "agua": 10078,
+                    "ligas_metalicas": 26875,
+                    "compostos_quimicos": 6719,
+                    "oxigenio": 5375,
+                    "biomassa": 3359
+                }
+            },
+            {
+                "level": 15,
+                "build_time_seconds": 122640,
+                "cost": {
+                    "agua": 16629,
+                    "ligas_metalicas": 44344,
+                    "compostos_quimicos": 11086,
+                    "oxigenio": 8869,
+                    "biomassa": 5543
                 }
             }
         ]

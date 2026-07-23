@@ -90,7 +90,9 @@ class GddSpecsTest extends TestCase
                 $conferidos++;
             }
         }
-        $this->assertSame(69, $conferidos, '14 tabelas × 5 níveis, menos 1 exceção');
+        // 14 tabelas × 5 níveis, menos 1 exceção, mais os níveis 6-15 do Reator (D-157) — que
+        // também batem com a MESMA curva/base, mesmo sendo arbitragem além do que o GDD publica.
+        $this->assertSame(79, $conferidos, '14 tabelas × 5 níveis, menos 1 exceção, mais os 10 níveis novos do Reator');
     }
 
     /** A exceção existe mesmo. Se o GDD for corrigido, este teste avisa para removê-la. */
@@ -162,13 +164,19 @@ class GddSpecsTest extends TestCase
         $this->assertEmpty($derivadosIndevidos->all(), 'tempo do GDD marcado como derivado');
     }
 
+    /**
+     * `reator_de_energia` NÃO está nesta lista de propósito: o GDD publica até o nível 5
+     * ("Reator de Energia (até o nível 5)", §4.2/§19), mas o usuário pediu a curva estendida até
+     * o 15 (docs/decisoes.md D-157) — o nível máximo dele deixou de ser um fato do GDD, é
+     * arbitragem. Mesmo motivo pelo qual o Depósito Local (D-105, D-108) também nunca esteve
+     * aqui: esta lista é só pra construções cujo teto ainda é o que o documento diz.
+     */
     public function test_niveis_maximos_batem_com_o_gdd(): void
     {
         $esperado = [
             'gerador_de_atmosfera' => 5,
             'estrutura_de_sobrevivencia' => 5,
             'fazenda' => 5,
-            'reator_de_energia' => 5,
             'captacao_de_agua' => 5,
             'central_de_transportes' => 10,
             'deposito_de_zona_neutra' => 10,

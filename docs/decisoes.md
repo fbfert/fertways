@@ -7780,3 +7780,73 @@ proporções de tela: 1920×1080 (paisagem) e 420×900 (retrato) — nos dois ca
 `viewBox` bate EXATAMENTE com a da tela (diferença < 0,01), inclusive depois de um zoom pela roda
 do mouse (a proporção não deriva no meio do gesto); screenshot confirma zero barra vazia nas
 laterais em qualquer dos dois casos.
+
+## D-157 — O Reator de Energia vai até o nível 15
+
+**Data:** 2026-07-23 · **Status:** pedido direto do usuário ("modificar a construção REATOR DE
+ENERGIA para que ele chegue ao nivel 15... proporcional ao que está valendo agora e com
+crescimento previsto no GDD") · **Arbitrado**
+
+O GDD publica o Reator só "até o nível 5" (§4.2/§19, o mesmo teto de todas as 5 essenciais e mais
+11 construções de progressão — um boilerplate do documento, não uma decisão específica do Reator).
+Pedido do usuário: estender at o nível 15, com custo/produção/tempo **proporcionais ao que já
+vale**, seguindo o crescimento que o próprio GDD já usa nos níveis existentes — não números
+inventados.
+
+### A mesma fórmula, só que mais longe — precedente direto: D-108 (Depósito Local até o 10)
+
+Todo o jogo já deriva os níveis 2-5 (e 2-10, pras 3 construções que o GDD publica até lá) de DUAS
+curvas fixas, comprovadas por `tests/Gdd/GddSpecsTest.php` reproduzindo os números do documento
+antes de extrapolar:
+
+- **Custo**: `half-UP(custo_nível_1 × 1,65^(n-1))`, por recurso — 50×1,65=82,5, e o GDD publica 83,
+  não 82.
+- **Tempo e produção**: `half-EVEN(base × 1,50^(n-1))` — 7×1,5=10,5, e o GDD publica 10 min pro
+  Reator nível 2, não 11. A base do Reator (§20.3-20.5) é 7,0 min, exata, não a versão já
+  arredondada do nível 1.
+
+Reproduzi os níveis 1-5 já publicados com estas duas fórmulas antes de estender — bateram exatos
+nos cinco, confirmando que a base e o arredondamento estão certos — e apliquei a MESMA conta aos
+níveis 6-15, por recurso e para a energia produzida:
+
+| Nível | Água | Ligas | Compostos | Oxigênio | Biomassa | Energia/h | Tempo |
+|---|---|---|---|---|---|---|---|
+| 6 | 183 | 489 | 122 | 98 | 61 | 1.139 | 53 min |
+| 7 | 303 | 807 | 202 | 161 | 101 | 1.709 | 80 min |
+| 8 | 499 | 1.332 | 333 | 266 | 166 | 2.563 | 120 min |
+| 9 | 824 | 2.198 | 549 | 440 | 275 | 3.844 | 179 min |
+| 10 | 1.360 | 3.626 | 906 | 725 | 453 | 5.767 | 269 min |
+| 11 | 2.244 | 5.983 | 1.496 | 1.197 | 748 | 8.650 | 404 min |
+| 12 | 3.702 | 9.872 | 2.468 | 1.974 | 1.234 | 12.975 | 605 min |
+| 13 | 6.108 | 16.288 | 4.072 | 3.258 | 2.036 | 19.462 | 908 min |
+| 14 | 10.078 | 26.875 | 6.719 | 5.375 | 3.359 | 29.193 | 1.362 min |
+| 15 | 16.629 | 44.344 | 11.086 | 8.869 | 5.543 | 43.789 | 2.044 min |
+
+`building_specs.json`/`production.json` são a fonte (dados, não código) — o `BuildingSpecSeeder`
+já é 100% dirigido por eles, sem número de nível hardcoded em lugar nenhum do domínio
+(`BuildingSpecs::nivelMaximo()` é só `MAX(level)` sobre o que existir na tabela); acrescentar as 10
+linhas novas bastou.
+
+### `reator_de_energia` sai da lista "bate com o GDD"
+
+`GddSpecsTest::test_niveis_maximos_batem_com_o_gdd` tem esse nome porque só lista construções cujo
+teto ainda é o que o documento diz. Removido de lá (mesmo tratamento que o Depósito Local, D-105,
+sempre teve — nunca esteve nessa lista) — o teto do Reator virou arbitragem, não fato do GDD. Já
+`test_tempo_publicado_sai_da_base_do_gdd_com_arredondamento_bancario` — que reconfere TODO
+`build_time_seconds` contra a curva, célula por célula — passou a validar os 10 níveis novos
+também: eles batem com a MESMA curva (é assim que foram calculados), então o teste continua
+verdadeiro e ganha uma rede de segurança de graça contra erro de aritmética na extensão. Contagem
+hardcoded `69` → `79` (14 tabelas × 5 níveis, menos 1 exceção, mais os 10 níveis novos do Reator).
+
+### Validado
+
+Dois testes novos em `BuildQueueTest.php` (o 14→15 é aceito; o 15→16 recusa com `nivel_maximo` —
+prova que o TETO mudou, não só o dado) e um em `TickColoniesTest.php` (Reator nível 15 sozinho
+produz exatos 43.789 energia/h, o topo da curva). Suíte inteira: **927 passando** (5425
+assertions). `tools/e2e.sh` completo: **332 verificações, zero falhas**.
+
+### ⚠️ Produção precisa de reseed depois do deploy
+
+Mesma lição do D-106/D-108, repetida: os níveis novos só existem depois de `php artisan db:seed
+--class=BuildingSpecSeeder --force` rodar contra o banco de produção — o deploy sozinho não
+resemeia `building_specs`.

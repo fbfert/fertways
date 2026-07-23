@@ -246,6 +246,34 @@ class BuildQueueTest extends TestCase
             ->assertStatus(422)->assertJsonPath('code', 'nivel_maximo');
     }
 
+    /**
+     * O Reator de Energia é o único caso onde o teto NÃO é o do GDD (que publica só até o nível
+     * 5) — o usuário pediu a curva estendida até o 15 (docs/decisoes.md D-157). O mecanismo de
+     * bloqueio é o mesmo de sempre (`nivel_maximo`, testado de forma genérica acima); o que estes
+     * dois testes provam é que o TETO em si mudou pra este prédio específico: 14→15 é permitido
+     * (não existia antes desta mudança), e só o 15→16 é que recusa.
+     */
+    public function test_o_reator_de_energia_pode_subir_do_14_ao_15(): void
+    {
+        $user = $this->colono();
+        $reator = $this->predio($user, 'reator_de_energia');
+        $reator->update(['level' => 14]);
+        $this->darRecursos($user->colony, 100_000);
+
+        $this->actingAs($user)->postJson("/buildings/{$reator->id}/upgrade")->assertCreated();
+    }
+
+    public function test_o_reator_de_energia_nao_passa_do_nivel_15(): void
+    {
+        $user = $this->colono();
+        $reator = $this->predio($user, 'reator_de_energia');
+        $reator->update(['level' => 15]);
+        $this->darRecursos($user->colony, 100_000);
+
+        $this->actingAs($user)->postJson("/buildings/{$reator->id}/upgrade")
+            ->assertStatus(422)->assertJsonPath('code', 'nivel_maximo');
+    }
+
     public function test_nao_enfileira_construcao_de_outro_jogador(): void
     {
         $a = $this->colono();
