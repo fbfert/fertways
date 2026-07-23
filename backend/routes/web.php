@@ -24,6 +24,9 @@ Route::prefix('admin')->group(function () {
 
         // ── As seções (D-61). Eram uma página só; o CRUD e a auditoria não caberiam nela. ──
         Route::get('/', [PainelController::class, 'dashboard'])->name('admin.dashboard');
+        // O planeta 101×101 inteiro, sem névoa — a mesma visão espacial do jogador, mas por cima de
+        // tudo (D-145). Só leitura: nenhuma ação parte daqui.
+        Route::get('/mapa', [PainelController::class, 'mapa'])->name('admin.mapa');
         Route::get('/jogadores', [PainelController::class, 'jogadores'])->name('admin.jogadores');
         Route::get('/jogadores/{user}', [PainelController::class, 'jogador'])->name('admin.jogador');
         Route::get('/ministerio', [PainelController::class, 'ministerio'])->name('admin.ministerio');

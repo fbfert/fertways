@@ -7,6 +7,7 @@ use App\Domain\Admin\RealocarColonia;
 use App\Domain\Admin\Suspender;
 use App\Domain\Building\Funcoes;
 use App\Domain\Chat\ContaSistema;
+use App\Domain\Logistics\MapaFertways;
 use App\Domain\Media\Biblioteca;
 use App\Domain\Media\Vinculaveis;
 use App\Domain\Ministry\PunicaoSpecs;
@@ -84,6 +85,22 @@ class PainelController extends Controller
         }
 
         return view('admin.dashboard', $dados);
+    }
+
+    /**
+     * O planeta 101×101 inteiro, sem névoa (D-145) — a mesma visão espacial do mapa do jogador
+     * (`frontend/src/ui/Mapa.tsx`), mas por cima de tudo: todas as colônias, todas as 120 zonas.
+     * Só leitura; a navegação (zoom/pan) é toda vanilla JS na view, o painel não tem SPA.
+     */
+    public function mapa(): View
+    {
+        return view('admin.mapa', [
+            'lado' => MapaFertways::LADO,
+            'raioFounder' => MapaFertways::RAIO_FOUNDER,
+            'raioAnel' => MapaFertways::RAIO_ANEL,
+            'colonias' => Colony::with('user:id,nickname')->orderBy('id')->get(['id', 'name', 'x', 'y', 'user_id']),
+            'zonas' => NeutralZone::with('owner:id,name')->orderBy('id')->get(['id', 'x', 'y', 'district', 'mineral', 'owner_colony_id']),
+        ]);
     }
 
     // ─────────────────────────────────────────────────────────── Jogadores

@@ -7142,3 +7142,63 @@ as chaves antigas (`'wall_level' => 3`) e roteá-las para `zone_structures` por 
 arquivos de teste não precisou mudar além da fábrica. e2e (`frontend/e2e/zonas.e2e.mjs`) reescrito
 para a colmeia (22 slots, estados posto/erguida/vazio/trancado, catálogo por `<select>`) e verde de
 ponta a ponta contra a stack real (`tools/e2e.sh`), migration incluída.
+
+## D-145 — O painel admin ganha uma aba Mapa: o planeta 101×101 inteiro, sem névoa
+
+**Data:** 2026-07-22 · **Status:** pedido direto do usuário ("uma aba nova que será o MAPA... vamos
+precisar do zoom in/out") · **Arbitrado, em conjunto com o usuário**
+
+A única visão espacial que o painel tinha eram duas tabelas de texto (`admin.dashboard?aba=colonias`
+e `?aba=logistica`) com `(x, y)` como string — quem investigava um caso de suporte não conseguia
+"ver" o planeta. O pedido era literal: uma aba nova que desenhe a grade 101×101
+(`MapaFertways::LADO`) inteira, navegável com zoom.
+
+### O que foi decidido com o usuário
+
+Três perguntas, três respostas, antes de escrever qualquer código:
+
+1. **Visibilidade**: tudo de uma vez, sem névoa — é ferramenta interna, e o próprio mapa do jogador
+   já não usa névoa nenhuma (D-37).
+2. **Ações**: só leitura/diagnóstico por enquanto. Nenhuma ação (realocar colônia, editar zona) parte
+   do mapa — quem quiser agir usa as telas que já existem. A única exceção é navegação pura: clicar
+   numa colônia abre a ficha do jogador (`admin.jogador`) numa aba nova, porque é o atalho que quem
+   investiga um caso de suporte vai querer.
+3. **Reuso**: a exploração revelou que a pergunta era, na prática, moot — o painel admin é **Blade
+   server-rendered puro** (D-61: "sem SPA"), sem runtime React nem bundler nenhum. `Mapa.tsx` não
+   podia ser importado de jeito nenhum; a única forma de ter zoom/pan ali é um `<script>` vanilla
+   novo, o **primeiro** desta tela desde que ela existe.
+
+### A geometria: célula = 1 unidade de SVG, sem a camada de `geometria.ts`
+
+O mapa do jogador usa um `viewBox` de 1000 unidades (`LADO_SVG`) com uma calha fracionária pras
+réguas, porque precisa de zoom decimal fino e réguas que não escorregam com o arraste (D-64). O
+admin não precisa dessa precisão: o `viewBox` do SVG é **diretamente em unidades de célula** (0 a
+101), com a mesma fórmula de centro de `projecaoDoPlaneta` (`px = x + 50,5`, `py = 50,5 − y`), só
+que 1 unidade de SVG = 1 célula. Isso elimina a calha inteira e a maior parte da matemática de
+`geometria.ts`/`Grade.tsx` — não havia por que portar a solução de um problema (precisão sub-pixel)
+que aqui não existe.
+
+Consequência prática: **zoom e arraste são só `viewBox.setAttribute`** — todo o desenho (grade,
+disco de founders, Capital, as 120 zonas, as colônias) é renderizado **uma vez, no servidor**, via
+`@foreach` do Blade, com os dados de `Colony`/`NeutralZone` já carregados. Não há JS reconstruindo
+nada a partir de JSON; o `<script>` só lê e escreve o `viewBox`, ancora o zoom no cursor (roda do
+mouse) ou no centro (botões +/−), e arrasta por delta de pixel — o mesmo princípio de `Mapa.tsx`,
+sem a sofisticação de "a vista nunca sai da borda" (D-64), porque aqui não existe "minha colônia"
+pra manter centralizada: um clamp simples em `[0, 101−largura]` basta. O traço da grade (204 linhas,
+sempre todas desenhadas — sem sparsificação, porque não há texto por linha aqui) usa
+`vector-effect="non-scaling-stroke"` pra ficar fino em qualquer zoom, sem o fator `k` que
+`Grade.tsx` calcula à mão.
+
+O disco de founders e o anel livre (D-51) viram dois círculos translúcidos (raio `RAIO_FOUNDER`/
+`RAIO_ANEL`, de `MapaFertways`) em vez da sombra célula-a-célula que `Faixas` (`Grade.tsx`) desenha
+pro jogador — lá a fronteira exata importa pra decidir onde fundar; aqui é só panorama. Os 48 slots
+de founder reservado-vs-populável (`MapaFertways::slotsFounder()`) ficaram de fora desta primeira
+versão — mais uma camada de marcadores sem uso claro ainda; fácil de acrescentar se pedirem.
+
+### Validado
+
+Novo `AdminMapaTest.php` (rota bloqueada pro colono, dados corretos chegando à view) e a suíte
+inteira: **894 passando** (5185 assertions). Verificação em navegador de verdade: stack efêmera em
+SQLite (mesmo padrão de segurança do `tools/e2e.sh` — nunca toca produção/dev), Puppeteer confirmando
+login, zoom in/out ancorado corretamente (viewBox encolhe e recentra), arraste (viewBox desloca na
+direção certa), e os tooltips de zona/colônia com os dados certos.
