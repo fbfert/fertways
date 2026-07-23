@@ -162,6 +162,10 @@ Route::prefix('admin')->group(function () {
              * Fora do painel, e é aí que ele deve ficar.
              */
             Route::post('/realocar-manual', [AcoesController::class, 'realocarManual'])->name('admin.realocar.manual');
+
+            // Mesma ação, uma terceira porta: origem e destino escolhidos por clique no mapa
+            // (D-146). Continua um-de-cada-vez — a decisão de 2026-07-13 acima vale aqui também.
+            Route::post('/mapa/realocar', [AcoesController::class, 'realocarPeloMapa'])->name('admin.mapa.realocar');
         });
     });
 });

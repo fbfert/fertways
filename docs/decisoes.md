@@ -7202,3 +7202,80 @@ inteira: **894 passando** (5185 assertions). Verificação em navegador de verda
 SQLite (mesmo padrão de segurança do `tools/e2e.sh` — nunca toca produção/dev), Puppeteer confirmando
 login, zoom in/out ancorado corretamente (viewBox encolhe e recentra), arraste (viewBox desloca na
 direção certa), e os tooltips de zona/colônia com os dados certos.
+
+### D-145 (complemento) — a ficha rápida em modal
+
+Clicar numa colônia ia direto pra `admin.jogador` (aba nova). Virou um modal na hora: um
+`<template>` por colônia (jogador — nickname/nome/e-mail/suspenso; colônia — nome/posição/Fert$;
+zonas neutras ocupadas — distrito/mineral/depósito) já renderizado no carregamento da página, sem
+requisição nenhuma no clique. O link "Ver ficha completa →" continua levando pra tela cheia (aba
+nova) pra quem precisar do resto (construções, frota, denúncias, ledger) — o modal é atalho, não
+substituto.
+
+## D-146 — "Mover Colônias": realocar por dois cliques no mapa, mesma trava de sempre
+
+**Data:** 2026-07-22 · **Status:** pedido direto do usuário ("um botão Mover Colônias... clicar na
+colônia a ser movida e depois no destino") · **Arbitrado, em conjunto com o usuário**
+
+O mapa (D-145) era só leitura. Este pedido é a primeira ação de verdade nele — mas a ação, **por
+baixo**, já existia e já era madura: `App\Domain\Admin\RealocarColonia` (D-61), até aqui só acionável
+pela ficha do jogador ou por uma tela avulsa em Operação. Perguntei antes de desenhar, porque havia
+uma decisão anterior do próprio usuário em jogo.
+
+### A decisão de 2026-07-13 que isto NÃO reabre
+
+Existiu um botão "Realocar founders" que movia **todas** as colônias de uma vez; foi retirado de
+propósito (comentário em `routes/web.php:153-162`) — "realocar é ato pontual... um botão que
+remaneja o planeta inteiro é perigoso demais para viver ao lado do Disparar tick". "Mover Colônias"
+continua sendo estritamente um-de-cada-vez: um clique de origem, um de destino, um formulário, uma
+auditoria. Não há lote, não há "mover todas as colônias de um distrito" — o próprio pedido do usuário
+já era singular ("a colônia... o destino"), e a decisão antiga confirma que é para continuar assim.
+
+### As três perguntas respondidas com o usuário
+
+1. **Destino inválido**: mostra erro e deixa escolher outro, sem sair do modo — o admin não perde a
+   origem já escolhida por ter clicado errado uma vez.
+2. **Confirmação**: um passo explícito, mostrando origem→destino, antes de gravar.
+3. **Permissão**: só o Dono — a mesma restrição que a realocação já tem nos outros dois lugares
+   (`admin.jogador.realocar`, `admin.realocar.manual`), e pela mesma razão do comentário de
+   `ExigirDono`: muda a distância — o eixo de toda a logística — e afeta o mundo de outros
+   jogadores.
+
+### Backend: uma terceira porta, zero mudança no domínio
+
+`AcoesController::realocarManual()` já fazia exatamente isto (`colony_id`/`x`/`y`/`motivo`/
+`confirmacao === 'REALOCAR'`, chama `RealocarColonia::handle()`), só que redireciona pra
+`admin.operacao` no sucesso. Em vez de parametrizar o redirecionamento com um campo do request (abrir
+um redirect confiado no cliente por uma economia de 15 linhas), segui o padrão que o próprio arquivo
+já usa — `realocarColonia` pra rota por usuário, `realocarManual` pra rota por id, cada um só um
+método fino que muda a porta de entrada — e escrevi um terceiro, `realocarPeloMapa`, redirecionando
+pra `admin.mapa`. `RealocarColonia`, `NeutralZone`, `Colony` e os testes de realocação já existentes
+não mudaram uma linha: o domínio nunca soube (nem precisa saber) de onde veio o pedido.
+
+### Frontend: uma máquina de estados de dois cliques, sem view nem endpoint novo
+
+`data-x`/`data-y`/`data-nome` novos em cada círculo de colônia (além do `data-abrir-colonia` que já
+existia) dão ao JS a posição/nome crus, sem reconverter nada a partir do SVG. Fora do modo, clicar
+numa colônia continua abrindo a ficha rápida (D-145) — comportamento intocado. Ligado o modo: o
+primeiro clique numa colônia é a origem (realce visual); um clique nela de novo cancela a escolha,
+sem sair do modo; um clique em QUALQUER outro lugar do SVG — vazio, zona, ou em cima de outra
+colônia — é o destino, calculado pela mesma matemática que já lia a célula sob o cursor. Os dois
+casos óbvios (Capital; mesma posição) e o caso "célula ocupada por outra colônia" (que o próprio
+clique nela já resolve, sem round-trip) são checados no cliente só para feedback imediato — a
+validação de verdade continua sendo `RealocarColonia::handle()`, no servidor. Destino válido abre o
+MESMO modal do D-145 (uma segunda "vista" dentro dele, `#mapa-form-mover`, alternando com a ficha
+rápida — só uma visível de cada vez, pra um não apagar o outro), com um formulário de verdade
+(`@csrf`, POST, recarrega a página) que exige a mesma palavra `REALOCAR` de sempre. O resumo
+"mover X de (a,b) para (c,d)" é montado por `createElement`/`textContent`, não concatenação de
+string — nome de colônia é dado de jogador. Cancelar fecha o modal sem perder a origem (volta a
+"aguardando destino"); só o botão "Mover Colônias" de novo sai do modo de verdade.
+
+### Validado
+
+Cinco casos novos em `AdminMapaTest.php` (botão só aparece pro Dono; Dono move e a colônia muda de
+posição; operador toma 403 e a colônia não se move; palavra de confirmação errada recusa; destino
+ocupado por outra colônia recusa) — suíte inteira: **899 passando** (5197 assertions). Verificação em
+navegador de verdade (stack efêmera em SQLite, nunca toca produção/dev): liguei o modo, escolhi a
+origem, cliquei a Capital (erro inline, sem abrir modal), cliquei uma célula livre (modal com o
+resumo e os três campos ocultos certos), confirmei com a palavra, e vi a colônia na nova posição
+após o reload, com o flash de sucesso.

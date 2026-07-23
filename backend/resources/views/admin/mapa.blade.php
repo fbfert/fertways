@@ -10,6 +10,7 @@
     $meia = intdiv($lado, 2);
     $px = fn (int $x) => $x + $meia + 0.5;
     $py = fn (int $y) => $lado - $meia - 0.5 - $y;
+    $dono = auth('admin')->user()->ehDono();
 @endphp
 
 @section('content')
@@ -18,8 +19,24 @@
     <p class="mut pequeno">
         O planeta {{ $lado }}×{{ $lado }} inteiro, sem névoa — {{ $colonias->count() }} colônia(s) e
         {{ $zonas->count() }} zonas neutras. Arraste para mover, role o mouse ou use os botões para o
-        zoom. Só leitura: nenhuma ação parte daqui.
+        zoom.
+        @if ($dono)
+            A única ação daqui é mover colônia — o resto é leitura.
+        @else
+            Só leitura: nenhuma ação parte daqui.
+        @endif
     </p>
+
+    @if ($dono)
+        {{--
+            Mover Colônias (D-146): um-de-cada-vez, igual à realocação manual que já existe — só a
+            porta de entrada é nova (dois cliques no mapa, em vez de um formulário de x/y).
+        --}}
+        <div class="cartao" style="margin-bottom:10px;display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+            <button type="button" class="leve" id="mapa-mover-toggle" data-mover-colonias>Mover Colônias</button>
+            <span id="mapa-mover-instrucao" class="mut pequeno" style="min-height:1.2em"></span>
+        </div>
+    @endif
 
     <div class="cartao" style="padding:0;position:relative;overflow:hidden">
         <div style="position:absolute;right:8px;top:8px;z-index:2;display:flex;flex-direction:column;gap:4px">
@@ -71,10 +88,16 @@
                 <title>Capital — Governo de Fertways</title>
             </rect>
 
-            {{-- As colônias: círculo, clicável — abre a ficha rápida (modal), sem sair do mapa. --}}
+            {{--
+                As colônias: círculo, clicável — abre a ficha rápida (modal), sem sair do mapa.
+                `data-x`/`data-y`/`data-nome` carregam a posição/nome crus: é o que o modo "Mover
+                Colônias" (D-146) usa pra saber, sem reconverter nada, qual célula é "ocupada por
+                quem" ao validar o destino no cliente.
+            --}}
             @foreach ($colonias as $c)
                 <circle cx="{{ $px($c->x) }}" cy="{{ $py($c->y) }}" r="0.55" fill="var(--ink)"
-                        data-abrir-colonia="{{ $c->id }}" style="cursor:pointer">
+                        data-abrir-colonia="{{ $c->id }}" data-x="{{ $c->x }}" data-y="{{ $c->y }}"
+                        data-nome="{{ $c->name }}" style="cursor:pointer">
                     <title>{{ $c->name }} ({{ $c->user->nickname ?? '—' }}) — ({{ $c->x }}, {{ $c->y }}) · ver ficha</title>
                 </circle>
             @endforeach
@@ -128,12 +151,50 @@
         @endforeach
     </div>
 
-    {{-- O modal da ficha rápida (D-145): overlay + caixa, escondido até um clique numa colônia. --}}
+    {{--
+        O modal (D-145/D-146): overlay + caixa, escondido até um clique numa colônia. Dois
+        conteúdos possíveis dentro da MESMA caixa — a ficha rápida (`#mapa-modal-conteudo`,
+        clonada de um `<template>` por colônia) e a confirmação de mover (`#mapa-form-mover`,
+        estática, sempre a mesma) — só um visível de cada vez, pra um não apagar o outro.
+    --}}
     <div id="mapa-modal" style="display:none;position:fixed;inset:0;z-index:50;background:rgba(30,28,23,.55);align-items:center;justify-content:center">
         <div class="cartao" style="max-width:420px;width:92%;max-height:80vh;overflow-y:auto;position:relative">
             <button type="button" id="mapa-modal-fechar" title="Fechar"
                     style="position:absolute;right:8px;top:8px;width:26px;height:26px;padding:0;line-height:1;background:transparent;color:var(--ink-soft);border:1px solid rgba(180,69,11,.3)">×</button>
             <div id="mapa-modal-conteudo"></div>
+
+            @if ($dono)
+                {{--
+                    A confirmação de mover (D-146): mesma trava de sempre — motivo obrigatório e a
+                    palavra REALOCAR (`RealocarColonia`/`AcoesController::realocarPeloMapa`). Os
+                    três campos ocultos são preenchidos pelo JS na hora de abrir; o resumo
+                    (`#mapa-mover-resumo`) usa `textContent`, não HTML — nome de colônia é dado de
+                    jogador.
+                --}}
+                <div id="mapa-form-mover" style="display:none">
+                    <h3 style="margin:0 0 8px;color:var(--rust);text-transform:uppercase;letter-spacing:.08em;font-size:.7rem">Mover colônia</h3>
+                    <p class="pequeno" id="mapa-mover-resumo" style="margin:0 0 12px"></p>
+                    <form method="POST" action="{{ route('admin.mapa.realocar') }}">
+                        @csrf
+                        <input type="hidden" name="colony_id" id="mapa-mover-colony-id">
+                        <input type="hidden" name="x" id="mapa-mover-x">
+                        <input type="hidden" name="y" id="mapa-mover-y">
+                        <div style="margin-bottom:10px">
+                            <label class="pequeno mut">Motivo</label>
+                            <input type="text" name="motivo" required maxlength="255">
+                        </div>
+                        <div style="margin-bottom:10px">
+                            <label class="pequeno mut">Escreva REALOCAR pra confirmar</label>
+                            <input type="text" name="confirmacao" required placeholder="REALOCAR">
+                        </div>
+                        <p class="mut pequeno">A viagem de todo veículo em rota será refeita a partir da nova posição.</p>
+                        <div style="display:flex;gap:8px;margin-top:8px">
+                            <button type="submit" class="perigo" style="flex:1">Mover</button>
+                            <button type="button" id="mapa-mover-cancelar" class="leve">Cancelar</button>
+                        </div>
+                    </form>
+                </div>
+            @endif
         </div>
     </div>
 
@@ -251,19 +312,148 @@
             // sem requisição nenhuma, os dados já vieram todos no carregamento da página.
             var modal = document.getElementById('mapa-modal');
             var modalConteudo = document.getElementById('mapa-modal-conteudo');
+            var formMover = document.getElementById('mapa-form-mover'); // não existe pra quem não é dono
 
+            // Mover Colônias (D-146): a máquina de dois cliques — origem, depois destino.
+            var modoMover = false;
+            var origem = null; // { id, x, y, nome }
+            var circuloOrigem = null;
+            var btnMover = document.getElementById('mapa-mover-toggle');
+            var instrucao = document.getElementById('mapa-mover-instrucao');
+
+            function definirInstrucao(texto, ehErro) {
+                if (!instrucao) return;
+                instrucao.textContent = texto;
+                instrucao.style.color = ehErro ? 'var(--rust)' : '';
+            }
+
+            function realcarOrigem(circulo) {
+                if (circuloOrigem) {
+                    circuloOrigem.setAttribute('fill', 'var(--ink)');
+                    circuloOrigem.removeAttribute('stroke');
+                    circuloOrigem.removeAttribute('stroke-width');
+                }
+                circuloOrigem = circulo;
+                if (circulo) {
+                    circulo.setAttribute('fill', 'var(--rust)');
+                    circulo.setAttribute('stroke', 'var(--ink)');
+                    circulo.setAttribute('stroke-width', '0.15');
+                }
+            }
+
+            // Fecha o modal. Se era a confirmação de mover, NÃO cancela a origem — o admin volta a
+            // "aguardando destino" pra tentar outra célula, sem escolher a colônia de novo.
             function fecharModal() {
                 modal.style.display = 'none';
+                if (modoMover && origem) {
+                    definirInstrucao('Mover ' + origem.nome + ': clique no destino.');
+                }
+            }
+
+            function abrirFicha(circulo) {
+                var tpl = document.getElementById('ficha-colonia-' + circulo.getAttribute('data-abrir-colonia'));
+                if (!tpl) return;
+                modalConteudo.innerHTML = '';
+                modalConteudo.appendChild(tpl.content.cloneNode(true));
+                modalConteudo.style.display = 'block';
+                if (formMover) formMover.style.display = 'none';
+                modal.style.display = 'flex';
+            }
+
+            function abrirConfirmacaoMover(x, y) {
+                document.getElementById('mapa-mover-colony-id').value = origem.id;
+                document.getElementById('mapa-mover-x').value = x;
+                document.getElementById('mapa-mover-y').value = y;
+
+                // DOM, não string: o nome da colônia é dado de jogador.
+                var resumo = document.getElementById('mapa-mover-resumo');
+                resumo.textContent = '';
+                resumo.appendChild(document.createTextNode('Mover '));
+                var b = document.createElement('b');
+                b.textContent = origem.nome;
+                resumo.appendChild(b);
+                resumo.appendChild(document.createTextNode(
+                    ' de (' + origem.x + ', ' + origem.y + ') para (' + x + ', ' + y + ')?'
+                ));
+
+                modalConteudo.style.display = 'none';
+                formMover.style.display = 'block';
+                modal.style.display = 'flex';
+            }
+
+            if (btnMover) {
+                btnMover.addEventListener('click', function () {
+                    modoMover = !modoMover;
+                    origem = null;
+                    realcarOrigem(null);
+                    btnMover.style.background = modoMover ? 'var(--rust)' : '';
+                    btnMover.style.color = modoMover ? 'var(--sand-light)' : '';
+                    btnMover.style.borderColor = modoMover ? 'var(--rust)' : '';
+                    definirInstrucao(modoMover ? 'Clique na colônia a mover.' : '');
+                });
+            }
+
+            var btnMoverCancelar = document.getElementById('mapa-mover-cancelar');
+            if (btnMoverCancelar) {
+                btnMoverCancelar.addEventListener('click', fecharModal);
             }
 
             document.querySelectorAll('[data-abrir-colonia]').forEach(function (circulo) {
                 circulo.addEventListener('click', function () {
-                    var tpl = document.getElementById('ficha-colonia-' + circulo.getAttribute('data-abrir-colonia'));
-                    if (!tpl) return;
-                    modalConteudo.innerHTML = '';
-                    modalConteudo.appendChild(tpl.content.cloneNode(true));
-                    modal.style.display = 'flex';
+                    if (!modoMover) {
+                        abrirFicha(circulo);
+                        return;
+                    }
+
+                    var id = circulo.getAttribute('data-abrir-colonia');
+
+                    if (origem && origem.id === id) {
+                        // A mesma colônia de novo: cancela a origem, sem sair do modo.
+                        origem = null;
+                        realcarOrigem(null);
+                        definirInstrucao('Clique na colônia a mover.');
+                        return;
+                    }
+
+                    if (!origem) {
+                        origem = {
+                            id: id,
+                            x: Number(circulo.getAttribute('data-x')),
+                            y: Number(circulo.getAttribute('data-y')),
+                            nome: circulo.getAttribute('data-nome'),
+                        };
+                        realcarOrigem(circulo);
+                        definirInstrucao('Mover ' + origem.nome + ': clique no destino.');
+                        return;
+                    }
+
+                    // Já tem origem, e o clique caiu em OUTRA colônia: destino ocupado.
+                    definirInstrucao('Destino ocupado por ' + circulo.getAttribute('data-nome') + '.', true);
                 });
+            });
+
+            // O destino: um clique em qualquer lugar do SVG, exceto numa colônia (o caso acima já
+            // trata isso — clicar duas vezes no mesmo alvo aqui duplicaria a mensagem).
+            svg.addEventListener('click', function (e) {
+                if (!modoMover || !origem) return;
+                if (e.target.hasAttribute && e.target.hasAttribute('data-abrir-colonia')) return;
+
+                var p = pontoNoSvg(e.clientX, e.clientY);
+                if (!p) return;
+                var x = Math.round(p.x - meia - 0.5);
+                var y = Math.round(lado - meia - 0.5 - p.y);
+                if (Math.abs(x) > meia || Math.abs(y) > meia) return;
+
+                if (x === 0 && y === 0) {
+                    definirInstrucao('A Capital não se move.', true);
+                    return;
+                }
+                if (x === origem.x && y === origem.y) {
+                    definirInstrucao('Já é a posição atual de ' + origem.nome + '.', true);
+                    return;
+                }
+
+                abrirConfirmacaoMover(x, y);
             });
 
             document.getElementById('mapa-modal-fechar').addEventListener('click', fecharModal);

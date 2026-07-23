@@ -1750,6 +1750,35 @@ class AcoesController extends Controller
         }, 'admin.operacao');
     }
 
+    /**
+     * A mesma realocação, pela terceira porta: origem e destino escolhidos por clique no mapa
+     * (D-146). Idêntico a `realocarManual()` — só o redirecionamento de sucesso muda, de volta
+     * pro mapa em vez de Operação. O erro já cai em `redirect()->back()`, que devolve pro mapa
+     * naturalmente (é o referer): é assim que "destino inválido" aparece e deixa escolher outro.
+     */
+    public function realocarPeloMapa(Request $request, RealocarColonia $realocar): RedirectResponse
+    {
+        $dados = $request->validate([
+            'colony_id' => ['required', 'integer', 'exists:colonies,id'],
+            'x' => ['required', 'integer'],
+            'y' => ['required', 'integer'],
+            'motivo' => ['required', 'string', 'max:255'],
+            'confirmacao' => ['required', 'string'],
+        ]);
+
+        if ($dados['confirmacao'] !== 'REALOCAR') {
+            return $this->erro('Para realocar, escreva REALOCAR. A viagem de todo veículo em rota será refeita.');
+        }
+
+        $colonia = Colony::findOrFail($dados['colony_id']);
+
+        return $this->tentarJaAuditado(function () use ($realocar, $colonia, $dados) {
+            $realocar->handle($colonia, (int) $dados['x'], (int) $dados['y'], $dados['motivo']);
+
+            return "{$colonia->name} realocada para ({$dados['x']}, {$dados['y']}).";
+        }, 'admin.mapa');
+    }
+
     // ── Gestão de imagens (D-68) ─────────────────────────────────────────────
 
     /** Envia um PNG para a biblioteca. O arquivo vai para fora da árvore de deploy. */

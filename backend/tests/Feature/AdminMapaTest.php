@@ -34,6 +34,22 @@ class AdminMapaTest extends TestCase
         return Admin::create(['name' => 'Equipe', 'email' => 'eq@t.test', 'password' => Hash::make('segredo-forte-123')]);
     }
 
+    private function dono(): Admin
+    {
+        return Admin::create([
+            'name' => 'Dona', 'email' => 'dona@t.test',
+            'password' => Hash::make('segredo-forte-123'), 'role' => Admin::DONO,
+        ]);
+    }
+
+    private function operador(): Admin
+    {
+        return Admin::create([
+            'name' => 'Op', 'email' => 'op@t.test',
+            'password' => Hash::make('segredo-forte-123'), 'role' => Admin::OPERADOR,
+        ]);
+    }
+
     private function colonia(string $nick, int $x, int $y): Colony
     {
         $user = User::create([
@@ -65,5 +81,67 @@ class AdminMapaTest extends TestCase
         $resposta->assertViewHas('zonas', fn ($zonas) => $zonas->contains('id', $zona->id));
         $resposta->assertSee('Mapa');
         $resposta->assertSee('data-mapa-admin', false);
+    }
+
+    public function test_so_o_dono_ve_o_botao_de_mover_colonias(): void
+    {
+        $this->actingAs($this->dono(), 'admin')->get('/admin/mapa')
+            ->assertSee('data-mover-colonias', false);
+
+        $this->actingAs($this->operador(), 'admin')->get('/admin/mapa')
+            ->assertDontSee('data-mover-colonias', false);
+    }
+
+    public function test_o_dono_move_uma_colonia_pelo_mapa(): void
+    {
+        $c = $this->colonia('fulano', 12, -8);
+
+        $resposta = $this->actingAs($this->dono(), 'admin')->post('/admin/mapa/realocar', [
+            'colony_id' => $c->id, 'x' => 20, 'y' => 30,
+            'motivo' => 'teste de realocação pelo mapa', 'confirmacao' => 'REALOCAR',
+        ]);
+
+        $resposta->assertRedirect(route('admin.mapa'));
+        $resposta->assertSessionHas('ok');
+        $this->assertSame([20, 30], [$c->fresh()->x, $c->fresh()->y]);
+    }
+
+    public function test_um_operador_nao_move_colonia_pelo_mapa(): void
+    {
+        $c = $this->colonia('fulano', 12, -8);
+
+        $this->actingAs($this->operador(), 'admin')->post('/admin/mapa/realocar', [
+            'colony_id' => $c->id, 'x' => 20, 'y' => 30,
+            'motivo' => 'teste', 'confirmacao' => 'REALOCAR',
+        ])->assertForbidden();
+
+        $this->assertSame([12, -8], [$c->fresh()->x, $c->fresh()->y]);
+    }
+
+    public function test_confirmacao_errada_recusa_o_movimento_pelo_mapa(): void
+    {
+        $c = $this->colonia('fulano', 12, -8);
+
+        $resposta = $this->actingAs($this->dono(), 'admin')->post('/admin/mapa/realocar', [
+            'colony_id' => $c->id, 'x' => 20, 'y' => 30,
+            'motivo' => 'teste', 'confirmacao' => 'errado',
+        ]);
+
+        $resposta->assertSessionHas('erro');
+        $this->assertSame([12, -8], [$c->fresh()->x, $c->fresh()->y]);
+    }
+
+    public function test_nao_se_move_para_cima_de_outra_colonia_pelo_mapa(): void
+    {
+        $a = $this->colonia('fulano', 12, -8);
+        $b = $this->colonia('sicrano', 20, 30);
+
+        $resposta = $this->actingAs($this->dono(), 'admin')->post('/admin/mapa/realocar', [
+            'colony_id' => $a->id, 'x' => $b->x, 'y' => $b->y,
+            'motivo' => 'teste', 'confirmacao' => 'REALOCAR',
+        ]);
+
+        $resposta->assertSessionHas('erro');
+        $this->assertSame([12, -8], [$a->fresh()->x, $a->fresh()->y]);
     }
 }
