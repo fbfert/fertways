@@ -171,12 +171,19 @@ final class MapaFertways
     }
 
     /**
-     * Uma célula é **fundável** se está no mapa e é founder populável **ou** periferia (D-51: "o
-     * colono escolhe a célula, inclusive uma periférica, se quiser"). Capital, anel livre, os
-     * slots reservados e as **células de zona neutra** (D-52: os 4 distritos dos cantos) ficam de
-     * fora. A colisão com colônia já instalada é conferida à parte, contra o banco.
+     * Uma célula é **fundável** se está no mapa e é founder populável **ou** periferia LIBERADA
+     * (D-51 pro disco de founders; D-147 pra periferia). Capital, anel livre, os slots reservados
+     * e as **células de zona neutra** (D-52: os 4 distritos dos cantos) ficam de fora sempre. A
+     * colisão com colônia já instalada é conferida à parte, contra o banco.
+     *
+     * **`$periferiaLiberada` não tem default de propósito (D-147).** Até o D-147 a periferia
+     * inteira era fundável — "o colono escolhe a célula, inclusive uma periférica, se quiser". O
+     * usuário decidiu fechar isso: só é fundável a célula de periferia que o admin marcou em
+     * `founding_cells` (`Domain\Admin\AlternarCelulaDeFundacao`). Esta função continua PURA — sem
+     * tocar banco — porque quem chama já sabe se a célula está na lista; obrigar o argumento
+     * (em vez de um `= false`) força cada call site a decidir isso explicitamente, não a esquecer.
      */
-    public static function podeFundar(int $x, int $y): bool
+    public static function podeFundar(int $x, int $y, bool $periferiaLiberada): bool
     {
         if (! self::dentroDoMapa($x, $y)) {
             return false;
@@ -190,7 +197,7 @@ final class MapaFertways
         $faixa = self::faixaDe($x, $y);
 
         if ($faixa === 'periferia') {
-            return true;
+            return $periferiaLiberada;
         }
 
         if ($faixa === 'founder') {

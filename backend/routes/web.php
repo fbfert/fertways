@@ -166,6 +166,11 @@ Route::prefix('admin')->group(function () {
             // Mesma ação, uma terceira porta: origem e destino escolhidos por clique no mapa
             // (D-146). Continua um-de-cada-vez — a decisão de 2026-07-13 acima vale aqui também.
             Route::post('/mapa/realocar', [AcoesController::class, 'realocarPeloMapa'])->name('admin.mapa.realocar');
+
+            // A periferia deixa de ser "qualquer lugar" (D-147): só a célula que o admin liberar
+            // aqui entra na lista que `MapaFertways::podeFundar` consulta. JSON, não redirect — o
+            // clique alterna na hora, sem recarregar a página.
+            Route::post('/mapa/fundacao/alternar', [AcoesController::class, 'alternarCelulaDeFundacao'])->name('admin.mapa.fundacao.alternar');
         });
     });
 });

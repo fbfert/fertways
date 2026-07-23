@@ -2,7 +2,6 @@
 
 namespace App\Domain\Colony;
 
-use App\Domain\Logistics\MapaFertways;
 use App\Domain\Transport\Placas;
 use App\Exceptions\DomainRuleException;
 use App\Models\Building;
@@ -45,18 +44,17 @@ class CreateColony
      */
     public function handle(User $user, string $nome, int $x, int $y): Colony
     {
-        // O sorteio do D-29 morreu (D-51): o colono escolhe a célula, e o privilégio do founder
-        // — ficar perto do Mercado — é o desenho, não um efeito colateral. Aqui só se confere que
-        // a escolha é legítima: slot de founder populável ou periferia, nunca Capital, anel ou
-        // reservado. A colisão com colônia já instalada é a segunda trava; o `unique(x,y)` é a
-        // terceira, contra a corrida de dois colonos pedindo a mesma célula no mesmo instante.
-        if (! MapaFertways::podeFundar($x, $y)) {
-            throw new DomainRuleException(
-                'celula_invalida',
-                'Esta célula não pode ser fundada: escolha um slot de founder livre ou a periferia.',
-            );
-        }
-
+        // A legitimidade da célula (founder populável, periferia liberada — D-147; nunca Capital,
+        // anel, reservado ou zona neutra) é conferida por quem CHAMA este método, não aqui — ver
+        // `ColonyController::store()`. Este `handle()` é o primitivo de "criar a colônia já", usado
+        // também por ferramentas internas (testes, scaffolding) que não passam pela ceremônia de
+        // fundação de um jogador novo; `RealocarColonia` (D-61) já estabeleceu esse mesmo
+        // precedente para colônias EXISTENTES — mover uma colônia não confere `podeFundar`.
+        //
+        // A colisão com colônia já instalada continua aqui: é invariante de dado (duas colônias
+        // não cabem na mesma célula), não política de quem pode fundar onde. O `unique(x,y)` do
+        // banco é a terceira trava, contra a corrida de dois colonos pedindo a mesma célula no
+        // mesmo instante.
         if (Colony::where('x', $x)->where('y', $y)->exists()) {
             throw new DomainRuleException('celula_ocupada', 'Já há uma colônia nesta célula.');
         }

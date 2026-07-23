@@ -7279,3 +7279,89 @@ navegador de verdade (stack efêmera em SQLite, nunca toca produção/dev): ligu
 origem, cliquei a Capital (erro inline, sem abrir modal), cliquei uma célula livre (modal com o
 resumo e os três campos ocultos certos), confirmei com a palavra, e vi a colônia na nova posição
 após o reload, com o flash de sucesso.
+
+## D-147 — A periferia deixa de ser "qualquer lugar": só a célula que o admin liberar
+
+**Data:** 2026-07-22 · **Status:** pedido direto do usuário ("bloquear essa liberdade... criar um
+botão que... marcar onde poderão ser as novas colônias") · **Arbitrado, em conjunto com o usuário**
+
+Desde o D-51, um jogador novo podia fundar em quase qualquer célula: os 28 slots populáveis do
+disco de founders (regra por distância e fórmula, D-51) **ou qualquer célula de periferia livre**
+— "o colono escolhe a célula, inclusive uma periférica, se quiser". O usuário decidiu fechar a
+segunda metade: a periferia passa a ser curada célula por célula pelo admin, do mesmo jeito que o
+disco de founders já era curado — só que por marcação manual em vez de fórmula.
+
+### As três decisões, respondidas antes de desenhar
+
+1. **Estado inicial: vazio.** Nenhuma célula de periferia é fundável até o admin marcar a
+   primeira — sem isso, esquecer de marcar deixaria o jogo com uma sombra do comportamento antigo,
+   e o pedido era justamente acabar com ele.
+2. **Só a periferia muda.** O disco de founders (D-51: 48 células, 28 populáveis, 20 reservadas por
+   fórmula) continua exatamente como sempre foi — `ehFounderPopulavel()` não mudou uma linha, e a
+   ferramenta nova de marcar REJEITA uma tentativa de marcar uma célula do disco, pra a lista do
+   admin nunca poder divergir da regra automática que já vale pra ele.
+3. **Capital e zona neutra continuam travas rígidas.** A ferramenta de marcar nem chega a oferecer
+   essas células — quem tenta recebe erro, o mesmo erro que `podeFundar` sempre devolveu.
+
+### `podeFundar()` ganha um parâmetro, mas não sai do lugar — e não aprende a consultar banco
+
+`MapaFertways::podeFundar(x, y, $periferiaLiberada)` continua **pura**: quem chama já decide se a
+célula está na lista (`FoundingCell`, tabela nova, chave `(x,y)`, mirror de `NeutralZone` — sem
+geometria computada, porque aqui a "geometria" É a decisão do admin, não uma fórmula). O terceiro
+argumento não tem default de propósito: cada um dos três call sites (produção + dois arquivos de
+teste) tem de decidir explicitamente, não esquecer.
+
+### O tropeço que quase virou 80 arquivos de teste editados — e a correção arquitetural que resolveu
+
+A primeira versão pôs a checagem de `FoundingCell` dentro de `CreateColony::handle()`, no mesmo
+lugar onde `podeFundar` sempre viveu. Rodar a suíte revelou o tamanho do problema: **~80 arquivos
+de teste** chamam `CreateColony::handle()` **diretamente**, bypassando o HTTP, só para ter "uma
+colônia em algum lugar" pra testar outra coisa — quase todos em células de periferia arbitrárias
+(`(20,20)`, `(30,30)`...) que nunca precisariam ser liberadas, porque nenhum desses testes é sobre
+elegibilidade de fundação.
+
+A saída não foi editar 80 arquivos: foi perceber que `podeFundar` **já tinha um precedente** de não
+valer para toda criação/movimentação de colônia — `RealocarColonia` (D-61) nunca confere
+`podeFundar` pra mover uma colônia existente, de propósito (documentado no próprio arquivo: é uma
+regra sobre a CERIMÔNIA de fundação, não uma invariante permanente de onde uma colônia pode
+existir). Segui o mesmo precedente: a checagem de legitimidade saiu de `CreateColony::handle()`
+(que virou um primitivo — "crie a colônia, já validei que o lugar é legítimo" — usado tanto pelo
+jogador quanto por ferramentas internas) e foi para `ColonyController::store()`, o único ponto de
+entrada real de um jogador novo. `grep` confirmou: nenhum outro código de produção chama
+`CreateColony::class` além deste controller. Resultado: os ~80 arquivos de teste não mudaram uma
+linha, e a suíte inteira continuou verde.
+
+### A ferramenta do admin: alterna na hora, sem confirmação
+
+`Domain\Admin\AlternarCelulaDeFundacao` (mirror auto-auditado de `RealocarColonia`/`Suspender`) liga
+ou desliga uma célula — `fundacao.liberar`/`fundacao.trancar` no log. Ao contrário de mover uma
+colônia, isto não mexe em ninguém que já joga e é reversível com um segundo clique: por isso, ao
+contrário do D-146, não exige motivo nem palavra de confirmação. Só o Dono, mesma régua do D-146.
+
+No mapa admin (`admin/mapa.blade.php`), um segundo botão, **Liberar Fundação**, ao lado de Mover
+Colônias — os dois modos são mutuamente exclusivos (`modo: null | 'mover' | 'fundacao'`,
+generalizando o booleano `modoMover` que o D-146 tinha introduzido). Clicar em qualquer lugar do
+SVG no modo Fundação calcula a célula e dispara um `fetch` (não formulário — o admin pode marcar
+dezenas de células numa sessão, e recarregar a página a cada clique perderia zoom e posição);
+sucesso cria ou remove um `<circle>` daquela célula na hora, sem reload. O `<meta name="csrf-token">`
+novo em `admin/layout.blade.php` é o único jeito de mandar o token sem recarregar.
+
+### O jogador: a aba Periferia deixa de aceitar "em qualquer lugar"
+
+`GET /map` ganha `periferia_liberada`. `Fundacao.tsx`/`MapaPeriferia` desenha um marcador
+(`var(--color-ember)`) por célula liberada — mesmo padrão visual dos `founder_slots` na outra aba —
+e só aceita clique nelas; o resto da periferia virou chão sem convite. Com a lista vazia (o estado
+inicial, de propósito), a aba mostra um aviso em vez de um planeta mudo sem explicação.
+
+### Validado
+
+Suíte inteira: **905 passando** (5230 assertions), incluindo `AdminFundacaoTest.php` novo (Dono
+liga/desliga a mesma célula; operador e colono barrados; Capital/anel/founder/zona-neutra recusados
+com o código certo; a aba mostra a célula já liberada) e os testes atualizados de `podeFundar`
+(`LogisticaSpecsTest`, `ZonasNeutrasTest`, `ColonyCreationTest` — a mesma célula testada liberada E
+não-liberada, prova de que a trava funciona nos dois sentidos). `tools/e2e.sh` completo, verde
+(a fundação por disco de founders, intocada, continua funcionando de ponta a ponta). Verificação
+dedicada em navegador real, em duas partes: o admin marcando uma célula e tentando marcar a Capital
+(stack Blade, sem Vite — o painel não precisa dele); e um jogador novo, contra o bundle de verdade
+(`npm run build` + `npm run preview`, D-70), vendo só a célula liberada, tentando clicar fora dela
+sem efeito, e fundando com sucesso na célula certa.

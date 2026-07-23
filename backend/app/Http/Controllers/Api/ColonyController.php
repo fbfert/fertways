@@ -4,8 +4,10 @@ namespace App\Http\Controllers\Api;
 
 use App\Domain\Colony\CreateColony;
 use App\Domain\Logistics\MapaFertways;
+use App\Exceptions\DomainRuleException;
 use App\Http\Controllers\Controller;
 use App\Models\Colony;
+use App\Models\FoundingCell;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -16,8 +18,8 @@ class ColonyController extends Controller
         $dados = $request->validate([
             'name' => ['required', 'string', 'min:3', 'max:60'],
             // A célula escolhida pelo colono (D-51). O intervalo −50..50 é o mapa; se é
-            // fundável de fato (founder populável ou periferia) e se está livre, quem decide
-            // é CreateColony, com erro de domínio legível.
+            // fundável de fato (founder populável ou periferia liberada, D-147), quem decide é
+            // esta checagem logo abaixo, com erro de domínio legível.
             'x' => ['required', 'integer', 'between:-50,50'],
             'y' => ['required', 'integer', 'between:-50,50'],
         ]);
@@ -30,6 +32,21 @@ class ColonyController extends Controller
             return response()->json([
                 'message' => 'Este colono já fundou uma colônia.',
             ], 422);
+        }
+
+        // A legitimidade da célula fica AQUI, no ponto de entrada de um jogador novo — não dentro
+        // de `CreateColony::handle()` — pelo mesmo motivo que `RealocarColonia` (D-61) nunca
+        // confere `podeFundar` pra mover uma colônia já existente: é uma regra sobre a CEREMÔNIA
+        // de fundação, não uma invariante permanente de onde uma colônia pode existir. Mantê-la
+        // fora do `handle()` também poupa toda ferramenta interna (testes, scaffolding) de ter
+        // que liberar uma célula de periferia só para ter uma colônia de teste em algum lugar.
+        $periferiaLiberada = FoundingCell::where('x', $dados['x'])->where('y', $dados['y'])->exists();
+
+        if (! MapaFertways::podeFundar($dados['x'], $dados['y'], $periferiaLiberada)) {
+            throw new DomainRuleException(
+                'celula_invalida',
+                'Esta célula não pode ser fundada: escolha um slot de founder livre ou uma célula de periferia já liberada.',
+            );
         }
 
         $colony = $criar->handle($user, $dados['name'], $dados['x'], $dados['y']);
@@ -161,10 +178,12 @@ class ColonyController extends Controller
      *
      * A tela de fundação precisa mostrar onde dá para fundar **antes** de o colono ter colônia —
      * por isso, ao contrário de `index`, este endpoint não exige uma. Devolve a geometria, os 48
-     * slots de founder (marcando reservado e ocupado) e as células já tomadas, para o mapa
-     * clicável oferecer só o que é fundável: slot de founder populável livre ou periferia livre.
-     * A regra de fundabilidade fica em `MapaFertways::podeFundar`, conferida de novo no servidor
-     * quando o `POST /colony` chega; o mapa aqui é só para a UI não oferecer o impossível.
+     * slots de founder (marcando reservado e ocupado), as células de periferia que o admin liberou
+     * (D-147 — desde então a periferia não é mais "qualquer lugar") e as células já tomadas, para
+     * o mapa clicável oferecer só o que é fundável: slot de founder populável livre ou célula de
+     * periferia liberada e livre. A regra de fundabilidade fica em `MapaFertways::podeFundar`,
+     * conferida de novo no servidor quando o `POST /colony` chega; o mapa aqui é só para a UI não
+     * oferecer o impossível.
      *
      * Expõe apenas as coordenadas ocupadas, sem nome nem dono: o seletor precisa saber o que está
      * livre, não quem mora onde. (O diretório do D-37, esse sim, mostra nomes — mas só a quem já
@@ -192,6 +211,7 @@ class ColonyController extends Controller
             'raio_founder' => MapaFertways::RAIO_FOUNDER,
             'raio_anel' => MapaFertways::RAIO_ANEL,
             'founder_slots' => $slots,
+            'periferia_liberada' => FoundingCell::query()->get(['x', 'y'])->values(),
             'colonias' => $ocupadas,
         ]);
     }

@@ -3,6 +3,9 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    {{-- Só o mapa (D-146/D-147) faz requisição via JS neste painel — o resto é formulário comum
+         com @csrf. Sem este meta, o fetch de "Liberar Fundação" não teria como mandar o token. --}}
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>FERTWAYS — Administração</title>
     <style>
         :root {

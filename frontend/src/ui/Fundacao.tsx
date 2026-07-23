@@ -22,7 +22,10 @@ import type { Caixa } from './geometria'
  *
  *  - **Perto do Mercado**: o disco de founders (0 < d ≤ 4), 48 células. Só as **populáveis livres**
  *    são clicáveis; as reservadas e as ocupadas aparecem, mas apagadas.
- *  - **Periferia** (d > 5): o planeta inteiro. Clica-se numa célula livre qualquer.
+ *  - **Periferia** (d > 5): só as células que o admin liberou (D-147). Até o D-147 era "o planeta
+ *    inteiro, clique em qualquer uma"; o usuário decidiu fechar isso — a periferia agora é curada
+ *    do mesmo jeito que o disco de founders sempre foi, só que por marcação manual em vez de
+ *    fórmula. As células liberadas aparecem marcadas; o resto do planeta é só chão, sem clique.
  *
  * O anel livre (4 < d ≤ 5) não é fundável em lugar nenhum — é respiro. Toda a geometria vem do
  * servidor (`GET /map`); o `POST /colony` confere de novo, então esta validação de cliente é só
@@ -80,7 +83,7 @@ export function Fundacao({ aoFundar }: { aoFundar: () => Promise<void> }) {
         <h1 className="text-ink text-2xl font-black">Escolha onde fundar.</h1>
         <p className="text-ink-soft mt-1 text-sm">
           Você chega com 100 Fert$, um kit de recursos e um Furgão de Comércio. Perto do Mercado
-          se viaja menos; a periferia é vasta e livre.
+          se viaja menos; na periferia, só as células já liberadas pela administração.
         </p>
 
         {erro && <p className="text-rust mt-3 text-sm">{erro}</p>}
@@ -102,6 +105,15 @@ export function Fundacao({ aoFundar }: { aoFundar: () => Promise<void> }) {
                   <DiscoDeFounders mapa={mapa} escolha={escolha} aoEscolher={setEscolha} />
                 ) : (
                   <>
+                    {mapa.periferia_liberada.length === 0 && (
+                      <p
+                        data-periferia-vazia
+                        className="text-ink-soft absolute inset-x-2 top-2 z-10 bg-sand-light/90 border-rust/25 border p-2 text-center text-xs"
+                      >
+                        Nenhuma célula de periferia foi liberada ainda — só o disco de founders,
+                        por enquanto.
+                      </p>
+                    )}
                     <MapaPeriferia
                       mapa={mapa}
                       ocupadas={ocupadas}
@@ -137,7 +149,7 @@ export function Fundacao({ aoFundar }: { aoFundar: () => Promise<void> }) {
                   <p className="text-ink-soft text-sm">
                     {aba === 'founder'
                       ? 'Clique num slot livre do disco para escolhê-lo.'
-                      : 'Clique numa célula livre da periferia.'}
+                      : 'Clique numa célula liberada da periferia.'}
                   </p>
                 )}
 
@@ -289,6 +301,9 @@ function MapaPeriferia({
   const faixa = { xDe: -mapa.raio, xAte: mapa.raio, yDe: -mapa.raio, yAte: mapa.raio }
   const passo = passoDaGrade(mapa.side)
 
+  // Só estas células aceitam clique na periferia (D-147) — o resto do planeta é chão, sem convite.
+  const liberadas = new Set(mapa.periferia_liberada.map((c) => `${c.x}:${c.y}`))
+
   /** A célula sob o ponteiro, ou null se ele caiu fora do planeta (ou na calha das réguas). */
   function celulaDoEvento(e: React.MouseEvent<SVGSVGElement>): { x: number; y: number } | null {
     const p = pontoNoSvg(e.currentTarget, e)
@@ -301,7 +316,7 @@ function MapaPeriferia({
   function aoClicarNoMapa(e: React.MouseEvent<SVGSVGElement>) {
     const c = celulaDoEvento(e)
     if (!c) return
-    if (Math.hypot(c.x, c.y) <= mapa.raio_anel) return // founder ou anel: não aqui
+    if (!liberadas.has(`${c.x}:${c.y}`)) return // não liberada: nem founder/anel chegam a ser liberados
     if (ocupadas.has(`${c.x}:${c.y}`)) return
     aoEscolher(c)
   }
@@ -331,6 +346,18 @@ function MapaPeriferia({
         transform={`rotate(45 ${proj.px(0)} ${proj.py(0)})`}
         fill="var(--color-rust)"
       />
+
+      {/* As células de periferia liberadas pelo admin (D-147) — só elas aceitam clique. */}
+      {mapa.periferia_liberada.map((c) => (
+        <circle
+          key={`liberada:${c.x}:${c.y}`}
+          cx={proj.px(c.x)}
+          cy={proj.py(c.y)}
+          r={4}
+          fill="var(--color-ember)"
+          fillOpacity={ocupadas.has(`${c.x}:${c.y}`) ? 0.3 : 1}
+        />
+      ))}
 
       {/* Colônias já instaladas. */}
       {mapa.colonias.map((c) => (
@@ -376,10 +403,16 @@ function Legenda({ aba }: { aba: 'founder' | 'periferia' }) {
           </li>
         </>
       ) : (
-        <li>
-          <span className="bg-ink-soft mr-2 inline-block h-3 w-3 rounded-full align-middle" /> Colônia
-          existente
-        </li>
+        <>
+          <li>
+            <span className="bg-ember mr-2 inline-block h-3 w-3 rounded-full align-middle" /> Célula
+            liberada — clicável
+          </li>
+          <li>
+            <span className="bg-ink-soft mr-2 inline-block h-3 w-3 rounded-full align-middle" />{' '}
+            Colônia existente
+          </li>
+        </>
       )}
     </ul>
   )

@@ -249,8 +249,9 @@ export type SlotFounder = {
 }
 
 /**
- * O mapa para o seletor de fundação (`GET /map`): geometria, os slots de founder e as células
- * já ocupadas. Serve o colono que ainda não fundou — por isso não traz `me`.
+ * O mapa para o seletor de fundação (`GET /map`): geometria, os slots de founder, as células de
+ * periferia liberadas pelo admin (D-147 — a periferia deixou de ser "qualquer lugar") e as
+ * células já ocupadas. Serve o colono que ainda não fundou — por isso não traz `me`.
  */
 export type MapaFundacao = {
   side: number
@@ -259,6 +260,7 @@ export type MapaFundacao = {
   raio_founder: number
   raio_anel: number
   founder_slots: SlotFounder[]
+  periferia_liberada: { x: number; y: number }[]
   colonias: { x: number; y: number }[]
 }
 

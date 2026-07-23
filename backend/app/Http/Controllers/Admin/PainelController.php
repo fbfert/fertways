@@ -22,6 +22,7 @@ use App\Models\Colony;
 use App\Models\Combat;
 use App\Models\Federation;
 use App\Models\FederationHolding;
+use App\Models\FoundingCell;
 use App\Models\FederationLedger;
 use App\Models\ImageBinding;
 use App\Models\MediaAsset;
@@ -89,8 +90,9 @@ class PainelController extends Controller
 
     /**
      * O planeta 101×101 inteiro, sem névoa (D-145) — a mesma visão espacial do mapa do jogador
-     * (`frontend/src/ui/Mapa.tsx`), mas por cima de tudo: todas as colônias, todas as 120 zonas.
-     * Só leitura; a navegação (zoom/pan) é toda vanilla JS na view, o painel não tem SPA.
+     * (`frontend/src/ui/Mapa.tsx`), mas por cima de tudo: todas as colônias, todas as 120 zonas, e
+     * (D-146/D-147) as duas únicas ações do painel que partem do mapa — mover colônia e liberar
+     * célula de fundação. A navegação (zoom/pan) é toda vanilla JS na view, o painel não tem SPA.
      */
     public function mapa(): View
     {
@@ -104,6 +106,9 @@ class PainelController extends Controller
                 ->get(['id', 'name', 'x', 'y', 'user_id', 'fert_micro']),
             'zonas' => NeutralZone::with('owner:id,name')->orderBy('id')
                 ->get(['id', 'x', 'y', 'district', 'mineral', 'owner_colony_id', 'deposit_amount']),
+            // As células de periferia já liberadas para fundação (D-147) — sempre visíveis no
+            // mapa, não só quando o modo "Liberar Fundação" está ligado.
+            'celulasDeFundacao' => FoundingCell::orderBy('id')->get(['x', 'y']),
         ]);
     }
 

@@ -169,13 +169,21 @@ class LogisticaSpecsTest extends TestCase
             $this->assertSame('founder', MapaFertways::faixaDe($s['x'], $s['y']));
         }
 
-        // Fundável = founder populável OU periferia; nunca Capital, anel ou reservado.
-        $this->assertFalse(MapaFertways::podeFundar(0, 0));       // Capital
-        $this->assertFalse(MapaFertways::podeFundar(3, 3));       // anel
-        $this->assertFalse(MapaFertways::podeFundar(1, 0));       // founder reservado (índice 0)
-        $this->assertTrue(MapaFertways::podeFundar(0, 1));        // founder populável (índice 1)
-        $this->assertTrue(MapaFertways::podeFundar(0, 10));       // periferia (fora dos distritos)
-        $this->assertFalse(MapaFertways::podeFundar(50, 50));     // periferia, mas é zona neutra (D-52)
-        $this->assertFalse(MapaFertways::podeFundar(51, 0));      // fora do mapa
+        // Fundável = founder populável OU periferia LIBERADA (D-147); nunca Capital, anel ou
+        // reservado. O terceiro argumento (`$periferiaLiberada`) é irrelevante pros casos que nem
+        // chegam a ser periferia — passado `false` neles só por exigência da assinatura.
+        $this->assertFalse(MapaFertways::podeFundar(0, 0, false));        // Capital
+        $this->assertFalse(MapaFertways::podeFundar(3, 3, false));        // anel
+        $this->assertFalse(MapaFertways::podeFundar(1, 0, false));        // founder reservado (índice 0)
+        $this->assertTrue(MapaFertways::podeFundar(0, 1, false));         // founder populável (índice 1)
+
+        // Periferia (fora dos distritos): só é fundável se estiver na lista do admin (D-147) — a
+        // MESMA célula, nos dois estados, é a prova de que a trava funciona nos dois sentidos.
+        $this->assertFalse(MapaFertways::podeFundar(0, 10, false));       // não liberada: recusa
+        $this->assertTrue(MapaFertways::podeFundar(0, 10, true));         // liberada: aceita
+
+        // Zona neutra recusa mesmo liberada — a checagem de distrito vem ANTES da de periferia.
+        $this->assertFalse(MapaFertways::podeFundar(50, 50, true));       // periferia, mas é zona neutra (D-52)
+        $this->assertFalse(MapaFertways::podeFundar(51, 0, false));       // fora do mapa
     }
 }

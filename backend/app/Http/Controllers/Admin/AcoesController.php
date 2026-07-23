@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Console\Commands\TickColonies;
+use App\Domain\Admin\AlternarCelulaDeFundacao;
 use App\Domain\Admin\Auditoria;
 use App\Domain\Admin\Contas;
 use App\Domain\Admin\CorrigirEstado;
@@ -29,6 +30,7 @@ use App\Models\Report;
 use App\Models\TransportSetting;
 use App\Models\WarSetting;
 use App\Models\User;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
@@ -1777,6 +1779,28 @@ class AcoesController extends Controller
 
             return "{$colonia->name} realocada para ({$dados['x']}, {$dados['y']}).";
         }, 'admin.mapa');
+    }
+
+    /**
+     * Liga/desliga uma célula de periferia na lista de fundação (D-147), a partir do mapa.
+     *
+     * JSON, não formulário/redirect: o admin pode marcar dezenas de células numa sessão, e recarregar
+     * a página inteira a cada clique perderia zoom, posição e o resto das marcações já vistas. O
+     * próprio domínio audita — `tentarJaAuditado` não serve aqui porque ele redireciona. Um
+     * `DomainRuleException` não é capturado aqui de propósito: o `render()` dele já devolve
+     * `{"code", "message"}` em 422 — o mesmo formato que `POST /colony` usa pra `celula_invalida`,
+     * e é esse `code` que o JS do mapa lê pra mostrar o erro certo.
+     */
+    public function alternarCelulaDeFundacao(Request $request, AlternarCelulaDeFundacao $alternar): JsonResponse
+    {
+        $dados = $request->validate([
+            'x' => ['required', 'integer', 'between:-50,50'],
+            'y' => ['required', 'integer', 'between:-50,50'],
+        ]);
+
+        $liberada = $alternar->handle((int) $dados['x'], (int) $dados['y']);
+
+        return response()->json(['liberada' => $liberada]);
     }
 
     // ── Gestão de imagens (D-68) ─────────────────────────────────────────────

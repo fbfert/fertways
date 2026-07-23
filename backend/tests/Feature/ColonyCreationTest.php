@@ -180,7 +180,8 @@ class ColonyCreationTest extends TestCase
      */
     public function test_funda_so_em_celula_valida_e_livre(): void
     {
-        // Periferia é fundável.
+        // Periferia só é fundável se o admin a liberou antes (D-147).
+        \App\Models\FoundingCell::create(['x' => 40, 'y' => 40]);
         $this->actingAs($this->colono())
             ->postJson('/colony', ['name' => 'Periférica', 'x' => 40, 'y' => 40])
             ->assertCreated();
@@ -206,6 +207,20 @@ class ColonyCreationTest extends TestCase
             ->assertStatus(422);
     }
 
+    /**
+     * A trava nova do D-147: até aqui toda periferia livre era fundável; desde o D-147 só as
+     * células que o admin liberou (`FoundingCell`) entram. Esta é a MESMA célula-tipo do teste
+     * acima ("periferia é fundável"), só que sem ninguém tê-la liberado.
+     */
+    public function test_nao_funda_em_periferia_nao_liberada(): void
+    {
+        $this->actingAs($this->colono())
+            ->postJson('/colony', ['name' => 'Fechada', 'x' => 41, 'y' => 41])
+            ->assertStatus(422)->assertJson(['code' => 'celula_invalida']);
+
+        $this->assertDatabaseMissing('colonies', ['name' => 'Fechada']);
+    }
+
     public function test_nao_funda_em_celula_ja_ocupada(): void
     {
         $this->actingAs($this->colono())
@@ -220,7 +235,8 @@ class ColonyCreationTest extends TestCase
 
     public function test_map_lista_slots_de_founder_e_ocupacao(): void
     {
-        // Uma colônia num slot de founder populável (0,1) e outra na periferia (40,40).
+        // Uma colônia num slot de founder populável (0,1) e outra na periferia (40,40, liberada).
+        \App\Models\FoundingCell::create(['x' => 40, 'y' => 40]);
         $dono = $this->colono();
         $this->actingAs($dono)->postJson('/colony', ['name' => 'Founder', 'x' => 0, 'y' => 1])->assertCreated();
 
@@ -236,6 +252,9 @@ class ColonyCreationTest extends TestCase
         // O slot (0,1) aparece ocupado; (0,-1) livre.
         $this->assertTrue($slots->firstWhere(fn ($s) => $s['x'] === 0 && $s['y'] === 1)['ocupado']);
         $this->assertFalse($slots->firstWhere(fn ($s) => $s['x'] === 0 && $s['y'] === -1)['ocupado']);
+
+        // A célula liberada (D-147) aparece na lista, pro seletor saber onde desenhar o convite.
+        $this->assertContains(['x' => 40, 'y' => 40], $resposta->json('periferia_liberada'));
     }
 
     /** Sem colônia ainda, o colono precisa ver o mapa para escolher onde fundar. */

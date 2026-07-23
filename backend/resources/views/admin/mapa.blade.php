@@ -21,7 +21,7 @@
         {{ $zonas->count() }} zonas neutras. Arraste para mover, role o mouse ou use os botões para o
         zoom.
         @if ($dono)
-            A única ação daqui é mover colônia — o resto é leitura.
+            As únicas ações daqui são mover colônia e liberar fundação — o resto é leitura.
         @else
             Só leitura: nenhuma ação parte daqui.
         @endif
@@ -29,11 +29,14 @@
 
     @if ($dono)
         {{--
-            Mover Colônias (D-146): um-de-cada-vez, igual à realocação manual que já existe — só a
-            porta de entrada é nova (dois cliques no mapa, em vez de um formulário de x/y).
+            Mover Colônias (D-146) e Liberar Fundação (D-147): os dois botões ligam modos
+            mutuamente exclusivos — um desliga o outro. "Mover" é um-de-cada-vez com confirmação
+            (mexe em colônia já existente); "Liberar" alterna na hora, sem confirmação (só decide
+            onde um jogador NOVO poderá fundar, reversível com um segundo clique).
         --}}
         <div class="cartao" style="margin-bottom:10px;display:flex;align-items:center;gap:14px;flex-wrap:wrap">
             <button type="button" class="leve" id="mapa-mover-toggle" data-mover-colonias>Mover Colônias</button>
+            <button type="button" class="leve" id="mapa-fundacao-toggle" data-marcar-fundacao>Liberar Fundação</button>
             <span id="mapa-mover-instrucao" class="mut pequeno" style="min-height:1.2em"></span>
         </div>
     @endif
@@ -71,6 +74,20 @@
             <g stroke="var(--rust)" stroke-opacity="0.45" vector-effect="non-scaling-stroke">
                 <line x1="{{ $px(0) }}" y1="0" x2="{{ $px(0) }}" y2="{{ $lado }}" vector-effect="non-scaling-stroke" />
                 <line x1="0" y1="{{ $py(0) }}" x2="{{ $lado }}" y2="{{ $py(0) }}" vector-effect="non-scaling-stroke" />
+            </g>
+
+            {{--
+                As células de periferia já liberadas para fundação (D-147) — sempre visíveis, não
+                só com o modo "Liberar Fundação" ligado. Criadas/removidas também em JS, na hora,
+                quando o admin alterna uma célula sem recarregar a página.
+            --}}
+            <g id="mapa-camada-fundacao">
+                @foreach ($celulasDeFundacao as $cel)
+                    <circle data-celula-fundacao="{{ $cel->x }}:{{ $cel->y }}"
+                            cx="{{ $px($cel->x) }}" cy="{{ $py($cel->y) }}" r="0.3" fill="var(--ember)">
+                        <title>Fundação liberada ({{ $cel->x }}, {{ $cel->y }})</title>
+                    </circle>
+                @endforeach
             </g>
 
             {{-- As 120 zonas neutras: quadradinhos, cinza se livres, rust se ocupadas. --}}
@@ -206,6 +223,7 @@
         <li><span style="display:inline-block;width:10px;height:10px;background:var(--rust);margin-right:6px;vertical-align:middle"></span>Zona ocupada</li>
         <li><span style="display:inline-block;width:10px;height:10px;background:var(--rust);opacity:.3;margin-right:6px;vertical-align:middle"></span>Disco de founders</li>
         <li><span style="display:inline-block;width:10px;height:10px;background:var(--ink-soft);opacity:.3;margin-right:6px;vertical-align:middle"></span>Anel livre</li>
+        <li><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--ember);margin-right:6px;vertical-align:middle"></span>Fundação liberada</li>
     </ul>
 
     <script>
@@ -216,9 +234,26 @@
             var svg = document.getElementById('mapa-svg');
             var coordBox = document.getElementById('mapa-coord');
             var lado = {{ $lado }};
+            var raioAnel = {{ $raioAnel }};
             var meia = Math.floor(lado / 2);
             var W_MIN = 6, W_MAX = lado;
             var state = { x: 0, y: 0, w: lado };
+
+            // A mesma projeção do Blade (`$px`/`$py` no topo do arquivo), em JS: célula → unidade
+            // de SVG. Usada pra ler a célula sob o cursor, pro destino do Mover e pra desenhar um
+            // marcador novo de Fundação sem esperar reload nenhum.
+            function px(x) { return x + meia + 0.5; }
+            function py(y) { return lado - meia - 0.5 - y; }
+
+            /** A célula (x, y) sob um ponto de tela, ou null se caiu fora do planeta. */
+            function celulaEm(clientX, clientY) {
+                var p = pontoNoSvg(clientX, clientY);
+                if (!p) return null;
+                var x = Math.round(p.x - meia - 0.5);
+                var y = Math.round(lado - meia - 0.5 - p.y);
+
+                return (Math.abs(x) > meia || Math.abs(y) > meia) ? null : { x: x, y: y };
+            }
 
             function aplicar() {
                 svg.setAttribute('viewBox', state.x + ' ' + state.y + ' ' + state.w + ' ' + state.w);
@@ -227,13 +262,13 @@
             function clampW(w) { return Math.min(W_MAX, Math.max(W_MIN, w)); }
             function clampXY(v, w) { return Math.min(lado - w, Math.max(0, v)); }
 
-            function zoomEm(px, py, fator) {
+            function zoomEm(cx, cy, fator) {
                 var novoW = clampW(state.w * fator);
                 if (novoW === state.w) return;
-                var fx = (px - state.x) / state.w;
-                var fy = (py - state.y) / state.w;
-                state.x = clampXY(px - fx * novoW, novoW);
-                state.y = clampXY(py - fy * novoW, novoW);
+                var fx = (cx - state.x) / state.w;
+                var fy = (cy - state.y) / state.w;
+                state.x = clampXY(cx - fx * novoW, novoW);
+                state.y = clampXY(cy - fy * novoW, novoW);
                 state.w = novoW;
                 aplicar();
             }
@@ -290,16 +325,13 @@
             });
 
             svg.addEventListener('pointermove', function (e) {
-                var p = pontoNoSvg(e.clientX, e.clientY);
-                if (!p) return;
-                var x = Math.round(p.x - meia - 0.5);
-                var y = Math.round(lado - meia - 0.5 - p.y);
-                if (Math.abs(x) > meia || Math.abs(y) > meia) {
+                var c = celulaEm(e.clientX, e.clientY);
+                if (!c) {
                     coordBox.style.display = 'none';
                     return;
                 }
                 coordBox.style.display = 'block';
-                coordBox.textContent = '(' + x + ', ' + y + ')';
+                coordBox.textContent = '(' + c.x + ', ' + c.y + ')';
             });
 
             svg.addEventListener('pointerleave', function () {
@@ -314,17 +346,31 @@
             var modalConteudo = document.getElementById('mapa-modal-conteudo');
             var formMover = document.getElementById('mapa-form-mover'); // não existe pra quem não é dono
 
-            // Mover Colônias (D-146): a máquina de dois cliques — origem, depois destino.
-            var modoMover = false;
-            var origem = null; // { id, x, y, nome }
+            // Os dois modos do mapa (D-146/D-147) são mutuamente exclusivos: `modo` é
+            // `null | 'mover' | 'fundacao'`, e ligar um desliga o outro.
+            var modo = null;
+            var origem = null; // { id, x, y, nome } — só usado em 'mover'
             var circuloOrigem = null;
             var btnMover = document.getElementById('mapa-mover-toggle');
+            var btnFundacao = document.getElementById('mapa-fundacao-toggle');
             var instrucao = document.getElementById('mapa-mover-instrucao');
 
             function definirInstrucao(texto, ehErro) {
                 if (!instrucao) return;
                 instrucao.textContent = texto;
                 instrucao.style.color = ehErro ? 'var(--rust)' : '';
+            }
+
+            function estilizarBotao(btn, ativo) {
+                if (!btn) return;
+                btn.style.background = ativo ? 'var(--rust)' : '';
+                btn.style.color = ativo ? 'var(--sand-light)' : '';
+                btn.style.borderColor = ativo ? 'var(--rust)' : '';
+            }
+
+            function atualizarBotoes() {
+                estilizarBotao(btnMover, modo === 'mover');
+                estilizarBotao(btnFundacao, modo === 'fundacao');
             }
 
             function realcarOrigem(circulo) {
@@ -345,7 +391,7 @@
             // "aguardando destino" pra tentar outra célula, sem escolher a colônia de novo.
             function fecharModal() {
                 modal.style.display = 'none';
-                if (modoMover && origem) {
+                if (modo === 'mover' && origem) {
                     definirInstrucao('Mover ' + origem.nome + ': clique no destino.');
                 }
             }
@@ -383,13 +429,11 @@
 
             if (btnMover) {
                 btnMover.addEventListener('click', function () {
-                    modoMover = !modoMover;
+                    modo = modo === 'mover' ? null : 'mover';
                     origem = null;
                     realcarOrigem(null);
-                    btnMover.style.background = modoMover ? 'var(--rust)' : '';
-                    btnMover.style.color = modoMover ? 'var(--sand-light)' : '';
-                    btnMover.style.borderColor = modoMover ? 'var(--rust)' : '';
-                    definirInstrucao(modoMover ? 'Clique na colônia a mover.' : '');
+                    atualizarBotoes();
+                    definirInstrucao(modo === 'mover' ? 'Clique na colônia a mover.' : '');
                 });
             }
 
@@ -398,9 +442,74 @@
                 btnMoverCancelar.addEventListener('click', fecharModal);
             }
 
+            // Liberar Fundação (D-147): alterna na hora, sem confirmação — é reversível com um
+            // segundo clique na mesma célula.
+            var camadaFundacao = document.getElementById('mapa-camada-fundacao');
+            var csrfToken = document.querySelector('meta[name=csrf-token]').content;
+
+            function marcadorDeFundacao(x, y) {
+                return camadaFundacao.querySelector('[data-celula-fundacao="' + x + ':' + y + '"]');
+            }
+
+            function criarMarcadorDeFundacao(x, y) {
+                var el = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                el.setAttribute('data-celula-fundacao', x + ':' + y);
+                el.setAttribute('cx', px(x));
+                el.setAttribute('cy', py(y));
+                el.setAttribute('r', '0.3');
+                el.setAttribute('fill', 'var(--ember)');
+                camadaFundacao.appendChild(el);
+            }
+
+            function alternarFundacao(x, y) {
+                fetch('{{ route('admin.mapa.fundacao.alternar') }}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': csrfToken,
+                    },
+                    body: JSON.stringify({ x: x, y: y }),
+                })
+                    .then(function (resp) {
+                        return resp.json().then(function (corpo) { return { ok: resp.ok, corpo: corpo }; });
+                    })
+                    .then(function (r) {
+                        if (!r.ok) {
+                            definirInstrucao(r.corpo.message || 'Não foi possível marcar esta célula.', true);
+                            return;
+                        }
+                        var existente = marcadorDeFundacao(x, y);
+                        if (r.corpo.liberada) {
+                            if (!existente) criarMarcadorDeFundacao(x, y);
+                            definirInstrucao('Célula (' + x + ', ' + y + ') liberada para fundação.');
+                        } else {
+                            if (existente) existente.remove();
+                            definirInstrucao('Célula (' + x + ', ' + y + ') fechada.');
+                        }
+                    })
+                    .catch(function () {
+                        definirInstrucao('Falha de rede ao marcar a célula.', true);
+                    });
+            }
+
+            if (btnFundacao) {
+                btnFundacao.addEventListener('click', function () {
+                    modo = modo === 'fundacao' ? null : 'fundacao';
+                    origem = null;
+                    realcarOrigem(null);
+                    atualizarBotoes();
+                    definirInstrucao(modo === 'fundacao' ? 'Clique numa célula da periferia pra abrir/fechar a fundação.' : '');
+                });
+            }
+
             document.querySelectorAll('[data-abrir-colonia]').forEach(function (circulo) {
                 circulo.addEventListener('click', function () {
-                    if (!modoMover) {
+                    if (modo === 'fundacao') {
+                        return; // deixa o clique borbulhar pro handler genérico do svg, abaixo
+                    }
+
+                    if (modo !== 'mover') {
                         abrirFicha(circulo);
                         return;
                     }
@@ -432,28 +541,42 @@
                 });
             });
 
-            // O destino: um clique em qualquer lugar do SVG, exceto numa colônia (o caso acima já
-            // trata isso — clicar duas vezes no mesmo alvo aqui duplicaria a mensagem).
+            // O clique genérico no SVG: destino do Mover, ou a célula a alternar da Fundação.
             svg.addEventListener('click', function (e) {
-                if (!modoMover || !origem) return;
-                if (e.target.hasAttribute && e.target.hasAttribute('data-abrir-colonia')) return;
+                if (modo === 'mover') {
+                    if (!origem) return;
+                    if (e.target.hasAttribute && e.target.hasAttribute('data-abrir-colonia')) return;
 
-                var p = pontoNoSvg(e.clientX, e.clientY);
-                if (!p) return;
-                var x = Math.round(p.x - meia - 0.5);
-                var y = Math.round(lado - meia - 0.5 - p.y);
-                if (Math.abs(x) > meia || Math.abs(y) > meia) return;
+                    var c = celulaEm(e.clientX, e.clientY);
+                    if (!c) return;
 
-                if (x === 0 && y === 0) {
-                    definirInstrucao('A Capital não se move.', true);
+                    if (c.x === 0 && c.y === 0) {
+                        definirInstrucao('A Capital não se move.', true);
+                        return;
+                    }
+                    if (c.x === origem.x && c.y === origem.y) {
+                        definirInstrucao('Já é a posição atual de ' + origem.nome + '.', true);
+                        return;
+                    }
+
+                    abrirConfirmacaoMover(c.x, c.y);
                     return;
                 }
-                if (x === origem.x && y === origem.y) {
-                    definirInstrucao('Já é a posição atual de ' + origem.nome + '.', true);
-                    return;
-                }
 
-                abrirConfirmacaoMover(x, y);
+                if (modo === 'fundacao') {
+                    var alvo = celulaEm(e.clientX, e.clientY);
+                    if (!alvo) return;
+
+                    // Só o caso barato (distância à Capital) é conferido aqui — cobre Capital,
+                    // disco de founders e anel de uma vez. Zona neutra e o resto ficam por conta
+                    // da resposta do servidor: replicar o distrito em JS não vale a pena.
+                    if (Math.hypot(alvo.x, alvo.y) <= raioAnel) {
+                        definirInstrucao('Só a periferia entra nesta lista — o disco de founders segue a regra de sempre.', true);
+                        return;
+                    }
+
+                    alternarFundacao(alvo.x, alvo.y);
+                }
             });
 
             document.getElementById('mapa-modal-fechar').addEventListener('click', fecharModal);
