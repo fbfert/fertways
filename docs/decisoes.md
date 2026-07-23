@@ -7873,3 +7873,34 @@ zonas (quadrado), Vizinhas (círculo), Zona neutra livre (quadrado, novo), Zonas
 e2e dependia do texto antigo das duas linhas combinadas). Verificação em navegador de verdade
 (SQLite efêmero, nunca produção/dev): as 8 linhas da legenda renderizam, cada uma com o ícone
 certo — conferido por screenshot.
+
+## D-159 — O GDD v38 é regenerado: pega o Reator até o 15 (D-157) e o slot 6 (D-152) de graça
+
+**Data:** 2026-07-23 · **Status:** pedido direto do usuário ("Atualize o arquivo GDD, depois
+atualize o https://fertways.tars.art.br/gdd.html") · **Manutenção**
+
+`docs/FERTWAYS_GDD_v38_CONSOLIDADO.html` não é escrito à mão — é gerado por `tools/gdd-v38.php`,
+que lê as tabelas numéricas direto do banco de DEV (`fertwaysdev`, o mesmo que `building_specs`) e
+só deixa a prosa curada à mão no próprio gerador. "Atualizar o arquivo GDD" não é editar HTML, é:
+
+1. Resemear `fertwaysdev` com o `BuildingSpecSeeder` atual (tinha os 15 níveis do Reator só em
+   produção e no SQLite efêmero dos testes — o dev ainda estava no nível 5, D-157 nunca tinha sido
+   propagado pra lá).
+2. Rodar `php84 tools/gdd-v38.php > docs/FERTWAYS_GDD_v38_CONSOLIDADO.html` de novo.
+
+O `<h4>` de cada construção já monta o "(até o nível N)" dinamicamente
+(`max(array_keys($niveis))`) — a tabela do Reator saiu com "até o nível 15" e as dez linhas novas
+sozinha, sem eu tocar em HTML nenhum. **Bônus não pedido**: a tabela de slots das essenciais
+TAMBÉM é lida do banco, e a última regeneração era de 21/07 — dois dias antes do D-152 (Reator do
+slot 21 pro 6). A regeneração corrigiu os dois atrasos de uma vez só, exatamente o que o gerador
+promete no próprio comentário: "o documento não pode divergir do jogo".
+
+`frontend/public/gdd.html` é uma cópia idêntica do canônico (é o que o Vite publica em `/gdd.html`
+— confirmado por `diff`, os dois nasceram do mesmo `cp`); as duas foram atualizadas juntas.
+
+### Validado
+
+`diff` do antes/depois: só 4 mudanças semânticas (a data de geração, o slot do Reator 21→6, o
+título da tabela 5→15, e as 10 linhas novas com os mesmos números do D-157) — nada mais mudou.
+Deploy publica `dist/gdd.html` (cópia de `public/gdd.html` pelo Vite) em `public_html/gdd.html`
+via `cp -rf dist/. "$PUBLICO/"`, já parte do `deploy.sh` de sempre — sem passo extra.
