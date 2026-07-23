@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Domain\Colony\CreateColony;
 use App\Domain\Logistics\MapaFertways;
+use App\Domain\Production\TaxasDeProducao;
 use App\Exceptions\DomainRuleException;
 use App\Http\Controllers\Controller;
 use App\Models\Colony;
@@ -77,7 +78,7 @@ class ColonyController extends Controller
         ], 201);
     }
 
-    public function show(Request $request): JsonResponse
+    public function show(Request $request, TaxasDeProducao $taxas): JsonResponse
     {
         $colony = $request->user()->colony()->with(['buildings', 'resources', 'vehicles'])->first();
 
@@ -95,6 +96,9 @@ class ColonyController extends Controller
             'last_tick_at' => $colony->last_tick_at,
             'buildings' => $colony->buildings->map(fn ($b) => ['type' => $b->type, 'level' => $b->level]),
             'resources' => $colony->resources->pluck('amount', 'resource_type'),
+            // Taxa nominal de produção/consumo por hora (D-153) — não é o que o tick vai creditar
+            // de fato (isso depende do insumo disponível no momento), é a capacidade plena.
+            'taxas_hora' => $taxas->porRecurso($colony),
             // O Marco do §03/§05 (D-75): número, título publicado, e quanto falta para o próximo.
             'marco' => $this->marco($colony),
         ]);

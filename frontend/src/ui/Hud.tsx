@@ -104,6 +104,45 @@ export function Recursos({ colonia }: { colonia: Colonia }) {
   )
 }
 
+/**
+ * O card "Recursos por hora" (docs/decisoes.md D-153): produzido e gasto, separados por recurso,
+ * na taxa NOMINAL — capacidade plena, sem refletir o que o insumo disponível realmente vai render
+ * no próximo tick. Só mostra o que a colônia toca; sem construção nenhuma que gaste ou produza um
+ * recurso, ele nem aparece.
+ */
+export function TaxasDeRecursos({ colonia }: { colonia: Colonia }) {
+  const codigos = [...PRIMARIOS, ...INDUSTRIAIS, ...RAROS].filter((c) => c in colonia.taxas_hora)
+
+  return (
+    <div className="painel bg-sand-light w-72 p-4">
+      <span className="text-rust eyebrow">Recursos por hora</span>
+
+      <div className="mt-2">
+        {codigos.map((c) => {
+          const { produzido, consumido } = colonia.taxas_hora[c]
+          return (
+            <div
+              key={c}
+              className="border-rust/10 flex items-center justify-between border-b py-1.5 last:border-0"
+            >
+              <span className="text-ink-soft flex items-center gap-1.5 text-sm">
+                <IconeRecurso codigo={c} />
+                {nomeRecurso(c)}
+              </span>
+              <span className="text-xs font-bold tabular-nums">
+                <span className="text-ink">+{produzido.toLocaleString('pt-BR')}</span>
+                {consumido > 0 && (
+                  <span className="text-rust ml-1.5">−{consumido.toLocaleString('pt-BR')}</span>
+                )}
+              </span>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
 function Contagem({ ate }: { ate: string | null }) {
   if (!ate) return <span className="text-ink-soft text-xs">na fila</span>
   const restam = Math.max(0, Math.round((new Date(ate).getTime() - Date.now()) / 1000))

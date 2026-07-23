@@ -7595,3 +7595,44 @@ vazio (o próprio banco de dev já tinha as duas situações, sem precisar inser
 ### Validado
 
 `SlotsDaColoniaTest.php` atualizado pro slot 6; suíte inteira: **918 passando** (5289 assertions).
+
+## D-153 — Card "Recursos por hora" na colônia: produzido e gasto, separados, na taxa nominal
+
+**Data:** 2026-07-23 · **Status:** pedido direto do usuário ("um card nas colônias com Recursos
+Gastos/Produzidos na colônia por hora") · **Arbitrado**
+
+O jogador via o ESTOQUE de cada recurso (o card `Recursos`, dentro do Depósito Local), mas não o
+FLUXO. Decidido com o usuário: produzido e gasto aparecem separados por recurso (não só o líquido),
+e a taxa é NOMINAL — capacidade plena, sem tentar refletir a clampagem por insumo escasso que o
+tick de verdade aplica (mesma leitura que `NeutralZone::extracaoPorHora()`/`refinoPorHora()` já dão
+pra zona neutra).
+
+### Sem duplicar a conta do tick
+
+`ColonyTick::produzir()` já calculava, por dentro, a taxa nominal de toda construção erguida — só
+que liquidada (produzido menos consumido, direto no `$taxas` que alimenta o estoque) e presa num
+método privado. Extraí essa parte (sem leitura/escrita de estoque) pra um método novo e público,
+`ColonyTick::taxasNominais()` — extract-method comportamento-preservado: `produzir()` chama o
+mesmo método e segue fazendo o netting de sempre por cima, sem mudar uma linha do resultado. A
+suíte inteira, rodada depois do refactor, prova isso: zero asserção quebrada.
+
+A classe nova, `Domain\Production\TaxasDeProducao`, injeta `ColonyTick` e EXPANDE cada peça
+agregada (Destilaria, Refinaria Química, Indústria Siderúrgica, Oficina) na dupla produzido/
+consumido por recurso que o tick nunca precisou separar. A Siderúrgica é o caso interessante: o
+tick de verdade só credita em lotes inteiros de 1.000 Metal Bruto (`siderurgica_lote_remainder`);
+aqui a taxa é a MÉDIA suavizada (`taxa ÷ 1.000 × porLote`, arredondada) — os minerais mais raros
+somem do card em colônias pequenas (arredondam pra zero), o que é honesto: a essa taxa eles não
+rendem 1 unidade inteira por hora mesmo.
+
+Exposto no `GET /colony` já existente (`taxas_hora`), sem endpoint novo: o front já busca a colônia
+a cada 5s, o que já mantém o card fresco.
+
+### Validado
+
+Novo `TaxasDeProducaoTest.php` (6 testes): as 5 essenciais, duas Minas somando (D-59), Destilaria
+mostrando o MESMO recurso com os dois lados (Fazenda produz Biomassa, Destilaria consome — no
+mesmo card), Siderúrgica com o arredondamento dos minerais raros, Oficina pela receita escolhida, e
+o bônus de produção da Endurance batendo com o número que `EnduranceItemsTest` já prova pelo tick
+de verdade (18 = 15 × 1,2). Suíte inteira: **924 passando** (5312 assertions). Verificação em
+navegador de verdade (SQLite efêmero, nunca produção/dev): card aparece na barra lateral da
+colônia, com Oxigênio +100, Água +80, Biomassa +60, Energia +150/−62 — os mesmos números do §19.8.

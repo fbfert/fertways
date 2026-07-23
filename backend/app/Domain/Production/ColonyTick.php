@@ -34,7 +34,7 @@ class ColonyTick
      * "A Destilaria converte 2 Biomassas + 3 Energias em 1 Biocombustível. A conversão não
      * tem receita alternativa: a taxa é fixa" (GDD §18.2).
      */
-    private const RECEITA_DESTILARIA = ['biomassa' => 2, 'energia' => 3];
+    public const RECEITA_DESTILARIA = ['biomassa' => 2, 'energia' => 3];
 
     /**
      * A receita da Refinaria Química (docs/decisoes.md D-83). O §19.3 publica a taxa e nunca a
@@ -46,7 +46,7 @@ class ColonyTick
      * rodaria perto da capacidade nominal. A taxa em `production.json` é outra, menor (2/h no
      * nível 1), calibrada para caber com folga na produção dos essenciais do mesmo nível.
      */
-    private const RECEITA_COMPOSTOS = [
+    public const RECEITA_COMPOSTOS = [
         'metal_bruto' => 1, 'agua' => 10, 'biomassa' => 5, 'energia' => 6,
     ];
 
@@ -161,15 +161,25 @@ class ColonyTick
         }
     }
 
-    private function produzir(Colony $colony, CarbonInterface $de, CarbonInterface $ate): void
+    /**
+     * As taxas nominais por hora de toda construção erguida — extraído de `produzir()` (sem
+     * bônus além do de Endurance, sem leitura/escrita de estoque) para ser reaproveitado pelo
+     * card "Recursos por hora" (`Domain\Production\TaxasDeProducao`), sem duplicar receita,
+     * manutenção ou lote nenhum. `produzir()` chama isto e faz o netting de energia/consumosExtras
+     * por cima; quem só quer a taxa BRUTA (produzido separado de consumido) usa o array como está.
+     *
+     * @return array{
+     *     taxas: array<string,int>,
+     *     consumoEnergia: int,
+     *     consumosExtras: array<string,int>,
+     *     taxaDestilaria: int,
+     *     taxaSiderurgica: int,
+     *     taxaCompostos: int,
+     *     taxaComponentes: array<string,int>,
+     * }
+     */
+    public function taxasNominais(Colony $colony): array
     {
-        // Timestamps inteiros, nunca diffInSeconds: em Carbon 3 ele retorna float.
-        $segundos = $ate->getTimestamp() - $de->getTimestamp();
-
-        if ($segundos <= 0) {
-            return;
-        }
-
         $erguidas = $this->erguidasComSpec($colony);
         $manutencao = $this->manutencaoPorTipo($erguidas);
 
@@ -255,6 +265,36 @@ class ColonyTick
                 }
             }
         }
+
+        return compact(
+            'taxas',
+            'consumoEnergia',
+            'consumosExtras',
+            'taxaDestilaria',
+            'taxaSiderurgica',
+            'taxaCompostos',
+            'taxaComponentes',
+        );
+    }
+
+    private function produzir(Colony $colony, CarbonInterface $de, CarbonInterface $ate): void
+    {
+        // Timestamps inteiros, nunca diffInSeconds: em Carbon 3 ele retorna float.
+        $segundos = $ate->getTimestamp() - $de->getTimestamp();
+
+        if ($segundos <= 0) {
+            return;
+        }
+
+        [
+            'taxas' => $taxas,
+            'consumoEnergia' => $consumoEnergia,
+            'consumosExtras' => $consumosExtras,
+            'taxaDestilaria' => $taxaDestilaria,
+            'taxaSiderurgica' => $taxaSiderurgica,
+            'taxaCompostos' => $taxaCompostos,
+            'taxaComponentes' => $taxaComponentes,
+        ] = $this->taxasNominais($colony);
 
         // Energia é estoque e fluxo: o Reator credita, toda construção debita o consumo
         // operacional. O saldo pode ficar negativo — o GDD não define o que ocorre então,
@@ -424,7 +464,7 @@ class ColonyTick
      *
      * @return array<string,int>
      */
-    private function receita(string $codigo): array
+    public function receita(string $codigo): array
     {
         $insumos = DB::table('component_recipes')->where('code', $codigo)->value('insumos_json');
 

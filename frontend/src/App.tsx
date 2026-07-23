@@ -23,7 +23,7 @@ import { MinhasZonas } from './ui/MinhasZonas'
 import { Ministerio } from './ui/Ministerio'
 import { Perfil } from './ui/Perfil'
 import { Popup } from './ui/Popup'
-import { Detalhe, FilaDeObras, SlotVazio } from './ui/Hud'
+import { Detalhe, FilaDeObras, SlotVazio, TaxasDeRecursos } from './ui/Hud'
 
 /** Sem websocket nesta fase: polling simples, como o plano define. */
 const INTERVALO_MS = 5000
@@ -272,6 +272,7 @@ export default function App() {
       {/* Só desktop — no mobile, a mesma dupla vive dentro de "Mais" (`MobileNav.tsx`). */}
       <div className="absolute top-24 right-5 hidden w-64 space-y-4 md:block">
         {fila && <FilaDeObras fila={fila} />}
+        {colonia && <TaxasDeRecursos colonia={colonia} />}
         <MinhasZonas />
       </div>
 

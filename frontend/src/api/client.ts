@@ -66,6 +66,7 @@ export type Colonia = {
   last_tick_at?: string
   buildings: { type: string; level: number }[]
   resources: Record<string, number>
+  taxas_hora: Record<string, { produzido: number; consumido: number }>
   marco: Marco
 }
 
