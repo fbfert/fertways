@@ -44,8 +44,9 @@ class Slots
      * O Reator, que nasceu no centro exato (10), foi trocado de lugar com o Depósito Local
      * (21) por pedido do usuário — o Depósito é a construção que o colono mais abre (é onde os
      * recursos moram desde o D-106), e o centro da colmeia é o slot mais visível/alcançável dela.
-     * <span class="d">D-142</span> O Reator ficou no 21; o centro (10) passou pro Depósito, e
-     * do centro pro 14 no D-149 — ver `DEPOSITO_LOCAL` abaixo.
+     * <span class="d">D-142</span> O Reator ficou no 21 — isso não mudou mais. O centro (10) foi
+     * do Depósito, passou pro 14 no D-149, e voltou pro Depósito no D-150 — ver `DEPOSITO_LOCAL`
+     * abaixo.
      *
      * Isto vai **além** do §24.7, que subsidia o custo das 5 essenciais até o nível 3 mas não as
      * constrói ("o custo aparece normalmente na interface"). Nascer pronto é decisão do usuário.
@@ -64,16 +65,17 @@ class Slots
      * preciso abrir uma construção pra ver), e um colono não pode nascer sem enxergar o que tem
      * no depósito.
      *
-     * **No slot 14 desde o D-149** (pedido direto do usuário, sem motivo publicado — trocou de
-     * lugar com o centro exato da colmeia, 10, que era o dele desde o D-142). O centro (10) volta
-     * a ser um slot comum, escolhível pelo colono; deixou de estar em `reservados()`.
+     * **De volta ao centro exato da colmeia (10) desde o D-150** — o D-149 tinha movido ele pro
+     * 14 por pedido do usuário; poucos minutos depois, o próprio usuário pediu a troca inversa, de
+     * volta ao que o D-142 já tinha decidido. O centro (10) volta a estar em `reservados()`; o 14
+     * volta a ser um slot comum, escolhível pelo colono.
      *
-     * `database/migrations/2026_07_23_100000_troca_slot_do_deposito_com_o_14.php` moveu o dado de
-     * toda colônia já fundada — inclusive as que já tinham uma construção do jogador no 14 (o
-     * slot era livre até aqui; a migration troca os dois lados, não só escreve por cima).
+     * `database/migrations/2026_07_23_150000_deposito_local_volta_pro_slot_10.php` moveu o dado de
+     * toda colônia já fundada — mesmo cuidado do D-149: troca os dois lados (o que estiver no 10
+     * vai pro 14), não escreve por cima do que já tinha ido pra lá.
      */
     public const DEPOSITO_LOCAL = [
-        'deposito_local' => 14,
+        'deposito_local' => 10,
     ];
 
     /** Todo slot com dono fixo — miolo ou Depósito — nunca escolhível pelo colono. */

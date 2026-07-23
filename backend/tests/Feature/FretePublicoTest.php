@@ -109,6 +109,45 @@ class FretePublicoTest extends TestCase
         $this->assertSame(9, Garagem::livres()->count(), 'um caminhão saiu da Garagem');
     }
 
+    /**
+     * A tela só mandava um recurso por viagem (`{ [código]: qtd }` de um `<select>` só) — o
+     * servidor sempre aceitou vários, somados contra a capacidade (`array_sum`, igual ao frete com
+     * veículo próprio). Agora a tela também manda: prova que a MESMA viagem leva dois recursos,
+     * cada um debitado do seu próprio saldo, sem um pisar no outro.
+     */
+    public function test_uma_viagem_leva_mais_de_um_recurso_somando_contra_a_capacidade(): void
+    {
+        $user = $this->colono(5_000); // 5.000 de metal_bruto
+        $colony = $user->colony;
+        MarketAccount::create(['colony_id' => $colony->id, 'resource_type' => 'agua', 'amount' => 4_000]);
+
+        $this->actingAs($user)->postJson('/market/freight', [
+            'cargo' => ['metal_bruto' => 3_000, 'agua' => 2_000],
+        ])->assertCreated();
+
+        $this->assertSame(2_000, (int) MarketAccount::where('colony_id', $colony->id)
+            ->where('resource_type', 'metal_bruto')->value('amount'));
+        $this->assertSame(2_000, (int) MarketAccount::where('colony_id', $colony->id)
+            ->where('resource_type', 'agua')->value('amount'));
+        $this->assertSame(9, Garagem::livres()->count(), 'ainda um caminhão só — uma viagem, não duas');
+    }
+
+    /** A soma dos dois recursos é que não pode passar da capacidade — não cada um sozinho. */
+    public function test_a_soma_dos_recursos_e_que_nao_pode_passar_da_capacidade(): void
+    {
+        $user = $this->colono(20_000);
+        $colony = $user->colony;
+        MarketAccount::create(['colony_id' => $colony->id, 'resource_type' => 'agua', 'amount' => 20_000]);
+
+        // 20.000 + 20.000 estoura os 30.000 da capacidade, mesmo que cada um sozinho coubesse.
+        $this->actingAs($user)->postJson('/market/freight', [
+            'cargo' => ['metal_bruto' => 20_000, 'agua' => 20_000],
+        ])->assertStatus(422);
+
+        $this->assertSame(20_000, (int) MarketAccount::where('colony_id', $colony->id)
+            ->where('resource_type', 'metal_bruto')->value('amount'), 'nada saiu do depósito');
+    }
+
     public function test_a_entrega_chega_com_tributo_e_o_caminhao_volta_a_garagem(): void
     {
         $user = $this->colono();

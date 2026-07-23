@@ -7511,3 +7511,66 @@ rodado três vezes — as duas falhas que apareceram em rodadas isoladas (Chat, 
 repetiram de forma consistente entre rodadas e desapareceram sem nenhuma mudança de código,
 confirmando serem instabilidade de tempo/carga do ambiente compartilhado, não regressão desta
 troca.
+
+## D-150 — O Depósito Local volta pro centro (10): desfaz o D-149
+
+**Data:** 2026-07-23 · **Status:** pedido direto do usuário, minutos depois do D-149 ir ao ar ·
+**Arbitrado**
+
+"Trocar o slot 14 com o 10" é a MESMA operação que "trocar o slot 10 com o 14" — trocar A com B e
+trocar B com A descrevem a mesma troca. Como o D-149 já tinha feito exatamente essa troca, pedir
+de novo logo em seguida era ambíguo: ou o usuário queria desfazer (voltar ao estado do D-142), ou
+repetiu o pedido sem perceber que já estava feito. Perguntei antes de tocar em dado de produção
+pela segunda vez seguida — a resposta foi desfazer.
+
+### Como desfazer sem reescrever história
+
+O `tools/deploy.sh` só roda migration pra frente (`migrate --force`); nunca `migrate:rollback` em
+produção. Desfazer o D-149 por isso não foi rodar o `down()` da migration dele — foi escrever uma
+migration NOVA cujo `up()` faz a troca no sentido inverso, mesmo padrão que o D-142→D-149 já
+tinha estabelecido (cada decisão é uma migration própria; nenhuma é apagada ou reescrita depois).
+`Slots::DEPOSITO_LOCAL['deposito_local']` voltou a `10` no código.
+
+A migration nova reaproveita a MESMA função de troca genérica em 3 passos do D-149 (Depósito → 255
+→ slot novo; o que estiver no slot antigo → o slot que o Depósito deixou), só invertendo de que
+lado cada um começa — testada de novo nos dois cenários (slot 10 vazio e slot 10 ocupado por
+construção de jogador, que é exatamente o que o D-149 tinha posto lá em 15 das 28 colônias) contra
+o MariaDB de dev antes de publicar.
+
+### Validado
+
+`SlotsDaColoniaTest.php` voltou a esperar `10`; suíte inteira: **916 passando** (5282 assertions).
+
+## D-151 — O Frete do Governo aceita mais de um recurso na mesma viagem
+
+**Data:** 2026-07-23 · **Status:** pedido direto do usuário ("permita que o jogador escolha mais
+que apenas um recurso, até lotar os 30.000 unidades") · **Arbitrado**
+
+Pedido sobre a tela do Mercado Central: o Frete do Governo (§07, D-76) só deixava escolher UM
+recurso por viagem — um `<select>` e uma quantidade. Mas o servidor **nunca teve essa restrição**:
+`FretePublico::despachar()` já recebe `array<string,int>` (recurso ⇒ quantidade) desde que existe,
+soma tudo (`array_sum`) e confere contra a capacidade efetiva do caminhão — o mesmo formato e a
+mesma regra que o frete com veículo PRÓPRIO (`FormularioDeCarga`, D-65) já usa há tempo, com várias
+linhas de carga na mesma carroceria. Só esta tela específica é que nunca ofereceu a segunda linha.
+
+### Mudança inteira no front — o backend já sabia fazer isto
+
+Troquei o par de estado `recurso`/`qtd` (um `<select>` + um `<input>`) por `linhas: Linha[]`, o
+mesmo tipo e o mesmo padrão de soma que `FormularioDeCarga` já usa (rascunho sem recurso ou sem
+quantidade fica de fora em vez de virar erro; "+ outro recurso" acrescenta linha; total somado
+contra `conta.frete.capacidade`, com o excedente e o "você não tem tudo isso" avisados antes do
+clique). Rota, validação (`cargo.*` já era genérico) e `FretePublico::despachar()` não mudaram uma
+linha — a checagem no `MarketController`/`FretePublico.php` de que `array_sum($carga) <= 30.000`
+sempre foi sobre a SOMA, nunca sobre "um recurso só".
+
+Nenhum e2e cobria esta seção (`grep` por "frete"/"Fretar" em `frontend/e2e/*.mjs` não achou nada) —
+verificação em navegador de verdade, à parte: colônia com Metal Bruto e Água no depósito da
+Capital, duas linhas preenchidas (1.000 + 500), total "1.500 / 30.000" exibido corretamente, botão
+Fretar habilita, um clique despacha os DOIS recursos numa viagem só (um caminhão sai da Garagem,
+não dois).
+
+### Validado
+
+Dois testes novos em `FretePublicoTest.php`: uma viagem leva dois recursos, cada um debitado do
+seu próprio saldo, um caminhão só; e a SOMA dos dois é que não pode passar de 30.000 (mesmo que
+cada um sozinho coubesse). Suíte inteira: **918 passando** (5288 assertions).

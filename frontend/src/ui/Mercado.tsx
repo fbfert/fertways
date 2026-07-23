@@ -653,6 +653,12 @@ type Linha = { codigo: string; qtd: string }
  * Sem veículo próprio, sem energia — só Fert$ (o preço já aparece antes de pagar) e paciência: o
  * caminhão da Garagem é REAL, e se os do governo estiverem todos na estrada, o serviço recusa. A
  * entrega paga tributo na chegada como qualquer outra (D-32): frete não é rota de fuga.
+ *
+ * **Várias linhas, não uma** (pedido do usuário): o servidor sempre aceitou `cargo` como vários
+ * recursos somados contra a capacidade (`array_sum`, igual ao `FormularioDeCarga` já usava para o
+ * veículo próprio) — só esta tela é que mandava `{ [um código]: qtd }` de um `<select>` só. Mesmo
+ * padrão de linhas do `FormularioDeCarga`, sem seletor de veículo nem de destino (aqui não há
+ * escolha nenhuma dos dois: é sempre um caminhão do governo, sempre pra sua própria colônia).
  */
 function FreteDoGoverno({
   conta,
@@ -661,13 +667,37 @@ function FreteDoGoverno({
   conta: ContaDoMercado
   agir: (acao: () => Promise<unknown>) => Promise<void>
 }) {
-  const [recurso, setRecurso] = useState('')
-  const [qtd, setQtd] = useState('')
   const opcoes = doDeposito(conta)
-  const saldo = opcoes.find((o) => o.codigo === recurso)?.disponivel ?? 0
-  const quantidade = Number(qtd)
-  const pode =
-    recurso !== '' && quantidade > 0 && quantidade <= saldo && quantidade <= conta.frete.capacidade
+  const [linhas, setLinhas] = useState<Linha[]>([{ codigo: '', qtd: '' }])
+
+  const trocar = (i: number, campo: keyof Linha, valor: string) =>
+    setLinhas((ls) => ls.map((l, j) => (j === i ? { ...l, [campo]: valor } : l)))
+
+  // A mesma soma-por-recurso do `FormularioDeCarga`: linha sem recurso ou sem quantidade é
+  // rascunho, fica de fora em vez de virar erro enquanto o colono ainda está preenchendo.
+  const carga: Record<string, number> = {}
+  for (const l of linhas) {
+    const q = Number(l.qtd)
+    if (!l.codigo || !Number.isInteger(q) || q <= 0) continue
+    carga[l.codigo] = (carga[l.codigo] ?? 0) + q
+  }
+
+  const total = Object.values(carga).reduce((s, q) => s + q, 0)
+
+  const excedidos = Object.entries(carga).filter(
+    ([codigo, q]) => q > (opcoes.find((o) => o.codigo === codigo)?.disponivel ?? 0),
+  )
+
+  const impedimento =
+    opcoes.length === 0
+      ? 'Nada seu no Mercado para fretar.'
+      : excedidos.length > 0
+        ? `Você não tem tudo isso de ${nomeRecurso(excedidos[0][0])}.`
+        : total > conta.frete.capacidade
+          ? `Passou da capacidade: ${total.toLocaleString('pt-BR')} de ${conta.frete.capacidade.toLocaleString('pt-BR')}.`
+          : null
+
+  const pode = total > 0 && !impedimento && conta.frete.caminhoes_livres >= 1
 
   return (
     <section className="border-rust/20 bg-sand mt-4 border p-3" data-frete-publico>
@@ -675,59 +705,91 @@ function FreteDoGoverno({
       <p className="text-ink-soft/80 mt-1 text-xs">
         Sem veículo? O governo leva por{' '}
         <strong>{conta.frete.preco_fert.toFixed(2).replace('.', ',')} F$</strong> a viagem (até{' '}
-        {conta.frete.capacidade.toLocaleString('pt-BR')} unidades). Caminhões livres na Garagem:{' '}
-        <strong data-garagem-livres>{conta.frete.caminhoes_livres}</strong>. A entrega paga tributo
-        na chegada, como toda entrega física.
+        {conta.frete.capacidade.toLocaleString('pt-BR')} unidades, somando os recursos). Caminhões
+        livres na Garagem: <strong data-garagem-livres>{conta.frete.caminhoes_livres}</strong>. A
+        entrega paga tributo na chegada, como toda entrega física.
       </p>
 
-      <div className="mt-2 flex flex-wrap items-end gap-2">
-        <label className="text-ink-soft text-xs">
-          Recurso
-          <select
-            value={recurso}
-            onChange={(e) => setRecurso(e.target.value)}
-            data-frete-recurso
-            className="border-rust/30 bg-sand-light text-ink mt-1 block border px-2 py-1 text-sm"
-          >
-            <option value="">escolha…</option>
-            {opcoes.map((o) => (
-              <option key={o.codigo} value={o.codigo}>
-                {nomeRecurso(o.codigo)} ({o.disponivel.toLocaleString('pt-BR')})
-              </option>
-            ))}
-          </select>
-        </label>
+      <div className="mt-2 space-y-2">
+        {linhas.map((l, i) => (
+          <div key={i} className="flex gap-1">
+            <select
+              aria-label="Recurso"
+              value={l.codigo}
+              onChange={(e) => trocar(i, 'codigo', e.target.value)}
+              disabled={opcoes.length === 0}
+              data-frete-recurso
+              className="border-rust/30 bg-sand-light text-ink min-w-0 flex-1 border px-2 py-1.5 text-sm"
+            >
+              <option value="">Recurso…</option>
+              {opcoes.map((o) => (
+                <option key={o.codigo} value={o.codigo}>
+                  {nomeRecurso(o.codigo)} ({o.disponivel.toLocaleString('pt-BR')})
+                </option>
+              ))}
+            </select>
 
-        <label className="text-ink-soft text-xs">
-          Quantidade
-          <input
-            value={qtd}
-            onChange={(e) => setQtd(e.target.value)}
-            inputMode="numeric"
-            data-frete-qtd
-            className="border-rust/30 bg-sand-light text-ink mt-1 block w-28 border px-2 py-1 text-sm"
-          />
-        </label>
+            <input
+              aria-label="Quantidade"
+              value={l.qtd}
+              onChange={(e) => trocar(i, 'qtd', e.target.value.replace(/\D/g, ''))}
+              inputMode="numeric"
+              placeholder="Qtd"
+              data-frete-qtd
+              className="border-rust/30 bg-sand-light text-ink w-24 border px-2 py-1.5 text-sm"
+            />
+
+            {linhas.length > 1 && (
+              <button
+                aria-label="Tirar da carga"
+                onClick={() => setLinhas((ls) => ls.filter((_, j) => j !== i))}
+                className="text-ink-soft hover:text-rust w-7 shrink-0 text-lg leading-none"
+              >
+                ×
+              </button>
+            )}
+          </div>
+        ))}
+
+        <div className="flex items-center justify-between">
+          <button
+            onClick={() => setLinhas((ls) => [...ls, { codigo: '', qtd: '' }])}
+            disabled={opcoes.length === 0 || linhas.length >= opcoes.length}
+            data-adicionar-recurso-frete
+            className="text-rust hover:text-rust-bright text-xs font-bold disabled:opacity-40"
+          >
+            + outro recurso
+          </button>
+
+          <span
+            className={`text-xs tabular-nums ${total > conta.frete.capacidade ? 'text-rust font-bold' : 'text-ink-soft'}`}
+          >
+            {total.toLocaleString('pt-BR')} / {conta.frete.capacidade.toLocaleString('pt-BR')}
+          </span>
+        </div>
+
+        {impedimento && <p className="text-rust text-xs">{impedimento}</p>}
 
         <button
           onClick={() =>
             void agir(async () => {
-              await api.fretePublico({ [recurso]: quantidade })
-              setQtd('')
+              await api.fretePublico(carga)
+              setLinhas([{ codigo: '', qtd: '' }])
             })
           }
-          disabled={!pode || conta.frete.caminhoes_livres < 1}
+          disabled={!pode}
           data-frete-enviar
-          className="bg-rust text-sand-light hover:bg-rust-bright disabled:bg-ink-soft/30 px-4 py-1.5 text-sm font-bold disabled:cursor-not-allowed"
+          className="bg-rust text-sand-light hover:bg-rust-bright disabled:bg-ink-soft/30 w-full py-2 text-sm font-bold disabled:cursor-not-allowed"
         >
           Fretar
         </button>
+
+        {conta.frete.caminhoes_livres < 1 && (
+          <p className="text-rust text-xs">
+            Os caminhões do governo estão todos na estrada. Tente mais tarde — ou mande um veículo seu.
+          </p>
+        )}
       </div>
-      {conta.frete.caminhoes_livres < 1 && (
-        <p className="text-rust mt-1 text-xs">
-          Os caminhões do governo estão todos na estrada. Tente mais tarde — ou mande um veículo seu.
-        </p>
-      )}
     </section>
   )
 }

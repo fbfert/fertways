@@ -66,12 +66,12 @@ class SlotsDaColoniaTest extends TestCase
         // O Gerador e a Estrutura ladeiam o centro da linha do meio.
         $this->assertSame([9, 11], [Slots::MIOLO['gerador_de_atmosfera'], Slots::MIOLO['estrutura_de_sobrevivencia']]);
 
-        // D-142: o Reator ficou na linha solta do final (21). D-149: o Depósito Local, que o
-        // D-142 pôs no centro exato da colmeia (10), trocou de novo — agora no 14, e o centro
-        // volta a ser um slot comum, escolhível pelo colono.
-        $this->assertSame(14, Slots::DEPOSITO_LOCAL['deposito_local']);
+        // D-142: o Reator ficou na linha solta do final (21) — isso não mudou mais. O Depósito
+        // Local foi do centro (10) pro 14 no D-149, e voltou pro centro no D-150.
+        $this->assertSame(10, Slots::DEPOSITO_LOCAL['deposito_local']);
         $this->assertSame(21, Slots::MIOLO['reator_de_energia']);
-        $this->assertNotContains(10, Slots::reservados());
+        $this->assertContains(10, Slots::reservados());
+        $this->assertNotContains(14, Slots::reservados());
     }
 
     /**
