@@ -7904,3 +7904,66 @@ promete no próprio comentário: "o documento não pode divergir do jogo".
 título da tabela 5→15, e as 10 linhas novas com os mesmos números do D-157) — nada mais mudou.
 Deploy publica `dist/gdd.html` (cópia de `public/gdd.html` pelo Vite) em `public_html/gdd.html`
 via `cp -rf dist/. "$PUBLICO/"`, já parte do `deploy.sh` de sempre — sem passo extra.
+
+## D-160 — O GDD v39: a terceira regeneração do v36, D-141 a D-159
+
+**Data:** 2026-07-30 · **Status:** pedido direto do usuário ("Crie uma nova versão do GDD e
+atualize o GDD da landing page") · **Documento, não código de jogo**
+
+O D-159 tinha **regenerado** o v38 (mesmo gerador, banco resemeado) — isso pega número, não regra.
+Este pedido é o outro: uma **versão nova**, que é o que o D-141 fez quando o v36 ficou 39 decisões
+atrás do jogo. Desde o D-140 (o corte do v38) acumularam-se **19 decisões**, e entre elas duas
+mudanças de regra fundas que nenhuma regeneração traria sozinha: a **zona neutra virou colmeia de
+slots** (D-144) e a **periferia deixou de ser fundável em qualquer lugar** (D-147).
+
+### O método, igual ao do D-141: copiar, não regravar por cima
+
+`tools/gdd-v39.php` é cópia evoluída de `gdd-v38.php`, que **fica intocado** — como o v36 ficou
+quando o v38 nasceu, e o v35 quando o v36 nasceu. Cada geração é um arquivo novo; o rastro de como
+o próprio GDD evoluiu fica no git.
+
+### O que entrou, e onde
+
+| Decisão | Onde, no v39 |
+|---|---|
+| D-144 — a zona vira colmeia de 22 slots, crescimento por nível, 3 repetíveis, nível máx. 5→10 | **§8.0, novo** (mais uma nota em §8.7: tudo na zona se identifica por slot, não por tipo) |
+| D-147 — a periferia só é fundável na célula que o Dono liberar | **§1.1.1, novo**, e a linha "Periferia" da tabela do §1.1 |
+| D-148 — o Dono cria zona neutra fora dos 4 distritos, escolhendo o mineral | nota nova na abertura do §8 (inclui o achado: "é zona neutra?" virou pergunta de banco) |
+| D-145/D-146/D-147/D-148 — o mapa do painel e as três ações que vivem nele | **§11.6, novo** |
+| D-151 — o Frete do Governo leva vários recursos na mesma viagem | §5.6 (linha da tabela + nota: o teto sempre foi sobre a SOMA) |
+| D-153 — card "Recursos por hora", nominal, produzido e gasto separados | **§3.4, novo** |
+| D-157 — o Reator até o nível 15, pelas duas curvas do próprio GDD | §2.3 e §4.2 (a tabela já vinha do banco desde o D-159) |
+| D-142/D-149/D-150/D-152 — as três trocas de slot do miolo | nota nova no §2.1 (e o §2.2, que ainda dizia que o Depósito morava na linha solta do fim) |
+
+**Ficaram de fora, de propósito**, pelo critério que a seção 0 já publica (o documento descreve
+mecânica, não tela): `/mapa` em tela cheia com pinça e legenda em card (D-154, D-155, D-156), o
+ícone da zona neutra livre na legenda (D-158) e a Lista Mestra de Assets de Estruturas (D-143). Os
+três estão **nomeados** na nota da seção 0, para que ficar de fora seja uma decisão registrada e
+não um esquecimento.
+
+### Duas frases do v38 que tinham virado mentira
+
+Achadas relendo o documento antigo contra o código atual, não pedidas:
+
+- **§2.2** dizia que o Depósito Local era "o 22º slot, sozinho na última linha da colmeia" — desde o
+  D-142/D-150 ele mora no **centro** (10); o 21 é slot comum. O acréscimo da linha solta continua
+  sendo verdade sobre a *colmeia*, não sobre a *construção*, e o texto passou a separar as duas
+  coisas (lendo `Slots::DEPOSITO_LOCAL`, não um número digitado).
+- **§8.7** descrevia a primeira aba da zona como "identidade, **planta**, upgrade" — a planta com
+  áreas fixas morreu no D-144.
+
+### Validado
+
+`/usr/bin/php84 -l` limpo; gerador rodado contra o dev (`fertwaysdev`, migrations em dia —
+conferido antes, é a armadilha do D-141) **sem um warning sequer**. Balanceamento de tags conferido
+por script em **21 tags** (`div`, `table`, `tr`, `td`, `th`, `p`, `h2`, `h3`, `h4`, `ul`, `ol`,
+`li`, `b`, `code`, `span`, `i`, `pre`, `nav`, `header`, `footer`, `main`): abertura = fechamento em
+todas. `diff` do v38 contra o v39 conferido linha a linha — **256 linhas de diferença, e as 14
+removidas são exatamente as 14 que eu quis reescrever** (título, capa, contagem de decisões,
+periferia, §2.2, carga do frete, §8.7 e rodapé). Sem mudança de código de jogo: nenhuma migration,
+nenhum teste tocado, nada a resemear.
+
+`frontend/public/gdd.html` (o arquivo estático que o Vite publica em `/gdd.html`, fora do alcance
+do gerador, que só escreve em `docs/`) recebeu o v39 por `/bin/cp -f` — com o `-f` e o caminho
+absoluto de propósito: o alias `cp -i` do root já engoliu uma cópia em silêncio antes (D-141).
+Conferido por `diff`: as duas cópias são idênticas.

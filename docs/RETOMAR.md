@@ -5,7 +5,7 @@
 > e então **faça ao usuário as perguntas da seção "Perguntas em aberto"** antes de escolher
 > o que fazer. Atualize este arquivo ao fim de cada sessão.
 
-**Última atualização:** 2026-07-20 · **Branch:** `main`
+**Última atualização:** 2026-07-30 · **Branch:** `main`
 
 > **Se o usuário disser "retome" e houver uma seção "EM ANDAMENTO AGORA" abaixo**, ela já tem
 > autorização permanente para seguir sem novas perguntas ("siga por todas as fases... quero que
@@ -1366,8 +1366,21 @@ estava quebrado desde o D-135, achado ao verificar o D-138 e corrigido no mesmo 
 encadeamento do motor de Missões, D-78)** · **D-141 (GDD v38 — segunda regeneração do v36,
 D-101 a D-140, com Federação e a Endurance como seções novas de nível 1)**.
 
-**O GDD agora é a v38** (`docs/FERTWAYS_GDD_v38_CONSOLIDADO.html`, gerador em
-`tools/gdd-v38.php`). O v36 fica intocado como histórico, como o v35 ficou quando o v36 nasceu.
+**O GDD agora é a v39** (`docs/FERTWAYS_GDD_v39_CONSOLIDADO.html`, gerador em
+`tools/gdd-v39.php`, **D-160**, 2026-07-30 — terceira regeneração, D-141 a D-159: a zona neutra em
+colmeia de slots, a periferia curada célula a célula, o mapa do painel de admin, o frete com vários
+recursos, a taxa por hora e o Reator até o 15). O v38, o v36 e o v35 ficam intocados como
+histórico — **cada versão é um gerador novo, nunca uma edição destrutiva do anterior**.
+
+> **"Atualizar o GDD" pode querer dizer duas coisas, e elas não são a mesma.** *Regenerar* (D-159) é
+> rodar o gerador de novo contra o banco de dev: pega número que mudou, não regra. *Versão nova*
+> (D-141, D-160) é copiar o gerador para um arquivo novo e **curar a prosa** das decisões que
+> entraram desde o último corte. Pergunte-se qual dos dois o pedido é.
+>
+> Nos dois casos, `frontend/public/gdd.html` — o arquivo **estático** que o Vite publica em
+> `/gdd.html` na landing page — precisa receber a cópia à mão: o gerador só escreve em `docs/`, e
+> gerar o documento **não** alcança a landing page. Use `/bin/cp -f` (o alias `cp -i` do root já
+> copiou nada em silêncio uma vez) e confira com `diff`.
 
 **D-142**: o Reator de Energia e o Depósito Local trocaram de slot — o Depósito agora nasce no
 centro exato da colmeia (10), o Reator na borda (21). Vale para toda colônia, existente (migration
