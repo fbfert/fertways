@@ -1523,23 +1523,30 @@ ida→vigia→volta), sem tabela nova além de `drone_sightings` (as fotos).
    citado acima ("Onde o projeto está"). A Garagem do Governo resolveu isso em 2026-07-13. Este item
    ficou esquecido quando o D-76 fechou; corrigido em 2026-07-14, ao retomar a sessão.
 
-5. **Por onde começar o Alpha 2 — migrar o Laravel primeiro, ou entrar direto em A2.V1 + A2.0?**
-   (aberta em 2026-07-31). O plano está inteiro em `docs/alpha2/`; o que falta é escolher a porta de
-   entrada. **A recomendação é migrar antes**, por dois motivos: há um advisory de **severidade alta**
-   (CRLF injection na regra `email`) sem correção no ramo 11.x, e migrar antes de 13 fases de código
-   novo custa uma fração do que custará depois.
+5. ~~Migrar o Laravel~~ — **feito em 2026-07-31: o repositório está no Laravel 12.64.0.** ⚠️ **Mas a
+   produção só passa a rodá-lo depois de um `tools/deploy.sh`** — até lá, o que está no ar é o 11.54.
+   Confira com `git log --oneline -1` na árvore de deploy antes de supor qualquer coisa.
 
-   O grafo de dependências já foi conferido e está limpo — `composer require "laravel/framework:^12.61"
-   --dry-run` deu **1 install, 1 update, 0 removals**: sobe `laravel/framework v11.54.0 => v12.64.0` e
-   entra `symfony/polyfill-php84`. **Nenhum outro pacote se mexe** (Sanctum 4.3, Tinker, Pint, Sail,
-   Collision e PHPUnit já são compatíveis); o único bloqueio era o `^11.31` do próprio `composer.json`.
-   O Guzzle vem transitivamente do framework com constraint `^7.8.2`, que **já permite** o 7.15.1 — um
-   `composer update guzzlehttp/guzzle` fecha os 5 advisories médios sem tocar em mais nada.
+   Nenhuma linha de código da aplicação precisou mudar. Das dez rupturas do guia 11→12, **nenhuma
+   se aplicava**: `HasUuids` (a única de impacto médio) não é usada; não há `Concurrency`,
+   `mergeIfMissing`, `new Blueprint`, `setConnection` nem regra de validação `image`; as 199 rotas
+   têm 84 nomes e zero duplicados; e o disco `local` já estava com root `storage/app/private`, que
+   virou o padrão no 12. O `Schema::getIndexes()` da migration `slots_da_colonia` **assusta e não
+   procede** — a mudança multi-esquema atingiu `getTables`/`getViews`/`getTypes`/`getTableListing`,
+   não o `getIndexes`.
 
-   O trabalho de verdade é o de código do guia 11→12, com os 82 testes Feature e as 11 suítes E2E como
-   rede. ⚠️ Vale a regra da casa: **o verde do `artisan test` é SQLite e não vale como evidência sobre
-   DDL** — exercite no MariaDB. E uma carga pesada por vez, que o servidor tem 4 GB (`exit 137` é OOM,
-   não teste reprovado).
+   As evidências, para não serem refeitas: 927 testes verdes antes e **927 depois** (mesmo número,
+   zero regressões); E2E com 332 asserções e exit 0; migrations rodadas do zero num **MariaDB
+   descartável** (`fertways_l12_check`, criado e derrubado), gerando esquema **idêntico** ao do banco
+   de dev — 660 colunas e 267 linhas de índice sem uma diferença. Era o risco do D-59, e está
+   descartado. O `composer` fechou com *"No security vulnerability advisories found"*: caíram o CRLF
+   injection (alto) e os cinco médios do Guzzle, agora em 7.15.2.
+
+   A atualização moveu **23 pacotes**, não os 2 que o dry-run previa — os outros 21 são point releases
+   de symfony/guzzle que vieram junto pelo `--with-all-dependencies`. Nenhum major além do framework.
+
+   **A pergunta que sobra é só a porta de entrada do Alpha 2**, e a resposta natural agora é
+   **A2.V1 + A2.0** (a A2.V1 vem antes ou junto com a A2.0; ver `docs/alpha2/ROADMAP_ALPHA2.md`).
 
 ## Pendências conhecidas, sem bloquear
 
