@@ -8561,3 +8561,83 @@ só faz sentido depois de os requisitos de operador existirem, senão concederia
 998 testes verdes (14 novos). Migration exercitada num **MariaDB descartável** — a linha de
 parâmetros nasce com `ativo = 0` e o `JSON_EXTRACT` do mapa de zonas responde corretamente sobre o
 `longtext` com `CHECK (json_valid(...))` que o 10.5 usa no lugar de JSON nativo. Banco derrubado.
+
+---
+
+## D-168 — Pesquisa (A2.3): a estrutura entra, os números não
+
+**Data:** 2026-07-31 · **Status:** fase A2.3 do `docs/alpha2/ROADMAP_ALPHA2.md` · **Backend**
+
+Dá função real ao Laboratório, que o `Funcoes::CATALOGO` descreve como `'efeito' => 'nenhum'` com a
+nota: *"o GDD diz duas palavras e nunca publica árvore de pesquisa, tecnologias, custo nem tempo"*.
+
+Ou seja: **cada número desta fase seria invenção**. Por isso vale a mesma disciplina do D-167 —
+`research_settings.ativo` nasce `false`, a árvore existe e é exercitável, e a promoção dos números é
+arbitragem do usuário com evidência da trilha A2.S.
+
+### Decisões que dão forma ao modelo
+
+**Sem "Pontos de Pesquisa".** §8.2 é explícito: pesquisa consome recursos que já existem. Uma moeda
+paralela criaria uma segunda economia para balancear, e a fase existe para dar escolha, não para
+dobrar o trabalho.
+
+**O Observatório fica fora, e o mecanismo de vagas nasce extensível.** Ele não existe no jogo, e
+criá-lo exige decisão de slot, arte e especificação próprias (§7.2). O paralelismo sai do nível do
+Laboratório — mas `Vagas::fontes()` devolve um **mapa de contribuições**, não um número. Acrescentar
+o Observatório depois é acrescentar uma linha, não refazer o modelo. Há teste que guarda a forma.
+
+**O teto de vagas não é decoração.** Sem ele, um Laboratório alto pesquisaria tudo em paralelo e a
+árvore deixaria de ser escolha — viraria fila de espera. Vaga infinita mata o ponto da fase mais
+depressa do que qualquer custo errado.
+
+### Os efeitos reusam o vocabulário do `EfeitosDaEndurance`
+
+Mesmas chaves (`producao_bonus`, `desconto_tributo`, `velocidade_veiculo`…), mesmos alvos, **mesmos
+tetos agregados**. Um vocabulário paralelo seria o erro fácil e caro: duas fontes de bônus para a
+mesma coisa, com regras diferentes, e o teto de uma sem conhecer a outra — um colono com peça da
+Endurance e tecnologia pesquisada estouraria qualquer limite, e o sintoma apareceria como "produção
+estranha" meses depois.
+
+⚠️ **Ressalva anotada no código:** o teto é aplicado **por fonte**. A soma das duas ainda pode passar
+do limite individual; um teto conjunto exigiria somá-las antes de limitar, no consumidor. Está
+escrito porque é o tipo de coisa que se descobre tarde.
+
+### Três regras que impedem burla
+
+- **O nível sobe na conclusão, não no início.** Se subisse ao iniciar, valeria a pena começar tudo e
+  nunca terminar nada.
+- **Pesquisa em andamento não dá efeito nenhum.** Parece óbvio, e a implementação ingênua (somar o
+  que a colônia tem em `colony_technologies`) faria exatamente o contrário.
+- **O efeito é o do nível atual**, não a soma da escada: nível 3 dá 3× o valor por nível, não
+  1+2+3. Mesma regra do requisito de operador na A2.2.
+
+### O catálogo: uma tecnologia por trilha, e o porquê
+
+Oito trilhas, oito tecnologias. Cadastrar quarenta seria inventar quarenta conjuntos de números, e o
+§8.3 diz o que decide se a árvore presta: *"se a maioria dos jogadores pesquisar a mesma sequência,
+a árvore falhou"*. Isso se responde com simulação e escolha, não com volume. O que entra é o
+primeiro degrau de cada trilha — bastante para a bifurcação existir, pouco para ninguém confundir
+com desenho fechado.
+
+### O tipo novo de ledger, e a trava que funcionou
+
+`custo_pesquisa` entrou em `Ledger::TIPOS`. O teste do D-163 — *todo tipo do ledger tem direção
+declarada* — **cobrou a classificação em `DirecaoDoLedger` na mesma hora**. Era exatamente para isso
+que ele existia: um tipo novo não entra mudo na telemetria.
+
+### Verificação
+
+1016 testes verdes (18 novos). Migration e seeder exercitados num **MariaDB descartável**: a FK
+auto-referente da árvore nasce com `ON DELETE SET NULL`, os dois campos json viram `longtext` com
+`CHECK (json_valid(...))`, e `research_settings.ativo` nasce `0`. Banco derrubado.
+
+### O que a A2.3 ainda não tem
+
+Não há **API nem tela** — nenhuma rota de jogador foi criada, e o motor só é alcançável pelo
+domínio. Nem há aba de painel para o operador cadastrar tecnologia. É deliberado: com `ativo = false`
+e números de palpite, uma tela seria convite a mexer no que não está decidido. Entram quando os
+números entrarem.
+
+O critério de saída da fase — *"dois jogadores com tempo semelhante podem desenvolver colônias
+significativamente diferentes"* — **não pode ser declarado cumprido**: depende de a árvore ter
+tamanho e de os números terem sido arbitrados. A estrutura permite; o conteúdo ainda não prova.

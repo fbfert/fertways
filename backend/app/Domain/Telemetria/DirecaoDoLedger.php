@@ -107,6 +107,8 @@ class DirecaoDoLedger
         'compra_peca_endurance',
         'compra_item_endurance',
         'frete_publico',
+        // A2.3: destrói recurso de verdade — vira conhecimento, que não é estoque.
+        'custo_pesquisa',
     ];
 
     public function contaNoFluxo(string $tipo): bool

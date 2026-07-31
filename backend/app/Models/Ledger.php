@@ -94,6 +94,11 @@ class Ledger extends Model
         // antes do D-135 (reconstrução, catálogo dinâmico) têm esse tipo de verdade.
         'compra_peca_endurance',
         'compra_item_endurance',
+        /*
+         * A2.3: o custo em recursos de uma pesquisa. §8.2 proíbe "Pontos de Pesquisa" — pesquisa
+         * consome o que já existe no jogo, e por isso passa pelo ledger como qualquer outro gasto.
+         */
+        'custo_pesquisa',
     ];
 
     public function colony(): BelongsTo
