@@ -8093,3 +8093,97 @@ primeiro, `'Archivo'` atrás, para quem a tenha instalada no sistema.
 Conferido no CSS compilado: 3 `@font-face`, 3 arquivos woff2 e 3 `unicode-range`, com o mesmo nome
 de família nos dois lados. E2E com 9 suítes verdes e 332 asserções — a métrica nova da fonte não
 mexeu em nenhum teste sensível a posição.
+
+---
+
+## D-163 — Telemetria de gameplay (A2.0.1): a medida deriva do ledger, não o duplica
+
+**Data:** 2026-07-31 · **Status:** fase A2.0 do `docs/alpha2/ROADMAP_ALPHA2.md`, primeira fatia
+· **Backend**
+
+A fase A2.0 existe para parar de avaliar o jogo pelo "funciona/não funciona". Mas a decisão que dá
+forma a tudo é anterior ao roadmap: **o ledger já existe, já é append-only e já tem 48 tipos** que
+cobrem todo fato econômico. Instrumentar produção, compra, tributo ou subsídio de novo escreveria a
+mesma verdade duas vezes — e duas verdades divergem. "Quanto de Fert$ foi emitido" passaria a ter
+duas respostas, e a segunda seria a errada.
+
+Então a telemetria **deriva** do ledger o que ele enxerga, e só instrumenta o que ele não vê:
+sessão, navegação, abandono de onboarding, falta de insumo e falta de energia.
+
+### Duas camadas, e a razão é aritmética
+
+- **`telemetry_events`** — o evento discreto (login, upgrade concluído, ocupação de zona). Retenção
+  de **90 dias**.
+- **`telemetry_daily`** — o fluxo contínuo (produção, consumo, saldo) como retrato por dia e por
+  colônia. **Não expira**: já é o agregado.
+
+A separação não é economia de espaço, é a diferença entre uma tabela governável e uma inútil. O
+tick roda **a cada minuto**; um evento de produção por recurso por colônia por tick daria mais de
+1.400 linhas por colônia por dia sem responder nada que o retrato diário não responda melhor.
+
+### O achado que deu trabalho: o ledger não tem sinal
+
+Conferido no banco: **191 lançamentos, nenhum negativo.** O `amount` é sempre absoluto e a direção
+está no **tipo**. Agregar produção e consumo, portanto, exige arbitrar tipo a tipo — e errar aqui
+não produz erro visível, produz um gráfico plausível e falso.
+
+`App\Domain\Telemetria\DirecaoDoLedger` faz essa arbitragem, com três baldes: 18 tipos de entrada,
+17 de saída, e **8 indefinidos**.
+
+### ⚠️ Os 8 indefinidos estão esperando arbitragem do usuário
+
+`deposito_mercado`, `retirada_mercado`, `escrow_mercado`, `escrow_leilao`, `compra_mercado`,
+`transferencia`, `ajuste_admin`, `estorno`.
+
+O que eles têm em comum é **não serem criação nem destruição de valor — são mudança de lugar**. O
+escrow tira do depósito e prende na ordem, sem nada se produzir; a `transferencia` é saída de um
+lado e entrada do outro; o `estorno` tem o sinal do lançamento que desfaz; o `ajuste_admin` é o
+único delta com sinal de verdade do jogo (D-61).
+
+Contá-los como produção infla a economia com dinheiro que só andou de bolso; como consumo, faz o
+mesmo ao contrário. **Ficam fora da conta**, e o comando relata quantos ficaram — para o buraco ser
+visível em vez de silencioso. Pela regra de ouro da casa, isto é lacuna do desenho e se pergunta ao
+usuário; não se inventa.
+
+### As invariantes que os testes guardam
+
+- **Nenhum tipo de ledger pode ficar sem classificação.** `classificar()` lança em tipo
+  desconhecido em vez de devolver um default, e o teste exige que todo tipo de `Ledger::TIPOS`
+  esteja num dos três baldes. Um `default => neutro` faria todo tipo novo entrar mudo, e o sintoma
+  seria um número que encolhe sem explicação meses depois.
+- **Medir nunca derruba a jogada.** `RegistrarEvento` engole qualquer falha e devolve `null`. É a
+  única classe do domínio autorizada a isso, e a autorização vem de não ser regra de jogo: um evento
+  perdido é um buraco num gráfico; uma exceção propagada seria uma viagem perdida.
+- **Append-only**, como o ledger. Medida que se corrige depois de registrada é opinião. A trava fica
+  no modelo. ⚠️ Ela **não** pega `->delete()` em massa do query builder, que não dispara evento de
+  modelo — limitação do Eloquent, anotada no código para ninguém confiar demais nela.
+- **Agregação idempotente**: chave única (colônia, dia, recurso) mais `upsert`. Sem isso, uma
+  execução repetida por engano dobraria a produção de um dia inteiro.
+
+### Bot não é origem
+
+`origin` é `humano` ou `sistema`, e nada mais. Bots são externos e jogam em staging (GDD ALPHA 2
+§14); a distinção vem do ambiente. Uma coluna `bot` aqui só criaria a tentação de rodá-los em
+produção — e o ledger é append-only, então a contaminação seria permanente, justamente nas métricas
+que a simulação existe para produzir.
+
+O que precisa ser separado é o que o **operador** faz do que o jogador faz: um DAU que conta o admin
+é um DAU mentiroso.
+
+### O agendamento, que é onde este tipo de coisa morre
+
+`routes/console.php` ganhou as duas linhas. Sem elas a estrutura fica inerte e a falha é silenciosa
+— o mesmo esquecimento dos seeders de produção (D-52, D-57, D-60). Agrega às 00h10, varre às 03h; a
+ordem deixa escrito que o agregado do dia existe antes de o evento ser descartado.
+
+### Verificação
+
+945 testes verdes (927 da base + 18 novos). ⚠️ E o que o SQLite **não** provaria: a migration foi
+exercitada num MariaDB descartável, onde `json` virou `longtext` com `CHECK (json_valid(...))` —
+o 10.5 não tem tipo JSON nativo. O `upsert` foi rodado **duas vezes** contra o MariaDB para provar
+a idempotência lá, e não só no SQLite, que usa sintaxe diferente. O banco foi derrubado depois.
+
+### O que falta na A2.0
+
+A2.0.2 (painel de métricas) e A2.0.3 ("Desde sua última visita"). A coluna `users.resumo_visto_em`,
+de que a janela do §5.1 depende, já entrou nesta migration.
