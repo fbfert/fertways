@@ -1465,7 +1465,18 @@ class AcoesController extends Controller
             // Narrativa (D-140): o capítulo anterior, se este só libera depois de outro concluído.
             // Nulo = sem pré-requisito (o primeiro capítulo, ou qualquer missão fora de cadeia).
             'requer_template_id' => ['nullable', 'integer', Rule::exists('mission_templates', 'id')->whereNot('id', $ignorarId ?? 0)],
+            /*
+             * A2.1: a etapa que o colono não pode pular. `boolean` aceita a checkbox ausente como
+             * false, que é o padrão certo — obrigatoriedade é afirmação explícita.
+             *
+             * ⚠️ Só faz sentido em `tutoria`, e o painel avisa isso: uma diária obrigatória seria
+             * uma diária que trava o jogo. A validação não proíbe (o operador manda), mas a tela
+             * diz o que acontece.
+             */
+            'obrigatoria' => ['boolean'],
         ]);
+
+        $dados['obrigatoria'] = (bool) ($dados['obrigatoria'] ?? false);
 
         $recursos = [];
 

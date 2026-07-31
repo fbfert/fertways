@@ -34,8 +34,8 @@ class MissionTemplate extends Model
     ];
 
     protected $fillable = [
-        'chave', 'categoria', 'requer_template_id', 'titulo', 'descricao', 'acao', 'meta',
-        'recompensa_fert_micro', 'recompensa_xp', 'recompensa_recursos', 'ativa',
+        'chave', 'categoria', 'obrigatoria', 'requer_template_id', 'titulo', 'descricao', 'acao',
+        'meta', 'recompensa_fert_micro', 'recompensa_xp', 'recompensa_recursos', 'ativa',
     ];
 
     protected $casts = [
@@ -44,6 +44,9 @@ class MissionTemplate extends Model
         'recompensa_xp' => 'integer',
         'recompensa_recursos' => 'array',
         'ativa' => 'boolean',
+        // A2.1: a etapa que o colono não pode pular. Ver o docblock da migration
+        // `2026_07_31_200000_onboarding_obrigatorio`.
+        'obrigatoria' => 'boolean',
     ];
 
     /** Quantas vezes já foi sorteada — é o que decide se o painel deixa apagar ou só desativar. */

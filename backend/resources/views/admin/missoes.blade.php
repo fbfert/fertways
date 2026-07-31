@@ -55,7 +55,13 @@
                             <b>{{ $t->titulo }}</b>
                             <div class="mut" style="font-size:.58rem">{{ $t->chave }}{{ $t->ativa ? '' : ' · desligada' }}</div>
                         </td>
-                        <td class="pequeno">{{ $nomeCategoria[$t->categoria] ?? $t->categoria }}</td>
+                        <td class="pequeno">
+                            {{ $nomeCategoria[$t->categoria] ?? $t->categoria }}
+                            @if ($t->obrigatoria)
+                                {{-- A2.1: a etapa que o colono não pode pular. --}}
+                                <strong style="color:var(--rust)" title="Obrigatória: não pode ser pulada">· obrigatória</strong>
+                            @endif
+                        </td>
                         <td class="num">{{ $linha['sorteada'] }}</td>
                         <td class="num">{{ $linha['concluida'] }}</td>
                         <td class="num">{{ $linha['rejeitada'] }}</td>
@@ -123,6 +129,16 @@
                 <div class="linha-form" style="margin-top:8px">
                     <div>
                         <label>Requer (só narrativa — vazio = 1º capítulo, ou sem cadeia)</label>
+                        <label style="display:flex;gap:6px;align-items:center;font-weight:normal">
+                            <input type="checkbox" name="obrigatoria" value="1">
+                            Obrigatória (não pode ser pulada)
+                        </label>
+                        <p class="mut pequeno" style="margin:4px 0 8px">
+                            ⚠️ Só faz sentido na <strong>tutoria</strong>. E só marque etapa que o
+                            colono conclua <strong>sozinho</strong>: num servidor recém-aberto não há
+                            contraparte, e uma etapa obrigatória que dependa de outro jogador prende
+                            o iniciante numa porta que não depende dele.
+                        </p>
                         <select name="requer_template_id" style="width:100%">
                             <option value="">— nenhum —</option>
                             @foreach ($capitulosNarrativos as $c)
@@ -255,6 +271,10 @@
                                 <div class="linha-form" style="margin-top:8px">
                                     <div>
                                         <label>Requer (só narrativa)</label>
+                                        <label style="display:flex;gap:6px;align-items:center;font-weight:normal">
+                                            <input type="checkbox" name="obrigatoria" value="1" @checked($m->obrigatoria)>
+                                            Obrigatória
+                                        </label>
                                         <select name="requer_template_id" style="width:100%">
                                             <option value="">— nenhum —</option>
                                             @foreach ($capitulosNarrativos as $c)

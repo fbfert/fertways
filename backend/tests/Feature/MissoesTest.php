@@ -52,17 +52,29 @@ class MissoesTest extends TestCase
 
     // ---------------------------------------------------------------- a tutoria
 
-    public function test_a_fundacao_entrega_as_cinco_da_tutoria_com_tres_dias_de_prazo(): void
+    /**
+     * ⚠️ Este teste MUDOU na A2.1, e a mudança é de regra, não de implementação.
+     *
+     * Ele afirmava o comportamento antigo: as cinco da tutoria entregues de uma vez, expirando em
+     * 3 dias ("§06: dias 1 a 3"). O onboarding produtivo virou uma **sequência encadeada que não
+     * expira** — só o primeiro degrau chega na fundação, e cada seguinte só nasce quando o anterior
+     * conclui.
+     *
+     * As duas razões para largar o prazo de 3 dias estão em `OnboardingTest`: uma etapa obrigatória
+     * que some sozinha é uma contradição, e expirar o meio de uma sequência tranca a escada inteira.
+     *
+     * O "5" do §06 não se perdeu — continua sendo cinco etapas, e `test_o_pool_publicado_existe`
+     * guarda isso. O que mudou é COMO elas chegam.
+     */
+    public function test_a_fundacao_entrega_so_o_primeiro_degrau_da_tutoria(): void
     {
         $user = $this->colono();
 
         $tutoria = MissionAssignment::where('colony_id', $user->colony->id)
             ->where('categoria', 'tutoria')->get();
 
-        $this->assertCount(5, $tutoria);
-        $this->assertTrue($tutoria->every(
-            fn ($m) => (int) now()->diffInDays($m->expires_at) === 3 || now()->diffInDays($m->expires_at) < 3.01,
-        ), '§06: "dias 1 a 3"');
+        $this->assertCount(1, $tutoria);
+        $this->assertNull($tutoria->first()->expires_at, 'a tutoria não expira mais (A2.1)');
     }
 
     public function test_o_subsidio_nao_depende_da_tutoria_por_decisao(): void
