@@ -251,5 +251,15 @@ export function relatar(nome) {
   const verde = falhas.length === 0 && erros.length === 0
   console.log(`\n${nome}: ${verde ? 'E2E VERDE' : 'E2E VERMELHO'}`)
 
-  return verde ? 0 : 1
+  /*
+   * ⚠️ `process.exit`, e não `return`.
+   *
+   * Isto **devolvia** 0 ou 1 e ninguém usava o retorno — o processo do node saía 0 sempre, mesmo
+   * imprimindo "E2E VERMELHO". Como o `tools/e2e.sh` roda sob `set -e`, o efeito é que uma suíte
+   * reprovada **não reprovava o script**: ele seguia para a próxima e terminava anunciando sucesso.
+   *
+   * Foi assim que uma execução vermelha me devolveu status 0 em 2026-07-31. Um teste que falha em
+   * silêncio é pior do que teste nenhum: teste nenhum ao menos não dá a impressão de cobertura.
+   */
+  process.exit(verde ? 0 : 1)
 }

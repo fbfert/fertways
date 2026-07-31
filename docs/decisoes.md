@@ -8187,3 +8187,89 @@ a idempotência lá, e não só no SQLite, que usa sintaxe diferente. O banco fo
 
 A2.0.2 (painel de métricas) e A2.0.3 ("Desde sua última visita"). A coluna `users.resumo_visto_em`,
 de que a janela do §5.1 depende, já entrou nesta migration.
+
+---
+
+## D-164 — "Desde sua última visita" (A2.0.3), e a correção de um erro do D-163
+
+**Data:** 2026-07-31 · **Status:** fase A2.0 do `docs/alpha2/ROADMAP_ALPHA2.md`, segunda fatia
+· **Backend e frontend**
+
+A primeira tela nova da Alpha 2, e a razão de a A2.V1 (D-161) ter vindo antes de tudo: ela fixa o
+padrão visual na marra. Nasceu inteira sobre o design system — `Botao` e `Selo`.
+
+### ⚠️ Primeiro, o erro do D-163
+
+O D-163 afirmou que **o ledger guarda valor absoluto e a direção está no tipo**. Está errado.
+
+Eu tinha conferido no banco de desenvolvimento que nenhum dos 191 lançamentos era negativo, e
+generalizei. O banco de dev só não tinha negativos porque **só tinha entradas** — subsídio, kit
+inicial, saldo inicial. O código escreve saída como negativo em **dezenove lugares**
+(`'amount' => -$qtd`, em `EnqueueUpgrade`, `ComprarVeiculo`, `CobrarManutencaoTerritorial`…).
+
+O sinal já estava no dado. A tabela `ENTRADA`/`SAIDA` do `DirecaoDoLedger` reconstruía, por palpite,
+uma informação que o ledger carrega com precisão — e um tipo mal classificado somaria no balde
+errado sem nenhum sintoma. Pior: **o teste passava porque eu mesmo inseria `custo_construcao` com
+valor positivo**, um mundo que a produção nunca produz.
+
+Corrigido: **a direção vem do sinal**. `DirecaoDoLedger` passou a ter um único trabalho — decidir o
+que **não conta** (`NAO_CONTA`: escrow, transferência entre colônias, compra casada, estorno e
+`ajuste_admin`), porque isso o sinal não resolve: são mudança de lugar ou correção, não criação nem
+destruição de valor. Com isso os "8 indefinidos" que o D-163 deixou pendentes ficam **decididos**,
+e não pendurados: eles não entram no fluxo, por natureza.
+
+### A janela (GDD ALPHA 2 §5.1)
+
+Por **resumo visto**, não por sessão — e não é preciosismo: o jogo não tem sessão, e quem fecha a
+aba nunca encerra uma. O marcador é `users.resumo_visto_em` (criado no D-163) e avança **ao
+fechar**, não ao abrir.
+
+Três regras, três testes:
+
+- **Primeira visita não mostra nada**, e planta o marcador. Mostrar apresentaria a fundação da
+  própria colônia como "novidade desde sua última visita" para quem acabou de chegar.
+- **Piso de uma hora**: quem recarrega a página não leva um modal a cada visita.
+- **Abrir não consome a janela.** `GET` monta e não marca; só o `POST /resumo/visto` move. Se o GET
+  movesse, abrir e fechar sem ler apagaria para sempre o que aconteceu enquanto o jogador estava
+  fora. É a invariante mais importante do conjunto.
+
+### Um cast que quase escapou, e por que quase
+
+`users.resumo_visto_em` não tinha cast `datetime`. Os testes passavam porque `actingAs($u)` guarda a
+instância em memória, onde o atributo ainda era Carbon vindo do `forceFill`. **Em produção o usuário
+chega do banco pelo Sanctum, como string, e o `->copy()->addMinutes()` do piso estouraria.** É
+exatamente a armadilha que o comentário do `suspenso_ate` já registrava, repetida. Há agora um teste
+que carrega o usuário do banco só para fechar essa porta.
+
+### De onde vêm os números
+
+Do ledger e do `build_queue`. Nenhum evento de telemetria novo foi criado, pelo mesmo princípio do
+D-163. A conclusão de obra sai do `build_queue` (`status = 'done'`, ninguém apaga essas linhas)
+porque o tick **zera `upgrade_finish_at`** ao concluir — a construção não guarda quando subiu.
+
+### Decisões de produto na tela
+
+- **Nada na tela enquanto carrega, e nada se falhar.** É a única tela que o colono não pediu: ela se
+  convida. Um modal de "carregando" piscaria a cada carga de página, inclusive para quem está dentro
+  do piso e não veria resumo nenhum.
+- **Fechar é instantâneo**: a marcação é disparada e não esperada. Se falhar, o resumo reaparece na
+  próxima visita — melhor do que um botão pendurado num POST.
+- **"Nada aconteceu" é dito**, não escondido. Quem passou dois dias fora com a colônia parada
+  precisa ver que não produziu nada.
+
+### ⚠️ E um defeito no próprio arranjo de testes
+
+`relatar()` em `e2e/comum.mjs` **devolvia** 0/1 e ninguém usava o retorno: o node saía 0 mesmo
+imprimindo "E2E VERMELHO". Sob `set -e`, uma suíte reprovada **não reprovava o script** — ele
+seguia e terminava anunciando sucesso. Foi assim que uma execução vermelha me devolveu status 0
+hoje. Agora `process.exit(verde ? 0 : 1)`.
+
+Um teste que falha em silêncio é pior do que teste nenhum: teste nenhum ao menos não dá a impressão
+de cobertura.
+
+### Verificação
+
+960 testes verdes (14 novos do resumo). E2E com **10 suítes** e 340 asserções — a nova
+`resumo.e2e.mjs` roda **primeiro**, de propósito: o resumo é um popup `fixed inset-0` que
+interceptaria os cliques de todas as outras se ficasse aberto; ao ser fechado, o piso de uma hora o
+silencia pelo resto da execução.

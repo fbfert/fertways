@@ -22,6 +22,7 @@ use App\Http\Controllers\Api\TradeController;
 use App\Http\Controllers\Api\TransportController;
 use App\Http\Controllers\Api\VehicleController;
 use App\Http\Controllers\Api\ProfileController;
+use App\Http\Controllers\Api\ResumoController;
 use App\Http\Controllers\Api\WarController;
 use App\Http\Controllers\Api\ZoneController;
 use Illuminate\Support\Facades\Route;
@@ -43,6 +44,14 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/profile/password', [ProfileController::class, 'password']);
 
     Route::get('/colony', [ColonyController::class, 'show']);
+
+    /*
+     * "Desde sua última visita" (A2.0.3). Dois verbos de propósito: o GET monta e NÃO move o
+     * marcador; o POST move, e só é chamado quando o jogador FECHA o resumo (GDD ALPHA 2 §5.1).
+     * Se o GET movesse, abrir a tela sem ler já consumiria a janela.
+     */
+    Route::get('/resumo', [ResumoController::class, 'show']);
+    Route::post('/resumo/visto', [ResumoController::class, 'visto']);
     Route::post('/colony', [ColonyController::class, 'store']);
 
     // Diretório de destinos possíveis para um despacho. Sem ele, `destination_type = colonia`

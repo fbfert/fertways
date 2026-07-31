@@ -14,6 +14,7 @@ import type { AvisosDoChat } from './ui/Chat'
 import { Missoes } from './ui/Missoes'
 import { Mapa } from './ui/Mapa'
 import { Header } from './ui/Header'
+import { ResumoDeRetorno } from './ui/ResumoDeRetorno'
 import { MobileNav } from './ui/MobileNav'
 import { Route, Routes, useNavigate, useParams } from 'react-router-dom'
 import { Mercado } from './ui/Mercado'
@@ -179,6 +180,13 @@ export default function App() {
    * card já cumpriu o papel dele — quem atravessou a porta não precisa mais dela aberta.
    */
   const [chatAberto, setChatAberto] = useState(false)
+  /*
+   * Começa ABERTO (A2.0.3): o resumo se convida uma vez por carga de página. Quem decide se ele
+   * realmente aparece é o servidor — o componente se fecha sozinho quando a resposta diz que não é
+   * para mostrar (primeira visita, piso de uma hora, sem colônia; GDD ALPHA 2 §5.1). Aqui `true`
+   * significa só "ainda não foi dispensado nesta carga".
+   */
+  const [resumoAberto, setResumoAberto] = useState(true)
   const [missoesAbertas, setMissoesAbertas] = useState(false)
   const [bugsAbertos, setBugsAbertos] = useState(false)
   const [chatPendente, setChatPendente] = useState(0)
@@ -353,6 +361,16 @@ export default function App() {
           aoSair={() => void sair()}
         />
       )}
+
+      {/*
+        "Desde sua última visita" (A2.0.3). Fica FORA do `<Routes>` de propósito: o resumo é sobre o
+        intervalo entre visitas, não sobre a tela em que o colono calhou de cair.
+
+        Quem decide se ele aparece é o SERVIDOR (§5.1: primeira visita não mostra, e há piso de uma
+        hora). O componente se fecha sozinho quando a resposta diz que não é para mostrar, e não
+        desenha nada enquanto isso — sem flash de modal a cada carga de página.
+      */}
+      {colonia && resumoAberto && <ResumoDeRetorno aoFechar={() => setResumoAberto(false)} />}
 
       <Routes>
         <Route path="/" element={jogo} />

@@ -81,47 +81,60 @@ class TelemetriaDiaria extends Command
 
     private function agregarDia(Carbon $dia, DirecaoDoLedger $direcao): int
     {
-        $lancamentos = Ledger::query()
-            ->whereBetween('created_at', [$dia->copy()->startOfDay(), $dia->copy()->endOfDay()])
-            ->select('colony_id', 'type', 'resource_type', DB::raw('SUM(amount) AS total'))
-            ->groupBy('colony_id', 'type', 'resource_type')
-            ->get();
+        $inicio = $dia->copy()->startOfDay();
+        $fim = $dia->copy()->endOfDay();
 
         /*
-         * A chave é colônia + recurso. `resource_type` nulo é Fert$, e o `?? ''` existe só porque
-         * um índice de array não aceita null — na escrita ele volta a ser null, que é a convenção
-         * que o ledger usa e que esta tabela repete de propósito.
+         * Antes de somar qualquer coisa, conferir que todo tipo presente no dia tem decisão
+         * declarada. `contaNoFluxo()` lança em tipo desconhecido — e é aqui, com o dia inteiro à
+         * vista, que a falha é barata. Somar primeiro e descobrir depois produziria um retrato
+         * incompleto já gravado.
          */
-        $acumulado = [];
-        $ignorados = 0;
+        $tiposDoDia = Ledger::query()
+            ->whereBetween('created_at', [$inicio, $fim])
+            ->distinct()->pluck('type');
 
-        foreach ($lancamentos as $l) {
-            $direcaoDoTipo = $direcao->classificar($l->type);
-
-            if ($direcaoDoTipo === 'indefinido') {
-                $ignorados++;
-
-                continue;
+        $fora = [];
+        foreach ($tiposDoDia as $t) {
+            if (! $direcao->contaNoFluxo($t)) {
+                $fora[] = $t;
             }
-
-            $chave = $l->colony_id.'|'.($l->resource_type ?? '');
-            $acumulado[$chave] ??= [
-                'colony_id' => $l->colony_id,
-                'resource_type' => $l->resource_type,
-                'produzido' => 0,
-                'consumido' => 0,
-            ];
-
-            $campo = $direcaoDoTipo === 'entrada' ? 'produzido' : 'consumido';
-            $acumulado[$chave][$campo] += (int) $l->total;
         }
 
-        if ($ignorados > 0) {
+        /*
+         * A soma vai para o SQL, e a direção sai do SINAL do `amount` — não de uma tabela de tipos.
+         * O ledger escreve saída como negativo (`'amount' => -$qtd`), então o sinal já é a verdade;
+         * reconstruí-la por tipo seria repetir, com palpite, o que o dado já diz.
+         *
+         * `-amount` no lado do consumo para a coluna guardar valor absoluto: uma colônia que produz
+         * 100 e gasta 100 não é igual a uma parada, e guardar o líquido zero das duas diria que sim.
+         */
+        $acumulado = Ledger::query()
+            ->whereBetween('created_at', [$inicio, $fim])
+            ->when($fora !== [], fn ($q) => $q->whereNotIn('type', $fora))
+            ->select(
+                'colony_id',
+                'resource_type',
+                DB::raw('SUM(CASE WHEN amount > 0 THEN amount ELSE 0 END) AS produzido'),
+                DB::raw('SUM(CASE WHEN amount < 0 THEN -amount ELSE 0 END) AS consumido'),
+            )
+            ->groupBy('colony_id', 'resource_type')
+            ->get()
+            ->map(fn ($l) => [
+                'colony_id' => $l->colony_id,
+                'resource_type' => $l->resource_type,
+                'produzido' => (int) $l->produzido,
+                'consumido' => (int) $l->consumido,
+            ])
+            ->all();
+
+        if ($fora !== []) {
             /*
-             * Relatado, e não engolido: os tipos indefinidos são mudança de lugar, e ficam fora da
-             * conta até haver arbitragem. Se este número for grande, a arbitragem virou urgente.
+             * Relatado, e não engolido: escrow, transferência, estorno e ajuste do operador são
+             * mudança de lugar ou correção, e ficam fora da conta de propósito. Dizer quais ficaram
+             * torna a omissão visível em vez de silenciosa.
              */
-            $this->line("  {$dia->toDateString()}: {$ignorados} agrupamento(s) de tipo indefinido ficaram de fora.");
+            $this->line("  {$dia->toDateString()}: fora do fluxo — ".implode(', ', $fora));
         }
 
         if ($acumulado === []) {

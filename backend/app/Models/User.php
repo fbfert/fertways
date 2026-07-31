@@ -53,6 +53,15 @@ class User extends Authenticatable
             'conciliador_suspenso_em' => 'datetime',
             'salario_pago_em' => 'datetime',
             'reversoes' => 'integer',
+            /*
+             * O marcador do "Desde sua última visita" (A2.0.3, GDD ALPHA 2 §5.1). Exatamente a
+             * mesma armadilha do `suspenso_ate` logo acima, e ela quase passou de novo: sem o cast,
+             * o valor volta do banco como STRING e o `->copy()->addMinutes()` que aplica o piso de
+             * uma hora estoura. Os testes não pegaram de imediato porque `actingAs` guardava a
+             * instância em memória, onde o atributo ainda era Carbon — o erro só apareceria em
+             * produção, com o usuário vindo do banco pelo Sanctum.
+             */
+            'resumo_visto_em' => 'datetime',
         ];
     }
 
