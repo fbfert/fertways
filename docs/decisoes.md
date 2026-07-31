@@ -8273,3 +8273,72 @@ de cobertura.
 `resumo.e2e.mjs` roda **primeiro**, de propósito: o resumo é um popup `fixed inset-0` que
 interceptaria os cliques de todas as outras se ficasse aberto; ao ser fechado, o piso de uma hora o
 silencia pelo resto da execução.
+
+---
+
+## D-165 — Painel de métricas (A2.0.2): zero e "ninguém mediu" não podem ter a mesma cara
+
+**Data:** 2026-07-31 · **Status:** fase A2.0 do `docs/alpha2/ROADMAP_ALPHA2.md`, fatia final
+· **Backend, aba nova no painel do operador**
+
+A A2.0.2 pede quinze indicadores. **Nem todos têm de onde sair hoje** — o funil de onboarding quer
+`onboarding_abandonado`, os gargalos de cadeia querem `falta_de_insumo`, e ninguém os emitia.
+
+A tentação era preencher com zero. Seria o pior desenho possível: **zero e "ninguém mediu" são a
+mesma imagem na tela e coisas opostas na realidade.** Um operador olharia o funil zerado e concluiria
+que ninguém abandona o onboarding — quando a verdade é que ninguém sabe.
+
+Então o painel **abre pela lista de lacunas**, antes de qualquer número: o indicador, o evento que
+falta e onde ele nasceria. E a lista é **derivada** do que a tabela realmente contém, não uma
+constante que alguém teria de lembrar de editar — quando um evento passa a ser emitido, a linha some
+sozinha. Há teste para isso.
+
+### O que foi instrumentado agora, fechando três lacunas
+
+- **`colonia_fundada`** em `CreateColony`, dentro da transação: uma fundação que falhe no meio não
+  pode deixar evento de colônia que não existe.
+- **`falta_de_insumo`** em `EnqueueUpgrade` — a parede mais comum do jogo.
+- **`falta_de_energia`** em `DespacharVeiculo`, com tipo próprio: falta de insumo é cadeia produtiva
+  incompleta; falta de energia é a colônia inteira parando. Um tipo só esconderia a diferença.
+
+O ledger não vê nada disso por definição: ele registra o que **aconteceu**, e estas são o registro
+do que **não** aconteceu. É a métrica mais valiosa da fase — é onde o jogo trava sem avisar ninguém.
+
+### O viés vai junto do número, não numa nota de rodapé
+
+A duração mediana de sessão sai de pares login→logout, e **quem fecha a aba nunca emite logout**.
+Por isso ela vem acompanhada da **cobertura**: a fração de logins que teve logout correspondente.
+Uma mediana de 20 min com 15% de cobertura não quer dizer "a sessão típica dura 20 minutos"; quer
+dizer "das poucas sessões que alguém encerrou de propósito, metade durou menos que isso".
+
+Pela mesma razão, login sobre login **não** vira duração: a sessão anterior nunca foi encerrada, e
+contá-la até o login seguinte inventaria um número que ninguém observou.
+
+E o retrato diário vazio traz bandeira própria: não é "a economia parou", é "o agregador ainda não
+rodou".
+
+### Concentração de riqueza: fatia do topo, não Gini
+
+"Os 10% mais ricos têm 60% do Fert$" diz mais, a quem vai decidir balanceamento, do que "Gini 0,48".
+O Gini entra se e quando alguém precisar comparar séries.
+
+### ⚠️ E a lição mais cara do dia: o SQLite não valida NOME DE COLUNA
+
+Escrevi `whereNotNull('colony_id')` numa tabela cuja coluna é `owner_colony_id`. **Os treze testes
+passaram em verde.** O MariaDB reclamou na primeira consulta.
+
+A causa é uma armadilha do SQLite: **identificador entre aspas duplas que não casa com coluna
+nenhuma é reinterpretado como literal de texto.** Então `WHERE "colony_id" IS NOT NULL` vira
+`WHERE 'colony_id' IS NOT NULL` — sempre verdadeiro. Provado num `sqlite::memory:` cru: contou 2 de
+2 linhas que deveriam dar 0. O MariaDB responde `1054 Unknown column`.
+
+Isso **amplia a regra da casa**. Ela era "o verde do `artisan test` não prova DDL". Passa a ser: o
+verde do `artisan test` também não prova **nome de coluna em consulta**. Um erro de digitação vira
+filtro que não filtra, e o número sai plausível e errado — que é o pior tipo de erro num painel de
+métricas, porque é o tipo que alguém usa para decidir balanceamento.
+
+### Verificação
+
+973 testes verdes (13 novos), **incluindo dois que renderizam a página de verdade** — uma view Blade
+quebra em runtime, e nenhum teste dos indicadores pegaria isso. E os indicadores foram exercitados
+contra o **MariaDB de dev**, por leitura, que é o que achou o nome de coluna errado.

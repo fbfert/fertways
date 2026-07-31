@@ -244,6 +244,22 @@ class PainelController extends Controller
         ]);
     }
 
+    /**
+     * Métricas de produto (A2.0.2).
+     *
+     * O `dias` é do operador porque a pergunta muda com ele: 7 dias mostra o efeito de uma mudança
+     * recente, 90 mostra tendência. Limitado a 365 para uma URL curiosa não varrer o ledger inteiro.
+     */
+    public function metricas(Request $request): View
+    {
+        $dias = (int) $request->query('dias', 30);
+        $dias = max(1, min(365, $dias));
+
+        return view('admin.metricas', [
+            'dados' => app(\App\Domain\Telemetria\Indicadores::class)->tudo($dias),
+        ]);
+    }
+
     public function economia(Request $request): View
     {
         $abas = ['financas', 'tesouro', 'subsidios', 'mercado', 'ofertas_globais', 'extrato_governo', 'extrato_colonos'];
