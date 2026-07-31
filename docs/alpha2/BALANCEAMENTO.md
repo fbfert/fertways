@@ -298,6 +298,43 @@ Proposta de chaves:
 
 Todos começam como PENDENTE até simulação pela trilha A2.S.
 
+### Rodada 1 da trilha A2.S — 2026-07-31 (evidência, NÃO promoção)
+
+Primeira rodada registrada. **Nenhum número foi promovido de HIPÓTESE a BASELINE** — isto é a
+evidência que a arbitragem exige, não a arbitragem.
+
+Comando: `php84 artisan fertways:simular-populacao --dias=60 --nivel-habitacao=3 --populacao-inicial=5 --producao=agua:2,oxigenio:2,biomassa:1,energia:2`
+
+| Parâmetro | Valor da rodada |
+|---|---|
+| `capacidade_base` / fator | 10 · 1,65× por nível (teto de 27 no nível 3) |
+| `crescimento_bps_hora` | 50 (0,5%/h) |
+| água / oxigênio / biomassa / energia por colono/hora | 0,100 · 0,120 · 0,080 · 0,060 |
+| `escassez_eficiencia_bps` | 5000 (piso de 50%) |
+| `crescimento_min_suprimento_bps` | 8000 (80%) |
+
+**Resultado:**
+
+- teto habitacional atingido no **dia 15** (5 → 27 colonos);
+- primeiro gargalo: **biomassa**, a partir do **dia 19**;
+- eficiência estabiliza em **73,2%**, com água, oxigênio e biomassa em falta permanente.
+
+**Leitura:** com esta produção a colônia satura o teto rápido e depois vive cronicamente em
+escassez — o que o §7.3 descreve como a faixa de *frustração*, não a de *decisão estratégica*. Ou a
+produção de essenciais precisa ser maior do que a desta rodada, ou o consumo per capita precisa
+cair. **Falta arbitrar qual dos dois**, e é decisão do usuário.
+
+⚠️ A métrica-chave do §7.3 — percentual de população comprometida — **ainda não é mensurável**:
+`building_operator_requirements` está vazia, e imprimir "0%" seria ausência de dado com cara de
+resultado. Ela passa a existir quando os requisitos de operador forem semeados.
+
+⚠️ **Achado do modelo, não do balanceamento:** a primeira rodada saiu com a curva perfeitamente
+horizontal — a população não crescia **nunca**. Com 5 colonos a 0,5%/h, um passo de uma hora dá
+5,025 e o `floor` devolve 5, para sempre. Foi corrigido com acumulador de resto fracionário
+(`colonies.populacao_resto_milli`), o mesmo idioma de `siderurgica_lote_remainder`. O simulador
+achou um defeito de modelo antes de ele chegar ao jogo — que é exatamente o que a trilha existe
+para fazer.
+
 ⚠️ `population_capacity[level]` tem uma restrição que os demais não têm: na migração, a capacidade de cada colônia existente precisa **caber** a população concedida por grandfathering. Um valor baixo demais faria colônias veteranas nascerem acima do próprio teto habitacional.
 
 ## 7.2 Objetivo
