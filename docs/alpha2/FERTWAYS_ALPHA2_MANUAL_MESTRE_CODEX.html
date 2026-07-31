@@ -1,0 +1,2692 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>FERTWAYS — Alpha 2 · Estratégia, GDD, Roadmap, Balanceamento e Super Prompts Claude</title>
+<style>
+:root {
+  --bg:#0b0e12; --surface:#121720; --surface2:#18202b; --paper:#f3eadf;
+  --ink:#f4eee7; --muted:#a9b2bd; --rust:#d45d1e; --rust2:#ef7c3b;
+  --gold:#d7a657; --line:#2a3442; --green:#66b77a; --blue:#6ca7d9;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:Inter,Segoe UI,Arial,sans-serif;line-height:1.65}
+.hero{padding:72px 28px 52px;background:radial-gradient(circle at top right,#3a2114 0,transparent 36%),linear-gradient(145deg,#0b0e12,#111722)}
+.hero-inner{max-width:1180px;margin:auto}
+.eyebrow{text-transform:uppercase;letter-spacing:.18em;color:var(--rust2);font-weight:800;font-size:12px}
+h1{font-size:clamp(40px,7vw,76px);line-height:1;margin:.18em 0;color:#fff}
+.subtitle{font-size:20px;max-width:920px;color:#cbd1d8}
+.meta-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px;margin-top:28px}
+.meta{background:rgba(255,255,255,.04);border:1px solid var(--line);padding:16px;border-radius:12px}
+.meta b{display:block;color:var(--gold);font-size:12px;text-transform:uppercase;letter-spacing:.08em}
+.layout{max-width:1320px;margin:auto;display:grid;grid-template-columns:280px minmax(0,1fr);gap:28px;padding:28px}
+.sidebar{position:sticky;top:18px;height:calc(100vh - 36px);overflow:auto;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px}
+.sidebar h3{font-size:13px;text-transform:uppercase;letter-spacing:.1em;color:var(--gold);margin:8px 0}
+.sidebar a{display:block;color:#cbd1d8;text-decoration:none;padding:7px 9px;border-radius:8px;font-size:13px}
+.sidebar a:hover{background:var(--surface2);color:#fff}
+main{min-width:0}
+.section{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:28px;margin-bottom:28px}
+.section>h2:first-child{margin-top:0}
+h2{font-size:30px;color:var(--rust2);border-bottom:1px solid var(--line);padding-bottom:10px;margin-top:36px}
+h3{font-size:22px;color:#fff;margin-top:30px}
+h4{color:var(--gold)}
+p,li{color:#d5d9df}
+strong{color:#fff}
+code{background:#0b1016;color:#f6c78b;padding:2px 6px;border-radius:5px}
+pre{background:#080b0f;border:1px solid #26303d;border-radius:12px;padding:18px;overflow:auto;white-space:pre-wrap}
+.table-wrap{overflow:auto;border:1px solid var(--line);border-radius:10px;margin:14px 0}
+table{border-collapse:collapse;width:100%;min-width:680px}
+th,td{padding:10px 12px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+th{background:#0e131a;color:var(--gold);font-size:12px;text-transform:uppercase;letter-spacing:.06em}
+hr{border:none;border-top:1px solid var(--line);margin:34px 0}
+.callout{border-left:4px solid var(--rust);background:#17120f;padding:16px 18px;border-radius:8px;margin:18px 0}
+.badge{display:inline-block;padding:4px 9px;border-radius:999px;background:#402313;color:#ffbd8b;font-size:11px;font-weight:800;letter-spacing:.06em}
+.prompt-card{background:var(--surface2);border:1px solid var(--line);border-radius:14px;margin:18px 0;overflow:hidden}
+.prompt-head{display:flex;gap:14px;align-items:center;justify-content:space-between;padding:16px 18px;border-bottom:1px solid var(--line)}
+.prompt-head h3{margin:6px 0 0;font-size:19px}
+.copy-btn{background:var(--rust);border:0;color:white;padding:9px 12px;border-radius:8px;font-weight:700;cursor:pointer}
+.copy-btn:hover{background:var(--rust2)}
+.prompt-text{margin:0;border:0;border-radius:0;max-height:680px;font-size:12px;line-height:1.48}
+.prompt-text code{background:none;padding:0;color:#dfe6ee}
+.chapter-links{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:8px}
+.chapter-links a{text-decoration:none;background:var(--surface2);border:1px solid var(--line);padding:10px 12px;border-radius:9px;color:#e6eaee}
+.chapter-links a:hover{border-color:var(--rust);}
+footer{max-width:1320px;margin:0 auto;padding:10px 28px 50px;color:var(--muted)}
+@media(max-width:960px){.layout{grid-template-columns:1fr;padding:16px}.sidebar{position:relative;top:0;height:auto}.section{padding:20px}}
+@media print{.sidebar,.copy-btn{display:none}.layout{display:block;max-width:none}body{background:white;color:#111}.section{break-inside:avoid;background:white;color:#111;border-color:#ccc}p,li,strong,h3{color:#111}pre{white-space:pre-wrap;color:#111;background:#f5f5f5}}
+</style>
+</head>
+<body>
+<header class="hero">
+  <div class="hero-inner">
+    <div class="eyebrow">FERTWAYS · The Next Colony · Alpha 2</div>
+    <h1>Manual Mestre de Desenvolvimento</h1>
+    <div class="subtitle">GDD estratégico, roadmap, política de balanceamento e super prompts operacionais para conduzir o Claude etapa por etapa sem perder coerência com o mundo persistente já em produção.</div>
+    <div class="meta-grid">
+      <div class="meta"><b>Direção</b>MMO econômico-geopolítico persistente</div>
+      <div class="meta"><b>Ritmo</b>Sessões de 5–10 min, várias vezes ao dia</div>
+      <div class="meta"><b>Reset</b>Sem reset automático do mundo atual</div>
+      <div class="meta"><b>Próxima evolução</b>População + Pesquisa + Especialização forte</div>
+      <div class="meta"><b>Narrativa</b>Endurance é desmontada/escavada; não reconstruída</div>
+      <div class="meta"><b>Operação</b>Eventos e parâmetros cada vez mais automatizados</div>
+    </div>
+  </div>
+</header>
+
+<div class="layout">
+  <aside class="sidebar">
+    <h3>Documentação</h3>
+    <a href="#orientacao">Como usar este manual</a>
+    <a href="#gdd-alpha2">GDD Alpha 2</a>
+    <a href="#roadmap-alpha2">Roadmap Alpha 2</a>
+    <a href="#balanceamento">Balanceamento</a>
+    <h3>Prompts Claude</h3>
+    <a href="#prompt-A2-0">A2.0 · Telemetria, painel e “Desde sua última visita”</a>
+<a href="#prompt-A2-1">A2.1 · Onboarding produtivo configurável</a>
+<a href="#prompt-A2-2">A2.2 · População e Estrutura de Sobrevivência</a>
+<a href="#prompt-A2-3">A2.3 · Pesquisa individual e caminhos especializados</a>
+<a href="#prompt-A2-4">A2.4 · Especializações econômicas fortes</a>
+<a href="#prompt-A2-5">A2.5 · Federação como infraestrutura de midgame</a>
+<a href="#prompt-A2-6">A2.6 · População em zonas neutras</a>
+<a href="#prompt-A2-7">A2.7 · Upgrades de veículos e capacidades de estoque</a>
+<a href="#prompt-A2-8">A2.8 · Motor de Eventos</a>
+<a href="#prompt-A2-9">A2.9 · Endurance: desmontagem, loot e itens únicos</a>
+<a href="#prompt-A2-10">A2.10 · Guerra entre Federações</a>
+<a href="#prompt-A2-V">A2.V · Revisão visual gigantesca</a>
+
+<a href="#prompt-A2-12">A2.12 · Hardening e preparação da Alpha 2</a>
+  </aside>
+
+  <main>
+    <section class="section" id="orientacao">
+      <h2>Como usar este manual</h2>
+      <div class="callout"><strong>Ordem recomendada:</strong> execute um super prompt por vez. Não envie A2.0–A2.12 numa única solicitação. Cada etapa deve terminar com código, testes, documentação e uma decisão D-n real antes de seguir.<br><strong>Comece pela trilha visual A2.V1 (design system), antes ou junto com a A2.0:</strong> a tela “Desde sua última visita” é a primeira tela nova e fixa o padrão visual na marra.<br><strong>A2.10 (guerra federativa) é a única fase que exige documento de design próprio antes de qualquer código.</strong></div>
+      <p><strong>GDD</strong> responde “o que o jogo é”. <strong>ROADMAP</strong> responde “em que ordem construiremos”. <strong>BALANCEAMENTO</strong> responde “por que esse número existe e quando ele pode mudar”.</p>
+      <p>O GDD v35 histórico pode ser consultado para tirar dúvidas sobre intenções antigas, mas não deve ser usado automaticamente para substituir o v39 ou decisões posteriores.</p>
+      <h3>Sequência executiva</h3>
+      <div class="chapter-links">
+        <a href="#prompt-A2-0">1. A2.0 Observabilidade</a>
+        <a href="#prompt-A2-1">2. A2.1 Onboarding</a>
+        <a href="#prompt-A2-2">3. A2.2 População</a>
+        <a href="#prompt-A2-3">4. A2.3 Pesquisa</a>
+        <a href="#prompt-A2-4">5. A2.4 Especializações</a>
+        <a href="#prompt-A2-5">6. A2.5 Federação</a>
+        <a href="#prompt-A2-6">7. A2.6 Zonas + população</a>
+        <a href="#prompt-A2-7">8. A2.7 Veículos/estoques</a>
+        <a href="#prompt-A2-8">9. A2.8 Eventos</a>
+        <a href="#prompt-A2-9">10. A2.9 Endurance</a>
+        <a href="#prompt-A2-10">11. A2.10 Guerra federativa</a>
+        <a href="#prompt-A2-V">Trilha paralela: Visual</a>
+
+        <a href="#prompt-A2-12">12. Hardening</a>
+      </div>
+    </section>
+
+    <section class="section" id="gdd-alpha2">
+      <h1 id='fertways-gdd-alpha-2'>FERTWAYS — GDD ALPHA 2</h1>
+<p><strong>Status:</strong> Diretriz de design aprovada para a próxima fase de desenvolvimento  </p>
+<p><strong>Data-base:</strong> 30/07/2026  </p>
+<p><strong>Relação com o GDD canônico:</strong> este documento registra as decisões de design da Alpha 2. O GDD canônico publicado é o <strong>v39</strong> (<code>docs/FERTWAYS_GDD_v39_CONSOLIDADO.html</code>) e continua sendo o documento que descreve o que está efetivamente implementado. As regras abaixo devem ser incorporadas ao GDD canônico à medida que forem implementadas e validadas.  </p>
+<p><strong>Fonte histórica:</strong> o GDD <strong>v35</strong> (<code>docs/FERTWAYS_GDD_v35_MESTRE_UNIFICADO.html</code>) pode ser consultado para esclarecer intenções antigas e cobrir pontos que ficaram falhos no v39, mas não possui precedência automática sobre o v39, sobre <code>docs/decisoes.md</code>, sobre decisões posteriores nem sobre o estado atual do jogo.</p>
+<hr>
+<h2 id='1-identidade-do-jogo'>1. Identidade do jogo</h2>
+<p>FERTWAYS é um MMO persistente de estratégia, economia, logística e geopolítica.</p>
+<p>O jogador administra uma colônia, desenvolve cadeias produtivas, pesquisa tecnologias, sustenta uma população, especializa sua economia, participa de uma Federação, disputa zonas neutras, negocia com outros jogadores e participa de acontecimentos de escala planetária.</p>
+<p>A guerra é um dos pilares do jogo, mas não substitui a economia. O conflito deve depender de preparação econômica, logística, tecnologia, alianças e informação.</p>
+<h3 id='1-1-princ-pios'>1.1 Princípios</h3>
+<ol>
+<li><strong>Mundo persistente.</strong> O progresso de meses não deve ser apagado por calendário.</li>
+<li><strong>Sessões curtas e recorrentes.</strong> A experiência deve funcionar bem em sessões de 5 a 10 minutos, várias vezes ao dia.</li>
+<li><strong>Evolução visível.</strong> Cada retorno deve mostrar ao jogador que seu mundo continuou funcionando.</li>
+<li><strong>Especialização forte.</strong> Uma colônia não deve ser economicamente ótima em todas as atividades.</li>
+<li><strong>Interdependência.</strong> Comércio e Federação devem se tornar necessários no médio e longo prazo.</li>
+<li><strong>Logística real.</strong> Recursos continuam sujeitos a transporte e distância.</li>
+<li><strong>Geopolítica emergente.</strong> Território, economia, diplomacia, alianças e guerra formam um único sistema.</li>
+<li><strong>Administração progressivamente automatizada.</strong> O Dono mantém poder de operação e emergência, mas tarefas normais devem migrar para regras e motores sistêmicos.</li>
+<li><strong>Eventos como fonte de instabilidade controlada.</strong> O mundo não deve parecer totalmente previsível.</li>
+<li><strong>Sem reset automático.</strong> Reset somente por determinação explícita do Dono.</li>
+<li><strong>Backend configurável.</strong> Temporadas, onboarding, eventos, parâmetros de balanceamento e recompensas relevantes devem ser configuráveis sem deploy sempre que razoável.</li>
+<li><strong>Telemetria antes de grandes ajustes numéricos.</strong> Mudanças de balanceamento precisam de evidência.</li>
+</ol>
+<hr>
+<h2 id='2-persist-ncia-temporadas-e-mundos'>2. Persistência, temporadas e mundos</h2>
+<h3 id='2-1-fertways-original'>2.1 Fertways original</h3>
+<p>O planeta Fertways é concebido como mundo permanente.</p>
+<p>Uma temporada possui referência inicial de aproximadamente <strong>6 meses</strong>, prorrogável pelo Dono. O término de uma temporada não implica reset do planeta.</p>
+<p>Temporadas servem para:</p>
+<ul>
+<li>organizar eventos;</li>
+<li>criar arcos narrativos;</li>
+<li>alterar objetivos coletivos;</li>
+<li>introduzir novas tecnologias ou sistemas;</li>
+<li>marcar fases históricas do servidor;</li>
+<li>conceder títulos e registros permanentes.</li>
+</ul>
+<h3 id='2-2-novos-planetas'>2.2 Novos planetas</h3>
+<p>No futuro, uma nova temporada poderá ocorrer em um novo planeta.</p>
+<p>Esse planeta poderá operar em outro servidor e utilizar contas próprias, independentes das contas de Fertways.</p>
+<p>Não faz parte da Alpha 2 implementar comércio entre servidores.</p>
+<p>A integração econômica entre planetas é uma visão futura e deverá ser feita por API entre servidores.</p>
+<h3 id='2-3-luas'>2.3 Luas</h3>
+<p>As luas pertencem ao universo de Fertways e devem utilizar a <strong>mesma conta do jogador de Fertways</strong>, diferentemente de futuros planetas independentes.</p>
+<hr>
+<h2 id='3-loop-central-da-alpha-2'>3. Loop central da Alpha 2</h2>
+<p>O loop desejado é:</p>
+<p><strong>sobreviver → produzir → transformar → pesquisar → especializar → transportar → negociar → federar → ocupar território → defender/atacar → participar dos eventos e da Endurance → evoluir</strong></p>
+<p>O jogador deve conseguir identificar sempre:</p>
+<ul>
+<li>o que está produzindo;</li>
+<li>o que está consumindo;</li>
+<li>o que terminou desde a última visita;</li>
+<li>o que está faltando;</li>
+<li>qual construção deve desenvolver;</li>
+<li>quais pesquisas estão disponíveis;</li>
+<li>quanto da população está livre ou ocupada;</li>
+<li>quais veículos estão em trânsito;</li>
+<li>o que ocorreu militarmente;</li>
+<li>o que sua Federação está fazendo;</li>
+<li>quais eventos estão ativos.</li>
+</ul>
+<hr>
+<h2 id='4-jornada-inicial-guiada'>4. Jornada inicial guiada</h2>
+<p>A jornada inicial será parcialmente obrigatória.</p>
+<p>Os primeiros passos orientam o jogador e garantem que ele compreenda o sistema de produção básica. Depois dessa fase, o guia passa a sugerir objetivos sem bloquear a liberdade.</p>
+<h3 id='4-1-sequ-ncia-inicial'>4.1 Sequência inicial</h3>
+<ol>
+<li>Conhecer a colônia e o resumo de recursos.</li>
+<li>Compreender Energia.</li>
+<li>Compreender Oxigênio.</li>
+<li>Compreender Água.</li>
+<li>Compreender Biomassa.</li>
+<li>Entender produção por hora e consumo por hora.</li>
+<li>Fazer o primeiro upgrade de uma estrutura essencial.</li>
+<li>Entender a fila de construção.</li>
+<li>Construir uma primeira estrutura de progressão.</li>
+<li>Produzir um primeiro recurso transformado.</li>
+<li>Conhecer o Depósito Local.</li>
+<li>Conhecer transporte.</li>
+<li>Realizar uma primeira operação logística.</li>
+<li>Conhecer o Mercado.</li>
+<li>Conhecer o mapa e as zonas neutras.</li>
+<li>Conhecer a Federação e seu papel na progressão.</li>
+</ol>
+<h3 id='4-2-recompensas'>4.2 Recompensas</h3>
+<p>Cada etapa pode conceder uma recompensa configurável no backend.</p>
+<p>Regras:</p>
+<ul>
+<li>todas as recompensas possuem identificador único;</li>
+<li>só podem ser recebidas uma vez por colônia;</li>
+<li>concessão registrada no ledger;</li>
+<li>não podem ser convertidas em mecanismo de farming;</li>
+<li>valores iniciais serão cadastrados, mas permanecerão editáveis no painel administrativo.</li>
+</ul>
+<h3 id='4-3-implementa-o-sobre-o-motor-de-miss-es'>4.3 Implementação sobre o motor de Missões</h3>
+<p>A jornada inicial <strong>não é um subsistema novo</strong>. Ela é uma categoria do motor de Missões que já existe, aproveitando o encadeamento por pré-requisito, as recompensas em Fert$/XP/recursos, o registro no ledger e o cadastro administrativo.</p>
+<p>Duas adaptações são necessárias:</p>
+<ul>
+<li><strong>Obrigatoriedade.</strong> Missão hoje é recusável. As etapas da fase obrigatória mínima precisam de marca própria que impeça a recusa; da fase seguinte em diante o guia sugere sem travar.</li>
+<li><strong>Colônias existentes ficam de fora.</strong> Elas são marcadas como concluídas e <strong>não recebem as recompensas do tutorial</strong>. Sem essa regra, todo veterano se tornaria elegível a um pacote de iniciante — farming imediato, registrado corretamente no ledger enquanto a economia derrete.</li>
+</ul>
+<hr>
+<h2 id='5-tela-desde-sua-ltima-visita'>5. Tela “Desde sua última visita”</h2>
+<p>Esta tela é prioridade da Alpha 2.</p>
+<p>Ao entrar, o jogador recebe um resumo consolidado do período desde sua última sessão relevante.</p>
+<p>Deve apresentar, quando aplicável:</p>
+<ul>
+<li>recursos produzidos;</li>
+<li>recursos consumidos;</li>
+<li>saldo líquido;</li>
+<li>construções concluídas;</li>
+<li>upgrades concluídos;</li>
+<li>pesquisas concluídas;</li>
+<li>crescimento ou alteração populacional;</li>
+<li>veículos que chegaram;</li>
+<li>entregas concluídas;</li>
+<li>ordens executadas;</li>
+<li>mudanças da Federação;</li>
+<li>eventos iniciados ou encerrados;</li>
+<li>ataques recebidos;</li>
+<li>resultado de combates;</li>
+<li>zonas perdidas ou defendidas;</li>
+<li>notificações críticas.</li>
+</ul>
+<p>O objetivo não é apenas notificar. É responder em segundos: <strong>“o que mudou enquanto eu estava fora?”</strong></p>
+<h3 id='5-1-janela-do-resumo'>5.1 Janela do resumo</h3>
+<p>A janela é <strong>por resumo visto</strong>, não por sessão. O resumo cobre o período desde a última vez que o jogador fechou o resumo, e o marcador avança nesse momento. Reabrir a tela não repete o que já foi visto e não duplica evento.</p>
+<p><strong>Piso de uma hora.</strong> Se passou menos de uma hora desde o último resumo visto, a tela não aparece. Evita que quem recarrega a página, ou entra três vezes seguidas, receba um modal a cada visita.</p>
+<p>Não existe hoje conceito de sessão no jogo — <code>users</code> não possui marca de último acesso e a tabela de sessões do framework é apagada no logout. A marca do “até quando você já viu” é estrutura nova desta fase e é dela que a janela depende.</p>
+<hr>
+<h2 id='6-popula-o'>6. População</h2>
+<p>A população passa a ser um recurso operacional da colônia.</p>
+<h3 id='6-1-estrutura-de-sobreviv-ncia'>6.1 Estrutura de Sobrevivência</h3>
+<p>A Estrutura de Sobrevivência define a capacidade máxima de habitantes.</p>
+<p>A capacidade exata por nível deve ser definida no balanceamento e validada por simulação.</p>
+<h3 id='6-2-necessidades'>6.2 Necessidades</h3>
+<p>A economia populacional será simplificada.</p>
+<p>A população depende principalmente de:</p>
+<ul>
+<li>água;</li>
+<li>oxigênio;</li>
+<li>biomassa/alimentação;</li>
+<li>energia/infraestrutura.</li>
+</ul>
+<p>O sistema deve ser compreensível e evitar micromanagement excessivo.</p>
+<h3 id='6-3-crescimento'>6.3 Crescimento</h3>
+<p>A população cresce automaticamente quando:</p>
+<ul>
+<li>existe capacidade habitacional;</li>
+<li>as necessidades mínimas estão atendidas;</li>
+<li>a colônia não está sob uma condição grave que bloqueie crescimento.</li>
+</ul>
+<p>O crescimento deve ser lento o suficiente para valorizar desenvolvimento, mas não deve exigir login constante.</p>
+<h3 id='6-4-falta-de-suprimentos'>6.4 Falta de suprimentos</h3>
+<p>Escassez deve primeiro produzir <strong>perda de eficiência e bloqueio de crescimento</strong>, e não punições irreversíveis imediatas.</p>
+<p>Qualquer regra futura de redução populacional deverá ser explícita, telemetrizada e cuidadosamente balanceada.</p>
+<h3 id='6-5-m-o-de-obra'>6.5 Mão de obra</h3>
+<p>Construções passam a exigir uma quantidade de população operacional.</p>
+<p>A população pode estar:</p>
+<ul>
+<li>disponível;</li>
+<li>alocada em construções;</li>
+<li>alocada em zonas neutras;</li>
+<li>futuramente alocada em outras operações.</li>
+</ul>
+<p>Nesta primeira versão, não existem profissões individuais.</p>
+<h3 id='6-6-zonas-neutras'>6.6 Zonas neutras</h3>
+<p>Ocupação de uma zona neutra exige deslocar uma pequena quantidade de habitantes da colônia para a zona.</p>
+<p>Esses habitantes representam supervisores, técnicos e operadores dos sistemas robotizados.</p>
+<p>A maior parte do trabalho físico continua sendo executada por robôs.</p>
+<p>A população enviada:</p>
+<ul>
+<li>deixa de estar disponível na colônia;</li>
+<li>passa a estar vinculada à zona;</li>
+<li>deve aparecer no painel de população;</li>
+<li>retorna à colônia quando a operação territorial permitir;</li>
+<li>não deve ser tratada como tropa militar.</li>
+</ul>
+<p><strong>Se a população cair abaixo do exigido por uma zona já ocupada, a zona não se perde.</strong> Ela degrada — penalidade de produção — até a população ser reposta. Perder território por escassez seria a punição irreversível que a §6.4 proíbe.</p>
+<h3 id='6-7-transi-o-das-col-nias-existentes'>6.7 Transição das colônias existentes</h3>
+<p>O mundo é persistente e não haverá reset. No dia em que operadores passarem a ser exigidos, <strong>nenhuma colônia existente pode parar de produzir por uma regra que não existia quando ela foi construída.</strong></p>
+<p>Regra de transição — <strong>grandfathering</strong>:</p>
+<ul>
+<li>toda colônia existente recebe, na migração, população suficiente para operar <strong>tudo o que já construiu</strong>;</li>
+<li>o mesmo vale para as <strong>zonas neutras já ocupadas</strong>: os operadores que elas passam a exigir são concedidos na migração;</li>
+<li>a exigência de operadores morde a partir dali: <strong>construção nova, upgrade novo e zona nova</strong> precisam de população real.</li>
+</ul>
+<p>A razão não é generosidade. A tela do jogo <strong>diz hoje ao jogador</strong> que a Estrutura de Sobrevivência não faz nada — quem não a evoluiu seguiu o que o jogo lhe informou. Cobrar retroativamente puniria quem acreditou na interface, e contrariaria a §6.4, que manda escassez bloquear crescimento antes de causar perda.</p>
+<p>Efeito colateral aceito: uma colônia veterana começa com mais folga que uma nova. Ela construiu aquilo. E continua precisando desenvolver a Estrutura de Sobrevivência para crescer dali em diante, que é onde a mecânica deve morder.</p>
+<hr>
+<h2 id='7-pesquisa'>7. Pesquisa</h2>
+<p>Pesquisa é <strong>individual por colônia</strong>.</p>
+<h3 id='7-1-laborat-rio'>7.1 Laboratório</h3>
+<p>O Laboratório é a infraestrutura de pesquisa.</p>
+<p>Pesquisa consome:</p>
+<ul>
+<li>recursos;</li>
+<li>tempo;</li>
+<li>capacidade de pesquisa disponível.</li>
+</ul>
+<p>Não será criado, nesta fase, um recurso abstrato permanente de “Pontos de Pesquisa”.</p>
+<h3 id='7-2-pesquisas-simult-neas'>7.2 Pesquisas simultâneas</h3>
+<p>A quantidade de projetos simultâneos depende do nível do Laboratório.</p>
+<p><strong>Sobre o Observatório.</strong> Ele <strong>não existe no jogo</strong> — nunca foi implementado, e aparece apenas em material de divulgação. A redação anterior desta seção dizia que ele “continua sendo” uma especialização que amplia o paralelismo, o que era falso.</p>
+<p>O Observatório <strong>entra no jogo</strong>, mas não na primeira entrega de Pesquisa: criá-lo exige decisão de slot da colônia — recurso escasso e já disputado —, arte e especificação próprias, e isso não cabe dentro da fase que introduz a árvore de tecnologia inteira.</p>
+<p>Até lá, o paralelismo sai do nível do Laboratório. O mecanismo de vagas deve nascer <strong>extensível</strong>, de modo que uma fonte adicional de paralelismo possa ser acrescentada depois sem refazer o modelo.</p>
+<h3 id='7-3-caminhos-especializados'>7.3 Caminhos especializados</h3>
+<p>A árvore não será linear.</p>
+<p>Linhas iniciais propostas:</p>
+<ul>
+<li>Energia;</li>
+<li>Sobrevivência e Biosfera;</li>
+<li>Indústria;</li>
+<li>Logística;</li>
+<li>Comércio;</li>
+<li>Ciência;</li>
+<li>Defesa;</li>
+<li>Território.</li>
+</ul>
+<p>Linha futura:</p>
+<ul>
+<li>Espacial.</li>
+</ul>
+<h3 id='7-4-filosofia-de-especializa-o'>7.4 Filosofia de especialização</h3>
+<p>É permitido pesquisar múltiplas linhas ao longo do tempo.</p>
+<p>Entretanto, custo, tempo, infraestrutura, população e dependências devem tornar economicamente inviável maximizar todas as linhas rapidamente.</p>
+<p>Escolhas devem ter consequência.</p>
+<hr>
+<h2 id='8-especializa-o-econ-mica'>8. Especialização econômica</h2>
+<p>Especialização deve ser <strong>forte</strong>.</p>
+<p>O objetivo não é conceder bônus cosméticos de 2% ou 5%. Especializações devem modificar significativamente:</p>
+<ul>
+<li>capacidade;</li>
+<li>produtividade;</li>
+<li>consumo;</li>
+<li>logística;</li>
+<li>pesquisa;</li>
+<li>defesa;</li>
+<li>acesso a determinadas cadeias.</li>
+</ul>
+<p>O sistema deve estimular relações como:</p>
+<ul>
+<li>produtor agrícola comprando componentes industriais;</li>
+<li>industrial comprando energia ou matérias-primas;</li>
+<li>especialista logístico prestando serviço;</li>
+<li>Federação coordenando membros com perfis diferentes.</li>
+</ul>
+<p>Uma colônia autossuficiente pode existir em nível básico, mas não deve ser competitivamente ótima em todo o conjunto econômico.</p>
+<h3 id='8-1-especializa-o-a-trilha-de-pesquisa'>8.1 Especialização é a trilha de pesquisa</h3>
+<p><strong>Não existe escolha declarada de perfil.</strong> O jogador não seleciona “sou agrícola”: ele se torna agrícola pelo que pesquisou e construiu.</p>
+<p>As trilhas da §7.3 já são a escolha — têm custo de oportunidade real, são caras de reverter e são legíveis. Uma segunda camada declarada por cima faria dois sistemas disputarem o mesmo papel, e traria junto o problema do “posso trocar?”, com respec, custo de troca e o abuso de mudar de perfil na véspera de cada evento.</p>
+<p><strong>Contrapartida obrigatória:</strong> como a especialização não é declarada, ela precisa ser <strong>exibida</strong>. O jogo calcula o perfil da colônia a partir das trilhas pesquisadas e das construções erguidas, e o mostra ao jogador — junto com o que ele ganha e do que passa a depender. É leitura derivada, nunca um campo que o jogador preenche.</p>
+<hr>
+<h2 id='9-federa-es'>9. Federações</h2>
+<p>Federações deixam de ser conteúdo meramente opcional no médio/endgame.</p>
+<h3 id='9-1-limite'>9.1 Limite</h3>
+<p>Máximo de <strong>12 membros</strong>.</p>
+<h3 id='9-2-pap-is-essenciais'>9.2 Papéis essenciais</h3>
+<ul>
+<li><strong>Líder</strong></li>
+<li><strong>Diplomata</strong></li>
+<li>demais papéis operacionais podem permanecer conforme o sistema atual ou serem expandidos posteriormente.</li>
+</ul>
+<h3 id='9-3-papel-estrat-gico'>9.3 Papel estratégico</h3>
+<p>A Federação deverá participar de:</p>
+<ul>
+<li>diplomacia;</li>
+<li>comércio coordenado;</li>
+<li>defesa;</li>
+<li>guerra;</li>
+<li>missões cooperativas;</li>
+<li>eventos;</li>
+<li>objetivos territoriais;</li>
+<li>conteúdo avançado;</li>
+<li>futuras tecnologias ou projetos coletivos específicos, quando formalmente definidos.</li>
+</ul>
+<h3 id='9-4-necessidade'>9.4 Necessidade</h3>
+<p>O jogo deve permitir que um jogador permaneça independente durante sua fase inicial.</p>
+<p>A partir do médio jogo, parte relevante da progressão deve favorecer ou exigir coordenação federativa.</p>
+<hr>
+<h2 id='10-guerra-e-geopol-tica'>10. Guerra e geopolítica</h2>
+<p>FERTWAYS é um jogo econômico-geopolítico em que guerra é um dos pilares.</p>
+<p>Guerra deve depender de:</p>
+<ul>
+<li>capacidade produtiva;</li>
+<li>estoque;</li>
+<li>logística;</li>
+<li>tecnologia;</li>
+<li>informação;</li>
+<li>população disponível;</li>
+<li>território;</li>
+<li>Federação;</li>
+<li>diplomacia;</li>
+<li>preparação.</li>
+</ul>
+<p>Não deve ser um subsistema separado da economia.</p>
+<p>A evolução futura inclui guerra entre Federações, ainda não considerada fechada neste documento.</p>
+<hr>
+<h2 id='11-endurance-of-mankind'>11. Endurance of Mankind</h2>
+<p>A Endurance <strong>não será reconstruída</strong>.</p>
+<p>Ela pousou em Fertways e não voltará a voar.</p>
+<p>Seu papel é:</p>
+<ul>
+<li>marco narrativo;</li>
+<li>patrimônio histórico;</li>
+<li>fonte de missões;</li>
+<li>área de escavação/desmontagem controlada;</li>
+<li>origem de peças e artefatos;</li>
+<li>fonte de itens de diferentes raridades;</li>
+<li>motor de eventos e disputas econômicas/narrativas.</li>
+</ul>
+<h3 id='11-1-filosofia-de-loot'>11.1 Filosofia de loot</h3>
+<p>A exploração da Endurance deve permitir itens:</p>
+<ul>
+<li>comuns;</li>
+<li>raros;</li>
+<li>únicos.</li>
+</ul>
+<p>Itens únicos devem ser realmente escassos e possuir rastreabilidade.</p>
+<p>O sistema deve evitar que “único” se transforme apenas em mais uma categoria de drop repetível.</p>
+<p><strong>Só o único ganha identidade.</strong> O catálogo atual da Endurance é fungível — item com quantidade — e continua assim: os itens já existentes passam a ser <code>comum</code>. Acrescenta-se o campo de raridade, e <strong>apenas os itens marcados como únicos recebem linha de instância</strong> com descobridor, proprietário atual e histórico de transferência. <code>Raro</code> é escasso, mas continua fungível.</p>
+<p>Dar identidade rastreável a peça que ninguém vai rastrear infla o schema e não compra nada.</p>
+<h3 id='11-2-progress-o'>11.2 Progressão</h3>
+<p>A Endurance deve ganhar importância ao longo da vida do servidor.</p>
+<p>Novas seções, missões, lotes, peças ou descobertas podem ser liberados por eventos e arcos narrativos.</p>
+<hr>
+<h2 id='12-motor-de-eventos'>12. Motor de Eventos</h2>
+<p>Será criado um Motor de Eventos administrável pelo backend.</p>
+<h3 id='12-1-tipos-de-evento'>12.1 Tipos de evento</h3>
+<p>O motor deve permitir, progressivamente:</p>
+<ul>
+<li>bônus de produção;</li>
+<li>penalidade de produção;</li>
+<li>alteração de consumo;</li>
+<li>escassez;</li>
+<li>excesso de oferta;</li>
+<li>efeitos logísticos;</li>
+<li>alteração de taxas;</li>
+<li>modificadores de mercado;</li>
+<li>eventos territoriais;</li>
+<li>eventos militares;</li>
+<li>eventos da Endurance;</li>
+<li>missões especiais;</li>
+<li>eventos de Federação;</li>
+<li>eventos secretos.</li>
+</ul>
+<h3 id='12-1-1-escopo-da-primeira-vers-o'>12.1.1 Escopo da primeira versão</h3>
+<p>O motor abre com <strong>modificador multiplicativo de produção e de consumo</strong>, com escopo global ou por recurso, janela de início/fim e visibilidade (anunciado, parcialmente anunciado, secreto).</p>
+<p>Os demais tipos da lista acima permanecem como direção, não como primeira entrega.</p>
+<p><strong>Preço fica de fora.</strong> O jogo já possui intervenção de preço administrada (<code>PriceIntervention</code>); o motor não a absorve nem a duplica nesta versão.</p>
+<p><strong>Regra inegociável: evento nunca escreve no ledger.</strong> O evento altera a taxa; quem credita e debita continua sendo o tick, pelo caminho normal. Um evento que emitisse recurso diretamente criaria lançamento sem origem rastreável e envenenaria a própria fonte que a telemetria econômica usa.</p>
+<p>O modificador precisa ser <strong>reconstruível no passado</strong>, para que a tela “Desde sua última visita” consiga explicar <em>por que</em> a produção caiu, e não apenas que caiu.</p>
+<h3 id='12-2-configura-o'>12.2 Configuração</h3>
+<p>Um evento deve possuir, quando aplicável:</p>
+<ul>
+<li>nome;</li>
+<li>descrição pública;</li>
+<li>descrição interna;</li>
+<li>planeta/escopo;</li>
+<li>início;</li>
+<li>fim;</li>
+<li>visibilidade;</li>
+<li>condição de ativação;</li>
+<li>modificadores;</li>
+<li>missões relacionadas;</li>
+<li>recompensas;</li>
+<li>severidade;</li>
+<li>versão;</li>
+<li>log de criação/alteração;</li>
+<li>opção de cancelamento seguro.</li>
+</ul>
+<h3 id='12-3-eventos-secretos'>12.3 Eventos secretos</h3>
+<p>O Dono pode programar eventos sem anúncio antecipado.</p>
+<p>O sistema deve permitir distinguir:</p>
+<ul>
+<li>evento anunciado;</li>
+<li>evento parcialmente anunciado;</li>
+<li>evento secreto até a ativação.</li>
+</ul>
+<h3 id='12-4-eventos-negativos'>12.4 Eventos negativos</h3>
+<p>Eventos negativos são permitidos e desejados.</p>
+<p>Devem criar:</p>
+<ul>
+<li>problema;</li>
+<li>reação;</li>
+<li>oportunidade;</li>
+<li>consequência econômica ou geopolítica.</li>
+</ul>
+<p>Não devem destruir arbitrariamente meses de progresso sem contrajogo.</p>
+<hr>
+<h2 id='13-administra-o'>13. Administração</h2>
+<p>O Dono continua com ferramentas de emergência e curadoria.</p>
+<p>Entretanto, a direção da Alpha 2 é automatizar:</p>
+<ul>
+<li>rotinas econômicas;</li>
+<li>progressão;</li>
+<li>eventos programados;</li>
+<li>onboarding;</li>
+<li>recompensas;</li>
+<li>gatilhos;</li>
+<li>avisos;</li>
+<li>regras de temporada;</li>
+<li>métricas;</li>
+<li>controles de segurança.</li>
+</ul>
+<p>A Administração deve cada vez mais <strong>configurar regras</strong>, em vez de executar manualmente o funcionamento normal do mundo.</p>
+<hr>
+<h2 id='14-bots-e-simula-o'>14. Bots e simulação</h2>
+<p>Os bots <strong>não fazem parte do código do Fertways</strong>.</p>
+<p>São um programa à parte, hospedado em <code>staging.tars.art.br</code>, com servidor e banco de dados próprios. Comportam-se como <strong>jogadores externos</strong>: acessam o jogo pelas mesmas interfaces que um humano usaria e não possuem acesso privilegiado ao mundo.</p>
+<p>Consequências:</p>
+<ul>
+<li>nenhuma fase da Alpha 2 constrói bots;</li>
+<li>o Fertways não pode depender de bots para funcionar nem para ser validado;</li>
+<li>o mundo de produção (<code>fertways.tars.art.br</code>) não recebe bots;</li>
+<li>perfis comportamentais (sobrevivência, agrícola, industrial, logístico, comerciante, pesquisador, territorial, agressivo, federativo) são assunto do programa externo, não deste repositório.</li>
+</ul>
+<p>A telemetria mantém campo de origem para distinguir <strong>humano</strong> de <strong>sistema/admin</strong>. A distinção humano/bot é dada pelo <strong>ambiente</strong>, não por uma coluna: produção é humana, staging é onde os bots jogam.</p>
+<p><strong>Visão futura, não backlog imediato:</strong> o Fertways poderá ler a base do <code>staging.tars.art.br</code> para extrair dados de simulação e apoiar decisões de balanceamento. Essa integração será decidida quando existir, e é <strong>leitura</strong> — não escrita.</p>
+<hr>
+<h2 id='15-dire-o-visual-da-alpha-2'>15. Direção visual da Alpha 2</h2>
+<p>A Alpha 2 inclui uma <strong>revisão visual estrutural de grande escala</strong>.</p>
+<p>Não se trata apenas de trocar cores.</p>
+<p>A revisão deverá abranger:</p>
+<ul>
+<li>identidade visual;</li>
+<li>design system;</li>
+<li>HUD;</li>
+<li>tipografia;</li>
+<li>hierarquia de informação;</li>
+<li>recursos;</li>
+<li>cards;</li>
+<li>painéis;</li>
+<li>colônia;</li>
+<li>mapa planetário;</li>
+<li>Capital;</li>
+<li>Endurance;</li>
+<li>zonas neutras;</li>
+<li>construções;</li>
+<li>estados de produção;</li>
+<li>estados de construção;</li>
+<li>animações;</li>
+<li>feedback de clique;</li>
+<li>feedback de conclusão;</li>
+<li>alertas;</li>
+<li>combate;</li>
+<li>efeitos ambientais;</li>
+<li>mobile;</li>
+<li>acessibilidade.</li>
+</ul>
+<p>O visual deve comunicar estado de jogo sem depender de leitura excessiva.</p>
+<hr>
+<h2 id='16-crit-rio-de-jogo-completo'>16. Critério de “jogo completo”</h2>
+<p>O objetivo final permanece:</p>
+<ol>
+<li>todo o GDD vigente implementado;</li>
+<li>lacunas de design fechadas;</li>
+<li>sistemas integrados;</li>
+<li>telemetria operacional;</li>
+<li>economia balanceada;</li>
+<li>gameplay validado;</li>
+<li>visual altamente atrativo e consistente.</li>
+</ol>
+<p>A Alpha 2 é a fase que transforma a grande quantidade de sistemas já existentes em um jogo com loop, progressão, legibilidade e retenção coerentes.</p>
+<hr>
+<h2 id='17-decis-es-explicitamente-fora-da-alpha-2'>17. Decisões explicitamente fora da Alpha 2</h2>
+<p>Não implementar agora:</p>
+<ul>
+<li>economia entre servidores/planetas;</li>
+<li>API econômica interplanetária;</li>
+<li>contas compartilhadas entre planetas independentes;</li>
+<li>profissões individuais de população;</li>
+<li>comércio interestelar entre mundos persistentes independentes;</li>
+<li>regras definitivas de colonização de novos planetas;</li>
+<li>reset automático periódico;</li>
+<li>construção de bots — são programa externo, em servidor e banco próprios (§14).</li>
+</ul>
+<p>Esses itens devem permanecer documentados como visão futura, não backlog imediato.</p>
+    </section>
+
+    <section class="section" id="roadmap-alpha2">
+      <h1 id='fertways-roadmap-alpha2-md'>FERTWAYS — ROADMAP_ALPHA2.md</h1>
+<p><strong>Objetivo da Alpha 2:</strong> transformar o conjunto atual de sistemas em um MMO persistente com loop compreensível, progressão orientada, economia interdependente, pesquisa, população, Federação relevante, eventos sistêmicos, telemetria e grande revisão visual.</p>
+<p><strong>Regra:</strong> o roadmap define <strong>ordem de desenvolvimento</strong>. O GDD define <strong>o que o jogo é</strong>. O BALANCEAMENTO define <strong>por que um número existe e quando deve mudar</strong>.</p>
+<hr>
+<h2 id='0-regras-de-execu-o'>0. Regras de execução</h2>
+<p>Antes de cada bloco:</p>
+<ol>
+<li>confirmar estado real do código;</li>
+<li>registrar a decisão D-n correspondente;</li>
+<li>escrever testes antes/de junto da mecânica;</li>
+<li>definir telemetria da funcionalidade;</li>
+<li>evitar números hardcoded quando forem parâmetros operacionais;</li>
+<li>atualizar o GDD canônico apenas quando a funcionalidade estiver realmente implementada;</li>
+<li>registrar números novos em BALANCEAMENTO.md;</li>
+<li>não alterar regras históricas apenas porque aparecem no GDD v35;</li>
+<li>não fazer reset do mundo atual;</li>
+<li>preservar migrations forward-only e compatibilidade com dados existentes;</li>
+<li>executar PHP sempre por <code>/usr/bin/php84</code> — o <code>php</code> do PATH não é a versão do servidor;</li>
+<li>lembrar que os testes rodam em SQLite em memória (<code>backend/phpunit.xml</code>) e a produção é MariaDB: o verde do <code>artisan test</code> <strong>não valida DDL</strong>. Migration nova precisa ser exercitada contra MariaDB antes de ser dada como pronta.</li>
+</ol>
+<hr>
+<h1 id='fase-a2-0-funda-o-de-produto-e-observabilidade'>FASE A2.0 — Fundação de produto e observabilidade</h1>
+<h2 id='objetivo'>Objetivo</h2>
+<p>Parar de avaliar o jogo apenas pelo “funciona/não funciona” e passar a medir comportamento, progressão e economia.</p>
+<h2 id='entregas'>Entregas</h2>
+<h3 id='a2-0-1-telemetria-de-gameplay'>A2.0.1 Telemetria de gameplay</h3>
+<p>Criar uma camada de eventos de telemetria para registrar, no mínimo:</p>
+<ul>
+<li>login;</li>
+<li>duração de sessão;</li>
+<li>intervalo entre sessões;</li>
+<li>colônia fundada;</li>
+<li>upgrade iniciado/concluído;</li>
+<li>construção iniciada/concluída;</li>
+<li>produção;</li>
+<li>falta de insumo;</li>
+<li>falta de energia;</li>
+<li>saldo por recurso;</li>
+<li>compra/venda;</li>
+<li>transporte iniciado/concluído;</li>
+<li>pesquisa futura;</li>
+<li>população futura;</li>
+<li>entrada/saída de Federação;</li>
+<li>ocupação/perda de zona;</li>
+<li>ataque enviado/recebido;</li>
+<li>evento global;</li>
+<li>interação com Endurance;</li>
+<li>abandono do onboarding.</li>
+</ul>
+<p>Separar:</p>
+<ul>
+<li>humano;</li>
+<li>sistema/admin.</li>
+</ul>
+<p>(Bots são externos e jogam em staging — ver GDD ALPHA 2 §14. A distinção humano/bot é dada pelo ambiente, não por coluna.)</p>
+<h3 id='a2-0-1-1-granularidade-e-reten-o'>A2.0.1.1 Granularidade e retenção</h3>
+<p>Duas camadas, não uma:</p>
+<ul>
+<li><strong>Eventos discretos</strong> — login, upgrade concluído, construção concluída, compra/venda, transporte, ocupação de zona, ataque, evento global, abandono de onboarding. Vão para a tabela de eventos, com <strong>retenção de 90 dias</strong>; o que envelhece já foi agregado antes de sumir.</li>
+<li><strong>Fluxo contínuo</strong> — produção, consumo e saldo por recurso <strong>não viram evento por tick</strong>. Viram snapshot diário agregado por colônia, escrito uma vez ao dia. Com tick por minuto, instrumentar produção evento a evento produz uma tabela ingovernável sem responder nenhuma pergunta que o snapshot não responda.</li>
+</ul>
+<p>O <strong>ledger já é append-only e já registra todo fato econômico</strong>. A telemetria deve <strong>derivar dele</strong> o que for possível — emissão e destruição de Fert$, compras, subsídios, tributos — e instrumentar apenas o que o ledger não enxerga: sessão, navegação, abandono, falta de insumo, falta de energia.</p>
+<h3 id='a2-0-2-painel-de-m-tricas'>A2.0.2 Painel de métricas</h3>
+<p>Backend com indicadores:</p>
+<ul>
+<li>DAU/WAU;</li>
+<li>sessões/dia;</li>
+<li>duração mediana;</li>
+<li>tempo até primeira ação;</li>
+<li>tempo até primeiro upgrade;</li>
+<li>tempo até primeira estrutura de progressão;</li>
+<li>tempo até primeiro transporte;</li>
+<li>tempo até primeiro comércio;</li>
+<li>tempo até primeira Federação;</li>
+<li>recursos gerados e destruídos;</li>
+<li>Fert$ emitido e destruído;</li>
+<li>concentração de riqueza;</li>
+<li>gargalos de cadeia;</li>
+<li>ataques;</li>
+<li>zonas;</li>
+<li>funil do onboarding.</li>
+</ul>
+<h3 id='a2-0-3-desde-sua-ltima-visita'>A2.0.3 “Desde sua última visita”</h3>
+<p>Implementar o resumo de retorno.</p>
+<p>Critério de aceite: o jogador deve entender em menos de um minuto o que mudou desde sua última sessão.</p>
+<hr>
+<h1 id='fase-a2-1-onboarding-produtivo'>FASE A2.1 — Onboarding produtivo</h1>
+<h2 id='objetivo'>Objetivo</h2>
+<p>Fazer um jogador novo entender o coração de Fertways antes de ser exposto à complexidade do restante do jogo.</p>
+<h2 id='sequ-ncia'>Sequência</h2>
+<ol>
+<li>Energia.</li>
+<li>Oxigênio.</li>
+<li>Água.</li>
+<li>Biomassa.</li>
+<li>Produção/h e consumo/h.</li>
+<li>Upgrade essencial.</li>
+<li>Fila.</li>
+<li>Primeira construção de progressão.</li>
+<li>Primeiro processamento.</li>
+<li>Depósito.</li>
+<li>Transporte.</li>
+<li>Mercado.</li>
+<li>Mapa/zona.</li>
+<li>Federação.</li>
+</ol>
+<h2 id='requisitos'>Requisitos</h2>
+<ul>
+<li>estado de tutorial persistido;</li>
+<li>etapas configuráveis;</li>
+<li>recompensa por etapa configurável;</li>
+<li>idempotência;</li>
+<li>ledger;</li>
+<li>pular somente após fase obrigatória mínima;</li>
+<li>painel admin;</li>
+<li>telemetria de abandono por etapa;</li>
+<li>tutorial não pode depender de uma oferta real de outro jogador.</li>
+</ul>
+<h2 id='implementa-o-sobre-o-motor-de-miss-es'>Implementação: sobre o motor de Missões</h2>
+<p>Não se cria subsistema novo. O onboarding é uma <strong>categoria do motor de Missões existente</strong> — encadeamento por pré-requisito, recompensas, ledger e cadastro admin já estão prontos. Ver GDD ALPHA 2 §4.3.</p>
+<p>Duas adaptações:</p>
+<ul>
+<li><strong>marca de obrigatoriedade</strong> — missão hoje é recusável; a fase obrigatória mínima não pode ser;</li>
+<li><strong>colônias existentes são marcadas como concluídas e não recebem as recompensas</strong> — do contrário todo veterano vira elegível a um pacote de iniciante.</li>
+</ul>
+<h2 id='crit-rio-de-sa-da'>Critério de saída</h2>
+<p><strong>Testadores humanos, em contas recém-criadas, concluem a sequência sem intervenção manual</strong> — nenhuma etapa exige que o Dono destrave nada pelo painel, e nenhuma depende de oferta real de outro jogador.</p>
+<p>O critério original citava bots; eles são externos e podem exercitar a sequência em staging mais tarde, mas não são condição de saída desta fase.</p>
+<hr>
+<h1 id='fase-a2-2-popula-o'>FASE A2.2 — População</h1>
+<h2 id='objetivo'>Objetivo</h2>
+<p>Dar função real à Estrutura de Sobrevivência e criar uma restrição estratégica que conecte sobrevivência, expansão e território.</p>
+<h2 id='entregas'>Entregas</h2>
+<h3 id='a2-2-1-modelo-de-popula-o'>A2.2.1 Modelo de população</h3>
+<p>Estados:</p>
+<ul>
+<li>população total;</li>
+<li>capacidade habitacional;</li>
+<li>disponível;</li>
+<li>alocada em construções;</li>
+<li>alocada em zonas neutras.</li>
+</ul>
+<h3 id='a2-2-2-sustento'>A2.2.2 Sustento</h3>
+<p>Recursos:</p>
+<ul>
+<li>Água;</li>
+<li>Oxigênio;</li>
+<li>Biomassa;</li>
+<li>Energia/infraestrutura.</li>
+</ul>
+<h3 id='a2-2-3-crescimento'>A2.2.3 Crescimento</h3>
+<p>Crescimento automático em tick.</p>
+<p>Condições e taxas inteiramente parametrizadas.</p>
+<h3 id='a2-2-4-m-o-de-obra'>A2.2.4 Mão de obra</h3>
+<p>Cada construção pode possuir requisito de operadores.</p>
+<p>O backend deve permitir requisito por:</p>
+<ul>
+<li>construção;</li>
+<li>nível.</li>
+</ul>
+<h3 id='a2-2-5-popula-o-territorial'>A2.2.5 População territorial</h3>
+<p>Ocupar zona neutra exige transferir pequena equipe operacional.</p>
+<p>Essa equipe permanece vinculada à zona.</p>
+<h3 id='a2-2-6-transi-o-das-col-nias-existentes'>A2.2.6 Transição das colônias existentes (grandfathering)</h3>
+<p>Na migração, cada colônia recebe população suficiente para operar <strong>tudo o que já construiu</strong>, e os operadores exigidos pelas <strong>zonas que já ocupa</strong> são concedidos.</p>
+<p>A exigência morde a partir dali: construção nova, upgrade novo e zona nova precisam de população real.</p>
+<p>Nenhuma colônia existente pode parar de produzir por uma regra que não existia quando ela foi construída. Ver GDD ALPHA 2 §6.7.</p>
+<h2 id='crit-rio-de-sa-da'>Critério de saída</h2>
+<p>Não é possível expandir produção e território indefinidamente sem desenvolver a Estrutura de Sobrevivência e os recursos essenciais.</p>
+<p>Nenhum parâmetro populacional sai de HIPÓTESE sem uma rodada registrada do simulador da <strong>trilha A2.S</strong>, cuja primeira entrega pertence a esta fase.</p>
+<hr>
+<h1 id='trilha-a2-s-simulador-de-balanceamento'>TRILHA A2.S — Simulador de balanceamento (paralela)</h1>
+<p>Nasce <strong>dentro da A2.2</strong> e permanece disponível para todas as fases seguintes.</p>
+<p>Existe porque o passo 6 do fluxo da §3 do BALANCEAMENTO — exercitar um número em escala antes de promovê-lo — ficou sem executor quando os bots saíram do escopo.</p>
+<h2 id='a2s-o-que-e'>O que é</h2>
+<p>Um comando <code>artisan</code> que roda o <strong>código de domínio real</strong> (tick de produção, consumo, crescimento populacional, custo e duração de pesquisa) contra um banco descartável em memória, avança N dias de tick e devolve curvas.</p>
+<p>Não é um segundo modelo do jogo. É o jogo rodando acelerado num mundo que não existe.</p>
+<h2 id='a2s-regras'>Regras</h2>
+<ol>
+<li><strong>Reusa o domínio, não o reimplementa.</strong> Um simulador que reescreve a fórmula diverge do jogo na primeira mudança e passa a mentir com aparência de autoridade.</li>
+<li><strong>Os parâmetros saem da mesma fonte que o jogo usa</strong> — seeders e tabelas —, nunca de uma cópia digitada no simulador. Mesma disciplina do <code>building_specs</code>.</li>
+<li><strong>Nunca toca banco de produção nem de staging.</strong> Mundo descartável, em memória.</li>
+<li>Saída legível: curva por dia, ponto de saturação, gargalo identificado e o conjunto de parâmetros que a produziu.</li>
+<li>É ferramenta de decisão, não de entrega: não tem requisito de UI e não aparece para o jogador.</li>
+</ol>
+<h2 id='a2s-primeira-entrega'>Primeira entrega (dentro da A2.2)</h2>
+<p>Escopada a população. Para um conjunto de parâmetros, deve responder:</p>
+<ul>
+<li>em quantos dias uma colônia típica bate no teto habitacional;</li>
+<li>qual recurso essencial satura primeiro;</li>
+<li>que percentual da população fica comprometido em operação — a métrica-chave da §7.3 do BALANCEAMENTO;</li>
+<li>em que ponto a expansão trava.</li>
+</ul>
+<h2 id='a2s-seguintes'>Entregas seguintes, conforme a fase</h2>
+<ul>
+<li><strong>A2.3</strong> — custo e duração de tecnologia: existe sequência dominante na árvore?</li>
+<li><strong>A2.4</strong> — vantagem comparativa; é o executor do critério de saída daquela fase.</li>
+<li><strong>A2.7</strong> — economia de upgrade de veículo e de capacidade de estoque.</li>
+</ul>
+<h2 id='a2s-criterio'>Critério de saída da trilha</h2>
+<p>Nenhum número novo de População, Pesquisa, Especialização ou Veículos é promovido de HIPÓTESE a BASELINE sem uma rodada do simulador registrada em <code>BALANCEAMENTO.md</code>.</p>
+<hr>
+<h1 id='fase-a2-3-pesquisa'>FASE A2.3 — Pesquisa</h1>
+<h2 id='objetivo'>Objetivo</h2>
+<p>Dar função real ao Laboratório e criar escolhas de longo prazo.</p>
+<h2 id='modelo'>Modelo</h2>
+<p>Pesquisa individual por colônia.</p>
+<p>Consome:</p>
+<ul>
+<li>recursos;</li>
+<li>tempo;</li>
+<li>vaga de pesquisa.</li>
+</ul>
+<h2 id='trilhas-iniciais'>Trilhas iniciais</h2>
+<ol>
+<li>Energia</li>
+<li>Sobrevivência/Biosfera</li>
+<li>Indústria</li>
+<li>Logística</li>
+<li>Comércio</li>
+<li>Ciência</li>
+<li>Defesa</li>
+<li>Território</li>
+</ol>
+<p>Espacial fica preparado conceitualmente, mas não precisa entrar na primeira entrega.</p>
+<h2 id='observat-rio-fora-desta-entrega'>Observatório: fora desta entrega</h2>
+<p>O Observatório <strong>não existe no jogo</strong> e não entra aqui. Criá-lo exige decisão de slot, arte e especificação próprias, e não cabe na fase que introduz a árvore inteira.</p>
+<p>O paralelismo sai do <strong>nível do Laboratório</strong>. O mecanismo de vagas nasce extensível, para aceitar uma fonte adicional depois sem refazer o modelo. Ver GDD ALPHA 2 §7.2.</p>
+<h2 id='backend'>Backend</h2>
+<p>Cada tecnologia precisa permitir:</p>
+<ul>
+<li>chave;</li>
+<li>nome;</li>
+<li>descrição;</li>
+<li>trilha;</li>
+<li>pré-requisitos;</li>
+<li>custo de recursos;</li>
+<li>duração;</li>
+<li>nível máximo;</li>
+<li>efeitos;</li>
+<li>requisitos de Laboratório;</li>
+<li>status ativo/inativo;</li>
+<li>versão.</li>
+</ul>
+<h2 id='crit-rio-de-sa-da'>Critério de saída</h2>
+<p>Dois jogadores com tempo semelhante podem desenvolver colônias significativamente diferentes por escolhas tecnológicas.</p>
+<hr>
+<h1 id='fase-a2-4-especializa-es-econ-micas-fortes'>FASE A2.4 — Especializações econômicas fortes</h1>
+<h2 id='objetivo'>Objetivo</h2>
+<p>Transformar especialização em necessidade econômica real.</p>
+<h2 id='trabalho'>Trabalho</h2>
+<ul>
+<li>auditar as especializações já existentes;</li>
+<li>medir bônus atuais;</li>
+<li>identificar quais ainda não alteram decisão econômica;</li>
+<li>conectar especialização à árvore de pesquisa;</li>
+<li>conectar especialização a população;</li>
+<li>conectar especialização a consumo e logística;</li>
+<li>medir dependência do Mercado;</li>
+<li>impedir combinação que torne uma colônia dominante em todas as cadeias.</li>
+</ul>
+<h2 id='modelo-especializa-o-a-trilha-de-pesquisa'>Modelo: especialização é a trilha de pesquisa</h2>
+<p>Não se cria escolha declarada de perfil. O jogador se especializa <strong>pelo que pesquisou e construiu</strong>, e o jogo <strong>calcula e exibe</strong> o perfil resultante — leitura derivada, nunca campo preenchido pelo jogador. Ver GDD ALPHA 2 §8.1.</p>
+<h2 id='meta-de-design'>Meta de design</h2>
+<p>Um especialista deve ser claramente melhor em seu domínio, mas claramente dependente de outros domínios.</p>
+<h2 id='crit-rio-de-sa-da'>Critério de saída</h2>
+<p>O critério original — “bots especializados negociam entre si por necessidade econômica” — dependia de simulação que não existe neste repositório. Substituto verificável sem bots:</p>
+<p><strong>A dependência é estrutural e demonstrável no papel.</strong> Para cada especialização, ao menos uma cadeia de que ela depende não é suprível por produção própria em nível competitivo, e isso é mostrado pelo <strong>simulador da trilha A2.S</strong>, não por observação de tráfego.</p>
+<p>A confirmação em campo — volume real de mercado entre perfis diferentes — fica para quando houver população de jogadores ou simulação em staging.</p>
+<hr>
+<h1 id='fase-a2-5-federa-o-como-infraestrutura-de-midgame'>FASE A2.5 — Federação como infraestrutura de midgame</h1>
+<h2 id='objetivo'>Objetivo</h2>
+<p>Fazer Federação deixar de ser apenas agrupamento social.</p>
+<h2 id='regras'>Regras</h2>
+<ul>
+<li>máximo 12 membros;</li>
+<li>Líder;</li>
+<li>Diplomata;</li>
+<li>demais papéis conforme necessidade operacional;</li>
+<li>fundo;</li>
+<li>extrato;</li>
+<li>missões cooperativas;</li>
+<li>diplomacia;</li>
+<li>território;</li>
+<li>acesso a conteúdo avançado.</li>
+</ul>
+<h2 id='trabalho'>Trabalho</h2>
+<ol>
+<li>revisar regra atual contra a decisão de 12 membros;</li>
+<li>assegurar migração compatível;</li>
+<li>aperfeiçoar papéis/permissões;</li>
+<li>criar objetivos federativos;</li>
+<li>criar métricas de concentração;</li>
+<li>criar proteções antimonopólio observáveis;</li>
+<li>preparar interface diplomática.</li>
+</ol>
+<h2 id='crit-rio-de-sa-da'>Critério de saída</h2>
+<p>Uma Federação organizada passa a oferecer capacidade estratégica que um conjunto de jogadores independentes não possui.</p>
+<hr>
+<h1 id='fase-a2-6-zonas-neutras-popula-o-automa-o'>FASE A2.6 — Zonas neutras + população + automação</h1>
+<h2 id='objetivo'>Objetivo</h2>
+<p>Integrar completamente território ao novo modelo populacional.</p>
+<h2 id='entregas'>Entregas</h2>
+<ul>
+<li>equipe operacional mínima por zona;</li>
+<li>transferência colônia → zona;</li>
+<li>retorno;</li>
+<li>visualização de operadores;</li>
+<li>impedimento por falta de população;</li>
+<li>interação com Abrigo de Robôs;</li>
+<li>impacto de manutenção;</li>
+<li>telemetria de custo territorial;</li>
+<li><strong>degradação por falta de operadores</strong>: se a população cair abaixo do exigido, a zona não se perde — sofre penalidade de produção até ser reposta (GDD ALPHA 2 §6.6).</li>
+</ul>
+<h2 id='princ-pio'>Princípio</h2>
+<p>Poucos humanos operam muitos robôs.</p>
+<p>Zonas não devem exigir populações enormes.</p>
+<hr>
+<h1 id='fase-a2-7-upgrades-de-ve-culos-e-estoques'>FASE A2.7 — Upgrades de veículos e estoques</h1>
+<h2 id='decidido'>Decidido</h2>
+<p><strong>O nível do veículo aumenta a capacidade e aumenta a manutenção junto.</strong> Um eixo, com contrapartida — é o que a §13 do BALANCEAMENTO pede ao proibir melhorar tudo de graça.</p>
+<p><strong>Velocidade não é atributo de nível: é traço do tipo de veículo.</strong> É o que diferencia Furgão de Caminhão. Se o nível também acelerasse, a distância — pilar declarado do jogo — encolheria a cada upgrade.</p>
+<p>Hoje <code>vehicles.level</code> já existe no banco, mas <strong>não há rota de upgrade</strong>: o nível existe sem caminho para subir. É isso que esta fase fecha.</p>
+<p><strong>Estoque tem teto, e o teto trava em vez de derramar.</strong> Ao encher, a produção para; nada transborda e vira desperdício. O jogador perde oportunidade, nunca estoque — o que dá peso à decisão de construir armazenamento sem punir quem passou o dia fora. Ver §14 do BALANCEAMENTO.</p>
+<h2 id='ordem'>Ordem</h2>
+<ol>
+<li>implementar a rota de upgrade que falta;</li>
+<li>conectar custo/tempo;</li>
+<li>aplicar capacidade↑/manutenção↑ por nível, mantendo velocidade como traço do tipo;</li>
+<li>finalizar capacidades de estoque ainda abertas, com teto que trava;</li>
+<li>colocar tudo sob parâmetros versionados;</li>
+<li>simular impacto econômico pela trilha A2.S.</li>
+</ol>
+<h2 id='crit-rio-de-sa-da'>Critério de saída</h2>
+<p>Upgrade de veículo apresenta escolha econômica mensurável e não apenas aumento nominal de nível.</p>
+<hr>
+<h1 id='fase-a2-8-motor-de-eventos'>FASE A2.8 — Motor de Eventos</h1>
+<h2 id='objetivo'>Objetivo</h2>
+<p>Dar ao Dono capacidade de criar emoção sem precisar alterar código para cada evento.</p>
+<h2 id='mvp-do-motor'>MVP do motor</h2>
+<p>Campos:</p>
+<ul>
+<li>nome;</li>
+<li>slug;</li>
+<li>descrição;</li>
+<li>mensagem pública;</li>
+<li>notas internas;</li>
+<li>início;</li>
+<li>fim;</li>
+<li>status;</li>
+<li>visibilidade;</li>
+<li>escopo;</li>
+<li>gatilho;</li>
+<li>modificadores;</li>
+<li>recompensas;</li>
+<li>missões;</li>
+<li>segredo;</li>
+<li>versão.</li>
+</ul>
+<h2 id='modificadores-da-primeira-vers-o'>Modificadores da primeira versão</h2>
+<p>Apenas dois:</p>
+<ul>
+<li><strong>produção</strong>;</li>
+<li><strong>consumo</strong>.</li>
+</ul>
+<p>Escopo global ou por recurso, janela de início/fim, visibilidade anunciada/parcial/secreta.</p>
+<p><strong>Preço fica de fora</strong>: já existe <code>PriceIntervention</code> no jogo e o motor não a absorve nem a duplica nesta versão.</p>
+<p><strong>Evento nunca escreve no ledger.</strong> Ele altera a taxa; quem credita continua sendo o tick. E o modificador precisa ser reconstruível no passado, para que “Desde sua última visita” consiga explicar por que a produção caiu.</p>
+<h2 id='modificadores-seguintes'>Modificadores seguintes</h2>
+<ul>
+<li>taxa;</li>
+<li>logística;</li>
+<li>construção;</li>
+<li>pesquisa;</li>
+<li>população;</li>
+<li>território.</li>
+</ul>
+<h2 id='depois'>Depois</h2>
+<ul>
+<li>combate;</li>
+<li>Endurance;</li>
+<li>Federação;</li>
+<li>eventos encadeados;</li>
+<li>condições compostas.</li>
+</ul>
+<h2 id='seguran-a'>Segurança</h2>
+<ul>
+<li>preview antes de ativar;</li>
+<li>dry-run/simulação;</li>
+<li>auditoria;</li>
+<li>cancelamento;</li>
+<li>rollback lógico do modificador futuro, sem apagar efeitos históricos já ocorridos.</li>
+</ul>
+<hr>
+<h1 id='fase-a2-9-endurance-como-sistema-de-progress-o-narrativa-e-loot'>FASE A2.9 — Endurance como sistema de progressão narrativa e loot</h1>
+<h2 id='regra-central'>Regra central</h2>
+<p>A Endurance não será reconstruída.</p>
+<h2 id='objetivo'>Objetivo</h2>
+<p>Aprofundar a escavação/desmontagem e a obtenção de peças.</p>
+<h2 id='entregas'>Entregas</h2>
+<ul>
+<li>catálogo de itens;</li>
+<li>raridade;</li>
+<li>origem/seção;</li>
+<li>disponibilidade;</li>
+<li>estoque;</li>
+<li>histórico de descoberta;</li>
+<li>propriedade;</li>
+<li>itens únicos;</li>
+<li>eventos da Endurance;</li>
+<li>leilões associados;</li>
+<li>missões narrativas;</li>
+<li>telemetria de circulação.</li>
+</ul>
+<h2 id='classes'>Classes</h2>
+<ul>
+<li>comum;</li>
+<li>raro;</li>
+<li>único.</li>
+</ul>
+<h2 id='regra-de-item-nico'>Regra de item único</h2>
+<p>Um item marcado como único deve possuir identidade persistente e histórico.</p>
+<p><strong>Só o único ganha linha de instância.</strong> O catálogo atual é fungível e continua: os itens existentes viram <code>comum</code>, sem migração dolorosa. <code>Raro</code> é escasso mas segue fungível. Apenas o <code>único</code> recebe instância com descobridor, proprietário atual e histórico de transferência. Ver GDD ALPHA 2 §11.1.</p>
+<hr>
+<h1 id='fase-a2-10-guerra-federativa-e-geopol-tica'>FASE A2.10 — Guerra federativa e geopolítica</h1>
+<h2 id='objetivo'>Objetivo</h2>
+<p>Fechar a lacuna de guerra entre Federações.</p>
+<h2 id='antes-de-implementar'>Antes de implementar</h2>
+<p>Esta é a <strong>única fase da Alpha 2 que exige um documento de design próprio antes de qualquer linha de código</strong>. Nenhum prompt deve ser disparado enquanto ele não existir.</p>
+<p>Produzir um GDD específico da guerra federativa com:</p>
+<ul>
+<li>declaração;</li>
+<li>objetivo;</li>
+<li>duração;</li>
+<li>alvos;</li>
+<li>participação;</li>
+<li>reforços;</li>
+<li>tratados;</li>
+<li>capitulação;</li>
+<li>cooldown;</li>
+<li>recompensa;</li>
+<li>perda;</li>
+<li>território;</li>
+<li>ranking;</li>
+<li>abuso por contas vinculadas;</li>
+<li>abandono;</li>
+<li>neutralidade;</li>
+<li>evento externo;</li>
+<li>auditoria.</li>
+</ul>
+<h2 id='depend-ncias'>Dependências</h2>
+<p>Não iniciar antes de:</p>
+<ul>
+<li>população;</li>
+<li>pesquisa;</li>
+<li>Federação;</li>
+<li>telemetria;</li>
+<li>especialização;</li>
+<li>economia;</li>
+<li>eventos.</li>
+</ul>
+<hr>
+<h1 id='fase-a2-v-revis-o-visual-gigantesca'>FASE A2.V — Revisão visual gigantesca</h1>
+<p>A revisão visual não deve ser deixada para o último commit.</p>
+<p>Ela corre em paralelo, mas com ordem controlada.</p>
+<h2 id='ordem-a2-v1-vem-antes-ou-junto-com-a2-0'>Ordem: A2.V1 vem antes ou junto com A2.0</h2>
+<p>Há uma dependência dura. A tela <strong>“Desde sua última visita” é a primeira tela nova da Alpha 2</strong> e vai fixar o padrão visual na marra. Se os tokens vierem depois, ela e o painel de população nascem fora do design system e terão de ser refeitos.</p>
+<p>Portanto: <strong>A2.V1 antes ou junto com A2.0</strong>; V2 a V6 seguem coladas em cada fase. Ponto de partida já existente: <code>docs/design-tokens.md</code>.</p>
+<h2 id='a2-v1-design-system'>A2.V1 — Design System</h2>
+<ul>
+<li>tokens;</li>
+<li>tipografia;</li>
+<li>espaçamento;</li>
+<li>iconografia;</li>
+<li>recursos;</li>
+<li>botões;</li>
+<li>cards;</li>
+<li>modais;</li>
+<li>estados;</li>
+<li>mobile;</li>
+<li>acessibilidade.</li>
+</ul>
+<h2 id='a2-v2-hud-e-navega-o'>A2.V2 — HUD e navegação</h2>
+<ul>
+<li>HUD global;</li>
+<li>notificações;</li>
+<li>desde sua última visita;</li>
+<li>alertas de produção;</li>
+<li>alertas militares;</li>
+<li>fila;</li>
+<li>pesquisa;</li>
+<li>população.</li>
+</ul>
+<h2 id='a2-v3-col-nia'>A2.V3 — Colônia</h2>
+<ul>
+<li>nova leitura espacial;</li>
+<li>estados visuais de edifício;</li>
+<li>construção;</li>
+<li>upgrade;</li>
+<li>produção;</li>
+<li>falta de recurso;</li>
+<li>falta de energia;</li>
+<li>operadores;</li>
+<li>animações sutis.</li>
+</ul>
+<h2 id='a2-v4-mapa-e-zonas'>A2.V4 — Mapa e zonas</h2>
+<ul>
+<li>mapa planetário;</li>
+<li>seleção;</li>
+<li>ameaças;</li>
+<li>Federação;</li>
+<li>zonas;</li>
+<li>trajetos;</li>
+<li>leitura de distância;</li>
+<li>estados territoriais.</li>
+</ul>
+<h2 id='a2-v5-capital-e-endurance'>A2.V5 — Capital e Endurance</h2>
+<ul>
+<li>áreas institucionais;</li>
+<li>Endurance com identidade visual própria;</li>
+<li>exploração por seções;</li>
+<li>peças;</li>
+<li>raridades;</li>
+<li>eventos.</li>
+</ul>
+<h2 id='a2-v6-combate-e-eventos'>A2.V6 — Combate e eventos</h2>
+<ul>
+<li>avisos;</li>
+<li>preparação;</li>
+<li>impacto;</li>
+<li>relatórios;</li>
+<li>timeline;</li>
+<li>efeitos ambientais.</li>
+</ul>
+<hr>
+<h1 id='fase-a2-11-bots-de-simula-o'>FASE A2.11 — Bots de simulação (FORA DO ESCOPO)</h1>
+<p>Os bots são um <strong>programa externo</strong>, em servidor e banco próprios (<code>staging.tars.art.br</code>), e se comportam como jogadores externos. Nenhuma fase da Alpha 2 os constrói. Ver GDD ALPHA 2 §14.</p>
+<p>O que permanece no escopo deste repositório:</p>
+<ul>
+<li>a telemetria distingue <strong>humano</strong> e <strong>sistema/admin</strong> — a distinção humano/bot é dada pelo ambiente;</li>
+<li>o jogo não pode depender de bots para funcionar nem para ser validado.</li>
+</ul>
+<p>Integração futura, não é backlog: leitura da base do staging pelo Fertways para apoiar balanceamento.</p>
+<hr>
+<h1 id='fase-a2-12-hardening-da-alpha-2'>FASE A2.12 — Hardening da Alpha 2</h1>
+<p>Checklist:</p>
+<ul>
+<li>testes unitários;</li>
+<li>integração;</li>
+<li>E2E;</li>
+<li>carga;</li>
+<li>migrations em MariaDB;</li>
+<li>jobs idempotentes;</li>
+<li>tick;</li>
+<li>segurança;</li>
+<li>rate limits;</li>
+<li>logs;</li>
+<li>métricas;</li>
+<li>erros;</li>
+<li>auditoria;</li>
+<li>backups;</li>
+<li>mobile;</li>
+<li>acessibilidade;</li>
+<li>onboarding completo;</li>
+<li>economy smoke test;</li>
+<li>simulação longa em staging, quando houver.</li>
+</ul>
+<hr>
+<h1 id='fora-da-alpha-2-imediata'>Fora da Alpha 2 imediata</h1>
+<ul>
+<li>novos planetas independentes;</li>
+<li>servidores interplanetários;</li>
+<li>API econômica entre servidores;</li>
+<li>comércio entre mundos;</li>
+<li>profissão individual de população;</li>
+<li>conta compartilhada entre planetas independentes.</li>
+</ul>
+<p>As luas continuam parte do universo futuro da conta de Fertways.</p>
+<hr>
+<h1 id='ordem-recomendada-de-decis-es-d-161'>Ordem recomendada de decisões D-161+</h1>
+<p>A numeração definitiva deve seguir o diário real do projeto, mas a sequência conceitual recomendada é:</p>
+<ul>
+<li><strong>D-161:</strong> visão e escopo da Alpha 2;</li>
+<li><strong>D-162:</strong> política de telemetria;</li>
+<li><strong>D-163:</strong> “Desde sua última visita”;</li>
+<li><strong>D-164:</strong> onboarding produtivo;</li>
+<li><strong>D-165:</strong> recompensas configuráveis do onboarding;</li>
+<li><strong>D-166:</strong> modelo de população;</li>
+<li><strong>D-167:</strong> sustento e crescimento;</li>
+<li><strong>D-168:</strong> operadores por construção;</li>
+<li><strong>D-169:</strong> população em zona neutra;</li>
+<li><strong>D-170:</strong> arquitetura da pesquisa;</li>
+<li><strong>D-171:</strong> trilhas de pesquisa;</li>
+<li><strong>D-172:</strong> paralelismo Laboratório/Observatório;</li>
+<li><strong>D-173:</strong> especialização econômica + integração com pesquisa;</li>
+<li><strong>D-174:</strong> Federação limitada a 12 e papéis;</li>
+<li><strong>D-175:</strong> Federação como gate de conteúdo avançado;</li>
+<li><strong>D-176:</strong> níveis de veículos;</li>
+<li><strong>D-177:</strong> estoques/capacidades;</li>
+<li><strong>D-178:</strong> Motor de Eventos;</li>
+<li><strong>D-179:</strong> eventos secretos/negativos;</li>
+<li><strong>D-180:</strong> Endurance: raridades e identidade de itens;</li>
+<li><strong>D-181+:</strong> guerra federativa;</li>
+<li><strong>trilha V paralela:</strong> revisão visual.</li>
+</ul>
+<p>A numeração acima é proposta de organização, não deve ser tratada como decisão registrada até ser efetivamente lançada em <code>docs/decisoes.md</code>.</p>
+<p><strong>Os números não ficam reservados.</strong> A última decisão realmente registrada é a <strong>D-160</strong> (<code>docs/decisoes.md</code>, 185 entradas). Cada entrega toma o próximo número livre no momento em que é lançada — se uma fase se dividir em três decisões, as seguintes deslocam, e a lista acima continua valendo apenas como ordem conceitual.</p>
+    </section>
+
+    <section class="section" id="balanceamento">
+      <h1 id='fertways-balanceamento-md'>FERTWAYS — BALANCEAMENTO.md</h1>
+<p><strong>Objetivo:</strong> registrar por que cada número importante existe, qual hipótese ele representa, quais métricas o sustentam e quando deve ser revisado.</p>
+<p>Este documento não substitui as tabelas de dados utilizadas pelo jogo.</p>
+<p>O GDD descreve a regra.  </p>
+<p>As tabelas/banco fornecem o valor executado.  </p>
+<p>Este documento explica a <strong>racionalidade do valor</strong>.</p>
+<hr>
+<h2 id='1-regra-de-ouro'>1. Regra de ouro</h2>
+<p>Nenhum número novo relevante deve entrar silenciosamente.</p>
+<p>Para cada parâmetro relevante, registrar:</p>
+<ul>
+<li>sistema;</li>
+<li>chave;</li>
+<li>valor atual;</li>
+<li>unidade;</li>
+<li>origem;</li>
+<li>data de vigência;</li>
+<li>decisão D-n;</li>
+<li>hipótese;</li>
+<li>métrica esperada;</li>
+<li>telemetria observada;</li>
+<li>faixa de segurança;</li>
+<li>motivo da última alteração;</li>
+<li>próxima data/requisito de revisão.</li>
+</ul>
+<hr>
+<h2 id='2-estados-de-um-n-mero'>2. Estados de um número</h2>
+<p>Cada parâmetro deve ser classificado como:</p>
+<h3 id='can-nico'>CANÔNICO</h3>
+<p>Já definido, implementado e considerado regra vigente.</p>
+<h3 id='baseline'>BASELINE</h3>
+<p>Valor inicial utilizado para testar uma mecânica nova.</p>
+<p>Pode mudar após telemetria.</p>
+<h3 id='hip-tese'>HIPÓTESE</h3>
+<p>Número usado em simulação, ainda não liberado.</p>
+<h3 id='experimento'>EXPERIMENTO</h3>
+<p>Valor aplicado a um ambiente/coorte de teste.</p>
+<h3 id='pendente'>PENDENTE</h3>
+<p>A mecânica está definida, mas ainda não existe número aprovado.</p>
+<hr>
+<h2 id='3-n-o-inventar-n-meros-apenas-para-preencher-tabela'>3. Não inventar números apenas para preencher tabela</h2>
+<p>Para sistemas novos da Alpha 2 — principalmente População e Pesquisa — números não aprovados devem começar como <strong>PENDENTE</strong> ou <strong>HIPÓTESE</strong>.</p>
+<p>O fluxo correto:</p>
+<ol>
+<li>definir função da mecânica;</li>
+<li>definir unidade;</li>
+<li>modelar fórmulas;</li>
+<li>simular;</li>
+<li>escolher baseline;</li>
+<li>exercitar em escala — pelo <strong>simulador da trilha A2.S</strong> (ROADMAP) e por testadores humanos; a simulação por bots é externa e vive em staging (ver GDD ALPHA 2 §14);</li>
+<li>observar telemetria;</li>
+<li>ajustar;</li>
+<li>promover para canônico.</li>
+</ol>
+<p>O passo 6 é executado pelo simulador da trilha A2.S, que nasce dentro da A2.2. Enquanto ele não existir, número novo não sobe a canônico — ver a advertência da §18.</p>
+<hr>
+<h1 id='4-objetivos-macro-de-ritmo'>4. Objetivos macro de ritmo</h1>
+<h2 id='sess-o'>Sessão</h2>
+<p>Meta de design:</p>
+<ul>
+<li>5 a 10 minutos;</li>
+<li>várias sessões por dia;</li>
+<li>cada sessão deve oferecer decisão útil;</li>
+<li>jogador não precisa manter a tela aberta.</li>
+</ul>
+<h2 id='mundo'>Mundo</h2>
+<ul>
+<li>persistente;</li>
+<li>temporada de referência: 6 meses, prorrogável;</li>
+<li>sem reset automático.</li>
+</ul>
+<h2 id='implica-o'>Implicação</h2>
+<p>Tempos e curvas precisam funcionar simultaneamente em três escalas:</p>
+<ul>
+<li>minutos: decisões e feedback imediato;</li>
+<li>horas/dias: produção, pesquisa, logística, conflitos;</li>
+<li>meses: especialização, Federação, território, Endurance e progressão avançada.</li>
+</ul>
+<hr>
+<h1 id='5-telemetria-obrigat-ria'>5. Telemetria obrigatória</h1>
+<h2 id='5-1-reten-o-e-sess-o'>5.1 Retenção e sessão</h2>
+<ul>
+<li>jogadores ativos/dia;</li>
+<li>jogadores ativos/semana;</li>
+<li>sessões por jogador/dia;</li>
+<li>duração mediana;</li>
+<li>intervalo mediano entre sessões;</li>
+<li>retorno D1/D3/D7/D14/D30 quando houver usuários reais;</li>
+<li>os mesmos indicadores em staging, onde quem joga são os bots externos (ver GDD ALPHA 2 §14).</li>
+</ul>
+<h2 id='5-2-onboarding'>5.2 Onboarding</h2>
+<p>Para cada etapa:</p>
+<ul>
+<li>iniciou;</li>
+<li>concluiu;</li>
+<li>abandonou;</li>
+<li>tempo;</li>
+<li>erro;</li>
+<li>recurso insuficiente;</li>
+<li>clique de ajuda;</li>
+<li>recompensa concedida.</li>
+</ul>
+<p>Indicador principal:</p>
+<p><strong>percentual que chega ao fim da parte obrigatória sem intervenção administrativa.</strong></p>
+<h2 id='5-3-economia'>5.3 Economia</h2>
+<p>Por recurso:</p>
+<ul>
+<li>produzido;</li>
+<li>consumido;</li>
+<li>criado por subsídio;</li>
+<li>destruído;</li>
+<li>transportado;</li>
+<li>comercializado;</li>
+<li>estocado;</li>
+<li>preso em ordens;</li>
+<li>concentração por jogador;</li>
+<li>concentração por Federação.</li>
+</ul>
+<p>Para Fert$:</p>
+<ul>
+<li>emissão;</li>
+<li>sumidouros;</li>
+<li>saldo total;</li>
+<li>saldo mediano;</li>
+<li>Gini/concentração;</li>
+<li>volume de mercado;</li>
+<li>velocidade de circulação.</li>
+</ul>
+<h2 id='5-4-constru-o'>5.4 Construção</h2>
+<ul>
+<li>nível médio;</li>
+<li>tempo até upgrade;</li>
+<li>fila ociosa;</li>
+<li>fila saturada;</li>
+<li>cancelamentos;</li>
+<li>faltas de recurso.</li>
+</ul>
+<h2 id='5-5-popula-o'>5.5 População</h2>
+<ul>
+<li>população total;</li>
+<li>capacidade;</li>
+<li>ocupação;</li>
+<li>população livre;</li>
+<li>população em produção;</li>
+<li>população territorial;</li>
+<li>crescimento/dia;</li>
+<li>tempo no teto habitacional;</li>
+<li>escassez de Água/Oxigênio/Biomassa/Energia;</li>
+<li>estruturas paradas por falta de operadores.</li>
+</ul>
+<h2 id='5-6-pesquisa'>5.6 Pesquisa</h2>
+<ul>
+<li>tecnologia iniciada;</li>
+<li>concluída;</li>
+<li>abandonada/cancelada;</li>
+<li>trilha escolhida;</li>
+<li>custo;</li>
+<li>duração;</li>
+<li>paralelismo;</li>
+<li>concentração de meta;</li>
+<li>tecnologias ignoradas.</li>
+</ul>
+<h2 id='5-7-especializa-o'>5.7 Especialização</h2>
+<ul>
+<li>especialização escolhida;</li>
+<li>momento da escolha;</li>
+<li>produção antes/depois;</li>
+<li>dependência de importação;</li>
+<li>exportação;</li>
+<li>mudança de especialização;</li>
+<li>concentração de cada especialização no servidor.</li>
+</ul>
+<h2 id='5-8-federa-o'>5.8 Federação</h2>
+<ul>
+<li>membros;</li>
+<li>tempo até entrar;</li>
+<li>duração da associação;</li>
+<li>fundo;</li>
+<li>transações internas;</li>
+<li>missões;</li>
+<li>territórios;</li>
+<li>guerras;</li>
+<li>concentração econômica.</li>
+</ul>
+<h2 id='5-9-guerra'>5.9 Guerra</h2>
+<ul>
+<li>ataques;</li>
+<li>vitórias;</li>
+<li>derrotas;</li>
+<li>custo;</li>
+<li>dano;</li>
+<li>saque;</li>
+<li>tempo de preparação;</li>
+<li>diferença econômica atacante/defensor;</li>
+<li>recorrência contra mesmo alvo;</li>
+<li>zonas perdidas;</li>
+<li>abandono pós-ataque.</li>
+</ul>
+<h2 id='5-10-endurance'>5.10 Endurance</h2>
+<ul>
+<li>visitas;</li>
+<li>missões;</li>
+<li>peças obtidas;</li>
+<li>raridade;</li>
+<li>quantidade em circulação;</li>
+<li>propriedade;</li>
+<li>troca/leilão;</li>
+<li>concentração;</li>
+<li>itens únicos descobertos.</li>
+</ul>
+<hr>
+<h1 id='6-onboarding-metodologia-de-balanceamento'>6. Onboarding — metodologia de balanceamento</h1>
+<p>O tutorial deverá conceder recursos suficientes para ensinar, não para financiar o midgame.</p>
+<p>Cada recompensa deve responder a uma pergunta:</p>
+<p><strong>“Qual ação esta recompensa permite que o jogador aprenda agora?”</strong></p>
+<p>Evitar:</p>
+<ul>
+<li>prêmio sem finalidade;</li>
+<li>Fert$ excessivo;</li>
+<li>estoque que elimina a necessidade de produzir;</li>
+<li>recursos raros;</li>
+<li>prêmio repetível.</li>
+</ul>
+<p>Tabela de trabalho:</p>
+<div class='table-wrap'><table><thead><tr><th>Etapa</th><th>Recompensa</th><th>Estado</th><th>Motivo</th><th>Métrica</th></tr></thead><tbody>
+<tr><td>Energia</td><td>PENDENTE</td><td>PENDENTE</td><td>Permitir primeira ação guiada</td><td>conclusão da etapa</td></tr>
+<tr><td>Oxigênio</td><td>PENDENTE</td><td>PENDENTE</td><td>Evitar bloqueio inicial</td><td>tempo até conclusão</td></tr>
+<tr><td>Água</td><td>PENDENTE</td><td>PENDENTE</td><td>Ensinar cadeia essencial</td><td>abandono</td></tr>
+<tr><td>Biomassa</td><td>PENDENTE</td><td>PENDENTE</td><td>Ensinar saldo líquido</td><td>abandono</td></tr>
+<tr><td>Primeiro upgrade</td><td>PENDENTE</td><td>PENDENTE</td><td>Ensinar fila</td><td>tempo</td></tr>
+<tr><td>Primeiro processamento</td><td>PENDENTE</td><td>PENDENTE</td><td>Ensinar cadeia</td><td>conclusão</td></tr>
+<tr><td>Primeiro transporte</td><td>PENDENTE</td><td>PENDENTE</td><td>Ensinar logística</td><td>conclusão</td></tr>
+<tr><td>Primeiro Mercado</td><td>PENDENTE</td><td>PENDENTE</td><td>Ensinar economia</td><td>conclusão</td></tr>
+</tbody></table></div>
+<p>Os valores serão cadastrados no backend e ajustados com <strong>testadores humanos</strong> antes de serem promovidos a baseline. A validação em escala fica para quando houver simulação em staging.</p>
+<hr>
+<h1 id='7-popula-o-modelo-de-balanceamento'>7. População — modelo de balanceamento</h1>
+<h2 id='7-1-vari-veis'>7.1 Variáveis</h2>
+<p>Proposta de chaves:</p>
+<ul>
+<li><code>population_capacity[level]</code></li>
+<li><code>population_growth_rate</code></li>
+<li><code>population_water_per_capita</code></li>
+<li><code>population_oxygen_per_capita</code></li>
+<li><code>population_biomass_per_capita</code></li>
+<li><code>population_infrastructure_energy</code></li>
+<li><code>population_shortage_efficiency</code></li>
+<li><code>population_growth_min_supply_ratio</code></li>
+<li><code>building_operator_requirement[type][level]</code></li>
+<li><code>neutral_zone_operator_requirement[level]</code></li>
+<li><code>population_migracao_folga</code> — margem concedida acima do estritamente necessário na migração de grandfathering (GDD ALPHA 2 §6.7)</li>
+</ul>
+<p>Todos começam como PENDENTE até simulação pela trilha A2.S.</p>
+<p>⚠️ <code>population_capacity[level]</code> tem uma restrição que os demais não têm: na migração, a capacidade de cada colônia existente precisa <strong>caber</strong> a população concedida por grandfathering. Um valor baixo demais faria colônias veteranas nascerem acima do próprio teto habitacional.</p>
+<h2 id='7-2-objetivo'>7.2 Objetivo</h2>
+<p>A população deve:</p>
+<ul>
+<li>limitar expansão;</li>
+<li>valorizar a Estrutura de Sobrevivência;</li>
+<li>aumentar valor de recursos essenciais;</li>
+<li>obrigar escolha;</li>
+<li>não virar “The Sims” dentro de Fertways.</li>
+</ul>
+<h2 id='7-3-m-trica-chave'>7.3 Métrica-chave</h2>
+<p><strong>Percentual de população comprometida.</strong></p>
+<p>Faixas a testar:</p>
+<ul>
+<li>muito baixa → população irrelevante;</li>
+<li>moderada → decisão estratégica;</li>
+<li>próxima de 100% constantemente → frustração/gargalo excessivo.</li>
+</ul>
+<p>O alvo exato será definido por simulação.</p>
+<h2 id='7-4-zonas'>7.4 Zonas</h2>
+<p>A quantidade de operadores em zona deve ser pequena comparada à população da colônia.</p>
+<p>Princípio: humanos supervisionam automação robotizada.</p>
+<hr>
+<h1 id='8-pesquisa-modelo-de-balanceamento'>8. Pesquisa — modelo de balanceamento</h1>
+<h2 id='8-1-vari-veis'>8.1 Variáveis</h2>
+<ul>
+<li>custo por tecnologia;</li>
+<li>duração;</li>
+<li>pré-requisitos;</li>
+<li>nível mínimo de Laboratório;</li>
+<li>vagas simultâneas (por nível do Laboratório);</li>
+<li>quantidade de níveis;</li>
+<li>efeito.</li>
+</ul>
+<p>O <strong>modificador do Observatório</strong> sai desta lista: o Observatório não existe no jogo e não entra na primeira entrega (GDD ALPHA 2 §7.2). Volta quando ele for criado.</p>
+<h2 id='8-2-regra-de-custo'>8.2 Regra de custo</h2>
+<p>Pesquisa consome recursos existentes no jogo.</p>
+<p>Não criar “Pontos de Pesquisa” nesta fase.</p>
+<h2 id='8-3-objetivo-de-escolha'>8.3 Objetivo de escolha</h2>
+<p>Se a maioria dos jogadores pesquisar a mesma sequência, a árvore falhou.</p>
+<p>Métricas:</p>
+<ul>
+<li>distribuição por trilha;</li>
+<li>primeira escolha;</li>
+<li>segunda escolha;</li>
+<li>tempo até bifurcação;</li>
+<li>percentual que pesquisa todas as linhas;</li>
+<li>benefício econômico realizado.</li>
+</ul>
+<hr>
+<h1 id='9-especializa-o-modelo-de-balanceamento'>9. Especialização — modelo de balanceamento</h1>
+<p>A especialização <strong>é a trilha de pesquisa</strong> (GDD ALPHA 2 §8.1): não há escolha declarada de perfil, e por isso as medições abaixo são feitas <strong>por trilha pesquisada</strong>, não por um campo de perfil escolhido pelo jogador.</p>
+<p>Especialização precisa ser forte.</p>
+<p>Entretanto, bônus forte exige custo de oportunidade forte.</p>
+<p>Para cada especialização medir:</p>
+<ol>
+<li>ganho bruto;</li>
+<li>consumo adicional;</li>
+<li>população usada;</li>
+<li>infraestrutura exigida;</li>
+<li>dependências;</li>
+<li>importações;</li>
+<li>exportações;</li>
+<li>retorno do investimento;</li>
+<li>risco territorial;</li>
+<li>sinergia com pesquisa.</li>
+</ol>
+<h3 id='indicador-principal'>Indicador principal</h3>
+<p><strong>vantagem comparativa</strong>, não apenas produção absoluta.</p>
+<p>Uma especialização é saudável quando:</p>
+<ul>
+<li>gera excedente comerciável;</li>
+<li>cria necessidade de comprar algo;</li>
+<li>não domina toda a economia;</li>
+<li>tem pelo menos um contrapeso.</li>
+</ul>
+<hr>
+<h1 id='10-federa-o-par-metros-iniciais-confirmados'>10. Federação — parâmetros iniciais confirmados</h1>
+<div class='table-wrap'><table><thead><tr><th>Parâmetro</th><th>Valor</th><th>Estado</th><th>Justificativa</th></tr></thead><tbody>
+<tr><td>Máximo de membros</td><td>12</td><td>DIRETRIZ APROVADA</td><td>Preserva grupos coordenáveis e reduz risco de megabloco único</td></tr>
+<tr><td>Líder</td><td>1</td><td>DIRETRIZ APROVADA</td><td>Governança</td></tr>
+<tr><td>Diplomata</td><td>1 função</td><td>DIRETRIZ APROVADA</td><td>Relações externas</td></tr>
+</tbody></table></div>
+<p>Outros papéis permanecem sujeitos à revisão do sistema atual.</p>
+<h3 id='m-tricas'>Métricas</h3>
+<ul>
+<li>tamanho médio;</li>
+<li>percentual no teto;</li>
+<li>concentração econômica;</li>
+<li>concentração territorial;</li>
+<li>número de Federações viáveis;</li>
+<li>migração de membros;</li>
+<li>alianças;</li>
+<li>guerras.</li>
+</ul>
+<hr>
+<h1 id='11-eventos-balanceamento'>11. Eventos — balanceamento</h1>
+<p>A primeira versão do motor mexe em <strong>produção e consumo apenas</strong> (GDD ALPHA 2 §12.1.1). Preço fica fora, e evento nunca escreve no ledger — ele altera a taxa, e quem credita é o tick.</p>
+<p>Um evento precisa ter <strong>impacto perceptível</strong>, mas não destruição arbitrária.</p>
+<p>Para cada evento registrar:</p>
+<ul>
+<li>baseline afetado;</li>
+<li>modificador;</li>
+<li>duração;</li>
+<li>população afetada;</li>
+<li>recursos afetados;</li>
+<li>previsão de impacto;</li>
+<li>resultado real;</li>
+<li>ganhadores/perdedores;</li>
+<li>reação de mercado;</li>
+<li>concentração;</li>
+<li>recuperação pós-evento.</li>
+</ul>
+<h3 id='evento-negativo-saud-vel'>Evento negativo saudável</h3>
+<p>Deve criar pelo menos uma resposta possível:</p>
+<ul>
+<li>substituir insumo;</li>
+<li>importar;</li>
+<li>estocar;</li>
+<li>negociar;</li>
+<li>cooperar;</li>
+<li>defender;</li>
+<li>mudar rota;</li>
+<li>cumprir missão;</li>
+<li>explorar oportunidade.</li>
+</ul>
+<hr>
+<h1 id='12-endurance-raridade-e-economia'>12. Endurance — raridade e economia</h1>
+<p>Classes iniciais:</p>
+<ul>
+<li>comum;</li>
+<li>raro;</li>
+<li>único.</li>
+</ul>
+<p>Não definir aqui taxas de drop sem simulação.</p>
+<h2 id='item-nico'>Item único</h2>
+<p><strong>Só o único é instanciado.</strong> O catálogo atual é fungível e permanece: itens existentes viram <code>comum</code>, <code>raro</code> é escasso mas segue fungível, e apenas o <code>único</code> recebe linha de instância (GDD ALPHA 2 §11.1).</p>
+<p>Deve ter:</p>
+<ul>
+<li><code>item_instance_id</code>;</li>
+<li>origem;</li>
+<li>data de descoberta;</li>
+<li>descobridor;</li>
+<li>proprietário atual;</li>
+<li>histórico de transferência;</li>
+<li>estado;</li>
+<li>autenticidade verificável.</li>
+</ul>
+<h3 id='telemetria'>Telemetria</h3>
+<ul>
+<li>quantidade por raridade;</li>
+<li>concentração;</li>
+<li>preço;</li>
+<li>tempo de retenção;</li>
+<li>rotatividade;</li>
+<li>estoque ainda não descoberto;</li>
+<li>impacto de eventos.</li>
+</ul>
+<hr>
+<h1 id='13-ve-culos'>13. Veículos</h1>
+<p>Antes de escolher números de upgrade, cada nível deve responder:</p>
+<p><strong>“O que melhora?”</strong></p>
+<p><strong>Decidido:</strong> o nível aumenta a <strong>capacidade</strong> e aumenta a <strong>manutenção</strong> junto. Um eixo, com contrapartida.</p>
+<p><strong>Velocidade não é atributo de nível</strong> — é traço do tipo de veículo (Furgão × Caminhão). Se o nível acelerasse, a distância encolheria a cada upgrade, e distância é pilar do jogo.</p>
+<p>As demais dimensões — consumo, durabilidade, tempo de carga, alcance, confiabilidade — permanecem em aberto e <strong>não devem ser acrescentadas em conjunto</strong>: melhorar tudo simultaneamente sem custo é exatamente o que esta seção existe para impedir.</p>
+<p>Números a definir por simulação (trilha A2.S):</p>
+<ul>
+<li><code>vehicle_capacity[type][level]</code></li>
+<li><code>vehicle_maintenance[type][level]</code></li>
+<li>custo e tempo do upgrade</li>
+</ul>
+<p>Todos PENDENTE.</p>
+<hr>
+<h1 id='14-estoques'>14. Estoques</h1>
+<p>Capacidade é um instrumento econômico.</p>
+<p>Deve influenciar:</p>
+<ul>
+<li>risco;</li>
+<li>planejamento;</li>
+<li>frequência de login;</li>
+<li>mercado;</li>
+<li>defesa;</li>
+<li>logística.</li>
+</ul>
+<p><strong>Decidido: o teto trava, não derrama.</strong> Ao encher, a produção <strong>para</strong>; nada transborda e vira desperdício. O jogador perde oportunidade, nunca estoque.</p>
+<p>É o que reconcilia as duas exigências que brigam aqui: a §14 quer capacidade como instrumento econômico, e o GDD §1.1 proíbe exigir login constante. Um teto que descarta o excedente puniria quem passou o dia fora; um teto que trava apenas suspende o ganho e devolve a decisão ao jogador — construir armazenamento ou aceitar a parada.</p>
+<p>Hoje só o Tanque de Combustível tem teto real; o Silo protege de saque, mas não limita. Os demais recursos não têm teto nenhum.</p>
+<p>Capacidade baixa demais transforma o jogo em obrigação de login.</p>
+<p>Capacidade alta demais torna estoque irrelevante.</p>
+<p>Avaliar sempre em função do ritmo de produção por hora e do intervalo real entre sessões.</p>
+<hr>
+<h1 id='15-sess-es-de-5-10-minutos-regra-pr-tica'>15. Sessões de 5–10 minutos: regra prática</h1>
+<p>Ao analisar qualquer sistema, verificar:</p>
+<ol>
+<li>O jogador consegue entender seu estado em menos de 1 minuto?</li>
+<li>Existe uma decisão útil que pode tomar?</li>
+<li>Consegue iniciar uma ação e sair?</li>
+<li>O resultado pode ocorrer offline?</li>
+<li>Ao voltar, consegue compreender o resultado?</li>
+<li>O sistema pune excessivamente quem não fica conectado?</li>
+</ol>
+<p>Se qualquer resposta for “não”, revisar UX ou balanceamento.</p>
+<hr>
+<h1 id='16-processo-de-mudan-a-de-n-mero'>16. Processo de mudança de número</h1>
+<p>Toda alteração relevante deve seguir:</p>
+<h2 id='antes'>Antes</h2>
+<ul>
+<li>hipótese;</li>
+<li>dados atuais;</li>
+<li>simulação;</li>
+<li>impacto esperado;</li>
+<li>risco;</li>
+<li>rollback.</li>
+</ul>
+<h2 id='durante'>Durante</h2>
+<ul>
+<li>versão do parâmetro;</li>
+<li>data/hora;</li>
+<li>coorte/servidor;</li>
+<li>telemetria.</li>
+</ul>
+<h2 id='depois'>Depois</h2>
+<ul>
+<li>comparação;</li>
+<li>efeito colateral;</li>
+<li>decisão: manter/reverter/ajustar;</li>
+<li>registro D-n quando alterar regra ou baseline canônico.</li>
+</ul>
+<hr>
+<h1 id='17-registro-de-altera-es-de-balanceamento'>17. Registro de alterações de balanceamento</h1>
+<p>Modelo:</p>
+<pre><code>BAL-0001
+Data:
+Sistema:
+Parâmetro:
+Valor anterior:
+Valor novo:
+Estado: HIPÓTESE | EXPERIMENTO | BASELINE | CANÔNICO
+Motivo:
+Dados usados:
+Impacto esperado:
+Resultado observado:
+Decisão relacionada:
+Responsável:</code></pre>
+<hr>
+<h1 id='18-primeira-campanha-de-medi-o-da-alpha-2'>18. Primeira campanha de medição da Alpha 2</h1>
+<p>Antes de ajustes agressivos:</p>
+<ol>
+<li>instrumentar mundo atual sem reset;</li>
+<li>medir testadores humanos;</li>
+<li>rodar ciclos longos;</li>
+<li>medir inflação;</li>
+<li>medir gargalos;</li>
+<li>medir concentração;</li>
+<li>medir tempo de progressão;</li>
+<li>implementar população;</li>
+<li>repetir;</li>
+<li>implementar pesquisa;</li>
+<li>repetir;</li>
+<li>implementar especialização forte;</li>
+<li>repetir.</li>
+</ol>
+<p><strong>Sem reset do mundo atual.</strong></p>
+<p>O staging (<code>staging.tars.art.br</code>) é ambiente separado, com servidor e banco próprios, e é onde os <strong>bots externos</strong> jogam — eles não fazem parte do código do Fertways (ver GDD ALPHA 2 §14). O staging pode ser resetável para experimentos; o mundo principal permanece intacto e <strong>não recebe bots</strong>.</p>
+<p>⚠️ <strong>Consequência para o método.</strong> A §3 desta política mandava “rodar bots” antes de promover um número a baseline. Com os bots fora do repositório e fora do calendário da Alpha 2, esse passo ficou sem executor.</p>
+<p>O substituto decidido é a <strong>trilha A2.S</strong> (simulador de balanceamento, ROADMAP): um comando <code>artisan</code> que roda o código de domínio real contra mundo descartável em memória. Ela nasce dentro da A2.2. Enquanto não existir, número novo permanece <strong>BASELINE</strong>, sustentado por testadores humanos e julgamento do Dono, e não sobe a CANÔNICO por simulação.</p>
+    </section>
+
+    <section class="section" id="super-prompts">
+      <h2>Super Mega Prompts para o Claude</h2>
+      <p>Os prompts abaixo já incluem contexto do repositório, regras de segurança de dados, disciplina de migrations, exigência de testes, telemetria, atualização de <code>docs/decisoes.md</code> e critérios de aceite.</p>
+
+    <article class="prompt-card" id="prompt-A2-0">
+      <div class="prompt-head">
+        <div><span class="badge">A2.0</span><h3>Telemetria, painel e “Desde sua última visita”</h3></div>
+        <button class="copy-btn" data-target="prompt-text-A2-0">Copiar prompt</button>
+      </div>
+      <pre id="prompt-text-A2-0" class="prompt-text"><code># SUPER PROMPT CLAUDE — A2.0: Telemetria, painel e “Desde sua última visita”
+
+
+CONTEXTO OBRIGATÓRIO
+Você está trabalhando no repositório público https://github.com/fbfert/fertways.
+Stack atual: backend Laravel 11 (11.54) / PHP 8.4 / Sanctum 4; frontend React 19 + TypeScript 6 + Phaser 4 + Vite 8 + Tailwind 4; testes E2E existentes via Puppeteer.
+O PHP do servidor é o binário /usr/bin/php84. O `php` do PATH NÃO é a versão correta: use /usr/bin/php84 para artisan, composer, testes e qualquer script PHP.
+O GDD canônico atual é o v39. O arquivo histórico GDD v35 pode ser consultado SOMENTE para esclarecer intenções antigas; ele NÃO tem precedência automática sobre o v39, sobre docs/decisoes.md, sobre migrations ou sobre o comportamento atual do código.
+
+REGRAS INEGOCIÁVEIS
+1. Antes de codificar, leia docs/decisoes.md, o GDD canônico atual, migrations recentes, testes e o código do domínio afetado.
+2. Não invente regras, números, fórmulas ou nomes de tabelas sem necessidade. Se um valor não estiver decidido, crie configuração/estrutura que suporte o valor e deixe baseline documentado como HIPÓTESE/PENDENTE.
+3. Preserve dados existentes. Não faça reset do mundo.
+4. Migrations devem ser forward-only, seguras e idempotentes quando aplicável.
+5. Regras críticas devem ser aplicadas no servidor; validação no frontend é apenas UX.
+6. Todo ajuste econômico deve ser auditável e, quando envolver emissão/débito, compatível com o ledger atual.
+7. Instrumente telemetria relevante em toda funcionalidade nova.
+8. Escreva/atualize testes unitários, integração e E2E quando a superfície existir.
+9. Não destrua APIs ou comportamentos existentes sem migração explícita.
+10. Ao terminar, atualize docs/decisoes.md com a nova decisão D-n real, e regenere o GDD somente se a nova mecânica estiver efetivamente implementada.
+11. Não transforme o GDD em promessa: marque claramente o que foi implementado e o que continua pendente.
+12. Prefira parâmetros operacionais editáveis no backend a constantes hardcoded quando o Dono precisar ajustar o mundo sem deploy.
+13. Mobile é requisito de primeira classe.
+14. Não faça alterações visuais desconectadas da mecânica nesta etapa, salvo o necessário para a funcionalidade. Ressalva: a tela “Desde sua última visita” é a primeira tela nova da Alpha 2 e deve nascer sobre os tokens do design system (trilha A2.V1), que vem antes ou junto desta fase — não a construa com estilo avulso.
+15. Entregue código pronto para produção, não pseudocódigo.
+16. Execute PHP sempre por /usr/bin/php84 (ex.: `/usr/bin/php84 artisan migrate`, `/usr/bin/php84 artisan test`). Nunca assuma que `php` no PATH é a versão do servidor.
+17. Os testes rodam em SQLite em memória (backend/phpunit.xml); a produção é MariaDB. O verde do `artisan test` NÃO valida DDL. Toda migration nova deve ser exercitada contra MariaDB antes de ser dada como pronta, e o relatório final deve declarar em qual banco ela foi verificada.
+
+
+OBJETIVO DESTA ETAPA
+Criar a fundação de observabilidade da Alpha 2 e a primeira funcionalidade diretamente perceptível pelo jogador: um resumo confiável do que mudou enquanto ele esteve fora.
+
+TAREFAS OBRIGATÓRIAS
+1. Mapear os eventos de domínio já existentes que podem alimentar telemetria sem duplicar lógica.
+2. Criar uma camada de telemetria desacoplada, com eventos no mínimo para login, sessão, construções, upgrades, falta de insumo, falta de energia, mercado, transporte, Federação, zonas, combate, Endurance e sistema/admin. Produção e consumo NÃO entram como evento — ver tarefa 4.
+3. Diferenciar origem humana e sistema/admin. Bots são um programa externo que joga em staging (GDD ALPHA 2 §14); a distinção humano/bot é dada pelo ambiente, não por coluna.
+4. Duas camadas de granularidade, não uma:
+   (a) EVENTOS DISCRETOS — os da tarefa 2. Tabela de eventos indexada, com retenção de 90 dias; o que envelhece já foi agregado antes de sumir.
+   (b) FLUXO CONTÍNUO — produção, consumo e saldo por recurso NÃO viram evento por tick. Viram snapshot diário agregado por colônia, escrito uma vez ao dia. Com tick por minuto, instrumentar produção evento a evento produz tabela ingovernável sem responder nada que o snapshot não responda.
+   O ledger já é append-only e já registra todo fato econômico: DERIVE dele o que for possível (emissão/destruição de Fert$, compras, subsídios, tributos) e instrumente apenas o que ele não enxerga.
+5. Criar painel administrativo inicial com DAU/WAU, sessões, duração, funil de ações básicas, recursos emitidos/consumidos, Fert$ emitido/destruído, ataques e zonas.
+6. Implementar o recurso “Desde sua última visita”. A janela é POR RESUMO VISTO, não por sessão: cobre o período desde a última vez que o jogador fechou o resumo, e o marcador avança nesse momento. Reabrir a tela não repete o que já foi visto. PISO DE UMA HORA: se passou menos de uma hora desde o último resumo visto, a tela não aparece. Atenção: não existe hoje conceito de sessão no jogo — `users` não tem marca de último acesso e a tabela de sessões do framework é apagada no logout; a marca do “até quando você já viu” é estrutura nova desta fase.
+7. O resumo deve apresentar somente categorias que tenham ocorrido; não mostrar cards vazios.
+8. Tornar o resumo legível em mobile.
+9. Criar testes de agregação para impedir duplicidade de notificações/resumos.
+10. Documentar a política de retenção da telemetria.
+
+DECISÃO DE DESIGN
+A sessão-alvo é de 5–10 minutos várias vezes ao dia. O resumo precisa responder em segundos: “o que mudou enquanto eu estava fora?”.
+
+CRITÉRIOS DE ACEITE
+- Um testador entra após algumas horas e vê corretamente produção, construções concluídas, veículos chegados e ataques ocorridos.
+- Reabrir a tela não duplica eventos.
+- Eventos de sistema/admin podem ser separados dos de jogador nos indicadores.
+- O painel funciona com dados reais do banco atual.
+- Nenhum reset ou backfill destrutivo é necessário.
+
+FORMATO DA ENTREGA
+Ao concluir:
+- liste os arquivos criados/alterados;
+- explique migrations e compatibilidade com dados atuais;
+- informe testes executados e resultado;
+- indique endpoints/telas novos ou alterados;
+- registre riscos ou pontos que ficaram parametrizados;
+- mostre a decisão D-n adicionada a docs/decisoes.md;
+- NÃO declare concluído algo que não esteja testado ou implementado.</code></pre>
+    </article>
+
+    <article class="prompt-card" id="prompt-A2-1">
+      <div class="prompt-head">
+        <div><span class="badge">A2.1</span><h3>Onboarding produtivo configurável</h3></div>
+        <button class="copy-btn" data-target="prompt-text-A2-1">Copiar prompt</button>
+      </div>
+      <pre id="prompt-text-A2-1" class="prompt-text"><code># SUPER PROMPT CLAUDE — A2.1: Onboarding produtivo configurável
+
+
+CONTEXTO OBRIGATÓRIO
+Você está trabalhando no repositório público https://github.com/fbfert/fertways.
+Stack atual: backend Laravel 11 (11.54) / PHP 8.4 / Sanctum 4; frontend React 19 + TypeScript 6 + Phaser 4 + Vite 8 + Tailwind 4; testes E2E existentes via Puppeteer.
+O PHP do servidor é o binário /usr/bin/php84. O `php` do PATH NÃO é a versão correta: use /usr/bin/php84 para artisan, composer, testes e qualquer script PHP.
+O GDD canônico atual é o v39. O arquivo histórico GDD v35 pode ser consultado SOMENTE para esclarecer intenções antigas; ele NÃO tem precedência automática sobre o v39, sobre docs/decisoes.md, sobre migrations ou sobre o comportamento atual do código.
+
+REGRAS INEGOCIÁVEIS
+1. Antes de codificar, leia docs/decisoes.md, o GDD canônico atual, migrations recentes, testes e o código do domínio afetado.
+2. Não invente regras, números, fórmulas ou nomes de tabelas sem necessidade. Se um valor não estiver decidido, crie configuração/estrutura que suporte o valor e deixe baseline documentado como HIPÓTESE/PENDENTE.
+3. Preserve dados existentes. Não faça reset do mundo.
+4. Migrations devem ser forward-only, seguras e idempotentes quando aplicável.
+5. Regras críticas devem ser aplicadas no servidor; validação no frontend é apenas UX.
+6. Todo ajuste econômico deve ser auditável e, quando envolver emissão/débito, compatível com o ledger atual.
+7. Instrumente telemetria relevante em toda funcionalidade nova.
+8. Escreva/atualize testes unitários, integração e E2E quando a superfície existir.
+9. Não destrua APIs ou comportamentos existentes sem migração explícita.
+10. Ao terminar, atualize docs/decisoes.md com a nova decisão D-n real, e regenere o GDD somente se a nova mecânica estiver efetivamente implementada.
+11. Não transforme o GDD em promessa: marque claramente o que foi implementado e o que continua pendente.
+12. Prefira parâmetros operacionais editáveis no backend a constantes hardcoded quando o Dono precisar ajustar o mundo sem deploy.
+13. Mobile é requisito de primeira classe.
+14. Não faça alterações visuais desconectadas da mecânica nesta etapa, salvo o necessário para a funcionalidade.
+15. Entregue código pronto para produção, não pseudocódigo.
+16. Execute PHP sempre por /usr/bin/php84 (ex.: `/usr/bin/php84 artisan migrate`, `/usr/bin/php84 artisan test`). Nunca assuma que `php` no PATH é a versão do servidor.
+17. Os testes rodam em SQLite em memória (backend/phpunit.xml); a produção é MariaDB. O verde do `artisan test` NÃO valida DDL. Toda migration nova deve ser exercitada contra MariaDB antes de ser dada como pronta, e o relatório final deve declarar em qual banco ela foi verificada.
+
+
+OBJETIVO DESTA ETAPA
+Implementar uma jornada inicial guiada, parcialmente obrigatória, que ensine primeiro o núcleo de sobrevivência e produção: Energia, Oxigênio, Água e Biomassa.
+
+TAREFAS OBRIGATÓRIAS
+1. Criar o onboarding SOBRE O MOTOR DE MISSÕES EXISTENTE (MissionTemplate/MissionAssignment), como uma categoria própria — não crie subsistema paralelo. O encadeamento por pré-requisito, as recompensas, o ledger e o CRUD admin já existem e devem ser reusados (GDD ALPHA 2 §4.3).
+1b. Missão hoje é recusável (existe rota de reject). Criar marca de obrigatoriedade que impeça recusa nas etapas da fase mínima; depois dela o guia sugere sem travar.
+1c. Colônias JÁ EXISTENTES são marcadas como concluídas e NÃO recebem as recompensas do tutorial. Sem isso, todo veterano vira elegível a um pacote de iniciante. Atenção: `users.tutorial_completed_at` hoje é preenchido na fundação da colônia — ele nasce “concluído” e precisa passar a significar o que diz.
+2. Criar catálogo de etapas configurável pelo backend/admin.
+3. Implementar sequência inicial: visão da colônia; Energia; Oxigênio; Água; Biomassa; produção/h x consumo/h; primeiro upgrade; fila; primeira estrutura de progressão; primeiro processamento; Depósito Local; transporte; Mercado; mapa/zona; Federação.
+4. Permitir recompensas por etapa configuráveis no admin.
+5. Cada recompensa deve ser idempotente, recebida uma vez, registrada no ledger e vinculada a uma finalidade didática.
+6. Etapas obrigatórias mínimas não podem ser puladas; após essa fase, o guia vira recomendação.
+7. O tutorial não pode depender da existência de outro jogador ou de oferta real no mercado.
+8. Instrumentar início, conclusão, abandono, tempo por etapa e erro.
+9. Criar ferramentas administrativas para editar ativação/recompensas sem deploy.
+10. Criar E2E de um usuário novo concluindo toda a parte obrigatória.
+
+
+CRITÉRIOS DE ACEITE
+- Um usuário novo entende os quatro recursos essenciais e produção líquida.
+- O tutorial não entrega recursos raros nem riqueza que elimine a progressão.
+- Recarregar a página ou repetir requisição não duplica prêmio.
+- Admin consegue alterar recompensa e ativação.
+- E2E conclui sem intervenção humana.
+
+FORMATO DA ENTREGA
+Ao concluir:
+- liste os arquivos criados/alterados;
+- explique migrations e compatibilidade com dados atuais;
+- informe testes executados e resultado;
+- indique endpoints/telas novos ou alterados;
+- registre riscos ou pontos que ficaram parametrizados;
+- mostre a decisão D-n adicionada a docs/decisoes.md;
+- NÃO declare concluído algo que não esteja testado ou implementado.</code></pre>
+    </article>
+
+    <article class="prompt-card" id="prompt-A2-2">
+      <div class="prompt-head">
+        <div><span class="badge">A2.2</span><h3>População e Estrutura de Sobrevivência</h3></div>
+        <button class="copy-btn" data-target="prompt-text-A2-2">Copiar prompt</button>
+      </div>
+      <pre id="prompt-text-A2-2" class="prompt-text"><code># SUPER PROMPT CLAUDE — A2.2: População e Estrutura de Sobrevivência
+
+
+CONTEXTO OBRIGATÓRIO
+Você está trabalhando no repositório público https://github.com/fbfert/fertways.
+Stack atual: backend Laravel 11 (11.54) / PHP 8.4 / Sanctum 4; frontend React 19 + TypeScript 6 + Phaser 4 + Vite 8 + Tailwind 4; testes E2E existentes via Puppeteer.
+O PHP do servidor é o binário /usr/bin/php84. O `php` do PATH NÃO é a versão correta: use /usr/bin/php84 para artisan, composer, testes e qualquer script PHP.
+O GDD canônico atual é o v39. O arquivo histórico GDD v35 pode ser consultado SOMENTE para esclarecer intenções antigas; ele NÃO tem precedência automática sobre o v39, sobre docs/decisoes.md, sobre migrations ou sobre o comportamento atual do código.
+
+REGRAS INEGOCIÁVEIS
+1. Antes de codificar, leia docs/decisoes.md, o GDD canônico atual, migrations recentes, testes e o código do domínio afetado.
+2. Não invente regras, números, fórmulas ou nomes de tabelas sem necessidade. Se um valor não estiver decidido, crie configuração/estrutura que suporte o valor e deixe baseline documentado como HIPÓTESE/PENDENTE.
+3. Preserve dados existentes. Não faça reset do mundo.
+4. Migrations devem ser forward-only, seguras e idempotentes quando aplicável.
+5. Regras críticas devem ser aplicadas no servidor; validação no frontend é apenas UX.
+6. Todo ajuste econômico deve ser auditável e, quando envolver emissão/débito, compatível com o ledger atual.
+7. Instrumente telemetria relevante em toda funcionalidade nova.
+8. Escreva/atualize testes unitários, integração e E2E quando a superfície existir.
+9. Não destrua APIs ou comportamentos existentes sem migração explícita.
+10. Ao terminar, atualize docs/decisoes.md com a nova decisão D-n real, e regenere o GDD somente se a nova mecânica estiver efetivamente implementada.
+11. Não transforme o GDD em promessa: marque claramente o que foi implementado e o que continua pendente.
+12. Prefira parâmetros operacionais editáveis no backend a constantes hardcoded quando o Dono precisar ajustar o mundo sem deploy.
+13. Mobile é requisito de primeira classe.
+14. Não faça alterações visuais desconectadas da mecânica nesta etapa, salvo o necessário para a funcionalidade.
+15. Entregue código pronto para produção, não pseudocódigo.
+16. Execute PHP sempre por /usr/bin/php84 (ex.: `/usr/bin/php84 artisan migrate`, `/usr/bin/php84 artisan test`). Nunca assuma que `php` no PATH é a versão do servidor.
+17. Os testes rodam em SQLite em memória (backend/phpunit.xml); a produção é MariaDB. O verde do `artisan test` NÃO valida DDL. Toda migration nova deve ser exercitada contra MariaDB antes de ser dada como pronta, e o relatório final deve declarar em qual banco ela foi verificada.
+
+
+OBJETIVO DESTA ETAPA
+Dar função real à Estrutura de Sobrevivência, introduzindo população como recurso operacional simplificado, conectado a habitação, sustento, produção e expansão.
+
+TAREFAS OBRIGATÓRIAS
+1. Modelar população por colônia: total, capacidade, disponível, alocada em construções e alocada em zonas neutras.
+2. Não criar profissões nesta versão.
+3. Criar parâmetros de capacidade habitacional por nível da Estrutura de Sobrevivência, inicialmente configuráveis.
+4. Implementar sustento simplificado usando Água, Oxigênio, Biomassa e infraestrutura/energia.
+5. Implementar crescimento automático em tick quando houver capacidade e suprimento.
+6. Em escassez, priorizar bloqueio de crescimento e redução de eficiência antes de qualquer perda populacional.
+7. Criar requisito de operadores por tipo/nível de construção, configurável.
+8. Impedir ativação/produção quando faltar população operacional, sem corromper fila ou estoque.
+9. Criar painel de população para o jogador.
+10. Criar sub-aba admin de parâmetros populacionais.
+11. Instrumentar ocupação, crescimento, gargalos e estruturas paradas por falta de operadores.
+12. Migrar colônias existentes para um estado inicial seguro, sem reset.
+13. Entregar a primeira versão do simulador de balanceamento (trilha A2.S): um comando artisan que roda o tick e o motor de população REAIS contra banco descartável em memória, avança N dias e devolve as curvas de ocupação habitacional, saturação do recurso essencial que trava primeiro e percentual de população comprometida. Reuse o domínio — NÃO reimplemente fórmula em script separado — e leia os parâmetros da mesma fonte que o jogo usa. Nunca toque banco de produção ou de staging.
+
+
+CRITÉRIOS DE ACEITE
+- Toda colônia existente recebe um estado populacional válido.
+- Estrutura de Sobrevivência passa a ter função mensurável.
+- Não é possível escalar produção infinitamente sem capacidade populacional.
+- Falta de suprimento não causa perda arbitrária instantânea.
+- Todos os números novos ficam configuráveis e documentados como baseline/hipótese até validação.
+- O simulador roda uma janela de 30 dias e mostra em que dia a colônia satura e qual recurso trava primeiro; cada número promovido a baseline vem acompanhado, em BALANCEAMENTO.md, da rodada que o sustentou.
+
+FORMATO DA ENTREGA
+Ao concluir:
+- liste os arquivos criados/alterados;
+- explique migrations e compatibilidade com dados atuais;
+- informe testes executados e resultado;
+- indique endpoints/telas novos ou alterados;
+- registre riscos ou pontos que ficaram parametrizados;
+- mostre a decisão D-n adicionada a docs/decisoes.md;
+- NÃO declare concluído algo que não esteja testado ou implementado.</code></pre>
+    </article>
+
+    <article class="prompt-card" id="prompt-A2-3">
+      <div class="prompt-head">
+        <div><span class="badge">A2.3</span><h3>Pesquisa individual e caminhos especializados</h3></div>
+        <button class="copy-btn" data-target="prompt-text-A2-3">Copiar prompt</button>
+      </div>
+      <pre id="prompt-text-A2-3" class="prompt-text"><code># SUPER PROMPT CLAUDE — A2.3: Pesquisa individual e caminhos especializados
+
+
+CONTEXTO OBRIGATÓRIO
+Você está trabalhando no repositório público https://github.com/fbfert/fertways.
+Stack atual: backend Laravel 11 (11.54) / PHP 8.4 / Sanctum 4; frontend React 19 + TypeScript 6 + Phaser 4 + Vite 8 + Tailwind 4; testes E2E existentes via Puppeteer.
+O PHP do servidor é o binário /usr/bin/php84. O `php` do PATH NÃO é a versão correta: use /usr/bin/php84 para artisan, composer, testes e qualquer script PHP.
+O GDD canônico atual é o v39. O arquivo histórico GDD v35 pode ser consultado SOMENTE para esclarecer intenções antigas; ele NÃO tem precedência automática sobre o v39, sobre docs/decisoes.md, sobre migrations ou sobre o comportamento atual do código.
+
+REGRAS INEGOCIÁVEIS
+1. Antes de codificar, leia docs/decisoes.md, o GDD canônico atual, migrations recentes, testes e o código do domínio afetado.
+2. Não invente regras, números, fórmulas ou nomes de tabelas sem necessidade. Se um valor não estiver decidido, crie configuração/estrutura que suporte o valor e deixe baseline documentado como HIPÓTESE/PENDENTE.
+3. Preserve dados existentes. Não faça reset do mundo.
+4. Migrations devem ser forward-only, seguras e idempotentes quando aplicável.
+5. Regras críticas devem ser aplicadas no servidor; validação no frontend é apenas UX.
+6. Todo ajuste econômico deve ser auditável e, quando envolver emissão/débito, compatível com o ledger atual.
+7. Instrumente telemetria relevante em toda funcionalidade nova.
+8. Escreva/atualize testes unitários, integração e E2E quando a superfície existir.
+9. Não destrua APIs ou comportamentos existentes sem migração explícita.
+10. Ao terminar, atualize docs/decisoes.md com a nova decisão D-n real, e regenere o GDD somente se a nova mecânica estiver efetivamente implementada.
+11. Não transforme o GDD em promessa: marque claramente o que foi implementado e o que continua pendente.
+12. Prefira parâmetros operacionais editáveis no backend a constantes hardcoded quando o Dono precisar ajustar o mundo sem deploy.
+13. Mobile é requisito de primeira classe.
+14. Não faça alterações visuais desconectadas da mecânica nesta etapa, salvo o necessário para a funcionalidade.
+15. Entregue código pronto para produção, não pseudocódigo.
+16. Execute PHP sempre por /usr/bin/php84 (ex.: `/usr/bin/php84 artisan migrate`, `/usr/bin/php84 artisan test`). Nunca assuma que `php` no PATH é a versão do servidor.
+17. Os testes rodam em SQLite em memória (backend/phpunit.xml); a produção é MariaDB. O verde do `artisan test` NÃO valida DDL. Toda migration nova deve ser exercitada contra MariaDB antes de ser dada como pronta, e o relatório final deve declarar em qual banco ela foi verificada.
+
+
+OBJETIVO DESTA ETAPA
+Implementar a árvore de pesquisa individual por colônia, baseada em recursos + tempo + vagas de pesquisa, com caminhos especializados e escolhas de longo prazo.
+
+TAREFAS OBRIGATÓRIAS
+1. Criar entidades/tabelas para tecnologias, pré-requisitos, trilhas, custos, duração, nível máximo, efeitos e estado ativo.
+2. Não criar Pontos de Pesquisa.
+3. Pesquisa consome recursos existentes e tempo.
+4. Criar trilhas iniciais: Energia; Sobrevivência/Biosfera; Indústria; Logística; Comércio; Ciência; Defesa; Território.
+5. Preparar suporte conceitual a trilha Espacial, mas não implementar conteúdo espacial ainda.
+6. O Laboratório fornece capacidade de pesquisa.
+7. Implementar vagas simultâneas parametrizadas por nível/estrutura.
+8. O Observatório NÃO entra nesta entrega: ele não existe no jogo hoje, e criá-lo exige decisão de slot da colônia, arte e especificação próprias (GDD ALPHA 2 §7.2). O paralelismo sai do nível do Laboratório. Deixe o mecanismo de vagas extensível para aceitar uma fonte adicional de paralelismo depois, sem refazer o modelo.
+9. Criar efeitos de tecnologia por mecanismo extensível; evitar if/else espalhado pelo código.
+10. Criar UI de árvore com dependências legíveis e estado: bloqueada, disponível, em pesquisa, concluída.
+11. Criar painel admin para cadastrar/desativar/reordenar tecnologias e ajustar custos/tempo.
+12. Instrumentar escolhas de trilha e tempo até bifurcação.
+
+
+CRITÉRIOS DE ACEITE
+- Dois jogadores podem seguir caminhos diferentes.
+- Pré-requisitos são validados no servidor.
+- Recursos são debitados de modo transacional.
+- Não há pesquisa duplicada por corrida de requisições.
+- O efeito de uma tecnologia é testável e reversível por feature/config em ambiente de teste.
+- As vagas simultâneas saem do nível do Laboratório por parâmetro configurável, e o mecanismo aceita uma fonte adicional de paralelismo no futuro sem refazer o modelo.
+
+FORMATO DA ENTREGA
+Ao concluir:
+- liste os arquivos criados/alterados;
+- explique migrations e compatibilidade com dados atuais;
+- informe testes executados e resultado;
+- indique endpoints/telas novos ou alterados;
+- registre riscos ou pontos que ficaram parametrizados;
+- mostre a decisão D-n adicionada a docs/decisoes.md;
+- NÃO declare concluído algo que não esteja testado ou implementado.</code></pre>
+    </article>
+
+    <article class="prompt-card" id="prompt-A2-4">
+      <div class="prompt-head">
+        <div><span class="badge">A2.4</span><h3>Especializações econômicas fortes</h3></div>
+        <button class="copy-btn" data-target="prompt-text-A2-4">Copiar prompt</button>
+      </div>
+      <pre id="prompt-text-A2-4" class="prompt-text"><code># SUPER PROMPT CLAUDE — A2.4: Especializações econômicas fortes
+
+
+CONTEXTO OBRIGATÓRIO
+Você está trabalhando no repositório público https://github.com/fbfert/fertways.
+Stack atual: backend Laravel 11 (11.54) / PHP 8.4 / Sanctum 4; frontend React 19 + TypeScript 6 + Phaser 4 + Vite 8 + Tailwind 4; testes E2E existentes via Puppeteer.
+O PHP do servidor é o binário /usr/bin/php84. O `php` do PATH NÃO é a versão correta: use /usr/bin/php84 para artisan, composer, testes e qualquer script PHP.
+O GDD canônico atual é o v39. O arquivo histórico GDD v35 pode ser consultado SOMENTE para esclarecer intenções antigas; ele NÃO tem precedência automática sobre o v39, sobre docs/decisoes.md, sobre migrations ou sobre o comportamento atual do código.
+
+REGRAS INEGOCIÁVEIS
+1. Antes de codificar, leia docs/decisoes.md, o GDD canônico atual, migrations recentes, testes e o código do domínio afetado.
+2. Não invente regras, números, fórmulas ou nomes de tabelas sem necessidade. Se um valor não estiver decidido, crie configuração/estrutura que suporte o valor e deixe baseline documentado como HIPÓTESE/PENDENTE.
+3. Preserve dados existentes. Não faça reset do mundo.
+4. Migrations devem ser forward-only, seguras e idempotentes quando aplicável.
+5. Regras críticas devem ser aplicadas no servidor; validação no frontend é apenas UX.
+6. Todo ajuste econômico deve ser auditável e, quando envolver emissão/débito, compatível com o ledger atual.
+7. Instrumente telemetria relevante em toda funcionalidade nova.
+8. Escreva/atualize testes unitários, integração e E2E quando a superfície existir.
+9. Não destrua APIs ou comportamentos existentes sem migração explícita.
+10. Ao terminar, atualize docs/decisoes.md com a nova decisão D-n real, e regenere o GDD somente se a nova mecânica estiver efetivamente implementada.
+11. Não transforme o GDD em promessa: marque claramente o que foi implementado e o que continua pendente.
+12. Prefira parâmetros operacionais editáveis no backend a constantes hardcoded quando o Dono precisar ajustar o mundo sem deploy.
+13. Mobile é requisito de primeira classe.
+14. Não faça alterações visuais desconectadas da mecânica nesta etapa, salvo o necessário para a funcionalidade.
+15. Entregue código pronto para produção, não pseudocódigo.
+16. Execute PHP sempre por /usr/bin/php84 (ex.: `/usr/bin/php84 artisan migrate`, `/usr/bin/php84 artisan test`). Nunca assuma que `php` no PATH é a versão do servidor.
+17. Os testes rodam em SQLite em memória (backend/phpunit.xml); a produção é MariaDB. O verde do `artisan test` NÃO valida DDL. Toda migration nova deve ser exercitada contra MariaDB antes de ser dada como pronta, e o relatório final deve declarar em qual banco ela foi verificada.
+
+
+OBJETIVO DESTA ETAPA
+Revisar e integrar as especializações existentes para que gerem vantagem comparativa real e forte interdependência econômica entre jogadores.
+
+TAREFAS OBRIGATÓRIAS
+1. Auditar as especializações já existentes no código e no GDD v39.
+2. Não sobrescrever automaticamente regras antigas com valores do GDD v35.
+3. Para cada especialização, mapear: produção, consumo, população, pré-requisitos, logística, tecnologia e dependências.
+4. A especialização É a trilha de pesquisa (GDD ALPHA 2 §8.1): NÃO crie escolha declarada de perfil. Os efeitos fortes penduram-se nas trilhas da A2.3, e o jogo CALCULA E EXIBE o perfil resultante da colônia — leitura derivada do que ela pesquisou e construiu, nunca um campo que o jogador preenche.
+5. Criar limites de incompatibilidade necessários para impedir colônia ótima em todas as cadeias.
+6. Expor no UI claramente “o que ganho” e “do que passo a depender”.
+7. Criar telemetria de importação/exportação e retorno econômico por especialização.
+8. Validar a interdependência pelo simulador da trilha A2.S, não por bots (que são externos e não pertencem a este repositório): demonstrar, nos números, que para cada especialização ao menos uma cadeia de que ela depende não é suprível por produção própria em nível competitivo.
+9. Parametrizar bônus fortes no backend.
+10. Adicionar proteções contra combinações multiplicativas quebradas.
+
+
+CRITÉRIOS DE ACEITE
+- Especialista é claramente melhor no seu domínio.
+- Especialista precisa comprar algo de terceiros/Federação.
+- A dependência é estrutural e demonstrável: o simulador da trilha A2.S mostra, para cada especialização, ao menos uma cadeia não suprível por produção própria em nível competitivo.
+- Nenhuma especialização torna as demais irrelevantes.
+- Bônus e custos aparecem de modo transparente ao jogador.
+
+FORMATO DA ENTREGA
+Ao concluir:
+- liste os arquivos criados/alterados;
+- explique migrations e compatibilidade com dados atuais;
+- informe testes executados e resultado;
+- indique endpoints/telas novos ou alterados;
+- registre riscos ou pontos que ficaram parametrizados;
+- mostre a decisão D-n adicionada a docs/decisoes.md;
+- NÃO declare concluído algo que não esteja testado ou implementado.</code></pre>
+    </article>
+
+    <article class="prompt-card" id="prompt-A2-5">
+      <div class="prompt-head">
+        <div><span class="badge">A2.5</span><h3>Federação como infraestrutura de midgame</h3></div>
+        <button class="copy-btn" data-target="prompt-text-A2-5">Copiar prompt</button>
+      </div>
+      <pre id="prompt-text-A2-5" class="prompt-text"><code># SUPER PROMPT CLAUDE — A2.5: Federação como infraestrutura de midgame
+
+
+CONTEXTO OBRIGATÓRIO
+Você está trabalhando no repositório público https://github.com/fbfert/fertways.
+Stack atual: backend Laravel 11 (11.54) / PHP 8.4 / Sanctum 4; frontend React 19 + TypeScript 6 + Phaser 4 + Vite 8 + Tailwind 4; testes E2E existentes via Puppeteer.
+O PHP do servidor é o binário /usr/bin/php84. O `php` do PATH NÃO é a versão correta: use /usr/bin/php84 para artisan, composer, testes e qualquer script PHP.
+O GDD canônico atual é o v39. O arquivo histórico GDD v35 pode ser consultado SOMENTE para esclarecer intenções antigas; ele NÃO tem precedência automática sobre o v39, sobre docs/decisoes.md, sobre migrations ou sobre o comportamento atual do código.
+
+REGRAS INEGOCIÁVEIS
+1. Antes de codificar, leia docs/decisoes.md, o GDD canônico atual, migrations recentes, testes e o código do domínio afetado.
+2. Não invente regras, números, fórmulas ou nomes de tabelas sem necessidade. Se um valor não estiver decidido, crie configuração/estrutura que suporte o valor e deixe baseline documentado como HIPÓTESE/PENDENTE.
+3. Preserve dados existentes. Não faça reset do mundo.
+4. Migrations devem ser forward-only, seguras e idempotentes quando aplicável.
+5. Regras críticas devem ser aplicadas no servidor; validação no frontend é apenas UX.
+6. Todo ajuste econômico deve ser auditável e, quando envolver emissão/débito, compatível com o ledger atual.
+7. Instrumente telemetria relevante em toda funcionalidade nova.
+8. Escreva/atualize testes unitários, integração e E2E quando a superfície existir.
+9. Não destrua APIs ou comportamentos existentes sem migração explícita.
+10. Ao terminar, atualize docs/decisoes.md com a nova decisão D-n real, e regenere o GDD somente se a nova mecânica estiver efetivamente implementada.
+11. Não transforme o GDD em promessa: marque claramente o que foi implementado e o que continua pendente.
+12. Prefira parâmetros operacionais editáveis no backend a constantes hardcoded quando o Dono precisar ajustar o mundo sem deploy.
+13. Mobile é requisito de primeira classe.
+14. Não faça alterações visuais desconectadas da mecânica nesta etapa, salvo o necessário para a funcionalidade.
+15. Entregue código pronto para produção, não pseudocódigo.
+16. Execute PHP sempre por /usr/bin/php84 (ex.: `/usr/bin/php84 artisan migrate`, `/usr/bin/php84 artisan test`). Nunca assuma que `php` no PATH é a versão do servidor.
+17. Os testes rodam em SQLite em memória (backend/phpunit.xml); a produção é MariaDB. O verde do `artisan test` NÃO valida DDL. Toda migration nova deve ser exercitada contra MariaDB antes de ser dada como pronta, e o relatório final deve declarar em qual banco ela foi verificada.
+
+
+OBJETIVO DESTA ETAPA
+Consolidar Federação como sistema necessário no médio/endgame, com limite de 12 membros e papéis estratégicos.
+
+TAREFAS OBRIGATÓRIAS
+1. Verificar a regra atual de limite e migrar para máximo de 12 membros se ainda não estiver assim.
+2. Preservar dados de Federações existentes.
+3. Garantir papéis de Líder e Diplomata; revisar Intendente e demais papéis existentes sem removê-los sem justificativa.
+4. Criar matriz de permissões por papel.
+5. Melhorar fundo/extrato e auditoria.
+6. Criar infraestrutura para missões e objetivos cooperativos.
+7. Criar camada de diplomacia: tratados, status e histórico.
+8. Criar métricas de concentração territorial/econômica.
+9. Preparar gates de conteúdo avançado vinculados a Federação, mas sem bloquear onboarding/início.
+10. Criar UI de Federação apropriada para mobile.
+
+
+CRITÉRIOS DE ACEITE
+- Federação nunca aceita o 13º membro.
+- Líder e Diplomata têm funções claras.
+- Jogador inicial continua funcional sem Federação.
+- Midgame oferece vantagens/objetivos impossíveis ou muito difíceis sozinho.
+- Todas as movimentações do fundo são auditáveis.
+
+FORMATO DA ENTREGA
+Ao concluir:
+- liste os arquivos criados/alterados;
+- explique migrations e compatibilidade com dados atuais;
+- informe testes executados e resultado;
+- indique endpoints/telas novos ou alterados;
+- registre riscos ou pontos que ficaram parametrizados;
+- mostre a decisão D-n adicionada a docs/decisoes.md;
+- NÃO declare concluído algo que não esteja testado ou implementado.</code></pre>
+    </article>
+
+    <article class="prompt-card" id="prompt-A2-6">
+      <div class="prompt-head">
+        <div><span class="badge">A2.6</span><h3>População em zonas neutras</h3></div>
+        <button class="copy-btn" data-target="prompt-text-A2-6">Copiar prompt</button>
+      </div>
+      <pre id="prompt-text-A2-6" class="prompt-text"><code># SUPER PROMPT CLAUDE — A2.6: População em zonas neutras
+
+
+CONTEXTO OBRIGATÓRIO
+Você está trabalhando no repositório público https://github.com/fbfert/fertways.
+Stack atual: backend Laravel 11 (11.54) / PHP 8.4 / Sanctum 4; frontend React 19 + TypeScript 6 + Phaser 4 + Vite 8 + Tailwind 4; testes E2E existentes via Puppeteer.
+O PHP do servidor é o binário /usr/bin/php84. O `php` do PATH NÃO é a versão correta: use /usr/bin/php84 para artisan, composer, testes e qualquer script PHP.
+O GDD canônico atual é o v39. O arquivo histórico GDD v35 pode ser consultado SOMENTE para esclarecer intenções antigas; ele NÃO tem precedência automática sobre o v39, sobre docs/decisoes.md, sobre migrations ou sobre o comportamento atual do código.
+
+REGRAS INEGOCIÁVEIS
+1. Antes de codificar, leia docs/decisoes.md, o GDD canônico atual, migrations recentes, testes e o código do domínio afetado.
+2. Não invente regras, números, fórmulas ou nomes de tabelas sem necessidade. Se um valor não estiver decidido, crie configuração/estrutura que suporte o valor e deixe baseline documentado como HIPÓTESE/PENDENTE.
+3. Preserve dados existentes. Não faça reset do mundo.
+4. Migrations devem ser forward-only, seguras e idempotentes quando aplicável.
+5. Regras críticas devem ser aplicadas no servidor; validação no frontend é apenas UX.
+6. Todo ajuste econômico deve ser auditável e, quando envolver emissão/débito, compatível com o ledger atual.
+7. Instrumente telemetria relevante em toda funcionalidade nova.
+8. Escreva/atualize testes unitários, integração e E2E quando a superfície existir.
+9. Não destrua APIs ou comportamentos existentes sem migração explícita.
+10. Ao terminar, atualize docs/decisoes.md com a nova decisão D-n real, e regenere o GDD somente se a nova mecânica estiver efetivamente implementada.
+11. Não transforme o GDD em promessa: marque claramente o que foi implementado e o que continua pendente.
+12. Prefira parâmetros operacionais editáveis no backend a constantes hardcoded quando o Dono precisar ajustar o mundo sem deploy.
+13. Mobile é requisito de primeira classe.
+14. Não faça alterações visuais desconectadas da mecânica nesta etapa, salvo o necessário para a funcionalidade.
+15. Entregue código pronto para produção, não pseudocódigo.
+16. Execute PHP sempre por /usr/bin/php84 (ex.: `/usr/bin/php84 artisan migrate`, `/usr/bin/php84 artisan test`). Nunca assuma que `php` no PATH é a versão do servidor.
+17. Os testes rodam em SQLite em memória (backend/phpunit.xml); a produção é MariaDB. O verde do `artisan test` NÃO valida DDL. Toda migration nova deve ser exercitada contra MariaDB antes de ser dada como pronta, e o relatório final deve declarar em qual banco ela foi verificada.
+
+
+OBJETIVO DESTA ETAPA
+Integrar população e zonas neutras: ocupar e operar território exige deslocar poucos operadores humanos que supervisionam robôs.
+
+TAREFAS OBRIGATÓRIAS
+1. Criar vínculo explícito entre população da colônia e população operacional da zona.
+2. Definir requisito parametrizado por nível/estado da zona.
+3. Transferência deve reduzir população disponível na colônia.
+4. Abandono/perda/retirada deve tratar corretamente o retorno dos operadores conforme a regra definida.
+5. Esses humanos NÃO são unidades militares.
+6. Integrar Abrigo de Robôs e estruturas territoriais sem transformar zona em colônia completa.
+7. Bloquear ocupação se não houver população disponível.
+8. Exibir operadores no painel da zona e no painel populacional.
+9. Instrumentar custo populacional territorial.
+9b. Se a população cair abaixo do exigido por uma zona JÁ OCUPADA, a zona NÃO se perde: ela degrada, com penalidade de produção, até a população ser reposta (GDD ALPHA 2 §6.6). Perder território por escassez é a punição irreversível que o GDD proíbe.
+10. Criar testes para perda de zona, demolição, transferência e disputas concorrentes.
+
+
+CRITÉRIOS DE ACEITE
+- Ocupar zona tem custo populacional pequeno mas real.
+- Não há duplicação de população em concorrência.
+- Perder/abandonar zona não deixa população fantasma.
+- A regra é aplicada no servidor.
+
+FORMATO DA ENTREGA
+Ao concluir:
+- liste os arquivos criados/alterados;
+- explique migrations e compatibilidade com dados atuais;
+- informe testes executados e resultado;
+- indique endpoints/telas novos ou alterados;
+- registre riscos ou pontos que ficaram parametrizados;
+- mostre a decisão D-n adicionada a docs/decisoes.md;
+- NÃO declare concluído algo que não esteja testado ou implementado.</code></pre>
+    </article>
+
+    <article class="prompt-card" id="prompt-A2-7">
+      <div class="prompt-head">
+        <div><span class="badge">A2.7</span><h3>Upgrades de veículos e capacidades de estoque</h3></div>
+        <button class="copy-btn" data-target="prompt-text-A2-7">Copiar prompt</button>
+      </div>
+      <pre id="prompt-text-A2-7" class="prompt-text"><code># SUPER PROMPT CLAUDE — A2.7: Upgrades de veículos e capacidades de estoque
+
+
+CONTEXTO OBRIGATÓRIO
+Você está trabalhando no repositório público https://github.com/fbfert/fertways.
+Stack atual: backend Laravel 11 (11.54) / PHP 8.4 / Sanctum 4; frontend React 19 + TypeScript 6 + Phaser 4 + Vite 8 + Tailwind 4; testes E2E existentes via Puppeteer.
+O PHP do servidor é o binário /usr/bin/php84. O `php` do PATH NÃO é a versão correta: use /usr/bin/php84 para artisan, composer, testes e qualquer script PHP.
+O GDD canônico atual é o v39. O arquivo histórico GDD v35 pode ser consultado SOMENTE para esclarecer intenções antigas; ele NÃO tem precedência automática sobre o v39, sobre docs/decisoes.md, sobre migrations ou sobre o comportamento atual do código.
+
+REGRAS INEGOCIÁVEIS
+1. Antes de codificar, leia docs/decisoes.md, o GDD canônico atual, migrations recentes, testes e o código do domínio afetado.
+2. Não invente regras, números, fórmulas ou nomes de tabelas sem necessidade. Se um valor não estiver decidido, crie configuração/estrutura que suporte o valor e deixe baseline documentado como HIPÓTESE/PENDENTE.
+3. Preserve dados existentes. Não faça reset do mundo.
+4. Migrations devem ser forward-only, seguras e idempotentes quando aplicável.
+5. Regras críticas devem ser aplicadas no servidor; validação no frontend é apenas UX.
+6. Todo ajuste econômico deve ser auditável e, quando envolver emissão/débito, compatível com o ledger atual.
+7. Instrumente telemetria relevante em toda funcionalidade nova.
+8. Escreva/atualize testes unitários, integração e E2E quando a superfície existir.
+9. Não destrua APIs ou comportamentos existentes sem migração explícita.
+10. Ao terminar, atualize docs/decisoes.md com a nova decisão D-n real, e regenere o GDD somente se a nova mecânica estiver efetivamente implementada.
+11. Não transforme o GDD em promessa: marque claramente o que foi implementado e o que continua pendente.
+12. Prefira parâmetros operacionais editáveis no backend a constantes hardcoded quando o Dono precisar ajustar o mundo sem deploy.
+13. Mobile é requisito de primeira classe.
+14. Não faça alterações visuais desconectadas da mecânica nesta etapa, salvo o necessário para a funcionalidade.
+15. Entregue código pronto para produção, não pseudocódigo.
+16. Execute PHP sempre por /usr/bin/php84 (ex.: `/usr/bin/php84 artisan migrate`, `/usr/bin/php84 artisan test`). Nunca assuma que `php` no PATH é a versão do servidor.
+17. Os testes rodam em SQLite em memória (backend/phpunit.xml); a produção é MariaDB. O verde do `artisan test` NÃO valida DDL. Toda migration nova deve ser exercitada contra MariaDB antes de ser dada como pronta, e o relatório final deve declarar em qual banco ela foi verificada.
+
+
+OBJETIVO DESTA ETAPA
+Fechar duas lacunas do GDD atual: o que níveis de veículos realmente melhoram e quais capacidades de estoque faltantes devem existir.
+
+TAREFAS OBRIGATÓRIAS
+1. Auditar todas as tabelas e regras atuais de veículos, inclusive divergências históricas.
+2. JÁ DECIDIDO — o nível aumenta a CAPACIDADE e aumenta a MANUTENÇÃO junto; um eixo, com contrapartida. VELOCIDADE NÃO É ATRIBUTO DE NÍVEL: é traço do tipo de veículo (Furgão × Caminhão); se o nível acelerasse, a distância encolheria a cada upgrade e distância é pilar do jogo. As demais dimensões ficam em aberto e não devem ser acrescentadas em conjunto.
+2b. `vehicles.level` já existe no banco mas NÃO há rota de upgrade — o nível existe sem caminho para subir. É essa lacuna que a fase fecha.
+3. NÃO melhorar tudo automaticamente por nível.
+4. Criar modelo de upgrade transacional, com custo, tempo e pré-requisitos.
+5. Garantir compatibilidade com veículos já existentes.
+6. Fechar capacidades de estoque ainda sem regra, usando parâmetros configuráveis. O TETO TRAVA, NÃO DERRAMA: ao encher, a produção para; nada transborda e vira desperdício. O jogador perde oportunidade, nunca estoque — é o que respeita o GDD §1.1, que proíbe exigir login constante. Hoje só o Tanque de Combustível tem teto real; o Silo protege de saque mas não limita.
+7. Relacionar capacidade ao ritmo real de produção e às sessões de 5–10 minutos.
+8. Criar UI que mostre exatamente o ganho do próximo nível.
+9. Instrumentar utilização de capacidade, overflow, frequência de esvaziamento e retorno do upgrade.
+10. Atualizar BALANCEAMENTO.md com hipótese e métricas.
+
+
+CRITÉRIOS DE ACEITE
+- Upgrade muda comportamento econômico mensurável.
+- Jogador sabe o ganho antes de confirmar.
+- Nenhum veículo existente é invalidado.
+- Estoque não obriga login excessivamente frequente.
+- Valores permanecem parametrizáveis até validação.
+
+FORMATO DA ENTREGA
+Ao concluir:
+- liste os arquivos criados/alterados;
+- explique migrations e compatibilidade com dados atuais;
+- informe testes executados e resultado;
+- indique endpoints/telas novos ou alterados;
+- registre riscos ou pontos que ficaram parametrizados;
+- mostre a decisão D-n adicionada a docs/decisoes.md;
+- NÃO declare concluído algo que não esteja testado ou implementado.</code></pre>
+    </article>
+
+    <article class="prompt-card" id="prompt-A2-8">
+      <div class="prompt-head">
+        <div><span class="badge">A2.8</span><h3>Motor de Eventos</h3></div>
+        <button class="copy-btn" data-target="prompt-text-A2-8">Copiar prompt</button>
+      </div>
+      <pre id="prompt-text-A2-8" class="prompt-text"><code># SUPER PROMPT CLAUDE — A2.8: Motor de Eventos
+
+
+CONTEXTO OBRIGATÓRIO
+Você está trabalhando no repositório público https://github.com/fbfert/fertways.
+Stack atual: backend Laravel 11 (11.54) / PHP 8.4 / Sanctum 4; frontend React 19 + TypeScript 6 + Phaser 4 + Vite 8 + Tailwind 4; testes E2E existentes via Puppeteer.
+O PHP do servidor é o binário /usr/bin/php84. O `php` do PATH NÃO é a versão correta: use /usr/bin/php84 para artisan, composer, testes e qualquer script PHP.
+O GDD canônico atual é o v39. O arquivo histórico GDD v35 pode ser consultado SOMENTE para esclarecer intenções antigas; ele NÃO tem precedência automática sobre o v39, sobre docs/decisoes.md, sobre migrations ou sobre o comportamento atual do código.
+
+REGRAS INEGOCIÁVEIS
+1. Antes de codificar, leia docs/decisoes.md, o GDD canônico atual, migrations recentes, testes e o código do domínio afetado.
+2. Não invente regras, números, fórmulas ou nomes de tabelas sem necessidade. Se um valor não estiver decidido, crie configuração/estrutura que suporte o valor e deixe baseline documentado como HIPÓTESE/PENDENTE.
+3. Preserve dados existentes. Não faça reset do mundo.
+4. Migrations devem ser forward-only, seguras e idempotentes quando aplicável.
+5. Regras críticas devem ser aplicadas no servidor; validação no frontend é apenas UX.
+6. Todo ajuste econômico deve ser auditável e, quando envolver emissão/débito, compatível com o ledger atual.
+7. Instrumente telemetria relevante em toda funcionalidade nova.
+8. Escreva/atualize testes unitários, integração e E2E quando a superfície existir.
+9. Não destrua APIs ou comportamentos existentes sem migração explícita.
+10. Ao terminar, atualize docs/decisoes.md com a nova decisão D-n real, e regenere o GDD somente se a nova mecânica estiver efetivamente implementada.
+11. Não transforme o GDD em promessa: marque claramente o que foi implementado e o que continua pendente.
+12. Prefira parâmetros operacionais editáveis no backend a constantes hardcoded quando o Dono precisar ajustar o mundo sem deploy.
+13. Mobile é requisito de primeira classe.
+14. Não faça alterações visuais desconectadas da mecânica nesta etapa, salvo o necessário para a funcionalidade.
+15. Entregue código pronto para produção, não pseudocódigo.
+16. Execute PHP sempre por /usr/bin/php84 (ex.: `/usr/bin/php84 artisan migrate`, `/usr/bin/php84 artisan test`). Nunca assuma que `php` no PATH é a versão do servidor.
+17. Os testes rodam em SQLite em memória (backend/phpunit.xml); a produção é MariaDB. O verde do `artisan test` NÃO valida DDL. Toda migration nova deve ser exercitada contra MariaDB antes de ser dada como pronta, e o relatório final deve declarar em qual banco ela foi verificada.
+
+
+OBJETIVO DESTA ETAPA
+Criar um motor genérico e auditável de eventos para permitir que o Dono altere temporariamente o mundo sem precisar escrever código específico a cada evento.
+
+TAREFAS OBRIGATÓRIAS
+1. Criar modelo de evento com nome, slug, descrição pública, notas internas, início, fim, status, visibilidade, escopo, gatilho, modificadores, recompensas e versão.
+2. Suportar evento anunciado, parcialmente anunciado e secreto até ativação.
+3. Modificadores da PRIMEIRA VERSÃO: apenas produção e consumo, multiplicativos, com escopo global ou por recurso. Taxa, logística, construção, pesquisa, população e território ficam para as versões seguintes. PREÇO FICA DE FORA: já existe PriceIntervention no jogo, e o motor não a absorve nem a duplica nesta versão.
+3b. REGRA INEGOCIÁVEL — evento nunca escreve no ledger. O evento altera a taxa; quem credita e debita continua sendo o tick, pelo caminho normal. Um evento que emitisse recurso diretamente criaria lançamento sem origem rastreável e envenenaria a fonte que a telemetria econômica usa.
+3c. O modificador precisa ser reconstruível no passado, para que “Desde sua última visita” consiga explicar POR QUE a produção caiu, e não apenas que caiu.
+4. Criar scheduler seguro para ativação/desativação.
+5. Criar preview/dry-run administrativo antes de ativar.
+6. Criar auditoria completa.
+7. Cancelamento deve remover efeitos futuros sem apagar efeitos históricos já ocorridos.
+8. Impedir empilhamentos inválidos ou definir claramente a ordem de composição de modificadores.
+9. Criar timeline pública de eventos quando apropriado.
+10. Instrumentar impacto econômico real.
+
+
+CRITÉRIOS DE ACEITE
+- Dono cria um evento secreto futuro sem deploy.
+- Evento ativa e expira sozinho.
+- Um evento negativo pode reduzir produção/alterar consumo e o efeito some corretamente no fim.
+- Não há duplicação de modificadores em tick.
+- Nenhum lançamento do ledger tem um evento como origem direta.
+- É possível, olhando um dia passado, dizer qual modificador estava ativo e quanto ele pesou.
+- Há trilha de auditoria e preview.
+
+FORMATO DA ENTREGA
+Ao concluir:
+- liste os arquivos criados/alterados;
+- explique migrations e compatibilidade com dados atuais;
+- informe testes executados e resultado;
+- indique endpoints/telas novos ou alterados;
+- registre riscos ou pontos que ficaram parametrizados;
+- mostre a decisão D-n adicionada a docs/decisoes.md;
+- NÃO declare concluído algo que não esteja testado ou implementado.</code></pre>
+    </article>
+
+    <article class="prompt-card" id="prompt-A2-9">
+      <div class="prompt-head">
+        <div><span class="badge">A2.9</span><h3>Endurance: desmontagem, loot e itens únicos</h3></div>
+        <button class="copy-btn" data-target="prompt-text-A2-9">Copiar prompt</button>
+      </div>
+      <pre id="prompt-text-A2-9" class="prompt-text"><code># SUPER PROMPT CLAUDE — A2.9: Endurance: desmontagem, loot e itens únicos
+
+
+CONTEXTO OBRIGATÓRIO
+Você está trabalhando no repositório público https://github.com/fbfert/fertways.
+Stack atual: backend Laravel 11 (11.54) / PHP 8.4 / Sanctum 4; frontend React 19 + TypeScript 6 + Phaser 4 + Vite 8 + Tailwind 4; testes E2E existentes via Puppeteer.
+O PHP do servidor é o binário /usr/bin/php84. O `php` do PATH NÃO é a versão correta: use /usr/bin/php84 para artisan, composer, testes e qualquer script PHP.
+O GDD canônico atual é o v39. O arquivo histórico GDD v35 pode ser consultado SOMENTE para esclarecer intenções antigas; ele NÃO tem precedência automática sobre o v39, sobre docs/decisoes.md, sobre migrations ou sobre o comportamento atual do código.
+
+REGRAS INEGOCIÁVEIS
+1. Antes de codificar, leia docs/decisoes.md, o GDD canônico atual, migrations recentes, testes e o código do domínio afetado.
+2. Não invente regras, números, fórmulas ou nomes de tabelas sem necessidade. Se um valor não estiver decidido, crie configuração/estrutura que suporte o valor e deixe baseline documentado como HIPÓTESE/PENDENTE.
+3. Preserve dados existentes. Não faça reset do mundo.
+4. Migrations devem ser forward-only, seguras e idempotentes quando aplicável.
+5. Regras críticas devem ser aplicadas no servidor; validação no frontend é apenas UX.
+6. Todo ajuste econômico deve ser auditável e, quando envolver emissão/débito, compatível com o ledger atual.
+7. Instrumente telemetria relevante em toda funcionalidade nova.
+8. Escreva/atualize testes unitários, integração e E2E quando a superfície existir.
+9. Não destrua APIs ou comportamentos existentes sem migração explícita.
+10. Ao terminar, atualize docs/decisoes.md com a nova decisão D-n real, e regenere o GDD somente se a nova mecânica estiver efetivamente implementada.
+11. Não transforme o GDD em promessa: marque claramente o que foi implementado e o que continua pendente.
+12. Prefira parâmetros operacionais editáveis no backend a constantes hardcoded quando o Dono precisar ajustar o mundo sem deploy.
+13. Mobile é requisito de primeira classe.
+14. Não faça alterações visuais desconectadas da mecânica nesta etapa, salvo o necessário para a funcionalidade.
+15. Entregue código pronto para produção, não pseudocódigo.
+16. Execute PHP sempre por /usr/bin/php84 (ex.: `/usr/bin/php84 artisan migrate`, `/usr/bin/php84 artisan test`). Nunca assuma que `php` no PATH é a versão do servidor.
+17. Os testes rodam em SQLite em memória (backend/phpunit.xml); a produção é MariaDB. O verde do `artisan test` NÃO valida DDL. Toda migration nova deve ser exercitada contra MariaDB antes de ser dada como pronta, e o relatório final deve declarar em qual banco ela foi verificada.
+
+
+OBJETIVO DESTA ETAPA
+Aprofundar a Endurance como marco narrativo e fonte de peças/artefatos. A Endurance NÃO será reconstruída.
+
+TAREFAS OBRIGATÓRIAS
+1. Ler cuidadosamente a implementação atual das 8 seções, Loja de Peças e missões narrativas.
+2. Manter a Endurance em solo, como estrutura histórica desmontada/escavada.
+3. Criar catálogo formal de itens com raridade: comum, raro, único. Os itens JÁ EXISTENTES viram `comum`, sem migração dolorosa.
+4. Criar instâncias rastreáveis APENAS para itens únicos. `comum` e `raro` continuam fungíveis (item com quantidade, como hoje) — `raro` é escasso, não instanciado. Dar identidade a peça que ninguém vai rastrear infla o schema e não compra nada (GDD ALPHA 2 §11.1).
+5. Registrar origem/seção, descoberta, primeiro descobridor, proprietário atual e histórico de transferência.
+6. Impedir geração repetida de item verdadeiramente único.
+7. Integrar itens a missões, eventos, leilões ou usos definidos, sem inventar efeito econômico não aprovado.
+8. Criar UI de coleção/histórico.
+9. Instrumentar quantidade em circulação, concentração e transações.
+10. Preparar hooks para Motor de Eventos liberar novas escavações/seções/peças.
+
+
+CRITÉRIOS DE ACEITE
+- A Endurance nunca é apresentada como projeto de reconstrução.
+- Item único tem unicidade garantida no banco.
+- Histórico de propriedade é auditável.
+- Eventos podem abrir conteúdo sem migration manual.
+- Nada gera item raro/único infinitamente por bug de retry.
+
+FORMATO DA ENTREGA
+Ao concluir:
+- liste os arquivos criados/alterados;
+- explique migrations e compatibilidade com dados atuais;
+- informe testes executados e resultado;
+- indique endpoints/telas novos ou alterados;
+- registre riscos ou pontos que ficaram parametrizados;
+- mostre a decisão D-n adicionada a docs/decisoes.md;
+- NÃO declare concluído algo que não esteja testado ou implementado.</code></pre>
+    </article>
+
+    <article class="prompt-card" id="prompt-A2-10">
+      <div class="prompt-head">
+        <div><span class="badge">A2.10</span><h3>Guerra entre Federações</h3></div>
+        <button class="copy-btn" data-target="prompt-text-A2-10">Copiar prompt</button>
+      </div>
+      <pre id="prompt-text-A2-10" class="prompt-text"><code># SUPER PROMPT CLAUDE — A2.10: Guerra entre Federações
+
+
+CONTEXTO OBRIGATÓRIO
+Você está trabalhando no repositório público https://github.com/fbfert/fertways.
+Stack atual: backend Laravel 11 (11.54) / PHP 8.4 / Sanctum 4; frontend React 19 + TypeScript 6 + Phaser 4 + Vite 8 + Tailwind 4; testes E2E existentes via Puppeteer.
+O PHP do servidor é o binário /usr/bin/php84. O `php` do PATH NÃO é a versão correta: use /usr/bin/php84 para artisan, composer, testes e qualquer script PHP.
+O GDD canônico atual é o v39. O arquivo histórico GDD v35 pode ser consultado SOMENTE para esclarecer intenções antigas; ele NÃO tem precedência automática sobre o v39, sobre docs/decisoes.md, sobre migrations ou sobre o comportamento atual do código.
+
+REGRAS INEGOCIÁVEIS
+1. Antes de codificar, leia docs/decisoes.md, o GDD canônico atual, migrations recentes, testes e o código do domínio afetado.
+2. Não invente regras, números, fórmulas ou nomes de tabelas sem necessidade. Se um valor não estiver decidido, crie configuração/estrutura que suporte o valor e deixe baseline documentado como HIPÓTESE/PENDENTE.
+3. Preserve dados existentes. Não faça reset do mundo.
+4. Migrations devem ser forward-only, seguras e idempotentes quando aplicável.
+5. Regras críticas devem ser aplicadas no servidor; validação no frontend é apenas UX.
+6. Todo ajuste econômico deve ser auditável e, quando envolver emissão/débito, compatível com o ledger atual.
+7. Instrumente telemetria relevante em toda funcionalidade nova.
+8. Escreva/atualize testes unitários, integração e E2E quando a superfície existir.
+9. Não destrua APIs ou comportamentos existentes sem migração explícita.
+10. Ao terminar, atualize docs/decisoes.md com a nova decisão D-n real, e regenere o GDD somente se a nova mecânica estiver efetivamente implementada.
+11. Não transforme o GDD em promessa: marque claramente o que foi implementado e o que continua pendente.
+12. Prefira parâmetros operacionais editáveis no backend a constantes hardcoded quando o Dono precisar ajustar o mundo sem deploy.
+13. Mobile é requisito de primeira classe.
+14. Não faça alterações visuais desconectadas da mecânica nesta etapa, salvo o necessário para a funcionalidade.
+15. Entregue código pronto para produção, não pseudocódigo.
+16. Execute PHP sempre por /usr/bin/php84 (ex.: `/usr/bin/php84 artisan migrate`, `/usr/bin/php84 artisan test`). Nunca assuma que `php` no PATH é a versão do servidor.
+17. Os testes rodam em SQLite em memória (backend/phpunit.xml); a produção é MariaDB. O verde do `artisan test` NÃO valida DDL. Toda migration nova deve ser exercitada contra MariaDB antes de ser dada como pronta, e o relatório final deve declarar em qual banco ela foi verificada.
+
+
+OBJETIVO DESTA ETAPA
+Projetar e implementar a guerra federativa somente após as dependências da Alpha 2 estarem estáveis. Esta etapa exige primeiro produzir um mini-GDD específico e submetê-lo à validação do Dono antes do código de regra irreversível.
+
+TAREFAS OBRIGATÓRIAS
+FASE 1 — DESIGN ANTES DO CÓDIGO
+(Esta é a única fase da Alpha 2 que exige documento de design próprio antes de qualquer linha de código. Não dispare a Fase 2 enquanto ele não estiver fechado.)
+1. Auditar guerra atual entre colônias, ranking e Honra Militar/Diplomática.
+2. Produzir docs/GUERRA_FEDERATIVA_PROPOSTA.md cobrindo: declaração, casus belli se houver, objetivo, duração, participantes, reforços, alvos, territórios, tratados, capitulação, cooldown, recompensas, perdas, ranking, neutralidade, contas vinculadas, abandono e auditoria.
+3. Identificar todos os pontos que ainda são decisão do Dono.
+4. NÃO inventar números finais.
+
+FASE 2 — IMPLEMENTAÇÃO APÓS DECISÕES
+5. Modelar guerra federativa como domínio separado, reutilizando primitivas seguras do combate atual quando possível.
+6. Criar estados transacionais.
+7. Integrar diplomacia, Federação, zonas, ranking e eventos.
+8. Criar logs públicos/administrativos.
+9. Instrumentar custo econômico da guerra.
+10. Criar testes de concorrência e abuso.
+
+
+CRITÉRIOS DE ACEITE
+- Nenhuma regra crítica é codificada antes de o mini-GDD estar fechado.
+- Guerra não permite atacar slot principal se a regra vigente continuar proibindo.
+- Federação não consegue burlar cooldown/antiabuso com contas vinculadas.
+- Ranking fecha corretamente a lacuna federativa após decisão aprovada.
+
+FORMATO DA ENTREGA
+Ao concluir:
+- liste os arquivos criados/alterados;
+- explique migrations e compatibilidade com dados atuais;
+- informe testes executados e resultado;
+- indique endpoints/telas novos ou alterados;
+- registre riscos ou pontos que ficaram parametrizados;
+- mostre a decisão D-n adicionada a docs/decisoes.md;
+- NÃO declare concluído algo que não esteja testado ou implementado.</code></pre>
+    </article>
+
+    <article class="prompt-card" id="prompt-A2-V">
+      <div class="prompt-head">
+        <div><span class="badge">A2.V</span><h3>Revisão visual gigantesca</h3></div>
+        <button class="copy-btn" data-target="prompt-text-A2-V">Copiar prompt</button>
+      </div>
+      <pre id="prompt-text-A2-V" class="prompt-text"><code># SUPER PROMPT CLAUDE — A2.V: Revisão visual gigantesca
+
+
+CONTEXTO OBRIGATÓRIO
+Você está trabalhando no repositório público https://github.com/fbfert/fertways.
+Stack atual: backend Laravel 11 (11.54) / PHP 8.4 / Sanctum 4; frontend React 19 + TypeScript 6 + Phaser 4 + Vite 8 + Tailwind 4; testes E2E existentes via Puppeteer.
+O PHP do servidor é o binário /usr/bin/php84. O `php` do PATH NÃO é a versão correta: use /usr/bin/php84 para artisan, composer, testes e qualquer script PHP.
+O GDD canônico atual é o v39. O arquivo histórico GDD v35 pode ser consultado SOMENTE para esclarecer intenções antigas; ele NÃO tem precedência automática sobre o v39, sobre docs/decisoes.md, sobre migrations ou sobre o comportamento atual do código.
+
+REGRAS INEGOCIÁVEIS
+1. Antes de codificar, leia docs/decisoes.md, o GDD canônico atual, migrations recentes, testes e o código do domínio afetado.
+2. Não invente regras, números, fórmulas ou nomes de tabelas sem necessidade. Se um valor não estiver decidido, crie configuração/estrutura que suporte o valor e deixe baseline documentado como HIPÓTESE/PENDENTE.
+3. Preserve dados existentes. Não faça reset do mundo.
+4. Migrations devem ser forward-only, seguras e idempotentes quando aplicável.
+5. Regras críticas devem ser aplicadas no servidor; validação no frontend é apenas UX.
+6. Todo ajuste econômico deve ser auditável e, quando envolver emissão/débito, compatível com o ledger atual.
+7. Instrumente telemetria relevante em toda funcionalidade nova.
+8. Escreva/atualize testes unitários, integração e E2E quando a superfície existir.
+9. Não destrua APIs ou comportamentos existentes sem migração explícita.
+10. Ao terminar, atualize docs/decisoes.md com a nova decisão D-n real, e regenere o GDD somente se a nova mecânica estiver efetivamente implementada.
+11. Não transforme o GDD em promessa: marque claramente o que foi implementado e o que continua pendente.
+12. Prefira parâmetros operacionais editáveis no backend a constantes hardcoded quando o Dono precisar ajustar o mundo sem deploy.
+13. Mobile é requisito de primeira classe.
+14. Não faça alterações visuais desconectadas da mecânica nesta etapa, salvo o necessário para a funcionalidade.
+15. Entregue código pronto para produção, não pseudocódigo.
+16. Execute PHP sempre por /usr/bin/php84 (ex.: `/usr/bin/php84 artisan migrate`, `/usr/bin/php84 artisan test`). Nunca assuma que `php` no PATH é a versão do servidor.
+17. Os testes rodam em SQLite em memória (backend/phpunit.xml); a produção é MariaDB. O verde do `artisan test` NÃO valida DDL. Toda migration nova deve ser exercitada contra MariaDB antes de ser dada como pronta, e o relatório final deve declarar em qual banco ela foi verificada.
+
+
+OBJETIVO DESTA ETAPA
+Executar uma revisão visual estrutural do Fertways, não um simples reskin. O resultado deve tornar o jogo atraente, legível, mobile-first e coerente com um MMO de ficção científica industrial/colonial.
+
+TAREFAS OBRIGATÓRIAS
+1. Auditar todas as telas atuais com screenshots desktop e mobile.
+2. Criar um design system formal: tokens, tipografia, espaçamento, superfícies, bordas, sombras, estados, cores semânticas, iconografia, loading, empty states, alerts e modais.
+3. Redesenhar HUD global para destacar: recursos, alertas, fila, pesquisa, população, ataques e eventos.
+4. Integrar visualmente “Desde sua última visita”.
+5. Redesenhar Colônia, mantendo a colmeia/slots e a funcionalidade Phaser.
+6. Criar estados visuais de construção: vazia, disponível, em construção, upgrade, ativa, sem recurso, sem energia, sem operadores, danificada.
+7. Redesenhar mapa planetário e zonas com leitura clara de dono, Federação, ameaça, distância e estado.
+8. Redesenhar Capital, Endurance e instituições com identidades distintas.
+9. Criar feedback de interação e animações sutis, sem comprometer desempenho.
+10. Garantir responsividade e acessibilidade.
+11. Não quebrar testes E2E; atualizar seletores frágeis para atributos estáveis quando necessário.
+12. Produzir documentação do design system dentro do repo.
+
+IMPORTANTE
+Faça esta revisão em subfases: V1 Design System; V2 HUD/Navegação; V3 Colônia; V4 Mapa/Zonas; V5 Capital/Endurance; V6 Combate/Eventos. Não tente reescrever tudo num único commit.
+ORDEM: V1 vem ANTES ou JUNTO com a A2.0. A tela “Desde sua última visita” é a primeira tela nova da Alpha 2 e fixa o padrão visual na marra; se os tokens vierem depois, ela e o painel de população nascem fora do design system e terão de ser refeitos. Ponto de partida já existente: docs/design-tokens.md.
+
+CRITÉRIOS DE ACEITE
+- Todas as telas principais possuem versão mobile funcional.
+- Estado de jogo é compreensível visualmente sem depender de textos longos.
+- Lighthouse/medidas de desempenho não degradam de forma relevante.
+- Controles touch e zoom continuam funcionais.
+- Colônia, mapa, Capital e Endurance parecem partes do mesmo produto.
+
+FORMATO DA ENTREGA
+Ao concluir:
+- liste os arquivos criados/alterados;
+- explique migrations e compatibilidade com dados atuais;
+- informe testes executados e resultado;
+- indique endpoints/telas novos ou alterados;
+- registre riscos ou pontos que ficaram parametrizados;
+- mostre a decisão D-n adicionada a docs/decisoes.md;
+- NÃO declare concluído algo que não esteja testado ou implementado.</code></pre>
+    </article>
+
+    
+
+    <article class="prompt-card" id="prompt-A2-12">
+      <div class="prompt-head">
+        <div><span class="badge">A2.12</span><h3>Hardening e preparação da Alpha 2</h3></div>
+        <button class="copy-btn" data-target="prompt-text-A2-12">Copiar prompt</button>
+      </div>
+      <pre id="prompt-text-A2-12" class="prompt-text"><code># SUPER PROMPT CLAUDE — A2.12: Hardening e preparação da Alpha 2
+
+
+CONTEXTO OBRIGATÓRIO
+Você está trabalhando no repositório público https://github.com/fbfert/fertways.
+Stack atual: backend Laravel 11 (11.54) / PHP 8.4 / Sanctum 4; frontend React 19 + TypeScript 6 + Phaser 4 + Vite 8 + Tailwind 4; testes E2E existentes via Puppeteer.
+O PHP do servidor é o binário /usr/bin/php84. O `php` do PATH NÃO é a versão correta: use /usr/bin/php84 para artisan, composer, testes e qualquer script PHP.
+O GDD canônico atual é o v39. O arquivo histórico GDD v35 pode ser consultado SOMENTE para esclarecer intenções antigas; ele NÃO tem precedência automática sobre o v39, sobre docs/decisoes.md, sobre migrations ou sobre o comportamento atual do código.
+
+REGRAS INEGOCIÁVEIS
+1. Antes de codificar, leia docs/decisoes.md, o GDD canônico atual, migrations recentes, testes e o código do domínio afetado.
+2. Não invente regras, números, fórmulas ou nomes de tabelas sem necessidade. Se um valor não estiver decidido, crie configuração/estrutura que suporte o valor e deixe baseline documentado como HIPÓTESE/PENDENTE.
+3. Preserve dados existentes. Não faça reset do mundo.
+4. Migrations devem ser forward-only, seguras e idempotentes quando aplicável.
+5. Regras críticas devem ser aplicadas no servidor; validação no frontend é apenas UX.
+6. Todo ajuste econômico deve ser auditável e, quando envolver emissão/débito, compatível com o ledger atual.
+7. Instrumente telemetria relevante em toda funcionalidade nova.
+8. Escreva/atualize testes unitários, integração e E2E quando a superfície existir.
+9. Não destrua APIs ou comportamentos existentes sem migração explícita.
+10. Ao terminar, atualize docs/decisoes.md com a nova decisão D-n real, e regenere o GDD somente se a nova mecânica estiver efetivamente implementada.
+11. Não transforme o GDD em promessa: marque claramente o que foi implementado e o que continua pendente.
+12. Prefira parâmetros operacionais editáveis no backend a constantes hardcoded quando o Dono precisar ajustar o mundo sem deploy.
+13. Mobile é requisito de primeira classe.
+14. Não faça alterações visuais desconectadas da mecânica nesta etapa, salvo o necessário para a funcionalidade.
+15. Entregue código pronto para produção, não pseudocódigo.
+16. Execute PHP sempre por /usr/bin/php84 (ex.: `/usr/bin/php84 artisan migrate`, `/usr/bin/php84 artisan test`). Nunca assuma que `php` no PATH é a versão do servidor.
+17. Os testes rodam em SQLite em memória (backend/phpunit.xml); a produção é MariaDB. O verde do `artisan test` NÃO valida DDL. Toda migration nova deve ser exercitada contra MariaDB antes de ser dada como pronta, e o relatório final deve declarar em qual banco ela foi verificada.
+
+
+OBJETIVO DESTA ETAPA
+Consolidar a Alpha 2 para testes ampliados sem reset, garantindo estabilidade, segurança, observabilidade e experiência mobile.
+
+TAREFAS OBRIGATÓRIAS
+1. Executar suíte completa de testes.
+2. Criar/rodar testes de carga em endpoints críticos.
+3. Verificar índices e queries N+1.
+4. Validar jobs/ticks idempotentes.
+5. Verificar migrations em cópia realista do banco.
+6. Auditar rate limits, autorização, CSRF/Sanctum e superfícies admin.
+7. Auditar ledger e consistência econômica.
+8. Auditar Motor de Eventos.
+9. Auditar população/pesquisa sob concorrência.
+10. Auditar mobile e acessibilidade.
+11. Rodar simulação longa pelo simulador da trilha A2.S. A simulação por bots é externa e vive em staging (GDD ALPHA 2 §14) — não faz parte deste repositório.
+12. Criar docs/ALPHA2_RELEASE_CHECKLIST.md.
+13. Criar plano de rollback por feature flag/config, sem rollback destrutivo de dados.
+14. Criar dashboard de erros e indicadores mínimos operacionais.
+
+
+CRITÉRIOS DE ACEITE
+- Deploy pode ocorrer sem reset.
+- Migrations foram validadas com dados semelhantes aos atuais.
+- Não existem testes críticos falhando.
+- Bugs econômicos de duplicação possuem testes de regressão.
+- Existe checklist reproduzível de release.
+
+FORMATO DA ENTREGA
+Ao concluir:
+- liste os arquivos criados/alterados;
+- explique migrations e compatibilidade com dados atuais;
+- informe testes executados e resultado;
+- indique endpoints/telas novos ou alterados;
+- registre riscos ou pontos que ficaram parametrizados;
+- mostre a decisão D-n adicionada a docs/decisoes.md;
+- NÃO declare concluído algo que não esteja testado ou implementado.</code></pre>
+    </article>
+
+    </section>
+  </main>
+</div>
+<footer>
+FERTWAYS — Manual Alpha 2 · Documento de planejamento. O GDD canônico publicado deve continuar refletindo apenas o que está efetivamente implementado.
+</footer>
+
+<script>
+document.querySelectorAll('.copy-btn').forEach(btn => {
+  btn.addEventListener('click', async () => {
+    const target = document.getElementById(btn.dataset.target);
+    const text = target.innerText;
+    try {
+      await navigator.clipboard.writeText(text);
+      const old = btn.textContent;
+      btn.textContent = 'Copiado!';
+      setTimeout(()=>btn.textContent=old, 1300);
+    } catch (e) {
+      const ta = document.createElement('textarea');
+      ta.value = text; document.body.appendChild(ta); ta.select();
+      document.execCommand('copy'); ta.remove();
+      btn.textContent = 'Copiado!';
+      setTimeout(()=>btn.textContent='Copiar prompt', 1300);
+    }
+  });
+});
+</script>
+</body>
+</html>
