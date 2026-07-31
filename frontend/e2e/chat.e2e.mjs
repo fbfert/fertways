@@ -135,7 +135,21 @@ try {
   await resultadoDeNovo.click()
   await assentar()
 
-  const conversarDaBusca = await page.$('[data-conversar]')
+  /*
+   * `waitForSelector` e não `page.$`, e a diferença já custou um vermelho.
+   *
+   * O botão "Conversar" só existe depois que `InfoJogador` recebe a resposta de `api.jogador()` —
+   * é `{info && aoConversar && ...}`. O `assentar()` acima espera 300 ms FIXOS; quando a busca
+   * demora mais que isso, o `page.$` olha uma vez, não acha, e a suíte reprova um jogo que está
+   * perfeito. Foi o que aconteceu em 2026-07-31: vermelho numa execução, verde na seguinte, com o
+   * código idêntico nas duas.
+   *
+   * A asserção continua a mesma — se o botão não existir mesmo, os 8 s se esgotam e isto reprova.
+   * O que muda é só parar de confundir "ainda não chegou" com "não existe".
+   */
+  const conversarDaBusca = await page
+    .waitForSelector('[data-conversar]', { timeout: 8000 })
+    .catch(() => null)
   checar(!!conversarDaBusca, 'o botão "Conversar" existe no popup aberto pela busca')
   await conversarDaBusca.click()
   await assentar()

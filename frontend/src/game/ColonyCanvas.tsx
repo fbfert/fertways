@@ -147,7 +147,7 @@ export function ColonyCanvas({ specs, linhas, onSelecionar, onSlotVazio }: Props
             */}
             {spec?.finishes_at && (
               <span
-                className="bg-ink/70 text-sand-light pointer-events-none absolute rounded-full px-1.5 py-0.5 text-[10px] font-bold tabular-nums md:hidden"
+                className="bg-ink/70 text-sand-light pointer-events-none absolute rounded-full px-1.5 py-0.5 text-micro font-bold tabular-nums md:hidden"
                 style={{
                   left: x,
                   top: y,

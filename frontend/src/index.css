@@ -1,10 +1,23 @@
 @import 'tailwindcss';
 
 /*
- * Tokens amostrados dos PNGs do deck em /home/fertways/pitch — não escolhidos a olho.
- * Ver docs/design-tokens.md e tools/sample_png.py.
+ * ============================================================================
+ * DESIGN SYSTEM — A2.V1
+ * ============================================================================
+ *
+ * A regra da casa vale para cor como vale para número de GDD: **não se escolhe a
+ * olho**. As sete cores de marca foram amostradas dos PNGs do deck em
+ * /home/fertways/pitch por `tools/sample_png.py`. As cores de ESTADO, que a
+ * paleta não tinha, foram amostradas dos mesmos PNGs por
+ * `tools/amostra_estados.py`, e todas as combinações abaixo passaram por
+ * `tools/valida_contraste.py` — os números de contraste nos comentários são de
+ * lá, não de estimativa.
+ *
+ * Ver docs/design-tokens.md.
  */
+
 @theme {
+  /* ---------------------------------------------------------------- marca */
   --color-rust: #b4450b;
   --color-rust-bright: #cd5512;
   --color-ember: #eaae65;
@@ -12,14 +25,68 @@
   --color-sand-light: #fdf0e2;
   --color-ink: #1e1c17;
   --color-ink-soft: #372f27;
+
+  /* ---------------------------------------------------------------- estado
+   *
+   * Escuras de propósito: a superfície do jogo é clara e quente, então cor de
+   * estado precisa ser mais escura que o fundo para virar texto legível. Todas
+   * passam AA para texto normal sobre `sand` (contraste ao lado).
+   */
+  --color-sucesso: #245448; /* 7,14:1 sobre sand — verde-azulado do deck */
+  --color-perigo: #78180c; /* 8,99:1 sobre sand — vermelho escuro do deck  */
+  --color-info: #243c48; /* 9,58:1 sobre sand — ardósia fria do deck    */
+
+  /* ------------------------------------------------------------- hairline
+   *
+   * A linha fina laranja que separa blocos existia em SEIS opacidades
+   * diferentes espalhadas pelo código (/10, /15, /20, /25, /30, /40) para
+   * dizer a mesma coisa. São duas, e só duas.
+   */
+  --color-hairline: #b4450b33; /* rust a 20% — o padrão                   */
+  --color-hairline-forte: #b4450b66; /* rust a 40% — divisão que precisa pesar  */
+
+  /* ------------------------------------------------------------ tipografia
+   *
+   * ⚠️ 'Archivo' está aqui como INTENÇÃO, não como fato: nenhum @font-face,
+   * link ou arquivo local a carrega, então hoje todo mundo cai em system-ui.
+   * Ver docs/design-tokens.md — carregar a fonte de verdade é decisão em
+   * aberto (auto-hospedar custa peso; CDN custa uma dependência externa).
+   */
+  --font-sans: 'Archivo', 'Inter', system-ui, sans-serif;
+
+  /*
+   * Existia porque onze lugares escreveram `text-[9px]`, `text-[10px]` e
+   * `text-[0.6rem]` para o mesmo efeito: o rótulo minúsculo de um selo ou de
+   * um eixo. Um degrau nomeado abaixo de `text-xs`, e nada de valor arbitrário.
+   */
+  --text-micro: 0.625rem;
+  --text-micro--line-height: 0.875rem;
 }
 
-/* O deck nunca usa preto nem branco puros em texto, e o fundo é sempre quente. */
+/*
+ * O deck nunca usa preto nem branco puros em texto, e o fundo é sempre quente.
+ */
 body {
   margin: 0;
   background-color: var(--color-sand);
   color: var(--color-ink);
-  font-family: 'Archivo', 'Inter', system-ui, sans-serif;
+  font-family: var(--font-sans);
+}
+
+/*
+ * FOCO VISÍVEL, por padrão e para sempre.
+ *
+ * Sem isto, um elemento que ninguém pensou em estilizar fica navegável por
+ * teclado e invisível. Quem quiser um foco próprio usa `outline-none` mais um
+ * `focus-visible:ring-*` — 55 lugares já fazem isso e continuam mandando aqui.
+ *
+ * `:focus-visible` e não `:focus`: o navegador só o aplica quando o foco veio
+ * de teclado, então o clique de mouse não acende anel nenhum.
+ */
+:focus-visible {
+  outline: 2px solid var(--color-rust-bright);
+  outline-offset: 2px;
+  border-radius: 2px;
 }
 
 /* Os painéis do deck têm um entalhe no canto, não são retângulos secos. */
@@ -39,10 +106,62 @@ body {
   clip-path: polygon(50% 0%, 93% 25%, 93% 75%, 50% 100%, 7% 75%, 7% 25%);
 }
 
+/*
+ * `.botao` — e a história dela é o melhor argumento que a A2.V1 tem.
+ *
+ * Dezoito elementos em sete telas (Mapa, Perfil, BugsMelhorias, Frota, Quartel, Zona, InfoJogador)
+ * escrevem `className="botao …"` desde o D-66/D-67/D-69. **A classe nunca existiu** — conferido no
+ * histórico do git, não foi removida por acidente: nunca foi escrita. Quer dizer que esses dezoito
+ * botões renderizam há semanas com o cinza padrão do navegador, sobre um fundo de areia, e ninguém
+ * percebeu. É o que acontece quando cada tela remonta o seu próprio botão.
+ *
+ * Fica aqui, e não vira `<Botao>` agora, de propósito: o roadmap diz que a A2.V1 constrói o sistema
+ * e que **V2 a V6 migram as telas**. Definir a classe conserta os dezoito hoje, sem tocar em uma
+ * linha de marcação e sem antecipar o diff da migração. As cores são as mesmas da variante
+ * `primaria` do componente — 4,94:1, medido.
+ */
+.botao {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
+  border-radius: 0.25rem;
+  padding: 0.375rem 0.75rem;
+  font-weight: 700;
+  background-color: var(--color-rust);
+  color: var(--color-sand-light);
+  transition: background-color 150ms;
+}
+
+.botao:hover:not(:disabled) {
+  background-color: var(--color-rust-bright);
+}
+
+.botao:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
 /* Versalete espaçado dos subtítulos do deck. */
 .eyebrow {
   text-transform: uppercase;
   letter-spacing: 0.18em;
   font-weight: 700;
   font-size: 0.7rem;
+}
+
+/*
+ * Respeita quem pediu menos movimento no sistema operacional. O jogo tem
+ * animação sutil de produção e de fila (A2.V3); para quem marcou essa
+ * preferência, elas viram estado, não movimento.
+ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

@@ -7967,3 +7967,95 @@ nenhum teste tocado, nada a resemear.
 do gerador, que só escreve em `docs/`) recebeu o v39 por `/bin/cp -f` — com o `-f` e o caminho
 absoluto de propósito: o alias `cp -i` do root já engoliu uma cópia em silêncio antes (D-141).
 Conferido por `diff`: as duas cópias são idênticas.
+
+---
+
+## D-161 — O design system da Alpha 2 (A2.V1): a cor deixa de ser escolhida a olho
+
+**Data:** 2026-07-31 · **Status:** primeira entrega da Alpha 2, fase A2.V1 do
+`docs/alpha2/ROADMAP_ALPHA2.md` · **Frontend, mais duas ferramentas**
+
+A A2.V1 vem antes de tudo por dependência dura, e não por gosto: a tela "Desde sua última visita"
+é a primeira tela nova da Alpha 2 e vai fixar o padrão visual na marra. Se os tokens viessem
+depois, ela e o painel de população nasceriam fora do sistema e teriam de ser refeitos.
+
+### O que o confronto com o código real achou
+
+Boa parte do diagnóstico contrariou a expectativa. **A disciplina de cor já estava completa**:
+zero cores cruas do Tailwind, zero hex arbitrário, 2.336 usos dos sete tokens da marca em 50
+componentes. E dos 58 `outline-none`, 55 já traziam substituto de foco. Não havia resgate a fazer.
+
+O que faltava era outra coisa, e mais funda:
+
+1. **A paleta não sabia dizer "deu errado".** 120 menções a *erro* no código e nenhuma cor de erro
+   — tudo era `rust` em opacidades variadas, a mesma cor da marca.
+2. **`.botao` nunca existiu.** Dezoito elementos em sete telas escrevem `className="botao …"` desde
+   o D-66/D-67/D-69. A classe não foi removida por acidente: o `git log -S` mostra que **nunca foi
+   escrita**. Esses dezoito botões renderizam há semanas com o cinza padrão do navegador.
+3. **A fonte nunca foi carregada.** `font-family: 'Archivo'` está declarado sem `@font-face`, sem
+   link e sem arquivo local. Todo mundo cai em `system-ui` — os títulos condensados do deck não
+   existem no produto.
+4. Seis opacidades diferentes (`/10` a `/40`) para desenhar a mesma linha fina, e onze lugares com
+   `text-[9px]`, `text-[10px]` e `text-[0.6rem]` para o mesmo rótulo minúsculo.
+
+### As cores de estado saíram do deck, não da cabeça
+
+O `docs/design-tokens.md` promete que nenhuma cor foi escolhida a olho. Inventar um verde e um
+vermelho teria quebrado essa promessa em silêncio, então `tools/amostra_estados.py` foi ao mesmo
+lugar de onde vieram as sete originais: os PNGs de `/home/fertways/pitch`. Saíram `sucesso`
+(`#245448`), `perigo` (`#78180C`) e `info` (`#243C48`) — escuras de propósito, porque a superfície
+do jogo é clara e cor de estado só vira texto legível se for mais escura que o fundo.
+
+### Duas armadilhas que só a medição mostrou
+
+`tools/valida_contraste.py` mede todos os pares e **falha com status 1**. Ele achou duas coisas que
+nenhuma inspeção visual pegaria:
+
+- **`ember` não pode ser texto.** Sobre areia dá **1,62:1**. Mas como *fundo*, com letra `ink`, dá
+  8,71:1. Por isso o estado `aviso` é o único que sempre pinta o fundo — não é inconsistência, é a
+  única forma que passa.
+- **O vermelho do deck fica a 14° de matiz do `rust`.** A paleta é quente por identidade; não há
+  vermelho frio nela. Num relance, ou para quem tem deficiência de visão de cor, *apagar para
+  sempre* e *confirmar* são o mesmo botão.
+
+> **Regra que fica: destrutivo nunca se anuncia só por cor.** O `Botao` de variante `perigo`
+> desenha um triângulo antes do rótulo, e o `Erro` escreve a palavra "Erro". O glifo não é enfeite:
+> é o segundo canal, o que carrega o aviso quando a cor falha.
+
+Registro de uma margem apertada: **`rust` sobre `sand` passa por 4,58:1**, folga de 0,08 sobre o
+mínimo da WCAG. Não é número que se defenda de memória — é por isso que o validador existe.
+
+### O que foi entregue
+
+- `frontend/src/index.css` — cores de estado, hairline em duas espessuras (eram seis), `--text-micro`,
+  foco visível por padrão em `:focus-visible`, `prefers-reduced-motion`, e a definição de `.botao`.
+- `frontend/src/ui/sistema/` — `Botao`, `Cartao`, `Selo`, `Carregando`/`Vazio`/`Erro`. **O par de
+  cores não é parâmetro de nenhum deles**: quem usa escolhe a intenção, o componente escolhe fundo e
+  texto juntos, dentro do que foi medido.
+- Os onze tamanhos arbitrários viraram `text-micro`; não há mais `text-[…]` em `.tsx`.
+- Os três `outline-none` sem substituto (o mesmo input do Chat, repetido) ganharam foco visível.
+
+### O que a A2.V1 NÃO fez, de propósito
+
+Os 171 `<button>` de 26 arquivos **não foram migrados** para o `Botao`. O roadmap diz que a V1
+constrói o sistema e que V2 a V6 o aplicam, coladas em cada fase; migrar tudo agora seria um diff
+gigante sem tela nova para provar que o sistema serve. Pelo mesmo motivo `.botao` virou classe CSS
+em vez de componente: conserta os dezoito hoje sem antecipar o diff da migração.
+
+**Carregar a fonte Archivo ficou em aberto** — auto-hospedar acrescenta peso a um bundle que já dá
+1,9 MB; CDN acrescenta dependência externa e um RTT. É decisão do usuário, não omissão.
+
+### ⚠️ Um vermelho no e2e que NÃO era regressão
+
+A primeira rodada do e2e depois das mudanças ficou vermelha no Chat: *o botão "Conversar" existe no
+popup aberto pela busca*. A segunda rodada, **com o código idêntico**, ficou verde — 9 suítes, 332
+asserções, o mesmo da linha de base.
+
+A causa é o teste, não o jogo: o botão só existe depois que `InfoJogador` recebe a resposta de
+`api.jogador()`, e a linha usava `page.$` — uma olhada só, logo depois de um `assentar()` de 300 ms
+fixos. Passou a usar `waitForSelector` com 8 s. **A asserção não foi enfraquecida**: se o botão não
+existir mesmo, o tempo se esgota e reprova. O que mudou é parar de confundir *ainda não chegou* com
+*não existe*.
+
+Vale como lição de método: o impulso era atribuir o vermelho à mudança recém-feita. A atribuição
+só ficou honesta depois de rodar de novo sem mexer em nada.

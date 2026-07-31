@@ -71,7 +71,7 @@ export function IconeRecurso({ codigo, className = '' }: { codigo: string; class
   return (
     <span
       aria-hidden="true"
-      className={`inline-flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full px-1 text-[9px] leading-none font-bold ${CORES_POR_CLASSE[classeDe(codigo)]} ${className}`}
+      className={`inline-flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full px-1 text-micro leading-none font-bold ${CORES_POR_CLASSE[classeDe(codigo)]} ${className}`}
     >
       {sigla}
     </span>

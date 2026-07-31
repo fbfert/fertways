@@ -234,12 +234,12 @@ function BotaoNav({
       <span className="relative">
         {children}
         {!!badge && badge > 0 && (
-          <span className="bg-rust text-sand-light absolute -top-1 -right-1.5 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[9px] font-black">
+          <span className="bg-rust text-sand-light absolute -top-1 -right-1.5 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-micro font-black">
             {badge > 9 ? '9+' : badge}
           </span>
         )}
       </span>
-      <span className="text-[9px] font-bold tracking-wide uppercase">{rotulo}</span>
+      <span className="text-micro font-bold tracking-wide uppercase">{rotulo}</span>
     </button>
   )
 }

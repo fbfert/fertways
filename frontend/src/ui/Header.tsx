@@ -98,7 +98,7 @@ export function Header({
           >
             Chat
             {chatPendente > 0 && (
-              <span className="bg-rust text-sand-light absolute -top-1.5 -right-1.5 flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-[10px] font-black">
+              <span className="bg-rust text-sand-light absolute -top-1.5 -right-1.5 flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-micro font-black">
                 {chatPendente > 9 ? '9+' : chatPendente}
               </span>
             )}
