@@ -778,6 +778,18 @@ class DespacharVeiculo
             ->decrement('amount', $qtd);
 
         if ($afetadas === 0) {
+            /*
+             * Telemetria (A2.0.1). Energia tem tipo próprio porque é uma parede diferente das
+             * outras: falta de insumo é a cadeia produtiva incompleta; falta de energia é a colônia
+             * inteira parando. Misturá-las num tipo só esconderia justamente essa diferença, que é
+             * a que o painel (A2.0.2) precisa mostrar.
+             */
+            app(\App\Domain\Telemetria\RegistrarEvento::class)->handle(
+                $recurso === 'energia' ? 'falta_de_energia' : 'falta_de_insumo',
+                $colonia->user, $colonia,
+                ['recurso' => $recurso, 'onde' => 'viagem'],
+            );
+
             throw new DomainRuleException('recurso_insuficiente', "Falta {$recurso} para esta viagem.");
         }
 

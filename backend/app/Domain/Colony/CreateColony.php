@@ -151,6 +151,14 @@ class CreateColony
             // A mão de missões da tutoria (§06: "5 missões — dias 1 a 3"). Elas pagam; não travam.
             app(\App\Domain\Missoes\Atribuir::class)->tutoria($colony);
 
+            /*
+             * Telemetria (A2.0.1). O ledger registra o kit e o saldo iniciais, mas não o ATO de
+             * fundar — e é o ato que o funil de onboarding conta. Dentro da transação de propósito:
+             * uma fundação que falhe no meio não deve deixar um evento de colônia que não existe.
+             */
+            app(\App\Domain\Telemetria\RegistrarEvento::class)
+                ->handle('colonia_fundada', $user, $colony, ['x' => $x, 'y' => $y]);
+
             return $colony->fresh(['buildings', 'resources', 'vehicles']);
         });
     }

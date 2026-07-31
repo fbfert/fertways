@@ -131,6 +131,7 @@
              */
             $abas = [
                 'admin.dashboard' => 'Visão geral',
+                'admin.metricas' => 'Métricas',
                 'admin.mapa' => 'Mapa',
                 'admin.jogadores' => 'Jogadores',
                 'admin.ministerio' => 'Reputações',

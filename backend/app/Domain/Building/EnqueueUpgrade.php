@@ -115,6 +115,18 @@ class EnqueueUpgrade
 
             if (! $linha || $linha->amount < $qtd) {
                 $tem = $linha?->amount ?? 0;
+                /*
+                 * Telemetria (A2.0.1): a parede em que o colono bateu.
+                 *
+                 * O ledger não vê isto por definição — ele registra o que ACONTECEU, e isto é o
+                 * registro do que NÃO aconteceu. É a métrica mais valiosa da fase: é onde o jogo
+                 * trava sem avisar ninguém, e alimenta os "gargalos de cadeia" da A2.0.2.
+                 */
+                app(\App\Domain\Telemetria\RegistrarEvento::class)->handle(
+                    'falta_de_insumo', $colony->user, $colony,
+                    ['recurso' => $recurso, 'exige' => $qtd, 'tem' => $tem, 'onde' => 'obra'],
+                );
+
                 throw new DomainRuleException(
                     'recursos_insuficientes',
                     "Faltam recursos: {$recurso} exige {$qtd}, você tem {$tem}.",

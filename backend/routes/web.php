@@ -31,6 +31,12 @@ Route::prefix('admin')->group(function () {
         Route::get('/jogadores/{user}', [PainelController::class, 'jogador'])->name('admin.jogador');
         Route::get('/ministerio', [PainelController::class, 'ministerio'])->name('admin.ministerio');
         Route::get('/economia', [PainelController::class, 'economia'])->name('admin.economia');
+
+        /*
+         * Métricas de produto (A2.0.2). Só leitura — não há ação de operador aqui, e por isso não
+         * há POST correspondente: o painel de métricas OBSERVA o jogo, não o altera.
+         */
+        Route::get('/metricas', [PainelController::class, 'metricas'])->name('admin.metricas');
         // As notícias saíram de Economia e viraram aba própria (2026-07-13): elas não são economia.
         Route::get('/noticias', [PainelController::class, 'noticias'])->name('admin.noticias');
 
