@@ -5,7 +5,7 @@
 > e então **faça ao usuário as perguntas da seção "Perguntas em aberto"** antes de escolher
 > o que fazer. Atualize este arquivo ao fim de cada sessão.
 
-**Última atualização:** 2026-07-30 · **Branch:** `main`
+**Última atualização:** 2026-07-31 · **Branch:** `main`
 
 > **Se o usuário disser "retome" e houver uma seção "EM ANDAMENTO AGORA" abaixo**, ela já tem
 > autorização permanente para seguir sem novas perguntas ("siga por todas as fases... quero que
@@ -13,6 +13,14 @@
 
 > O commit não é anotado aqui de propósito: ele fica velho a cada sessão e a página passa a
 > mentir. Rode `git log --oneline -1`.
+
+> **O Alpha 2 está planejado e ainda não teve uma linha escrita** (2026-07-31). O pacote inteiro
+> vive em **`docs/alpha2/`** — o GDD da etapa, o roadmap das 13 fases, o balanceamento e o manual
+> com os prompts de execução. Ele foi conferido contra o estado real do repositório e cada ponto
+> vermelho e amarelo foi decidido com o usuário antes de virar documento. **Leia-o antes de propor
+> qualquer trabalho novo**: várias fases dependem de sistemas que ainda não existem (telemetria,
+> população, pesquisa, motor de eventos), e a ordem entre elas não é arbitrária. O canônico desta
+> etapa é o **GDD v39**; o v35 só serve onde o v39 tem lacuna.
 
 ---
 
@@ -1515,6 +1523,24 @@ ida→vigia→volta), sem tabela nova além de `drone_sightings` (as fotos).
    citado acima ("Onde o projeto está"). A Garagem do Governo resolveu isso em 2026-07-13. Este item
    ficou esquecido quando o D-76 fechou; corrigido em 2026-07-14, ao retomar a sessão.
 
+5. **Por onde começar o Alpha 2 — migrar o Laravel primeiro, ou entrar direto em A2.V1 + A2.0?**
+   (aberta em 2026-07-31). O plano está inteiro em `docs/alpha2/`; o que falta é escolher a porta de
+   entrada. **A recomendação é migrar antes**, por dois motivos: há um advisory de **severidade alta**
+   (CRLF injection na regra `email`) sem correção no ramo 11.x, e migrar antes de 13 fases de código
+   novo custa uma fração do que custará depois.
+
+   O grafo de dependências já foi conferido e está limpo — `composer require "laravel/framework:^12.61"
+   --dry-run` deu **1 install, 1 update, 0 removals**: sobe `laravel/framework v11.54.0 => v12.64.0` e
+   entra `symfony/polyfill-php84`. **Nenhum outro pacote se mexe** (Sanctum 4.3, Tinker, Pint, Sail,
+   Collision e PHPUnit já são compatíveis); o único bloqueio era o `^11.31` do próprio `composer.json`.
+   O Guzzle vem transitivamente do framework com constraint `^7.8.2`, que **já permite** o 7.15.1 — um
+   `composer update guzzlehttp/guzzle` fecha os 5 advisories médios sem tocar em mais nada.
+
+   O trabalho de verdade é o de código do guia 11→12, com os 82 testes Feature e as 11 suítes E2E como
+   rede. ⚠️ Vale a regra da casa: **o verde do `artisan test` é SQLite e não vale como evidência sobre
+   DDL** — exercite no MariaDB. E uma carga pesada por vez, que o servidor tem 4 GB (`exit 137` é OOM,
+   não teste reprovado).
+
 ## Pendências conhecidas, sem bloquear
 
 - **O tributo do Mercado contradiz o §07 de propósito** (D-32). O §07 proíbe dupla incidência e
@@ -1689,3 +1715,9 @@ reiniciá-lo.
   parágrafo de número maior *dentro da mesma parte*. Contradição e lacuna são coisas diferentes — o
   D-47 resolve a primeira e não toca na segunda.
 - `docs/deploy.md` — php84, Node, o symlink `/central`, e por que `route:cache` está proibido.
+- **`docs/alpha2/`** — o planejamento do Alpha 2, ainda **não construído**. Quatro documentos, e a
+  divisão de trabalho entre eles é deliberada: `GDD_ALPHA2.md` diz **o que o jogo é**,
+  `ROADMAP_ALPHA2.md` diz **em que ordem construir**, `BALANCEAMENTO.md` diz **por que um número é
+  aquele** (com as chaves ainda PENDENTE marcadas), e `FERTWAYS_ALPHA2_MANUAL_MESTRE.html` reúne os
+  **13 prompts de execução**. Os números D-n destas decisões **ainda não foram cunhados** — o último
+  real é o D-160, e D-n só nasce na entrega.
