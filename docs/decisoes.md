@@ -8059,3 +8059,37 @@ existir mesmo, o tempo se esgota e reprova. O que mudou é parar de confundir *a
 
 Vale como lição de método: o impulso era atribuir o vermelho à mudança recém-feita. A atribuição
 só ficou honesta depois de rodar de novo sem mexer em nada.
+
+---
+
+## D-162 — A fonte Archivo é auto-hospedada, não vem de CDN
+
+**Data:** 2026-07-31 · **Status:** fecha a pendência que o D-161 deixou em aberto · **Frontend**
+
+O D-161 achou que `font-family: 'Archivo'` estava declarado desde sempre **sem `@font-face`, sem
+link e sem arquivo local**. Todo mundo caía em `system-ui`: os títulos condensados de peso alto do
+deck simplesmente não existiam no produto. O D-161 não resolveu de propósito, porque as duas saídas
+têm custo e a escolha é do usuário.
+
+**Escolhido: auto-hospedar,** via `@fontsource-variable/archivo` (OFL-1.1, que permite).
+
+O argumento do peso — que fui eu mesmo quem levantou — não sobreviveu ao número real: o subconjunto
+`latin` pesa **34 KB** num bundle de 1,9 MB, ou 1,8%. A CDN cobraria noutra moeda, e mais cara: uma
+requisição a terceiro em toda sessão, um RTT a mais para jogadores que estão no mesmo país do
+servidor, e uma dependência externa que pode ser bloqueada ou sair do ar.
+
+Dois detalhes do pacote que fazem a conta fechar: ele traz **`unicode-range` por subconjunto**,
+então `latin-ext` (32 KB) e vietnamita (13 KB) só descem se algum nickname os exigir; e usa
+`font-display: swap`, então o texto nunca fica invisível esperando a fonte chegar.
+
+### ⚠️ A armadilha do nome
+
+A família registrada pelo fontsource é **`'Archivo Variable'`** — com o espaço e o "Variable".
+`'Archivo'` sozinho **não casa** com ela. Errar isso não quebra nada de forma visível: a cascata cai
+no fallback e a tela continua parecendo funcionar, só que com a fonte errada. É exatamente o defeito
+que sobreviveu semanas antes do D-161, e por isso o token traz as duas — `'Archivo Variable'`
+primeiro, `'Archivo'` atrás, para quem a tenha instalada no sistema.
+
+Conferido no CSS compilado: 3 `@font-face`, 3 arquivos woff2 e 3 `unicode-range`, com o mesmo nome
+de família nos dois lados. E2E com 9 suítes verdes e 332 asserções — a métrica nova da fonte não
+mexeu em nenhum teste sensível a posição.

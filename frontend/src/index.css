@@ -1,6 +1,22 @@
 @import 'tailwindcss';
 
 /*
+ * A fonte do deck, AUTO-HOSPEDADA (D-161 deixou isto em aberto; resolvido aqui).
+ *
+ * Era uma mentira antiga: `font-family: 'Archivo'` estava declarado desde sempre, sem @font-face,
+ * sem link e sem arquivo — todo mundo caía em `system-ui`, e os títulos condensados de peso alto do
+ * deck não existiam no produto.
+ *
+ * **Auto-hospedar e não CDN.** O peso que eu temia não se sustenta contra o número real: o
+ * subconjunto `latin` pesa 34 KB num bundle de 1,9 MB. A CDN cobraria noutra moeda — uma requisição
+ * a terceiro em toda sessão, um RTT a mais para jogadores que estão no mesmo país do servidor, e uma
+ * dependência que pode ser bloqueada. O pacote traz `unicode-range` por subconjunto, então
+ * latin-ext e vietnamita só descem se algum nickname os exigir, e `font-display: swap` garante que
+ * o texto nunca fica invisível esperando a fonte.
+ */
+@import '@fontsource-variable/archivo';
+
+/*
  * ============================================================================
  * DESIGN SYSTEM — A2.V1
  * ============================================================================
@@ -47,12 +63,14 @@
 
   /* ------------------------------------------------------------ tipografia
    *
-   * ⚠️ 'Archivo' está aqui como INTENÇÃO, não como fato: nenhum @font-face,
-   * link ou arquivo local a carrega, então hoje todo mundo cai em system-ui.
-   * Ver docs/design-tokens.md — carregar a fonte de verdade é decisão em
-   * aberto (auto-hospedar custa peso; CDN custa uma dependência externa).
+   * **'Archivo Variable'**, com o espaço e o "Variable" — é o nome que o
+   * @font-face do fontsource registra, e 'Archivo' sozinho NÃO casa com ele.
+   * Errar isso não quebra nada de forma visível: a cascata simplesmente cai no
+   * fallback e tudo continua parecendo funcionar, com a fonte errada.
+   *
+   * 'Archivo' fica logo atrás para quem a tenha instalada no sistema.
    */
-  --font-sans: 'Archivo', 'Inter', system-ui, sans-serif;
+  --font-sans: 'Archivo Variable', 'Archivo', 'Inter', system-ui, sans-serif;
 
   /*
    * Existia porque onze lugares escreveram `text-[9px]`, `text-[10px]` e
