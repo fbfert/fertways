@@ -78,14 +78,24 @@ A linha fina que separa blocos existia em **seis** opacidades (`/10`, `/15`, `/2
   Os onze foram convertidos; **não há mais tamanho arbitrário em `.tsx`**.
 - O resto da escala é a do Tailwind, e continua sendo. Uma escala paralela só brigaria com ela.
 
-### ⚠️ Pendência real: a fonte nunca foi carregada
+### A fonte, enfim carregada — e auto-hospedada
 
-`--font-sans` declara `'Archivo'`, mas **não há `@font-face`, nem link, nem arquivo local** — todo
-mundo cai em `system-ui`. Os títulos condensados de peso alto do deck não existem no produto hoje.
+Era uma mentira antiga: `font-family: 'Archivo'` estava declarado sem `@font-face`, sem link e sem
+arquivo local. Todo mundo caía em `system-ui`, e os títulos condensados de peso alto do deck não
+existiam no produto.
 
-Carregar a fonte é uma decisão em aberto, com custo dos dois lados: auto-hospedar acrescenta peso ao
-bundle (que já dá 1,9 MB); CDN acrescenta uma dependência externa e um RTT. **Não decidido aqui de
-propósito.**
+Resolvido por `@fontsource-variable/archivo` (OFL-1.1), **auto-hospedado**. O argumento do peso não
+sobreviveu ao número real: o subconjunto `latin` pesa **34 KB** num bundle de 1,9 MB — 1,8%. A CDN
+cobraria noutra moeda: uma requisição a terceiro em toda sessão, um RTT a mais para jogadores que
+estão no mesmo país do servidor, e uma dependência que pode ser bloqueada.
+
+O pacote traz **`unicode-range` por subconjunto**, então `latin-ext` (32 KB) e vietnamita (13 KB) só
+descem se algum nickname os exigir. E `font-display: swap`: o texto nunca fica invisível esperando.
+
+> ⚠️ **A família chama-se `'Archivo Variable'`, com o espaço e o "Variable".** `'Archivo'` sozinho
+> **não** casa com o `@font-face` do fontsource. Errar isso não quebra nada de forma visível — a
+> cascata cai no fallback e tudo continua parecendo funcionar, com a fonte errada. É o tipo de
+> defeito que sobrevive a uma revisão inteira.
 
 ## Espaçamento e raio
 
