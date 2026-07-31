@@ -24,6 +24,8 @@ class Colony extends Model
     protected $fillable = [
         'user_id', 'name', 'x', 'y', 'founded_at', 'milestone', 'fert_micro', 'last_tick_at',
         'siderurgica_lote_remainder', 'federation_id', 'federation_role',
+            'populacao',
+            'populacao_resto_milli',
     ];
 
     /**
@@ -42,6 +44,9 @@ class Colony extends Model
         'last_tick_at' => 'datetime',
         'fert_micro' => 'integer',
         'siderurgica_lote_remainder' => 'integer',
+            // A2.2: o total. Alocada em construções e em zonas são DERIVADAS — ver Domain\Populacao.
+        'populacao' => 'integer',
+        'populacao_resto_milli' => 'integer',
     ];
 
     public function user(): BelongsTo

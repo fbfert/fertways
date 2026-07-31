@@ -8453,3 +8453,111 @@ recompensas novas, e recompensa é emissão de Fert$: número que se arbitra, n�
 
 984 testes verdes (11 novos). Migration e comandos exercitados num **MariaDB descartável**: a coluna
 nasce `tinyint(1) default 0`, o seeder encadeia 1→2→3→4→5 e o grandfather roda limpo. Banco derrubado.
+
+---
+
+## D-167 — População (A2.2): o modelo entra desligado, e o simulador nasce junto
+
+**Data:** 2026-07-31 · **Status:** fase A2.2 + primeira entrega da trilha A2.S · **Backend**
+
+Dá enfim função à Estrutura de Sobrevivência, que o `Funcoes::CATALOGO` descreve há meses como
+`'efeito' => 'nenhum'`, com a nota honesta de que *"o GDD não diz quantos colonos ela abriga, nem o
+que a população faz"*. O **quanto** continua sendo arbitragem; o **que ela faz** deixa de ser nada.
+
+### ⚠️ Entra DESLIGADA, e a razão é a regra 9 do roadmap
+
+`population_settings.ativo` nasce `false`. O mundo não tem reset, e **todos** os parâmetros de
+população estão PENDENTE no `BALANCEAMENTO.md` §7.1 — nenhum saiu de simulação. Ligar consumo e
+crescimento com número de palpite mexeria na economia de um jogo que está no ar, com colônias reais,
+e o ledger é append-only: o estrago ficaria registrado para sempre.
+
+O critério de saída da fase é categórico: *"nenhum parâmetro populacional sai de HIPÓTESE sem uma
+rodada registrada do simulador da trilha A2.S"*. A ordem, portanto, é esta — o modelo existe, o
+simulador o exercita num mundo descartável, os números se arbitram com evidência, e só então a chave
+vira. **Virar a chave é decisão do usuário, não minha.**
+
+### O modelo (A2.2.1): só o total é guardado
+
+Os cinco estados que a fase pede — total, capacidade, alocada em construções, alocada em zonas,
+disponível — mas **apenas o total** vira coluna. As alocações são derivadas do que a colônia de fato
+tem erguido e ocupado: um contador paralelo criaria duas verdades sobre a mesma coisa, e a segunda
+dessincroniza na primeira demolição que alguém esquecer de descontar.
+
+**"Disponível" pode ser negativo, de propósito.** É o estado de quem foi grandfatherizado com folga
+curta ou perdeu população por escassez. Zerar o negativo esconderia exatamente o que o jogo precisa
+mostrar.
+
+### Sustento e crescimento (A2.2.2/A2.2.3): degrada, não mata
+
+Faltando insumo, a população **não morre**: a eficiência cai até um piso enquanto durar a falta. É a
+mesma escolha do §6.6 para zona abaixo dos operadores exigidos. Num jogo persistente sem reset,
+matar colono de quem passou o fim de semana fora não é dificuldade, é hostilidade.
+
+Duas regras que valem registro:
+
+- **O gargalo manda, não a média.** A razão de suprimento é a do recurso mais escasso. Média
+  esconderia o caso que interessa: nadando em água e sem oxigênio, a colônia teria razão "boa" e
+  cresceria rumo à asfixia.
+- **O teto trava, não derrama** — mesma regra que a A2.7 fixou para estoque.
+
+### Mão de obra (A2.2.4): tabela esparsa, e o requisito é do nível atual
+
+`building_operator_requirements` é esparsa: construção sem linha não exige ninguém. O requisito se
+afirma, nunca se herda de um default.
+
+E é o do **nível atual**, não a soma da escada: uma Fazenda 5 pede a equipe de uma Fazenda 5, não a
+de cinco fazendas. Somar faria o requisito explodir com o progresso e tornaria a expansão impossível
+por acidente aritmético.
+
+Fica **fora de `building_specs`** porque aquela tabela é gerada do GDD (`tools/gdd-v39.php`), e
+requisito de operador é arbitragem — como o teto do Depósito da Capital (D-58), que por isso mesmo
+vive no domínio e não no catálogo.
+
+### ⚠️ O simulador achou um defeito de modelo na primeira rodada
+
+A curva saiu **perfeitamente horizontal por 60 dias**: a população não crescia nunca. Com 5 colonos
+a 0,5%/h, um passo de uma hora dá 5,025, o `floor` devolve 5, e fica preso em 5 para sempre. Não é
+imprecisão — é travamento total.
+
+Corrigido com acumulador de resto fracionário (`colonies.populacao_resto_milli`), o mesmo idioma de
+`siderurgica_lote_remainder`, que a casa já usa para o lote da Indústria. Quando a casa já tem
+solução para o problema, inventar outra só cria duas formas de errar.
+
+**É exatamente para isto que a trilha existe**: o defeito morreu num mundo descartável, e não numa
+reclamação de jogador seis semanas depois.
+
+### A trilha A2.S, e como cada uma das suas quatro regras é cumprida
+
+1. **Reusa o domínio.** Chama `Ciclo::avancar()` e `Populacao::capacidade()` — as mesmas classes que
+   o tick chamará. Um simulador que reescreve a fórmula diverge do jogo na primeira mudança e passa
+   a mentir com aparência de autoridade.
+2. **Parâmetros da mesma fonte.** Lê `population_settings`, nunca uma cópia digitada.
+3. **Não deixa rastro.** Roda dentro de uma transação com `rollBack()` garantido no `finally`. Há
+   teste que conta colônias e usuários antes e depois.
+4. **Saída legível**: curva por dia, ponto de saturação, gargalo, e os parâmetros que a produziram.
+
+E ele **se recusa a inventar a métrica-chave**: o percentual de população comprometida (§7.3) sai
+como *"ainda não mensurável"* em vez de "0%", porque `building_operator_requirements` está vazia.
+Zero e ausência de dado são a mesma imagem na tela e coisas opostas na realidade — a mesma regra do
+painel de métricas (D-165).
+
+### A rodada 1, registrada no BALANCEAMENTO
+
+Teto atingido no dia 15, primeiro gargalo em **biomassa** no dia 19, eficiência estabilizando em
+**73,2%** com três essenciais em falta permanente. Pelo §7.3 isso é a faixa de *frustração*, não a de
+*decisão estratégica*: ou a produção de essenciais sobe, ou o consumo per capita cai.
+
+**Nenhum número foi promovido.** Continuam todos PENDENTE, e a arbitragem é do usuário.
+
+### O que a A2.2 ainda não entregou
+
+A A2.2.5 (equipe vinculada à zona) tem a conta pronta em `Populacao::alocadaEmZonas()` mas **não é
+cobrada** na ocupação — cobrar exigiria números arbitrados. E a A2.2.6 (grandfathering) tem a conta
+em `necessariaParaOQueJaTem()`, com a folga do §6.7, mas **não há comando de migração ainda**: ele
+só faz sentido depois de os requisitos de operador existirem, senão concederia zero a todo mundo.
+
+### Verificação
+
+998 testes verdes (14 novos). Migration exercitada num **MariaDB descartável** — a linha de
+parâmetros nasce com `ativo = 0` e o `JSON_EXTRACT` do mapa de zonas responde corretamente sobre o
+`longtext` com `CHECK (json_valid(...))` que o 10.5 usa no lugar de JSON nativo. Banco derrubado.
