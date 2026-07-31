@@ -72,19 +72,36 @@ class TelemetriaTest extends TestCase
     {
         $this->expectException(RuntimeException::class);
 
-        app(DirecaoDoLedger::class)->classificar('tipo_que_nao_existe');
+        app(DirecaoDoLedger::class)->contaNoFluxo('tipo_que_nao_existe');
     }
 
-    /** Nenhum tipo pode estar em dois baldes: a soma contaria duas vezes ou nenhuma. */
+    /** Nenhum tipo pode estar nos dois lados: contaria duas vezes ou nenhuma. */
     public function test_os_baldes_nao_se_sobrepoem(): void
     {
-        $todos = array_merge(
-            DirecaoDoLedger::ENTRADA,
-            DirecaoDoLedger::SAIDA,
-            DirecaoDoLedger::INDEFINIDO,
-        );
+        $todos = array_merge(DirecaoDoLedger::CONTA, DirecaoDoLedger::NAO_CONTA);
 
         $this->assertSame(count($todos), count(array_unique($todos)));
+    }
+
+    /**
+     * A direção sai do SINAL, e não de tabela — foi assim que a primeira versão errou.
+     *
+     * O ledger escreve saída como negativo (`'amount' => -$qtd`, em dezenove lugares do domínio).
+     * O banco de dev não tinha um único negativo, mas só porque não tinha uma única saída, e eu
+     * generalizei cedo demais. Este teste fixa o mundo real: mesmo tipo, sinais opostos, baldes
+     * opostos.
+     */
+    public function test_a_direcao_vem_do_sinal_e_nao_do_tipo(): void
+    {
+        $c = $this->colonia();
+        $this->lancar($c, 'producao', 100, 'metal_bruto', self::DIA.' 10:00:00');
+        $this->lancar($c, 'producao', -40, 'metal_bruto', self::DIA.' 11:00:00');
+
+        $this->artisan('fertways:telemetria-diaria', ['--dia' => self::DIA])->assertSuccessful();
+
+        $r = TelemetryDaily::firstOrFail();
+        $this->assertSame(100, $r->produzido);
+        $this->assertSame(40, $r->consumido, 'o consumo é guardado em valor absoluto');
     }
 
     // ───────────────────────────────────────────────────────────── append-only
@@ -205,7 +222,8 @@ class TelemetriaTest extends TestCase
         $c = $this->colonia();
         $this->lancar($c, 'producao', 100, 'metal_bruto', self::DIA.' 10:00:00');
         $this->lancar($c, 'producao', 50, 'metal_bruto', self::DIA.' 14:00:00');
-        $this->lancar($c, 'custo_construcao', 30, 'metal_bruto', self::DIA.' 15:00:00');
+        // Negativo, como `EnqueueUpgrade` de fato escreve.
+        $this->lancar($c, 'custo_construcao', -30, 'metal_bruto', self::DIA.' 15:00:00');
 
         $this->artisan('fertways:telemetria-diaria', ['--dia' => self::DIA])->assertSuccessful();
 
@@ -233,7 +251,7 @@ class TelemetriaTest extends TestCase
     }
 
     /** Escrow é mudança de lugar, não produção. Contá-lo inflaria a economia com dinheiro parado. */
-    public function test_tipo_indefinido_fica_fora_da_conta(): void
+    public function test_tipo_que_nao_conta_fica_fora(): void
     {
         $c = $this->colonia();
         $this->lancar($c, 'escrow_mercado', 999, 'metal_bruto', self::DIA.' 10:00:00');

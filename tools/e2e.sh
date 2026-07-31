@@ -204,6 +204,22 @@ $quebrado = app(App\Domain\Trade\ProporAcordo::class)->handle(
 );
 $quebrado->forceFill(["status" => "quebrado"])->save();
 
+/*
+ * A2.0.3, "Desde sua última visita". O marcador vai para 5 h atrás para que o resumo APAREÇA no
+ * primeiro login — é o que `resumo.e2e.mjs` precisa provar.
+ *
+ * E é por isso que ele roda PRIMEIRO na ordem lá embaixo: ao clicar em "Continuar" o marcador
+ * avança para agora, e o piso de uma hora do §5.1 silencia o modal para todas as suítes seguintes.
+ * Sem essa ordem, um popup `fixed inset-0` ficaria interceptando os cliques de todo o resto.
+ *
+ * Uma produção datada dentro da janela, para o resumo ter conteúdo além do saldo da fundação.
+ */
+$u->forceFill(["resumo_visto_em" => now()->subHours(5)])->save();
+App\Models\Ledger::create([
+    "colony_id" => $c->id, "type" => "producao", "amount" => 250,
+    "resource_type" => "metal_bruto", "created_at" => now()->subHours(2),
+]);
+
 // O colono do e2e é conciliador: é o cargo que faz aparecer a aba "A julgar" (§9.3).
 $u->forceFill(["conciliador_desde" => now()])->save();
 
@@ -288,6 +304,10 @@ cd "$RAIZ/frontend"
 # porque espera os três furgões ociosos, no pátio; o do Mercado deixa dois em rota, e o do Acordo
 # despacha o terceiro. O da Fundação vem por último: funda uma quinta colônia, que mudaria as
 # contagens de colônias das telas anteriores.
+# PRIMEIRO, e a ordem é obrigatória: o resumo é um popup `fixed inset-0` que apareceria por cima
+# de tudo. Ele se dispensa ao ser fechado (o marcador avança e o piso de uma hora entra em vigor),
+# e é isso que deixa o caminho livre para as suítes seguintes.
+E2E_URL="http://127.0.0.1:$PORTA_WEB" node e2e/resumo.e2e.mjs
 E2E_URL="http://127.0.0.1:$PORTA_WEB" node e2e/telas.e2e.mjs
 # O Chat não mexe em veículo nem em recurso — só em mensagens — e por isso cabe em qualquer ponto
 # da ordem. Fica aqui, cedo, por não depender de nada que as telas seguintes ainda vão montar.

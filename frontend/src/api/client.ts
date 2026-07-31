@@ -925,6 +925,21 @@ export type MinhaFederacao = {
 
 export type FederationListItem = { id: number; name: string; membros: number; cheia: boolean }
 
+/** "Desde sua última visita" (A2.0.3; janela do GDD ALPHA 2 §5.1). */
+export type ResumoDeRetorno = {
+  mostrar: boolean
+  /** `primeira_vez` | `piso_de_uma_hora` | `sem_colonia` | `ok` — por que a tela aparece ou não. */
+  motivo: string
+  desde: string | null
+  ate: string
+  producao: { recurso: string; quantidade: number }[]
+  fert_ganho_micro: number
+  fert_gasto_micro: number
+  obras_concluidas: { tipo: string; nivel: number; em: string }[]
+  /** A janela existiu, mas nada aconteceu nela. É resultado legítimo, não erro. */
+  vazio: boolean
+}
+
 export const api = {
   register: (b: { name: string; nickname: string; email: string; password: string }) =>
     req<Sessao>('/register', { method: 'POST', body: JSON.stringify(b) }),
@@ -951,6 +966,13 @@ export const api = {
   logout: () => req<{ message: string }>('/logout', { method: 'POST' }),
 
   colonia: () => req<Colonia>('/colony'),
+
+  /*
+   * O GET **não** move o marcador — quem move é o `resumoVisto`, chamado ao FECHAR a tela. Se o GET
+   * movesse, abrir e fechar sem ler já teria consumido a janela (§5.1).
+   */
+  resumo: () => req<ResumoDeRetorno>('/resumo'),
+  resumoVisto: () => req<{ message: string }>('/resumo/visto', { method: 'POST' }),
 
   /**
    * Diretório de colônias, do vizinho mais próximo ao mais distante.
