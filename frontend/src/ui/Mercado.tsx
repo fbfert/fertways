@@ -1401,7 +1401,7 @@ function IconeDoLote({ leilao }: { leilao: Pick<Leilao, 'resource_type' | 'item_
   return (
     <span
       aria-hidden="true"
-      className="bg-ink text-sand-light inline-flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full px-1 text-[9px] leading-none font-bold"
+      className="bg-ink text-sand-light inline-flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full px-1 text-micro leading-none font-bold"
     >
       {sigla}
     </span>

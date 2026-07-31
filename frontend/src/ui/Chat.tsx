@@ -267,7 +267,7 @@ function Canal({
           maxLength={500}
           placeholder="Fale com o planeta… (@nickname cita alguém)"
           data-chat-texto
-          className="border-rust/30 bg-sand-light text-ink min-w-0 flex-1 border px-2 py-1 text-sm outline-none"
+          className="border-rust/30 bg-sand-light text-ink min-w-0 flex-1 border px-2 py-1 text-sm"
         />
         <button
           onClick={() => void falar()}
@@ -341,7 +341,7 @@ function Privadas({
               placeholder="Buscar por nickname ou nome da colônia…"
               autoFocus
               data-buscar-texto
-              className="border-rust/30 bg-sand-light text-ink min-w-0 flex-1 border px-2 py-1 text-sm outline-none"
+              className="border-rust/30 bg-sand-light text-ink min-w-0 flex-1 border px-2 py-1 text-sm"
             />
             <button
               onClick={() => {
@@ -393,7 +393,7 @@ function Privadas({
         >
           <strong className="text-rust">{c.nickname}</strong>
           {c.nao_lidas > 0 && (
-            <span className="bg-rust text-sand-light ml-2 rounded-full px-1.5 text-[10px] font-black" data-nao-lidas={c.nao_lidas}>
+            <span className="bg-rust text-sand-light ml-2 rounded-full px-1.5 text-micro font-black" data-nao-lidas={c.nao_lidas}>
               {c.nao_lidas}
             </span>
           )}
@@ -501,7 +501,7 @@ function Conversa({
           onKeyDown={(e) => e.key === 'Enter' && void falar()}
           maxLength={500}
           placeholder={`Para ${com.nickname}…`}
-          className="border-rust/30 bg-sand-light text-ink min-w-0 flex-1 border px-2 py-1 text-sm outline-none"
+          className="border-rust/30 bg-sand-light text-ink min-w-0 flex-1 border px-2 py-1 text-sm"
         />
         <button onClick={() => void falar()} className="bg-rust text-sand-light hover:bg-rust-bright px-3 text-sm font-bold">
           →

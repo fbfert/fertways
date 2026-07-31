@@ -103,10 +103,10 @@ export function Noticias() {
               <div className="text-ink font-black">
                 {n.title}
                 {n.kind === 'boletim' && (
-                  <span className="text-rust ml-2 text-[0.6rem] font-bold uppercase">boletim</span>
+                  <span className="text-rust ml-2 text-micro font-bold uppercase">boletim</span>
                 )}
               </div>
-              <div className="text-ink-soft/60 eyebrow text-[0.6rem]">
+              <div className="text-ink-soft/60 eyebrow text-micro">
                 {n.author} · {dataHumana(n.published_at)}
               </div>
               <p className="text-ink-soft mt-1 whitespace-pre-line text-sm">{n.body}</p>

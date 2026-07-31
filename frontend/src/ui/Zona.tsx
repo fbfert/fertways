@@ -756,7 +756,7 @@ function ColmeiaDaZona({
               x={c.x}
               y={c.y + 4}
               textAnchor="middle"
-              className="pointer-events-none select-none text-[9px] font-bold"
+              className="pointer-events-none select-none text-micro font-bold"
               fill={preenchido ? 'var(--color-ink)' : 'var(--color-ink-soft)'}
             >
               {trancado ? '🔒' : rotulo}

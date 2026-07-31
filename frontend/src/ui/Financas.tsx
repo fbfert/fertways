@@ -114,7 +114,7 @@ function Indicador({ rotulo, valor }: { rotulo: string; valor: string }) {
   return (
     <li className="border-rust/20 bg-sand border p-2 text-center">
       <div className="text-ink text-lg font-black tabular-nums">{valor}</div>
-      <div className="text-ink-soft eyebrow text-[0.6rem]">{rotulo}</div>
+      <div className="text-ink-soft eyebrow text-micro">{rotulo}</div>
     </li>
   )
 }
