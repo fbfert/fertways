@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Domain\Admin\Suspender;
+use App\Domain\Telemetria\RegistrarEvento;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -74,6 +75,16 @@ class AuthController extends Controller
             ]);
         }
 
+        /*
+         * Telemetria (A2.0.1). O login é o único evento que o ledger nunca verá — ele registra fato
+         * econômico, e entrar no jogo não é um. Sem isto não há DAU, não há duração de sessão e não
+         * há intervalo entre sessões: as três derivam deste par login/logout.
+         *
+         * Depois da suspensão, de propósito: tentativa barrada não é sessão, e contá-la inflaria o
+         * DAU com gente que não entrou.
+         */
+        app(RegistrarEvento::class)->handle('login', $user);
+
         return response()->json([
             'token' => $user->createToken('fertways')->plainTextToken,
             'user' => ['id' => $user->id, 'nickname' => $user->nickname],
@@ -99,6 +110,14 @@ class AuthController extends Controller
         if ($token instanceof PersonalAccessToken) {
             $token->delete();
         }
+
+        /*
+         * O par do `login`. A duração da sessão é a diferença entre os dois — e por isso ela vai
+         * sair torta para quem simplesmente fecha a aba, que é a maioria. Isso não é defeito deste
+         * registro: é o limite de medir sessão sem heartbeat, e o painel (A2.0.2) vai precisar
+         * dizer isso em vez de apresentar uma mediana que finge não ter esse viés.
+         */
+        app(RegistrarEvento::class)->handle('logout', $request->user());
 
         return response()->json(['message' => 'Sessão encerrada.']);
     }

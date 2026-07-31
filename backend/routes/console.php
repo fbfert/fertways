@@ -13,3 +13,27 @@ Schedule::command('fertways:tick')
     ->everyMinute()
     ->withoutOverlapping(10)
     ->runInBackground();
+
+/**
+ * Telemetria (A2.0.1.1). Sem estas duas linhas, tudo o que a fase A2.0 construiu fica inerte: o
+ * retrato diário nunca é escrito e os eventos crescem sem fim. É o mesmo esquecimento silencioso
+ * que já aconteceu com seeders de produção (D-57, D-52, D-60) — a estrutura existe, ninguém a
+ * aciona, e a falha não faz barulho nenhum.
+ *
+ * **A ordem entre as duas não é estética.** O agregado do dia tem que existir ANTES de o evento
+ * daquele dia ser descartado. Como a retenção é de 90 dias e a agregação é diária, a folga é
+ * enorme — mas o horário deixa a intenção escrita: agrega às 00h10, varre às 03h.
+ */
+Schedule::command('fertways:telemetria-diaria')
+    ->dailyAt('00:10')
+    ->withoutOverlapping()
+    ->runInBackground();
+
+/*
+ * `--aplicar` porque no agendamento não há ninguém para ler um relatório e confirmar. O modo seco
+ * existe para a mão humana; aqui ele só faria a tabela crescer para sempre em silêncio.
+ */
+Schedule::command('fertways:telemetria-limpar --aplicar')
+    ->dailyAt('03:00')
+    ->withoutOverlapping()
+    ->runInBackground();
