@@ -22,31 +22,26 @@ class Atribuir
 
     public const FEDERACAO_POR_SEMANA = 2;
 
-    /** As 5 da tutoria, na fundação — "5 missões, dias 1 a 3" (§06): expiram em 3 dias. */
+    /**
+     * A tutoria, na fundação (A2.1).
+     *
+     * **Era uma lista plana de 5, entregues de uma vez e expirando em 3 dias.** Virou uma sequência
+     * encadeada que não expira — o mesmo mecanismo da narrativa (D-140), agora generalizado em
+     * `garantirEncadeada()`.
+     *
+     * Duas razões para não expirar mais:
+     *
+     * - a fase obrigatória não pode expirar por definição: uma etapa que o colono é obrigado a
+     *   cumprir e que some sozinha em 3 dias é uma contradição;
+     * - e expirar o meio de uma sequência deixaria o colono ENCALHADO — o degrau seguinte só chega
+     *   quando o anterior conclui, então um degrau expirado tranca a escada inteira.
+     *
+     * Entrega só o primeiro degrau aqui; os demais chegam por `garantirEncadeada()`, chamada a cada
+     * pedido de `MissoesController::index()`.
+     */
     public function tutoria(Colony $colony): void
     {
-        $agora = now();
-
-        $linhas = MissionTemplate::where('categoria', 'tutoria')->where('ativa', true)
-            ->orderBy('id')
-            ->get()
-            ->map(fn (MissionTemplate $t) => [
-                'colony_id' => $colony->id,
-                'template_id' => $t->id,
-                'categoria' => 'tutoria',
-                'acao' => $t->acao,
-                'progresso' => 0,
-                'meta' => $t->meta,
-                'status' => 'ativa',
-                'expires_at' => $agora->copy()->addDays(3),
-                'created_at' => $agora,
-            ])
-            ->all();
-
-        // Banco sem o catálogo (testes que não semeiam missões): nada a entregar, nada a quebrar.
-        if ($linhas !== []) {
-            MissionAssignment::insert($linhas);
-        }
+        $this->garantirEncadeada($colony, 'tutoria');
     }
 
     /** Garante as missões da janela corrente e devolve todas as visíveis. */
@@ -235,12 +230,25 @@ class Atribuir
      * `sortear()` (não repetir template na mesma janela), só que aqui a "janela" é a vida inteira
      * da colônia.
      */
+    /** Compatibilidade: a narrativa é só um caso da sequência encadeada. */
     public function garantirNarrativa(Colony $colony): void
     {
-        DB::transaction(function () use ($colony) {
+        $this->garantirEncadeada($colony, 'narrativa');
+    }
+
+    /**
+     * Entrega o próximo degrau de uma sequência encadeada — narrativa (D-140) ou tutoria (A2.1).
+     *
+     * Cada template chega à colônia UMA VEZ SÓ, na ordem do catálogo, e só depois de o anterior
+     * (`requer_template_id`) estar `concluida`. Sem ciclo, sem sorteio e sem expiração: aqui a
+     * "janela" é a vida inteira da colônia.
+     */
+    public function garantirEncadeada(Colony $colony, string $categoria): void
+    {
+        DB::transaction(function () use ($colony, $categoria) {
             Colony::whereKey($colony->id)->lockForUpdate()->first();
 
-            $templates = MissionTemplate::where('categoria', 'narrativa')->where('ativa', true)
+            $templates = MissionTemplate::where('categoria', $categoria)->where('ativa', true)
                 ->orderBy('id')
                 ->get();
 
@@ -249,7 +257,7 @@ class Atribuir
             }
 
             $existentes = MissionAssignment::where('colony_id', $colony->id)
-                ->where('categoria', 'narrativa')
+                ->where('categoria', $categoria)
                 ->get()
                 ->keyBy('template_id');
 
@@ -270,7 +278,7 @@ class Atribuir
                 MissionAssignment::create([
                     'colony_id' => $colony->id,
                     'template_id' => $t->id,
-                    'categoria' => 'narrativa',
+                    'categoria' => $categoria,
                     'acao' => $t->acao,
                     'progresso' => 0,
                     'meta' => $t->meta,

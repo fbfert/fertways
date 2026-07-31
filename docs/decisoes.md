@@ -8342,3 +8342,114 @@ métricas, porque é o tipo que alguém usa para decidir balanceamento.
 973 testes verdes (13 novos), **incluindo dois que renderizam a página de verdade** — uma view Blade
 quebra em runtime, e nenhum teste dos indicadores pegaria isso. E os indicadores foram exercitados
 contra o **MariaDB de dev**, por leitura, que é o que achou o nome de coluna errado.
+
+---
+
+## D-166 — Onboarding produtivo (A2.1): a fase era menor do que o plano supunha
+
+**Data:** 2026-07-31 · **Status:** fase A2.1 do `docs/alpha2/ROADMAP_ALPHA2.md` · **Backend**
+
+O roadmap previa duas adaptações no motor de Missões. O confronto com o código mudou o tamanho das
+duas — para menos, e por bons motivos.
+
+### A premissa "missão é recusável" não se sustenta
+
+O plano dizia: *"missão hoje é recusável; a fase obrigatória mínima não pode ser"*. **Não existe
+mecanismo de recusa no código** — nada de botão "abandonar", nada de status `recusada`. O que
+tornava a tutoria dispensável era outra coisa: ela **expirava em 3 dias** e nada acontecia se o
+colono simplesmente a ignorasse.
+
+### E o encadeamento obrigatório já existia
+
+A categoria `narrativa` (D-140) já é encadeada por `requer_template_id`, entrega um capítulo por vez
+e **não expira** (`expires_at` nulo). É exatamente a forma que o onboarding pede.
+
+Então não houve mecanismo novo a construir: `garantirNarrativa()` virou
+`garantirEncadeada($colony, $categoria)` e a tutoria passou a usá-la. Sobrou **uma coluna** —
+`mission_templates.obrigatoria` —, porque o encadeamento diz a ordem, não a obrigação.
+
+### A regra que decide o que é obrigatório
+
+**Só pode ser obrigatória a etapa que um jogador sozinho conclui.**
+
+O próprio roadmap exige que "o tutorial não dependa de uma oferta real de outro jogador" — e num
+servidor recém-aberto, ou às quatro da manhã, não há outro jogador. Travar o onboarding numa compra
+que precisa de contraparte prenderia o colono numa porta que não depende dele.
+
+Por isso obrigatórias são só as duas primeiras, que ensinam o coração do jogo em solidão: erguer e
+esperar o tick (`tut_primeira_obra`), despachar e descobrir que o planeta é físico
+(`tut_primeiro_despacho`). `tut_primeiro_lote` exige contraparte no Mercado — fica como sugestão,
+nunca como trava.
+
+### A tutoria não expira mais
+
+Duas razões: uma etapa obrigatória que some sozinha em 3 dias é uma contradição; e expirar o meio de
+uma sequência deixaria o colono **encalhado**, porque o degrau seguinte só nasce quando o anterior
+conclui — um degrau expirado tranca a escada inteira.
+
+### O grandfathering, e por que ele não paga
+
+`fertways:onboarding-grandfather --aplicar` marca as etapas como concluídas nas colônias que já
+existiam, **sem pagar recompensa** (GDD ALPHA 2 §4.3). Sem ele, o motor entregaria a
+`tut_primeira_obra` a quem já ergueu cinquenta níveis, ela concluiria no primeiro tick, e a
+recompensa cairia no ledger — corretamente registrada, o que é o pior do problema, porque o ledger é
+append-only e não se desfaz.
+
+As linhas entram direto como `concluida`, **sem passar pelo `Progresso`**, que é justamente quem
+paga. É a diferença entre "marcar como visto" e "cumprir".
+
+### ⚠️ Dois bugs que só os testes acharam, os dois silenciosos
+
+- **`<` contra `now()` num `created_at` de precisão de SEGUNDO.** A colônia criada no mesmo segundo
+  do corte ficava de fora. Em produção quase nunca apareceria — as colônias são velhas —, e é
+  exatamente por isso que teria sobrevivido.
+- **Projeção sem `id`.** `->get(['colony_id', 'template_id', 'status'])` faz `getKey()` devolver
+  **null**, e o `whereIn('id', [null])` da promoção não atingia linha nenhuma. Falha muda: o comando
+  relatava sucesso e não promovia nada.
+
+O segundo mascarou o primeiro por um tempo, e um terceiro teste passava em verde **porque nada
+acontecia** — o de "não paga recompensa" naturalmente passa quando o comando não faz nada. Verde por
+inação é o pior tipo de verde.
+
+### Um teste antigo mudou de regra, e não foi apagado
+
+`MissoesTest::test_a_fundacao_entrega_as_cinco_da_tutoria_com_tres_dias_de_prazo` afirmava o
+comportamento anterior. Virou `test_a_fundacao_entrega_so_o_primeiro_degrau_da_tutoria`, com o
+porquê escrito no docblock. O "5" do §06 não se perdeu — continua sendo cinco etapas, e
+`test_o_pool_publicado_existe` guarda isso; o que mudou é **como** elas chegam.
+
+### ⚠️ Achado à parte: `tutorial_completed_at` mente
+
+O campo é escrito **dentro do `CreateColony`** — ou seja, significa "já fundou colônia", não
+"completou a tutoria". E `tutoriaConcluida()` é a trava do subsídio em `BuildingController`, o que
+torna essa condição **sempre verdadeira** para quem tem colônia.
+
+Não mexi: alterar isso mudaria a economia do subsídio, que é decisão de jogo e não de refatoração.
+Fica registrado porque o próximo que ler aquele `if` vai supor outra coisa.
+
+### ⚠️ Passos à mão na publicação
+
+O `deploy.sh` **não roda seeders** (mesma armadilha do D-52, D-57 e D-60). Depois de publicar:
+
+1. `php84 artisan db:seed --class=MissionTemplateSeeder --force` — sem isto a cadeia e a marca de
+   obrigatoriedade não existem em produção, e a tutoria continua plana.
+2. `php84 artisan fertways:onboarding-grandfather --aplicar` — **nesta ordem**, e antes de qualquer
+   jogador entrar. Rodar depois significa que alguém já pegou a recompensa.
+
+### O que a A2.1 NÃO entregou, e por quê
+
+O roadmap lista uma sequência de **14 passos**. Os cinco primeiros (Energia, Oxigênio, Água,
+Biomassa, Produção/h e consumo/h) são etapas de **compreensão**, não de ação: o motor não tem verbo
+para "entendeu energia", e inventar um significaria uma missão que se conclui sozinha ao abrir uma
+tela. Esses pertencem ao trabalho de HUD da A2.V2, onde o roadmap já os coloca ("alertas de
+produção").
+
+Os passos de fila, processamento e depósito precisariam de verbos novos em `Acoes::TODAS`
+(`obra_enfileirada`, `receita_produzida`, `deposito_feito`), cada um com instrumentação no domínio
+correspondente. É trabalho real, delimitado, e fica anotado — não foi feito porque acrescentaria
+recompensas novas, e recompensa é emissão de Fert$: número que se arbitra, não se inventa.
+
+### Verificação
+
+984 testes verdes (11 novos). Migration e comandos exercitados num **MariaDB descartável**: a coluna
+nasce `tinyint(1) default 0`, o seeder encadeia 1→2→3→4→5 e o grandfather roda limpo. Banco derrubado.

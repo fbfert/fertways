@@ -24,7 +24,8 @@ class MissionTemplateSeeder extends Seeder
             MissionTemplate::updateOrCreate(['chave' => $t['chave']], $t);
         }
 
-        $this->encadearNarrativa();
+        $this->encadear('narrativa', $this->narrativa());
+        $this->encadear('tutoria', $this->tutoria());
     }
 
     private function catalogo(): array
@@ -32,25 +33,8 @@ class MissionTemplateSeeder extends Seeder
         $f = fn (float $fert) => (int) round($fert * 1_000_000);
 
         // ── A TUTORIA (§06: "5 missões — dias 1 a 3"; §03 desenha os gestos) ──
-        $tutoria = [
-            ['chave' => 'tut_primeira_obra', 'titulo' => 'A primeira obra',
-             'descricao' => 'Conclua 1 nível de construção — enfileire um upgrade e espere o tick entregar.',
-             'acao' => 'obra_concluida', 'meta' => 1, 'fert' => 6.0, 'xp' => 100, 'rec' => null],
-            ['chave' => 'tut_primeiro_despacho', 'titulo' => 'Pé na estrada',
-             'descricao' => 'Despache um veículo para qualquer destino — o planeta é físico, e tudo viaja.',
-             'acao' => 'despacho', 'meta' => 1, 'fert' => 6.0, 'xp' => 100, 'rec' => null],
-            ['chave' => 'tut_primeiro_lote', 'titulo' => 'O primeiro lote',
-             'descricao' => 'Compre no Mercado Central — os seus 50 Fert$ iniciais existem para isto (§03).',
-             'acao' => 'mercado_executado', 'meta' => 1, 'fert' => 6.0, 'xp' => 100,
-             'rec' => ['ligas_metalicas' => 200]],
-            ['chave' => 'tut_primeira_oferta', 'titulo' => 'Do outro lado do balcão',
-             'descricao' => 'Coloque uma ordem no Mercado Central — venda ou compra, a vitrine é sua.',
-             'acao' => 'ordem_colocada', 'meta' => 1, 'fert' => 6.0, 'xp' => 100, 'rec' => null],
-            ['chave' => 'tut_primeira_voz', 'titulo' => 'No rádio do planeta',
-             'descricao' => 'Fale num canal público do chat — Fertways é feito de vizinhos.',
-             'acao' => 'chat_mensagem', 'meta' => 1, 'fert' => 6.0, 'xp' => 100,
-             'rec' => ['biocombustivel' => 100]],
-        ];
+        $tutoria = $this->tutoria();
+
 
         // ── AS DIÁRIAS (pool de 30+; "Fert$, recursos OU XP" — cada molde paga UMA classe) ──
         $diarias = [
@@ -131,6 +115,8 @@ class MissionTemplateSeeder extends Seeder
             'recompensa_fert_micro' => $f($t['fert']),
             'recompensa_xp' => $t['xp'],
             'recompensa_recursos' => $t['rec'],
+            // Ausente = false: obrigatoriedade é afirmação explícita, nunca herança de default.
+            'obrigatoria' => $t['obrigatoria'] ?? false,
             'ativa' => true,
         ], $lista);
 
@@ -196,11 +182,62 @@ class MissionTemplateSeeder extends Seeder
      * resolver isso no mesmo `updateOrCreate` que cria os dois. Rodado depois de `catalogo()`
      * já ter semeado tudo, então toda `chave` da cadeia já tem linha (e id) no banco.
      */
-    private function encadearNarrativa(): void
-    {
-        $porChave = MissionTemplate::where('categoria', 'narrativa')->pluck('id', 'chave');
 
-        foreach ($this->narrativa() as $t) {
+    /**
+     * A tutoria, extraída para método próprio como a narrativa (A2.1).
+     *
+     * Precisa ser método, e não variável local de `catalogo()`, porque `encadear()` roda DEPOIS do
+     * `updateOrCreate` e precisa reler a mesma lista para resolver `requer` (chave) em
+     * `requer_template_id` (id) — o id só existe depois da semeadura.
+     */
+    private function tutoria(): array
+    {
+        /*
+         * ── A TUTORIA, agora ENCADEADA E COM FASE OBRIGATÓRIA (A2.1) ──
+         *
+         * Era uma lista plana de 5 missões entregues de uma vez e que EXPIRAVAM em 3 dias. Vira
+         * uma sequência: cada etapa só chega quando a anterior é concluída, e as obrigatórias não
+         * expiram (mesmo mecanismo da narrativa, D-140).
+         *
+         * ⚠️ **A regra que decide o que é obrigatório**: só pode ser obrigatória a etapa que um
+         * jogador SOZINHO consegue concluir. O próprio roadmap da A2.1 exige que "o tutorial não
+         * dependa de uma oferta real de outro jogador" — e num servidor recém-aberto, ou às 4 da
+         * manhã, não há outro jogador. Travar o onboarding numa compra que precisa de contraparte
+         * seria prender o colono numa porta que não depende dele.
+         *
+         * Por isso obrigatórias são só as duas primeiras, que ensinam o coração do jogo e se
+         * fazem em solidão: erguer e esperar o tick; despachar e ver que o planeta é físico.
+         * `tut_primeiro_lote` exige contraparte no Mercado — fica como sugestão, nunca como trava.
+         */
+        return [
+            ['chave' => 'tut_primeira_obra', 'titulo' => 'A primeira obra',
+             'descricao' => 'Conclua 1 nível de construção — enfileire um upgrade e espere o tick entregar.',
+             'acao' => 'obra_concluida', 'meta' => 1, 'fert' => 6.0, 'xp' => 100, 'rec' => null,
+             'obrigatoria' => true],
+            ['chave' => 'tut_primeiro_despacho', 'titulo' => 'Pé na estrada',
+             'descricao' => 'Despache um veículo para qualquer destino — o planeta é físico, e tudo viaja.',
+             'acao' => 'despacho', 'meta' => 1, 'fert' => 6.0, 'xp' => 100, 'rec' => null,
+             'obrigatoria' => true, 'requer' => 'tut_primeira_obra'],
+            ['chave' => 'tut_primeiro_lote', 'titulo' => 'O primeiro lote',
+             'descricao' => 'Compre no Mercado Central — os seus 50 Fert$ iniciais existem para isto (§03).',
+             'acao' => 'mercado_executado', 'meta' => 1, 'fert' => 6.0, 'xp' => 100,
+             'rec' => ['ligas_metalicas' => 200], 'requer' => 'tut_primeiro_despacho'],
+            ['chave' => 'tut_primeira_oferta', 'titulo' => 'Do outro lado do balcão',
+             'descricao' => 'Coloque uma ordem no Mercado Central — venda ou compra, a vitrine é sua.',
+             'acao' => 'ordem_colocada', 'meta' => 1, 'fert' => 6.0, 'xp' => 100, 'rec' => null,
+             'requer' => 'tut_primeiro_lote'],
+            ['chave' => 'tut_primeira_voz', 'titulo' => 'No rádio do planeta',
+             'descricao' => 'Fale num canal público do chat — Fertways é feito de vizinhos.',
+             'acao' => 'chat_mensagem', 'meta' => 1, 'fert' => 6.0, 'xp' => 100,
+             'rec' => ['biocombustivel' => 100], 'requer' => 'tut_primeira_oferta'],
+        ];
+    }
+
+    private function encadear(string $categoria, array $lista): void
+    {
+        $porChave = MissionTemplate::where('categoria', $categoria)->pluck('id', 'chave');
+
+        foreach ($lista as $t) {
             if (! isset($t['requer'])) {
                 continue;
             }

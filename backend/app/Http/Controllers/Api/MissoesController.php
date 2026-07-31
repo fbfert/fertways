@@ -35,6 +35,12 @@ class MissoesController extends Controller
 
         // Narrativa (D-140): sem janela — um capítulo, uma vez, entregue quando o anterior fecha.
         $atribuir->garantirNarrativa($colony);
+        /*
+         * A tutoria virou sequência encadeada (A2.1) e por isso precisa ser garantida a cada
+         * pedido, como a narrativa: o degrau seguinte só nasce depois de o anterior concluir, e
+         * quem conclui é o tick ou uma ação do colono — não este controller.
+         */
+        $atribuir->garantirEncadeada($colony, 'tutoria');
         $missoes = $missoes->concat(
             MissionAssignment::with('template')
                 ->where('colony_id', $colony->id)
