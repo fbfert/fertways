@@ -248,6 +248,137 @@ class PopulacaoTest extends TestCase
         $this->assertSame($esperado, app(Populacao::class)->necessariaParaOQueJaTem($c->fresh(['buildings'])));
     }
 
+    // ────────────────────────── a ligação ao tick
+
+    /**
+     * ⚠️ A chave-mestra tem de ser mesmo uma chave.
+     *
+     * Antes desta ligação, `population_settings.ativo` não era lido por ninguém: virá-la seria um
+     * no-op, e quem a virasse acreditaria ter ligado a população. Este par de testes é o que impede
+     * a chave de voltar a ser decorativa.
+     */
+    public function test_desligada_o_tick_nao_mexe_na_populacao(): void
+    {
+        $c = $this->colonia(3, 10);
+        $c->update(['last_tick_at' => now()->subHours(48)]);
+        $this->comEstoque($c);
+
+        app(\App\Domain\Production\ColonyTick::class)->handle($c, now());
+
+        $this->assertSame(10, (int) $c->fresh()->populacao, 'com a chave desligada, nada acontece');
+    }
+
+    public function test_ligada_o_tick_faz_crescer_e_consumir(): void
+    {
+        DB::table('population_settings')->where('id', 1)->update(['ativo' => true]);
+
+        $c = $this->colonia(3, 10);
+        $c->update(['last_tick_at' => now()->subHours(48)]);
+        $this->comEstoque($c);
+
+        $aguaAntes = (int) $c->resources()->where('resource_type', 'agua')->value('amount');
+
+        app(\App\Domain\Production\ColonyTick::class)->handle($c, now());
+
+        $depois = $c->fresh();
+        $this->assertGreaterThan(10, (int) $depois->populacao, 'em 48 h de fartura a população anda');
+        $this->assertLessThan(
+            $aguaAntes,
+            (int) $c->resources()->where('resource_type', 'agua')->value('amount'),
+            'e os colonos bebem',
+        );
+    }
+
+    private function comEstoque(Colony $c): void
+    {
+        foreach (['agua', 'oxigenio', 'biomassa', 'energia'] as $r) {
+            $c->resources()->create(['resource_type' => $r, 'amount' => 100000]);
+        }
+    }
+
+    // ────────────────────────── o grandfathering e a ativação
+
+    /**
+     * Sem grandfathering, ligar a população deixaria toda colônia em déficit permanente.
+     *
+     * `Ciclo::avancar()` devolve cedo quando o total é zero — população zero **não cresce sozinha**,
+     * por construção: não há de quem nascer ninguém. É por isso que o comando tem de rodar ANTES da
+     * chave, e não depois.
+     */
+    public function test_populacao_zero_nunca_cresce_sozinha(): void
+    {
+        $c = $this->colonia(3, 0);
+
+        $r = app(Ciclo::class)->avancar($c, [
+            'agua' => 999999, 'oxigenio' => 999999, 'biomassa' => 999999, 'energia' => 999999,
+        ], 240.0);
+
+        $this->assertSame(0, $r['populacao_nova']);
+        $this->assertFalse($r['cresceu']);
+    }
+
+    public function test_o_grandfather_povoa_para_operar_o_que_ja_existe(): void
+    {
+        $c = $this->colonia(3, 0);
+        $c->buildings()->create(['type' => 'fazenda', 'level' => 2]);
+
+        DB::table('building_operator_requirements')->insert([
+            'building_type' => 'fazenda', 'level' => 2, 'operadores' => 5,
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        $this->artisan('fertways:populacao-grandfather', ['--aplicar' => true])->assertSuccessful();
+
+        // 5 exigidos + 20% de folga (§6.7) = 6.
+        $this->assertSame(6, (int) $c->fresh()->populacao);
+    }
+
+    /** Quem não exige operador nenhum ainda recebe 1: zero nunca cresceria. */
+    public function test_o_grandfather_da_piso_de_um(): void
+    {
+        $c = $this->colonia(1, 0);
+
+        $this->artisan('fertways:populacao-grandfather', ['--aplicar' => true])->assertSuccessful();
+
+        $this->assertSame(1, (int) $c->fresh()->populacao);
+    }
+
+    /** Repetível sem estrago: quem já tem população não é reescrito. */
+    public function test_o_grandfather_nao_reescreve_quem_ja_tem(): void
+    {
+        $c = $this->colonia(3, 42);
+
+        $this->artisan('fertways:populacao-grandfather', ['--aplicar' => true])->assertSuccessful();
+
+        $this->assertSame(42, (int) $c->fresh()->populacao);
+    }
+
+    /** O teto habitacional limita a concessão — o aviso do §7.1. */
+    public function test_o_grandfather_respeita_o_teto_habitacional(): void
+    {
+        $c = $this->colonia(1, 0);
+        $c->buildings()->create(['type' => 'fazenda', 'level' => 2]);
+
+        DB::table('building_operator_requirements')->insert([
+            'building_type' => 'fazenda', 'level' => 2, 'operadores' => 99999,
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        $this->artisan('fertways:populacao-grandfather', ['--aplicar' => true])->assertSuccessful();
+
+        $capacidade = app(Populacao::class)->capacidade($c->fresh(['buildings']));
+        $this->assertSame($capacidade, (int) $c->fresh()->populacao);
+    }
+
+    public function test_o_grandfather_sem_aplicar_nao_povoa(): void
+    {
+        $c = $this->colonia(3, 0);
+
+        $this->artisan('fertways:populacao-grandfather')->assertSuccessful();
+
+        $this->assertSame(0, (int) $c->fresh()->populacao);
+    }
+
     // ────────────────────────────────────────────── a trilha A2.S
 
     /**

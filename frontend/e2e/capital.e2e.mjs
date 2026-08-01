@@ -207,6 +207,19 @@ try {
   )
   checar(await esperarTexto(page, /50 F\$/), 'o anúncio aparece na vitrine com o preço pedido')
 
+  /*
+   * `waitForSelector` antes do clique, e a diferença já custou dois vermelhos nesta base.
+   *
+   * `page.click` do Puppeteer **não espera**: se o botão ainda não foi renderizado, ele lança "No
+   * element found for selector" na hora. A asserção anterior usa `esperarTexto`, que insiste — e o
+   * clique logo abaixo não insistia, então uma renderização um pouco mais lenta reprovava a suíte
+   * com o jogo perfeito. Foi o que aconteceu em 2026-07-31: vermelho numa execução, verde na
+   * seguinte, com o código idêntico.
+   *
+   * Mesma cura do `chat.e2e.mjs` (D-164). Se o botão não existir mesmo, os 8 s se esgotam e isto
+   * reprova — o que muda é parar de confundir "ainda não chegou" com "não existe".
+   */
+  await page.waitForSelector('[data-cancelar-anuncio]', { timeout: 8000 })
   await page.click('[data-cancelar-anuncio]')
   checar(await esperarTexto(page, /Anúncio retirado/), 'o vendedor pode retirar o anúncio')
 
