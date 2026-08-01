@@ -43,7 +43,12 @@ class SimularPopulacao extends Command
         {--populacao-inicial=5 : com quantos colonos a colônia começa}
         {--nivel-habitacao=1 : nível da Estrutura de Sobrevivência}
         {--producao= : produção por hora, ex.: agua:40,oxigenio:30,biomassa:20,energia:50}
-        {--estoque-inicial=100 : de cada essencial, no começo}';
+        {--estoque-inicial=100 : de cada essencial, no começo}
+        {--consumo= : sobrepõe o consumo por colono/hora, em milésimos: agua:100,oxigenio:120,biomassa:80,energia:60}
+        {--crescimento= : sobrepõe o crescimento por hora, em bps (50 = 0,5%/h)}
+        {--capacidade-base= : sobrepõe a capacidade da Estrutura de Sobrevivência no nível 1}
+        {--operadores= : operadores exigidos por NÍVEL de construção produtora (torna mensurável o §7.3)}
+        {--predios= : a colônia simulada, ex.: fazenda:3,captacao_de_agua:3,gerador_de_atmosfera:3,reator_de_energia:3}';
 
     protected $description = 'Trilha A2.S: exercita o modelo de população real num mundo descartável';
 
@@ -53,6 +58,14 @@ class SimularPopulacao extends Command
         $passo = max(0.01, (float) $this->option('passo-horas'));
         $producao = $this->parseProducao((string) ($this->option('producao') ?? ''));
 
+        /*
+         * ⚠️ As sobreposições são gravadas DENTRO da transação que será revertida — ver `handle()`.
+         * É o que permite comparar configurações sem tocar no `population_settings` de verdade: a
+         * arbitragem precisa de várias rodadas, e nenhuma delas pode deixar rastro.
+         */
+        DB::beginTransaction();
+
+        $this->aplicarSobreposicoes();
         $parametros->recarregar();
         $p = $parametros->todos();
 
@@ -69,8 +82,6 @@ class SimularPopulacao extends Command
          * rodada; a transação dá a mesma garantia por um custo muito menor. O que ele NÃO pode é
          * rodar contra produção com `--aplicar` nenhum — e por isso não existe `--aplicar`.
          */
-        DB::beginTransaction();
-
         try {
             $linhas = $this->rodar($dias, $passo, $producao, $populacao, $ciclo);
             $this->imprimirCurva($linhas, $dias);
@@ -84,9 +95,76 @@ class SimularPopulacao extends Command
         return self::SUCCESS;
     }
 
+    /**
+     * Grava as sobreposições da rodada. Dentro da transação, então nada sobrevive.
+     *
+     * Existe para a **arbitragem**: comparar quatro configurações exige quatro rodadas, e mexer no
+     * `population_settings` de verdade entre elas deixaria o banco num estado que ninguém escolheu.
+     */
+    private function aplicarSobreposicoes(): void
+    {
+        $mudanca = [];
+
+        foreach ($this->parseConsumo((string) ($this->option('consumo') ?? '')) as $recurso => $milli) {
+            $mudanca[$recurso.'_milli_por_colono_hora'] = $milli;
+        }
+
+        if ($this->option('crescimento') !== null) {
+            $mudanca['crescimento_bps_hora'] = (int) $this->option('crescimento');
+        }
+
+        if ($this->option('capacidade-base') !== null) {
+            $mudanca['capacidade_base'] = (int) $this->option('capacidade-base');
+        }
+
+        if ($mudanca !== []) {
+            DB::table('population_settings')->where('id', 1)->update($mudanca);
+        }
+
+        /*
+         * Requisitos de operador, para o §7.3 deixar de sair como "não medível". A regra é a mais
+         * simples que respeita o princípio do §7.4 — "poucos humanos operam muitos robôs": N
+         * operadores por NÍVEL de construção produtora. É HIPÓTESE como todo o resto.
+         */
+        if ($this->option('operadores') !== null) {
+            $porNivel = max(0, (int) $this->option('operadores'));
+            $linhas = [];
+
+            foreach (DB::table('building_specs')->whereNotNull('producao_hora_json')->get() as $spec) {
+                $linhas[] = [
+                    'building_type' => $spec->building_type,
+                    'level' => $spec->level,
+                    'operadores' => $porNivel * (int) $spec->level,
+                    'created_at' => now(), 'updated_at' => now(),
+                ];
+            }
+
+            foreach (array_chunk($linhas, 500) as $lote) {
+                DB::table('building_operator_requirements')->insert($lote);
+            }
+        }
+    }
+
+    /** @return array<string,int> */
+    private function parseConsumo(string $texto): array
+    {
+        $out = [];
+
+        foreach (array_filter(explode(',', $texto)) as $par) {
+            [$r, $v] = array_pad(explode(':', $par, 2), 2, null);
+            $r = trim((string) $r);
+
+            if (in_array($r, ['agua', 'oxigenio', 'biomassa', 'energia'], true)) {
+                $out[$r] = (int) $v;
+            }
+        }
+
+        return $out;
+    }
+
     private function rodar(int $dias, float $passo, array $producao, Populacao $populacao, Ciclo $ciclo): array
     {
-        $colonia = $this->mundoDescartavel();
+        $colonia = $this->coloniaDaRodada = $this->mundoDescartavel();
 
         $estoque = [];
         foreach (['agua', 'oxigenio', 'biomassa', 'energia'] as $r) {
@@ -136,6 +214,9 @@ class SimularPopulacao extends Command
      * Não passa pelo `CreateColony`: ele monta kit inicial, veículos, ledger e missões — tudo
      * irrelevante aqui e tudo custo. O que a população lê é a Estrutura de Sobrevivência e as zonas.
      */
+    /** Guardada para o veredito medir a população comprometida sobre a colônia real da rodada. */
+    private ?Colony $coloniaDaRodada = null;
+
     private function mundoDescartavel(): Colony
     {
         $userId = DB::table('users')->insertGetId([
@@ -150,11 +231,21 @@ class SimularPopulacao extends Command
             'created_at' => now(), 'updated_at' => now(),
         ]);
 
-        DB::table('buildings')->insert([
-            'colony_id' => $colonyId, 'type' => 'estrutura_de_sobrevivencia',
-            'level' => (int) $this->option('nivel-habitacao'),
-            'created_at' => now(), 'updated_at' => now(),
-        ]);
+        $predios = ['estrutura_de_sobrevivencia' => (int) $this->option('nivel-habitacao')];
+
+        foreach (array_filter(explode(',', (string) ($this->option('predios') ?? ''))) as $par) {
+            [$t, $n] = array_pad(explode(':', $par, 2), 2, 1);
+            $predios[trim((string) $t)] = max(1, (int) $n);
+        }
+
+        $slot = 0;
+
+        foreach ($predios as $tipo => $nivel) {
+            DB::table('buildings')->insert([
+                'colony_id' => $colonyId, 'type' => $tipo, 'level' => $nivel, 'slot' => $slot++,
+                'created_at' => now(), 'updated_at' => now(),
+            ]);
+        }
 
         return Colony::with('buildings')->findOrFail($colonyId);
     }
@@ -246,15 +337,35 @@ class SimularPopulacao extends Command
         $this->line('  · Eficiência ao fim: '.number_format($ultima['eficiencia'] / 100, 1).'%');
 
         /*
-         * A métrica-chave da §7.3 — percentual de população comprometida em operação. Aqui ela sai
-         * zero por construção: o mundo descartável tem só a Estrutura de Sobrevivência e nenhum
-         * requisito de operador cadastrado. Dizer isso é mais honesto do que imprimir "0%" como se
-         * fosse resultado — a métrica só ganha sentido quando a A2.2.4 tiver requisitos semeados.
+         * A métrica-chave da §7.3 — percentual de população comprometida em operação.
+         *
+         * Continua saindo como "não mensurável" quando não há requisito de operador cadastrado:
+         * imprimir "0%" seria ausência de dado com cara de resultado, e é exatamente a confusão que
+         * o painel de métricas (D-165) existe para evitar.
          */
         $this->newLine();
-        $this->line('<fg=yellow>  ⚠️ Percentual de população comprometida (§7.3): ainda não mensurável.</>');
-        $this->line('<fg=gray>     O mundo desta rodada não tem requisitos de operador cadastrados</>');
-        $this->line('<fg=gray>     (building_operator_requirements está vazia). Sem eles, "0%" seria</>');
-        $this->line('<fg=gray>     ausência de dado com cara de resultado.</>');
+
+        if (DB::table('building_operator_requirements')->count() === 0) {
+            $this->line('<fg=yellow>  ⚠️ População comprometida (§7.3): não mensurável nesta rodada.</>');
+            $this->line('<fg=gray>     Sem `--operadores`, não há requisito em que incidir, e "0%" seria</>');
+            $this->line('<fg=gray>     ausência de dado com cara de resultado.</>');
+
+            return;
+        }
+
+        $estado = $populacao->estado($this->coloniaDaRodada);
+        $comprometida = $estado['em_construcoes'] + $estado['em_zonas'];
+        $pct = $estado['total'] > 0 ? (int) round(100 * $comprometida / $estado['total']) : 0;
+
+        $faixa = match (true) {
+            $pct < 20 => ['população irrelevante', 'yellow'],
+            $pct <= 70 => ['DECISÃO ESTRATÉGICA — a faixa que o §7.3 quer', 'green'],
+            $pct < 95 => ['apertada, perto do gargalo', 'yellow'],
+            default => ['FRUSTRAÇÃO — gargalo excessivo', 'red'],
+        };
+
+        $this->line("  · População comprometida (§7.3): <options=bold>{$pct}%</> ".
+            "({$comprometida} de {$estado['total']} colonos)");
+        $this->line("  <fg={$faixa[1]}>    → {$faixa[0]}</>");
     }
 }
