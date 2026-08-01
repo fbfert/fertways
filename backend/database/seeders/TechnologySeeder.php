@@ -82,10 +82,24 @@ class TechnologySeeder extends Seeder
             [
                 'chave' => 'tec_industria_1', 'trilha' => 'industria',
                 'nome' => 'Metalurgia Aplicada',
-                'descricao' => 'Fornos mais eficientes na Refinaria Química.',
+                'descricao' => 'Fornos mais eficientes na Indústria Siderúrgica.',
                 'custo_json' => ['metal_bruto' => 200, 'ligas_metalicas' => 250],
                 'duracao_segundos' => $h(8), 'nivel_maximo' => 3, 'laboratorio_minimo' => 2,
-                'efeitos_json' => $efeito(EfeitosDaEndurance::PRODUCAO_BONUS, 'refinaria_quimica', 300),
+                /*
+                 * ⚠️ Era a **Refinaria Química**, e a rodada 3 do simulador mostrou por que aquilo
+                 * não funcionava: a trilha saía com retorno de 2.815 h contra ~200 h das outras, e
+                 * nenhum arquétipo a escolhia — nem o industrial.
+                 *
+                 * A causa não era o bônus, era o ALVO. Medindo o valor bruto de produção de cada
+                 * prédio no nível 4, o jogo se revela bem equilibrado: sete produtores entre 1,67 e
+                 * 2,35 Fert$/h. A Refinaria é o pior de todos, com **0,12 Fert$/h** — 14× abaixo do
+                 * grupo. Percentual sobre base pequena é ganho pequeno, e nenhum bps razoável
+                 * consertaria isso (seria preciso ~4200 bps, ou 42%, contra os 3% das demais).
+                 *
+                 * A Indústria Siderúrgica está em 1,70 Fert$/h, no meio exato do grupo, e é
+                 * tematicamente a mesma trilha. Corrige-se a causa em vez de inflar o sintoma.
+                 */
+                'efeitos_json' => $efeito(EfeitosDaEndurance::PRODUCAO_BONUS, 'industria_siderurgica', 300),
             ],
             [
                 'chave' => 'tec_logistica_1', 'trilha' => 'logistica',

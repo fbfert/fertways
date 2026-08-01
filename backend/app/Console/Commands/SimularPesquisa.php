@@ -65,7 +65,7 @@ class SimularPesquisa extends Command
         'energética' => ['reator_de_energia' => 4, 'fazenda' => 1, 'mina_local' => 1, 'refinaria_quimica' => 1],
         'agrícola' => ['fazenda' => 4, 'reator_de_energia' => 1, 'mina_local' => 1, 'refinaria_quimica' => 1],
         'mineradora' => ['mina_local' => 4, 'reator_de_energia' => 1, 'fazenda' => 1, 'refinaria_quimica' => 1],
-        'industrial' => ['refinaria_quimica' => 4, 'reator_de_energia' => 2, 'fazenda' => 1, 'mina_local' => 1],
+        'industrial' => ['industria_siderurgica' => 4, 'refinaria_quimica' => 2, 'reator_de_energia' => 2, 'mina_local' => 1],
         'generalista' => ['reator_de_energia' => 2, 'fazenda' => 2, 'mina_local' => 2, 'refinaria_quimica' => 2],
     ];
 
