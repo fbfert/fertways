@@ -9350,8 +9350,39 @@ a maioria só não estoura porque o elemento já está lá. Corrigi o que falhou
 que espere antes de clicar resolveria a família inteira, e fica anotado — não foi feito agora
 porque tocar em cinquenta pontos no mesmo dia da ativação da população misturaria dois riscos.
 
+### ⚠️ Impedimento 3: a minha própria conferência do §7.1 não valia nada
+
+Escrevi acima que *"nenhuma das 29 fica acima do teto"*. **Estava errado.** Rodei aquela conferência
+antes de semear `building_operator_requirements` em produção — a tabela estava vazia, então
+`necessariaParaOQueJaTem()` devolvia zero para todo mundo, e a resposta "zero acima do teto" era
+aritmética sobre o nada. Foi o ensaio a seco do comando que pegou, depois de semear:
+
+**21 das 29 precisam de mais do que cabe no próprio teto.** A colônia 28 tem teto 10 e precisa de 34.
+
+A causa não é capacidade mal calibrada: **20 das 29 têm Estrutura de Sobrevivência nível 1**, porque
+até hoje não havia razão nenhuma para subi-la. O nível 1 não foi escolha delas.
+
+### E por isso o `min()` do grandfathering foi embora
+
+| concessão | consequência |
+|---|---|
+| limitada ao teto | 21 colônias em déficit por prédios erguidos **antes da regra** — o que o §6.7 proíbe em uma frase |
+| o que a colônia precisa | operam tudo o que ergueram, e **ficam sem crescer** até subir a habitação |
+
+`Ciclo::avancar()` já sustentava a segunda sem remendo nenhum: `$total < $capacidade` governa **só o
+crescimento**. Acima do teto ninguém morre e ninguém é expulso — o teto trava o crescimento. A
+colônia opera o que construiu e ganha um motivo concreto para subir um prédio que, até hoje, não
+tinha nenhum.
+
+A folga do §6.7 continua limitada pelo teto: ela é conforto, e conforto não justifica empurrar
+ninguém para cima do limite.
+
+⚠️ E ao inverter o teste do teto apareceu um bug meu: `necessariaParaOQueJaTem()` **já embute a
+folga**, e eu estava aplicando os 20% duas vezes. O piso passou a ser o requisito cru.
+
 ### Verificação
 
-1061 testes verdes (8 novos), entre eles o par que impede a chave de voltar a ser decorativa:
-desligada, o tick não toca na população; ligada, ela cresce e consome. E2E com 10 suítes e 340
-asserções.
+1062 testes verdes (9 novos), entre eles o par que impede a chave de voltar a ser decorativa
+(desligada, o tick não toca na população; ligada, cresce e consome) e o par do teto: a concessão
+passa do teto quando precisa, e acima dele a população não cresce **nem morre**. E2E com 10 suítes e
+340 asserções.

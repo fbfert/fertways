@@ -5,8 +5,10 @@ namespace Tests\Feature;
 use App\Domain\Populacao\Ciclo;
 use App\Domain\Populacao\Parametros;
 use App\Domain\Populacao\Populacao;
+use App\Domain\Production\ColonyTick;
 use App\Models\Colony;
 use App\Models\User;
+use Database\Seeders\ResourceTypeSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -27,7 +29,7 @@ class PopulacaoTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->seed(\Database\Seeders\ResourceTypeSeeder::class);
+        $this->seed(ResourceTypeSeeder::class);
     }
 
     private int $proximo = 0;
@@ -263,7 +265,7 @@ class PopulacaoTest extends TestCase
         $c->update(['last_tick_at' => now()->subHours(48)]);
         $this->comEstoque($c);
 
-        app(\App\Domain\Production\ColonyTick::class)->handle($c, now());
+        app(ColonyTick::class)->handle($c, now());
 
         $this->assertSame(10, (int) $c->fresh()->populacao, 'com a chave desligada, nada acontece');
     }
@@ -278,7 +280,7 @@ class PopulacaoTest extends TestCase
 
         $aguaAntes = (int) $c->resources()->where('resource_type', 'agua')->value('amount');
 
-        app(\App\Domain\Production\ColonyTick::class)->handle($c, now());
+        app(ColonyTick::class)->handle($c, now());
 
         $depois = $c->fresh();
         $this->assertGreaterThan(10, (int) $depois->populacao, 'em 48 h de fartura a população anda');
@@ -353,21 +355,53 @@ class PopulacaoTest extends TestCase
         $this->assertSame(42, (int) $c->fresh()->populacao);
     }
 
-    /** O teto habitacional limita a concessão — o aviso do §7.1. */
-    public function test_o_grandfather_respeita_o_teto_habitacional(): void
+    /**
+     * O teto NÃO limita a concessão — ver o §6.7 e o docblock do comando.
+     *
+     * Vinte das 29 colônias de produção têm Estrutura de Sobrevivência nível 1 porque nunca houve
+     * razão para subi-la. Limitar ao teto as poria em déficit por prédios erguidos antes da regra,
+     * que é justamente o que o §6.7 proíbe.
+     */
+    public function test_o_grandfather_concede_acima_do_teto_para_operar_o_que_ja_existe(): void
     {
         $c = $this->colonia(1, 0);
         $c->buildings()->create(['type' => 'fazenda', 'level' => 2]);
 
         DB::table('building_operator_requirements')->insert([
-            'building_type' => 'fazenda', 'level' => 2, 'operadores' => 99999,
+            'building_type' => 'fazenda', 'level' => 2, 'operadores' => 40,
             'created_at' => now(), 'updated_at' => now(),
         ]);
 
         $this->artisan('fertways:populacao-grandfather', ['--aplicar' => true])->assertSuccessful();
 
-        $capacidade = app(Populacao::class)->capacidade($c->fresh(['buildings']));
-        $this->assertSame($capacidade, (int) $c->fresh()->populacao);
+        $c = $c->fresh(['buildings']);
+        $capacidade = app(Populacao::class)->capacidade($c);
+
+        $this->assertGreaterThan($capacidade, (int) $c->populacao, 'a concessão deve passar do teto');
+        // Exatamente o exigido: a FOLGA, essa sim, não empurra ninguém mais para cima do limite.
+        $this->assertSame(40, (int) $c->populacao);
+    }
+
+    /** E acima do teto ela não cresce, nem morre: o teto trava o crescimento, não expulsa ninguém. */
+    public function test_acima_do_teto_a_populacao_nao_cresce_nem_morre(): void
+    {
+        $c = $this->colonia(1, 0);
+        $c->buildings()->create(['type' => 'fazenda', 'level' => 2]);
+
+        DB::table('building_operator_requirements')->insert([
+            'building_type' => 'fazenda', 'level' => 2, 'operadores' => 40,
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        $this->artisan('fertways:populacao-grandfather', ['--aplicar' => true])->assertSuccessful();
+
+        $c = $c->fresh(['buildings']);
+        $farto = ['agua' => 999999, 'oxigenio' => 999999, 'comida' => 999999];
+
+        $r = app(Ciclo::class)->avancar($c, $farto, 24.0);
+
+        $this->assertSame(40, $r['populacao_nova'], 'não cresce acima do teto, e não perde ninguém');
+        $this->assertFalse($r['cresceu']);
     }
 
     public function test_o_grandfather_sem_aplicar_nao_povoa(): void
