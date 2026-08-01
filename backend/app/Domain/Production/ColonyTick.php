@@ -65,6 +65,8 @@ class ColonyTick
     public function __construct(
         private TetoDoTanque $tetoDoTanque,
         private EfeitosDaEndurance $efeitosDaEndurance,
+        private \App\Domain\Populacao\Parametros $parametrosDePopulacao,
+        private \App\Domain\Populacao\Ciclo $cicloDePopulacao,
     ) {}
 
     public function handle(Colony $colony, CarbonInterface $agora): void
@@ -100,8 +102,80 @@ class ColonyTick
 
             $this->produzir($colony, $cursor, $agora);
 
+            /*
+             * População (A2.2), **depois** da produção e uma vez por tick.
+             *
+             * Depois, e não antes, porque os colonos consomem o que a colônia acabou de produzir —
+             * a ordem inversa faria a produção do intervalo chegar tarde demais para alimentar quem
+             * estava lá durante ele.
+             *
+             * Uma vez por tick, e não por fatia de obra: o delta pode ser fatiado em várias partes
+             * quando há upgrades concluindo, e cobrar consumo em cada fatia cobraria o mesmo período
+             * mais de uma vez.
+             */
+            $this->popular($colony, $colony->last_tick_at, $agora);
+
             $colony->update(['last_tick_at' => $agora]);
         });
+    }
+
+    /**
+     * Faz a população consumir e crescer no intervalo (A2.2.2 e A2.2.3).
+     *
+     * ## ⚠️ O que esta primeira ativação FAZ e o que NÃO faz
+     *
+     * **Faz:** a população cresce até o teto habitacional e consome água, oxigênio, biomassa e
+     * energia — cerca de 3% da produção, por decisão do D-177 (população é mão de obra, não bocas).
+     *
+     * **NÃO faz, ainda:** não aplica a penalidade de eficiência por escassez, e não bloqueia nada
+     * por falta de operadores. Essas são as travas da A2.6, e ligá-las junto seria mudar duas coisas
+     * de uma vez num mundo com colônias reais — sem forma de saber qual delas causou o quê.
+     *
+     * É lançamento em duas etapas de propósito: primeiro a população passa a existir, crescer e
+     * aparecer nos números; **depois**, com dados reais de semanas de jogo, ela passa a restringir.
+     * Os parâmetros saíram de simulação, e simulação não é o mundo.
+     *
+     * Nada disto acontece enquanto `population_settings.ativo` for `false`.
+     */
+    private function popular(Colony $colony, CarbonInterface $de, CarbonInterface $ate): void
+    {
+        if (! $this->parametrosDePopulacao->ativo()) {
+            return;
+        }
+
+        $horas = $de->diffInSeconds($ate) / 3600;
+
+        if ($horas <= 0) {
+            return;
+        }
+
+        $colony->load(['buildings', 'resources']);
+        $estoque = $colony->resources->pluck('amount', 'resource_type')->all();
+
+        $r = $this->cicloDePopulacao->avancar($colony, $estoque, $horas);
+
+        foreach ($r['consumo'] as $recurso => $quanto) {
+            $inteiro = (int) floor($quanto);
+
+            if ($inteiro <= 0) {
+                continue;
+            }
+
+            /*
+             * `where amount >= x` no UPDATE, como o resto do domínio faz: a coluna é unsigned, e um
+             * saldo negativo seria erro de banco em vez de bug silencioso. Se não couber, não
+             * consome — a população não morre por isso (§6.6: degrada, não se perde).
+             */
+            $colony->resources()
+                ->where('resource_type', $recurso)
+                ->where('amount', '>=', $inteiro)
+                ->decrement('amount', $inteiro);
+        }
+
+        $colony->update([
+            'populacao' => $r['populacao_nova'],
+            'populacao_resto_milli' => $r['resto_milli'],
+        ]);
     }
 
     /** Conclui o upgrade, lança o subsídio e promove o próximo da fila. */

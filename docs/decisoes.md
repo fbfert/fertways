@@ -9267,3 +9267,91 @@ mundo sem reset é decisão do usuário.
 
 1053 testes verdes. Rodadas 6 e 7 registradas em `BALANCEAMENTO.md` §7.1, com a tabela da tensão
 entre os dois alvos e a tabela de recuperação.
+
+---
+
+## D-178 — A chave da população era decorativa, e agora liga alguma coisa
+
+**Data:** 2026-07-31 · **Status:** A2.2 concluída (2.2.6 incluída) · **Backend**
+
+Pedido para ligar a população. Fui conferir antes, e achei dois impedimentos que teriam feito da
+ativação uma mentira ou um estrago.
+
+### ⚠️ Impedimento 1: a chave não estava ligada em nada
+
+`population_settings.ativo` não era lido por **ninguém** — `ColonyTick` não sabia que população
+existia. Virá-la seria um **no-op**, e eu teria dito que a população estava no ar enquanto nada
+mudava. O D-167 chamou o modelo de "inerte", e ele era inerte de verdade: nem o interruptor estava
+conectado.
+
+### ⚠️ Impedimento 2: população zero nunca cresce
+
+As 29 colônias de produção têm `populacao = 0`, e `Ciclo::avancar()` devolve cedo quando o total é
+zero — **por construção**: não há de quem nascer ninguém. Ligar a chave sem povoar deixaria 29
+colônias em déficit permanente, sem caminho de saída. Não é hipótese: é o que aconteceria.
+
+O grandfathering da A2.2.6 estava previsto e nunca fora implementado. Eu mesmo anotei isso no D-167,
+e a anotação salvou a operação.
+
+### A conferência que o §7.1 exige, feita antes
+
+O `BALANCEAMENTO.md` §7.1 avisa que uma `capacidade_base` baixa demais faria veteranas nascerem
+**acima do próprio teto habitacional**. Conferido por leitura contra a produção: as 29 colônias têm
+Estrutura de Sobrevivência erguida e **nenhuma fica acima**. O `min()` está no comando de qualquer
+forma, porque o aviso volta a valer se alguém baixar o parâmetro depois.
+
+### O grandfathering (§6.7)
+
+Cada colônia recebe população para operar **tudo o que já construiu**, mais a folga de 20%, limitada
+pelo teto habitacional. Duas decisões pequenas com razão:
+
+- **Piso de 1.** Quem não exige operador nenhum ainda recebe um colono: zero nunca cresceria, e a
+  colônia ficaria congelada para sempre — punida por não ter construído nada, que é o oposto do que
+  a regra quer.
+- **Não reescreve quem já tem.** O comando é repetível sem estrago.
+
+### ⚠️ Ativação em DUAS etapas, e a segunda não é esta
+
+**O que passa a acontecer:** a população cresce até o teto e consome água, oxigênio, biomassa e
+energia — cerca de **3% da produção**, por decisão do D-177.
+
+**O que NÃO passa a acontecer:** a penalidade de eficiência por escassez **não é aplicada**, e nada é
+bloqueado por falta de operadores. Essas são as travas da A2.6.
+
+Ligar as duas coisas juntas seria mudar dois comportamentos de uma vez num mundo com colônias reais,
+**sem forma de saber qual causou o quê** se algo estranhar. Primeiro a população passa a existir,
+crescer e aparecer nos números; depois, com semanas de dados reais, ela passa a restringir. Os
+parâmetros saíram de simulação, e **simulação não é o mundo**.
+
+### Detalhes de implementação que valem registro
+
+- O consumo entra **depois** da produção, e **uma vez por tick**. Depois porque os colonos comem o
+  que a colônia acabou de produzir; uma vez só porque o delta é fatiado em cada conclusão de obra, e
+  cobrar por fatia cobraria o mesmo período mais de uma vez.
+- O débito usa `where amount >= x` no UPDATE, como o resto do domínio: a coluna é unsigned, e saldo
+  negativo seria erro de banco em vez de bug silencioso. O que não couber simplesmente não é
+  consumido — **ninguém morre de fome** (§6.6: degrada, não se perde).
+
+### ⚠️ Um vermelho no e2e que não era regressão — de novo
+
+A suíte da Capital reprovou em *"No element found for selector: [data-cancelar-anuncio]"*. Rodei de
+novo **sem mexer em nada**: verde, 10 suítes, 340 asserções. Era corrida do teste.
+
+A causa é a mesma família do D-164: **`page.click` do Puppeteer não espera**. A asserção logo acima
+usa `esperarTexto`, que insiste por 8 s; o clique seguinte olhava uma vez e desistia. Uma renderização
+um pouco mais lenta reprovava a suíte com o jogo perfeito.
+
+Antes de rodar de novo, confirmei que `ColonyTick` só é construído pelo contêiner — eu havia mexido
+no construtor dele, e essa era a hipótese de regressão que precisava ser descartada primeiro.
+
+⚠️ **E há um achado sistêmico**: existem **mais de cinquenta** `page.click('[data-…]')` crus
+espalhados pelas suítes (16 na Capital, 18 na mobile, 8 no chat). Todos são a mesma bomba-relógio;
+a maioria só não estoura porque o elemento já está lá. Corrigi o que falhou. Um helper `clicar()`
+que espere antes de clicar resolveria a família inteira, e fica anotado — não foi feito agora
+porque tocar em cinquenta pontos no mesmo dia da ativação da população misturaria dois riscos.
+
+### Verificação
+
+1061 testes verdes (8 novos), entre eles o par que impede a chave de voltar a ser decorativa:
+desligada, o tick não toca na população; ligada, ela cresce e consome. E2E com 10 suítes e 340
+asserções.
