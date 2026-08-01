@@ -8796,3 +8796,55 @@ de referência.
 vocabulário passou a usar `Efeitos::conhecido()`, que resolve os dois conjuntos — sem isso ele
 reprovaria as duas chaves novas, e reprovar seria o comportamento certo se elas não tivessem sido
 declaradas.
+
+---
+
+## D-171 — A trilha de Indústria apontava para o pior produtor do jogo
+
+**Data:** 2026-07-31 · **Status:** rodada 4 da trilha A2.S · **Backend, catálogo**
+
+O D-170 achou que `tec_industria_1` tinha retorno de 2.815 h contra ~200 h das outras, e deixou o
+conserto para arbitragem. Feito — e a arbitragem certa não era a que eu tinha imaginado.
+
+### A causa não era o bônus, era o alvo
+
+Medi o valor **bruto** de produção de cada prédio no nível 4 (produção/hora × preço base do recurso).
+O jogo se revela bem equilibrado: **sete produtores entre 1,67 e 2,35 Fert$/h**. Dois fora da curva:
+
+- **Oficina: 65,17 Fert$/h** — 38× o grupo;
+- **Refinaria Química: 0,12 Fert$/h** — 14× abaixo.
+
+A `tec_industria_1` apontava para a Refinaria: o **pior produtor do jogo inteiro**. Percentual sobre
+base pequena é ganho pequeno, e nenhum bps razoável consertaria — seriam precisos ~4200 bps (42%)
+contra os 3% das demais tecnologias, o que seria compensar o sintoma e esconder a causa.
+
+Reapontada para a **Indústria Siderúrgica**: 1,70 Fert$/h, no meio exato do grupo, e tematicamente a
+mesma trilha.
+
+### A árvore passa no §8.3
+
+| | rodada 2 | rodada 3 | rodada 4 |
+|---|---|---|---|
+| Primeira escolha idêntica | 5/5 (100%) | 3/5 (60%) | **2/5 (40%)** |
+| Sequências distintas | 1 de 5 | 4 de 5 | **5 de 5** |
+
+Cada perfil escolhe uma sequência própria, e as quatro tecnologias mensuráveis agrupam-se entre
+**188 e 204 h** — parelhas o bastante para o perfil da colônia decidir, e não o preço.
+
+O critério de saída da A2.3 — *"dois jogadores com tempo semelhante podem desenvolver colônias
+significativamente diferentes por escolhas tecnológicas"* — passa a ter **evidência a favor**, na
+parte da árvore que é mensurável.
+
+### ⚠️ Dois avisos sobre a medição, que não podem virar folclore
+
+1. **É valor BRUTO.** Prédios que transformam consomem insumos que a conta ignora. Os 65,17 Fert$/h
+   da Oficina são receita, não lucro; e os 0,12 da Refinaria são ainda piores do que parecem, porque
+   ela também consome.
+2. **A Oficina está 38× acima do grupo.** Pode estar certo — componentes valem 1,28 Fert$ e
+   fabricá-los custa insumo — ou pode ser desequilíbrio real da economia. **Não investiguei**: está
+   fora da A2.3 e envolve números do GDD. Fica anotado para quem for olhar a economia de perto.
+
+### Verificação
+
+1018 testes verdes. Rodada 4 registrada em `BALANCEAMENTO.md` §8.1, com a tabela de valor por prédio
+e a evolução das quatro rodadas.

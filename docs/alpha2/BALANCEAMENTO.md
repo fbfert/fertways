@@ -501,6 +501,52 @@ logística por hora — e **chutar esse volume seria inventar exatamente o núme
 resposta**. Entram quando houver telemetria real de comércio (a A2.0 já a coleta; faltam dias de
 jogo) ou quando o usuário arbitrar um volume de referência.
 
+### Rodada 4 da trilha A2.S — 2026-07-31 (a árvore passa no §8.3)
+
+A trilha de Indústria estava 14× pior. **A causa não era o bônus, era o ALVO.**
+
+Medindo o valor bruto de produção de cada prédio no nível 4, o jogo se revela bem equilibrado:
+
+| prédio (nível 4) | Fert$/h |
+|---|---|
+| oficina | **65,17** |
+| destilaria | 2,35 |
+| mina_local · industria_siderurgica | 1,70 |
+| gerador_de_atmosfera · fazenda · captacao_de_agua · reator_de_energia | 1,67–1,69 |
+| **refinaria_quimica** | **0,12** |
+
+Sete produtores entre 1,67 e 2,35 — notavelmente parelhos. A `tec_industria_1` apontava para a
+**Refinaria Química**, o pior de todos, 14× abaixo do grupo. Nenhum bps razoável consertaria isso:
+seriam precisos ~4200 bps (42%) contra os 3% das demais.
+
+Reapontada para a **Indústria Siderúrgica** (1,70 Fert$/h, no meio exato do grupo, e tematicamente a
+mesma trilha).
+
+#### Resultado: a árvore passa
+
+| | rodada 2 | rodada 3 | rodada 4 |
+|---|---|---|---|
+| Primeira escolha idêntica | 5/5 (100%) | 3/5 (60%) | **2/5 (40%)** |
+| Sequências distintas | 1 de 5 | 4 de 5 | **5 de 5** |
+
+    energética   tec_energia_1   → tec_territorio_1 → tec_biosfera_1
+    agrícola     tec_biosfera_1  → tec_energia_1    → tec_territorio_1
+    mineradora   tec_territorio_1 → tec_energia_1   → tec_biosfera_1
+    industrial   tec_industria_1 → tec_energia_1    → tec_territorio_1
+    generalista  tec_energia_1   → tec_biosfera_1   → tec_territorio_1
+
+**Cada perfil escolhe uma sequência própria.** E as quatro tecnologias mensuráveis agrupam-se entre
+**188 e 204 h** de retorno — parelhas o bastante para o perfil da colônia decidir, e não o preço.
+
+#### ⚠️ Dois avisos sobre esta medição
+
+1. **É valor BRUTO de produção.** Prédios que transformam (Oficina, Refinaria, Destilaria,
+   Siderúrgica) consomem insumos que esta conta ignora. O 65,17 Fert$/h da Oficina é receita, não
+   lucro — e o 0,12 da Refinaria é ainda pior do que parece, porque ela também consome.
+2. **A Oficina está 38× acima do grupo** em valor bruto. Pode ser correto (componentes valem
+   1,28 Fert$ cada, e fabricá-los custa insumo), ou pode ser desequilíbrio real. **Não investiguei** —
+   está fora da A2.3 e envolve números do GDD. Fica anotado.
+
 ## 8.2 Regra de custo
 
 Pesquisa consome recursos existentes no jogo.
