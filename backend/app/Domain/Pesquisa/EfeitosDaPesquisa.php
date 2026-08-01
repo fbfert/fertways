@@ -75,7 +75,8 @@ class EfeitosDaPesquisa
          * precisa somá-las antes de limitar, no consumidor. Está anotado porque é o tipo de coisa
          * que se descobre tarde: cada fonte respeita o limite e o total não.
          */
-        return min($soma, EfeitosDaEndurance::tetoBps($tipoEfeito));
+        // Teto unificado: resolve tanto o vocabulário da Endurance quanto o próprio da pesquisa.
+        return min($soma, Efeitos::tetoBps($tipoEfeito));
     }
 
     public function bonusDeProducao(Colony $colonia, string $buildingType): int
@@ -86,5 +87,17 @@ class EfeitosDaPesquisa
     public function descontoDeTributo(Colony $colonia): int
     {
         return $this->somaBps($colonia, EfeitosDaEndurance::DESCONTO_TRIBUTO, [EfeitosDaEndurance::ALVO_GLOBAL]);
+    }
+
+    /**
+     * Quanto a trilha de Ciência encurta as pesquisas seguintes (A2.3).
+     *
+     * É o efeito natural daquela trilha: ela não produz recurso, produz **conhecimento mais rápido**.
+     * Antes disso ela dava bônus de produção ao Laboratório, que não produz nada — inerte por
+     * construção, e foi o simulador que mostrou.
+     */
+    public function descontoDeDuracao(Colony $colonia): int
+    {
+        return $this->somaBps($colonia, Efeitos::DURACAO_PESQUISA, [EfeitosDaEndurance::ALVO_GLOBAL]);
     }
 }

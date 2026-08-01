@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Domain\Endurance\EfeitosDaEndurance;
+use App\Domain\Pesquisa\Efeitos;
 use App\Domain\Pesquisa\Pesquisar;
 use App\Domain\Pesquisa\Vagas;
 use App\Exceptions\DomainRuleException;
@@ -251,13 +252,42 @@ class SimularPesquisa extends Command
                 $t->chave,
                 number_format($custo / 1_000_000, 2, ',', '.'),
                 $caro[0].' ('.round(100 * $caro[1] / max(1, $custo)).'%)',
-                is_infinite($melhor) ? '— não medível —' : number_format($melhor, 0, ',', '.').' h',
+                is_infinite($melhor) ? $this->porQueNaoMedivel($t) : number_format($melhor, 0, ',', '.').' h',
             ];
         }
 
         $this->newLine();
         $this->line('<options=bold>Por quê — custo e retorno de cada tecnologia</>');
         $this->table(['tecnologia', 'custo (Fert$)', 'recurso que domina o custo', 'melhor retorno'], $linhas);
+    }
+
+    /**
+     * Por que uma tecnologia saiu como "não medível" — e são razões DIFERENTES.
+     *
+     * Confundi-las seria o erro: "sem consumidor" quer dizer que o efeito não faz nada no jogo hoje
+     * (defeito a corrigir); "sem volume modelado" quer dizer que ele faz, mas este recorte não sabe
+     * medir (limitação da ferramenta); e "alvo não produz" é bônus de produção em prédio que não
+     * produz — inerte por construção.
+     */
+    private function porQueNaoMedivel(Technology $t): string
+    {
+        foreach ($t->efeitos_json ?? [] as $e) {
+            $tipo = $e['tipo'] ?? '';
+
+            if ($tipo === Efeitos::DEFESA_BONUS) {
+                return 'sem consumidor';
+            }
+
+            if (in_array($tipo, [Efeitos::DURACAO_PESQUISA], true)) {
+                return 'outra unidade';
+            }
+
+            if ($tipo !== EfeitosDaEndurance::PRODUCAO_BONUS) {
+                return 'sem volume modelado';
+            }
+        }
+
+        return 'alvo não produz';
     }
 
     /** @return array<string,array<int,array<string,float>>> */

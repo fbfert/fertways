@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Domain\Endurance\EfeitosDaEndurance;
 use App\Domain\Pesquisa\ConcluirPesquisa;
+use App\Domain\Pesquisa\Efeitos;
 use App\Domain\Pesquisa\EfeitosDaPesquisa;
 use App\Domain\Pesquisa\Pesquisar;
 use App\Domain\Pesquisa\Vagas;
@@ -348,8 +349,8 @@ class PesquisaTest extends TestCase
     {
         foreach (Technology::all() as $t) {
             foreach ($t->efeitos_json ?? [] as $e) {
-                $this->assertContains(
-                    $e['tipo'], EfeitosDaEndurance::TIPOS,
+                $this->assertTrue(
+                    Efeitos::conhecido($e['tipo']),
                     "A tecnologia {$t->chave} usa um efeito fora do vocabulário da casa.",
                 );
             }

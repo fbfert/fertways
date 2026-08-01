@@ -435,6 +435,72 @@ Nenhum número foi promovido. As saídas possíveis, e é decisão do usuário:
 de veículo dependem de volume de comércio e de logística, que o recorte não modela — e chutar um
 volume seria inventar justamente o número que decide a resposta.
 
+### Rodada 3 da trilha A2.S — 2026-07-31 (o achatamento de custo quebrou a dominância)
+
+Aplicadas as três recomendações da rodada 2. O resultado da primeira delas foi decisivo sozinho.
+
+**Custos achatados**: todas as oito tecnologias passaram a custar ~10 Fert$ pelo preço base.
+Dispersão de **34× → 1,12×**.
+
+| | rodada 2 | rodada 3 |
+|---|---|---|
+| Primeira escolha idêntica | 5/5 (100%) | **3/5 (60%)** |
+| Sequências distintas | 1 de 5 | **4 de 5** |
+
+Cada arquétipo passou a especializar-se no que a sua própria colônia produz:
+
+    energética   tec_energia_1 → tec_territorio_1 → tec_biosfera_1
+    agrícola     tec_biosfera_1 → tec_energia_1 → tec_territorio_1
+    mineradora   tec_territorio_1 → tec_energia_1 → tec_biosfera_1
+    industrial   tec_energia_1 → tec_territorio_1 → tec_biosfera_1
+    generalista  tec_energia_1 → tec_biosfera_1 → tec_territorio_1
+
+**A dominância caiu por causa do custo, não do efeito** — os efeitos não mudaram entre as duas
+rodadas. Enquanto a razão de preço era 34×, ela decidia tudo antes de o efeito ser considerado.
+
+#### Os dois efeitos inertes foram corrigidos
+
+- **Ciência** dava `producao_bonus` ao Laboratório, que não produz nada. Passou a
+  `duracao_pesquisa` — encurta as pesquisas seguintes, que é o efeito natural da trilha. Já tem
+  consumidor: o `Pesquisar` aplica no início, não na conclusão (prazo prometido não encurta no meio).
+- **Defesa** dava `producao_bonus` à Torre de Defesa, que também não produz. Passou a
+  `defesa_bonus` — **declarado e sem consumidor**, porque o motor de combate (§27) não pertence a
+  esta fase. Inerte de propósito, com o precedente do D-67/D-79.
+
+#### ⚠️ Achado novo: a trilha de Indústria está 14× pior
+
+| tecnologia | melhor retorno |
+|---|---|
+| `tec_energia_1` | 188 h |
+| `tec_biosfera_1` | 204 h |
+| `tec_territorio_1` | 204 h |
+| **`tec_industria_1`** | **2.815 h** |
+| `tec_logistica_1` | sem volume modelado |
+| `tec_comercio_1` | sem volume modelado |
+| `tec_ciencia_1` | outra unidade |
+| `tec_defesa_1` | sem consumidor |
+
+A causa é a produção do alvo: a **Refinaria Química produz 7 compostos_quimicos/h no nível 4**,
+contra 150 energia/h do Reator. Um bônus percentual sobre uma base pequena é um bônus pequeno.
+Nenhum arquétipo escolhe Indústria — nem o industrial.
+
+**Não corrigi.** Mexer nisso é ou subir o bps da tecnologia, ou mexer na produção da Refinaria, e o
+segundo é número do GDD. É arbitragem do usuário.
+
+#### O relatório agora distingue TRÊS ausências
+
+Confundi-las seria o erro: **"sem consumidor"** é defeito a corrigir (o efeito não faz nada no jogo);
+**"sem volume modelado"** é limitação da ferramenta (o efeito faz, mas este recorte não sabe medir);
+**"outra unidade"** é o caso da Ciência, cujo benefício é tempo e não Fert$/hora — comparar as duas
+na mesma coluna produziria um número plausível e errado.
+
+#### O que continua fora, e por quê
+
+Comércio e Logística seguem sem entrar no páreo. Modelá-las exige um volume de comércio e de
+logística por hora — e **chutar esse volume seria inventar exatamente o número que decide a
+resposta**. Entram quando houver telemetria real de comércio (a A2.0 já a coleta; faltam dias de
+jogo) ou quando o usuário arbitrar um volume de referência.
+
 ## 8.2 Regra de custo
 
 Pesquisa consome recursos existentes no jogo.
