@@ -311,6 +311,39 @@ class PesquisaTest extends TestCase
         $this->assertSame($declaradas, $noCatalogo);
     }
 
+    // ────────────────────────────────────────────── a trilha A2.S
+
+    /**
+     * O simulador não deixa rastro — e aqui isso é mais grave do que no de população.
+     *
+     * Ele **liga a pesquisa** (`research_settings.ativo = true`) dentro do mundo descartável, porque
+     * precisa exercitar o `Pesquisar` de verdade. Se o rollback falhasse, a produção acordaria com a
+     * pesquisa ABERTA e números de palpite valendo. É o pior estrago possível desta fase, e é este
+     * teste que fecha a porta.
+     */
+    public function test_o_simulador_nao_deixa_a_pesquisa_ligada(): void
+    {
+        $this->assertFalse((bool) DB::table('research_settings')->find(1)->ativo);
+
+        $this->artisan('fertways:simular-pesquisa', ['--passos' => 1])->assertSuccessful();
+
+        $this->assertFalse(
+            (bool) DB::table('research_settings')->find(1)->ativo,
+            'o simulador ligou a pesquisa e não desligou — a produção ficaria aberta',
+        );
+    }
+
+    public function test_o_simulador_nao_deixa_colonia_nem_pesquisa_para_tras(): void
+    {
+        $coloniasAntes = Colony::count();
+        $pesquisasAntes = DB::table('colony_technologies')->count();
+
+        $this->artisan('fertways:simular-pesquisa', ['--passos' => 2])->assertSuccessful();
+
+        $this->assertSame($coloniasAntes, Colony::count());
+        $this->assertSame($pesquisasAntes, DB::table('colony_technologies')->count());
+    }
+
     public function test_toda_tecnologia_do_seeder_usa_efeito_do_vocabulario_conhecido(): void
     {
         foreach (Technology::all() as $t) {

@@ -381,6 +381,60 @@ Princípio: humanos supervisionam automação robotizada.
 
 O **modificador do Observatório** sai desta lista: o Observatório não existe no jogo e não entra na primeira entrega (GDD ALPHA 2 §7.2). Volta quando ele for criado.
 
+### Rodada 2 da trilha A2.S — 2026-07-31 (a árvore REPROVA no §8.3)
+
+`php84 artisan fertways:simular-pesquisa --passos=3`
+
+Cinco arquétipos de colônia (energética, agrícola, mineradora, industrial, generalista), cada um
+escolhendo gulosamente a tecnologia de melhor retorno. **Os cinco escolheram a mesma sequência:**
+
+    tec_biosfera_1 → tec_territorio_1 → tec_energia_1
+
+Primeira escolha idêntica em **5/5 (100%)**, **1 sequência distinta de 5**. Pelo §8.3 — *"se a
+maioria dos jogadores pesquisar a mesma sequência, a árvore falhou"* — a árvore como custeada hoje
+**falha**.
+
+#### A causa não é o efeito, é a composição do custo
+
+| tecnologia | custo (Fert$) | recurso que domina o custo | melhor retorno |
+|---|---|---|---|
+| `tec_biosfera_1` | 2,25 | biomassa (55%) | **51 h** |
+| `tec_territorio_1` | 8,59 | metal_bruto (97%) | 177 h |
+| `tec_energia_1` | 32,22 | componentes_eletronicos (79%) | 649 h |
+| `tec_industria_1` | 10,32 | metal_bruto (97%) | 2.968 h |
+| `tec_defesa_1` | 4,71 | ligas_metalicas (66%) | — não medível — |
+| `tec_logistica_1` | 40,83 | componentes_eletronicos (94%) | — não medível — |
+| `tec_ciencia_1` | 54,28 | componentes_eletronicos (94%) | — não medível — |
+| `tec_comercio_1` | 76,67 | componentes_eletronicos (100%) | — não medível — |
+
+**`componentes_eletronicos` custa 1.277.800 micro contra 8.300 da biomassa — 154 vezes mais.**
+Qualquer tecnologia que os exija sai do páreo antes de o efeito ser considerado. A escolha do jogador
+não está sendo decidida pelo que a tecnologia FAZ, e sim por qual recurso ela PEDE.
+
+#### Dois achados de desenho, e o segundo é erro meu
+
+1. **A dispersão de custo domina tudo.** Enquanto a razão entre a tecnologia mais barata e a mais
+   cara for de 34× (2,25 vs 76,67), não há escolha a fazer — há uma ordem de preço.
+2. ⚠️ **Três tecnologias têm efeito sem sentido**: `tec_ciencia_1` e `tec_defesa_1` dão
+   `producao_bonus` ao Laboratório e à Torre de Defesa, que **não produzem recurso nenhum**. O bônus
+   é matematicamente zero. Isso é defeito do catálogo que eu semeei, não do balanceamento — e o
+   simulador o expôs na primeira rodada.
+
+#### O que fica para arbitragem
+
+Nenhum número foi promovido. As saídas possíveis, e é decisão do usuário:
+
+- **achatar a dispersão de custo** — se toda tecnologia custar aproximadamente o mesmo em Fert$, o
+  efeito volta a decidir;
+- **dar efeitos mensuráveis a Ciência e Defesa** — bônus de produção em prédio que não produz é
+  inerte por construção;
+- **modelar comércio e logística** para as trilhas correspondentes entrarem no páreo (hoje elas saem
+  como "não medível", e não porque sejam ruins).
+
+⚠️ O que este comando **não** mede: só `producao_bonus`. Desconto de tributo, velocidade e capacidade
+de veículo dependem de volume de comércio e de logística, que o recorte não modela — e chutar um
+volume seria inventar justamente o número que decide a resposta.
+
 ## 8.2 Regra de custo
 
 Pesquisa consome recursos existentes no jogo.

@@ -8641,3 +8641,74 @@ números entrarem.
 O critério de saída da fase — *"dois jogadores com tempo semelhante podem desenvolver colônias
 significativamente diferentes"* — **não pode ser declarado cumprido**: depende de a árvore ter
 tamanho e de os números terem sido arbitrados. A estrutura permite; o conteúdo ainda não prova.
+
+---
+
+## D-169 — A trilha A2.S estendida à pesquisa, e a árvore reprova no próprio critério
+
+**Data:** 2026-07-31 · **Status:** segunda entrega da trilha A2.S (A2.3) · **Backend, ferramenta**
+
+`fertways:simular-pesquisa` responde à pergunta que o §8.3 usa como critério de fracasso: *"se a
+maioria dos jogadores pesquisar a mesma sequência, a árvore falhou"*.
+
+### Como ele responde, sem inventar número
+
+Monta cinco **arquétipos de colônia** — perfis de construção diferentes — e faz cada um escolher
+gulosamente a tecnologia de melhor retorno. Os insumos da conta são reais:
+
+- benefício de `building_specs.producao_hora_json` × `resource_types.preco_base_micro` × o bps da
+  tecnologia;
+- custo do `custo_json`, convertido pelo mesmo preço base;
+- e **a disponibilidade sai do `Pesquisar` de verdade** — ele tenta iniciar dentro de um savepoint e
+  desfaz. Regra 1 da trilha: reusa o domínio, não o reimplementa. Reescrever as portas aqui faria a
+  cópia divergir do jogo na primeira mudança.
+
+### ⚠️ O resultado: a árvore falha
+
+**Os cinco arquétipos escolheram a mesma sequência** — `tec_biosfera_1 → tec_territorio_1 →
+tec_energia_1`. Primeira escolha idêntica em 5/5, uma sequência distinta de cinco.
+
+E o comando diz **por quê**, porque veredito sem causa é difícil de agir: a escolha não está sendo
+decidida pelo que a tecnologia faz, e sim por **qual recurso ela pede**.
+`componentes_eletronicos` custa 1.277.800 micro contra 8.300 da biomassa — **154 vezes mais**.
+Qualquer tecnologia que os exija sai do páreo antes de o efeito entrar na conta. A razão entre a mais
+barata e a mais cara é de **34×**.
+
+### Um erro meu que o simulador expôs na primeira rodada
+
+`tec_ciencia_1` e `tec_defesa_1` dão `producao_bonus` ao **Laboratório** e à **Torre de Defesa**, que
+não produzem recurso nenhum. O bônus é matematicamente zero. É defeito do catálogo que eu semeei no
+D-168, e não do balanceamento — e apareceu porque a ferramenta calcula retorno de verdade em vez de
+confiar na aparência da tabela.
+
+### A trava que este comando exigiu
+
+Ele **liga a pesquisa** dentro do mundo descartável, porque precisa exercitar o `Pesquisar` real. Se
+o rollback falhasse, a produção acordaria com a pesquisa **aberta** e números de palpite valendo — o
+pior estrago possível desta fase. Há teste específico para isso, e não só para "não sobrou colônia".
+
+### O que este comando NÃO mede, dito no próprio relatório
+
+Só `producao_bonus`. Desconto de tributo, velocidade e capacidade de veículo dependem de volume de
+comércio e de logística, que o recorte não modela — e chutar um volume seria inventar justamente o
+número que decide a resposta. As trilhas de Comércio e Logística saem como *"não medível"*, e o
+relatório diz que **não é por serem ruins**.
+
+Duas coisas mais são modelo, não verdade do jogo, e estão escritas no docblock: **os arquétipos são
+invenção minha**, e **a função de valor é uma tese sobre o jogador** (ele maximiza retorno por Fert$,
+penalizado pelo tempo). Um jogador real pode pesquisar defesa por medo, não por payback.
+
+### O que fica para arbitragem
+
+Nenhum número foi promovido. As saídas, e a escolha é do usuário:
+
+1. **achatar a dispersão de custo** — enquanto a razão for 34×, há uma ordem de preço, não uma
+   escolha;
+2. **dar efeitos mensuráveis a Ciência e Defesa**, hoje inertes por construção;
+3. **modelar comércio e logística** para aquelas trilhas entrarem no páreo.
+
+### Verificação
+
+1018 testes verdes (2 novos). Rodada registrada em `BALANCEAMENTO.md` §8.1, com a tabela de custo e
+retorno. Conferido por leitura que produção e dev seguem com `research_settings.ativo = 0` depois de
+várias execuções manuais — o rollback aguenta.
