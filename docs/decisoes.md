@@ -9127,3 +9127,67 @@ Portanto o critério de saída — *"upgrade apresenta escolha econômica mensur
 ### Verificação
 
 1053 testes verdes (12 novos). Migration exercitada num MariaDB descartável.
+
+---
+
+## D-176 — O primeiro parâmetro de população escolhido com evidência
+
+**Data:** 2026-07-31 · **Status:** rodada 5 da trilha A2.S, item A2.2.4 · **Backend**
+
+### O que estava travando a arbitragem
+
+As rodadas 1 a 4 do simulador não conseguiam medir a **métrica-chave do §7.3** — o percentual de
+população comprometida em operação. `building_operator_requirements` estava vazia, então o comando
+dizia honestamente *"não mensurável"* em vez de imprimir 0%.
+
+Era um impasse circular: o número não podia ser escolhido sem medida, e a medida não existia sem o
+número.
+
+### O que destravou
+
+Duas coisas no simulador:
+
+- **sobreposição de parâmetros por rodada**, gravada **dentro** da transação que é revertida. É o
+  que permite comparar seis configurações sem que nenhuma deixe rastro — comparar mexendo no
+  `population_settings` de verdade deixaria o banco num estado que ninguém escolheu;
+- **um mundo com prédios produtores**, porque requisito de operador precisa de algo em que incidir.
+
+### A varredura, e a escolha
+
+| operadores/nível | capacidade base | §7.3 comprometida | faixa |
+|---|---|---|---|
+| **1** | **10** | **52%** | **decisão estratégica** |
+| 1 | 20 | 26% | população quase irrelevante |
+| 2 | 10 | 104% | déficit — nem opera o que construiu |
+| 2 | 20 | 52% | decisão estratégica |
+| 3 | 10 | 156% | frustração |
+| 3 | 20 | 78% | apertada |
+
+Duas caem na faixa certa e são **a mesma razão em escalas diferentes**. A escolha entre elas foi de
+**legibilidade**: *"uma Fazenda nível 3 pede 3 operadores"* é uma frase que se entende; *"pede 6"*, já
+é planilha. E o §7.4 pede literalmente "poucos humanos operam muitos robôs".
+
+**Adotado: 1 operador por nível de construção produtora**, semeado por
+`BuildingOperatorRequirementSeeder`. Esparso de propósito — só quem produz exige alguém; a Antena não
+pede ninguém.
+
+### ⚠️ O que esta rodada NÃO decidiu, e é importante não confundir
+
+- **Consumo per capita e taxa de crescimento não foram varridos.** Nesta configuração, **nenhum
+  essencial faltou em 60 dias**: a pressão populacional vem do teto habitacional e dos operadores,
+  não da fome. Isso é provavelmente o desenho certo — fome por omissão seria hostil —, mas é
+  consequência da produção que escolhi para a rodada, **não uma propriedade do modelo**.
+- **Um perfil de colônia só.** Uma colônia sem Reator, ou com dez Minas, daria outro número.
+- **`population_settings.ativo` continua `false`.** Uma rodada de simulação é evidência, não campo.
+  Virar a chave num mundo sem reset é decisão do usuário, e continua na mesa dele.
+
+### O que mudou de verdade
+
+Antes havia um balde vazio. Agora há **um número com uma razão escrita atrás dele**, e uma
+ferramenta que permite contestá-lo em trinta segundos: rodar o simulador com outros valores e ver a
+faixa mudar.
+
+### Verificação
+
+1053 testes verdes. Rodada 5 registrada em `BALANCEAMENTO.md` §7.1 com a tabela das seis
+configurações e o critério da escolha.

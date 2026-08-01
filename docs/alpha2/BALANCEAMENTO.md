@@ -337,6 +337,44 @@ para fazer.
 
 ⚠️ `population_capacity[level]` tem uma restrição que os demais não têm: na migração, a capacidade de cada colônia existente precisa **caber** a população concedida por grandfathering. Um valor baixo demais faria colônias veteranas nascerem acima do próprio teto habitacional.
 
+### Rodada 5 da trilha A2.S — 2026-07-31 (a métrica-chave do §7.3 fica mensurável)
+
+As rodadas 1 a 4 não conseguiam medir o percentual de população comprometida: `building_operator_requirements`
+estava vazia, e o simulador dizia **"não mensurável"** em vez de imprimir 0%.
+
+Resolvido dando ao simulador (a) sobreposição de parâmetros por rodada, gravada dentro da transação
+que é revertida, e (b) um mundo com prédios produtores de verdade. Seis configurações comparadas:
+
+| operadores/nível | capacidade base | teto habitacional | §7.3 comprometida | faixa |
+|---|---|---|---|---|
+| **1** | **10** | dia 15 | **52%** | **decisão estratégica** |
+| 1 | 20 | dia 21 | 26% | população quase irrelevante |
+| 2 | 10 | dia 15 | 104% | déficit — nem opera o que construiu |
+| 2 | 20 | dia 21 | 52% | decisão estratégica |
+| 3 | 10 | dia 15 | 156% | frustração |
+| 3 | 20 | dia 21 | 78% | apertada |
+
+Colônia da rodada: habitação 3, fazenda 3, captação 3, gerador 3, reator 3, mina 2. Produção/h:
+água 60, oxigênio 80, biomassa 45, energia 110.
+
+#### A escolha, e o critério dela
+
+Duas configurações caem na faixa certa, e são **a mesma razão em escalas diferentes**. A escolha foi
+de **legibilidade**: "uma Fazenda nível 3 pede 3 operadores" é uma frase que se entende; "pede 6", já
+é planilha. E o §7.4 pede literalmente *"poucos humanos"*.
+
+**Adotado como hipótese de referência: 1 operador por nível de construção produtora**, semeado por
+`BuildingOperatorRequirementSeeder`. `capacidade_base` fica nos 10 que já estava.
+
+#### ⚠️ O que esta rodada NÃO decidiu
+
+- **Consumo per capita e taxa de crescimento** não foram varridos. Nesta configuração de produção
+  **nenhum essencial faltou** em 60 dias — a pressão populacional vem do teto habitacional e dos
+  operadores, não da fome. Isso é provavelmente o desenho certo (fome por omissão seria hostil), mas
+  é consequência da produção escolhida, não uma propriedade do modelo.
+- **Um perfil de colônia só.** Uma colônia sem Reator, ou com dez Minas, daria outro número.
+- `ativo` **continua `false`**. Uma rodada de simulação é evidência, não campo.
+
 ## 7.2 Objetivo
 
 A população deve:
