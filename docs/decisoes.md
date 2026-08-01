@@ -8994,3 +8994,75 @@ outro caminho.
 ### Verificação
 
 1031 testes verdes (2 novos).
+
+---
+
+## D-174 — Federação (A2.5, primeira fatia): o teto antimonopólio deixa de bloquear sem avisar
+
+**Data:** 2026-07-31 · **Status:** fase A2.5, itens 5 e 6 do trabalho · **Backend e frontend**
+
+### A auditoria primeiro, porque metade da fase já estava feita
+
+Os itens 1 a 4 do trabalho da A2.5 **já existiam** (D-114 a D-121):
+
+- **12 membros**: `Federation::MAX_COLONIAS = 12`, com o comentário certo — *"regra de jogo, não
+  parâmetro que o operador configure"*. Nada a revisar, e **nada a migrar**, ao contrário do que o
+  roadmap supunha.
+- **Papéis, fundo, extrato, missões cooperativas, território**: nove serviços de domínio já cobrem
+  cargo, convite, pedido, saque, expulsão e transferência de liderança.
+
+⚠️ E um achado de vocabulário: **"Diplomata" é um cargo, não um sistema.** O item 7 do trabalho
+("preparar interface diplomática") pede algo que **não existe em nenhuma forma** — tratado, aliança
+ou guerra entre federações. É sistema novo, com decisões de desenho próprias, e **não entrou nesta
+fatia**.
+
+### O defeito real: uma proteção que ninguém vê chegando
+
+O limite antimonopólio territorial existe desde o D-119 e funciona — `OcuparZonaNeutra` recusa
+quando a federação já tem 20% de todas as zonas do jogo. Mas ele **bloqueia sem avisar**: o colono
+descobre o teto no instante em que bate nele, **depois de já ter levado tropa e material até a
+zona**.
+
+O roadmap nomeia isso com precisão ao pedir *"proteções antimonopólio **observáveis**"*. A proteção
+já era; o que faltava era poder vê-la chegando.
+
+### "Quantas ainda cabem" é o número que importa, e não é regra de três
+
+Percentual sozinho não ajuda a decidir: saber que se está em 17% não diz se vale mandar uma
+expedição. **"Cabem mais 2"** diz.
+
+E essa conta tem uma sutileza: **cada zona que a federação ocupa também aumenta o total de zonas
+ocupadas do jogo** — o denominador cresce junto. Uma regra de três simples daria um número errado, e
+errado **para menos**, o que faria a tela assustar sem motivo. Por isso o cálculo é iterativo,
+usando a mesma expressão do domínio.
+
+### ⚠️ Uma conta só, em dois lugares, e um teste amarrando
+
+`Concentracao` usa **exatamente** a expressão de `OcuparZonaNeutra::conferirTetoDaFederacao()`,
+inclusive o `intdiv`. Duas contas para o mesmo limite divergiriam no primeiro ajuste, e a tela
+passaria a dizer "você pode" enquanto o domínio diz "você não pode" — **o pior tipo de discordância,
+porque a tela é quem o jogador acredita**.
+
+Há teste que chama o método privado do domínio por reflexão e exige que os dois concordem. Ele
+chama a regra real de propósito: comparar com uma cópia da fórmula não provaria nada.
+
+### Um erro meu no teste, que vale registrar
+
+A primeira versão criava duas federações no mesmo teste — uma no teto e outra folgada — e falhava.
+**As duas vivem no mesmo mundo**: as 21 zonas da segunda entravam no denominador e tiravam a
+primeira do teto. O cenário é que estava errado, não o código. Separado em dois testes, cada um com
+o seu mundo.
+
+### Verificação
+
+1041 testes verdes (10 novos).
+
+### O que a A2.5 ainda não tem
+
+- **Interface diplomática** (item 7): sistema novo, sem nada no jogo hoje. Tratado, aliança e guerra
+  entre federações precisam de decisão de desenho antes de código.
+- **Objetivos federativos** (item 4) existem como missões cooperativas (D-120), mas não foram
+  revisados contra o que a fase quer dizer por "objetivo".
+- O **critério de saída** — *"uma Federação organizada oferece capacidade estratégica que um conjunto
+  de jogadores independentes não possui"* — **não pode ser declarado cumprido** com esta fatia: ela
+  torna uma proteção legível, o que é correção de usabilidade, não capacidade estratégica nova.

@@ -13,6 +13,7 @@ use App\Domain\Federacao\TransferirLideranca;
 use App\Exceptions\DomainRuleException;
 use App\Http\Controllers\Controller;
 use App\Models\Colony;
+use App\Domain\Federacao\Concentracao;
 use App\Models\Federation;
 use App\Models\FederationHolding;
 use App\Models\FederationInvite;
@@ -92,6 +93,25 @@ class FederationController extends Controller
     }
 
     /** GET /federations — diretório público, para "pedir para entrar". */
+    /**
+     * A concentração da federação, e **quanto falta para o teto antimonopólio bater** (A2.5).
+     *
+     * O limite existe desde o D-119 e funciona — mas até aqui ele **bloqueava sem avisar**: o colono
+     * descobria o teto no instante em que batia nele, depois de já ter levado tropa e material até a
+     * zona. O roadmap chama isso de "proteções antimonopólio **observáveis**". A proteção já era; o
+     * que faltava era vê-la chegando.
+     */
+    public function concentracao(Request $request, Concentracao $concentracao): JsonResponse
+    {
+        $federacao = $request->user()->colony?->federation;
+
+        if (! $federacao) {
+            return response()->json(['tem_federacao' => false]);
+        }
+
+        return response()->json(['tem_federacao' => true] + $concentracao->de($federacao));
+    }
+
     public function index(): JsonResponse
     {
         $federacoes = Federation::whereNull('disbanded_at')

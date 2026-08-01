@@ -9,6 +9,7 @@ import type {
   Veiculo,
 } from '../api/client'
 import { NEGOCIAVEIS, nomeRecurso, nomeVeiculo } from './recursos'
+import { ConcentracaoDaFederacao } from './ConcentracaoDaFederacao'
 
 /**
  * O Quartel de Alianças (§04/§07), Capital slot 9 — Federação, Fatia 1 (D-114).
@@ -260,6 +261,13 @@ function ComFederacao({
           Seu cargo: <b>{my_role ? NOME_CARGO[my_role] : '—'}</b>
         </p>
       </section>
+
+      {/*
+        A2.5: o teto antimonopólio, VISÍVEL antes de bater. Fica logo abaixo do cabeçalho porque é
+        informação de planejamento — quem vai mandar expedição precisa vê-la antes de decidir, não
+        depois de a ocupação ser recusada.
+      */}
+      <ConcentracaoDaFederacao />
 
       <section className="space-y-2">
         <h3 className="text-ink font-black">Membros</h3>

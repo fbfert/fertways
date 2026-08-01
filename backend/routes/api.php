@@ -226,6 +226,13 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Federação (§04/§07; D-114), Fatia 1 — Capital slot 9, o Quartel de Alianças.
     Route::get('/federation', [FederationController::class, 'show']);
+
+    /*
+     * A2.5: a concentração da federação e quanto falta para o teto antimonopólio. Só leitura — o
+     * teto continua sendo aplicado pelo domínio, em `OcuparZonaNeutra`; isto apenas o torna visível
+     * ANTES de o colono bater nele.
+     */
+    Route::get('/federation/concentracao', [FederationController::class, 'concentracao']);
     Route::get('/federations', [FederationController::class, 'index']);
     Route::post('/federations', [FederationController::class, 'store']);
     Route::post('/federations/{federation}/invite', [FederationController::class, 'convidar']);
