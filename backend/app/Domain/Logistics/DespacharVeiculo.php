@@ -788,6 +788,8 @@ class DespacharVeiculo
                 $recurso === 'energia' ? 'falta_de_energia' : 'falta_de_insumo',
                 $colonia->user, $colonia,
                 ['recurso' => $recurso, 'onde' => 'viagem'],
+                // ADIAR: o `throw` logo abaixo reverte a transação e levaria o evento junto.
+                adiar: true,
             );
 
             throw new DomainRuleException('recurso_insuficiente', "Falta {$recurso} para esta viagem.");
