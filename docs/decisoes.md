@@ -9386,3 +9386,51 @@ folga**, e eu estava aplicando os 20% duas vezes. O piso passou a ser o requisit
 (desligada, o tick não toca na população; ligada, cresce e consome) e o par do teto: a concessão
 passa do teto quando precisa, e acima dele a população não cresce **nem morre**. E2E com 10 suítes e
 340 asserções.
+
+## D-179 — a população está no ar
+
+`population_settings.ativo = 1` em produção, em 2026-08-01, depois do grandfathering. É a primeira
+mecânica da Alpha 2 a tocar o mundo real.
+
+### O estado do mundo no minuto zero
+
+| | |
+|---|---|
+| colônias povoadas | 29 de 29 |
+| colonos concedidos | 535 |
+| abaixo do que precisam para operar (violaria o §6.7) | **0** |
+| acima do teto habitacional (operam tudo, não crescem) | 18 |
+| **crescendo de fato** | **5** |
+
+Cinco de 29 crescendo não é acidente nem falha: **22 estão no teto**, porque 20 delas têm Estrutura
+de Sobrevivência nível 1 — nunca houve razão para subi-la. É exatamente o sinal que a mecânica
+deveria emitir no primeiro dia: *o prédio que você ignorou agora vale alguma coisa.*
+
+### O consumo, contra o estoque real
+
+| recurso | mundo/hora | estoque | autonomia |
+|---|---|---|---|
+| água | 53,5 | 1.013.204 | 789 dias |
+| oxigênio | 64,2 | 2.534.474 | 1.645 dias |
+| biomassa | 42,8 | 1.398.384 | 1.361 dias |
+| energia | 32,1 | 1.034.578 | 1.343 dias |
+
+⚠️ **17 colônias não têm energia nenhuma**, e o gargalo do `Ciclo` é o recurso mais escasso — elas
+não crescem. Conferido antes de virar a chave: **só 2 estão travadas exclusivamente por isso**; as
+outras 15 já estavam no teto. O efeito novo é de duas colônias, e a saída é óbvia e legível.
+
+### A verificação, num tick de verdade
+
+Noventa e cinco segundos depois: `populacao_resto_milli` saiu de 0 e as **5** colônias acumulando
+crescimento são **exatamente** as 5 que têm energia e estão abaixo do teto. O acumulador de
+milésimos é o que impede a curva horizontal que a rodada 1 do simulador expôs; vê-lo mexer em
+produção é a prova de que `popular()` rodou.
+
+Nenhum colono inteiro nasceu ainda, e não deveria: a 70 bps/h, a maior colônia em crescimento leva
+~3 h para o primeiro. Fumaça verde, front 200 e `central/colony` 401.
+
+### O que continua desligado, e por quê
+
+A penalidade de eficiência por escassez e o bloqueio por falta de operadores **não** entraram — são
+a A2.6. Mudar dois comportamentos de uma vez num mundo com colônias reais tira a única coisa que
+torna o primeiro dia interpretável: saber qual mudança causou o quê.
