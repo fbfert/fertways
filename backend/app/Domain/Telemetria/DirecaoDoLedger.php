@@ -109,6 +109,8 @@ class DirecaoDoLedger
         'frete_publico',
         // A2.3: destrói recurso de verdade — vira conhecimento, que não é estoque.
         'custo_pesquisa',
+        // A2.7: destrói recurso de verdade — vira capacidade de carga.
+        'upgrade_veiculo',
     ];
 
     public function contaNoFluxo(string $tipo): bool
