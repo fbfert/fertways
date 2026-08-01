@@ -139,8 +139,14 @@ class SimularPopulacao extends Command
                 ];
             }
 
+            /*
+             * `upsert`, e não `insert`: desde que o `BuildingOperatorRequirementSeeder` existe, a
+             * tabela já vem preenchida — e um `insert` colide com a chave única (tipo, nível). A
+             * sobreposição precisa PODER substituir o que está lá, senão não é sobreposição.
+             */
             foreach (array_chunk($linhas, 500) as $lote) {
-                DB::table('building_operator_requirements')->insert($lote);
+                DB::table('building_operator_requirements')
+                    ->upsert($lote, ['building_type', 'level'], ['operadores', 'updated_at']);
             }
         }
     }
@@ -173,18 +179,38 @@ class SimularPopulacao extends Command
 
         $capacidade = $populacao->capacidade($colonia);
         $linhas = [];
+        $this->consumoAcumulado = 0.0;
+        $this->producaoAcumulada = 0.0;
+        $this->diaMetadeDoTeto = null;
+        $this->diaTetoCheio = null;
         $horasTotais = $dias * 24;
 
         for ($h = 0; $h < $horasTotais; $h += $passo) {
             // Produção do intervalo entra antes do consumo — a colônia produz e depois se sustenta.
             foreach ($producao as $recurso => $porHora) {
                 $estoque[$recurso] = ($estoque[$recurso] ?? 0) + $porHora * $passo;
+                $this->producaoAcumulada += $porHora * $passo;
             }
 
             $r = $ciclo->avancar($colonia, $estoque, $passo);
 
             foreach ($r['consumo'] as $recurso => $quanto) {
                 $estoque[$recurso] = max(0, $estoque[$recurso] - $quanto);
+                $this->consumoAcumulado += $quanto;
+            }
+
+            /*
+             * Marcas para medir a RECUPERAÇÃO: quanto tempo leva de metade do teto até o teto.
+             * É a pergunta "quão rápido se recupera de uma escassez" traduzida em algo observável.
+             */
+            $dia = ($h + $passo) / 24;
+
+            if ($this->diaMetadeDoTeto === null && $capacidade > 0 && $r['populacao_nova'] >= $capacidade / 2) {
+                $this->diaMetadeDoTeto = $dia;
+            }
+
+            if ($this->diaTetoCheio === null && $capacidade > 0 && $r['populacao_nova'] >= $capacidade) {
+                $this->diaTetoCheio = $dia;
             }
 
             $colonia->populacao = $r['populacao_nova'];
@@ -216,6 +242,14 @@ class SimularPopulacao extends Command
      */
     /** Guardada para o veredito medir a população comprometida sobre a colônia real da rodada. */
     private ?Colony $coloniaDaRodada = null;
+
+    private float $consumoAcumulado = 0.0;
+
+    private float $producaoAcumulada = 0.0;
+
+    private ?float $diaMetadeDoTeto = null;
+
+    private ?float $diaTetoCheio = null;
 
     private function mundoDescartavel(): Colony
     {
@@ -335,6 +369,53 @@ class SimularPopulacao extends Command
 
         $ultima = end($linhas);
         $this->line('  · Eficiência ao fim: '.number_format($ultima['eficiencia'] / 100, 1).'%');
+
+        /*
+         * ── Quanto da produção a POPULAÇÃO come.
+         *
+         * É a pergunta "quanto tempo uma colônia abandonada aguenta" reformulada em algo que o
+         * modelo realmente decide. Com a produção rodando, a colônia não definha sozinha; o que
+         * importa é quanto sobra para construir e comerciar depois de alimentar quem já está lá.
+         */
+        if ($this->producaoAcumulada > 0) {
+            $fatia = (int) round(100 * $this->consumoAcumulado / $this->producaoAcumulada);
+
+            /*
+             * ⚠️ A faixa baixa NÃO é reprovação — é a decisão do D-177.
+             *
+             * População no FERTWAYS é **restrição de mão de obra**, não economia de comida. Consumo
+             * per capita alto duplicaria o que a energia já faz (toda construção já consome energia
+             * por hora), e o §7.2 proíbe "virar The Sims dentro de Fertways". A métrica que decide é
+             * a do §7.3, logo abaixo — comprometimento, que é trabalho.
+             *
+             * O número continua sendo medido e mostrado: quem quiser mudar a decisão precisa ver o
+             * que está mudando. Mas a ferramenta não vai chamar de defeito o que foi escolhido.
+             */
+            $leitura = match (true) {
+                $fatia < 10 => ['tempero, não economia — decisão do D-177', 'gray'],
+                $fatia <= 35 => ['CUSTO REAL que ainda deixa expandir', 'green'],
+                $fatia < 60 => ['pesada: sobra pouco para construir', 'yellow'],
+                default => ['a população come a colônia', 'red'],
+            };
+
+            $this->line("  · A população consome <options=bold>{$fatia}%</> da produção de essenciais");
+            $this->line("  <fg={$leitura[1]}>    → {$leitura[0]}</>");
+        }
+
+        // ── Recuperação: de metade do teto até o teto.
+        if ($this->diaMetadeDoTeto !== null && $this->diaTetoCheio !== null) {
+            $dias = $this->diaTetoCheio - $this->diaMetadeDoTeto;
+
+            $leitura = match (true) {
+                $dias < 1.5 => ['instantânea — escassez sem consequência', 'yellow'],
+                $dias <= 5.5 => ['DIAS, não horas nem semanas', 'green'],
+                default => ['lenta: um erro custa semanas', 'red'],
+            };
+
+            $this->line('  · Recuperação de metade do teto até o teto: <options=bold>'
+                .number_format($dias, 1, ',', '.').' dias</>');
+            $this->line("  <fg={$leitura[1]}>    → {$leitura[0]}</>");
+        }
 
         /*
          * A métrica-chave da §7.3 — percentual de população comprometida em operação.
