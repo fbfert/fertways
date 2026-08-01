@@ -2,9 +2,13 @@
 
 namespace App\Domain\Production;
 
+use App\Domain\Colony\TetoDoEstoque;
 use App\Domain\Colony\TetoDoTanque;
 use App\Domain\Endurance\EfeitosDaEndurance;
-use App\Models\Building;
+use App\Domain\Marco\ConcederXp;
+use App\Domain\Missoes\Progresso;
+use App\Domain\Populacao\Ciclo;
+use App\Domain\Populacao\Parametros;
 use App\Models\BuildQueue;
 use App\Models\Colony;
 use App\Models\Ledger;
@@ -64,9 +68,10 @@ class ColonyTick
 
     public function __construct(
         private TetoDoTanque $tetoDoTanque,
+        private TetoDoEstoque $tetoDoEstoque,
         private EfeitosDaEndurance $efeitosDaEndurance,
-        private \App\Domain\Populacao\Parametros $parametrosDePopulacao,
-        private \App\Domain\Populacao\Ciclo $cicloDePopulacao,
+        private Parametros $parametrosDePopulacao,
+        private Ciclo $cicloDePopulacao,
     ) {}
 
     public function handle(Colony $colony, CarbonInterface $agora): void
@@ -194,10 +199,10 @@ class ColonyTick
 
         // O Marco anda por atos (D-75), e concluir um nível de obra é o mais comum deles. Um
         // `concluir` = um nível — a fila nunca pula degrau.
-        app(\App\Domain\Marco\ConcederXp::class)->handle(
+        app(ConcederXp::class)->handle(
             $colony->id, 'obra_concluida', "build:{$building->type}:n{$item->target_level}",
         );
-        app(\App\Domain\Missoes\Progresso::class)->registrar($colony->id, 'obra_concluida');
+        app(Progresso::class)->registrar($colony->id, 'obra_concluida');
 
         // §24.7: "o ledger registra subsídio de 100% no momento de concluir".
         // Quem foi subsidiado não pagou nada no enfileiramento (D-15); o lançamento aqui é
@@ -305,6 +310,7 @@ class ColonyTick
                 // mais Biomassa/Energia consumida (a taxa de ENTRADA é o que se multiplica; quem
                 // decide isso é `converter()`, mais abaixo, pela receita).
                 $taxaDestilaria += EfeitosDaEndurance::aplicarBonus($producao['biocombustivel'], $bonusPara($tipo));
+
                 continue;
             }
 
@@ -313,11 +319,13 @@ class ColonyTick
                 // PROCESSA por hora, não o que produz (D-82) — por isso o tratamento à parte.
                 // D-135: mesmo throughput da Destilaria — processa mais Metal Bruto por hora.
                 $taxaSiderurgica += EfeitosDaEndurance::aplicarBonus($producao[Siderurgica::INSUMO] ?? 0, $bonusPara($tipo));
+
                 continue;
             }
 
             if ($tipo === 'refinaria_quimica') {
                 $taxaCompostos += EfeitosDaEndurance::aplicarBonus($producao['compostos_quimicos'] ?? 0, $bonusPara($tipo));
+
                 continue;
             }
 
@@ -326,6 +334,7 @@ class ColonyTick
                 // Siderúrgica as produz agora. Só Componentes entram via §24.5.
                 $taxa = EfeitosDaEndurance::aplicarBonus($producao['componentes_eletronicos'] ?? 0, $bonusPara($tipo));
                 $taxaComponentes[$recipe] = ($taxaComponentes[$recipe] ?? 0) + $taxa;
+
                 continue;
             }
 
@@ -382,7 +391,18 @@ class ColonyTick
         $estoque = $colony->resources()->lockForUpdate()->get()->keyBy('resource_type');
 
         foreach ($taxas as $recurso => $porHora) {
-            $this->acumular($estoque[$recurso], $porHora * $segundos);
+            $numerador = $porHora * $segundos;
+
+            /*
+             * §14: o teto TRAVA a extração — ela simplesmente para de render, e o que já está
+             * guardado não é tocado. Só o ganho é limitado: consumo (numerador negativo) passa
+             * inteiro, senão o teto viraria uma trava de gasto, que ninguém pediu.
+             */
+            if ($numerador > 0) {
+                $numerador = min($numerador, $this->espacoNumerador($colony, $estoque[$recurso], $recurso));
+            }
+
+            $this->acumular($estoque[$recurso], $numerador);
         }
 
         // Ordem importa: a receita Avançada de Componentes consome Biocombustível, que a
@@ -401,7 +421,10 @@ class ColonyTick
          * então processá-la primeiro raramente falta a vez da outra.
          */
         if ($taxaCompostos > 0) {
-            $this->converter($estoque, $taxaCompostos * $segundos, self::RECEITA_COMPOSTOS, 'compostos_quimicos');
+            $this->converter(
+                $estoque, $taxaCompostos * $segundos, self::RECEITA_COMPOSTOS, 'compostos_quimicos',
+                $this->tetoDoEstoque->capacidade($colony, 'compostos_quimicos'),
+            );
         }
 
         if ($taxaSiderurgica > 0) {
@@ -419,12 +442,32 @@ class ColonyTick
                 continue;
             }
 
-            $this->converter($estoque, $taxa * $segundos, $this->receita($codigo), 'componentes_eletronicos');
+            $this->converter(
+                $estoque, $taxa * $segundos, $this->receita($codigo), 'componentes_eletronicos',
+                $this->tetoDoEstoque->capacidade($colony, 'componentes_eletronicos'),
+            );
         }
 
         foreach ($estoque as $linha) {
             $linha->save();
         }
+    }
+
+    /**
+     * Quanto ainda cabe, em unidades de 1/3600 — `PHP_INT_MAX` quando não há teto.
+     *
+     * O sentinela é o infinito da aritmética, e não um número grande escolhido a dedo: qualquer
+     * `min()` contra ele devolve o outro lado, que é exatamente o comportamento de "sem teto".
+     */
+    private function espacoNumerador(Colony $colony, $linha, string $recurso): int
+    {
+        $teto = $this->tetoDoEstoque->capacidade($colony, $recurso);
+
+        if ($teto === null) {
+            return PHP_INT_MAX;
+        }
+
+        return max(0, $teto * 3600 - ($linha->amount * 3600 + $linha->production_remainder));
     }
 
     /**
@@ -454,7 +497,7 @@ class ColonyTick
      * insumo não é gasto além do que o Tanque tem espaço para receber. Nula para as outras duas
      * saídas (Compostos Químicos, Componentes Eletrônicos), que não têm teto publicado.
      *
-     * @param array<string,int> $receita insumo => quantidade por unidade produzida
+     * @param  array<string,int>  $receita  insumo => quantidade por unidade produzida
      */
     private function converter($estoque, int $numeradorDesejado, array $receita, string $saida, ?int $tetoSaida = null): void
     {
@@ -520,6 +563,37 @@ class ColonyTick
         $colony->siderurgica_lote_remainder = $total % $loteNumerador;
 
         if ($lotes <= 0) {
+            return;
+        }
+
+        /*
+         * ⚠️ O lote é indivisível, e por isso o teto o trava POR INTEIRO.
+         *
+         * A receita tem seis saídas simultâneas. Se uma delas não couber, creditar as outras cinco
+         * derramaria a sexta — e o §14 promete que nada transborda e vira desperdício. Então o
+         * limite é o número de lotes que cabem na saída MAIS APERTADA.
+         */
+        foreach (Siderurgica::SAIDAS as $recurso => $porLote) {
+            if (! isset($estoque[$recurso])) {
+                continue;
+            }
+
+            $espaco = $this->espacoNumerador($colony, $estoque[$recurso], $recurso);
+
+            if ($espaco !== PHP_INT_MAX) {
+                $lotes = min($lotes, intdiv($espaco, $porLote * 3600));
+            }
+        }
+
+        if ($lotes <= 0) {
+            /*
+             * Devolve o progresso ao acumulador em vez de perdê-lo: o Metal Bruto já foi debitado
+             * acima, e engolir o lote junto com o teto cheio cobraria o insumo por nada.
+             */
+            $colony->siderurgica_lote_remainder = min(
+                $loteNumerador - 1, $colony->siderurgica_lote_remainder + $loteNumerador,
+            );
+
             return;
         }
 

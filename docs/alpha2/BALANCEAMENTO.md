@@ -851,6 +851,60 @@ Avaliar sempre em função do ritmo de produção por hora e do intervalo real e
 
 ---
 
+### Rodadas 8 e 9 da trilha A2.S — 2026-08-01 (a A2.7 fecha)
+
+Duas perguntas, dois comandos, e as duas respostas mudaram alguma coisa.
+
+#### Rodada 8 — o teto de estoque cabe no ritmo do jogo?
+
+Posição de desenho **declarada antes de medir**: *no nível 1 uma colônia a plena produção enche o
+teto em cerca de um dia; no nível 10, em cerca de uma semana.* Declarar primeiro é o que impede de
+escolher o número e escrever a justificativa depois.
+
+`base=10.000 · fator=1,25×/nível`, contra uma colônia madura (produção real de 506 oxigênio/h — o
+gargalo):
+
+| nível | capacidade | enche em | leitura |
+|---|---|---|---|
+| 1 | 10.000 | 20 h | curto, mas jogável |
+| 3 | 15.625 | 31 h | faixa boa |
+| 5 | 24.413 | 2,0 dias | faixa boa |
+| 10 | 74.501 | 6,1 dias | faixa boa |
+
+**Alvo 24 h e 7,0 dias; medido 20 h e 6,1 dias.** A curva cumpre a posição nas duas pontas, e os
+dois erros que a §14 nomeia ficam de fora: não vira obrigação de login, e não fica irrelevante.
+
+⚠️ O gargalo é o recurso de **maior** produção, não a média — é ele que decide quando a colônia para
+de render. Média esconderia exatamente o caso que interessa.
+
+#### Rodada 9 — o upgrade de veículo é escolha ou é botão?
+
+O critério de saída da A2.7 é *"escolha econômica mensurável e não apenas aumento nominal de nível"*,
+e isso não se lê no código: mede-se.
+
+⚠️ **A conta que ninguém tinha feito:** a manutenção é cobrada **por reparo**, e reparo vem do
+desgaste, que vem das horas de estrada. Então o nível mexe nos dois lados ao mesmo tempo — mais
+capacidade significa **menos viagens**, logo **menos desgaste**, enquanto cada reparo fica mais caro.
+O que decide é o produto, não nenhum dos dois sozinho.
+
+Caminhão de carga, trecho de 10 slots, tonelagem grande o bastante para o `ceil()` das viagens não
+dominar a medida:
+
+| nível | capacidade | viagens | h de estrada | custo por reparo |
+|---|---|---|---|---|
+| 1 | 30.000 | 334 | 74 | 14 |
+| 3 | 39.000 | 257 | 57 | 20 |
+| 5 | 48.000 | 209 | 46 | 25 |
+
+**A mesma tonelagem custa +11,7% de manutenção e cabe em 1,60× menos viagens.** É escolha de
+verdade: subir troca **custo por unidade** por **vazão por veículo**. Vale para quem tem vaga de
+frota escassa — o teto da frota é o nível da Central de Transportes — e não vale para quem já tem
+veículo ocioso, que pagaria a manutenção maior sem usar a capacidade maior.
+
+⚠️ **Uma armadilha de medição, registrada porque quase passou:** com a tonelagem pequena que eu havia
+posto como padrão, o resultado era +33,9%. Não era economia — era o `ceil()` de 4 viagens contra 3. O
+número que eu ia registrar estava errado por um arredondamento.
+
 # 15. Sessões de 5–10 minutos: regra prática
 
 Ao analisar qualquer sistema, verificar:

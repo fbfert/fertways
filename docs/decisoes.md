@@ -9499,3 +9499,72 @@ saque, mas não limita."*
 ### Verificação
 
 1065 testes verdes (3 novos, todos sobre a tela poder oferecer o upgrade) e 10 suítes e2e verdes.
+
+## D-181 — a A2.7 fecha: o teto que trava, e a prova de que o upgrade é escolha
+
+Faltavam os itens 4 e 6, e nenhum dos dois era fiação.
+
+### O teto de estoque, e por que NÃO reusei o `Silo`
+
+O `Silo` responde *"quanto está protegido de saque"*; o teto responde *"quanto cabe"*. Mesmo prédio,
+duas perguntas, e dois números que precisam se mover em separado. Conflá-las inventaria uma regra que
+ninguém decidiu. (De quebra, `silo_capacidades` é **plana** — 10.000 em todos os dez níveis —, então
+o nível do Depósito Local hoje não altera nada; isso é assunto da proteção, e fica para quando o
+saque de colônia existir.)
+
+Tabela nova, `estoque_settings`, com a chave-mestra da casa.
+
+### ⚠️ O teto não pôde entrar no `acumular()`, e a razão é a §14
+
+O caminho óbvio seria limitar o crédito no ponto onde o estoque cresce. Para a **extração** isso está
+certo — não há insumo, e travar o ganho é literalmente "a produção para". Para as **conversões**
+estaria errado: o insumo já teria sido consumido, e a saída seria descartada. Isso é **derramar**,
+exatamente o que a §14 proíbe.
+
+Então cada caminho trava antes de consumir:
+
+| caminho | como trava |
+|---|---|
+| extração | o ganho é limitado ao espaço livre |
+| conversões | pelo `$tetoSaida` que a Destilaria já usava desde o D-131 |
+| **Siderúrgica** | **o lote inteiro**, pela saída mais apertada |
+
+O lote da Siderúrgica tem **seis saídas simultâneas**. Creditar cinco e descartar a sexta seria
+derramar, então o teto trava o lote por inteiro — e o progresso volta ao acumulador em vez de sumir,
+porque o Metal Bruto já foi debitado e cobrá-lo por nada seria pior que o problema.
+
+### ⚠️ Um teste meu passava porque nada acontecia
+
+O teste do lote da Siderúrgica passou de primeira. Desconfiei — foi assim que o grandfathering me
+enganou no D-178 — e escrevi o **controle**: o mesmo cenário com o teto desligado. **O controle
+reprovou.** A Siderúrgica nível 3 processa 34 Metal Bruto/h contra um lote de 1.000, e em 24 h não
+fecha lote nenhum. Eu estava medindo o silêncio dela.
+
+Com três dias, o par passa a significar alguma coisa.
+
+### As duas rodadas do simulador (item 6)
+
+Registradas no `BALANCEAMENTO.md`. A posição de desenho do teto foi **declarada antes de medir** —
+*um dia no nível 1, uma semana no nível 10* — e a curva a cumpre nas duas pontas: 20 h e 6,1 dias.
+
+E o upgrade de veículo **é escolha**: a mesma tonelagem custa **+11,7% de manutenção** e cabe em
+**1,60× menos viagens**. Subir troca custo por unidade por vazão por veículo — vale para quem tem
+vaga de frota escassa, não vale para quem já tem veículo ocioso.
+
+⚠️ Quase registrei +33,9%. Era o `ceil()` de 4 viagens contra 3, não economia: com tonelagem pequena
+o arredondamento domina a medida. O número que eu ia publicar estava errado por arredondamento.
+
+### O que NÃO foi ligado
+
+`estoque_settings.ativo` continua `false`. O mundo guarda ~35 mil de água por colônia contra 10.000
+de teto no nível 1, e 25 das 29 têm Depósito Local nível 1 — ligar hoje travaria a produção de quase
+todas de uma vez.
+
+O teto **nunca destrói estoque**: acima dele a produção para e o que existe fica, como o teto
+habitacional da população (D-178). Mas "não destrói" não é "pode ligar". A ativação é decisão
+separada, e precisa de um plano para as veteranas.
+
+### Verificação
+
+1074 testes verdes (9 novos) e 10 suítes e2e verdes. Migration aplicada no dev em MariaDB antes do
+deploy — SQLite não prova DDL.
