@@ -22,6 +22,7 @@ use App\Http\Controllers\Api\TradeController;
 use App\Http\Controllers\Api\TransportController;
 use App\Http\Controllers\Api\VehicleController;
 use App\Http\Controllers\Api\ProfileController;
+use App\Http\Controllers\Api\PerfilDaColoniaController;
 use App\Http\Controllers\Api\ResumoController;
 use App\Http\Controllers\Api\WarController;
 use App\Http\Controllers\Api\ZoneController;
@@ -52,6 +53,13 @@ Route::middleware('auth:sanctum')->group(function () {
      */
     Route::get('/resumo', [ResumoController::class, 'show']);
     Route::post('/resumo/visto', [ResumoController::class, 'visto']);
+
+    /*
+     * O perfil derivado da colônia (A2.4). **Só GET, e nunca haverá POST**: o §8.1 proíbe escolha
+     * declarada de perfil — o colono se especializa pelo que pesquisou e construiu, e o jogo
+     * calcula e exibe. Um endpoint de escrita seria a segunda camada que aquela regra impede.
+     */
+    Route::get('/perfil-da-colonia', [PerfilDaColoniaController::class, 'show']);
     Route::post('/colony', [ColonyController::class, 'store']);
 
     // Diretório de destinos possíveis para um despacho. Sem ele, `destination_type = colonia`

@@ -8848,3 +8848,89 @@ parte da árvore que é mensurável.
 
 1018 testes verdes. Rodada 4 registrada em `BALANCEAMENTO.md` §8.1, com a tabela de valor por prédio
 e a evolução das quatro rodadas.
+
+---
+
+## D-172 — Especialização (A2.4): o perfil é calculado e exibido — e o critério de saída NÃO passa
+
+**Data:** 2026-07-31 · **Status:** fase A2.4 + terceira entrega da trilha A2.S · **Backend e frontend**
+
+### ⚠️ Primeiro: uma correção do D-171
+
+O D-171 reapontou a tecnologia de Indústria da Refinaria para a **Indústria Siderúrgica**, e
+justificou dizendo que ela produz **1,70 Fert$/h, "no meio exato do grupo"**.
+
+**Aquele número estava errado.** Ele é a taxa de **entrada**, não de saída. O comentário do
+`ColonyTick` diz com todas as letras: *"o JSON reaproveita a chave `metal_bruto` da Mina, mas aqui é
+o que ela PROCESSA por hora, não o que produz (D-82)"*. Eu li como produção.
+
+A saída real está em `Siderurgica::SAIDAS`: a cada 1000 de Metal Bruto, **350 Ligas Metálicas e
+cinco minerais eletrônicos**. Medida a preço base, no nível 4:
+
+    saída bruta: 0,378 Fert$/h  ·  insumo: 1,698 Fert$/h  ·  LÍQUIDO: −1,321 Fert$/h
+
+**A Siderúrgica destrói valor a preço base.** O valor dela não é aritmético, é de **soberania**: é o
+único caminho de uma colônia obter minerais eletrônicos sem comprar do Governo.
+
+**A decisão do D-171 continua de pé, por outro motivo.** O bônus de produção na Siderúrgica aumenta a
+taxa de processamento — logo, aumenta ligas *e* minerais. É efeito real e estrategicamente valioso.
+Mas a justificativa publicada estava errada, e fica corrigida aqui.
+
+### E uma afirmação falsa que quase publiquei
+
+Escrevi, no primeiro rascunho do simulador de especialização, que **"nenhum prédio do jogo produz
+mineral eletrônico"**. É mentira, e pela mesma raiz: a Siderúrgica produz cinco dos oito, e some da
+contagem quando se lê `producao_hora_json` ingenuamente.
+
+A lição, que vale além destas duas fases: **`building_specs.producao_hora_json` não significa a mesma
+coisa para todo prédio.** Para a Mina é produção; para a Siderúrgica é consumo. A verdade dos que
+convertem mora no domínio (`Siderurgica::SAIDAS`, as receitas, os ramos por tipo do `ColonyTick`), e
+não na tabela gerada do GDD.
+
+### O que a A2.4 entregou
+
+**A auditoria que a fase pedia tem resposta curta**: a especialização "já existente" são as cinco
+construções **repetíveis**. `Building::REPETIVEIS` já dizia, desde o D-59, que "repetir é estratégia
+econômica (especializar a colônia em metal, em química) e não truque". O mecanismo existia,
+decidia economia, e **nunca tinha sido lido nem mostrado a ninguém**.
+
+**O perfil é calculado, nunca declarado** (§8.1). `Domain\Especializacao\Perfil` deriva vocação,
+força e dependências do que a colônia construiu e pesquisou. **Só há rota GET, e nunca haverá POST** —
+há teste que verifica isso, porque um endpoint de escrita seria a segunda camada que o §8.1 existe
+para impedir, com respec, custo de troca e a troca oportunista na véspera de cada evento.
+
+**E é exibido**, que é a contrapartida obrigatória daquela regra. `VocacaoDaColonia.tsx`, na tela de
+Perfil, mostra os dois lados: o que a colônia produz **e do que passa a depender**. Sem a segunda
+lista, a tela diria ao colono que ele é bom em metal sem lhe dizer que, por isso, precisa de alguém
+que faça biomassa.
+
+**A vocação sai do VALOR, não da quantidade.** O Reator faz 506 energia/h e a Mina 51 metal/h — uma
+colônia não é "energética" por produzir muitos números.
+
+### ⚠️ O critério de saída NÃO passa
+
+`fertways:simular-especializacao` verifica o critério reescrito: *"para cada especialização, ao menos
+uma cadeia de que ela depende não é suprível por produção própria"*.
+
+| especialização | vocação | força | depende (ESTRUTURAL) |
+|---|---|---|---|
+| metalúrgica | metal_bruto | 72% | **—** |
+| química | agua | 44% | **—** |
+| eletrônica | componentes_eletronicos | 99% | silicio |
+| energética | energia | 45% | **—** |
+| agrícola | biomassa | 60% | **—** |
+
+**1 de 5.** Só a eletrônica depende de algo que nenhum prédio produz (silício). As outras quatro se
+bastam: tudo o que consomem, poderiam produzir gastando slots.
+
+O relatório distingue **dependência estrutural** (o que nenhum nível de investimento resolve) de
+**dependência escolhida** (o que se poderia produzir e se preferiu comprar). Só a primeira cumpre o
+critério, e por isso **a fase não pode ser declarada concluída**.
+
+O que faltaria, e é arbitragem do usuário: ou as cadeias essenciais deixam de ser todas
+auto-supríveis — o que provavelmente passa pela escassez de slots ou pela população da A2.2 —, ou o
+critério de saída precisa ser revisto.
+
+### Verificação
+
+1029 testes verdes (11 novos). Nenhum número foi promovido; a pesquisa segue desligada.

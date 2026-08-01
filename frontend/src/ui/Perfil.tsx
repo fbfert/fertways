@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { api, ApiError } from '../api/client'
 import type { Perfil as PerfilDto } from '../api/client'
+import { VocacaoDaColonia } from './VocacaoDaColonia'
 
 /**
  * O perfil do colono (docs/decisoes.md D-69).
@@ -264,7 +265,14 @@ export function Perfil({ aoSalvar }: { aoSalvar: () => void }) {
       </section>
 
       {/* ── a reputação ──────────────────────────────────────────────────────────────────── */}
-      <section data-secao="reputacao">
+      {/*
+      A vocação da colônia (A2.4). Fica no Perfil, e não numa tela própria, de propósito: o §8.1
+      diz que a especialização NÃO é escolhida, então ela não merece uma tela onde se vá "mexer
+      nela" — ela é uma leitura sobre quem a colônia virou, que é exatamente o que esta tela já é.
+    */}
+    <VocacaoDaColonia />
+
+    <section data-secao="reputacao">
         <h3 className="font-bold">A sua reputação</h3>
         <p className="text-ink-soft mt-1 text-xs">
           Os quatro índices do Ministério. <strong>Não se editam</strong> — são o seu histórico, e são{' '}
