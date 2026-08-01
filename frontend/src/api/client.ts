@@ -954,6 +954,22 @@ export type PerfilDaColonia = {
   repetidas?: Record<string, number>
 }
 
+/** Concentração da federação e o teto antimonopólio (A2.5). */
+export type ConcentracaoDaFederacao = {
+  tem_federacao: boolean
+  zonas_da_federacao?: number
+  zonas_do_jogo?: number
+  /** Fatia das zonas do jogo, em pontos-base (2000 = 20%). */
+  ocupacao_bps?: number
+  teto_bps?: number
+  no_teto?: boolean
+  /** Quantas zonas ainda cabem antes de o teto travar — o denominador cresce junto. */
+  zonas_ate_o_teto?: number
+  membros?: number
+  membros_max?: number
+  fert_micro?: number
+}
+
 export const api = {
   register: (b: { name: string; nickname: string; email: string; password: string }) =>
     req<Sessao>('/register', { method: 'POST', body: JSON.stringify(b) }),
@@ -1524,6 +1540,12 @@ export const api = {
 
   /** A federação da própria colônia (ou `federation: null`), membros, fundo e pendências. */
   minhaFederacao: () => req<MinhaFederacao>('/federation'),
+
+  /*
+   * A2.5: torna o teto antimonopólio VISÍVEL antes de o colono bater nele. Só leitura — quem aplica
+   * o limite continua sendo o domínio, em `OcuparZonaNeutra`.
+   */
+  concentracaoDaFederacao: () => req<ConcentracaoDaFederacao>('/federation/concentracao'),
 
   /** O diretório público — para escolher a quem pedir entrada. */
   federacoes: () => req<FederationListItem[]>('/federations'),
