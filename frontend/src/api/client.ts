@@ -940,6 +940,20 @@ export type ResumoDeRetorno = {
   vazio: boolean
 }
 
+/** O perfil DERIVADO da colônia (A2.4; GDD ALPHA 2 §8.1) — calculado, nunca declarado. */
+export type PerfilDaColonia = {
+  tem_colonia: boolean
+  producao?: Record<string, number>
+  /** O recurso de maior VALOR produzido. Nulo quando a colônia ainda não produz nada. */
+  vocacao?: string | null
+  /** Quanto a vocação domina o valor total produzido, em pontos percentuais. */
+  forca_pct?: number
+  /** O que a colônia consome e NÃO produz — a outra metade que o §8.1 manda exibir. */
+  depende_de?: string[]
+  trilhas?: string[]
+  repetidas?: Record<string, number>
+}
+
 export const api = {
   register: (b: { name: string; nickname: string; email: string; password: string }) =>
     req<Sessao>('/register', { method: 'POST', body: JSON.stringify(b) }),
@@ -973,6 +987,12 @@ export const api = {
    */
   resumo: () => req<ResumoDeRetorno>('/resumo'),
   resumoVisto: () => req<{ message: string }>('/resumo/visto', { method: 'POST' }),
+
+  /*
+   * Só leitura, e nunca haverá escrita: o §8.1 proíbe escolha declarada de perfil. O colono se
+   * especializa pelo que pesquisou e construiu; o jogo calcula e exibe.
+   */
+  perfilDaColonia: () => req<PerfilDaColonia>('/perfil-da-colonia'),
 
   /**
    * Diretório de colônias, do vizinho mais próximo ao mais distante.
