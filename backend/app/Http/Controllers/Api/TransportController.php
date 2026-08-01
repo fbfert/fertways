@@ -150,6 +150,21 @@ class TransportController extends Controller
         return response()->json(['veiculo' => $this->registro($reparado)]);
     }
 
+    /**
+     * POST /central/transport/vehicles/{v}/upgrade — sobe o nível (A2.7).
+     *
+     * `vehicles.level` existia desde sempre **sem caminho para subir**. Esta é a rota que faltava.
+     * Capacidade sobe e manutenção sobe junto — a contrapartida que torna o upgrade uma escolha
+     * econômica, e não um aumento nominal. Velocidade não é tocada: é traço do tipo.
+     */
+    public function melhorar(Request $request, Vehicle $vehicle): JsonResponse
+    {
+        $melhorado = app(\App\Domain\Transport\UpgradeVeiculo::class)
+            ->handle($this->colonia($request), $vehicle);
+
+        return response()->json(['veiculo' => $this->registro($melhorado)]);
+    }
+
     /** DELETE /central/transport/vehicles/{v} — sucatear. Sem devolução (D-60). */
     public function sucatear(Request $request, Vehicle $vehicle): JsonResponse
     {

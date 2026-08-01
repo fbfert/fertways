@@ -40,13 +40,20 @@ class Manutencao
     public function custo(Vehicle $veiculo): array
     {
         $bps = $this->conservacao->config()->manutencao_bps_do_custo;
+
+        /*
+         * A2.7: a manutenção sobe com o NÍVEL, e é essa a contrapartida que torna o upgrade uma
+         * escolha em vez de um aumento de graça. Um veículo grande parado custa caro — quem roda
+         * pouco não deve querer subir. Ver `UpgradeVeiculo::manutencaoBps()`.
+         */
+        $doNivel = app(UpgradeVeiculo::class)->manutencaoBps((int) $veiculo->level);
         $custo = [];
 
         foreach (VeiculoCustos::nivel1($veiculo->type) as $recurso => $qtd) {
             // Arredonda para CIMA: uma fração de 10% de 25 Componentes dá 2,5, e cobrar 2 daria
             // manutenção mais barata do que a regra manda. Serviço nenhum sai de graça por
             // truncamento.
-            $custo[$recurso] = (int) ceil($qtd * $bps / Conservacao::CHEIO);
+            $custo[$recurso] = (int) ceil($qtd * $bps * $doNivel / (Conservacao::CHEIO * 10_000));
         }
 
         return $custo;

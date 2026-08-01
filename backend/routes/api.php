@@ -169,6 +169,12 @@ Route::middleware('auth:sanctum')->group(function () {
     // A frota envelhece (§16.4, D-60 fatia 2): manutenção na Central de Transportes do colono, e
     // sucata só por vontade do dono — nada some da frota sem ele mandar.
     Route::post('/transport/vehicles/{vehicle}/maintain', [TransportController::class, 'reparar']);
+
+    /*
+     * A2.7: a rota de upgrade que faltava. `vehicles.level` existia sem caminho para subir.
+     * Capacidade↑ e manutenção↑ juntas; velocidade NÃO — é traço do tipo de veículo.
+     */
+    Route::post('/transport/vehicles/{vehicle}/upgrade', [TransportController::class, 'melhorar']);
     Route::delete('/transport/vehicles/{vehicle}', [TransportController::class, 'sucatear']);
 
     // Mercado de usados (D-60 fatia 3), com escrow do Ministério: o comprador paga, o veículo

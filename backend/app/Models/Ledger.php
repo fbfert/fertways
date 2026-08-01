@@ -99,6 +99,8 @@ class Ledger extends Model
          * consome o que já existe no jogo, e por isso passa pelo ledger como qualquer outro gasto.
          */
         'custo_pesquisa',
+        // A2.7: recursos gastos para subir o nível de um veículo. Fração do custo de compra.
+        'upgrade_veiculo',
     ];
 
     public function colony(): BelongsTo

@@ -9066,3 +9066,64 @@ o seu mundo.
 - O **critério de saída** — *"uma Federação organizada oferece capacidade estratégica que um conjunto
   de jogadores independentes não possui"* — **não pode ser declarado cumprido** com esta fatia: ela
   torna uma proteção legível, o que é correção de usabilidade, não capacidade estratégica nova.
+
+---
+
+## D-175 — Upgrade de veículo (A2.7): o nível existia sem caminho para subir
+
+**Data:** 2026-07-31 · **Status:** fase A2.7, itens 1, 2, 3 e 5 do trabalho · **Backend**
+
+`vehicles.level` existe no banco desde sempre e **nunca teve rota para subir**. O roadmap diz
+exatamente isso — *"o nível existe sem caminho para subir. É isso que esta fase fecha."*
+
+### Um eixo, com contrapartida
+
+Capacidade sobe **e manutenção sobe junto**, e a manutenção sobe mais (2000 bps por nível contra
+1500 de capacidade). É o que transforma o upgrade em **escolha econômica** em vez de aumento
+nominal — que é, literalmente, o critério de saída da fase. Um veículo grande parado custa caro;
+quem roda pouco não deve querer subir.
+
+Há teste que exige `manutencao_bps > capacidade_bps`: se um dia alguém inverter os dois, a fase
+perde o sentido em silêncio.
+
+### ⚠️ Velocidade não entra, e há teste guardando
+
+Velocidade é **traço do tipo** — é o que diferencia Furgão de Caminhão. Se o nível acelerasse, a
+**distância** encolheria a cada upgrade, e distância é pilar declarado do jogo ("logística sem
+teleporte").
+
+O teste observa a velocidade pelo **tempo do trecho**, que é como o jogo a usa: dez slots levam o
+mesmo tempo antes e depois do upgrade. Ele existe porque é o tipo de coisa que alguém acrescenta
+depois achando que melhora.
+
+### Decisões menores que valem registro
+
+- **A capacidade é reescrita a partir da base do tipo**, não incrementada sobre a atual. Incrementar
+  acumularia erro de arredondamento a cada nível e — pior — ficaria errado para sempre se alguém
+  ajustasse o parâmetro depois: a coluna guardaria o resultado de uma curva que não existe mais.
+- **O custo multiplica pelo nível alvo.** Sem isso, o último nível sairia pelo preço do primeiro.
+- **Só veículo no pátio.** Um veículo em rota tem carga calculada com a capacidade atual; mudá-la no
+  meio da viagem faria a carga não caber no próprio veículo que a transporta.
+- **Os parâmetros foram para `transport_settings`**, e não para tabela nova: a casa já tem uma linha
+  única de parâmetros de transporte, e espalhar o balanceamento em dois lugares faria quem for
+  ajustar ter de lembrar de olhar os dois.
+
+### A trava do D-163 cobrou de novo
+
+`upgrade_veiculo` entrou em `Ledger::TIPOS`, e o teste *"todo tipo do ledger tem direção declarada"*
+exigiu a classificação em `DirecaoDoLedger` na mesma hora. Segunda vez que ela pega um tipo novo —
+está fazendo exatamente o trabalho para o qual foi escrita.
+
+### ⚠️ O que a A2.7 ainda não tem
+
+- **O teto de estoque que trava** (item 4). A classe `Silo` existe desde o D-107 e **ninguém a usa** —
+  o próprio docblock admite: *"isto é só a regra e o dado"*. Fazer o teto travar a produção é
+  mudança de comportamento num mundo vivo, e merece tratamento próprio.
+- **A simulação de impacto econômico** (item 6). Todos os números acima são HIPÓTESE.
+
+Portanto o critério de saída — *"upgrade apresenta escolha econômica mensurável"* — tem a
+**estrutura** para ser verdade, mas **mensurável** exige a rodada do simulador que ainda não houve.
+
+### Verificação
+
+1053 testes verdes (12 novos). Migration exercitada num MariaDB descartável.
