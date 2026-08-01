@@ -8712,3 +8712,87 @@ Nenhum número foi promovido. As saídas, e a escolha é do usuário:
 1018 testes verdes (2 novos). Rodada registrada em `BALANCEAMENTO.md` §8.1, com a tabela de custo e
 retorno. Conferido por leitura que produção e dev seguem com `research_settings.ativo = 0` depois de
 várias execuções manuais — o rollback aguenta.
+
+---
+
+## D-170 — As três correções da árvore de pesquisa, e o que o achatamento de custo provou
+
+**Data:** 2026-07-31 · **Status:** rodada 3 da trilha A2.S · **Backend**
+
+Aplicadas as três recomendações que o D-169 deixou na mesa. A primeira resolveu o problema sozinha.
+
+### 1. Custos achatados: a dominância caiu
+
+Todas as oito tecnologias passaram a custar **~10 Fert$** pelo preço base. Dispersão de **34× para
+1,12×**.
+
+| | antes | depois |
+|---|---|---|
+| Primeira escolha idêntica | 5/5 (100%) | **3/5 (60%)** |
+| Sequências distintas | 1 de 5 | **4 de 5** |
+
+E cada arquétipo passou a especializar-se no que a sua própria colônia produz: a agrícola escolhe
+Biosfera, a mineradora escolhe Território, a energética escolhe Energia.
+
+**O ponto que importa: os efeitos não mudaram entre as duas rodadas.** Enquanto a razão de preço era
+de 34×, ela decidia tudo antes de o efeito entrar na conta. Era o custo que estava jogando o jogo.
+
+### 2. Os dois efeitos inertes, corrigidos
+
+O D-169 achou que Ciência e Defesa davam `producao_bonus` a prédios que **não produzem recurso
+nenhum** — bônus matematicamente zero, duas trilhas inertes por construção.
+
+- **Ciência** passou a `duracao_pesquisa`: encurta as pesquisas seguintes. É o efeito natural da
+  trilha — ela não produz recurso, produz conhecimento mais rápido. Tem consumidor de verdade: o
+  `Pesquisar` aplica **no início**, e não na conclusão, porque prazo prometido não pode encurtar no
+  meio do caminho, ainda que a surpresa fosse boa. Teto baixo (4000 bps): pesquisa quase instantânea
+  destruiria o custo de oportunidade que a fase existe para criar.
+- **Defesa** passou a `defesa_bonus`, **declarado e sem consumidor**. Fortalecer a Torre vive no
+  motor de combate (§27), superfície grande que não pertence a esta fase. Fica inerte de propósito,
+  com o precedente do D-67/D-79 — seis estruturas de zona que "erguem-se, custam, não fazem nada até
+  o sistema de que dependem existir". A alternativa seria dar à Defesa um efeito que ela não tem só
+  para o número não ficar feio: mentira com aparência de funcionalidade.
+
+O vocabulário novo vive em `Domain\Pesquisa\Efeitos`, e **não** no `EfeitosDaEndurance` — a Endurance
+não tem por que saber de duração de pesquisa. `Efeitos::tetoBps()` resolve os dois vocabulários, para
+o consumidor não precisar saber de qual deles veio o tipo.
+
+### 3. ⚠️ Achado novo: a trilha de Indústria está 14× pior
+
+Com o custo achatado, o retorno ficou legível — e um número saltou:
+
+| tecnologia | melhor retorno |
+|---|---|
+| `tec_energia_1` | 188 h |
+| `tec_biosfera_1` / `tec_territorio_1` | 204 h |
+| **`tec_industria_1`** | **2.815 h** |
+
+A causa é a base, não o bônus: a **Refinaria Química produz 7 compostos_quimicos/h no nível 4**,
+contra 150 energia/h do Reator. Percentual sobre base pequena é ganho pequeno. **Nenhum arquétipo
+escolhe Indústria — nem o industrial.**
+
+**Não corrigi**, e a razão é a regra de ouro: consertar isso é subir o bps da tecnologia (arbitragem)
+ou mexer na produção da Refinaria (**número do GDD**). Fica para o usuário.
+
+### O relatório passou a distinguir TRÊS ausências
+
+Confundi-las seria o erro que a fase inteira tenta evitar:
+
+- **"sem consumidor"** — o efeito não faz nada no jogo hoje. É defeito a corrigir.
+- **"sem volume modelado"** — o efeito faz, mas o recorte não sabe medir. É limitação da ferramenta.
+- **"outra unidade"** — o caso da Ciência, cujo benefício é tempo e não Fert$/hora. Compará-los na
+  mesma coluna produziria um número plausível e errado.
+
+### O que continua de fora
+
+Comércio e Logística. Modelá-las exige um volume de comércio e de logística por hora, e **chutar esse
+volume seria inventar exatamente o número que decide a resposta**. Entram quando houver telemetria
+real de comércio — a A2.0 já a coleta, faltam dias de jogo — ou quando o usuário arbitrar um volume
+de referência.
+
+### Verificação
+
+1018 testes verdes. Rodada 3 registrada em `BALANCEAMENTO.md` §8.1 com as duas tabelas. O teste do
+vocabulário passou a usar `Efeitos::conhecido()`, que resolve os dois conjuntos — sem isso ele
+reprovaria as duas chaves novas, e reprovar seria o comportamento certo se elas não tivessem sido
+declaradas.

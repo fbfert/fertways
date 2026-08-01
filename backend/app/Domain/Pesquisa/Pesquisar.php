@@ -2,6 +2,7 @@
 
 namespace App\Domain\Pesquisa;
 
+use App\Domain\Endurance\EfeitosDaEndurance;
 use App\Exceptions\DomainRuleException;
 use App\Models\Colony;
 use App\Models\Ledger;
@@ -16,7 +17,7 @@ use Illuminate\Support\Facades\DB;
  */
 class Pesquisar
 {
-    public function __construct(private Vagas $vagas) {}
+    public function __construct(private Vagas $vagas, private EfeitosDaPesquisa $efeitos) {}
 
     public function handle(Colony $colonia, Technology $tecnologia): void
     {
@@ -100,12 +101,20 @@ class Pesquisar
 
             $agora = now();
 
+            /*
+             * A trilha de Ciência encurta o que vem depois. Aplicado AQUI, no início, e não na
+             * conclusão: o prazo tem de ser o que foi prometido quando o colono apertou o botão —
+             * um prazo que encurta no meio do caminho é surpresa, ainda que boa.
+             */
+            $desconto = $this->efeitos->descontoDeDuracao($colonia);
+            $duracao = EfeitosDaEndurance::aplicarDesconto($tecnologia->duracao_segundos, $desconto);
+
             DB::table('colony_technologies')->updateOrInsert(
                 ['colony_id' => $colonia->id, 'technology_id' => $tecnologia->id],
                 [
                     'status' => 'pesquisando',
                     'starts_at' => $agora,
-                    'finishes_at' => $agora->copy()->addSeconds($tecnologia->duracao_segundos),
+                    'finishes_at' => $agora->copy()->addSeconds($duracao),
                     // Congela a versão do catálogo: mexer no custo depois não muda o que já começou.
                     'versao' => $tecnologia->versao,
                     'updated_at' => $agora,
