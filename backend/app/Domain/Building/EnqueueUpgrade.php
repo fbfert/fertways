@@ -125,6 +125,8 @@ class EnqueueUpgrade
                 app(\App\Domain\Telemetria\RegistrarEvento::class)->handle(
                     'falta_de_insumo', $colony->user, $colony,
                     ['recurso' => $recurso, 'exige' => $qtd, 'tem' => $tem, 'onde' => 'obra'],
+                    // ADIAR: o `throw` logo abaixo reverte a transação e levaria o evento junto.
+                    adiar: true,
                 );
 
                 throw new DomainRuleException(

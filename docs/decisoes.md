@@ -8934,3 +8934,63 @@ critério de saída precisa ser revisto.
 ### Verificação
 
 1029 testes verdes (11 novos). Nenhum número foi promovido; a pesquisa segue desligada.
+
+---
+
+## D-173 — As duas métricas mais valiosas da fase A2.0 gravavam no vazio
+
+**Data:** 2026-07-31 · **Status:** correção do D-165, achada em produção · **Backend**
+
+### O sintoma, e como ele apareceu
+
+Ao verificar o deploy da A2.4, o `laravel.log` de produção mostrou uma exceção às 22:55:04 —
+`DomainRuleException: Falta energia para esta viagem`. Regra de jogo, não falha de sistema, e já
+conhecida como recorrente.
+
+Fui conferir se a telemetria a tinha registrado. **`telemetry_events` não tinha a linha** — e o log
+não tinha nenhum aviso `telemetria:`, o que provava que a chamada acontecera e o INSERT sumira
+depois. Não era falha do registrador; era o registro desaparecendo.
+
+### A causa
+
+`falta_de_energia` e `falta_de_insumo` são registrados **logo antes de um `throw`**, e esse throw
+está **dentro de um `DB::transaction`** — `DespacharVeiculo::debitarEstoque()` (transação na linha
+106) e `EnqueueUpgrade::debitarRecursos()` (transação na linha 38). A exceção sobe, a transação
+reverte, e leva o evento junto.
+
+**As duas métricas que o D-165 chamou de "a mais valiosa da fase — é onde o jogo trava sem avisar
+ninguém" nunca registraram nada.** Sem erro, sem aviso, sem sintoma. O painel de métricas as
+listava como lacuna resolvida, e não estavam.
+
+### A correção, e dois erros meus no caminho
+
+**Primeira tentativa: detectar transação automaticamente** (`DB::transactionLevel() > 0`). Não
+serve — o `RefreshDatabase` envolve cada teste numa transação, e o detector diria "estou em
+transação" o tempo todo, adiando tudo. Quem sabe que está num caminho de falha é o **chamador**, não
+o framework. Virou `adiar: true`, explícito nos dois sites, com comentário dizendo por quê.
+
+**Segunda tentativa: buffer em estado estático.** O teste passava sozinho e reprovava na suíte —
+estático sobrevive entre testes do mesmo processo, e um teste passou a depender do que o anterior
+deixou. **Passar sozinho e falhar em conjunto é o pior modo de falhar**, porque convida a culpar o
+teste. Virou estado de instância com `RegistrarEvento` registrado como **singleton**: o contêiner é
+recriado a cada teste e o buffer morre junto, sem ninguém precisar lembrar de limpá-lo.
+
+### O que fica guardado
+
+Teste de regressão que registra um evento dentro de uma transação que reverte e exige que ele
+sobreviva. Ele documenta a origem — foi achado em produção, não em teste — para ninguém o "limpar"
+por parecer artificial.
+
+### A lição que passa das duas fases
+
+**Instrumentar o caminho de falha exige cuidado que o caminho de sucesso não exige.** O evento de
+sucesso é escrito e comitado junto com o fato que descreve; o evento de falha é escrito e revertido
+junto com a falha que descreve. São simétricos no código e opostos no efeito.
+
+E: **um buraco de telemetria não tem sintoma.** Zero eventos parece "ninguém bateu na parede", que é
+exatamente a leitura que o D-165 tentou impedir no painel — e que a própria telemetria produziu por
+outro caminho.
+
+### Verificação
+
+1031 testes verdes (2 novos).

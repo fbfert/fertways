@@ -10,6 +10,7 @@ use App\Models\TelemetryDaily;
 use App\Models\TelemetryEvent;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use RuntimeException;
 use Tests\TestCase;
@@ -151,6 +152,54 @@ class TelemetriaTest extends TestCase
 
         $this->assertNull($evento);
         $this->assertSame(0, TelemetryEvent::count());
+    }
+
+    /**
+     * ⚠️ O teste que faltava, e a falta custou caro.
+     *
+     * `falta_de_energia` e `falta_de_insumo` são registrados logo antes de um `throw`, e esse throw
+     * está DENTRO de um `DB::transaction`. A exceção sobe, a transação reverte — e levava o evento
+     * junto. As duas métricas que o D-165 chamou de "mais valiosas da fase" gravavam no vazio, sem
+     * erro e sem aviso.
+     *
+     * Descoberto em PRODUÇÃO, não aqui: o `laravel.log` tinha a exceção e `telemetry_events` não
+     * tinha a linha. Este teste é a porta que se fecha atrás daquele buraco.
+     *
+     * O `adiar: true` é o contrato: **quem sabe que está num caminho de falha é o chamador**.
+     * Detectar transação automaticamente não serve — o `RefreshDatabase` envolve cada teste numa, e
+     * o detector diria "estou em transação" o tempo todo.
+     */
+    public function test_evento_registrado_dentro_de_transacao_que_reverte_sobrevive(): void
+    {
+        $u = $this->colono('parede@fertways.test');
+
+        try {
+            DB::transaction(function () use ($u) {
+                app(RegistrarEvento::class)->handle(
+                    'falta_de_energia', $u, null, ['onde' => 'viagem'], adiar: true,
+                );
+
+                throw new \RuntimeException('a jogada falhou, como falha de verdade');
+            });
+        } catch (\RuntimeException) {
+            // esperado: é o caminho de falha que se está testando
+        }
+
+        // Antes da descarga não há nada — o evento está no buffer, e isso é o desenho.
+        $this->assertSame(0, TelemetryEvent::count());
+
+        app(RegistrarEvento::class)->descarregar();
+
+        $this->assertSame(1, TelemetryEvent::where('type', 'falta_de_energia')->count(),
+            'o evento tem que sobreviver ao rollback da jogada que ele descreve');
+    }
+
+    /** Fora de transação nada muda: grava na hora, como sempre gravou. */
+    public function test_fora_de_transacao_grava_imediatamente(): void
+    {
+        app(RegistrarEvento::class)->handle('login', $this->colono('direto@fertways.test'));
+
+        $this->assertSame(1, TelemetryEvent::count());
     }
 
     public function test_evento_de_sistema_nao_tem_dono_e_e_marcado(): void

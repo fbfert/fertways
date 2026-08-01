@@ -16,6 +16,14 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
+        /*
+         * Singleton porque ele carrega um BUFFER de eventos adiados (ver `RegistrarEvento`): dois
+         * objetos diferentes teriam dois buffers, e o que fosse descarregado não seria o que foi
+         * enfileirado. Instância única por aplicação — e o contêiner morre a cada teste, o que faz
+         * o buffer morrer junto.
+         */
+        $this->app->singleton(\App\Domain\Telemetria\RegistrarEvento::class);
+
         //
     }
 
