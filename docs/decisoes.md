@@ -9191,3 +9191,79 @@ faixa mudar.
 
 1053 testes verdes. Rodada 5 registrada em `BALANCEAMENTO.md` §7.1 com a tabela das seis
 configurações e o critério da escolha.
+
+---
+
+## D-177 — População é mão de obra, não bocas a alimentar
+
+**Data:** 2026-07-31 · **Status:** rodadas 6 e 7 da trilha A2.S · **Backend, decisão de desenho**
+
+Pedido para responder eu mesmo às duas perguntas em aberto. Declarei a posição de desenho **antes**
+de medir, para não escolher números e chamar de resposta.
+
+### As duas perguntas, reformuladas
+
+*"Quanto tempo uma colônia abandonada aguenta?"* — com a produção rodando, ela não definha. A
+pergunta útil por trás é **quanto da produção de essenciais a população come**: se come 90%, não
+sobra para construir; se come 5%, é enfeite.
+
+*"Quão rápido se recupera de uma escassez?"* — se for horas, escassez não tem consequência; se for
+semanas, um erro estraga um mês, e num jogo sem reset isso é hostil.
+
+### ⚠️ A tensão que a medição revelou
+
+Os dois alvos **brigam**. Subir o teto habitacional faz o consumo importar, mas **dilui os
+operadores** — o requisito é fixo por construção, então mais gente dá fração comprometida menor.
+
+Só uma combinação atinge ambos: capacidade 40 + 4 operadores por nível + consumo triplicado, que dá
+31% de consumo e 52% de comprometimento. E custa uma **Fazenda nível 3 exigindo 12 operadores**,
+numa colônia de 108 pessoas.
+
+### A decisão, e as três razões
+
+**Recusada.** População no FERTWAYS é **restrição de mão de obra**, não economia de comida:
+
+1. O §7.4 diz literalmente *"poucos humanos operam muitos robôs"*. Doze operadores para uma fazenda
+   não é poucos humanos.
+2. **Consumo per capita duplicaria o que a energia já faz.** Toda construção já consome energia por
+   hora; um segundo dreno per capita sobre os mesmos essenciais faz dois sistemas com o mesmo
+   trabalho, e o jogador não consegue dizer qual o está apertando.
+3. O §7.2 proíbe *"virar 'The Sims' dentro de Fertways"*. População como bocas é essa direção;
+   população como restrição de trabalho é a de estratégia. E a **métrica que o próprio documento
+   chama de chave (§7.3) é comprometimento** — que é trabalho, não comida.
+
+Consumo per capita **fica onde está**: ~3% da produção. Tempero que aparece no ledger e não decide
+nada. É escolha, não omissão.
+
+### Crescimento: 50 → 70 bps/hora
+
+Repovoar de metade do teto até o teto passa de 5,6 para **4,0 dias**.
+
+Escolhido 70 e não 100 (2,8 dias) porque é **o valor mais lento da faixa aceitável**, e a assimetria
+importa: rápido demais torna a escassez inconsequente, e **falha invisível é pior do que falha
+reclamada**. Jogador reclama de recuperação lenta — e aí se ajusta o parâmetro, que é para isso que
+a tabela existe. Ninguém reclama de um mecanismo que deixou de significar alguma coisa; ele só
+apodrece.
+
+### A ferramenta discordou de mim, e eu não a fiz concordar
+
+Com o consumo em 3%, o simulador marcava *"população quase de graça — enfeite"* — a heurística
+reprovando a decisão. **Não mudei a heurística para aprovar.** Troquei o rótulo por *"tempero, não
+economia — decisão do D-177"*: o número continua sendo medido e mostrado, e quem quiser reverter a
+decisão vê exatamente o que está mudando. Fazer a ferramenta concordar comigo seria transformá-la em
+espelho.
+
+### A configuração de referência
+
+    ativo=false · capacidade_base=10 · crescimento=70 bps/h
+    consumo 100/120/80/60 milésimos · 1 operador por nível produtor
+
+    §7.3 comprometida: 52%  ·  recuperação: 4,0 dias  ·  consumo: 3% da produção
+
+⚠️ Tudo continua **HIPÓTESE** e `population_settings.ativo` continua **false**. Virar a chave num
+mundo sem reset é decisão do usuário.
+
+### Verificação
+
+1053 testes verdes. Rodadas 6 e 7 registradas em `BALANCEAMENTO.md` §7.1, com a tabela da tensão
+entre os dois alvos e a tabela de recuperação.

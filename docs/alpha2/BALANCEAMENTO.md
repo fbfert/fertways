@@ -375,6 +375,72 @@ de **legibilidade**: "uma Fazenda nível 3 pede 3 operadores" é uma frase que s
 - **Um perfil de colônia só.** Uma colônia sem Reator, ou com dez Minas, daria outro número.
 - `ativo` **continua `false`**. Uma rodada de simulação é evidência, não campo.
 
+### Rodadas 6 e 7 da trilha A2.S — 2026-07-31 (consumo e crescimento decididos)
+
+Duas perguntas foram feitas ao simulador, com a posição de desenho declarada **antes** de medir.
+
+#### ⚠️ A tensão que apareceu, e que não dá para contornar
+
+Varrendo teto habitacional contra consumo per capita:
+
+| capacidade base | consumo | teto pop. | come % da produção | §7.3 |
+|---|---|---|---|---|
+| 10 | 100m | 27 | 3% | **52%** |
+| 10 | 300m | 27 | 9% | **52%** |
+| 40 | 100m | 108 | 10% | 13% |
+| 40 | 300m | 108 | **31%** | 13% |
+| 100 | 100m | 272 | 24% | 5% |
+| 100 | 300m | 272 | 70% | 5% |
+
+**Os dois alvos brigam.** Subir o teto faz o consumo importar, mas dilui os operadores — o requisito
+é fixo por construção, então mais gente significa fração comprometida menor. Só uma combinação
+atinge os dois: capacidade 40 + **4 operadores por nível** + consumo 300m, que dá 31% e 52%.
+
+E ela custa caro: uma **Fazenda nível 3 exigiria 12 operadores**, numa colônia de 108 pessoas.
+
+#### A decisão: população é MÃO DE OBRA, não bocas
+
+Recusada a combinação, por três razões:
+
+1. o §7.4 diz literalmente *"poucos humanos operam muitos robôs"*, e doze operadores para uma
+   fazenda não é poucos humanos;
+2. **consumo per capita duplicaria o que a energia já faz** — toda construção já consome energia por
+   hora, e um segundo dreno sobre os mesmos essenciais faz dois sistemas com o mesmo trabalho, sem o
+   jogador conseguir dizer qual o está apertando;
+3. o §7.2 proíbe *"virar 'The Sims' dentro de Fertways"*. População como bocas é essa direção;
+   população como restrição de trabalho é a de estratégia — e a **métrica-chave do §7.3 é
+   comprometimento**, que é trabalho.
+
+**Consumo per capita fica onde está** (100/120/80/60 milésimos). Ele custa ~3% da produção: tempero
+que aparece no ledger e não decide nada. É escolha, não omissão.
+
+#### Crescimento: 50 → 70 bps/hora
+
+Tempo para repovoar de metade do teto até o teto:
+
+| crescimento | recuperação |
+|---|---|
+| 40 bps/h | 7,0 dias — lenta |
+| 50 bps/h (anterior) | 5,6 dias — lenta |
+| **70 bps/h** | **4,0 dias** |
+| 100 bps/h | 2,8 dias |
+| 150 bps/h | 1,9 dias |
+
+Escolhido **70**: o valor mais lento da faixa aceitável. Rápido demais torna a escassez
+inconsequente, e **falha invisível é pior que falha reclamada** — jogador reclama de recuperação
+lenta, e aí se ajusta; ninguém reclama de um mecanismo que deixou de significar alguma coisa.
+
+#### A configuração de referência
+
+    ativo=false · capacidade_base=10 · crescimento=70 bps/h
+    consumo 100/120/80/60 milésimos · 1 operador por nível produtor
+
+    §7.3 comprometida: 52% (decisão estratégica)
+    recuperação: 4,0 dias
+    consumo: 3% da produção (tempero, por decisão)
+
+Tudo continua **HIPÓTESE** e `ativo` continua `false`. Simulação é evidência, não campo.
+
 ## 7.2 Objetivo
 
 A população deve:
