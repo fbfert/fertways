@@ -11,6 +11,7 @@ use App\Models\Ledger;
 use App\Models\TransportSetting;
 use App\Models\User;
 use App\Models\Vehicle;
+use Database\Seeders\ResourceTypeSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 use Tests\TestCase;
@@ -30,7 +31,7 @@ class UpgradeDeVeiculoTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->seed(\Database\Seeders\ResourceTypeSeeder::class);
+        $this->seed(ResourceTypeSeeder::class);
     }
 
     private int $proximo = 0;
@@ -215,5 +216,62 @@ class UpgradeDeVeiculoTest extends TestCase
         $c = $this->colonia();
 
         $this->postJson('/transport/vehicles/'.$this->veiculo($c)->id.'/upgrade')->assertStatus(401);
+    }
+
+    // ─────────────────────────────────── e a rota tem de estar ALCANÇÁVEL
+
+    /**
+     * ⚠️ Este teste existe porque a rota foi publicada **sem tela nenhuma** por um dia inteiro.
+     *
+     * Uma rota que a interface não chama é uma peça inerte: o `vehicles.level` já tinha passado anos
+     * assim, e a fase existe justamente para desfazer isso. Guardar a listagem — e não só o POST —
+     * é o que impede a fase de fechar com o mesmo defeito que veio consertar.
+     */
+    public function test_a_listagem_traz_o_que_a_tela_precisa_para_oferecer_o_upgrade(): void
+    {
+        $c = $this->colonia();
+        $v = $this->veiculo($c);
+
+        $corpo = $this->actingAs($c->user)->getJson('/transport')->assertOk()->json();
+        $registro = collect($corpo['veiculos'])->firstWhere('id', $v->id);
+
+        $this->assertSame(1, $registro['nivel']);
+        $this->assertTrue($registro['upgrade']['pode']);
+        $this->assertSame(2, $registro['upgrade']['proximo_nivel']);
+        $this->assertNotEmpty($registro['upgrade']['custo']);
+    }
+
+    /**
+     * Os DOIS lados na mesma resposta — o critério de saída da fase.
+     *
+     * *"Escolha econômica mensurável, e não apenas aumento nominal de nível."* Se um dia sobrar só o
+     * ganho de capacidade, o upgrade vira botão óbvio e a fase perde o que a justificava. Por isso o
+     * teste não checa apenas presença: exige que a manutenção suba de verdade.
+     */
+    public function test_a_listagem_mostra_o_custo_do_upgrade_junto_com_o_ganho(): void
+    {
+        $c = $this->colonia();
+        $v = $this->veiculo($c);
+
+        $u = $this->actingAs($c->user)->getJson('/transport')->json();
+        $u = collect($u['veiculos'])->firstWhere('id', $v->id)['upgrade'];
+
+        $this->assertGreaterThan($u['capacidade_agora'], $u['capacidade_depois'], 'o ganho');
+        $this->assertGreaterThan($u['manutencao_agora'], $u['manutencao_depois'], 'a contrapartida');
+    }
+
+    /** No teto, a tela não pode oferecer o que a regra recusaria. */
+    public function test_no_nivel_maximo_a_listagem_nao_oferece_upgrade(): void
+    {
+        $c = $this->colonia();
+        $v = $this->veiculo($c, (int) TransportSetting::singleton()->upgrade_nivel_maximo);
+
+        $u = $this->actingAs($c->user)->getJson('/transport')->json();
+        $u = collect($u['veiculos'])->firstWhere('id', $v->id)['upgrade'];
+
+        $this->assertTrue($u['no_maximo']);
+        $this->assertFalse($u['pode']);
+        $this->assertNull($u['proximo_nivel']);
+        $this->assertNull($u['custo']);
     }
 }

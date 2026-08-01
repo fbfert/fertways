@@ -9434,3 +9434,68 @@ Nenhum colono inteiro nasceu ainda, e não deveria: a 70 bps/h, a maior colônia
 A penalidade de eficiência por escassez e o bloqueio por falta de operadores **não** entraram — são
 a A2.6. Mudar dois comportamentos de uma vez num mundo com colônias reais tira a única coisa que
 torna o primeiro dia interpretável: saber qual mudança causou o quê.
+
+## D-180 — a rota de upgrade existia sem tela, e a A2.7 ainda não fechou
+
+Fui seguir a A2.7 e encontrei, na fase que eu mesmo tinha entregado, **o defeito que a fase existe
+para consertar**.
+
+### ⚠️ Publiquei uma rota que nenhum jogador alcança
+
+`POST /central/transport/vehicles/{id}/upgrade` estava no ar, testada, com domínio, ledger e
+parâmetros versionados. E `client.ts` **não a chamava**. O jogador não tinha como subir o nível de
+veículo nenhum.
+
+O roadmap descreve a A2.7 assim: *"`vehicles.level` já existe no banco, mas não há rota de upgrade:
+o nível existe sem caminho para subir."* Eu troquei um caminho faltando por outro — o nível passou a
+ter rota, e a rota passou a não ter porta. 1065 testes verdes não viram, porque **nenhum deles olha
+a tela**.
+
+Agora há um teste que olha: a listagem de `/transport` tem de trazer o bloco de upgrade, e o e2e tem
+de encontrar `[data-melhorar]`.
+
+### Os dois lados na mesma linha, porque é o critério de saída
+
+O critério é *"escolha econômica mensurável, e não apenas aumento nominal de nível"*. Uma escolha só
+é mensurável com os dois lados à vista, então a tela mostra juntos:
+
+> Carrega **6.000 → 6.900**, e a manutenção passa de **100%** para **120%** do normal.
+
+Mostrar só o ganho transformaria o upgrade em botão que ninguém teria motivo para não apertar — que
+é exatamente o que a §13 proíbe ao vedar melhorar tudo de graça. Há teste exigindo que a manutenção
+suba de verdade, e não apenas que o campo exista.
+
+### ⚠️ E um acoplamento latente entre suítes, que o meu teste revelou
+
+O e2e do Mercado cravava `15 / 6.000`. As suítes rodam todas no **mesmo mundo semeado**
+(`migrate:fresh --seed` acontece uma vez só), e a Capital roda logo antes do Mercado. No instante em
+que a Capital passou a subir o nível de um veículo, a capacidade virou 6.900 e o Mercado reprovou
+**sem que nada do que ele afirma tivesse mudado**.
+
+O que aquele teste afirma é que a carroceria **soma** dois recursos: 10 + 5 = 15. A capacidade do
+veículo tinha entrado na regex por acidente. O denominador saiu.
+
+### O que a A2.7 ainda deve
+
+| item | estado |
+|---|---|
+| 1–3, 5 · rota, custo, capacidade↑/manutenção↑, parâmetros | feito |
+| **4 · teto de estoque que trava** | **não feito** |
+| **6 · rodada do simulador** | **não feito** |
+
+⚠️ O item 4 não é fiação, é balanceamento — e medi antes de propor número. `silo_capacidades` é
+**plana: 10.000 em todos os dez níveis, para todo recurso**. O nível do Depósito Local não faz nada.
+E o `Silo` **não é teto de estoque**: ele decide o que fica protegido de saque, e o próprio docblock
+dele diz isso. Conflar os dois inventaria uma regra que ninguém decidiu.
+
+Pior: o mundo guarda ~35 mil de água por colônia, **3,5× acima** dos 10.000. Ligar hoje um teto que
+trava pararia a produção de praticamente todas as 29. Segue o mesmo caminho da população — nasce
+dormente, atrás de chave, e a rodada do simulador (item 6) calibra a curva antes de qualquer
+ativação.
+
+A §14 já diagnosticava tudo isto: *"Hoje só o Tanque de Combustível tem teto real; o Silo protege de
+saque, mas não limita."*
+
+### Verificação
+
+1065 testes verdes (3 novos, todos sobre a tela poder oferecer o upgrade) e 10 suítes e2e verdes.

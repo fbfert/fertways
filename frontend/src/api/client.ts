@@ -807,6 +807,27 @@ export type RegistroVeiculo = {
   /** Só o Caminhão tem teto — o Furgão não tem preço de fábrica (D-60, aditivo 14). */
   teto_de_revenda_fert: number | null
   anunciado: boolean
+
+  nivel: number
+  /**
+   * Os DOIS lados do upgrade (A2.7), juntos de propósito.
+   *
+   * O critério de saída da fase é "escolha econômica mensurável, e não apenas aumento nominal de
+   * nível". Mostrar só o ganho de capacidade transformaria o botão em decisão óbvia — a manutenção
+   * mais cara é o que devolve a escolha ao jogador.
+   */
+  upgrade: {
+    nivel_maximo: number
+    no_maximo: boolean
+    pode: boolean
+    proximo_nivel: number | null
+    custo: Record<string, number> | null
+    capacidade_agora: number
+    capacidade_depois: number | null
+    /** Em porcentagem do custo de manutenção do nível 1: 100 é o normal, 120 é 20% mais caro. */
+    manutencao_agora: number
+    manutencao_depois: number | null
+  }
 }
 
 export type AnuncioUsado = {
@@ -1058,6 +1079,10 @@ export const api = {
   /** §16.4: restaura o desempenho, mas corrói a vida útil e o teto de revenda. Custa recursos. */
   repararVeiculo: (id: number) =>
     req<{ veiculo: RegistroVeiculo }>(`/transport/vehicles/${id}/maintain`, { method: 'POST' }),
+
+  /** A2.7: sobe o nível. Capacidade↑ e manutenção↑ juntas; velocidade nunca — é traço do tipo. */
+  melhorarVeiculo: (id: number) =>
+    req<{ veiculo: RegistroVeiculo }>(`/transport/vehicles/${id}/upgrade`, { method: 'POST' }),
 
   /** Sucatear. Sem devolução (D-60), e o veículo fica arquivado no registro do Ministério. */
   sucatearVeiculo: (id: number) =>

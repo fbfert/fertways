@@ -238,7 +238,16 @@ try {
   await page.click(`[data-carga="${LEVAR}"] [data-adicionar-recurso]`)
   await carregar(page, LEVAR, 1, 'ligas_metalicas', 5)
 
-  checar(await esperarTexto(page, /15 \/ 6\.000/), 'a carroceria soma os dois recursos contra a capacidade')
+  /*
+   * ⚠️ O denominador NÃO é cravado, e a razão é uma lição de acoplamento.
+   *
+   * Ele já foi `6.000`. O que este teste afirma é que a carroceria SOMA os dois recursos — 10 + 5 =
+   * 15 —; a capacidade do veículo entrou na regex por acidente, e as suítes rodam todas no mesmo
+   * mundo semeado (`migrate:fresh --seed` acontece uma vez só). No dia em que a suíte da Capital
+   * passou a subir o nível de um veículo, a capacidade virou 6.900 e este teste reprovou sem que
+   * nada do que ele afirma tivesse mudado.
+   */
+  checar(await esperarTexto(page, /15 \/ [\d.]+/), 'a carroceria soma os dois recursos contra a capacidade')
 
   // Reachar o botão **depois** de digitar: o React re-renderiza o formulário a cada tecla, e o
   // handle antigo pode apontar para um nó já descartado.

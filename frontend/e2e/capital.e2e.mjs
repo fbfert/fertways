@@ -284,6 +284,36 @@ try {
     'e ela corrói a vida útil: o teto cai 5 pontos (§16.4)',
   )
 
+  console.log('\nO upgrade de veículo (A2.7) — a rota que existia sem tela')
+  /*
+   * ⚠️ Este bloco existe porque a rota de upgrade foi publicada e ficou um dia inteiro sem
+   * interface: `POST /transport/vehicles/{id}/upgrade` respondia, e nenhum jogador conseguia
+   * chegar nela. Um teste de backend verde não teria percebido — só o e2e vê a tela.
+   */
+  await page.waitForSelector('[data-melhorar]', { timeout: 8000 })
+  checar(true, 'a tela oferece o upgrade — a rota deixou de ser inalcançável')
+
+  // O critério de saída da fase: "escolha econômica mensurável, e não apenas aumento nominal".
+  checar(
+    await esperarTexto(page, /Carrega [\d.]+ → [\d.]+/),
+    'a tela mostra o GANHO de capacidade do próximo nível',
+  )
+  checar(
+    await esperarTexto(page, /a manutenção passa de \d+% para \d+%/),
+    'e a CONTRAPARTIDA junto — sem ela o upgrade seria um botão óbvio (§13)',
+  )
+
+  await page.click('[data-melhorar]')
+  /*
+   * Qualquer um dos dois serve, e a distinção não importa aqui: o que se prova é que o clique
+   * chega ao domínio e volta com resposta. Exigir o sucesso amarraria a suíte ao estoque que o
+   * seeder deixou na colônia, e o custo do upgrade é parâmetro — muda sem aviso.
+   */
+  checar(
+    await esperarTexto(page, /subiu para o nível \d|Faltam recursos/),
+    'e o clique chega ao domínio: ou sobe de nível, ou explica o que falta',
+  )
+
   console.log('\nA sucata só acontece se o dono mandar')
   const sucatearBtn = await acharPorTexto(page, 'button', /^Sucatear$/)
   await sucatearBtn.click()

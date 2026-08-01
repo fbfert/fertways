@@ -9,9 +9,11 @@ use App\Domain\Transport\Manutencao;
 use App\Domain\Transport\MercadoDeUsados;
 use App\Domain\Transport\Ministerio;
 use App\Domain\Transport\Sucatear;
+use App\Domain\Transport\UpgradeVeiculo;
 use App\Domain\Transport\Vagas;
 use App\Http\Controllers\Controller;
 use App\Models\Colony;
+use App\Models\TransportSetting;
 use App\Models\Vehicle;
 use App\Models\VehicleListing;
 use Illuminate\Http\JsonResponse;
@@ -34,6 +36,12 @@ class TransportController extends Controller
         private readonly Sucatear $sucatear,
         private readonly MercadoDeUsados $usados,
     ) {}
+
+    /**
+     * `TransportSetting::singleton()` consulta o banco a cada chamada, e `upgrade()` roda uma vez
+     * por veículo da frota. Sem esta memória seria uma consulta por veículo para ler a mesma linha.
+     */
+    private ?TransportSetting $config = null;
 
     /** GET /central/transport — a vitrine, a frota do colono e o resumo público do planeta. */
     public function index(Request $request): JsonResponse
@@ -102,6 +110,43 @@ class TransportController extends Controller
                 ? $teto / Colony::MICRO_POR_FERT
                 : null,
             'anunciado' => VehicleListing::where('vehicle_id', $v->id)->where('status', 'aberto')->exists(),
+
+            'nivel' => (int) $v->level,
+            'upgrade' => $this->upgrade($v),
+        ];
+    }
+
+    /**
+     * O que o jogador precisa saber para DECIDIR o upgrade (A2.7).
+     *
+     * O critério de saída da fase é *"escolha econômica mensurável e não apenas aumento nominal de
+     * nível"* — e uma escolha só é mensurável se os dois lados dela estiverem na tela. Por isso vão
+     * juntos o custo, o ganho de capacidade **e o aumento de manutenção**: mostrar só o ganho
+     * transformaria o upgrade em botão óbvio, que é exatamente o que a §13 proíbe.
+     *
+     * @return array<string,mixed>
+     */
+    private function upgrade(Vehicle $v): array
+    {
+        $u = app(UpgradeVeiculo::class);
+        $config = $this->config ??= TransportSetting::singleton();
+        $atual = (int) $v->level;
+        $alvo = $atual + 1;
+        $maximo = (int) $config->upgrade_nivel_maximo;
+        $noMaximo = $alvo > $maximo;
+
+        return [
+            'nivel_maximo' => $maximo,
+            'no_maximo' => $noMaximo,
+            // Só no pátio: um veículo em rota tem carga calculada com a capacidade atual.
+            'pode' => ! $noMaximo && $v->status === 'ocioso',
+            'proximo_nivel' => $noMaximo ? null : $alvo,
+            'custo' => $noMaximo ? null : $u->custo($v->type, $alvo, $config),
+            'capacidade_agora' => $u->capacidade($v->type, $atual, $config),
+            'capacidade_depois' => $noMaximo ? null : $u->capacidade($v->type, $alvo, $config),
+            // Em porcentagem sobre a manutenção do nível 1, que é a forma como o jogador a sente.
+            'manutencao_agora' => $u->manutencaoBps($atual, $config) / 100,
+            'manutencao_depois' => $noMaximo ? null : $u->manutencaoBps($alvo, $config) / 100,
         ];
     }
 
@@ -159,7 +204,7 @@ class TransportController extends Controller
      */
     public function melhorar(Request $request, Vehicle $vehicle): JsonResponse
     {
-        $melhorado = app(\App\Domain\Transport\UpgradeVeiculo::class)
+        $melhorado = app(UpgradeVeiculo::class)
             ->handle($this->colonia($request), $vehicle);
 
         return response()->json(['veiculo' => $this->registro($melhorado)]);

@@ -214,6 +214,7 @@ function LinhaDoRegistro({
 }) {
   const [confirmarSucata, setConfirmarSucata] = useState(false)
   const emRota = v.status === 'em_rota'
+  const u = v.upgrade
 
   return (
     <li className="border-rust/20 bg-sand border p-3" data-veiculo={v.id}>
@@ -320,6 +321,57 @@ function LinhaDoRegistro({
             </div>
           )}
         </>
+      )}
+
+      {/*
+        O upgrade (A2.7). Fica FORA do bloco de conservação de propósito: subir de nível não tem
+        nada a ver com desgaste, e um veículo que não deprecia também sobe.
+
+        Os dois lados aparecem na mesma linha — capacidade e manutenção. É o que separa "escolha
+        econômica mensurável", que é o critério de saída da fase, de um botão de "melhorar" que
+        ninguém teria motivo para não apertar.
+      */}
+      {!emRota && (
+        <div className="border-ink/10 mt-3 border-t pt-2">
+          {u.no_maximo ? (
+            <div className="text-ink-soft/60 text-xs">
+              Nível {v.nivel}, o máximo. Este veículo não sobe mais.
+            </div>
+          ) : (
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                onClick={() =>
+                  agir(async () => {
+                    const { veiculo } = await api.melhorarVeiculo(v.id)
+                    return `${veiculo.placa} subiu para o nível ${veiculo.nivel} — carrega ${veiculo.upgrade.capacidade_agora.toLocaleString('pt-BR')}, e a manutenção dele agora custa ${veiculo.upgrade.manutencao_agora.toFixed(0)}% do normal.`
+                  })
+                }
+                disabled={!u.pode || ocupado}
+                data-melhorar={v.id}
+                className="border-ink/30 text-ink hover:bg-ink hover:text-sand-light disabled:border-ink-soft/20 disabled:text-ink-soft/40 border px-3 py-1 text-xs font-bold disabled:cursor-not-allowed disabled:hover:bg-transparent"
+              >
+                Subir para o nível {u.proximo_nivel}
+              </button>
+
+              <span className="text-ink-soft/70 text-xs">
+                Carrega <strong>{u.capacidade_agora.toLocaleString('pt-BR')}</strong> →{' '}
+                <strong>{u.capacidade_depois?.toLocaleString('pt-BR')}</strong>, e a manutenção
+                passa de <strong>{u.manutencao_agora.toFixed(0)}%</strong> para{' '}
+                <strong>{u.manutencao_depois?.toFixed(0)}%</strong> do normal.
+              </span>
+
+              {u.custo && (
+                <span className="text-ink-soft/60 w-full text-xs">
+                  Custa{' '}
+                  {Object.entries(u.custo)
+                    .map(([r, q]) => `${q} ${nomeRecurso(r)}`)
+                    .join(' · ')}
+                  {' — na sua Central de Transportes.'}
+                </span>
+              )}
+            </div>
+          )}
+        </div>
       )}
     </li>
   )
