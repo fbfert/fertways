@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /** Um molde de missão do catálogo (§06; D-78). O baralho de onde as diárias são sorteadas. */
@@ -35,7 +36,7 @@ class MissionTemplate extends Model
 
     protected $fillable = [
         'chave', 'categoria', 'obrigatoria', 'requer_template_id', 'titulo', 'descricao', 'acao',
-        'meta', 'recompensa_fert_micro', 'recompensa_xp', 'recompensa_recursos', 'ativa',
+        'meta', 'recompensa_fert_micro', 'recompensa_xp', 'recompensa_recursos', 'recompensa_federacao', 'ativa',
     ];
 
     protected $casts = [
@@ -43,6 +44,9 @@ class MissionTemplate extends Model
         'recompensa_fert_micro' => 'integer',
         'recompensa_xp' => 'integer',
         'recompensa_recursos' => 'array',
+        // A2.5: o que vai ao FUNDO da federação, e não a quem cumpriu. Nulo na maioria — objetivo
+        // federativo é a exceção, não o padrão.
+        'recompensa_federacao' => 'array',
         'ativa' => 'boolean',
         // A2.1: a etapa que o colono não pode pular. Ver o docblock da migration
         // `2026_07_31_200000_onboarding_obrigatorio`.
@@ -56,7 +60,7 @@ class MissionTemplate extends Model
     }
 
     /** O capítulo anterior da cadeia narrativa (D-140) — nulo fora de uma cadeia, ou no 1º capítulo. */
-    public function requer(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    public function requer(): BelongsTo
     {
         return $this->belongsTo(self::class, 'requer_template_id');
     }

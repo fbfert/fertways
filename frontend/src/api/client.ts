@@ -459,7 +459,16 @@ export type Missao = {
   meta: number
   status: 'ativa' | 'concluida' | 'rejeitada' | 'expirada'
   expira_em: string | null
-  recompensa: { fert: number; xp: number; recursos: Record<string, number> | null }
+  recompensa: {
+    fert: number
+    xp: number
+    recursos: Record<string, number> | null
+    /**
+     * A2.5: o que vai ao FUNDO da federação, e não a quem cumpriu — é o que distingue um objetivo
+     * federativo de uma missão pessoal com placar compartilhado. Nulo em quase todas.
+     */
+    federacao: Record<string, number> | null
+  }
 }
 
 /** Uma fala no rádio do planeta (§10; D-77). */

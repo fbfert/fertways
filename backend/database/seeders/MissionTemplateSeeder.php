@@ -35,7 +35,6 @@ class MissionTemplateSeeder extends Seeder
         // ── A TUTORIA (§06: "5 missões — dias 1 a 3"; §03 desenha os gestos) ──
         $tutoria = $this->tutoria();
 
-
         // ── AS DIÁRIAS (pool de 30+; "Fert$, recursos OU XP" — cada molde paga UMA classe) ──
         $diarias = [
             // Obras
@@ -94,15 +93,23 @@ class MissionTemplateSeeder extends Seeder
 
         // ── FEDERAÇÃO (§06: "2 por semana", cooperativa; D-116) — meta grande de propósito: uma
         // colônia sozinha dificilmente bate 30 despachos ou 5 combates na semana, mas o grupo sim.
+        //
+        // ⚠️ A2.5 item 4: `fed` é o prêmio que vai ao FUNDO, e não a quem cumpriu. Antes dele, estas
+        // duas eram missões PESSOAIS com placar compartilhado — doze membros cumpriam um objetivo
+        // comum e nada era produzido para a federação.
         // "Cooperativa dá mais" (GDD) lido como recompensa maior que a semanal equivalente — sem
         // fórmula de escala por nº de participantes, que o GDD não publica.
         $federacao = [
             ['chave' => 'fed_logistica', 'titulo' => 'Comboio da Aliança',
-             'descricao' => 'A federação despacha 30 viagens na semana — cada membro contribui, o placar é de todos.',
-             'acao' => 'despacho', 'meta' => 30, 'fert' => 0, 'xp' => 2000, 'rec' => null],
+                'descricao' => 'A federação despacha 30 viagens na semana — cada membro contribui, o placar é de todos.',
+                'acao' => 'despacho', 'meta' => 30, 'fert' => 0, 'xp' => 2000, 'rec' => null,
+                // A2.5: logística paga em insumo de construção. HIPÓTESE, como todo número da fase.
+                'fed' => ['metal_bruto' => 2_000]],
             ['chave' => 'fed_guerra', 'titulo' => 'Defesa Conjunta',
-             'descricao' => 'A federação vence 5 combates na semana — cada aliado que luta soma para o grupo inteiro.',
-             'acao' => 'combate_vencido', 'meta' => 5, 'fert' => 0, 'xp' => 2500, 'rec' => null],
+                'descricao' => 'A federação vence 5 combates na semana — cada aliado que luta soma para o grupo inteiro.',
+                'acao' => 'combate_vencido', 'meta' => 5, 'fert' => 0, 'xp' => 2500, 'rec' => null,
+                // A2.5: guerra paga no material que rearma. HIPÓTESE.
+                'fed' => ['ligas_metalicas' => 600, 'metal_bruto' => 1_000]],
         ];
 
         $montar = fn (array $lista, string $categoria) => array_map(fn ($t) => [
@@ -115,6 +122,18 @@ class MissionTemplateSeeder extends Seeder
             'recompensa_fert_micro' => $f($t['fert']),
             'recompensa_xp' => $t['xp'],
             'recompensa_recursos' => $t['rec'],
+            /*
+             * A2.5 item 4: o que vai ao FUNDO da federação, e não a quem cumpriu — é o que
+             * distingue um objetivo federativo de uma missão pessoal com placar compartilhado.
+             *
+             * ⚠️ Ausente = `null`, e mora AQUI e não só na migration: a migration roda antes de o
+             * seeder inserir os templates, então num banco novo o `update()` dela não encontraria
+             * linha nenhuma. Em produção as linhas já existem e ela resolve; num banco recriado —
+             * que é o dos testes e o do e2e — só o seeder resolve.
+             */
+            // O ARRAY CRU, como a irmã `recompensa_recursos` logo acima: o cast `array` do modelo
+            // codifica. Passar já codificado codificaria duas vezes, e o valor voltaria string.
+            'recompensa_federacao' => $t['fed'] ?? null,
             // Ausente = false: obrigatoriedade é afirmação explícita, nunca herança de default.
             'obrigatoria' => $t['obrigatoria'] ?? false,
             'ativa' => true,
@@ -211,25 +230,25 @@ class MissionTemplateSeeder extends Seeder
          */
         return [
             ['chave' => 'tut_primeira_obra', 'titulo' => 'A primeira obra',
-             'descricao' => 'Conclua 1 nível de construção — enfileire um upgrade e espere o tick entregar.',
-             'acao' => 'obra_concluida', 'meta' => 1, 'fert' => 6.0, 'xp' => 100, 'rec' => null,
-             'obrigatoria' => true],
+                'descricao' => 'Conclua 1 nível de construção — enfileire um upgrade e espere o tick entregar.',
+                'acao' => 'obra_concluida', 'meta' => 1, 'fert' => 6.0, 'xp' => 100, 'rec' => null,
+                'obrigatoria' => true],
             ['chave' => 'tut_primeiro_despacho', 'titulo' => 'Pé na estrada',
-             'descricao' => 'Despache um veículo para qualquer destino — o planeta é físico, e tudo viaja.',
-             'acao' => 'despacho', 'meta' => 1, 'fert' => 6.0, 'xp' => 100, 'rec' => null,
-             'obrigatoria' => true, 'requer' => 'tut_primeira_obra'],
+                'descricao' => 'Despache um veículo para qualquer destino — o planeta é físico, e tudo viaja.',
+                'acao' => 'despacho', 'meta' => 1, 'fert' => 6.0, 'xp' => 100, 'rec' => null,
+                'obrigatoria' => true, 'requer' => 'tut_primeira_obra'],
             ['chave' => 'tut_primeiro_lote', 'titulo' => 'O primeiro lote',
-             'descricao' => 'Compre no Mercado Central — os seus 50 Fert$ iniciais existem para isto (§03).',
-             'acao' => 'mercado_executado', 'meta' => 1, 'fert' => 6.0, 'xp' => 100,
-             'rec' => ['ligas_metalicas' => 200], 'requer' => 'tut_primeiro_despacho'],
+                'descricao' => 'Compre no Mercado Central — os seus 50 Fert$ iniciais existem para isto (§03).',
+                'acao' => 'mercado_executado', 'meta' => 1, 'fert' => 6.0, 'xp' => 100,
+                'rec' => ['ligas_metalicas' => 200], 'requer' => 'tut_primeiro_despacho'],
             ['chave' => 'tut_primeira_oferta', 'titulo' => 'Do outro lado do balcão',
-             'descricao' => 'Coloque uma ordem no Mercado Central — venda ou compra, a vitrine é sua.',
-             'acao' => 'ordem_colocada', 'meta' => 1, 'fert' => 6.0, 'xp' => 100, 'rec' => null,
-             'requer' => 'tut_primeiro_lote'],
+                'descricao' => 'Coloque uma ordem no Mercado Central — venda ou compra, a vitrine é sua.',
+                'acao' => 'ordem_colocada', 'meta' => 1, 'fert' => 6.0, 'xp' => 100, 'rec' => null,
+                'requer' => 'tut_primeiro_lote'],
             ['chave' => 'tut_primeira_voz', 'titulo' => 'No rádio do planeta',
-             'descricao' => 'Fale num canal público do chat — Fertways é feito de vizinhos.',
-             'acao' => 'chat_mensagem', 'meta' => 1, 'fert' => 6.0, 'xp' => 100,
-             'rec' => ['biocombustivel' => 100], 'requer' => 'tut_primeira_oferta'],
+                'descricao' => 'Fale num canal público do chat — Fertways é feito de vizinhos.',
+                'acao' => 'chat_mensagem', 'meta' => 1, 'fert' => 6.0, 'xp' => 100,
+                'rec' => ['biocombustivel' => 100], 'requer' => 'tut_primeira_oferta'],
         ];
     }
 

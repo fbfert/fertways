@@ -9638,3 +9638,79 @@ o clique que propõe a aliança e volta com resposta.
 ⚠️ E o semeador do e2e ganhou duas federações, **cada colônia na sua**: se ficassem na mesma, o
 desconto entre filiadas passaria a incidir nas entregas que outras suítes conferem, e elas
 reprovariam sem que nada do que afirmam tivesse mudado. É o acoplamento do D-180, evitado desta vez.
+
+## D-183 — A2.5 item 4: não havia objetivos federativos, havia missões pessoais fantasiadas
+
+O item 4 do trabalho pedia *"criar objetivos federativos"*, e o D-174 o dera como parcialmente
+resolvido pelas missões cooperativas do D-120. Fui conferir, e o defeito é **de conceito**.
+
+### O que as missões `categoria = 'federacao'` realmente faziam
+
+Cada membro ganha a **sua** linha, o progresso espelha entre as irmãs, e **cada um é pago
+individualmente** — `Colony::increment('fert_micro')`, XP pessoal. Uma federação inteira cumpre um
+objetivo comum e **nada é produzido para a federação**.
+
+E o **fundo**, que existe desde o D-114, só se enche por **doação física**: alguém dirigir um veículo
+carregado até lá. Não havia um único caminho pelo qual conquistar algo enchesse o caixa comum.
+
+### A decisão: objetivo federativo é o que paga à FEDERAÇÃO
+
+É a propriedade que os distingue, e é ela que produz o que o critério de saída pede — *"capacidade
+estratégica que um conjunto de jogadores independentes não possui"*: um **tesouro comum que cresce do
+trabalho coletivo**, distribuído pelo Líder ou pelo Intendente com o `SacarDoFundo` que já existe.
+
+O XP pessoal continua: quem trabalhou merece o reconhecimento. O que muda é de quem é o **produto**.
+
+⚠️ E o prêmio é **uma vez por federação, não uma por membro**. Doze membros concluem a mesma linha
+semanal; sem guarda, seriam doze prêmios. A chave carrega federação, template e **janela** — nunca o
+`id` da linha pessoal, que difere por membro e faria a chave deixar de colidir.
+
+### ⚠️ Três armadilhas, e a segunda quase foi para produção
+
+**1. O `update()` da migration rodou contra tabela vazia.** A migration corre **antes** de o seeder
+inserir os templates: em produção as linhas já existem e ela resolve; num banco recriado — o dos
+testes e o do e2e — o prêmio nasceria nulo. O lugar certo é o **seeder**. É a mesma armadilha que já
+me pegou no `federation_settings` horas antes, agora pelo outro lado.
+
+**2. `insertOrIgnore` engole `NOT NULL`, e isso silenciou a funcionalidade inteira.** A primeira
+versão gravava uma linha-sentinela com `resource_type` nulo para servir de guarda de idempotência —
+e a coluna é `NOT NULL`. O `insertOrIgnore` engoliu a violação, devolveu zero, a função saiu cedo, e
+**o prêmio nunca era pago**. Nenhum erro, nenhum log: só um fundo que não crescia.
+
+A guarda passou a ser a **própria linha do prêmio**, com dado de verdade — não há o que violar, e a
+primeira volta do laço decide. Quem pegou foi o teste que confere o **saldo**, não a execução.
+
+**3. Codificação dupla.** Passei `json_encode()` ao seeder, que insere pelo modelo — e o cast `array`
+codifica de novo. O valor voltava como *string*, e o `foreach` estourava. A irmã dela,
+`recompensa_recursos`, sempre passou o array cru; bastava olhar a linha de cima.
+
+### Sobre a unicidade do `federation_ledger`
+
+Ele tinha `ref` com índice **comum, não único**. Conferido antes de criar o único: a tabela está
+**vazia** em produção, sem par duplicado a resolver.
+
+⚠️ De passagem, desconfiei que o `ledger` principal também não tivesse a unicidade que o comentário
+do tributo afirma. **Falso alarme, e vale registrar:** a garantia existe e está no lugar certo —
+`tax_events.economic_event_key` é único, e o `insertOrIgnore` devolvendo zero é o que impede tributar
+duas vezes. O comentário aponta para lá.
+
+### Os números são HIPÓTESE
+
+2.000 Metal Bruto para o Comboio da Aliança; 600 Ligas e 1.000 Metal Bruto para a Defesa Conjunta.
+Como todo número desta fase, existem para o mecanismo ter o que pagar; promovê-los exige uma rodada
+registrada da trilha A2.S.
+
+### A A2.5 fecha
+
+Os sete itens do trabalho estão entregues. O critério de saída — *"capacidade estratégica que um
+conjunto de jogadores independentes não possui"* — tem agora **três pernas reais**: o desconto de
+tributo entre filiadas e entre aliadas, o bloco territorial com o antimonopólio que o acompanha, e o
+tesouro comum que cresce do trabalho coletivo.
+
+⚠️ O que **não** posso declarar é que o balanceamento está certo: os números da diplomacia e dos
+objetivos são hipótese, e só o campo — ou a trilha A2.S — dirá se a federação organizada compensa o
+custo de organizar-se.
+
+### Verificação
+
+1094 testes verdes (4 novos) e 10 suítes e2e verdes.

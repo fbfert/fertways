@@ -120,6 +120,23 @@ function Carta({
       </div>
       <p className="text-ink-soft/80 mt-0.5 text-xs">{m.descricao}</p>
 
+      {/*
+        A2.5 item 4: o prêmio do OBJETIVO FEDERATIVO, que vai ao fundo e não a quem cumpriu.
+
+        Fica numa linha própria, e não somado ao prêmio pessoal acima, porque a diferença é o que
+        distingue um objetivo federativo de uma missão comum: o produto do esforço coletivo é
+        coletivo. Misturar os dois números faria o jogador achar que leva tudo para casa.
+      */}
+      {m.recompensa.federacao && (
+        <p className="text-ink-soft/70 mt-0.5 text-xs" data-premio-federacao={m.id}>
+          Ao <strong>fundo da federação</strong>:{' '}
+          {Object.entries(m.recompensa.federacao)
+            .map(([r, q]) => `${q.toLocaleString('pt-BR')} ${nomeRecurso(r)}`)
+            .join(' + ')}
+          {' — o Líder ou o Intendente distribuem.'}
+        </p>
+      )}
+
       <div className="mt-1.5 flex items-center gap-2">
         <div className="bg-sand-light border-rust/20 h-2 flex-1 border">
           <div className="bg-rust h-full" style={{ width: `${fracao * 100}%` }} />

@@ -124,7 +124,98 @@ class Progresso
             $this->xp->direto($missao->colony_id, 'missao_concluida', (int) $t->recompensa_xp, $ref);
         }
 
+        $this->pagarAFederacao($missao, $t);
+
         $this->avisar($missao);
+    }
+
+    /**
+     * O prêmio do objetivo federativo, que vai ao FUNDO e não a quem cumpriu (A2.5, item 4).
+     *
+     * ## Por que existe
+     *
+     * As missões `categoria = 'federacao'` eram missões pessoais com placar compartilhado: doze
+     * membros cumpriam um objetivo comum e **nada era produzido para a federação**. O que distingue
+     * um objetivo federativo é justamente isto — o produto do esforço coletivo é coletivo.
+     *
+     * O XP pessoal continua sendo pago acima: quem trabalhou merece o reconhecimento. O que muda é
+     * de quem é o produto.
+     *
+     * ## ⚠️ Uma vez por federação, não uma por membro
+     *
+     * Cada membro tem a sua linha de missão, e todas concluem. Sem guarda, uma federação de doze
+     * receberia doze prêmios pelo mesmo objetivo.
+     *
+     * A guarda é **estrutural**, no molde que a casa usa para o tributo: a `ref` carrega a
+     * federação, o template e a JANELA da missão — nunca o `id` da linha pessoal, que é diferente
+     * para cada membro e faria a chave deixar de colidir. O índice único
+     * `federation_ledger(federation_id, ref)` recusa a segunda, e `insertOrIgnore` devolvendo zero é
+     * o sinal de que alguém já pagou.
+     */
+    private function pagarAFederacao(MissionAssignment $missao, $t): void
+    {
+        $premio = $t->recompensa_federacao ?? [];
+
+        /*
+         * A federação vem da LINHA DA MISSÃO, e não da colônia agora.
+         *
+         * `mission_assignments.federation_id` é a federação de quando a missão foi atribuída. Quem
+         * saiu no meio da semana não deve pagar prêmio a uma federação de que já não faz parte, e
+         * quem entrou depois tem linha própria (o `Atribuir` cuida disso). Ler a colônia neste
+         * instante trocaria o dono do prêmio conforme a hora da conclusão.
+         */
+        $federacaoId = $missao->federation_id;
+
+        if ($premio === [] || ! $federacaoId) {
+            return;
+        }
+
+        /*
+         * A janela entra na chave — via `expires_at`, que é o fim dela — porque o objetivo é
+         * SEMANAL: sem isso, a federação receberia o prêmio uma vez na vida em vez de uma por
+         * semana.
+         */
+        $ref = "objetivo:{$federacaoId}:{$t->chave}:{$missao->expires_at?->toDateString()}";
+
+        foreach ($premio as $recurso => $qtd) {
+            /*
+             * ⚠️ A GUARDA É A PRÓPRIA LINHA DO PRÊMIO, e não uma linha-sentinela.
+             *
+             * A primeira versão gravava uma sentinela com `resource_type` nulo — e a coluna é
+             * `NOT NULL`. O `insertOrIgnore` engole QUALQUER violação, inclusive essa: devolvia
+             * zero, a função saía cedo, e o prêmio nunca era pago. A funcionalidade inteira não
+             * fazia nada, em silêncio, e só um teste que conferia o saldo pegou.
+             *
+             * Com dado de verdade não há o que violar, e a primeira volta decide: se ela foi
+             * ignorada, esta federação já recebeu o prêmio desta janela.
+             */
+            $inserido = DB::table('federation_ledger')->insertOrIgnore([
+                'federation_id' => $federacaoId,
+                'colony_id' => $missao->colony_id,
+                'type' => 'credito',
+                'amount' => (int) $qtd,
+                'resource_type' => $recurso,
+                'ref' => "{$ref}:{$recurso}",
+                'created_at' => now(),
+            ]);
+
+            if ($inserido === 0) {
+                return;
+            }
+
+            DB::table('federation_holdings')->insertOrIgnore([
+                'federation_id' => $federacaoId,
+                'resource_type' => $recurso,
+                'amount' => 0,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+
+            DB::table('federation_holdings')
+                ->where('federation_id', $federacaoId)
+                ->where('resource_type', $recurso)
+                ->increment('amount', (int) $qtd);
+        }
     }
 
     private function avisar(MissionAssignment $missao): void

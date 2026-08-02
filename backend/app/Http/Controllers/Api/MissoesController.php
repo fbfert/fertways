@@ -106,6 +106,14 @@ class MissoesController extends Controller
                 'fert' => $m->template->recompensa_fert_micro / 1_000_000,
                 'xp' => $m->template->recompensa_xp,
                 'recursos' => $m->template->recompensa_recursos,
+                /*
+                 * A2.5 item 4: o que vai ao FUNDO da federação, e não a quem cumpriu.
+                 *
+                 * Precisa aparecer na tela, senão o objetivo federativo se parece com qualquer
+                 * missão e o jogador não descobre que o produto do esforço é coletivo — que é
+                 * exatamente o que o distingue.
+                 */
+                'federacao' => $m->template->recompensa_federacao,
             ],
         ];
     }
