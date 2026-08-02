@@ -66,6 +66,15 @@ class TelemetryEvent extends Model
          */
         'custo_territorial',
 
+        /*
+         * A2.9: a circulação dos itens ÚNICOS — a telemetria que a fase pede.
+         *
+         * Carrega o selo, o motivo e QUANTAS mãos já passaram por ele. "Circulação" só significa
+         * alguma coisa com a contagem junto: um item que trocou de dono doze vezes conta uma história
+         * diferente de um que nunca saiu de casa, e o número é o que distingue os dois.
+         */
+        'item_unico_circulou',
+
         // Logística
         'transporte_iniciado',
         'transporte_concluido',

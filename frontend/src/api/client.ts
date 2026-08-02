@@ -97,6 +97,24 @@ export type ItemDaEndurance = {
   possuo: number
   estado: 'disponivel' | 'bloqueado' | 'esgotado'
   efeitos: EfeitoDoItemDaEndurance[]
+  /**
+   * A identidade e a biografia do item ÚNICO (A2.9 / §11.1) — nulo em comum e raro, que são
+   * fungíveis e não têm história nenhuma.
+   *
+   * O `descobridor` aparece mesmo quando o item já é de outro: é a origem que ninguém pode
+   * reescrever, e é ela que faz o único valer mais que o raro.
+   */
+  unico: {
+    selo: string
+    descobridor: string | null
+    descoberto_em: string | null
+    dono: string | null
+    e_meu: boolean
+    /** Em escrow de leilão: saiu de uma mão e ainda não chegou na outra. */
+    em_leilao: boolean
+    /** Quantas vezes trocou de mão desde a descoberta. */
+    trocas: number
+  } | null
 }
 
 /**

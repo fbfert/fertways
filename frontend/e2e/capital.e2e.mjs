@@ -134,6 +134,23 @@ try {
   checar(secaoDaLoja === 'comando', `a loja abre na seção clicada, "comando" (achou "${secaoDaLoja}")`)
   checar(await esperarTexto(page, /Reator de Teste/), 'o item semeado aparece no catálogo')
 
+  console.log('\nO item ÚNICO mostra a biografia (A2.9 / §11.1)')
+  /*
+   * ⚠️ "Identidade persistente" que ninguém enxerga não é identidade. Este bloco existe porque já
+   * publiquei rota sem tela nesta base (D-180), e aqui a consequência seria pior: o item teria
+   * história no banco e o jogador veria só mais uma peça.
+   */
+  await page.waitForSelector('[data-unico]', { timeout: 8000 })
+  checar(true, 'o item único traz o selo de identidade')
+  checar(
+    await esperarTexto(page, /FW-U-nucleo_da_endurance/),
+    'o selo é legível: diz de que item se trata sem consultar nada',
+  )
+  checar(
+    await esperarTexto(page, /Descoberto por/),
+    'e a origem aparece — é ela que faz o único valer mais que o raro',
+  )
+
   console.log('\nCompra um item — o e2e nasce no marco 20 (Desbravador), sem exigência de marco no item')
   const comprar = await acharPorTexto(page, 'button', /^Comprar$/)
   checar(!!comprar, 'o item "comum" semeado está disponível para compra')

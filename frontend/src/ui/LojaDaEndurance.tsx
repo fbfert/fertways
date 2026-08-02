@@ -127,6 +127,39 @@ export function LojaDaEndurance({
                 <p className="text-ember mt-2 text-xs font-bold">Você tem {item.possuo}</p>
               )}
 
+              {/*
+                A2.9 (§11.1): a biografia do item ÚNICO.
+
+                ⚠️ O DESCOBRIDOR aparece mesmo quando a peça já é de outro — é a origem que ninguém
+                pode reescrever, e é ela que faz o único valer mais que o raro. Escondê-la depois da
+                primeira venda transformaria o item num simples "só existe 1".
+              */}
+              {item.unico && (
+                <div className="border-rust/20 mt-2 border-t pt-2" data-unico={item.unico.selo}>
+                  <p className="text-ink text-xs font-bold">{item.unico.selo}</p>
+                  <p className="text-ink-soft/80 mt-0.5 text-xs">
+                    {item.unico.descobridor ? (
+                      <>
+                        Descoberto por <strong>{item.unico.descobridor}</strong>
+                      </>
+                    ) : (
+                      'Descobridor perdido no tempo'
+                    )}
+                    {item.unico.em_leilao ? (
+                      <> · agora em leilão</>
+                    ) : item.unico.e_meu ? (
+                      <> · é seu</>
+                    ) : item.unico.dono ? (
+                      <>
+                        {' '}
+                        · hoje com <strong>{item.unico.dono}</strong>
+                      </>
+                    ) : null}
+                    {item.unico.trocas > 0 && <> · trocou de mão {item.unico.trocas}×</>}
+                  </p>
+                </div>
+              )}
+
               {item.estado === 'bloqueado' && (
                 <p className="text-ink-soft mt-2 text-xs">Exige o marco {item.marco_minimo}</p>
               )}

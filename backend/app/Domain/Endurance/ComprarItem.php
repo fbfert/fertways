@@ -3,6 +3,7 @@
 namespace App\Domain\Endurance;
 
 use App\Domain\Marco\ExigirMarco;
+use App\Domain\Missoes\Progresso;
 use App\Domain\Treasury\Tesouro;
 use App\Exceptions\DomainRuleException;
 use App\Models\Colony;
@@ -64,6 +65,21 @@ class ComprarItem
                 'created_at' => now(),
             ]);
 
+            /*
+             * ⚠️ A2.9: item ÚNICO ganha INSTÂNCIA, e não quantidade.
+             *
+             * Comprar o último exemplar de algo que só existe uma vez é uma **descoberta**: quem o
+             * tirou dos destroços fica gravado para sempre (§11.1). Comum e raro continuam fungíveis,
+             * porque ninguém quer a biografia do parafuso comum de número 4.312.
+             *
+             * A linha de posse é criada dos dois jeitos: as telas, os efeitos e o leilão já leem
+             * `colony_endurance_items`, e fazer o único não aparecer lá o tornaria invisível no jogo
+             * inteiro para ganhar uma história que ninguém veria.
+             */
+            if ($item->tipo === EnduranceItem::UNICO) {
+                app(Instancias::class)->descobrir($colonia, $item);
+            }
+
             $posse = ColonyEnduranceItem::firstOrNew([
                 'colony_id' => $colonia->id,
                 'endurance_item_id' => $item->id,
@@ -71,7 +87,7 @@ class ComprarItem
             $posse->quantidade = ($posse->exists ? $posse->quantidade : 0) + 1;
             $posse->save();
 
-            app(\App\Domain\Missoes\Progresso::class)->registrar($colonia->id, 'comprar_item_endurance');
+            app(Progresso::class)->registrar($colonia->id, 'comprar_item_endurance');
 
             return $posse;
         });

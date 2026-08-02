@@ -10,6 +10,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Colony;
 use App\Models\ColonyEnduranceItem;
 use App\Models\EnduranceItem;
+use App\Models\EnduranceItemInstance;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -30,7 +31,18 @@ class EnduranceController extends Controller
         $minhas = ColonyEnduranceItem::where('colony_id', $colony->id)
             ->pluck('quantidade', 'endurance_item_id');
 
-        $catalogo = $itens->map(function (EnduranceItem $item) use ($marco, $minhas) {
+        /*
+         * A2.9: a identidade e a biografia dos itens ÚNICOS desta seção.
+         *
+         * ⚠️ Sem isto, o §11.1 seria letra morta na tela: o item teria história no banco e o jogador
+         * veria só mais uma peça. "Identidade persistente" que ninguém enxerga não é identidade.
+         */
+        $instancias = EnduranceItemInstance::whereIn('endurance_item_id', $itens->pluck('id'))
+            ->with(['descobridor:id,name', 'dono:id,name', 'historico'])
+            ->get()
+            ->keyBy('endurance_item_id');
+
+        $catalogo = $itens->map(function (EnduranceItem $item) use ($marco, $minhas, $instancias, $colony) {
             $possuo = (int) ($minhas[$item->id] ?? 0);
 
             $estado = match (true) {
@@ -48,6 +60,23 @@ class EnduranceController extends Controller
                 'preco_fert' => $item->preco_micro / Colony::MICRO_POR_FERT,
                 'marco_minimo' => $item->marco_minimo,
                 'vendavel_em_leilao' => $item->vendavel_em_leilao,
+
+                /*
+                 * Nulo para comum e raro — eles são fungíveis, e não têm biografia nenhuma.
+                 *
+                 * O descobridor aparece MESMO quando o item já é de outro: é a origem que ninguém
+                 * pode reescrever, e é ela que dá valor ao único.
+                 */
+                'unico' => ($i = $instancias->get($item->id)) === null ? null : [
+                    'selo' => $i->selo,
+                    'descobridor' => $i->descobridor?->name,
+                    'descoberto_em' => $i->descoberto_em?->toIso8601String(),
+                    'dono' => $i->dono?->name,
+                    'e_meu' => (int) $i->colony_id === (int) $colony->id,
+                    // Em escrow de leilão: saiu de uma mão e ainda não chegou na outra.
+                    'em_leilao' => $i->colony_id === null,
+                    'trocas' => max(0, $i->historico->count() - 1),
+                ],
                 'descricao' => $item->descricao,
                 'possuo' => $possuo,
                 'estado' => $estado,

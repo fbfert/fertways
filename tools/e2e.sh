@@ -161,6 +161,21 @@ $v = App\Models\User::create([
 $cv = app(App\Domain\Colony\CreateColony::class)->handle($v, "Colônia vizinha", 0, 6);
 
 /*
+ * A2.9: um item ÚNICO já descoberto, para a biografia do §11.1 ter o que mostrar.
+ *
+ * ⚠️ Sem isto, "identidade persistente e histórico" ficaria sem cobertura de ponta a ponta — e
+ * identidade que ninguém enxerga não é identidade.
+ */
+$unico = App\Models\EnduranceItem::create([
+    "item_key" => "nucleo_da_endurance", "secao" => "comando",
+    "nome" => "Núcleo da Endurance", "tipo" => App\Models\EnduranceItem::UNICO,
+    "quantidade_total" => 1, "quantidade_vendida" => 1,
+    "preco_micro" => 5000000, "vendavel_em_leilao" => true,
+    "descricao" => "O coração da nave. Só existe um.",
+]);
+app(App\Domain\Endurance\Instancias::class)->descobrir($c, $unico);
+
+/*
  * A2.8: um evento de mundo ATIVO, para a faixa ter o que mostrar.
  *
  * ⚠️ Sem isto o motor ficaria sem cobertura de ponta a ponta — e um motor que muda a economia sem

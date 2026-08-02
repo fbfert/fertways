@@ -2,12 +2,14 @@
 
 namespace App\Domain\Leilao;
 
+use App\Domain\Endurance\Instancias;
 use App\Domain\Marco\ConcederXp;
 use App\Domain\Missoes\Progresso;
 use App\Domain\Trade\AcordoSpecs;
 use App\Domain\Treasury\Tesouro;
 use App\Models\Auction;
 use App\Models\Colony;
+use App\Models\EnduranceItemInstance;
 use App\Models\Ledger;
 use App\Models\ResourceType;
 use Illuminate\Support\Facades\DB;
@@ -143,6 +145,21 @@ class FecharLeiloes
                 ->where('colony_id', $colonyId)
                 ->where('endurance_item_id', $l->endurance_item_id)
                 ->increment('quantidade', $l->qty);
+
+            /*
+             * ⚠️ A2.9: a instância do item único chega junto com o lote — para o arrematante, ou de
+             * volta ao vendedor quando o leilão fecha sem lance. Os dois caminhos passam por aqui, e
+             * é isso que garante que nenhum deles esqueça de registrar a troca de mão.
+             */
+            $instancia = EnduranceItemInstance::where(
+                'endurance_item_id', $l->endurance_item_id,
+            )->first();
+
+            if ($instancia !== null) {
+                app(Instancias::class)->transferir(
+                    $instancia, Colony::find($colonyId), 'leilao',
+                );
+            }
 
             return;
         }

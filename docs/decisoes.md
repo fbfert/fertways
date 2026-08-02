@@ -9957,3 +9957,72 @@ exatamente o caso que estava quebrado.
 ### Verificação
 
 1124 testes verdes (3 novos) e 10 suítes e2e verdes depois da varredura dos cliques.
+
+## D-187 — A2.9: o item único ganha a identidade que a fase inteira exigia
+
+A **regra central** da A2.9 é uma frase: *"um item marcado como único deve possuir identidade
+persistente e histórico."* Ela estava inteiramente ausente.
+
+### O que "único" significava até aqui
+
+`endurance_items.tipo` já carregava `comum|raro|unico` desde o D-135, e o painel já forçava
+`quantidade_total = 1`. Mas a posse continuava **fungível**: `colony_endurance_items` é
+`(colônia, item, quantidade)` — e **quantidade não tem identidade**. Não havia descobridor, nem
+proprietário registrado, nem transferência. Os três que o §11.1 exige.
+
+### ⚠️ O descobridor é imutável, e é ele que dá valor ao item
+
+`descobridor_colony_id` se escreve uma vez e **nunca mais** — por isso são duas colunas, e não uma.
+O que faz um único valer mais que um raro **não é a escassez**: raro também é escasso. É ele ter uma
+origem que ninguém pode reescrever. Se a primeira venda apagasse a descoberta, o item viraria só um
+número 1.
+
+O histórico é **append-only**, como o `ledger` e o `federation_ledger`: a biografia de um item não
+pode ser editada depois — nem por nós — ou deixa de valer como biografia. Há teste que tenta
+reescrever e outro que tenta apagar.
+
+### Só o único ganha instância
+
+Do roadmap: *"apenas o único recebe instância"*. Dar identidade a tudo multiplicaria por milhares as
+linhas de posse sem responder pergunta nenhuma — ninguém quer a biografia do parafuso comum de número
+4.312. Conferido antes de escrever: em produção há **um item, tipo `raro`, 42 unidades**, e **nenhum
+único jamais existiu**. A tabela nasceu vazia, sem migração de dados — exatamente o que o roadmap
+previu.
+
+### O leilão move a instância junto, inclusive para o escrow
+
+Dono nulo é *"saiu de uma mão e ainda não chegou na outra"*. Sem isso, o item ficaria registrado com
+o vendedor enquanto estivesse à venda, e a biografia mentiria sobre onde a peça esteve — o oposto do
+que o §11.1 quer dela. Os dois caminhos do fechamento (arrematante, ou volta ao vendedor sem lance)
+passam pelo mesmo ponto, e é isso que impede um deles de esquecer de registrar.
+
+### ⚠️ Um bug meu que o teste pegou: telemetria adiada nunca descarregada
+
+Usei `adiar: true` — correto, porque o registro roda dentro da transação da transferência e um
+rollback levaria a métrica junto (D-173). Mas o buffer só descarrega no fim da requisição, via
+`app()->terminating`, e um teste que chama o domínio direto **nunca fecha requisição**. O evento
+existia e não chegava ao banco. Em produção o `terminating` roda; no teste, descarrego à mão — e o
+comentário explica que isso é reproduzir o que a produção faz sozinha.
+
+### E a identidade aparece na tela
+
+Selo, descobridor, dono atual e quantas vezes trocou de mão. **"Identidade persistente" que ninguém
+enxerga não é identidade** — e já publiquei rota sem tela nesta base (D-180). Aqui a consequência
+seria pior: o item teria história no banco e o jogador veria só mais uma peça.
+
+O selo é derivado (`FW-U-nucleo_da_endurance-8F2A`) e não sequencial: um contador revelaria quantos
+únicos existem no jogo, que é informação do operador e não do jogador.
+
+### O que a A2.9 ainda não tem
+
+- **Eventos da Endurance** no motor da A2.8: a própria A2.8 os põe na lista *"Depois"*, junto com
+  combate e Federação. O motor de hoje só sabe produção e consumo, e forçar Endurance nele agora
+  seria inventar um modificador que ninguém desenhou;
+- **Descoberta por escavação**: hoje o único nasce na **compra**. Escavar e achar é o que a fase
+  chama de *"aprofundar a escavação/desmontagem"*, e depende de uma mecânica de escavação que não
+  existe — dito aqui para não passar por entregue.
+
+### Verificação
+
+1137 testes verdes (13 novos) e 10 suítes e2e verdes, com três asserções novas na Capital: o selo
+aparece, é legível, e a origem aparece junto.

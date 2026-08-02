@@ -2,12 +2,15 @@
 
 namespace App\Domain\Leilao;
 
+use App\Domain\Endurance\Instancias;
+use App\Domain\Missoes\Progresso;
 use App\Domain\Trade\AcessoAoMercado;
 use App\Exceptions\DomainRuleException;
 use App\Models\Auction;
 use App\Models\Colony;
 use App\Models\ColonyEnduranceItem;
 use App\Models\EnduranceItem;
+use App\Models\EnduranceItemInstance;
 use App\Models\Ledger;
 use App\Models\MarketAccount;
 use App\Models\ResourceType;
@@ -23,6 +26,7 @@ use Illuminate\Support\Facades\DB;
 class ListarLeilao
 {
     public const DURACAO_MIN_HORAS = 1;
+
     public const DURACAO_MAX_HORAS = 72;
 
     public function handle(Colony $colonia, string $recurso, int $qtd, int $lanceMinimoMicro, int $duracaoHoras): Auction
@@ -75,7 +79,7 @@ class ListarLeilao
 
             $this->lancar($colonia->id, 'escrow_leilao', -$qtd, $recurso, "leilao:{$leilao->id}:anuncio");
 
-            app(\App\Domain\Missoes\Progresso::class)->registrar($colonia->id, 'ordem_colocada');
+            app(Progresso::class)->registrar($colonia->id, 'ordem_colocada');
 
             return $leilao;
         });
@@ -121,6 +125,19 @@ class ListarLeilao
                 ->where('quantidade', '>=', $qtd)
                 ->decrement('quantidade', $qtd);
 
+            /*
+             * ⚠️ A2.9: se o lote é um item ÚNICO, a INSTÂNCIA vai para escrow junto.
+             *
+             * Sem isto o item continuaria registrado na mão do vendedor enquanto estivesse à venda, e
+             * a biografia mentiria sobre onde a peça esteve — que é o oposto do que o §11.1 quer dela.
+             * Dono nulo é exatamente o estado "saiu de uma mão e ainda não chegou na outra".
+             */
+            $instancia = EnduranceItemInstance::where('endurance_item_id', $item->id)->first();
+
+            if ($instancia !== null) {
+                app(Instancias::class)->transferir($instancia, null, 'leilao');
+            }
+
             if ($afetadas === 0) {
                 throw new DomainRuleException(
                     'posse_insuficiente',
@@ -139,7 +156,7 @@ class ListarLeilao
 
             $this->lancar($colonia->id, 'escrow_leilao', -$qtd, null, "leilao:{$leilao->id}:anuncio");
 
-            app(\App\Domain\Missoes\Progresso::class)->registrar($colonia->id, 'ordem_colocada');
+            app(Progresso::class)->registrar($colonia->id, 'ordem_colocada');
 
             return $leilao;
         });
