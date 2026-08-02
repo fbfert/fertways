@@ -161,6 +161,25 @@ $v = App\Models\User::create([
 $cv = app(App\Domain\Colony\CreateColony::class)->handle($v, "Colônia vizinha", 0, 6);
 
 /*
+ * A2.8: um evento de mundo ATIVO, para a faixa ter o que mostrar.
+ *
+ * ⚠️ Sem isto o motor ficaria sem cobertura de ponta a ponta — e um motor que muda a economia sem
+ * que ninguém veja é indistinguível de um defeito.
+ */
+App\Models\GameEvent::create([
+    "slug" => "tempestade_de_poeira",
+    "nome" => "Tempestade de poeira",
+    "mensagem_publica" => "O céu fechou sobre o setor norte.",
+    "comeca_em" => now()->subHour(),
+    "termina_em" => now()->addDay(),
+    "status" => "ativo",
+    "visibilidade" => "anunciado",
+    "escopo" => "mundo",
+    "modificador" => "producao",
+    "efeito_bps" => -2000,
+]);
+
+/*
  * A2.6: a população LIGADA no mundo do e2e, e a colônia povoada.
  *
  * Sem isto o painel de operadores da zona não renderiza (`operadores.ativo` é false) e a fase

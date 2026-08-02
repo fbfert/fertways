@@ -10,6 +10,7 @@ use App\Http\Controllers\Api\ColonyController;
 use App\Http\Controllers\Api\DroneController;
 use App\Http\Controllers\Api\EnduranceController;
 use App\Http\Controllers\Api\EstatisticasController;
+use App\Http\Controllers\Api\EventosController;
 use App\Http\Controllers\Api\FederationController;
 use App\Http\Controllers\Api\FeedbackController;
 use App\Http\Controllers\Api\ImagesController;
@@ -74,6 +75,12 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/map', [ColonyController::class, 'map']);
 
     // Zonas neutras (§07, §24.4; D-52). Listar e ocupar; extração é no tick, retirada é logística.
+    /*
+     * A2.8: os eventos de mundo que o jogador PODE ver. Sem esta rota o motor seria mais uma peça
+     * inerte — o mundo mudaria de comportamento e ninguém saberia por quê.
+     */
+    Route::get('/eventos', [EventosController::class, 'index']);
+
     Route::get('/zones', [NeutralZoneController::class, 'index']);
     Route::post('/zones/{zone}/occupy', [NeutralZoneController::class, 'occupy']);
     Route::post('/zones/{zone}/upgrade', [NeutralZoneController::class, 'upgrade']);

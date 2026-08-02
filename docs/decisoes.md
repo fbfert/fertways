@@ -9800,3 +9800,87 @@ rodada da trilha A2.S exercitou operadores de zona ainda.
 
 1106 testes verdes (12 novos) e 10 suítes e2e verdes, com seis asserções novas na suíte de Zonas —
 incluindo devolver a equipe e ver a tela dizer *quanto* a zona perdeu e que ela não se perde.
+
+## D-185 — A2.8: o Motor de Eventos, e a média ponderada que dispensou fatiar o tick
+
+*"Dar ao Dono capacidade de criar emoção sem precisar alterar código para cada evento."* Hoje uma
+tempestade que derrubasse a extração exigiria um `if` novo no tick. Agora é **uma linha de tabela**.
+
+### ⚠️ A decisão de arquitetura da fase: a média ponderada pelo tempo é EXATA
+
+O roadmap exige que o modificador seja *"reconstruível no passado, para que 'Desde sua última visita'
+consiga explicar por que a produção caiu"*. O caminho óbvio seria **fatiar o delta do tick** nas
+bordas de cada evento, como o `ColonyTick` já faz com as conclusões de obra.
+
+Não é preciso, e a razão é aritmética: a produção de um intervalo é `taxa × tempo`, e o modificador é
+constante por trechos. Então `Σ(taxa × mᵢ × tᵢ)` é **idêntico** a `taxa × T × (Σ mᵢtᵢ / T)` — a média
+ponderada. **Não é aproximação: é a mesma conta**, escrita de outro jeito, e sem multiplicar as
+consultas do caminho mais quente do jogo.
+
+⚠️ Isso vale porque produção é **linear no tempo**. Se um dia entrar um modificador não linear, ele
+precisa fatiar — e está escrito no código, onde quem for mexer vai ler.
+
+### As três promessas do roadmap, cada uma com teste
+
+| promessa | como |
+|---|---|
+| **nunca escreve no ledger** | o evento muda a TAXA; quem credita continua sendo o tick |
+| **reconstruível no passado** | `para()` aceita qualquer intervalo, inclusive já ocorrido |
+| **cancelar não apaga o histórico** | `cancelado_em` encerra o futuro; o passado continua calculável |
+
+Um evento que lançasse no ledger criaria receita do nada e faria a telemetria derivada dele (D-163)
+passar a mentir. E apagar a linha ao cancelar faria o resumo de retorno dizer que a produção caiu sem
+motivo — um jogo que não consegue explicar a própria economia perde a confiança do jogador de um
+jeito que não se recupera.
+
+### Preço fica de fora, e isso é do roadmap
+
+`price_interventions` existe desde o D-35. *"O motor não a absorve nem a duplica nesta versão"* —
+duas verdades sobre o preço seria a pior herança possível deste motor.
+
+### Um evento, um modificador
+
+Dois numa linha pareceriam economia e viravam confusão: cancelar metade seria impossível, e o
+operador perderia a leitura de qual dos dois causou o quê. É o mesmo princípio que fez a ativação da
+população ser em duas etapas (D-178). O comando recusa, e há teste.
+
+### A §Segurança, item por item
+
+- **preview antes de ativar**: o comando *sempre* mostra o que faria, e ativar exige `--ativar` em voz
+  alta. Mesma escolha do `populacao-grandfather`, que salvou a operação da população (D-178);
+- **dry-run**: `--colonia=N` roda o evento de verdade, em escala de um;
+- **auditoria**: `criado_por` e a linha preservada para sempre;
+- **cancelamento** e **rollback lógico**: `cancelado_em`, que nunca toca o passado.
+
+O preview mostra a conta que o operador precisa antes de apertar o botão: *"uma taxa de 200/h passaria
+a 160/h"*. "−20%" é abstrato; isso não é.
+
+### ⚠️ O MariaDB recusou a tabela, e o SQLite teria deixado passar
+
+Duas colunas `timestamp NOT NULL` na mesma tabela: só a primeira ganha o default implícito, e a
+segunda recebe `0000-00-00`, que o modo estrito rejeita. Trocadas por `dateTime`. Foi o MariaDB do
+**dev** que pegou — os testes rodam em SQLite, e o verde deles não prova DDL.
+
+### E o motor não é invisível
+
+Rota `/eventos` e uma faixa no jogo, porque **um motor que muda a economia sem que ninguém veja é
+indistinguível de um defeito**. O jogador veria a produção cair e concluiria que o jogo quebrou.
+
+A visibilidade `parcial` mostra a tensão e esconde a explicação: *"algo está afetando a produção"*,
+sem dizer o quê. É a única das três que cria mistério em vez de confusão. `notas_internas` nunca sai
+do servidor, em nenhuma visibilidade.
+
+⚠️ E `segredo` é afirmação **separada** de `visibilidade = secreto`: quem quiser segredo tem de
+dizê-lo duas vezes. Uma trava só seria fácil demais de desligar por acidente.
+
+### O que fica para as versões seguintes
+
+Os modificadores de taxa, logística, construção, pesquisa, população e território; os gatilhos por
+condição (o campo `gatilho` já existe, para que acrescentá-los não exija migração de dados); e
+recompensas e missões atreladas ao evento, cujas colunas estão lá e **ainda não são lidas por
+ninguém** — dito aqui para que não passem por entregues.
+
+### Verificação
+
+1121 testes verdes (15 novos) e 10 suítes e2e verdes, com três asserções novas: a faixa aparece, o
+nome do evento aparece, e o efeito aparece junto.

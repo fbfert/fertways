@@ -14,6 +14,7 @@ import type { AvisosDoChat } from './ui/Chat'
 import { Missoes } from './ui/Missoes'
 import { Mapa } from './ui/Mapa'
 import { Header } from './ui/Header'
+import { EventosDoMundo } from './ui/EventosDoMundo'
 import { ResumoDeRetorno } from './ui/ResumoDeRetorno'
 import { MobileNav } from './ui/MobileNav'
 import { Route, Routes, useNavigate, useParams } from 'react-router-dom'
@@ -370,6 +371,8 @@ export default function App() {
         hora). O componente se fecha sozinho quando a resposta diz que não é para mostrar, e não
         desenha nada enquanto isso — sem flash de modal a cada carga de página.
       */}
+      {/* A2.8: o mundo avisa quando está diferente. Ver o docblock de `EventosDoMundo`. */}
+      {colonia && <EventosDoMundo />}
       {colonia && resumoAberto && <ResumoDeRetorno aoFechar={() => setResumoAberto(false)} />}
 
       <Routes>

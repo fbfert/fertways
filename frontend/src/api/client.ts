@@ -471,6 +471,23 @@ export type Missao = {
   }
 }
 
+/**
+ * Um evento de mundo visível ao jogador (A2.8).
+ *
+ * O `parcial` diz que ALGO mexe na produção sem dizer o quê — tensão sem explicação. O secreto nunca
+ * chega aqui: o servidor o filtra antes.
+ */
+export type EventoDoMundo = {
+  parcial: boolean
+  nome?: string
+  mensagem?: string | null
+  modificador?: 'producao' | 'consumo'
+  /** Em porcentagem, com sinal. */
+  efeito?: number
+  recurso?: string | null
+  termina_em: string
+}
+
 /** Uma fala no rádio do planeta (§10; D-77). */
 export type MensagemDeChat = {
   id: number
@@ -1402,6 +1419,9 @@ export const api = {
     }),
 
   frota: () => req<Frota>('/vehicles'),
+
+  /** A2.8: os eventos de mundo que o jogador pode ver. */
+  eventosDoMundo: () => req<{ eventos: EventoDoMundo[] }>('/eventos'),
 
   /** Dá (ou tira) um apelido do veículo. A placa não muda — é do veículo, não do dono (§16.3). */
   renomearVeiculo: (veiculo: number, nickname: string) =>

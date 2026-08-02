@@ -5,6 +5,7 @@ namespace App\Domain\Production;
 use App\Domain\Colony\TetoDoEstoque;
 use App\Domain\Colony\TetoDoTanque;
 use App\Domain\Endurance\EfeitosDaEndurance;
+use App\Domain\Eventos\Modificadores;
 use App\Domain\Marco\ConcederXp;
 use App\Domain\Missoes\Progresso;
 use App\Domain\Populacao\Ciclo;
@@ -69,6 +70,7 @@ class ColonyTick
     public function __construct(
         private TetoDoTanque $tetoDoTanque,
         private TetoDoEstoque $tetoDoEstoque,
+        private Modificadores $eventos,
         private EfeitosDaEndurance $efeitosDaEndurance,
         private Parametros $parametrosDePopulacao,
         private Ciclo $cicloDePopulacao,
@@ -441,6 +443,24 @@ class ColonyTick
              */
             if ($porHora > 0 && $this->eficienciaDaPopulacao < 10_000) {
                 $porHora = intdiv($porHora * $this->eficienciaDaPopulacao, 10_000);
+            }
+
+            /*
+             * A2.8: o Motor de Eventos entra AQUI, e só aqui — mexendo na TAXA.
+             *
+             * ⚠️ O evento nunca escreve no ledger: quem credita continua sendo este laço. É o que
+             * mantém "um lançamento por fato econômico" e impede que a telemetria derivada do ledger
+             * (D-163) passe a ver receita que ninguém produziu.
+             *
+             * O sinal da taxa decide qual modificador se aplica: taxa positiva é PRODUÇÃO, taxa
+             * negativa é CONSUMO. Ler o sinal em vez de manter duas listas foi a lição do D-164.
+             */
+            $modificador = $porHora >= 0 ? Modificadores::PRODUCAO : Modificadores::CONSUMO;
+            $bps = $this->eventos->para($colony, $modificador, $de, $ate, $recurso);
+
+            if ($bps !== 10_000) {
+                // `intdiv` trunca em direção a zero, que é o certo para os dois sinais.
+                $porHora = intdiv($porHora * $bps, 10_000);
             }
 
             $numerador = $porHora * $segundos;

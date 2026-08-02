@@ -34,6 +34,18 @@ try {
   await entrar(page)
   checar(await esperarTexto(page, /Fert\$/), 'o HUD carrega e mostra Fert$')
 
+  console.log('\nA faixa de eventos de mundo (A2.8)')
+  await page.waitForSelector('[data-eventos]', { timeout: 8000 })
+  checar(true, 'a faixa aparece quando há evento ativo — o motor não é invisível')
+  checar(
+    await esperarTexto(page, /Tempestade de poeira/),
+    'o nome do evento anunciado aparece',
+  )
+  checar(
+    await esperarTexto(page, /produção -20%/),
+    'e o efeito também: o jogador vê POR QUE a produção caiu',
+  )
+
   console.log('\nOs botões que faltavam existem no HUD')
   checar(!!(await acharPorTexto(page, 'button', /^Mapa$/)), 'há botão para o Mapa')
   checar(!!(await acharPorTexto(page, 'button', /^Mapa$/)), 'há botão para o Mapa, ao lado da marca')
