@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { api } from '../api/client'
 import type { MesaDiplomatica as Dados } from '../api/client'
-import { Selo } from './sistema'
+import { Botao, Selo } from './sistema'
 
 /**
  * A mesa diplomática (A2.5, item 7).
@@ -96,18 +96,21 @@ export function MesaDiplomatica() {
                 um botão que só serviria para produzir um erro.
               */}
               {r.status === 'proposta' && !r.propus && (
-                <button
+                <Botao
+                  variante="secundaria"
+                  tamanho="pequeno"
                   onClick={() => agir(() => api.aceitarAlianca(r.id), `Aliança com ${r.nome} firmada.`)}
                   disabled={ocupado}
                   data-aceitar-alianca={r.id}
-                  className="border-ink/30 text-ink hover:bg-ink hover:text-sand-light border px-3 py-1 text-xs font-bold disabled:opacity-40"
                 >
                   Aceitar
-                </button>
+                </Botao>
               )}
 
               {d.pode_tratar && (
-                <button
+                <Botao
+                  variante="fantasma"
+                  tamanho="pequeno"
                   onClick={() =>
                     agir(
                       () => api.romperAlianca(r.id),
@@ -116,10 +119,10 @@ export function MesaDiplomatica() {
                   }
                   disabled={ocupado}
                   data-romper-alianca={r.id}
-                  className="text-ink-soft/60 hover:text-rust ml-auto text-xs"
+                  className="ml-auto"
                 >
                   {r.status === 'aceita' ? 'Romper' : 'Recusar'}
-                </button>
+                </Botao>
               )}
             </li>
           ))}
@@ -143,14 +146,14 @@ export function MesaDiplomatica() {
             ))}
           </select>
 
-          <button
+          <Botao
+            tamanho="pequeno"
             onClick={() => agir(() => api.proporAlianca(Number(alvo)), 'Proposta enviada.')}
             disabled={ocupado || !alvo || noTeto}
             data-propor-alianca
-            className="border-ink/30 text-ink hover:bg-ink hover:text-sand-light border px-3 py-1 text-xs font-bold disabled:cursor-not-allowed disabled:opacity-40"
           >
             Propor aliança
-          </button>
+          </Botao>
 
           {noTeto && (
             <span className="text-ink-soft/60 text-xs">

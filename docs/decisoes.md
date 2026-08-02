@@ -10103,3 +10103,56 @@ junto é pior do que deixar passar um trapaceiro**.
 
 Estão tabeladas no fim do documento. Design é do Dono; o que eu podia fazer era chegar com
 recomendação fundamentada em cada uma, e é o que está lá.
+
+## D-189 — A2.V: a auditoria do design system, e a dívida era minha
+
+O roadmap da A2.V avisa em uma frase por que ela não pode ficar para o fim:
+
+> *"Se os tokens vierem depois, ela e o painel de população **nascem fora do design system e terão
+> de ser refeitos**."*
+
+Os tokens vieram antes (A2.V1, no começo desta Alpha). Fui medir se a tela **nascida depois** deles
+os usou.
+
+### ⚠️ A medida, e ela me acusa
+
+| | |
+|---|---|
+| componentes do design system | 4 (`Botao`, `Cartao`, `Selo`, `Estado`) |
+| arquivos que o importam | **4**, de 40 |
+| usos de `<Botao>` | 15 |
+| `<button>` crus na interface | **~150** |
+
+E a tela que **eu** construí nesta sessão — mesa diplomática, painel de operadores da zona, upgrade
+de veículo, faixa de eventos — nasceu quase toda **fora** do sistema: `<button className="border-ink/30
+text-ink hover:bg-ink…">` repetido à mão, que é exatamente a cópia que o `Botao` existe para
+eliminar.
+
+Fiz o que o roadmap avisou para não fazer, no mesmo dia em que li o aviso.
+
+### Por que isso importa mais do que parece
+
+O docblock do `Botao` explica: **o par de cores não é parâmetro**. `tools/valida_contraste.py` mediu
+a paleta inteira e achou duas armadilhas — `rust` com texto `ink` dá 3,08:1 e reprova; `ember` com
+texto claro dá 1,74:1 e reprova. Por isso a variante escolhe **fundo e texto juntos**, e quem usa
+escolhe a *intenção*.
+
+Cada botão cru é uma chance de alguém escolher o par que reprova. Os meus não reprovaram — a
+disciplina de cor deste código é boa —, mas isso é sorte, não sistema.
+
+### O que foi corrigido agora
+
+As seis peças desta sessão passaram a usar `Botao`: três na mesa diplomática, duas no painel de
+operadores, uma no upgrade de veículo. Contraste revalidado: **14 pares aprovados, 3 proibições
+intactas**. E2E verde nas 10 suítes.
+
+### ⚠️ O que NÃO foi feito, e é o grosso da fase
+
+Restam ~150 botões crus em 26 arquivos, e as sub-fases **A2.V2 a A2.V6** inteiras — HUD, colônia,
+mapa, Capital, Endurance, combate. Isso é revisão visual de verdade: releitura espacial da colônia,
+estados visuais de edifício, ameaças no mapa, identidade própria da Endurance.
+
+**Não é trabalho de um turno, e fingir que é produziria uma migração mecânica sem revisão de
+desenho** — que é o oposto do que "revisão visual gigantesca" quer dizer. Fica dito: a A2.V está
+**começada e longe de pronta**, e o que entreguei foi a auditoria mais a correção da dívida que eu
+mesmo criei.

@@ -3,6 +3,7 @@ import { api, ApiError } from '../api/client'
 import type { ItemDaFabrica, RegistroVeiculo, Transportes as TransportesDto } from '../api/client'
 import { dataHumana, nomeRecurso, nomeVeiculo } from './recursos'
 import { Usados } from './Usados'
+import { Botao } from './sistema'
 
 /**
  * Ministério dos Transportes (§16) — slot 8 da Capital (D-60).
@@ -339,7 +340,9 @@ function LinhaDoRegistro({
             </div>
           ) : (
             <div className="flex flex-wrap items-center gap-2">
-              <button
+              <Botao
+                variante="secundaria"
+                tamanho="pequeno"
                 onClick={() =>
                   agir(async () => {
                     const { veiculo } = await api.melhorarVeiculo(v.id)
@@ -348,10 +351,9 @@ function LinhaDoRegistro({
                 }
                 disabled={!u.pode || ocupado}
                 data-melhorar={v.id}
-                className="border-ink/30 text-ink hover:bg-ink hover:text-sand-light disabled:border-ink-soft/20 disabled:text-ink-soft/40 border px-3 py-1 text-xs font-bold disabled:cursor-not-allowed disabled:hover:bg-transparent"
               >
                 Subir para o nível {u.proximo_nivel}
-              </button>
+              </Botao>
 
               <span className="text-ink-soft/70 text-xs">
                 Carrega <strong>{u.capacidade_agora.toLocaleString('pt-BR')}</strong> →{' '}

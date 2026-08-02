@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom'
 import { api, ApiError } from '../api/client'
 import type { EstadoDaGuerra, EstruturaDaZona, EventoDaZona, Veiculo, ZonaDetalhe } from '../api/client'
 import { dataHumana, nomeRecurso, nomeVeiculo } from './recursos'
+import { Botao } from './sistema'
 
 /**
  * A zona neutra como LUGAR (GDD §17.4; docs/decisoes.md D-67, D-84, D-86, D-144).
@@ -389,7 +390,8 @@ export function Zona() {
               )}
 
               <div className="mt-3 flex flex-wrap items-center gap-2">
-                <button
+                <Botao
+                  tamanho="pequeno"
                   onClick={() =>
                     agir(async () => {
                       const faltam = z.operadores.exigidos - z.operadores.na_zona
@@ -403,12 +405,13 @@ export function Zona() {
                     z.operadores.livres_na_colonia < z.operadores.exigidos - z.operadores.na_zona
                   }
                   data-alocar-operadores
-                  className="border-ink/30 text-ink hover:bg-ink hover:text-sand-light border px-3 py-1 text-xs font-bold disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   Completar a equipe
-                </button>
+                </Botao>
 
-                <button
+                <Botao
+                  variante="fantasma"
+                  tamanho="pequeno"
                   onClick={() =>
                     agir(async () => {
                       await api.devolverOperadores(z.id, z.operadores.na_zona)
@@ -418,10 +421,9 @@ export function Zona() {
                   }
                   disabled={z.operadores.na_zona < 1}
                   data-devolver-operadores
-                  className="text-ink-soft/60 hover:text-rust text-xs disabled:opacity-40"
                 >
                   Trazer todos de volta
-                </button>
+                </Botao>
 
                 <span className="text-ink-soft/60 text-xs">
                   {z.operadores.livres_na_colonia} colono(s) livre(s) na colônia.
