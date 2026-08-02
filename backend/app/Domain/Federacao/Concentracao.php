@@ -29,18 +29,29 @@ use Illuminate\Support\Facades\DB;
  */
 class Concentracao
 {
+    public function __construct(private readonly Aliancas $aliancas) {}
+
     /**
      * @return array{
      *     zonas_da_federacao:int, zonas_do_jogo:int, ocupacao_bps:int, teto_bps:int,
-     *     no_teto:bool, zonas_ate_o_teto:int, membros:int, membros_max:int, fert_micro:int
+     *     no_teto:bool, zonas_ate_o_teto:int, membros:int, membros_max:int, fert_micro:int,
+     *     federacoes_no_bloco:int
      * }
      */
     public function de(Federation $federacao): array
     {
         $totalDeZonas = NeutralZone::whereNotNull('owner_colony_id')->count();
 
+        /*
+         * ⚠️ Conta o BLOCO, como `OcuparZonaNeutra` passou a contar (A2.5). Se a tela mostrasse só
+         * as zonas da federação enquanto o domínio recusa pelo bloco, ela diria "cabem mais 3" e a
+         * ocupação seria negada — a pior discordância possível, porque a tela é quem o jogador
+         * acredita. Sem aliança, o bloco é a própria federação e nada muda.
+         */
+        $bloco = $this->aliancas->bloco($federacao->id);
+
         $daFederacao = NeutralZone::whereNotNull('owner_colony_id')
-            ->whereHas('owner', fn ($q) => $q->where('federation_id', $federacao->id))
+            ->whereHas('owner', fn ($q) => $q->whereIn('federation_id', $bloco))
             ->count();
 
         $tetoBps = (int) FederationSetting::singleton()->teto_ocupacao_zonas_bps;
@@ -57,6 +68,9 @@ class Concentracao
             'zonas_ate_o_teto' => $this->zonasAteOTeto($daFederacao, $totalDeZonas, $tetoBps),
             'membros' => $federacao->membros()->count(),
             'membros_max' => Federation::MAX_COLONIAS,
+            // Quantas federações o bloco reúne — 1 quando não há aliança. A tela precisa dizer de
+            // quem é o número acima, senão "17%" parece errado para quem só contou as suas zonas.
+            'federacoes_no_bloco' => count($bloco),
             'fert_micro' => (int) DB::table('colonies')
                 ->where('federation_id', $federacao->id)->sum('fert_micro'),
         ];

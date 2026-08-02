@@ -160,6 +160,24 @@ $v = App\Models\User::create([
 ]);
 $cv = app(App\Domain\Colony\CreateColony::class)->handle($v, "Colônia vizinha", 0, 6);
 
+/*
+ * A2.5: duas federações, para a mesa diplomática ter com quem tratar.
+ *
+ * ⚠️ CADA COLÔNIA NA SUA, e isso é deliberado. Se as duas ficassem na mesma, o desconto de tributo
+ * entre filiadas (D-120, 50%) passaria a incidir nas entregas que outras suítes conferem — e elas
+ * reprovariam sem que nada do que afirmam tivesse mudado. Foi exatamente o acoplamento que a suíte
+ * do Mercado sofreu quando a da Capital passou a subir o nível de um veículo (D-180).
+ *
+ * Sem aliança firmada entre as duas: a aliança é o que o e2e vai propor.
+ */
+foreach ([[$c, "Pacto do Norte", "PN", $u], [$cv, "Liga do Sul", "LS", $v]] as [$colonia, $nome, $tag, $dono]) {
+    $f = App\Models\Federation::create(["name" => $nome, "tag" => $tag]);
+    $colonia->forceFill([
+        "federation_id" => $f->id,
+        "federation_role" => App\Models\Federation::LIDER,
+    ])->save();
+}
+
 // D-81: uma fala da vizinha no Global, para o e2e do Chat ter um nick alheio em que clicar.
 // ChatMessage não tem timestamps automáticos ($timestamps = false) — created_at é à mão.
 App\Models\ChatMessage::create([

@@ -14,16 +14,16 @@ use App\Http\Controllers\Api\FederationController;
 use App\Http\Controllers\Api\FeedbackController;
 use App\Http\Controllers\Api\ImagesController;
 use App\Http\Controllers\Api\MarketController;
-use App\Http\Controllers\Api\MissoesController;
 use App\Http\Controllers\Api\MinistryController;
+use App\Http\Controllers\Api\MissoesController;
 use App\Http\Controllers\Api\NeutralZoneController;
+use App\Http\Controllers\Api\PerfilDaColoniaController;
 use App\Http\Controllers\Api\PlayerController;
+use App\Http\Controllers\Api\ProfileController;
+use App\Http\Controllers\Api\ResumoController;
 use App\Http\Controllers\Api\TradeController;
 use App\Http\Controllers\Api\TransportController;
 use App\Http\Controllers\Api\VehicleController;
-use App\Http\Controllers\Api\ProfileController;
-use App\Http\Controllers\Api\PerfilDaColoniaController;
-use App\Http\Controllers\Api\ResumoController;
 use App\Http\Controllers\Api\WarController;
 use App\Http\Controllers\Api\ZoneController;
 use Illuminate\Support\Facades\Route;
@@ -251,4 +251,13 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/federation/members/{colony}/kick', [FederationController::class, 'expulsar']);
     Route::patch('/federation/members/{colony}/role', [FederationController::class, 'alterarCargo']);
     Route::post('/federation/withdraw', [FederationController::class, 'sacar']);
+
+    /*
+     * A2.5 item 7: a mesa diplomática. "Diplomata" era cargo sem sistema — o papel existe desde o
+     * D-114 e só sabia convidar colônia. Aliança entre federações é o que faltava.
+     */
+    Route::get('/federation/diplomacia', [FederationController::class, 'diplomacia']);
+    Route::post('/federations/{federation}/alianca', [FederationController::class, 'proporAlianca']);
+    Route::post('/federations/{federation}/alianca/accept', [FederationController::class, 'aceitarAlianca']);
+    Route::delete('/federations/{federation}/alianca', [FederationController::class, 'romperAlianca']);
 });

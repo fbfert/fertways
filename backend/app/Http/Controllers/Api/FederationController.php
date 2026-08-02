@@ -2,8 +2,11 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Domain\Federacao\Aliancas;
 use App\Domain\Federacao\AlterarCargo;
+use App\Domain\Federacao\Concentracao;
 use App\Domain\Federacao\CriarFederacao;
+use App\Domain\Federacao\Diplomacia;
 use App\Domain\Federacao\EnviarConviteOuPedido;
 use App\Domain\Federacao\ExpulsarMembro;
 use App\Domain\Federacao\ResponderConviteOuPedido;
@@ -13,10 +16,10 @@ use App\Domain\Federacao\TransferirLideranca;
 use App\Exceptions\DomainRuleException;
 use App\Http\Controllers\Controller;
 use App\Models\Colony;
-use App\Domain\Federacao\Concentracao;
 use App\Models\Federation;
 use App\Models\FederationHolding;
 use App\Models\FederationInvite;
+use App\Models\FederationSetting;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -35,6 +38,8 @@ class FederationController extends Controller
         private readonly ExpulsarMembro $expulsar,
         private readonly AlterarCargo $alterarCargo,
         private readonly SacarDoFundo $sacar,
+        private readonly Diplomacia $diplomacia,
+        private readonly Aliancas $aliancas,
     ) {}
 
     /** GET /federation — a federação da própria colônia (ou null), membros, fundo e pendências. */
@@ -110,6 +115,72 @@ class FederationController extends Controller
         }
 
         return response()->json(['tem_federacao' => true] + $concentracao->de($federacao));
+    }
+
+    /**
+     * GET /federation/diplomacia — a mesa diplomática (A2.5, item 7).
+     *
+     * Traz as relações que existem **e** as federações com quem ainda dá para tratar. Sem a segunda
+     * lista a tela seria um mural de nada até alguém propor primeiro, e ninguém propõe o que não
+     * consegue ver.
+     */
+    public function diplomacia(Request $request): JsonResponse
+    {
+        $federacao = $request->user()->colony?->federation;
+
+        if (! $federacao) {
+            return response()->json(['tem_federacao' => false]);
+        }
+
+        $config = FederationSetting::singleton();
+        $relacoes = $this->aliancas->relacoesDe($federacao->id);
+        $comRelacao = array_map(fn ($r) => $r['federacao']->id, $relacoes);
+
+        return response()->json([
+            'tem_federacao' => true,
+            'pode_tratar' => (bool) $request->user()->colony?->podeConvidarParaFederacao(),
+            'max_aliadas' => (int) $config->max_aliadas,
+            'aliadas' => count($this->aliancas->aliadasDe($federacao->id)),
+            // Os dois descontos lado a lado: é o que torna visível POR QUE filiar-se vale mais.
+            'desconto_interno' => (int) $config->desconto_tributo_aliados_bps / 100,
+            'desconto_alianca' => (int) $config->desconto_tributo_aliancas_bps / 100,
+            'relacoes' => array_map(fn ($r) => [
+                'id' => $r['federacao']->id,
+                'nome' => $r['federacao']->name,
+                'status' => $r['status'],
+                'propus' => $r['propus'],
+            ], $relacoes),
+            'disponiveis' => Federation::whereNull('disbanded_at')
+                ->whereKeyNot($federacao->id)
+                ->whereNotIn('id', $comRelacao)
+                ->orderBy('name')
+                ->get(['id', 'name'])
+                ->map(fn ($f) => ['id' => $f->id, 'nome' => $f->name]),
+        ]);
+    }
+
+    /** POST /federations/{federation}/alianca — propõe. */
+    public function proporAlianca(Request $request, Federation $federation): JsonResponse
+    {
+        $this->diplomacia->propor($this->colonia($request), $federation);
+
+        return response()->json(['proposta' => true]);
+    }
+
+    /** POST /federations/{federation}/alianca/accept — aceita a proposta da outra. */
+    public function aceitarAlianca(Request $request, Federation $federation): JsonResponse
+    {
+        $this->diplomacia->aceitar($this->colonia($request), $federation);
+
+        return response()->json(['aliada' => true]);
+    }
+
+    /** DELETE /federations/{federation}/alianca — rompe a aliança, ou recusa a proposta. */
+    public function romperAlianca(Request $request, Federation $federation): JsonResponse
+    {
+        $this->diplomacia->romper($this->colonia($request), $federation);
+
+        return response()->json(['rompida' => true]);
     }
 
     public function index(): JsonResponse

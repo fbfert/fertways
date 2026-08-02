@@ -3,13 +3,17 @@
 namespace App\Domain\Logistics;
 
 use App\Domain\Capital\AvisoDoPatio;
+use App\Domain\Drone\DroneSpecs;
 use App\Domain\Endurance\EfeitosDaEndurance;
+use App\Domain\Federacao\Aliancas;
 use App\Domain\Market\Deposito;
 use App\Domain\Trade\CreditarEntrega;
 use App\Domain\Transport\Conservacao;
 use App\Domain\Transport\MercadoDeUsados;
+use App\Domain\Treasury\Tesouro;
 use App\Models\Colony;
 use App\Models\FederationLedger;
+use App\Models\FederationSetting;
 use App\Models\Ledger;
 use App\Models\NeutralZone;
 use App\Models\ResourceType;
@@ -66,7 +70,7 @@ class ConcluirTrechos
              * `Drone\ConcluirMissoes`. Sem este filtro, a chegada de um drone cairia no fluxo de
              * entrega, que perguntaria pela carga dele e acharia o nada.
              */
-            ->where('type', '!=', \App\Domain\Drone\DroneSpecs::TIPO)
+            ->where('type', '!=', DroneSpecs::TIPO)
             ->where('arrives_at', '<=', now())
             ->orderBy('arrives_at')
             ->get();
@@ -570,12 +574,28 @@ class ConcluirTrechos
      */
     private function aliquota(Colony $origem, Colony $destino, int $bpsCheio): int
     {
-        $aliados = $origem->id !== $destino->id
+        $config = FederationSetting::singleton();
+        $entreColonias = $origem->id !== $destino->id;
+        $mesmaFederacao = $entreColonias
             && $origem->federation_id !== null
             && $origem->federation_id === $destino->federation_id;
 
-        if ($aliados) {
-            $desconto = \App\Models\FederationSetting::singleton()->desconto_tributo_aliados_bps;
+        /*
+         * A2.5: aliança ENTRE federações também desconta — mas MENOS que a filiação.
+         *
+         * ⚠️ Se rendesse o mesmo, o teto de 12 membros viraria letra morta: bastaria montar três
+         * federações aliadas em vez de uma grande, e a regra que existe para limitar concentração
+         * seria contornada pela porta da frente. O desconto menor é o que mantém filiar-se melhor
+         * do que aliar-se.
+         */
+        $desconto = match (true) {
+            $mesmaFederacao => (int) $config->desconto_tributo_aliados_bps,
+            $entreColonias && app(Aliancas::class)
+                ->saoAliadas($origem->federation_id, $destino->federation_id) => (int) $config->desconto_tributo_aliancas_bps,
+            default => 0,
+        };
+
+        if ($desconto > 0) {
             $bpsCheio = intdiv($bpsCheio * (10_000 - $desconto), 10_000);
         }
 
@@ -583,7 +603,7 @@ class ConcluirTrechos
         // cima do que o desconto de aliados já reduziu, nunca antes dele.
         $desconto = $this->descontoDeEndurance->descontoDeTributo($origem);
 
-        return \App\Domain\Endurance\EfeitosDaEndurance::aplicarDesconto($bpsCheio, $desconto);
+        return EfeitosDaEndurance::aplicarDesconto($bpsCheio, $desconto);
     }
 
     /**
@@ -637,7 +657,7 @@ class ConcluirTrechos
             $this->lancar($origem, 'tributo', -$tributo, $recurso, $ref);
             // O tributo não some mais: entra no Ministério do Tesouro (§2.1, D-57). Só aqui, depois de
             // `tributar()` ter aprovado o `tax_event` — a idempotência do tick já está garantida.
-            app(\App\Domain\Treasury\Tesouro::class)->creditarRecurso($recurso, $tributo, "tributo_transporte:{$ref}");
+            app(Tesouro::class)->creditarRecurso($recurso, $tributo, "tributo_transporte:{$ref}");
         }
     }
 }

@@ -154,6 +154,40 @@ try {
     checar(await esperarTexto(page, new RegExp(p)), `o planeta ${p} aparece, com o que o GDD publica`)
   }
 
+  console.log('\nO Quartel de Alianças (slot 9) — a mesa diplomática da A2.5')
+  await page.click('[data-voltar-capital]')
+  await page.click('[data-slot-capital="9"]')
+  /*
+   * ⚠️ `waitForSelector` antes de qualquer asserção, e não um `sleep`. Foi a lição do D-180: o
+   * `page.click` do Puppeteer não espera, e a suíte reprovava com o jogo perfeito.
+   */
+  await page.waitForSelector('[data-secao="diplomacia"]', { timeout: 8000 })
+  checar(true, 'a mesa diplomática abre — "Diplomata" deixou de ser cargo sem sistema')
+
+  // Os dois descontos juntos: é o que torna visível POR QUE filiar-se vale mais que aliar-se.
+  checar(
+    await esperarTexto(page, /Filiar-se à mesma federação desconta/),
+    'a tela põe os dois descontos lado a lado, e não só o da aliança',
+  )
+  // O custo da aliança, dito ANTES de ela ser feita.
+  checar(
+    await esperarTexto(page, /limite antimonopólio.*todas as aliadas/is),
+    'e avisa que aliar-se aproxima do teto de zonas — o preço não fica escondido',
+  )
+
+  const alvo = await page.$('[data-alvo-alianca]')
+  checar(alvo !== null, 'há com quem tratar: a outra federação do mundo aparece na lista')
+
+  await page.select('[data-alvo-alianca]', await page.$eval(
+    '[data-alvo-alianca] option:not([value=""])', (el) => el.value,
+  ))
+  await page.click('[data-propor-alianca]')
+  checar(await esperarTexto(page, /Proposta enviada/), 'propor chega ao domínio e volta com resposta')
+  checar(
+    await esperarTexto(page, /proposta enviada/i),
+    'e a relação passa a aparecer — quem propôs não recebe botão de aceitar a própria proposta',
+  )
+
   console.log('\nVolta e abre o Ministério dos Transportes (slot 8)')
   await page.click('[data-voltar-capital]')
   await page.click('[data-slot-capital="8"]')

@@ -9568,3 +9568,73 @@ separada, e precisa de um plano para as veteranas.
 
 1074 testes verdes (9 novos) e 10 suítes e2e verdes. Migration aplicada no dev em MariaDB antes do
 deploy — SQLite não prova DDL.
+
+## D-182 — A2.5 item 7: o Diplomata ganha o sistema que o nome prometia
+
+O D-174 fechou a fatia anterior da fase registrando o que faltava: *"Diplomata é um cargo, não um
+sistema."* O papel existe desde o D-114 e só sabia convidar colônia. Nunca houve tratado, aliança ou
+relação de qualquer espécie **entre** federações.
+
+E havia uma peça esperando há meses: `desconto_tributo_aliados_bps` vale 50% desde o D-120, mas
+*"aliado"* ali quer dizer **mesma federação**. O jogo tinha desconto entre aliados sem ter aliados.
+
+### As decisões de desenho, declaradas antes do código
+
+**⚠️ Dois estados, e não três.** Aliada e neutra. **Hostilidade não entra**: não há guerra entre
+federações no jogo — a A2.10 é quem a traz —, então um estado "hostil" hoje não faria nada. Publicar
+estado sem efeito é exatamente a peça inerte que esta fase vem consertando (`vehicles.level` sem
+rota, `population_settings.ativo` sem leitor, `.botao` sem definição).
+
+**Consentimento mútuo para aliar, unilateral para romper.** Entrar exige acordo, sair não exige
+refém: uma aliança que precisasse dos dois para acabar seria armadilha — bastaria a outra parte
+calar-se para prender alguém num pacto que já não serve. Quem propôs **não aceita a própria
+proposta**, e há teste nisso: sem a trava, um Diplomata proporia e aceitaria sozinho, e o
+"consentimento mútuo" seria um comentário no código.
+
+**O desconto entre federações aliadas é MENOR que o interno** (20% contra 50%). Se rendesse o mesmo,
+o teto de 12 membros viraria letra morta: bastaria montar três federações aliadas em vez de uma
+grande.
+
+### ⚠️ A decisão mais importante: o antimonopólio passa a contar o BLOCO
+
+Uma federação aliada a outras duas não são 12 colônias: são até **36 operando em conjunto**. Se o
+teto de ocupação de zonas continuasse olhando só a federação, **aliar-se viraria lavanderia de
+monopólio** — a regra do §04 seria contornada pela porta da frente, montando federações aliadas em
+vez de uma grande, que é precisamente o arranjo que ela existe para impedir.
+
+`OcuparZonaNeutra` e `Concentracao` passaram a somar o bloco, e a tela avisa disso **antes** de a
+aliança ser feita. Esconder o custo faria a aliança parecer só vantagem, e o preço apareceria como
+uma ocupação negada sem explicação.
+
+O bloco é **raso**: aliado de aliado não é aliado. Com transitividade, um teto de 2 aliadas ainda
+produziria uma corrente ligando o mundo inteiro num bloco só.
+
+### Três defeitos que os testes acharam
+
+⚠️ **`max_aliadas` não estava no `$fillable`.** A atribuição em massa o descartava **em silêncio** —
+o painel do operador salvaria sem erro e sem efeito. Um teste pegou.
+
+⚠️ **`update()` numa tabela de parâmetros ainda vazia não afeta linha nenhuma**, e o `singleton()` a
+cria depois com o padrão. O teste media o valor de fábrica achando que media o meu.
+
+⚠️ **E o `tsc` deste projeto não estava conferindo nada.** `tsconfig.json` é só um arquivo de
+referências com `"files": []`; `npx tsc --noEmit -p tsconfig.json` percorre **zero arquivos e sempre
+sai 0**. Descobri porque um `<Selo tom="sucesso">` inválido passou — a prop certa é `estado`. O
+comando correto é `tsc -b`, que o `npm run build` já usa; conferi quebrando de propósito e vendo o
+erro aparecer. As checagens avulsas que rodei neste projeto com `-p` não valiam nada.
+
+### O que a A2.5 ainda não fecha
+
+O critério de saída — *"capacidade estratégica que um conjunto de jogadores independentes não
+possui"* — agora tem duas pernas reais (desconto de tributo entre aliadas e o bloco territorial),
+mas o **item 4**, "objetivos federativos", continua sendo as missões cooperativas do D-120 sem
+revisão contra o que a fase quer dizer por objetivo.
+
+### Verificação
+
+1090 testes verdes (16 novos) e 10 suítes e2e verdes, com seis asserções novas na Capital — incluindo
+o clique que propõe a aliança e volta com resposta.
+
+⚠️ E o semeador do e2e ganhou duas federações, **cada colônia na sua**: se ficassem na mesma, o
+desconto entre filiadas passaria a incidir nas entregas que outras suítes conferem, e elas
+reprovariam sem que nada do que afirmam tivesse mudado. É o acoplamento do D-180, evitado desta vez.

@@ -2,12 +2,18 @@
 
 namespace App\Domain\Logistics;
 
+use App\Domain\Federacao\Aliancas;
+use App\Domain\Marco\ConcederXp;
+use App\Domain\Marco\ExigirMarco;
+use App\Domain\Missoes\Progresso;
+use App\Domain\Zona\ZonaSlots;
 use App\Exceptions\DomainRuleException;
 use App\Models\Colony;
 use App\Models\FederationSetting;
 use App\Models\Ledger;
 use App\Models\NeutralZone;
 use App\Models\Unit;
+use App\Models\ZoneEvent;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -33,7 +39,7 @@ class OcuparZonaNeutra
          * da transação de propósito — barrar não precisa de lock. E é AQUISIÇÃO: quem já tem zona
          * continua com ela (posse preservada); só ocupar OUTRA passa por aqui.
          */
-        app(\App\Domain\Marco\ExigirMarco::class)->exigir($colony, 20, 'Ocupar uma zona neutra');
+        app(ExigirMarco::class)->exigir($colony, 20, 'Ocupar uma zona neutra');
 
         return DB::transaction(function () use ($colony, $zona) {
             // Trava a zona e a colônia: duas requisições não podem tomar a mesma zona nem gastar
@@ -87,20 +93,20 @@ class OcuparZonaNeutra
             // como sempre — só que agora como linhas de `zone_structures`, não colunas (D-144). O
             // Depósito pode já existir (zonas livres nascem com ele, `NeutralZoneSeeder`).
             $zona->zoneStructures()->firstOrCreate(
-                ['slot' => \App\Domain\Zona\ZonaSlots::POSTO_SLOT],
+                ['slot' => ZonaSlots::POSTO_SLOT],
                 ['type' => 'posto_de_comando', 'level' => 1],
             );
             $zona->zoneStructures()->firstOrCreate(
-                ['slot' => \App\Domain\Zona\ZonaSlots::NIVEL1_SLOTS[0]],
+                ['slot' => ZonaSlots::NIVEL1_SLOTS[0]],
                 ['type' => 'deposito_de_zona_neutra', 'level' => 1],
             );
 
             // Desbravador de fato: ocupar rende XP (D-75) — dentro da transação, com o resto.
-            app(\App\Domain\Marco\ConcederXp::class)->handle($colony->id, 'zona_ocupada', "zona:{$zona->id}");
-            app(\App\Domain\Missoes\Progresso::class)->registrar($colony->id, 'zona_ocupada');
+            app(ConcederXp::class)->handle($colony->id, 'zona_ocupada', "zona:{$zona->id}");
+            app(Progresso::class)->registrar($colony->id, 'zona_ocupada');
 
             // Histórico da zona (D-86): a primeira linha da vida dela com dono.
-            \App\Models\ZoneEvent::create([
+            ZoneEvent::create([
                 'zone_id' => $zona->id, 'type' => 'ocupada', 'colony_id' => $colony->id,
                 'created_at' => $agora,
             ]);
@@ -146,16 +152,29 @@ class OcuparZonaNeutra
             return;
         }
 
-        $daFederacao = NeutralZone::whereNotNull('owner_colony_id')
-            ->whereHas('owner', fn ($q) => $q->where('federation_id', $federationId))
+        /*
+         * ⚠️ O teto conta o BLOCO, não a federação sozinha (A2.5).
+         *
+         * Uma federação aliada a outras duas não são 12 colônias: são até 36 operando em conjunto.
+         * Se este limite continuasse olhando só a federação, aliar-se viraria **lavanderia de
+         * monopólio** — a regra do §04 seria contornada montando três federações aliadas em vez de
+         * uma grande, que é exatamente o arranjo que ela existe para impedir.
+         *
+         * Sem aliança nenhuma, `bloco()` devolve só a própria federação e a conta é a de sempre.
+         */
+        $bloco = app(Aliancas::class)->bloco($federationId);
+
+        $doBloco = NeutralZone::whereNotNull('owner_colony_id')
+            ->whereHas('owner', fn ($q) => $q->whereIn('federation_id', $bloco))
             ->count();
 
         $tetoBps = FederationSetting::singleton()->teto_ocupacao_zonas_bps;
 
-        if (intdiv($daFederacao * 10_000, $totalDeZonas) >= $tetoBps) {
+        if (intdiv($doBloco * 10_000, $totalDeZonas) >= $tetoBps) {
             throw new DomainRuleException(
                 'teto_antimonopolio_da_federacao',
-                'A sua federação já ocupa '.($tetoBps / 100)
+                (count($bloco) > 1 ? 'A sua federação e as aliadas dela já ocupam ' : 'A sua federação já ocupa ')
+                    .($tetoBps / 100)
                     .'% (ou mais) de todas as zonas neutras do jogo — o limite antimonopólio do §04.',
             );
         }

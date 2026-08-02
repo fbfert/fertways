@@ -989,6 +989,37 @@ export type ConcentracaoDaFederacao = {
   membros?: number
   membros_max?: number
   fert_micro?: number
+  /**
+   * Quantas federações o bloco reúne — 1 quando não há aliança (A2.5).
+   *
+   * A tela precisa dizer de quem é o número acima: com aliança, as zonas contadas são as do BLOCO,
+   * e "17%" pareceria errado para quem só contou as suas.
+   */
+  federacoes_no_bloco?: number
+}
+
+/**
+ * A mesa diplomática (A2.5, item 7).
+ *
+ * "Diplomata" era um cargo sem sistema — existia desde o D-114 e só sabia convidar colônia.
+ */
+export type MesaDiplomatica = {
+  tem_federacao: boolean
+  /** Só Líder e Diplomata tratam de aliança: a mesma permissão do convite. */
+  pode_tratar?: boolean
+  max_aliadas?: number
+  aliadas?: number
+  /** Em porcentagem. Os dois lado a lado tornam visível POR QUE filiar-se vale mais que aliar-se. */
+  desconto_interno?: number
+  desconto_alianca?: number
+  relacoes?: Array<{
+    id: number
+    nome: string
+    status: 'proposta' | 'aceita'
+    /** Quem propôs não aceita a própria proposta — a tela precisa saber de que lado está. */
+    propus: boolean
+  }>
+  disponiveis?: Array<{ id: number; nome: string }>
 }
 
 export const api = {
@@ -1571,6 +1602,14 @@ export const api = {
    * o limite continua sendo o domínio, em `OcuparZonaNeutra`.
    */
   concentracaoDaFederacao: () => req<ConcentracaoDaFederacao>('/federation/concentracao'),
+
+  mesaDiplomatica: () => req<MesaDiplomatica>('/federation/diplomacia'),
+  proporAlianca: (id: number) =>
+    req<{ proposta: boolean }>(`/federations/${id}/alianca`, { method: 'POST' }),
+  aceitarAlianca: (id: number) =>
+    req<{ aliada: boolean }>(`/federations/${id}/alianca/accept`, { method: 'POST' }),
+  romperAlianca: (id: number) =>
+    req<{ rompida: boolean }>(`/federations/${id}/alianca`, { method: 'DELETE' }),
 
   /** O diretório público — para escolher a quem pedir entrada. */
   federacoes: () => req<FederationListItem[]>('/federations'),

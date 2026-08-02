@@ -50,6 +50,17 @@ export function ConcentracaoDaFederacao() {
           </div>
           <div className="text-ink-soft text-sm">
             {d.zonas_da_federacao} de {d.zonas_do_jogo} zonas ocupadas do jogo
+            {/*
+              ⚠️ Com aliança, o número acima é o do BLOCO — o teto do §04 passou a somar as zonas de
+              todas as aliadas (A2.5). Sem esta frase, "17%" pareceria errado para quem só contou as
+              zonas da própria federação, e a tela perderia a confiança do jogador justamente onde
+              ela mais precisa dela.
+            */}
+            {(d.federacoes_no_bloco ?? 1) > 1 && (
+              <span data-bloco={d.federacoes_no_bloco}>
+                {' '}— somando as {d.federacoes_no_bloco} federações aliadas
+              </span>
+            )}
           </div>
         </div>
 

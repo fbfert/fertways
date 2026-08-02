@@ -10,6 +10,7 @@ import type {
 } from '../api/client'
 import { NEGOCIAVEIS, nomeRecurso, nomeVeiculo } from './recursos'
 import { ConcentracaoDaFederacao } from './ConcentracaoDaFederacao'
+import { MesaDiplomatica } from './MesaDiplomatica'
 
 /**
  * O Quartel de Alianças (§04/§07), Capital slot 9 — Federação, Fatia 1 (D-114).
@@ -268,6 +269,7 @@ function ComFederacao({
         depois de a ocupação ser recusada.
       */}
       <ConcentracaoDaFederacao />
+      <MesaDiplomatica />
 
       <section className="space-y-2">
         <h3 className="text-ink font-black">Membros</h3>
