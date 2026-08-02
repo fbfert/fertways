@@ -10026,3 +10026,80 @@ O selo é derivado (`FW-U-nucleo_da_endurance-8F2A`) e não sequencial: um conta
 
 1137 testes verdes (13 novos) e 10 suítes e2e verdes, com três asserções novas na Capital: o selo
 aparece, é legível, e a origem aparece junto.
+
+## D-188 — A2.10: o documento, e por que nenhuma linha de código foi escrita
+
+O roadmap da A2.10 é categórico, e é a **única fase** com esta trava:
+
+> *"Esta é a única fase da Alpha 2 que exige um documento de design próprio antes de qualquer linha
+> de código. Nenhum prompt deve ser disparado enquanto ele não existir."*
+
+Então a entrega desta fase, hoje, é o documento: `docs/alpha2/GDD_GUERRA_FEDERATIVA.md`, cobrindo os
+18 tópicos que o roadmap lista. **Nada de código.**
+
+### ⚠️ O levantamento trouxe o fato que mais importa: não há com quem guerrear
+
+Medido na produção:
+
+| | |
+|---|---|
+| colônias | 29 |
+| **federações ativas** | **1** |
+| **zonas ocupadas** | **1** de 120 |
+| alianças firmadas | 0 |
+
+**Uma federação não entra em guerra com ninguém.** Construir guerra federativa hoje seria erguer um
+sistema que nenhum jogador consegue usar — e esta Alpha inteira vem provando que peça sem uso apodrece
+(`vehicles.level` sem rota, `.botao` sem definição, `population_settings.ativo` sem leitor).
+
+Recomendo esperar um gatilho de mundo — 3 federações e 15% das zonas ocupadas — e gastar o esforço
+na A2.V e em fazer o território valer a pena, que é o que **produz** as federações que a guerra
+pressupõe.
+
+### ⚠️ E duas dependências que o roadmap exige NÃO estão cumpridas
+
+O roadmap manda não iniciar antes de sete coisas. Cinco estão prontas. Duas não:
+
+- **pesquisa**: construída na A2.3 e **nunca ligada** — `research_settings.ativo` continua `false`;
+- **eventos**: o motor está no ar (D-185), mas **não sabe falar de guerra**. Ele só tem modificador de
+  produção e consumo, e a própria roadmap da A2.8 põe "combate" na lista *Depois*. O §17 do documento
+  o marca como pré-requisito.
+
+Dizer que as dependências estão cumpridas porque as fases foram "entregues" seria o mesmo erro de ler
+uma chave-mestra desligada como funcionalidade no ar.
+
+### As posições de desenho que o documento assume
+
+Todas derivadas de princípios que o jogo já publicou, e todas marcadas como recomendação:
+
+- **Colônia nunca é alvo.** Num mundo sem reset, saquear a casa cria classe de vítima permanente:
+  quem perdeu fica mais fraco e perde de novo. É o oposto do §6.6 e do §1.1;
+- **Nenhuma perda é permanente.** Perda permanente acumula para sempre e produz uma casta que nunca
+  mais alcança — o defeito que mata jogos persistentes;
+- **Aliança não arrasta para a guerra.** A A2.5 desenhou aliança como acordo econômico; torná-la
+  pacto militar mudaria o que ela significa depois de assinada;
+- **O bloco antimonopólio vale na guerra.** Sem isso, conquistar seria a porta dos fundos do monopólio
+  que o D-182 fechou pela porta da frente;
+- **O espólio vai à federação**, com XP pessoal para quem lutou — mesmo princípio do D-183;
+- **A zona conquistada chega DESFALCADA**: a equipe era do antigo dono e voltou para casa dele.
+  Conquistar não é o fim do custo, e isso a A2.6 nos deu de graça;
+- **Hostilidade só agora faz sentido.** A A2.5 entregou `aliada` e `neutra` deliberadamente sem
+  `hostil`, porque um estado sem efeito seria peça inerte. A A2.10 é quem lhe dá consequência.
+
+### ⚠️ O item que mais pode estragar a fase: contas vinculadas
+
+Alguém cria uma segunda federação com contas próprias, declara guerra a si mesmo, capitula de
+propósito e transfere território "legitimamente" — lavando a concentração que o teto de 20% existe
+para impedir.
+
+Recomendo **não tentar impedir por heurística**, e sim tornar caro e visível: o espólio conta para o
+teto do bloco (então a lavagem simplesmente não completa se estourar), toda guerra fica no registro
+público, o cooldown é do **par**, e o operador ganha relatório de pares recorrentes.
+
+Detectar multiconta por IP produz falso positivo em casa com dois jogadores — e **punir irmão que joga
+junto é pior do que deixar passar um trapaceiro**.
+
+### Doze decisões ficam em aberto
+
+Estão tabeladas no fim do documento. Design é do Dono; o que eu podia fazer era chegar com
+recomendação fundamentada em cada uma, e é o que está lá.
