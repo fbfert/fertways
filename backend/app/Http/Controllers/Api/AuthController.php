@@ -2,16 +2,18 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Http\Controllers\Controller;
 use App\Domain\Admin\Suspender;
+use App\Domain\Chat\Filtro;
 use App\Domain\Telemetria\RegistrarEvento;
+use App\Http\Controllers\Controller;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Validation\Rules\Password;
-use Laravel\Sanctum\PersonalAccessToken;
 use Illuminate\Validation\ValidationException;
+use Laravel\Sanctum\PersonalAccessToken;
 
 class AuthController extends Controller
 {
@@ -24,7 +26,7 @@ class AuthController extends Controller
                 // §03: o nickname "passa pelo mesmo filtro automático de termos do chat" — desde o
                 // D-77 esse filtro existe de verdade, e a promessa vale nos dois sentidos.
                 function ($attr, $value, $fail) {
-                    if (\App\Domain\Chat\Filtro::barra($value)) {
+                    if (Filtro::barra($value)) {
                         $fail('Este nickname contém um termo vedado (§03).');
                     }
                 }],
@@ -45,6 +47,9 @@ class AuthController extends Controller
         ], 201);
     }
 
+    /** Erros de senha por minuto, na mesma conta e do mesmo IP, antes de travar. */
+    private const TENTATIVAS_DE_LOGIN = 10;
+
     public function login(Request $request): JsonResponse
     {
         $dados = $request->validate([
@@ -52,11 +57,32 @@ class AuthController extends Controller
             'password' => ['required', 'string'],
         ]);
 
+        /*
+         * A2.12 — o limite de tentativas, contado À MÃO e não pelo middleware `throttle`.
+         *
+         * ⚠️ O middleware conta TODA requisição, inclusive as bem-sucedidas. Quem entra e sai várias
+         * vezes — trocando de aba, reconectando, ou o e2e rodando dez suítes seguidas — bateria no
+         * teto **por usar o jogo direito**. Contando aqui, só o fracasso conta.
+         *
+         * A chave é e-mail + IP: só por IP puniria uma casa inteira porque um vizinho errou a senha;
+         * só por e-mail deixaria o atacante distribuir tentativas entre contas.
+         */
+        $chave = 'login:'.strtolower($dados['email']).'|'.$request->ip();
+
+        if (RateLimiter::tooManyAttempts($chave, self::TENTATIVAS_DE_LOGIN)) {
+            abort(429, 'Tentativas demais. Espere '.RateLimiter::availableIn($chave).' s.');
+        }
+
         $user = User::where('email', $dados['email'])->first();
 
         if (! $user || ! Hash::check($dados['password'], $user->password)) {
+            RateLimiter::hit($chave, 60);
+
             throw ValidationException::withMessages(['email' => 'Credenciais inválidas.']);
         }
+
+        // Acertou: o contador zera. O limite existe para quem está adivinhando, não para quem sabe.
+        RateLimiter::clear($chave);
 
         /*
          * Suspensão (D-61): a porta está trancada. Vem **depois** da checagem da senha, de propósito

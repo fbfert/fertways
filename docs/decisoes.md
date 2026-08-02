@@ -9884,3 +9884,76 @@ ninguém** — dito aqui para que não passem por entregues.
 
 1121 testes verdes (15 novos) e 10 suítes e2e verdes, com três asserções novas: a faixa aparece, o
 nome do evento aparece, e o efeito aparece junto.
+
+## D-186 — A2.12 (hardening): não havia limite de tentativa nenhum no login
+
+Fui percorrer o checklist da fase de endurecimento e o primeiro item já pagou a viagem.
+
+### ⚠️ `/login` e `/register` aceitavam tentativas sem limite, com o jogo no ar
+
+Nenhum `throttle` em rota nenhuma, e nenhum limitador declarado. Adivinhar a senha de uma conta real
+custava só tempo de CPU alheia. É a falha mais séria que encontrei na Alpha 2 inteira, e ela estava
+lá desde o começo.
+
+**A chave é e-mail + IP.** Só por IP puniria uma casa — ou uma escola — porque um vizinho errou a
+senha três vezes; só por e-mail deixaria o atacante distribuir tentativas entre contas. As duas
+juntas travam o ataque a uma conta sem derrubar quem divide a saída de internet.
+
+### ⚠️ E o middleware `throttle` estava errado para este caso
+
+A primeira versão usava `->middleware('throttle:login')`. O middleware conta **toda** requisição,
+inclusive as bem-sucedidas — quem entra e sai várias vezes, trocando de aba ou reconectando, bateria
+no teto **por usar o jogo direito**. O e2e provou na hora: dez suítes, dez logins.
+
+Tentei zerar o contador no acerto e não funcionou: o middleware deriva a chave internamente, e o meu
+`clear()` não batia com ela. A conta passou a ser feita **à mão no controller** — `tooManyAttempts`
+antes, `hit` só no fracasso, `clear` no acerto. Explícito, testável, e só quem erra é contado.
+
+O registro continua no middleware: ali toda tentativa deve mesmo contar.
+
+### O `npm audit` que eu NÃO consertei, e por quê
+
+Três avisos `high` viraram dois com `npm audit fix`. Os que restam são
+*"React Router: RSC Mode CSRF Bypass"* — e a única correção oferecida é **rebaixar uma versão
+maior** (7.18 → 7.11).
+
+Conferido antes de decidir: `main.tsx` usa `BrowserRouter`, roteamento puramente de cliente. **Não há
+RSC nem server actions neste projeto** — o servidor é um Laravel separado. A vulnerabilidade não
+alcança este código, e rebaixar uma dependência maior para calar um aviso que não se aplica trocaria
+um risco teórico por uma regressão certa.
+
+⚠️ Fica registrado como **decisão consciente**, não como pendência esquecida: quando o React Router
+publicar correção sem quebra, atualiza-se.
+
+### Os 69 `page.click` crus, varridos
+
+`page.click` do Puppeteer **não espera**. Numa suíte cujas asserções usam `esperarTexto` — que insiste
+por 8 s —, cada clique cru era uma corrida silenciosa. Já produziu **dois vermelhos falsos** neste
+projeto, e nos dois casos a suíte voltou verde sem uma linha de código mudar. *Um teste que reprova
+com o jogo perfeito é pior que teste nenhum: ensina a ignorar o vermelho.*
+
+Um helper `clicar()` que espera antes de clicar, e 69 chamadas trocadas em sete suítes. As duas que
+sobraram em `comum.mjs` já esperavam.
+
+### Migrations em MariaDB, do zero
+
+Item do checklist, e vale porque **o verde dos testes é SQLite**. Banco novo, 103 migrations, seed
+completo: 60 requisitos de operador, 52 templates de missão, 120 zonas. Confirma de quebra que a
+correção do `BuildingOperatorRequirementSeeder` (D-184) funciona em instalação nova — que era
+exatamente o caso que estava quebrado.
+
+### O que do checklist NÃO foi feito, e é honesto dizer
+
+- **Carga** e **simulação longa em staging**: não há staging, e o roadmap já diz *"quando houver"*;
+- **Teto global de requisições**: o cliente consulta o servidor em laço (mapa, chat, fila, tick). Um
+  teto chutado sem medir o ritmo real derrubaria jogador legítimo no meio da partida. Precisa de
+  medição antes, e está anotado;
+- **Acessibilidade** e **mobile** têm cobertura parcial (a suíte `mobile.e2e.mjs` existe, o
+  `prefers-reduced-motion` e o `:focus-visible` existem desde a A2.V1), mas não houve auditoria
+  dedicada;
+- **Backups**: existem e foram exercitados hoje quatro vezes, com verificação de conteúdo — mas
+  restauração nunca foi testada de verdade. **Backup que ninguém restaurou é hipótese.**
+
+### Verificação
+
+1124 testes verdes (3 novos) e 10 suítes e2e verdes depois da varredura dos cliques.

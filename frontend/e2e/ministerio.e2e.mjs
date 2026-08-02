@@ -14,6 +14,7 @@ import {
   abrirNavegador,
   acharPorTexto,
   checar,
+  clicar,
   entrar,
   esperarTexto,
   falhas,
@@ -33,7 +34,7 @@ try {
   // Governo Central (ao norte) — não mais um item de lista.
   await abrirCapital(page)
   await page.waitForSelector('[data-slot-capital="7"]')
-  await page.click('[data-slot-capital="7"]')
+  await clicar(page, '[data-slot-capital="7"]')
   checar(await esperarTexto(page, /Slot 7 da Capital/), 'o painel do Ministério abre (§9.1)')
 
   console.log('\nMinha reputação: os quatro índices do §26.2')

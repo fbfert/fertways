@@ -2,11 +2,15 @@
 
 namespace App\Providers;
 
+use App\Domain\Telemetria\RegistrarEvento;
 use App\Listeners\AuditarLoginDoAdmin;
 use Illuminate\Auth\Events\Failed;
 use Illuminate\Auth\Events\Login;
+use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Http\Request;
 use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -22,7 +26,7 @@ class AppServiceProvider extends ServiceProvider
          * enfileirado. Instância única por aplicação — e o contêiner morre a cada teste, o que faz
          * o buffer morrer junto.
          */
-        $this->app->singleton(\App\Domain\Telemetria\RegistrarEvento::class);
+        $this->app->singleton(RegistrarEvento::class);
 
         //
     }
@@ -30,6 +34,40 @@ class AppServiceProvider extends ServiceProvider
     /**
      * Bootstrap any application services.
      */
+    /**
+     * Limites de tentativa em quem autentica (A2.12, item "rate limits").
+     *
+     * ## ⚠️ Não havia nenhum, e o jogo está no ar
+     *
+     * `/login` e `/register` aceitavam tentativas sem limite. Num jogo persistente com contas reais,
+     * isso é adivinhação de senha à vontade — e o custo de descobrir uma senha fraca era só tempo de
+     * CPU alheia.
+     *
+     * ## A chave é e-mail + IP, e não só IP
+     *
+     * Só por IP puniria uma casa inteira — ou uma escola — porque um vizinho errou a senha três
+     * vezes. Só por e-mail deixaria um atacante distribuir tentativas entre contas. As duas juntas
+     * travam o ataque a uma conta específica sem derrubar quem divide a saída de internet.
+     *
+     * ## ⚠️ O resto da API fica DE FORA, e é decisão consciente
+     *
+     * O cliente do jogo consulta o servidor em laço — mapa, chat, fila, tick. Um teto global chutado
+     * sem medir o ritmo real do cliente derrubaria jogador legítimo no meio da partida, e trocar um
+     * risco teórico por uma quebra certa é mau negócio. Fica anotado como trabalho com medição antes.
+     */
+    private function limitesDeTentativa(): void
+    {
+        RateLimiter::for('login', fn (Request $r) => [
+            // Dez por minuto na conta específica: erro honesto de digitação passa; força bruta, não.
+            Limit::perMinute(10)->by(strtolower((string) $r->input('email')).'|'.$r->ip()),
+            // E um teto por IP, mais frouxo, para o ataque não se espalhar por muitas contas.
+            Limit::perMinute(30)->by($r->ip()),
+        ]);
+
+        // Cadastro é raro por natureza: cinco por hora por IP não incomoda ninguém de verdade.
+        RateLimiter::for('registro', fn (Request $r) => Limit::perHour(5)->by($r->ip()));
+    }
+
     public function boot(): void
     {
         /*
@@ -42,6 +80,8 @@ class AppServiceProvider extends ServiceProvider
          */
         Paginator::defaultView('admin.paginacao');
         Paginator::defaultSimpleView('admin.paginacao');
+
+        $this->limitesDeTentativa();
 
         /*
          * A auditoria da porta do painel (D-71).

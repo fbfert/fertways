@@ -18,6 +18,7 @@ import {
   acharPorTexto,
   assentar,
   checar,
+  clicar,
   clicarNaConstrucao,
   entrar,
   esperarTexto,
@@ -56,19 +57,19 @@ try {
 
   // ---------------------------------------------------------------- o extrato bancário (D-94)
   console.log('\nClicar no Fert$ do HUD abre o extrato bancário')
-  await page.click('[data-abrir-extrato]')
+  await clicar(page, '[data-abrir-extrato]')
   checar(await esperarTexto(page, /Extrato bancário/), 'o popup do extrato abre')
   checar(
     await esperarTexto(page, /Saldo inicial/),
     'o saldo inicial da fundação aparece, traduzido — não o slug cru',
   )
   checar(await esperarTexto(page, /\+100,00/), 'o saldo inicial mostra +100,00, positivo')
-  await page.click('[data-fechar-popup]')
+  await clicar(page, '[data-fechar-popup]')
   checar(!(await page.$('[data-popup]')), 'o extrato fecha')
 
   // ---------------------------------------------------------------- Bugs/Melhorias (D-95)
   console.log('\nBugs/Melhorias: manda uma mensagem')
-  await page.click('[data-abrir-bugs-melhorias]')
+  await clicar(page, '[data-abrir-bugs-melhorias]')
   checar(await esperarTexto(page, /Bugs\/Melhorias/), 'o painel abre')
 
   await page.select('[data-feedback-tipo]', 'bug')
@@ -83,7 +84,7 @@ try {
   checar(await esperarTexto(page, /Enviado/), 'confirma o envio')
   checar(await esperarTexto(page, /um aviso pelo rádio/), 'e diz que a resposta chega pelo rádio, não aqui')
 
-  await page.click('[data-fechar-bugs-melhorias]')
+  await clicar(page, '[data-fechar-bugs-melhorias]')
   checar(!(await page.$('[data-tela="bugs-melhorias"]')), 'o painel fecha')
 
   // ---------------------------------------------------------------- Mapa
@@ -152,7 +153,7 @@ try {
   checar(linhas === 1, 'a reta até a colônia escolhida é traçada')
 
   console.log('\nVolta à colônia pelo botão Colônia do header (navegação global)')
-  await page.click('[data-nav-desktop="colonia"]')
+  await clicar(page, '[data-nav-desktop="colonia"]')
   await assentar()
   checar(!(await textoDaPagina(page)).includes('Grade 101×101'), 'o Mapa fecha')
 
@@ -170,8 +171,8 @@ try {
   const alvo = '[aria-label^="Central de Transportes"]'
   const antes = await page.$eval(alvo, (el) => el.getBoundingClientRect().width)
 
-  await page.click('[data-zoom-mais]')
-  await page.click('[data-zoom-mais]')
+  await clicar(page, '[data-zoom-mais]')
+  await clicar(page, '[data-zoom-mais]')
 
   const depois = await page.$eval(alvo, (el) => el.getBoundingClientRect().width)
   checar(
@@ -179,12 +180,12 @@ try {
     `o alvo de clique cresce junto com o hexágono (${Math.round(antes)} → ${Math.round(depois)} px)`,
   )
 
-  await page.click('[data-zoom-centralizar]')
+  await clicar(page, '[data-zoom-centralizar]')
   const voltou = await page.$eval(alvo, (el) => el.getBoundingClientRect().width)
   checar(Math.abs(voltou - antes) < 2, 'e "centralizar" devolve o enquadramento')
 
   // Aproxima de novo e clica JÁ COM ZOOM: é este o teste que importa.
-  await page.click('[data-zoom-mais]')
+  await clicar(page, '[data-zoom-mais]')
 
   // ---------------------------------------------------------------- Frota
   console.log('\nAbre a Frota — com a colônia aproximada')
@@ -203,7 +204,7 @@ try {
   checar(await esperarTexto(page, /6\.000 unidades/), 'mostra a capacidade do Furgão (§21.2)')
 
   console.log('\nVolta à colônia pelo botão Colônia do header')
-  await page.click('[data-nav-desktop="colonia"]')
+  await clicar(page, '[data-nav-desktop="colonia"]')
   await assentar()
   checar(!(await textoDaPagina(page)).includes('Sua frota'), 'a Frota fecha')
 } catch (e) {

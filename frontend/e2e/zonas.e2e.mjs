@@ -12,6 +12,7 @@ import {
   acharPorTexto,
   assentar,
   checar,
+  clicar,
   entrar,
   esperarTexto,
   falhas,
@@ -80,7 +81,7 @@ try {
   console.log('\nNomear a zona')
   checar(!(await page.$('[data-salvar-nome-zona]')), 'sem mudança no campo, não há botão de salvar')
   await page.type('[data-nome-zona]', 'Posto Sentinela')
-  await page.click('[data-salvar-nome-zona]')
+  await clicar(page, '[data-salvar-nome-zona]')
   await assentar()
   checar(
     await esperarTexto(page, /Zona renomeada para "Posto Sentinela"/),
@@ -130,7 +131,7 @@ try {
   )
 
   // O "retorno" das entregas da fase, e a promessa do §6.6 junto: degrada, não se perde.
-  await page.click('[data-devolver-operadores]')
+  await clicar(page, '[data-devolver-operadores]')
   checar(
     await esperarTexto(page, /de volta à colônia/),
     'trazer os operadores de volta funciona',
@@ -145,12 +146,12 @@ try {
   )
 
   console.log('\nA aba Depósito mostra o bruto extraído')
-  await page.click('[data-aba-zona="deposito"]')
+  await clicar(page, '[data-aba-zona="deposito"]')
   await assentar()
   checar(!!(await page.$('[data-bruto]')), 'o Depósito mostra o saldo bruto')
 
   console.log('\nA aba Canteiro pergunta a obra antes do recurso')
-  await page.click('[data-aba-zona="canteiro"]')
+  await clicar(page, '[data-aba-zona="canteiro"]')
   await assentar()
   // O canteiro nasce vazio: o material das obras chega de VEÍCULO, não do estoque de casa.
   checar(
@@ -177,17 +178,17 @@ try {
   }
 
   console.log('\nA aba Guarnição mostra a defesa e o formulário de reforço')
-  await page.click('[data-aba-zona="guarnicao"]')
+  await clicar(page, '[data-aba-zona="guarnicao"]')
   await assentar()
   checar(await esperarTexto(page, /pontos de defesa/), 'a guarnição mostra os pontos de defesa')
   checar(await esperarTexto(page, /Reforçar com Sentinelas/), 'o reforço mora dentro da própria zona agora')
 
   console.log('\nA aba Histórico já mostra a ocupação que acabou de acontecer')
-  await page.click('[data-aba-zona="historico"]')
+  await clicar(page, '[data-aba-zona="historico"]')
   await assentar()
   checar(await esperarTexto(page, /Ocupada/), 'a ocupação vira a primeira linha do histórico')
 
-  await page.click('[data-aba-zona="zona"]')
+  await clicar(page, '[data-aba-zona="zona"]')
   await assentar()
 
   /*
@@ -196,7 +197,7 @@ try {
    * abaixo: nada é de fato construído (sem material no canteiro), então trocar a escolha no
    * `<select>` não precisa de um slot novo a cada vez.
    */
-  await page.click('[data-hex-estado="vazio"]')
+  await clicar(page, '[data-hex-estado="vazio"]')
   await assentar()
   checar(await esperarTexto(page, /Slot vazio/), 'clicar num slot vazio abre o painel de escolha')
 

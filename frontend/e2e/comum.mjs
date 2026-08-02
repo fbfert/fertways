@@ -34,6 +34,27 @@ export function checar(condicao, descricao) {
 }
 
 /** Espera um elemento cujo texto case com `regex`, e devolve o handle. */
+/**
+ * Clica num seletor **depois de esperar por ele**.
+ *
+ * ## ⚠️ Por que este helper existe
+ *
+ * `page.click` do Puppeteer **não espera**: ele procura o elemento uma vez e desiste. Numa suíte
+ * cujas asserções usam `esperarTexto` — que insiste por 8 s —, o clique seguinte vira uma corrida
+ * silenciosa: passa quase sempre, e reprova quando a renderização demora um pouco mais.
+ *
+ * Isso já produziu **dois vermelhos falsos** neste projeto (D-180 na Capital, e antes no Chat), e
+ * nos dois casos a suíte voltou verde sem que uma linha de código mudasse. Um teste que reprova com
+ * o jogo perfeito é pior que teste nenhum: ensina a ignorar o vermelho.
+ *
+ * `timeout` generoso de propósito — a espera só custa tempo quando o elemento realmente não vem, e
+ * nesse caso o teste tinha mesmo de falhar.
+ */
+export async function clicar(page, seletor, timeout = 8000) {
+  await page.waitForSelector(seletor, { timeout })
+  await page.click(seletor)
+}
+
 export async function acharPorTexto(page, seletor, regex, timeout = 8000) {
   const fim = Date.now() + timeout
   while (Date.now() < fim) {

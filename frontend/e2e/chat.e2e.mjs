@@ -10,6 +10,7 @@ import {
   acharPorTexto,
   assentar,
   checar,
+  clicar,
   entrar,
   esperarTexto,
   falhas,
@@ -24,7 +25,7 @@ try {
   checar(await esperarTexto(page, /Fert\$/), 'o HUD carrega e mostra Fert$')
 
   console.log('\nAbre o Chat')
-  await page.click('[data-abrir-chat]')
+  await clicar(page, '[data-abrir-chat]')
   await assentar()
   checar(!!(await page.$('[data-tela="chat"]')), 'o painel do Chat abre')
   checar(await esperarTexto(page, /Rádio do planeta/), 'e mostra o cabeçalho')
@@ -46,7 +47,7 @@ try {
   checar(await esperarTexto(page, /Vendo Ligas, quer trocar/), 'a mensagem sai e aparece na conversa')
 
   console.log('\nClicar no nick da conversa abre as informações da vizinha')
-  await page.click('[data-ver-info]')
+  await clicar(page, '[data-ver-info]')
   await assentar()
   checar(!!(await page.$('[data-popup]')), 'o popup de informações abre')
   checar(await esperarTexto(page, /Colônia vizinha/), 'mostra o nome da colônia dela')
@@ -59,14 +60,14 @@ try {
   checar(!/guarni|depósito|fert\$|reputa/i.test(corpo), 'sem guarnição, depósito, saldo ou reputação')
 
   console.log('\nFecha o popup e volta pra conversa')
-  await page.click('[data-fechar-popup]')
+  await clicar(page, '[data-fechar-popup]')
   await assentar()
   checar(!(await page.$('[data-popup]')), 'o popup fecha')
   checar(await esperarTexto(page, /Vendo Ligas, quer trocar/), 'e a conversa continua aberta atrás dele')
 
   // ═══════════════════════════════════════════════════ do MAPA para o chat (D-86)
   console.log('\nFecha o Chat e abre o Mapa')
-  await page.click('[data-fechar-chat]')
+  await clicar(page, '[data-fechar-chat]')
   await assentar()
   await (await acharPorTexto(page, 'button', /^Mapa$/)).click()
   checar(await esperarTexto(page, /Grade \d+×\d+/), 'o painel do Mapa abre')
@@ -100,7 +101,7 @@ try {
   await (await acharPorTexto(page, 'button', /← conversas/)).click()
   await assentar()
 
-  await page.click('[data-buscar-jogador]')
+  await clicar(page, '[data-buscar-jogador]')
   await assentar()
   checar(!!(await page.$('[data-busca-jogador]')), 'a lupa abre a busca, dentro de Privadas')
 
@@ -116,18 +117,18 @@ try {
   checar(!!(await page.$('[data-popup]')), 'o popup de informações abre direto da busca')
   checar(await esperarTexto(page, /Colônia vizinha/), 'com o nome certo')
 
-  await page.click('[data-fechar-popup]')
+  await clicar(page, '[data-fechar-popup]')
   await assentar()
   checar(!!(await page.$('[data-busca-jogador]')), 'fechar o popup mantém a busca aberta')
 
   console.log('\nFechar a busca some com os resultados')
-  await page.click('[data-fechar-busca]')
+  await clicar(page, '[data-fechar-busca]')
   await assentar()
   checar(!(await page.$('[data-busca-jogador]')), 'a busca fecha')
 
   // ═══════════════════════════════════════════════ o link de conversa no popup da busca
   console.log('\nO popup da busca também tem o link de mensagem privada — item 4 do pedido do usuário')
-  await page.click('[data-buscar-jogador]')
+  await clicar(page, '[data-buscar-jogador]')
   await assentar()
   await page.type('[data-buscar-texto]', 'vizi')
   await assentar()

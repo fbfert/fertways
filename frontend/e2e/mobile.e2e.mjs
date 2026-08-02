@@ -7,7 +7,9 @@
  * ícones da barra inferior realmente abrem/navegam para o que prometem — só a checagem visual
  * manual provaria, e essa não roda sozinha no CI.
  */
-import { abrirNavegador, assentar, checar, entrar, esperarTexto, falhas, relatar } from './comum.mjs'
+import {
+  clicar,
+  abrirNavegador, assentar, checar, entrar, esperarTexto, falhas, relatar } from './comum.mjs'
 
 const { navegador, page } = await abrirNavegador({ width: 390, height: 844 })
 
@@ -44,14 +46,14 @@ try {
   checar(!(await estaAtivo('mapa')), 'Mapa não está ativo')
 
   console.log('\nChat: abre pela barra, fecha pelo × do próprio painel')
-  await page.click('[data-nav="chat"]')
+  await clicar(page, '[data-nav="chat"]')
   await assentar()
   checar(!!(await page.$('[data-tela="chat"]')), 'o painel do Chat abre')
-  await page.click('[data-fechar-chat]')
+  await clicar(page, '[data-fechar-chat]')
   await assentar()
 
   console.log('\nMapa: navega de verdade (rota própria, D-67) — e a barra continua na tela')
-  await page.click('[data-nav="mapa"]')
+  await clicar(page, '[data-nav="mapa"]')
   await assentar()
   checar(page.url().endsWith('/mapa'), 'a URL vira /mapa')
   checar(await esperarTexto(page, /Grade \d+×\d+/), 'o Mapa carrega')
@@ -60,20 +62,20 @@ try {
   checar(!(await estaAtivo('colonia')), 'Colônia deixa de estar ativa')
 
   console.log('\nDa Mapa direto para a Capital — sem precisar voltar à colônia primeiro')
-  await page.click('[data-nav="capital"]')
+  await clicar(page, '[data-nav="capital"]')
   await assentar()
   checar(page.url().endsWith('/capital'), 'a URL vira /capital')
   checar(await esperarTexto(page, /Governo de Fertways/), 'a Capital carrega')
   checar(await estaAtivo('capital'), 'Capital passa a estar ativa')
 
   console.log('\n"Colônia" agora navega para "/" — não abre mais o antigo sheet de recursos')
-  await page.click('[data-nav="colonia"]')
+  await clicar(page, '[data-nav="colonia"]')
   await assentar()
   checar(new URL(page.url()).pathname === '/', 'a URL volta para "/"')
   checar(await estaAtivo('colonia'), 'Colônia volta a estar ativa')
 
   console.log('\n"Mais" reúne o que sobrou do header: Marco, Missões, Obras e zonas, Bugs/Melhorias, Perfil, Sair')
-  await page.click('[data-nav="mais"]')
+  await clicar(page, '[data-nav="mais"]')
   await assentar()
   checar(await esperarTexto(page, /Marco \d/), 'mostra o Marco')
   checar(!!(await page.$('[data-abrir-missoes-mobile]')), 'tem o link de Missões')
@@ -83,42 +85,42 @@ try {
   checar(!!(await page.$('[data-sair-mobile]')), 'tem o botão Sair')
 
   console.log('\nObras e zonas abre por cima do "Mais" — o que sobrou do antigo sheet de Colônia')
-  await page.click('[data-abrir-obras-e-zonas-mobile]')
+  await clicar(page, '[data-abrir-obras-e-zonas-mobile]')
   await assentar()
   checar(!!(await page.$('[data-tela="obras-e-zonas"]')), 'o painel de Obras e zonas abre')
   checar(await esperarTexto(page, /Fila de construção/), 'mostra a fila')
-  await page.click('[data-fechar-obras-e-zonas]')
+  await clicar(page, '[data-fechar-obras-e-zonas]')
   await assentar()
 
-  await page.click('[data-nav="mais"]')
+  await clicar(page, '[data-nav="mais"]')
   await assentar()
 
   console.log('\nMissões abre por cima do "Mais", como Bugs/Melhorias')
-  await page.click('[data-abrir-missoes-mobile]')
+  await clicar(page, '[data-abrir-missoes-mobile]')
   await assentar()
   checar(!!(await page.$('[data-tela="missoes"]')), 'o painel de Missões abre')
-  await page.click('[data-fechar-missoes]')
+  await clicar(page, '[data-fechar-missoes]')
   await assentar()
 
-  await page.click('[data-nav="mais"]')
+  await clicar(page, '[data-nav="mais"]')
   await assentar()
 
   console.log('\nBugs/Melhorias abre por cima do "Mais" (fecha o overflow, abre o painel)')
-  await page.click('[data-abrir-bugs-melhorias-mobile]')
+  await clicar(page, '[data-abrir-bugs-melhorias-mobile]')
   await assentar()
   checar(!!(await page.$('[data-tela="bugs-melhorias"]')), 'o painel de Bugs/Melhorias abre')
-  await page.click('[data-fechar-bugs-melhorias]')
+  await clicar(page, '[data-fechar-bugs-melhorias]')
   await assentar()
 
   console.log('\nSair: de dentro do Mapa (uma tela sem × próprio agora) — prova que o header é mesmo global')
-  await page.click('[data-nav="mapa"]')
+  await clicar(page, '[data-nav="mapa"]')
   await assentar()
-  await page.click('[data-nav="mais"]')
+  await clicar(page, '[data-nav="mais"]')
   await assentar()
-  await page.click('[data-sair-mobile]')
+  await clicar(page, '[data-sair-mobile]')
   await assentar()
   checar(await esperarTexto(page, /Sair da conta\?/), 'pede confirmação antes de sair')
-  await page.click('[data-confirmar-sair-mobile]')
+  await clicar(page, '[data-confirmar-sair-mobile]')
   await assentar()
   checar(await esperarTexto(page, /entrar|cadastr/i), 'confirmar devolve à landing/login')
 } catch (e) {

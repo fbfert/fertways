@@ -18,6 +18,7 @@ import {
   abrirNavegador,
   acharPorTexto,
   checar,
+  clicar,
   entrar,
   esperarTexto,
   falhas,
@@ -66,8 +67,8 @@ try {
   console.log('\nO zoom, e o alinhamento que ele pode quebrar')
   const antesDoZoom = await page.$eval('[data-slot-capital="2"]', (el) => el.getBoundingClientRect().width)
 
-  await page.click('[data-cena-capital] [data-zoom-mais]')
-  await page.click('[data-cena-capital] [data-zoom-mais]')
+  await clicar(page, '[data-cena-capital] [data-zoom-mais]')
+  await clicar(page, '[data-cena-capital] [data-zoom-mais]')
 
   const depoisDoZoom = await page.$eval('[data-slot-capital="2"]', (el) => el.getBoundingClientRect().width)
   checar(
@@ -76,7 +77,7 @@ try {
   )
 
   console.log('\nCentral de Tributos / Tesouro (slot 2) — clicado JÁ COM ZOOM')
-  await page.click('[data-slot-capital="2"]')
+  await clicar(page, '[data-slot-capital="2"]')
   checar(
     await esperarTexto(page, /Saldo do Tesouro/),
     'o clique acerta o slot certo mesmo aproximado — o botão e o hexágono não divergiram',
@@ -86,17 +87,17 @@ try {
   checar(/3%/.test(tributos) && /2%/.test(tributos) && /1%/.test(tributos), 'as alíquotas 3/2/1% aparecem')
 
   console.log('\nVolta e abre a Secretaria de Finanças (slot 4)')
-  await page.click('[data-voltar-capital]')
+  await clicar(page, '[data-voltar-capital]')
   await page.waitForSelector('[data-cena-capital] [data-zoom-centralizar]')
-  await page.click('[data-cena-capital] [data-zoom-centralizar]')
-  await page.click('[data-slot-capital="4"]')
+  await clicar(page, '[data-cena-capital] [data-zoom-centralizar]')
+  await clicar(page, '[data-slot-capital="4"]')
   checar(await esperarTexto(page, /Preços de referência/), 'a tela de Finanças abre')
   checar(await esperarTexto(page, /Metal Bruto/), 'a tabela de preços-base do §06 aparece')
   checar(await esperarTexto(page, /Indicadores/), 'os indicadores econômicos aparecem')
 
   console.log('\nVolta e abre a Central de Notícias (slot 3)')
-  await page.click('[data-voltar-capital]')
-  await page.click('[data-slot-capital="3"]')
+  await clicar(page, '[data-voltar-capital]')
+  await clicar(page, '[data-slot-capital="3"]')
   checar(await esperarTexto(page, /Telescópio Gagarin/), 'a tela de Notícias abre')
   checar(await esperarTexto(page, /inativo/), 'o Gagarin aparece honestamente inativo (§12.1)')
   checar(await esperarTexto(page, /Servidor aberto/), 'o comunicado semeado aparece no mural')
@@ -116,8 +117,8 @@ try {
   checar(await esperarTexto(page, /boletim/), 'marcada como boletim, distinta de um comunicado oficial')
 
   console.log('\nOs destroços da Endurance (Oeste): a Loja de Peças (D-132, reconstruída no D-135)')
-  await page.click('[data-voltar-capital]')
-  await page.click('[data-area="oeste"]')
+  await clicar(page, '[data-voltar-capital]')
+  await clicar(page, '[data-area="oeste"]')
   await page.waitForSelector('[data-tela="endurance"]')
   checar(await esperarTexto(page, /Destroços da Endurance/), 'a tela própria da Endurance abre')
 
@@ -155,8 +156,8 @@ try {
   }
 
   console.log('\nO Quartel de Alianças (slot 9) — a mesa diplomática da A2.5')
-  await page.click('[data-voltar-capital]')
-  await page.click('[data-slot-capital="9"]')
+  await clicar(page, '[data-voltar-capital]')
+  await clicar(page, '[data-slot-capital="9"]')
   /*
    * ⚠️ `waitForSelector` antes de qualquer asserção, e não um `sleep`. Foi a lição do D-180: o
    * `page.click` do Puppeteer não espera, e a suíte reprovava com o jogo perfeito.
@@ -181,7 +182,7 @@ try {
   await page.select('[data-alvo-alianca]', await page.$eval(
     '[data-alvo-alianca] option:not([value=""])', (el) => el.value,
   ))
-  await page.click('[data-propor-alianca]')
+  await clicar(page, '[data-propor-alianca]')
   checar(await esperarTexto(page, /Proposta enviada/), 'propor chega ao domínio e volta com resposta')
   checar(
     await esperarTexto(page, /proposta enviada/i),
@@ -189,8 +190,8 @@ try {
   )
 
   console.log('\nVolta e abre o Ministério dos Transportes (slot 8)')
-  await page.click('[data-voltar-capital]')
-  await page.click('[data-slot-capital="8"]')
+  await clicar(page, '[data-voltar-capital]')
+  await clicar(page, '[data-slot-capital="8"]')
   await page.waitForSelector('[data-tela="transportes"]')
   checar(await esperarTexto(page, /Caminhão de Carga/), 'a fábrica do governo abre')
   checar(await esperarTexto(page, /300 F\$/), 'o preço do D-60 aparece')
@@ -234,7 +235,7 @@ try {
   )
 
   await page.type('[data-usado-preco]', '50')
-  await page.click('[data-anunciar-usado]')
+  await clicar(page, '[data-anunciar-usado]')
   checar(
     await esperarTexto(page, /Ele continua seu e no pátio até alguém comprar/),
     'o anúncio entra, e o veículo continua do vendedor até a venda',
@@ -254,7 +255,7 @@ try {
    * reprova — o que muda é parar de confundir "ainda não chegou" com "não existe".
    */
   await page.waitForSelector('[data-cancelar-anuncio]', { timeout: 8000 })
-  await page.click('[data-cancelar-anuncio]')
+  await clicar(page, '[data-cancelar-anuncio]')
   checar(await esperarTexto(page, /Anúncio retirado/), 'o vendedor pode retirar o anúncio')
 
   console.log('\nO registro de placas (§16.3)')
@@ -266,7 +267,7 @@ try {
 
   console.log('\nCompra um Caminhão de Carga')
   const vagasAntes = await page.$eval('[data-vagas]', (el) => el.getAttribute('data-vagas'))
-  await page.click('[data-comprar-veiculo="caminhao_de_carga"]')
+  await clicar(page, '[data-comprar-veiculo="caminhao_de_carga"]')
 
   checar(
     await esperarTexto(page, /vem dirigindo da Capital/),
@@ -311,7 +312,7 @@ try {
     'a tela diz o que o desgaste FAZ — velocidade e capacidade, não só um número',
   )
 
-  await page.click('[data-reparar]')
+  await clicar(page, '[data-reparar]')
   checar(await esperarTexto(page, /reparado — voltou a/), 'a manutenção acontece')
   checar(
     await esperarTexto(page, /o teto caiu para 95%/),
@@ -337,7 +338,7 @@ try {
     'e a CONTRAPARTIDA junto — sem ela o upgrade seria um botão óbvio (§13)',
   )
 
-  await page.click('[data-melhorar]')
+  await clicar(page, '[data-melhorar]')
   /*
    * Qualquer um dos dois serve, e a distinção não importa aqui: o que se prova é que o clique
    * chega ao domínio e volta com resposta. Exigir o sucesso amarraria a suíte ao estoque que o

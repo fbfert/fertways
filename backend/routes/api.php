@@ -29,7 +29,16 @@ use App\Http\Controllers\Api\WarController;
 use App\Http\Controllers\Api\ZoneController;
 use Illuminate\Support\Facades\Route;
 
-Route::post('/register', [AuthController::class, 'register']);
+/*
+ * A2.12: os únicos limites de tentativa do jogo, e eles ficam aqui porque são os únicos endpoints
+ * onde tentar de novo mil vezes tem valor para quem ataca. Ver `AppServiceProvider`.
+ */
+Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:registro');
+/*
+ * ⚠️ O login NÃO usa o middleware `throttle`, e é de propósito: ele conta TODA requisição, inclusive
+ * as bem-sucedidas, e quem entra e sai várias vezes bateria no teto por usar o jogo direito. O
+ * `AuthController` conta à mão, e só o fracasso conta.
+ */
 Route::post('/login', [AuthController::class, 'login']);
 
 // A landing page (pedido do usuário, 2026-07-17): números reais, sem exigir conta.

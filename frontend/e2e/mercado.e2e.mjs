@@ -25,6 +25,7 @@ import {
   acharPorTexto,
   assentar,
   checar,
+  clicar,
   clicarNaConstrucao,
   entrar,
   esperarTexto,
@@ -79,7 +80,7 @@ try {
    */
   await abrirCapital(page)
   await page.waitForSelector('[data-area="leste"]')
-  await page.click('[data-area="leste"]')
+  await clicar(page, '[data-area="leste"]')
   checar(await esperarTexto(page, /Mercado Central/), 'o painel do Mercado Central abre pelo Leste')
 
   console.log('\nAs três abas do Mercado Central — e as que NÃO estão aqui (D-65)')
@@ -235,7 +236,7 @@ try {
   const LEVAR = 'Levar ao seu depósito na Capital'
   await carregar(page, LEVAR, 0, 'metal_bruto', 10)
 
-  await page.click(`[data-carga="${LEVAR}"] [data-adicionar-recurso]`)
+  await clicar(page, `[data-carga="${LEVAR}"] [data-adicionar-recurso]`)
   await carregar(page, LEVAR, 1, 'ligas_metalicas', 5)
 
   /*
@@ -300,8 +301,8 @@ try {
 
   // Sair virou ícone ao lado do perfil, com confirmação (D-88): abre o "Sim/Não" antes de sair.
   // O header é global agora (reforma de navegação) — não precisa fechar a tela do Mercado antes.
-  await page.click('[data-sair]')
-  await page.click('[data-confirmar-sair]')
+  await clicar(page, '[data-sair]')
+  await clicar(page, '[data-confirmar-sair]')
   await page.waitForNetworkIdle({ idleTime: 800 })
 
   checar(await esperarTexto(page, /entrar|login|e-mail/i), 'sair devolve à tela de login')
