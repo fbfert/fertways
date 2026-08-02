@@ -5,12 +5,16 @@ namespace App\Http\Controllers\Api;
 use App\Domain\Building\Demolir;
 use App\Domain\Guerra\Protegido;
 use App\Domain\Logistics\DespacharVeiculo;
+use App\Domain\Populacao\Parametros;
 use App\Domain\Zona\ConstruirNaZona;
 use App\Domain\Zona\DemolirEstruturaDaZona;
 use App\Domain\Zona\Estruturas;
+use App\Domain\Zona\Operadores;
 use App\Domain\Zona\RepararModulo;
+use App\Domain\Zona\ZonaSlots;
 use App\Exceptions\DomainRuleException;
 use App\Http\Controllers\Controller;
+use App\Models\Colony;
 use App\Models\Combat;
 use App\Models\FilaSetting;
 use App\Models\Ledger;
@@ -102,6 +106,26 @@ class ZoneController extends Controller
     }
 
     /** A ficha da zona. Só o dono a vê por dentro — para os outros, o mapa já diz o essencial. */
+    /**
+     * A equipe da zona (A2.6): quantos há, quantos ela pede, e quanto a falta está custando.
+     *
+     * @return array<string,mixed>
+     */
+    private function equipe(NeutralZone $zone, Colony $colony): array
+    {
+        $operadores = app(Operadores::class);
+        $ativo = app(Parametros::class)->ativo();
+
+        return [
+            'ativo' => $ativo,
+            'na_zona' => (int) $zone->operadores,
+            'exigidos' => $operadores->exigidos($zone),
+            // Em porcentagem: é como o jogador sente a perda, e o bps é vocabulário de dentro.
+            'eficiencia' => $operadores->eficienciaBps($zone) / 100,
+            'livres_na_colonia' => max(0, $operadores->disponivel($colony)),
+        ];
+    }
+
     public function show(Request $request, NeutralZone $zone, Protegido $protegido, RepararModulo $reparo): JsonResponse
     {
         $colony = $request->user()->colony()->firstOrFail();
@@ -131,6 +155,15 @@ class ZoneController extends Controller
             'mineral' => $zone->mineral,
             'status' => $zone->status,
             'cercada' => $zone->cercada(),
+
+            /*
+             * A2.6: a equipe da zona e o que a falta dela custa.
+             *
+             * "Visualização de operadores" é entrega da fase, e sem ela a degradação do §6.6 seria
+             * invisível — o jogador veria a extração cair e não teria como saber por quê. Uma
+             * penalidade que não se consegue ver é indistinguível de um defeito.
+             */
+            'operadores' => $this->equipe($zone, $colony),
             'productive_at' => $zone->productive_at,
             'protected_until' => $zone->protected_until,
 
@@ -139,11 +172,11 @@ class ZoneController extends Controller
             'upgrade' => [
                 'target' => $zone->level_target,
                 'finishes_at' => $zone->level_upgrade_finishes_at,
-                'proximo_custo' => $zone->level < \App\Models\NeutralZone::NIVEL_MAXIMO
-                    ? \App\Models\NeutralZone::custoDeUpgrade($zone->level + 1)
+                'proximo_custo' => $zone->level < NeutralZone::NIVEL_MAXIMO
+                    ? NeutralZone::custoDeUpgrade($zone->level + 1)
                     : null,
-                'proxima_guarnicao' => $zone->level < \App\Models\NeutralZone::NIVEL_MAXIMO
-                    ? \App\Models\NeutralZone::guarnicaoAlvo($zone->level + 1)
+                'proxima_guarnicao' => $zone->level < NeutralZone::NIVEL_MAXIMO
+                    ? NeutralZone::guarnicaoAlvo($zone->level + 1)
                     : null,
             ],
             'manutencao' => [
@@ -276,7 +309,7 @@ class ZoneController extends Controller
     {
         $dados = $request->validate([
             'structure' => ['required', Rule::in(Estruturas::CONSTRUIVEIS)],
-            'slot' => ['required', 'integer', 'min:0', 'max:'.(\App\Domain\Zona\ZonaSlots::TOTAL - 1)],
+            'slot' => ['required', 'integer', 'min:0', 'max:'.(ZonaSlots::TOTAL - 1)],
         ]);
 
         $colony = $request->user()->colony()->firstOrFail();
@@ -363,6 +396,33 @@ class ZoneController extends Controller
      * Renomeia a zona, como o colono já nomeia a colônia (D-79, aditivo de UX). Sem regra no GDD —
      * é conveniência, não muda função nenhuma. Vazio volta a mostrar as coordenadas.
      */
+    /**
+     * POST /zones/{zone}/operadores — manda colonos da colônia para a zona (A2.6).
+     *
+     * A dona é conferida no domínio, e não aqui: `Operadores` é chamado também pelo painel do
+     * operador e por teste, e uma trava que mora só no controller é uma trava que não existe.
+     */
+    public function alocarOperadores(Request $request, NeutralZone $zone): JsonResponse
+    {
+        $dados = $request->validate(['quantos' => ['required', 'integer', 'min:1']]);
+        $colony = $request->user()->colony()->firstOrFail();
+
+        $zona = app(Operadores::class)->alocar($colony, $zone, (int) $dados['quantos']);
+
+        return response()->json(['operadores' => $this->equipe($zona, $colony->fresh())]);
+    }
+
+    /** DELETE /zones/{zone}/operadores — o "retorno": traz colonos de volta. */
+    public function devolverOperadores(Request $request, NeutralZone $zone): JsonResponse
+    {
+        $dados = $request->validate(['quantos' => ['required', 'integer', 'min:1']]);
+        $colony = $request->user()->colony()->firstOrFail();
+
+        $zona = app(Operadores::class)->devolver($colony, $zone, (int) $dados['quantos']);
+
+        return response()->json(['operadores' => $this->equipe($zona, $colony->fresh())]);
+    }
+
     public function renomear(Request $request, NeutralZone $zone): JsonResponse
     {
         $colony = $request->user()->colony()->firstOrFail();
@@ -421,7 +481,7 @@ class ZoneController extends Controller
                 'gdd' => $info['gdd'],
                 'hoje' => $info['hoje'],
                 'inerte' => $info['inerte'],
-                'indemolivel' => $linha->slot === \App\Domain\Zona\ZonaSlots::POSTO_SLOT,
+                'indemolivel' => $linha->slot === ZonaSlots::POSTO_SLOT,
                 'offline' => $apreendida,   // mantido: é o que a UI já lia para o badge.
                 'fracao_efetiva' => $zone->fracaoEfetiva($tipo),
                 'apreendida' => $apreendida ? [
@@ -469,10 +529,10 @@ class ZoneController extends Controller
 
         return [
             'colmeia' => [
-                'linhas' => \App\Domain\Zona\ZonaSlots::LINHAS,
-                'total' => \App\Domain\Zona\ZonaSlots::TOTAL,
-                'slot_do_posto' => \App\Domain\Zona\ZonaSlots::POSTO_SLOT,
-                'desbloqueados' => \App\Domain\Zona\ZonaSlots::desbloqueadosAte($zone->level),
+                'linhas' => ZonaSlots::LINHAS,
+                'total' => ZonaSlots::TOTAL,
+                'slot_do_posto' => ZonaSlots::POSTO_SLOT,
+                'desbloqueados' => ZonaSlots::desbloqueadosAte($zone->level),
             ],
             'erguidas' => $porSlot,
             'catalogo' => $catalogo,

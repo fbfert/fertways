@@ -74,6 +74,37 @@ class ColonyTick
         private Ciclo $cicloDePopulacao,
     ) {}
 
+    /**
+     * A eficiência da população neste tick, em pontos-base. 10.000 = sem penalidade.
+     *
+     * Estado de instância porque `produzir()` é chamado várias vezes por tick (uma por fatia de
+     * upgrade) e todas têm de usar a MESMA medida — ver `handle()`.
+     */
+    private int $eficienciaDaPopulacao = 10_000;
+
+    /**
+     * Quanto a escassez de insumo essencial está custando à produção (A2.6).
+     *
+     * ⚠️ Esta é a segunda etapa da ativação da população, que o D-178 adiou de propósito: *"primeiro
+     * a população existe e aparece; depois, com semanas de dados reais, ela restringe"*. O `Ciclo`
+     * calculava `eficiencia_bps` desde então e **ninguém consumia** — era o número correto indo para
+     * o vazio.
+     *
+     * ⚠️ E medi contra a produção real antes de ligar: com energia na cesta de consumo, **17 das 29
+     * colônias** cairiam para metade da produção de uma vez. Energia saiu da cesta por dupla
+     * contagem — ver a migration `energia_fora_da_cesta_da_populacao`. Sem ela, as 29 ficam em 100%.
+     */
+    private function medirEficiencia(Colony $colony): int
+    {
+        if (! $this->parametrosDePopulacao->ativo() || (int) $colony->populacao <= 0) {
+            return 10_000;
+        }
+
+        $estoque = $colony->resources()->pluck('amount', 'resource_type')->all();
+
+        return (int) $this->cicloDePopulacao->avancar($colony, $estoque, 1.0)['eficiencia_bps'];
+    }
+
     public function handle(Colony $colony, CarbonInterface $agora): void
     {
         // Trunca ao segundo. `diffInSeconds` do Carbon 3 devolve FLOAT, e um delta de
@@ -88,6 +119,18 @@ class ColonyTick
             if ($cursor >= $agora) {
                 return;
             }
+
+            /*
+             * ⚠️ A eficiência da população é medida ANTES de qualquer produção deste delta (A2.6).
+             *
+             * Se fosse medida depois, a colônia produziria cheio e só então descobriria que passou o
+             * intervalo inteiro em escassez — a penalidade chegaria sempre um tick atrasada, e no
+             * tick seguinte já não haveria escassez porque a produção do anterior a resolveu.
+             *
+             * Uma vez só para o delta inteiro, e não por fatia de upgrade: as fatias são o mesmo
+             * intervalo de tempo real, e remedi-las daria pesos diferentes ao mesmo minuto.
+             */
+            $this->eficienciaDaPopulacao = $this->medirEficiencia($colony);
 
             // Fatia o delta em cada conclusão de upgrade, na ordem em que ocorreram.
             while (true) {
@@ -391,6 +434,15 @@ class ColonyTick
         $estoque = $colony->resources()->lockForUpdate()->get()->keyBy('resource_type');
 
         foreach ($taxas as $recurso => $porHora) {
+            /*
+             * §6.6 e §7.x: a escassez DEGRADA a produção, não mata ninguém nem destrói nada. Só o
+             * ganho encolhe — o consumo (taxa negativa) passa inteiro, senão a penalidade viraria
+             * um desconto no gasto, que é o oposto de uma penalidade.
+             */
+            if ($porHora > 0 && $this->eficienciaDaPopulacao < 10_000) {
+                $porHora = intdiv($porHora * $this->eficienciaDaPopulacao, 10_000);
+            }
+
             $numerador = $porHora * $segundos;
 
             /*

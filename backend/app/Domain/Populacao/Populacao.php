@@ -101,17 +101,17 @@ class Populacao
     /** §7.4: pequena comparada à população da colônia — humanos supervisionam automação. */
     public function alocadaEmZonas(Colony $colonia): int
     {
-        $niveis = DB::table('neutral_zones')
+        /*
+         * ⚠️ O que está ALOCADO, e não o que o nível exigiria (A2.6).
+         *
+         * Até aqui isto derivava do nível da zona: ter a zona já custava os operadores, quisesse o
+         * dono ou não. Isso não produzia escolha nenhuma — e a decisão que a fase existe para criar é
+         * justamente *"quais zonas eu consigo manter operando com a população que tenho"*. Uma colônia
+         * curta agora escolhe qual zona opera a pleno e qual degrada (§6.6).
+         */
+        return (int) DB::table('neutral_zones')
             ->where('owner_colony_id', $colonia->id)
-            ->pluck('level');
-
-        $soma = 0;
-
-        foreach ($niveis as $nivel) {
-            $soma += $this->parametros->operadoresDeZona((int) $nivel);
-        }
-
-        return $soma;
+            ->sum('operadores');
     }
 
     /**

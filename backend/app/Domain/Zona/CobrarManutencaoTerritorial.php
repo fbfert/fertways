@@ -2,6 +2,7 @@
 
 namespace App\Domain\Zona;
 
+use App\Domain\Telemetria\RegistrarEvento;
 use App\Models\Colony;
 use App\Models\Ledger;
 use App\Models\NeutralZone;
@@ -9,6 +10,7 @@ use App\Models\Unit;
 use App\Models\ZoneBuild;
 use App\Models\ZoneEvent;
 use App\Models\ZoneMaterial;
+use App\Models\ZoneStructure;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
@@ -56,7 +58,7 @@ class CobrarManutencaoTerritorial
 
     private function processar(int $id, Carbon $agora): ?string
     {
-        return DB::transaction(function () use ($id, $agora) {
+        return DB::transaction(function () use ($id) {
             $zona = NeutralZone::whereKey($id)->lockForUpdate()->first();
 
             if (! $zona || $zona->owner_colony_id === null) {
@@ -76,7 +78,44 @@ class CobrarManutencaoTerritorial
             }
 
             $custo = $zona->custoDeManutencao();
+
+            /*
+             * ⚠️ O custo NÃO cai com a equipe desfalcada, e isso é decisão de desenho (A2.6).
+             *
+             * Uma zona a 50% de extração continua custando 100% de manutenção. É justamente essa
+             * assimetria que torna a falta de operadores um problema **econômico** em vez de um
+             * simples "rende menos": manter território vazio dá prejuízo, e o jogador escolhe entre
+             * povoar, subir o Abrigo de Robôs ou largar a zona.
+             *
+             * Se o custo caísse junto, zona desfalcada seria neutra — e a decisão que a fase inteira
+             * existe para criar desapareceria.
+             */
             $pago = $this->tentarDebitar($colony, $custo, $zona);
+
+            /*
+             * Telemetria de custo territorial (entrega da fase). Deriva do que ACONTECEU, sem
+             * instrumentar nada por fora — mesma escolha do D-163 para o ledger.
+             *
+             * `adiar: true` porque isto roda dentro de uma transação: sem adiar, um rollback levaria
+             * o evento junto e a métrica sumiria justamente nos casos que mais interessam. Foi a
+             * lição do D-173.
+             */
+            app(RegistrarEvento::class)->handle(
+                'custo_territorial',
+                $colony->user,
+                $colony,
+                [
+                    'zona' => $zona->id,
+                    'nivel' => (int) $zona->level,
+                    'pago' => $pago,
+                    'custo' => $custo,
+                    // O que o território rende contra o que custa: é a leitura que a fase quer.
+                    'eficiencia_bps' => app(Operadores::class)->eficienciaBps($zona),
+                    'operadores' => (int) $zona->operadores,
+                ],
+                origem: 'sistema',
+                adiar: true,
+            );
 
             if ($pago) {
                 $zona->update([
@@ -139,7 +178,7 @@ class CobrarManutencaoTerritorial
 
         // Reset completo (comentário abaixo): até o Posto de Comando some — a zona volta ao estado
         // de quem nunca foi ocupada, não a um "congelamento" com os níveis preservados (D-144).
-        \App\Models\ZoneStructure::where('neutral_zone_id', $zona->id)->delete();
+        ZoneStructure::where('neutral_zone_id', $zona->id)->delete();
 
         /*
          * Revisão de 2026-07-19: o canteiro (`zone_materials`) e a fila de obras

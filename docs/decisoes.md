@@ -9714,3 +9714,89 @@ custo de organizar-se.
 ### Verificação
 
 1094 testes verdes (4 novos) e 10 suítes e2e verdes.
+
+## D-184 — A2.6: a população passa a restringir, e o que a medida impediu
+
+O D-178 ligou a população em duas etapas e disse o porquê: *"primeiro a população existe e aparece;
+depois, com semanas de dados reais, ela restringe"*. Esta é a segunda etapa.
+
+### ⚠️ A medida que impediu um estrago, feita antes de ligar
+
+O `Ciclo` calculava `eficiencia_bps` desde o D-178 e **ninguém consumia** — o número certo indo para
+o vazio. Antes de conectá-lo, medi contra a produção real:
+
+| eficiência que a penalidade aplicaria | colônias |
+|---|---|
+| 100% | 12 |
+| **50–74%** | **17** |
+
+**Dezessete das 29 cairiam para metade da produção**, e o gargalo era um só: **energia**.
+
+Não é escassez, é **dupla contagem**. Energia é estoque e fluxo ao mesmo tempo: o Reator credita e
+**toda construção debita o consumo operacional**. Uma colônia que gasta o que produz fica com estoque
+zero, e isso é o estado **normal** de quem roda no que gera. Cobrá-la outra vez por colono
+transformava a operação normal de 17 colônias em fome permanente, sem saída — elas não têm excedente
+justamente porque estão operando.
+
+E o §6.7 proibiria mesmo que o desenho fosse desejável: aplicar de uma vez a quem construiu antes da
+regra é o que a promessa veda. Energia saiu da cesta; depois disso, **as 29 ficam em 100%**.
+
+### Alocação explícita, e uma entrega estreitada por escrito
+
+*"Transferência colônia → zona"* e *"retorno"* viraram **alocar** e **devolver** operadores,
+instantâneos. Colono em trânsito seria sistema novo — o GDD não publica tempo de deslocamento de
+pessoas, e inventá-lo duplicaria a logística que já existe para carga. A decisão que a fase quer é
+*"quais zonas consigo manter operando"*, e ela existe inteira sem trânsito. ⚠️ Isto **estreita** uma
+entrega, e por isso está escrito.
+
+`alocadaEmZonas()` passou a somar o que está **alocado**, e não o que o nível exigiria: derivar não
+produzia escolha nenhuma, e a fase existe para criar a decisão de onde pôr gente quando ela falta.
+
+### Degrada, não se perde (§6.6)
+
+Zona desfalcada extrai menos, com piso, e **continua sendo do dono**. O custo de manutenção **não
+cai junto**, e isso é decisão: é a assimetria que torna a falta de operadores um problema econômico
+em vez de um "rende menos" neutro. Se o custo caísse, zona vazia seria indiferente.
+
+### O Abrigo de Robôs finalmente faz o que o nome diz
+
+Cada nível dispensa um operador humano — *"poucos humanos operam muitos robôs"*, o princípio
+declarado da fase. Até aqui ele só servia de defesa contra o Predador, e o próprio catálogo admitia
+que a função de recuperação *"o GDD promete e nunca cronometra"*. **Piso de 1**: zerar o requisito
+faria território operar sozinho para sempre e apagaria a decisão que a fase cria.
+
+### ⚠️ Três defeitos silenciosos, e dois teriam ido para produção
+
+**1. `operadores` fora do `$fillable` do `NeutralZone`.** `OcuparZonaNeutra` grava a equipe da zona
+nova por `update()`: a atribuição em massa a descartaria **em silêncio**, e toda zona nasceria
+desfalcada sem erro nenhum. **Terceira vez hoje** que esta armadilha aparece (`max_aliadas`,
+`recompensa_federacao`, agora esta).
+
+**2. `BuildingOperatorRequirementSeeder` não estava no `DatabaseSeeder`.** Em produção eu o rodei à
+mão, e **foi isso que mascarou o defeito**: qualquer instalação nova nasce sem requisito de operador
+nenhum, o grandfathering concede o piso de 1 colono a todo mundo, e a mecânica inteira fica inerte.
+Quem pegou foi o e2e, que recria o banco do zero.
+
+**3. E o impedimento revelou um número de balanceamento.** A folga do §6.7 é 20% do que a colônia
+precisa, e sobre uma colônia pequena isso dá **um** colono sobrando — enquanto uma zona nova pede
+dois. Medido: **9 das 29 colônias podem ocupar zona nova hoje**, mediana de 0 livres, e **nenhuma
+com disponível negativo**. Ninguém quebrou, e quem quiser expandir sobe a habitação primeiro — que é
+o incentivo que a população deveria criar. Fica registrado como observação, não como conserto.
+
+### O e2e passou a exercitar a fase
+
+`tools/e2e.sh` liga a população, roda o mesmo `populacao-grandfather` que rodou em produção, e
+cresce a colônia até o teto habitacional. Sem isso o painel de operadores não renderizaria e a fase
+ficaria sem cobertura de ponta a ponta — que foi exatamente como publiquei uma rota sem tela no
+D-180.
+
+### O que fica de fora
+
+Telemetria de custo territorial entrou (`custo_territorial`, com custo **e** eficiência no mesmo
+evento — custo sem rendimento não responde nada). Os números da fase seguem **HIPÓTESE**: nenhuma
+rodada da trilha A2.S exercitou operadores de zona ainda.
+
+### Verificação
+
+1106 testes verdes (12 novos) e 10 suítes e2e verdes, com seis asserções novas na suíte de Zonas —
+incluindo devolver a equipe e ver a tela dizer *quanto* a zona perdeu e que ela não se perde.

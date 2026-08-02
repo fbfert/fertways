@@ -2,6 +2,7 @@
 
 namespace App\Domain\Logistics;
 
+use App\Domain\Zona\Operadores;
 use App\Models\NeutralZone;
 use Illuminate\Support\Facades\DB;
 
@@ -53,7 +54,29 @@ class ExtrairZonasNeutras
                 return false;
             }
 
-            $taxa = $zona->extracaoPorHora();
+            /*
+             * ⚠️ A equipe da zona pesa aqui (A2.6 / §6.6): abaixo dos operadores exigidos, a zona
+             * **produz menos** — e não é perdida, nem devolvida, nem destruída. Assim que a equipe
+             * volta, a extração volta ao normal sozinha.
+             *
+             * Num jogo persistente sem reset, perder território por ter passado o fim de semana fora
+             * não é dificuldade, é hostilidade. Mesma escolha que o `Ciclo` faz para a escassez da
+             * colônia e que o teto habitacional faz com a população acima do limite (D-178).
+             *
+             * Com a população desligada, `eficienciaBps()` devolve 10.000 e nada muda.
+             */
+            $eficiencia = app(Operadores::class)->eficienciaBps($zona);
+            $taxa = intdiv($zona->extracaoPorHora() * $eficiencia, 10_000);
+
+            /*
+             * Piso de 1/h enquanto a zona render alguma coisa: sem isto, uma zona de extração baixa
+             * com equipe pela metade cairia a ZERO por truncamento, e "degrada" viraria "para" —
+             * exatamente o que o §6.6 recusa.
+             */
+            if ($taxa <= 0 && $zona->extracaoPorHora() > 0) {
+                $taxa = 1;
+            }
+
             $unidades = intdiv($taxa * $segundos, 3600); // piso: não credita fração de unidade
             if ($unidades <= 0) {
                 return false; // menos de uma unidade de tempo: deixa o resto acumular

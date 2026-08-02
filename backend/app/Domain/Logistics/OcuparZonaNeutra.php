@@ -6,6 +6,8 @@ use App\Domain\Federacao\Aliancas;
 use App\Domain\Marco\ConcederXp;
 use App\Domain\Marco\ExigirMarco;
 use App\Domain\Missoes\Progresso;
+use App\Domain\Populacao\Parametros;
+use App\Domain\Zona\Operadores;
 use App\Domain\Zona\ZonaSlots;
 use App\Exceptions\DomainRuleException;
 use App\Models\Colony;
@@ -65,6 +67,17 @@ class OcuparZonaNeutra
                 $this->conferirTetoDaFederacao($colony->federation_id);
             }
 
+            /*
+             * ⚠️ Impedimento por falta de população (A2.6): ocupar zona nova exige gente livre para
+             * operá-la.
+             *
+             * Só a ocupação NOVA é barrada. O que já existe continua funcionando — o §6.7 promete que
+             * nenhuma colônia para por uma regra que não existia quando ela foi construída, e uma
+             * zona já ocupada nunca é confiscada por falta de equipe: ela degrada (§6.6).
+             */
+            $parametrosDePopulacao = app(Parametros::class);
+            $this->conferirPopulacao($colony);
+
             $custo = $this->custoDeRecursos();
             $this->debitarRecursos($colony, $custo, $zona);
             $this->debitarFert($colony, NeutralZone::POSTO_FERT, $zona);
@@ -75,6 +88,14 @@ class OcuparZonaNeutra
 
             $zona->update([
                 'owner_colony_id' => $colony->id,
+                /*
+                 * A equipe vai JUNTO com a ocupação — é a "transferência colônia → zona" da fase,
+                 * acontecendo no momento em que ela faz sentido. Sem isto, toda zona nova nasceria
+                 * degradada e o jogador teria de lembrar de povoá-la depois de já ter pago por ela.
+                 */
+                'operadores' => $parametrosDePopulacao->ativo()
+                    ? $parametrosDePopulacao->operadoresDeZona((int) $zona->level)
+                    : 0,
                 'status' => 'protegida',
                 'occupied_at' => $agora,
                 'protected_until' => $agora->copy()->addDays(NeutralZone::DIAS_DE_PROTECAO),
@@ -144,6 +165,36 @@ class OcuparZonaNeutra
      * até lá. Evita o caso degenerado de checar "depois" (a primeíssima zona do jogo inteiro
      * sempre seria 100% de um total de 1, e travaria o próprio nascimento do sistema).
      */
+    /**
+     * Há colono livre para operar mais uma zona? (A2.6)
+     *
+     * O princípio da fase é *"poucos humanos operam muitos robôs"*: uma zona nível 1 pede 2 colonos,
+     * não uma cidade. O impedimento existe para que expandir território custe **gente**, e não só
+     * recurso — sem isso, população seria um número no canto da tela.
+     *
+     * Com a população desligada, não impede nada.
+     */
+    private function conferirPopulacao(Colony $colony): void
+    {
+        $operadores = app(Operadores::class);
+        $parametros = app(Parametros::class);
+
+        if (! $parametros->ativo()) {
+            return;
+        }
+
+        $exigidos = $parametros->operadoresDeZona(1);
+        $livres = $operadores->disponivel($colony);
+
+        if ($livres < $exigidos) {
+            throw new DomainRuleException(
+                'sem_populacao',
+                "Uma zona nova precisa de {$exigidos} colono(s) para operar, e você tem "
+                    .max(0, $livres).' livre(s). Amplie a habitação ou traga operadores de outra zona.',
+            );
+        }
+    }
+
     private function conferirTetoDaFederacao(int $federationId): void
     {
         $totalDeZonas = NeutralZone::whereNotNull('owner_colony_id')->count();

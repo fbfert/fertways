@@ -90,6 +90,13 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('/zones/{zone}/build/{slot}', [ZoneController::class, 'demolir']);
     Route::post('/zones/{zone}/material', [ZoneController::class, 'entregarMaterial']);
     Route::patch('/zones/{zone}/name', [ZoneController::class, 'renomear']);
+
+    /*
+     * A2.6: "transferência colônia → zona" e "retorno". Instantâneos, sem colono em trânsito — ver
+     * o docblock da migration `operadores_de_zona`.
+     */
+    Route::post('/zones/{zone}/operadores', [ZoneController::class, 'alocarOperadores']);
+    Route::delete('/zones/{zone}/operadores', [ZoneController::class, 'devolverOperadores']);
     Route::post('/zones/{zone}/reparar', [ZoneController::class, 'reparar']);
 
     // A guerra (§27, §28.10; D-66). O exército, a fábrica do Quartel, o Nióbio do governo — sem o

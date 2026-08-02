@@ -57,6 +57,15 @@ class TelemetryEvent extends Model
         'falta_de_insumo',
         'falta_de_energia',
 
+        /*
+         * A2.6: o custo territorial, medido no momento em que ele é cobrado.
+         *
+         * Carrega o custo E a eficiência da zona no mesmo evento, de propósito: a pergunta que a
+         * fase quer responder é *"território desfalcado dá prejuízo?"*, e ela só se responde com os
+         * dois lados juntos. Custo sem rendimento não diz nada.
+         */
+        'custo_territorial',
+
         // Logística
         'transporte_iniciado',
         'transporte_concluido',

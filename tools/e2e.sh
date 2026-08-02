@@ -161,6 +161,46 @@ $v = App\Models\User::create([
 $cv = app(App\Domain\Colony\CreateColony::class)->handle($v, "Colônia vizinha", 0, 6);
 
 /*
+ * A2.6: a população LIGADA no mundo do e2e, e a colônia povoada.
+ *
+ * Sem isto o painel de operadores da zona não renderiza (`operadores.ativo` é false) e a fase
+ * inteira fica sem cobertura de ponta a ponta — que é exatamente como publiquei uma rota sem tela no
+ * D-180. O `grandfather` é o mesmo comando que rodou em produção, então o e2e também o exercita.
+ *
+ * ⚠️ Energia já saiu da cesta de consumo (migration `energia_fora_da_cesta_da_populacao`); sem isso,
+ * a colônia do e2e entraria em escassez e a produção que outras suítes conferem cairia pela metade.
+ */
+DB::table("population_settings")->where("id", 1)->update(["ativo" => true]);
+
+/*
+ * ⚠️ Folga habitacional ANTES do grandfathering, e a razão é uma medida.
+ *
+ * O grandfathering concede o que a colônia precisa mais a folga do §6.7 — mas a folga é limitada
+ * pelo teto da Estrutura de Sobrevivência. Com ela no nível 1, a colônia nasce EXATAMENTE no que
+ * precisa, com zero colonos livres, e não consegue ocupar zona nenhuma.
+ *
+ * Isso não é defeito: medido contra a produção, 9 das 29 colônias reais podem ocupar zona nova e as
+ * outras precisam subir a habitação primeiro — que é o incentivo que a população deveria criar. Mas
+ * a suíte de Zonas existe para testar OCUPAÇÃO, então a colônia dela representa quem já se preparou
+ * para expandir.
+ */
+$c->buildings()->where("type", "estrutura_de_sobrevivencia")->update(["level" => 4]);
+
+Artisan::call("fertways:populacao-grandfather", ["--aplicar" => true]);
+
+/*
+ * E a colônia do e2e CRESCEU até o teto habitacional dela.
+ *
+ * ⚠️ O grandfathering sozinho não basta, e o número é instrutivo: a folga do §6.7 é 20% do que a
+ * colônia precisa, e sobre uma colônia pequena isso dá UM colono sobrando — enquanto uma zona nova
+ * pede dois. É a mesma razão pela qual apenas 9 das 29 colônias de produção conseguem expandir
+ * território hoje.
+ *
+ * A colônia do e2e representa quem já jogou algum tempo, e população cresce: ela está no teto.
+ */
+$c->update(["populacao" => app(App\Domain\Populacao\Populacao::class)->capacidade($c->fresh(["buildings"]))]);
+
+/*
  * A2.5: duas federações, para a mesa diplomática ter com quem tratar.
  *
  * ⚠️ CADA COLÔNIA NA SUA, e isso é deliberado. Se as duas ficassem na mesma, o desconto de tributo

@@ -363,6 +363,73 @@ export function Zona() {
             </div>
           </div>
 
+          {/* ── a equipe da zona (A2.6) ───────────────────────────────────────────────────── */}
+          {z.operadores?.ativo && (
+            <section className="painel bg-sand p-4" data-secao="operadores">
+              <h3 className="font-bold">Equipe da zona</h3>
+              <p className="text-ink-soft mt-1 text-sm">
+                <strong data-operadores={z.operadores.na_zona}>
+                  {z.operadores.na_zona} de {z.operadores.exigidos}
+                </strong>{' '}
+                operador(es). Poucos humanos operam muitos robôs — o colono supervisiona.
+              </p>
+
+              {/*
+                A degradação do §6.6, dita em número. Sem esta linha o jogador veria a extração cair
+                e não teria como saber por quê — e penalidade invisível é indistinguível de defeito.
+              */}
+              {z.operadores.na_zona < z.operadores.exigidos ? (
+                <p className="text-perigo mt-2 text-sm" data-eficiencia={z.operadores.eficiencia}>
+                  ▲ Desfalcada: extrai <strong>{z.operadores.eficiencia.toFixed(0)}%</strong> do
+                  normal. A zona <strong>não se perde</strong> — volta ao normal assim que a equipe
+                  for reposta.
+                </p>
+              ) : (
+                <p className="text-sucesso mt-2 text-sm">Equipe completa: extrai 100%.</p>
+              )}
+
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                <button
+                  onClick={() =>
+                    agir(async () => {
+                      const faltam = z.operadores.exigidos - z.operadores.na_zona
+                      await api.alocarOperadores(z.id, faltam)
+
+                      return `${faltam} operador(es) a caminho — a zona volta a extrair 100%.`
+                    })
+                  }
+                  disabled={
+                    z.operadores.na_zona >= z.operadores.exigidos ||
+                    z.operadores.livres_na_colonia < z.operadores.exigidos - z.operadores.na_zona
+                  }
+                  data-alocar-operadores
+                  className="border-ink/30 text-ink hover:bg-ink hover:text-sand-light border px-3 py-1 text-xs font-bold disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  Completar a equipe
+                </button>
+
+                <button
+                  onClick={() =>
+                    agir(async () => {
+                      await api.devolverOperadores(z.id, z.operadores.na_zona)
+
+                      return 'Operadores de volta à colônia. A zona continua sua, extraindo menos.'
+                    })
+                  }
+                  disabled={z.operadores.na_zona < 1}
+                  data-devolver-operadores
+                  className="text-ink-soft/60 hover:text-rust text-xs disabled:opacity-40"
+                >
+                  Trazer todos de volta
+                </button>
+
+                <span className="text-ink-soft/60 text-xs">
+                  {z.operadores.livres_na_colonia} colono(s) livre(s) na colônia.
+                </span>
+              </div>
+            </section>
+          )}
+
           {/* ── upgrade de nível da zona (D-84, teto 5→10 no D-144) ──────────────────────────── */}
           <section className="painel bg-sand p-4" data-secao="upgrade">
             <h3 className="font-bold">Nível da zona</h3>

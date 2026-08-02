@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Domain\Zona\Estruturas;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -153,6 +154,12 @@ class NeutralZone extends Model
         'refined_amount', 'last_refine_at',
         'last_industry_at',
         'sieged_at', 'modules_offline', 'modules_offline_expira_em', 'structures_saboted',
+        /*
+         * A2.6. ⚠️ Sem isto aqui a atribuição em massa o descarta EM SILÊNCIO: `OcuparZonaNeutra`
+         * grava a equipe da zona nova por `update()`, e ela nunca chegaria ao banco — toda zona
+         * nasceria degradada, sem erro nenhum. Foi um teste que pegou.
+         */
+        'operadores',
     ];
 
     /**
@@ -172,6 +179,7 @@ class NeutralZone extends Model
         'x' => 'integer',
         'y' => 'integer',
         'level' => 'integer',
+        'operadores' => 'integer',
         'level_target' => 'integer',
         'level_upgrade_finishes_at' => 'datetime',
         'maintenance_next_due_at' => 'datetime',
@@ -227,7 +235,7 @@ class NeutralZone extends Model
     {
         $linhas = $this->zoneStructures->where('type', $tipo);
 
-        if (in_array($tipo, \App\Domain\Zona\Estruturas::REPETIVEIS, true)) {
+        if (in_array($tipo, Estruturas::REPETIVEIS, true)) {
             return (int) $linhas->sum('level');
         }
 
@@ -287,14 +295,14 @@ class NeutralZone extends Model
         return (int) $this->zoneStructures
             ->where('type', 'refinaria_de_campo')
             ->sum(fn (ZoneStructure $s) => round(
-                \App\Domain\Zona\Estruturas::REFINO_BASE_HORA * self::CURVA ** ($s->level - 1),
+                Estruturas::REFINO_BASE_HORA * self::CURVA ** ($s->level - 1),
             ));
     }
 
     /** Em que o minério desta zona se transforma, se houver Refinaria. Nulo se o mineral não refina. */
     public function recursoRefinado(): ?string
     {
-        return \App\Domain\Zona\Estruturas::REFINA[$this->mineral] ?? null;
+        return Estruturas::REFINA[$this->mineral] ?? null;
     }
 
     /**

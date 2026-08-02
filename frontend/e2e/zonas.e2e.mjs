@@ -112,6 +112,38 @@ try {
   checar(await esperarTexto(page, /Nível da zona/), 'a seção de upgrade de nível existe')
   checar(!!(await page.$('[data-upar-zona]')), 'o botão de upgrade existe')
 
+  console.log('\nA equipe da zona (A2.6): operadores visíveis, e o retorno')
+  /*
+   * ⚠️ Esta seção só existe com a população LIGADA — por isso `tools/e2e.sh` a liga e povoa a
+   * colônia. Sem isso a fase inteira ficaria sem cobertura de ponta a ponta, que foi exatamente
+   * como publiquei uma rota sem tela no D-180.
+   */
+  await page.waitForSelector('[data-secao="operadores"]', { timeout: 8000 })
+  checar(true, 'a seção de equipe da zona aparece')
+  checar(
+    await esperarTexto(page, /operador\(es\)/),
+    'a tela diz quantos operadores há e quantos a zona pede',
+  )
+  checar(
+    await esperarTexto(page, /Equipe completa/),
+    'a zona recém-ocupada já nasce com a equipe — a transferência acontece junto da ocupação',
+  )
+
+  // O "retorno" das entregas da fase, e a promessa do §6.6 junto: degrada, não se perde.
+  await page.click('[data-devolver-operadores]')
+  checar(
+    await esperarTexto(page, /de volta à colônia/),
+    'trazer os operadores de volta funciona',
+  )
+  checar(
+    await esperarTexto(page, /Desfalcada: extrai \d+%/),
+    'e a zona passa a extrair menos, dizendo QUANTO — penalidade invisível é indistinguível de defeito',
+  )
+  checar(
+    await esperarTexto(page, /não se perde/),
+    'a tela promete o §6.6 na cara do jogador: a zona continua sendo dele',
+  )
+
   console.log('\nA aba Depósito mostra o bruto extraído')
   await page.click('[data-aba-zona="deposito"]')
   await assentar()

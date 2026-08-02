@@ -14,6 +14,20 @@ class DatabaseSeeder extends Seeder
             ResourceTypeSeeder::class,
             ComponentRecipeSeeder::class,
             BuildingSpecSeeder::class,
+
+            /*
+             * ⚠️ A2.2.4/A2.6: sem isto, `building_operator_requirements` nasce VAZIA em qualquer
+             * instalação nova — e a mecânica de população inteira fica inerte: nada exige operador,
+             * o grandfathering concede o piso de 1 colono a todo mundo, e nenhuma zona pode ser
+             * ocupada por falta de gente livre.
+             *
+             * Em produção eu o rodei à mão (`db:seed --class=...`), e foi isso que mascarou o
+             * defeito. Quem pegou foi o e2e, que recria o banco do zero a cada execução.
+             *
+             * Depende de `BuildingSpecSeeder`: as linhas saem das construções com
+             * `producao_hora_json`.
+             */
+            BuildingOperatorRequirementSeeder::class,
             // As 120 zonas neutras nos 4 distritos do D-51 (D-52). Sem FK para os demais, mas
             // depois deles por clareza: o mineral de cada zona é um código de resource_types.
             NeutralZoneSeeder::class,

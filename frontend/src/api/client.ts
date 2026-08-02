@@ -1269,6 +1269,20 @@ export const api = {
     ),
 
   /** Nomeia a zona, como já se nomeia a colônia. Vazio volta a mostrar as coordenadas. */
+  /** A2.6: "transferência colônia → zona". Instantânea, sem colono em trânsito. */
+  alocarOperadores: (id: number, quantos: number) =>
+    req<{ operadores: ZonaDetalhe['operadores'] }>(`/zones/${id}/operadores`, {
+      method: 'POST',
+      body: JSON.stringify({ quantos }),
+    }),
+
+  /** E o "retorno". */
+  devolverOperadores: (id: number, quantos: number) =>
+    req<{ operadores: ZonaDetalhe['operadores'] }>(`/zones/${id}/operadores`, {
+      method: 'DELETE',
+      body: JSON.stringify({ quantos }),
+    }),
+
   renomearZona: (id: number, name: string) =>
     req<{ name: string | null }>(`/zones/${id}/name`, {
       method: 'PATCH',
@@ -1722,6 +1736,20 @@ export type ErguivelNaZona = {
 
 export type ZonaDetalhe = {
   id: number
+  /**
+   * A equipe da zona (A2.6).
+   *
+   * Sem isto a degradação do §6.6 seria invisível: o jogador veria a extração cair e não teria como
+   * saber por quê — e penalidade que não se consegue ver é indistinguível de defeito.
+   */
+  operadores: {
+    ativo: boolean
+    na_zona: number
+    exigidos: number
+    /** Em porcentagem. 100 = equipe completa; nunca zero, porque o §6.6 degrada e não para. */
+    eficiencia: number
+    livres_na_colonia: number
+  }
   name: string | null
   x: number
   y: number
