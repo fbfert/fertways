@@ -135,6 +135,77 @@ class TetoDeEstoqueTest extends TestCase
         $this->assertLessThan(5_000, $this->estoque($u, 'biomassa'), 'o gasto acontece mesmo no teto');
     }
 
+    // ─────────────────────────────────── o piso pessoal (D-191, opção d)
+
+    /**
+     * ⚠️ **A promessa do §6.7 na virada**: quem já estava acima da curva NÃO para de produzir.
+     *
+     * Sem o piso, ligar o teto pararia as 29 colônias de produção no mesmo instante — elas acumularam
+     * meses sem limite, e a mediana de oxigênio do mundo não cabe nem no nível MÁXIMO do Depósito
+     * Local. O grandfathering é o que torna a virada possível.
+     */
+    public function test_o_piso_impede_que_a_veterana_pare_de_produzir(): void
+    {
+        $u = $this->colono();
+        $this->erguerPredio($u->colony, 'extrator_de_agua', 5);
+        $u->colony->resources()->where('resource_type', 'agua')->update(['amount' => 9_000]);
+
+        DB::table('estoque_settings')->where('id', 1)->update(['capacidade_base' => 100]);
+        $this->artisan('fertways:estoque-grandfather', ['--aplicar' => true])->assertSuccessful();
+        $this->ligar(['capacidade_base' => 100]);
+
+        $antes = $this->estoque($u, 'agua');
+        $this->tick($u, now()->addHours(6));
+
+        $this->assertGreaterThan($antes, $this->estoque($u, 'agua'), 'a veterana continua produzindo');
+    }
+
+    /** E o piso TRAVA quando a folga acaba: ele adia a parada, não a remove. */
+    public function test_o_piso_trava_quando_a_folga_acaba(): void
+    {
+        $u = $this->colono();
+        $this->erguerPredio($u->colony, 'extrator_de_agua', 5);
+        $u->colony->resources()->where('resource_type', 'agua')->update(['amount' => 9_000]);
+
+        DB::table('estoque_settings')->where('id', 1)->update(['capacidade_base' => 100]);
+        $this->artisan('fertways:estoque-grandfather', ['--aplicar' => true])->assertSuccessful();
+        $this->ligar(['capacidade_base' => 100]);
+
+        $this->tick($u, now()->addDays(30));
+
+        // 9.000 + 20% de folga = 10.800.
+        $this->assertSame(10_800, $this->estoque($u, 'agua'), 'para exatamente no piso');
+    }
+
+    /** ⚠️ A colônia NOVA não ganha piso nenhum: ela encontra a curva de verdade. */
+    public function test_a_colonia_nova_nao_ganha_piso(): void
+    {
+        $u = $this->colono();
+        $this->erguerPredio($u->colony, 'extrator_de_agua', 5);
+
+        DB::table('estoque_settings')->where('id', 1)->update(['capacidade_base' => 100]);
+        $this->artisan('fertways:estoque-grandfather', ['--aplicar' => true])->assertSuccessful();
+        $this->ligar(['capacidade_base' => 100]);
+
+        $this->tick($u, now()->addDays(30));
+
+        $this->assertSame(100, $this->estoque($u, 'agua'), 'a curva governa quem nasceu depois');
+    }
+
+    /** O ensaio a seco não grava nada — mesma disciplina do grandfathering da população. */
+    public function test_sem_aplicar_nao_grava_piso(): void
+    {
+        $u = $this->colono();
+        $u->colony->resources()->where('resource_type', 'agua')->update(['amount' => 9_000]);
+        DB::table('estoque_settings')->where('id', 1)->update(['capacidade_base' => 100]);
+
+        $this->artisan('fertways:estoque-grandfather')->assertSuccessful();
+
+        $this->assertNull(
+            $u->colony->resources()->where('resource_type', 'agua')->value('storage_cap'),
+        );
+    }
+
     // ─────────────────────────────────── a curva
 
     public function test_a_capacidade_compoe_por_nivel(): void

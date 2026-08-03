@@ -40,6 +40,9 @@ class TetoDoEstoque
     /** @var array<int,int> nível do Depósito Local por colônia */
     private array $niveis = [];
 
+    /** @var array<int,array<string,int>> o piso pessoal por colônia — ver `piso()`. */
+    private array $pisos = [];
+
     private function parametros(): object
     {
         return $this->linha ??= DB::table('estoque_settings')->find(1)
@@ -85,7 +88,35 @@ class TetoDoEstoque
             $capacidade = intdiv($capacidade * (int) $p->capacidade_fator_milesimos, 1000);
         }
 
-        return $capacidade;
+        /*
+         * ⚠️ O PISO PESSOAL (D-191, opção d): `max(curva, o que a colônia já tinha)`.
+         *
+         * Sem ele, ligar o teto faria as 29 colônias pararem de produzir de uma vez — elas acumularam
+         * por meses sem limite nenhum, e a mediana de oxigênio do mundo (90.201) não cabe nem nos
+         * 74.501 do nível MÁXIMO do Depósito Local. O §6.7 proíbe exatamente isso.
+         *
+         * `null` na coluna significa "nunca precisou de piso": a curva governa sozinha, que é o caso
+         * de toda colônia nova.
+         */
+        return max($capacidade, $this->piso($colonia, $recurso));
+    }
+
+    /**
+     * O piso gravado no dia da virada, ou zero.
+     *
+     * Uma consulta por colônia, e não por recurso: o tick pergunta o teto de cada recurso da colônia
+     * no mesmo instante, e uma consulta por linha seria N+1 no caminho mais quente do jogo.
+     */
+    private function piso(Colony $colonia, string $recurso): int
+    {
+        $pisos = $this->pisos[$colonia->id] ??= DB::table('resources')
+            ->where('colony_id', $colonia->id)
+            ->whereNotNull('storage_cap')
+            ->pluck('storage_cap', 'resource_type')
+            ->map(fn ($v) => (int) $v)
+            ->all();
+
+        return $pisos[$recurso] ?? 0;
     }
 
     /**

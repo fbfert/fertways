@@ -10300,3 +10300,49 @@ acumulou sob as regras que existiam, e o §6.7 existe precisamente para proteger
 Não vou ligar. Escolher entre (a), (b), (c) e (d) muda o jogo de formas materialmente diferentes num
 mundo com 29 colônias reais, e nenhuma das quatro é obviamente certa. O que eu podia fazer era
 transformar "está dormente" numa decisão informada — com os números na mesa.
+
+## D-192 — O piso pessoal, e o teto de estoque enfim ligável
+
+Decisão do Dono: opção **d** do D-191. O teto de cada linha passa a ser
+`max(curva do nível, o que a colônia já tinha)`.
+
+### ⚠️ A descoberta que mudou a implementação
+
+O piso **não pode ser o estoque exato**. Se fosse, `espacoLivre` valeria zero e a produção pararia
+**no mesmo instante da virada** — exatamente a regra que o piso existe para evitar. O §6.7 não seria
+cumprido; seria cumprido no papel e violado no relógio.
+
+Por isso o piso é `estoque × (1 + folga)`, com folga de **20%** — o mesmo número que o §6.7 usa na
+migração da população, e não por coincidência: é a mesma promessa cumprida do mesmo jeito.
+
+Há teste para os dois lados: a veterana **continua produzindo** depois da virada, e **trava exatamente
+no piso** quando a folga acaba. O piso **adia** a parada; não a remove.
+
+### Onde o piso mora
+
+`resources.storage_cap` — coluna do D-14, NULL nas 754 linhas, não lida por ninguém. O `Silo` calcula
+proteção sob demanda e o docblock dele dizia que a coluna *"continua NULL de propósito"*. Deixou de
+estar.
+
+⚠️ **Só quem passa da curva ganha piso.** Gravar em todo mundo encheria a coluna de números
+irrelevantes, e um dia alguém leria aquilo como "o teto é este" — quando o teto é a curva.
+
+### ⚠️ O preço, dito por escrito
+
+O veterano cujo estoque já passa da capacidade do nível 10 **não consegue subir o próprio teto
+construindo**: o piso dele É o teto, para sempre. Ele para de acumular aquilo de que tem anos de
+sobra, e os extratores ficam ociosos até gastar.
+
+Isso estava na mesa quando a opção foi escolhida (D-191), e está aqui para ninguém a redescobrir
+daqui a seis meses achando que é defeito.
+
+### E uma armadilha que o comando evita
+
+`TetoDoEstoque::capacidade()` devolve `null` enquanto a chave estiver desligada — e o grandfathering
+roda **antes** da virada, por definição. Se o comando usasse aquele método, mediria o nada e diria
+que não havia nada a fazer: o pior jeito possível de falhar, porque pareceria sucesso. Ele calcula a
+curva na mão, a partir da mesma linha de parâmetros.
+
+### Verificação
+
+1148 testes verdes (4 novos).
