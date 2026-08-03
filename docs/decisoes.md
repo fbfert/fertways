@@ -10851,3 +10851,43 @@ como se ataca uma colônia — um fluxo que não existe, já que `Atacar` só ac
 
 São decisões de desenho, não de fiação. E a diferença entre elas e as anteriores é que **esta revoga
 um parágrafo do GDD**: o §01 diz inviolável, e o jogo passaria a dizer o contrário.
+
+## D-202 — As decisões 13 a 16, e por que paro antes do cerco de colônia
+
+O D-201 parou a fatia com três perguntas. As respostas estão no GDD da guerra, e são estas:
+
+| # | decidido |
+|---|---|
+| 13 | **o §01 fica revogado em guerra declarada** — inviolável em paz, saqueável no excedente em guerra |
+| 14 | **a Torre de Defesa reduz o quanto o saque leva** |
+| 15 | **ataque a colônia reusa o cerco da zona, e exige Quartel erguido** |
+| 16 | base de proteção do Depósito: 50.000, +25%/nível (D-199, já no ar) |
+
+### O terceiro prédio inerte que esta Alpha ressuscita
+
+A Estrutura de Sobrevivência era `'efeito' => 'nenhum'` até a população lhe dar teto habitacional. O
+Abrigo de Robôs só servia contra o Predador até a A2.6 fazê-lo dispensar operadores. Agora a Torre de
+Defesa — e **11 colônias já a construíram**, apostando nela antes de ela valer alguma coisa.
+
+### ⚠️ Por que paro aqui, e não é objeção de desenho
+
+O cerco atual é **profundamente específico de zona**: o desfecho troca `owner_colony_id`, o saque lê
+`deposit_amount` e `refined_amount`, e tudo isso vive numa classe de 700 linhas que já resolve três
+tipos de ataque. Reusá-lo para colônia é fatia grande — ramificação em todo o caminho de resolução,
+mais uma tabela de cerco, mais o cálculo de defesa, mais o saque, mais a telemetria.
+
+Emendar a mecânica mais complexa do jogo, **num jogo no ar**, no fim de uma sessão muito longa e com
+pouca margem, é exatamente como nascem os erros que passei o dia catalogando — inclusive o de hoje,
+em que publiquei com um teste vermelho por não ler a saída (D-200).
+
+**As decisões estão registradas e nada se perde.** A fatia começa limpa, e a ordem dela é:
+
+1. `combats.zone_id` nulável — o alvo é colônia quando não há zona. `defender_colony_id` já existe, e
+   é o que torna o reuso viável sem tabela nova;
+2. `AtacarColonia`, exigindo Quartel e guerra ativa;
+3. ramificar `ResolverCombates` no desfecho: em vez de trocar o dono da zona, saquear o exposto;
+4. a Torre de Defesa entrando na conta do espólio;
+5. **a telemetria de retorno de quem foi saqueado ausente, junto** — não depois.
+
+⚠️ E antes de qualquer linha, a medição: quanto uma invasão levaria de cada uma das 29 colônias, hoje.
+As três ativações anteriores foram salvas por isso.

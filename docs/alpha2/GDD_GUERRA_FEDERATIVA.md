@@ -377,6 +377,10 @@ A2.10.**
 | 8 | aliança e guerra coexistem | **não — declarar rompe** | igual |
 | 9 | preço da capitulação | **o vencedor escolhe: zona ou Fert$** | uma zona |
 | 10 | fórmula do ranking | *segue como desenho próprio* | por diferença de força |
+| 13 | **o §01 (colônia inviolável)** | **revogado em guerra declarada** | — |
+| 14 | **Torre de Defesa** | **reduz o quanto o saque leva** | — |
+| 15 | **como se ataca colônia** | **mesmo fluxo da zona + exigir Quartel** | — |
+| 16 | **base de proteção do Depósito** | **50.000, +25%/nível** | — |
 | 11 | contas vinculadas | **travas econômicas + detecção com revisão humana** | só as travas |
 | 12 | neutralidade e abandono | **declarada ANTES da guerra; inatividade não protege** | neutralidade forçada por inatividade |
 
@@ -389,6 +393,39 @@ A2.10.**
 
 A neutralidade existe, e é **um ato político tomado com o jogador presente** — não um prêmio por
 ausência. Quem quer ficar fora da guerra declara antes; quem não declarou está no jogo.
+
+---
+
+## As decisões 13 a 16, de 2026-08-03
+
+Vieram da implementação, e as quatro nasceram de medições que reprovaram a fatia como estava.
+
+### ⚠️ 13. O §01 fica revogado em guerra declarada
+
+O GDD §01 declara o slot principal **inviolável** — e o próprio catálogo de funções já apontava a
+contradição, na nota da Torre de Defesa: *"não há o que defender aqui"*.
+
+A partir daqui: **inviolável em paz, saqueável no excedente do Depósito durante guerra federativa
+declarada.** A revogação é consciente, e não efeito colateral de uma decisão sobre espólio.
+
+### 14. A Torre de Defesa finalmente vale alguma coisa
+
+Ela reduz **quanto o saque leva**. Hoje o efeito dela é `'nenhum'` — e **11 colônias já a
+construíram**, defendendo o que ninguém podia atacar.
+
+É o terceiro prédio inerte que uma fase desta Alpha ressuscita: a Estrutura de Sobrevivência ganhou
+teto habitacional na A2.2, o Abrigo de Robôs passou a dispensar operadores na A2.6, e agora a Torre.
+
+### 15. Ataque a colônia reusa o cerco, e exige Quartel
+
+Mesmo fluxo da zona — cerco, três rodadas, forças, reforços — porque já existe, já foi balanceado, e
+o jogador já sabe jogá-lo. **Mais a exigência de Quartel erguido**, o que dá ao prédio uma segunda
+função e torna atacar colônia um investimento declarado, não um impulso.
+
+### 16. A base de proteção do Depósito é 50.000, +25%/nível
+
+Medida antes: com os 10.000 planos de então, *"só o excedente"* significava **85% de tudo**. Com
+50.000, o saque leva ~20% do que a colônia tem. Ver D-198 e D-199.
 
 ---
 
