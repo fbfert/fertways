@@ -132,6 +132,13 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/war/niobio', [WarController::class, 'niobio']);
     Route::post('/war/attack', [WarController::class, 'atacar']);
 
+    /*
+     * A2.10: marchar sobre COLÔNIA inimiga, e a lista de quem pode ser atacado. Rota separada da de
+     * zona porque as travas, o desfecho e o §01 são outros — ver o controller.
+     */
+    Route::get('/war/inimigos', [WarController::class, 'inimigos']);
+    Route::post('/war/attack-colony', [WarController::class, 'atacarColonia']);
+
     // O DEFENSOR enfim tem o que fazer (D-70): reforçar a zona, e romper um cerco. A tela já
     // prometia o primeiro e o §28.10 manda o segundo — nenhum dos dois existia.
     Route::post('/war/reinforce', [WarController::class, 'reforcar']);

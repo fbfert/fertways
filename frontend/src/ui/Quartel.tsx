@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { api, ApiError } from '../api/client'
-import type { Combate, EstadoDaGuerra, LinhaDoRanking, Unidade } from '../api/client'
+import type { Combate, ColoniaInimiga, EstadoDaGuerra, LinhaDoRanking, Unidade } from '../api/client'
+import { Botao, Selo } from './sistema'
 import { dataHumana } from './recursos'
 
 /**
@@ -112,6 +113,11 @@ function Despacho({
 
 export function Quartel() {
   const [dados, setDados] = useState<EstadoDaGuerra | null>(null)
+  /*
+   * A2.10: as colônias inimigas. Carregadas à parte da guerra de zona porque só existem dentro de
+   * guerra federativa declarada — fora dela a lista é vazia e a seção nem aparece.
+   */
+  const [inimigos, setInimigos] = useState<{ tem_quartel: boolean; inimigos: ColoniaInimiga[] } | null>(null)
   const [combates, setCombates] = useState<Combate[]>([])
   const [ranking, setRanking] = useState<LinhaDoRanking[]>([])
   const [erro, setErro] = useState<string | null>(null)
@@ -126,10 +132,18 @@ export function Quartel() {
 
   const carregar = useCallback(async () => {
     try {
-      const [g, c, r] = await Promise.all([api.guerra(), api.combates(), api.rankingDeGuerras()])
+      const [g, c, r, i] = await Promise.all([
+        api.guerra(),
+        api.combates(),
+        api.rankingDeGuerras(),
+        // A2.10. `catch` próprio: uma falha na lista de inimigos não pode derrubar o Quartel inteiro,
+        // que é a tela onde o jogador produz unidades e vê os combates dele.
+        api.inimigos().catch(() => ({ tem_quartel: false, inimigos: [] })),
+      ])
       setDados(g)
       setCombates(c.combats)
       setRanking(r.ranking)
+      setInimigos(i)
     } catch (e) {
       setErro(e instanceof ApiError ? e.message : 'Falha ao carregar o Quartel.')
     }
@@ -191,8 +205,64 @@ export function Quartel() {
     porGrupo.set(chave, g)
   }
 
+  const sentinelasSaudaveis = emCasa.slice(0, 10).map((u) => u.id)
+
   return moldura(
     <div className="space-y-6" data-tela="quartel">
+      {/*
+        A2.10: marchar sobre colônia inimiga.
+
+        ⚠️ Só aparece com guerra federativa declarada — e a lista vem do servidor já filtrada, para
+        a tela não oferecer o que a regra recusaria. O `exposto` está aqui porque marchar sem saber
+        o que se ganha não é decisão, é aposta.
+      */}
+      {(inimigos?.inimigos.length ?? 0) > 0 && (
+        <section className="painel bg-sand p-4" data-secao="inimigos">
+          <h3 className="eyebrow text-perigo mb-2">Colônias inimigas</h3>
+
+          <p className="text-ink-soft mb-3 text-xs">
+            Fora de guerra a colônia é <strong>inviolável</strong> (§01). Dentro dela, o saque leva
+            só o <strong>excedente do Depósito</strong> — o protegido nunca é tocado.
+          </p>
+
+          <ul className="flex flex-col gap-2">
+            {inimigos!.inimigos.map((c) => (
+              <li key={c.id} className="border-ink/10 flex flex-wrap items-center gap-2 border-t pt-2">
+                <strong className="text-ink text-sm">{c.nome}</strong>
+                <span className="text-ink-soft/70 text-xs">
+                  exposto: {c.exposto.toLocaleString('pt-BR')}
+                  {c.torre > 0 && ` · Torre de Defesa n${c.torre} corta o espólio`}
+                </span>
+
+                {c.sob_cerco ? (
+                  <Selo estado="aviso">já sob cerco</Selo>
+                ) : (
+                  <Botao
+                    variante="perigo"
+                    tamanho="pequeno"
+                    onClick={() =>
+                      agir(async () => {
+                        await api.atacarColonia(c.id, sentinelasSaudaveis)
+
+                        return `Tropa a caminho de ${c.nome}.`
+                      })
+                    }
+                    disabled={!inimigos!.tem_quartel || sentinelasSaudaveis.length === 0}
+                    data-atacar-colonia={c.id}
+                    title={
+                      !inimigos!.tem_quartel
+                        ? 'Marchar sobre colônia exige Quartel erguido.'
+                        : 'A marcha leva tempo: distância é pilar do jogo.'
+                    }
+                  >
+                    Marchar
+                  </Botao>
+                )}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
       <header>
         <p className="text-ink-soft text-sm">
           {semQuartel

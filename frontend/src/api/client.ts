@@ -537,6 +537,22 @@ export type ArvoreDePesquisa = {
   }>
 }
 
+/**
+ * Uma colônia inimiga que pode ser atacada agora (A2.10).
+ *
+ * ⚠️ Só entra aqui quem está de facto em guerra com a sua federação — a tela não deve oferecer o que
+ * a regra recusaria. E traz o `exposto`, que é o que torna a decisão de marchar informada.
+ */
+export type ColoniaInimiga = {
+  id: number
+  nome: string
+  /** O que estaria em risco: o excedente do Depósito. O protegido nunca é tocado. */
+  exposto: number
+  /** Nível da Torre de Defesa do alvo — ela corta o espólio. */
+  torre: number
+  sob_cerco: boolean
+}
+
 /** Uma fala no rádio do planeta (§10; D-77). */
 export type MensagemDeChat = {
   id: number
@@ -1494,6 +1510,14 @@ export const api = {
 
   /** A2.8: os eventos de mundo que o jogador pode ver. */
   eventosDoMundo: () => req<{ eventos: EventoDoMundo[] }>('/eventos'),
+
+  /** A2.10: quem pode ser atacado agora, e se você tem Quartel para marchar. */
+  inimigos: () => req<{ tem_quartel: boolean; inimigos: ColoniaInimiga[] }>('/war/inimigos'),
+  atacarColonia: (colonyId: number, unitIds: number[]) =>
+    req<{ combate: { id: number; chega_em: string | null } }>('/war/attack-colony', {
+      method: 'POST',
+      body: JSON.stringify({ colony_id: colonyId, unit_ids: unitIds }),
+    }),
 
   /** A2.3: a árvore de pesquisa. */
   arvoreDePesquisa: () => req<ArvoreDePesquisa>('/pesquisa'),

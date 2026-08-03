@@ -10957,3 +10957,41 @@ e o parâmetro de neutralidade ainda dá para mudar.
 ### Verificação
 
 1192 testes verdes (10 novos).
+
+## D-204 — A porta do cerco de colônia, e três cenários de teste que estavam errados
+
+O D-203 entregou o cerco sem rota e sem tela — eu mesmo apontei que aquilo era a peça inalcançável que
+venho consertando a sessão inteira. Esta fecha.
+
+### O que entrou
+
+- `GET /war/inimigos` — quem pode ser atacado **agora**, já filtrado por guerra ativa. Sem ela,
+  atacar exigiria adivinhar o id de uma colônia alheia;
+- `POST /war/attack-colony`, **rota separada** da de zona: as travas são outras (guerra declarada,
+  Quartel), o desfecho é outro (saque em vez de tomada), e o §01 só cai aqui. Um `alvo_tipo` na rota
+  antiga faria duas regras muito diferentes entrarem pela mesma porta;
+- a seção no Quartel, que mostra **o exposto do alvo e a Torre dele** — marchar sem saber o que se
+  ganha é aposta, não decisão.
+
+### ⚠️ Três cenários de teste errados, e nenhum deles era erro de código
+
+**1. Semeei a guerra antes de as federações existirem.** O bloco do e2e ficou 60 linhas acima do que
+cria as federações, `federation_id` veio nulo, e o semeador inteiro quebrou — a suíte reprovou já no
+primeiro login, longe da causa.
+
+**2. A guerra semeada impediu a neutralidade.** O bloco que testava declarar-se neutro passou a
+reprovar, e a regra estava certa: **não se declara neutralidade no meio de uma guerra** (decisão 12).
+Não era o teste nem o código — era o **cenário**. Reescrevi o bloco para afirmar a recusa, que é a
+regra que de facto se aplica ali; o caminho feliz continua nos testes de backend, que controlam o
+mundo inteiro.
+
+⚠️ Registro isto porque a tentação, no vermelho, é mexer na regra para o teste passar.
+
+**3. E a recusa é um 422, que o vigia da suíte trata como falha.** Existe `janela.esperandoFalha`
+exatamente para isso — dizer que a próxima falha é esperada, em vez de baixar o vigia. Usá-lo é a
+diferença entre um teste que aceita erro e um que **prova** que o erro certo aconteceu.
+
+### Verificação
+
+1195 testes verdes (3 novos) e 10 suítes e2e verdes, com quatro asserções novas no Quartel — incluindo
+a que prova que a tela diz **os dois lados da revogação do §01**: fora de guerra, inviolável.

@@ -278,6 +278,67 @@ class CercoDeColoniaTest extends TestCase
         $this->assertDatabaseHas('telemetry_events', ['type' => 'colonia_saqueada']);
     }
 
+    // ─────────────────────────── ⚠️ a porta: rota que ninguém alcança é peça inerte
+
+    /**
+     * ⚠️ A lista de inimigos só traz quem está DE FACTO em guerra.
+     *
+     * A tela não deve oferecer o que a regra recusaria — e sem esta rota, atacar exigiria adivinhar
+     * o id de uma colônia alheia.
+     */
+    public function test_a_lista_de_inimigos_so_traz_quem_esta_em_guerra(): void
+    {
+        [, $a] = $this->federacao();
+        [, $b] = $this->federacao();
+        [, $neutro] = $this->federacao();
+        $this->comQuartel($a);
+
+        $antes = $this->actingAs($a->user)->getJson('/war/inimigos')->assertOk()->json();
+        $this->assertSame([], $antes['inimigos'], 'sem guerra, ninguém é alvo');
+
+        $this->guerra($a, $b);
+
+        $depois = $this->actingAs($a->user)->getJson('/war/inimigos')->assertOk()->json();
+        $ids = array_column($depois['inimigos'], 'id');
+
+        $this->assertContains($b->id, $ids, 'o inimigo aparece');
+        $this->assertNotContains($neutro->id, $ids, 'quem não está em guerra, não');
+        $this->assertTrue($depois['tem_quartel']);
+    }
+
+    /** E ela diz o que está EM RISCO: marchar sem saber o que se ganha é aposta, não decisão. */
+    public function test_a_lista_mostra_o_exposto_do_alvo(): void
+    {
+        [, $a] = $this->federacao();
+        [, $b] = $this->federacao();
+        $this->comQuartel($a);
+        $this->guerra($a, $b);
+
+        $b->buildings()->create(['type' => 'deposito_local', 'level' => 1]);
+        $b->buildings()->create(['type' => 'torre_de_defesa', 'level' => 3]);
+        $this->comEstoque($b->fresh(), 200_000);
+
+        $linha = collect($this->actingAs($a->user)->getJson('/war/inimigos')->json()['inimigos'])
+            ->firstWhere('id', $b->id);
+
+        $this->assertGreaterThan(0, $linha['exposto'], 'o excedente aparece');
+        $this->assertSame(3, $linha['torre'], 'e a Torre do alvo também');
+    }
+
+    public function test_a_rota_de_ataque_a_colonia_funciona(): void
+    {
+        [, $a] = $this->federacao();
+        [, $b] = $this->federacao();
+        $this->comQuartel($a);
+        $this->guerra($a, $b);
+
+        $this->actingAs($a->user)
+            ->postJson('/war/attack-colony', ['colony_id' => $b->id, 'unit_ids' => $this->tropa($a)])
+            ->assertOk();
+
+        $this->assertDatabaseHas('combats', ['defender_colony_id' => $b->id, 'zone_id' => null]);
+    }
+
     /** O resolvedor de ZONA não pode topar com um cerco de colônia — ele quebraria no `$zona` nulo. */
     public function test_o_resolvedor_de_zona_ignora_cerco_de_colonia(): void
     {

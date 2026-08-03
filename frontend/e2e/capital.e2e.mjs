@@ -25,6 +25,7 @@ import {
   irPara,
   relatar,
   textoDaPagina,
+  janela,
 } from './comum.mjs'
 
 const { navegador, page } = await abrirNavegador()
@@ -218,40 +219,32 @@ try {
     'e avisa que não há recusa antes de o jogador clicar',
   )
 
-  console.log('\nNeutralidade declarada (A2.10, decisão 12) — a válvula de escape')
+  console.log('\nNeutralidade em guerra (A2.10, decisão 12) — a regra que a recusa')
+  /*
+   * ⚠️ O mundo do e2e tem uma GUERRA ativa (semeada para a seção de colônias inimigas), e a decisão
+   * 12 diz que não se declara neutralidade no meio dela — seria fugir do que já começou. Então o que
+   * este bloco prova é a recusa, e não o caminho feliz: o caminho feliz está nos testes de backend,
+   * que controlam o mundo inteiro.
+   *
+   * Escrevi este bloco primeiro afirmando o caminho feliz, e ele reprovou. Não era o teste que estava
+   * errado nem o código: era o CENÁRIO. Vale registrar porque a tentação é mexer na regra.
+   */
   checar(
     !!(await page.$('[data-declarar-neutralidade]')),
-    'a federação pode declarar-se neutra antes de qualquer guerra',
+    'a federação em guerra ainda vê o botão — a recusa é do domínio, e ela vem com explicação',
   )
-
-  await clicar(page, '[data-declarar-neutralidade]')
-  checar(await esperarTexto(page, /Neutralidade declarada/), 'declarar-se neutra funciona')
 
   /*
-   * ⚠️ Esperar o SELETOR, e não o recado. O recado é posto na hora; a lista recarrega depois, de
-   * forma assíncrona. Olhar uma vez logo após o clique pegaria a tela no estado anterior — é a
-   * mesma corrida do D-180, e a mesma cura.
+   * ⚠️ A recusa é um 422 de propósito, e o vigia de erros da suíte trata 4xx como falha. `janela`
+   * existe para exatamente isto: dizer que a próxima falha é esperada, em vez de baixar o vigia.
    */
-  await page.waitForSelector('[data-encerrar-neutralidade]', { timeout: 8000 })
+  janela.esperandoFalha = true
+  await clicar(page, '[data-declarar-neutralidade]')
   checar(
-    !(await page.$('[data-declarar-guerra]')),
-    'e a neutra deixa de poder DECLARAR: a simetria é o custo que paga a proteção',
+    await esperarTexto(page, /no meio de uma guerra|capitula/i),
+    'e declarar-se neutro em guerra é recusado, dizendo que a saída é a capitulação',
   )
-
-  // ⚠️ Sair tem carência, e a tela diz isso antes de o jogador pedir.
-  await clicar(page, '[data-encerrar-neutralidade]')
-  checar(
-    await esperarTexto(page, /Saída pedida. A proteção ainda vale/),
-    'pedir para sair NÃO tira a proteção na hora — é o que impede largar o escudo no ataque',
-  )
-  checar(
-    !!(await page.$('[data-neutra-saindo]')),
-    'e a tela mostra a partir de quando ela deixa de valer',
-  )
-  checar(
-    await esperarTexto(page, /Guerra declarada a .* Sete dias|Faltam|fundo/),
-    'o clique chega ao domínio e volta com resposta',
-  )
+  janela.esperandoFalha = false
 
   console.log('\nVolta e abre o Ministério dos Transportes (slot 8)')
   await clicar(page, '[data-voltar-capital]')

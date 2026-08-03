@@ -264,6 +264,24 @@ foreach ([[$c, "Pacto do Norte", "PN", $u], [$cv, "Liga do Sul", "LS", $v]] as [
     ]);
 }
 
+/*
+ * A2.10: as duas federações em guerra, e um Quartel na colônia do e2e.
+ *
+ * ⚠️ Depois do bloco das federações, e não antes: a guerra precisa das duas existindo. Escrevi-o
+ * acima na primeira tentativa e o semeador inteiro quebrou — o e2e reprovou já no primeiro login.
+ *
+ * Sem isto a seção de colônias inimigas não renderiza, e o cerco de colônia — que REVOGA o §01 —
+ * ficaria sem cobertura de ponta a ponta. Foi assim que publiquei rota sem tela no D-180.
+ */
+$c->buildings()->create(["type" => "quartel", "level" => 2, "slot" => 14]);
+App\Models\FederationWar::create([
+    "declarante_id" => $c->fresh()->federation_id,
+    "alvo_id" => $cv->fresh()->federation_id,
+    "comeca_em" => now()->subHour(),
+    "termina_em" => now()->addDays(7),
+    "status" => "ativa",
+]);
+
 // D-81: uma fala da vizinha no Global, para o e2e do Chat ter um nick alheio em que clicar.
 // ChatMessage não tem timestamps automáticos ($timestamps = false) — created_at é à mão.
 App\Models\ChatMessage::create([

@@ -26,6 +26,7 @@ import {
   relatar,
   textoDaPagina,
   todosPorTexto,
+  irPara,
 } from './comum.mjs'
 
 const { navegador, page } = await abrirNavegador()
@@ -46,6 +47,20 @@ try {
     await esperarTexto(page, /produção -20%/),
     'e o efeito também: o jogador vê POR QUE a produção caiu',
   )
+
+  console.log('\nColônias inimigas no Quartel (A2.10) — o cerco que revoga o §01')
+  await irPara(page, '/quartel')
+  await page.waitForSelector('[data-secao="inimigos"]', { timeout: 8000 })
+  checar(true, 'a seção de colônias inimigas aparece com guerra declarada')
+  checar(
+    await esperarTexto(page, /Fora de guerra a colônia é/),
+    'a tela diz que fora de guerra a colônia é inviolável — os dois lados da revogação',
+  )
+  checar(
+    await esperarTexto(page, /exposto:/),
+    'e mostra o que está em risco: marchar sem saber o que se ganha é aposta',
+  )
+  checar(!!(await page.$('[data-atacar-colonia]')), 'o botão de marchar existe')
 
   console.log('\nOs botões que faltavam existem no HUD')
   checar(!!(await acharPorTexto(page, 'button', /^Mapa$/)), 'há botão para o Mapa')
