@@ -10660,3 +10660,62 @@ D-195, o alvo aqui, e agora a relação do usuário.
 
 1178 testes verdes (8 novos) e 10 suítes e2e verdes, com cinco asserções novas na Capital — incluindo
 a que prova que **pedir para sair não tira a proteção na hora**, que é a regra inteira num clique.
+
+## D-198 — O saque de colônia exporia 85% do mundo, e a culpa é de um número em branco
+
+Fatia de alvos e espólio. Medi antes de codar, e a medição a reprova como está.
+
+### ⚠️ "Só o excedente do Depósito" quer dizer, hoje, "quase tudo"
+
+| | |
+|---|---|
+| estoque total do mundo | 8.233.416 |
+| **exposto ao saque** | **7.004.832 — 85%** |
+| protegido pelo Depósito | 1.228.228 — 15% |
+| o que um saque de 50% (§27.8) levaria | **3.502.416** |
+
+A decisão 2 do D-193 foi tomada entendendo que o Depósito protege e **o excedente** fica em risco.
+Na prática ele protege **15%**, e uma invasão bem-sucedida leva mais de 40% de tudo o que a colônia
+tem.
+
+### A causa: `silo_capacidades` é plana, e o prédio está no nível 1
+
+Já registrei no D-181 que a tabela é **10.000 em todos os dez níveis** — o nível do Depósito Local
+não altera a proteção. E medi agora que **25 das 29 colônias estão no nível 1**, exatamente como
+estavam na Estrutura de Sobrevivência antes da população.
+
+⚠️ **Por isso mexer no FATOR por nível não resolve nada:**
+
+| fator | protegido |
+|---|---|
+| 1,25×/nível | 15% |
+| 1,50×/nível | 16% |
+| 1,75×/nível | 16% |
+
+Quem está no nível 1 recebe a base, e ponto. **A alavanca é a base:**
+
+| base do Silo | protegido | exposto |
+|---|---|---|
+| 10.000 (hoje) | 15% | **85%** |
+| 30.000 | 41% | 59% |
+| 50.000 | 59% | 41% |
+| 100.000 | 82% | 18% |
+| 200.000 | 96% | 4% |
+
+### É a mesma forma do D-191, e a terceira vez nesta Alpha
+
+Uma decisão de desenho apoiada num **parâmetro que nunca foi preenchido**. Antes foram a curva do
+teto de estoque (validada em simulação, 6× a 44× fora do mundo real) e os requisitos de operador
+(tabela vazia em produção, fazendo a conferência do §7.1 medir o nada).
+
+O padrão é sempre o mesmo: **o número placeholder não avisa que é placeholder.** Ele responde a
+consultas, passa nos testes, e só a medição contra o mundo mostra que ele nunca significou nada.
+
+### Por que parei em vez de escolher sozinho
+
+Não é timidez: as opções produzem jogos diferentes, num mundo com 29 colônias reais, e nenhuma é
+obviamente certa. Publicar 85% de exposição achando que estava publicando "o excedente" seria
+exatamente o erro que esta Alpha inteira vem evitando — e o único irreversível, porque estoque
+saqueado não volta.
+
+A fatia fica aberta até a base do Silo ter um número decidido.
