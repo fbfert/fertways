@@ -10891,3 +10891,69 @@ em que publiquei com um teste vermelho por não ler a saída (D-200).
 
 ⚠️ E antes de qualquer linha, a medição: quanto uma invasão levaria de cada uma das 29 colônias, hoje.
 As três ativações anteriores foram salvas por isso.
+
+## D-203 — O cerco de colônia, e o §01 revogado na prática
+
+Pedido para seguir depois de eu ter proposto parar. Segui, e a preocupação que levantei no D-202 fica
+registrada uma vez, não repetida.
+
+### A medição que autorizou a fatia
+
+| perda por invasão | do estoque da colônia |
+|---|---|
+| mínima | 0% |
+| **mediana** | **16,8%** |
+| máxima | 32,7% |
+
+Maior perda absoluta: 181.711 unidades. É o alvo que o D-199 tinha declarado — *"dói de verdade e não
+arrasa"* —, e agora medido em vez de estimado.
+
+⚠️ E medi o banco errado na primeira tentativa: rodei do diretório do repositório, que aponta para o
+**dev**, e recebi zeros em tudo. Refiz contra a produção. O erro é meu e é o mesmo de sempre: **a
+medição só vale se for do lugar certo.**
+
+### ⚠️ Resolvedor próprio, e não um ramo no `ResolverCombates`
+
+Aquele resolve três tipos de ataque em 700 linhas fortemente tipadas em `NeutralZone`: a defesa vem de
+`Forcas::defensiva(NeutralZone)`, os defensores são da zona, e o desfecho troca `owner_colony_id` e
+saqueia de `deposit_amount`. Ramificá-lo em cada ponto poria em risco **o único sistema de combate
+testado que o jogo tem**, num jogo no ar.
+
+**O preço é duplicação da fórmula da rodada**, e está escrito no docblock das duas classes: se o dano
+por rodada mudar num lado, tem de mudar no outro. Foi troca consciente — a alternativa, generalizar
+aquela classe agora, era a mudança mais arriscada disponível numa fatia que já revoga um parágrafo do
+GDD.
+
+⚠️ E o resolvedor de zona ganhou `whereNotNull('zone_id')`: sem isso ele encontraria `$zona` nulo no
+primeiro cerco de colônia e **quebraria o tick inteiro**. Há teste para isso.
+
+### `zone_id` nulável foi o que tornou o reuso possível
+
+`combats` já tinha `defender_colony_id` — num ataque de zona ele guarda o dono dela. Num de colônia,
+guarda o alvo, e `zone_id` fica nulo. **O alvo é colônia quando não há zona**, e nenhuma tabela nova
+precisou existir.
+
+### O terceiro prédio inerte ressuscitado
+
+A Torre de Defesa reduz o espólio, 10% por nível, **com teto de 70%**. Sem o teto, uma Torre alta
+zeraria o saque e atacar viraria puro custo — a mecânica se desligaria sozinha. Há teste para os dois:
+que ela **reduz**, e que ela **nunca zera**.
+
+Onze colônias em produção já a tinham erguido, defendendo o que ninguém podia atacar.
+
+### Os dois lados da revogação do §01, cada um com teste
+
+- **fora de guerra a colônia continua inviolável** — o §01 só cai dentro de guerra declarada;
+- **dentro dela é alvo**, e o saque leva só o excedente do Depósito: o protegido **nunca é tocado**.
+
+É a linha que separa *"a colônia é alvo"* de *"a colônia é destruída"*.
+
+### E a telemetria subiu junto, como o D-193 pediu
+
+`colonia_saqueada` carrega `defensor_offline`. É o número que dirá se a decisão de não proteger quem
+some está expulsando gente — se quem apanha ausente não volta, isso aparece **antes** de virar êxodo,
+e o parâmetro de neutralidade ainda dá para mudar.
+
+### Verificação
+
+1192 testes verdes (10 novos).

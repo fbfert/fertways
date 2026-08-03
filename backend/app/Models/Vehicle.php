@@ -61,6 +61,7 @@ class Vehicle extends Model
 
     /** Onde o veículo está quando está parado (D-65). Em rota, `local` é o lugar de onde ele saiu. */
     public const EM_CASA = 'colonia';
+
     public const NO_PATIO = 'capital';
 
     /**

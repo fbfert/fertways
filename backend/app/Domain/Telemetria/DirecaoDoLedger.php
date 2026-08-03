@@ -114,6 +114,9 @@ class DirecaoDoLedger
 
         // A2.10: sai da colônia e entra no fundo — é fluxo econômico de verdade.
         'contribuicao_fundo',
+        // A2.10: espólio de guerra move recurso de verdade entre colônias.
+        'saque_sofrido',
+        'saque_recebido',
     ];
 
     public function contaNoFluxo(string $tipo): bool

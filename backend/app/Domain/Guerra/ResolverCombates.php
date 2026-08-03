@@ -2,12 +2,15 @@
 
 namespace App\Domain\Guerra;
 
+use App\Domain\Marco\ConcederXp;
+use App\Domain\Missoes\Progresso;
 use App\Domain\Zona\AvisoDeAtaque;
 use App\Models\Colony;
 use App\Models\Combat;
 use App\Models\Ledger;
 use App\Models\NeutralZone;
 use App\Models\Unit;
+use App\Models\ZoneEvent;
 use App\Models\ZoneMaterial;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -60,6 +63,10 @@ class ResolverCombates
         $agora ??= now();
 
         $ids = Combat::whereIn('status', ['marchando', 'em_curso'])
+            // ⚠️ A2.10: combate sem zona é cerco de COLÔNIA, e quem o resolve é
+            // `GuerraFederativa\ResolverCercoDeColonia`. Sem este filtro, este resolvedor
+            // encontraria `$zona` nulo no primeiro alvo e quebraria o tick inteiro.
+            ->whereNotNull('zone_id')
             ->where('proxima_rodada_at', '<=', $agora)
             ->orderBy('proxima_rodada_at')
             ->pluck('id');
@@ -337,7 +344,7 @@ class ResolverCombates
         Unit::where('zone_id', $zona->id)->delete();
 
         // Histórico da zona (D-86).
-        \App\Models\ZoneEvent::create([
+        ZoneEvent::create([
             'zone_id' => $zona->id, 'type' => 'conquistada', 'colony_id' => $combate->attacker_colony_id,
             'meta' => ['combat_id' => $combate->id, 'dono_anterior_colony_id' => $donoAnterior],
             'created_at' => now(),
@@ -347,9 +354,9 @@ class ResolverCombates
         $this->recolherSobreviventes($combate);
 
         // Conquistar uma zona é o ato de guerra que o Marco premia (D-75).
-        app(\App\Domain\Marco\ConcederXp::class)
+        app(ConcederXp::class)
             ->handle($combate->attacker_colony_id, 'combate_vencido', "combate:{$combate->id}");
-        app(\App\Domain\Missoes\Progresso::class)->registrar($combate->attacker_colony_id, 'combate_vencido');
+        app(Progresso::class)->registrar($combate->attacker_colony_id, 'combate_vencido');
 
         $combate->status = 'vitoria_atacante';
         $combate->proxima_rodada_at = null;
@@ -370,9 +377,9 @@ class ResolverCombates
 
         // Segurar a zona também é vencer (D-75). O Infiltrador/Predador visto NÃO passa por aqui —
         // detectar um sabotador é rotina da Torre, não uma batalha vencida.
-        app(\App\Domain\Marco\ConcederXp::class)
+        app(ConcederXp::class)
             ->handle($combate->defender_colony_id, 'combate_vencido', "combate:{$combate->id}");
-        app(\App\Domain\Missoes\Progresso::class)->registrar($combate->defender_colony_id, 'combate_vencido');
+        app(Progresso::class)->registrar($combate->defender_colony_id, 'combate_vencido');
 
         $combate->status = 'repelido';
         $combate->proxima_rodada_at = null;
@@ -507,9 +514,9 @@ class ResolverCombates
         $this->recolherSobreviventes($ruptura);
 
         // Romper um cerco é a vitória mais difícil do jogo — o sitiado saiu a campo aberto (D-75).
-        app(\App\Domain\Marco\ConcederXp::class)
+        app(ConcederXp::class)
             ->handle($ruptura->attacker_colony_id, 'combate_vencido', "ruptura:{$ruptura->id}");
-        app(\App\Domain\Missoes\Progresso::class)->registrar($ruptura->attacker_colony_id, 'combate_vencido');
+        app(Progresso::class)->registrar($ruptura->attacker_colony_id, 'combate_vencido');
 
         $ruptura->status = 'vitoria_atacante';
         $ruptura->proxima_rodada_at = null;

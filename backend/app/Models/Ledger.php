@@ -26,6 +26,9 @@ class Ledger extends Model
     public const TIPOS = [
         // A2.10: Fert$ que sai da colônia para o fundo da federação. Saída, e por isso negativo.
         'contribuicao_fundo',
+        // A2.10: as duas pernas do saque de colônia. O sinal decide a direção (D-164).
+        'saque_sofrido',
+        'saque_recebido',
         'producao',
         'custo_construcao',
         'subsidio_governo',   // §24.7: 100% das cinco essenciais até o nível 3

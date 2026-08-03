@@ -75,6 +75,12 @@ class TelemetryEvent extends Model
          */
         'item_unico_circulou',
 
+        /*
+         * A2.10: uma colônia foi saqueada. ⚠️ Carrega `defensor_offline` de propósito — é o número
+         * que dirá se a decisão de não proteger quem some está expulsando gente.
+         */
+        'colonia_saqueada',
+
         // Logística
         'transporte_iniciado',
         'transporte_concluido',

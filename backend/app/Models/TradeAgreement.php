@@ -3,7 +3,6 @@
 namespace App\Models;
 
 use App\Domain\Trade\ProporAcordo;
-
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
