@@ -10719,3 +10719,51 @@ exatamente o erro que esta Alpha inteira vem evitando — e o único irreversív
 saqueado não volta.
 
 A fatia fica aberta até a base do Silo ter um número decidido.
+
+## D-199 — A curva de proteção do Depósito, e o que ela muda no mundo
+
+Decisão do Dono sobre o D-198: **base 50.000, +25% por nível**.
+
+| nível | protege |
+|---|---|
+| 1 | 50.000 |
+| 5 | 122.070 |
+| 10 | 372.525 |
+
+### O que muda em produção
+
+| | antes | depois |
+|---|---|---|
+| protegido | 15% | **59%** |
+| **exposto ao saque** | **85%** | **41%** |
+| um saque de 50% leva | 42% do total | **~20% do total** |
+
+"Excedente do Depósito" volta a querer dizer excedente. Dói de verdade e não arrasa.
+
+### ⚠️ O fator não muda nada hoje, e isso está certo
+
+25 das 29 colônias estão no Depósito Local **nível 1** — mesmo retrato da Estrutura de Sobrevivência
+antes da população. Os +25% por nível não movem uma unidade neste mundo; passam a valer conforme ele
+cresce, e é o que dá ao prédio uma **segunda razão para subir**, além da capacidade.
+
+⚠️ Registrar isso importa: alguém que meça o efeito amanhã vai achar que a curva não faz nada, e vai
+estar certo — sobre hoje.
+
+### Proteção e capacidade continuam separadas
+
+O `Silo` responde *"quanto está a salvo"*; o `TetoDoEstoque`, *"quanto cabe"* (D-181). Partilham o
+prédio e a forma da curva, e **nada mais**. Os números se movem em separado, e é por isso que moram em
+tabelas diferentes — conflá-las teria sido a decisão fácil e errada lá atrás.
+
+### O teste que faltava havia meses
+
+`silo_capacidades` foi plana em 10.000 nos dez níveis durante toda a vida do projeto, e **nenhum teste
+percebeu** — a tabela respondia a consultas e passava em tudo. O novo não guarda a curva: guarda a
+**propriedade**. *Subir o Depósito tem de proteger mais.* Com a tabela de antes, ele falharia.
+
+É a resposta mais direta que encontrei para o padrão do D-198: **o número placeholder não avisa que é
+placeholder** — então o que tem de existir é um teste sobre a propriedade que ele deveria produzir.
+
+### Verificação
+
+1182 testes verdes (4 novos).
