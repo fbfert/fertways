@@ -10767,3 +10767,41 @@ placeholder** — então o que tem de existir é um teste sobre a propriedade qu
 ### Verificação
 
 1182 testes verdes (4 novos).
+
+## D-200 — Publiquei com um teste vermelho, e o teste defendia o erro
+
+Duas coisas erradas de uma vez, e as duas valem registro.
+
+### ⚠️ 1. Eu não olhei a saída dos testes antes de comitar
+
+A suíte terminou em **1 falha, 1181 passando**, e eu segui direto para o commit, o push e o deploy.
+O `deploy.sh` não roda testes — ele confere migrations, `APP_DEBUG`, opcache e fumaça —, então nada
+me barrou.
+
+Produção não foi afetada: o teste afirmava o valor **antigo**, e o código novo estava certo. Mas isso
+é sorte, não processo. **A regra que eu quebrei é minha e é simples: ler a saída antes de comitar.**
+
+### ⚠️ 2. O teste vermelho estava defendendo o placeholder
+
+```
+test_capacidade_padrao_e_10000_para_qualquer_recurso_e_nivel
+```
+
+Ele cravava **10.000 para todo recurso e todo nível** — exatamente o valor plano que fez 85% do
+estoque do mundo ficar exposto (D-198). Um teste assim não protege nada: ele fica verde **porque nada
+mudou**, e transforma um número em branco em decisão aparente.
+
+Foi ele que manteve a tabela plana invisível durante toda a vida do projeto. E quando o valor
+finalmente foi corrigido, ele reprovou — **defendendo o defeito**.
+
+### A lição, que é a resposta ao padrão do D-198
+
+Já registrei que *"o número placeholder não avisa que é placeholder"*. Faltava a outra metade:
+**teste que afirma o valor de um parâmetro em branco é como o placeholder se defende.**
+
+O teste passou a guardar a **propriedade**: a capacidade existe para todo recurso, e **sobe com o
+nível**. Com a tabela antiga ele falharia — que é o que um teste deveria ter feito desde o começo.
+
+### Verificação
+
+1182 testes verdes.

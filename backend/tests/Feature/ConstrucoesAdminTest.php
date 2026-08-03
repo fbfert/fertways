@@ -6,7 +6,10 @@ use App\Domain\Building\BuildingSpecs;
 use App\Domain\Colony\CreateColony;
 use App\Domain\Colony\Silo;
 use App\Models\Admin;
+use App\Models\User;
 use Database\Seeders\BuildingSpecSeeder;
+use Database\Seeders\ComponentRecipeSeeder;
+use Database\Seeders\ResourceTypeSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -27,8 +30,8 @@ class ConstrucoesAdminTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->seed(\Database\Seeders\ResourceTypeSeeder::class);
-        $this->seed(\Database\Seeders\ComponentRecipeSeeder::class);
+        $this->seed(ResourceTypeSeeder::class);
+        $this->seed(ComponentRecipeSeeder::class);
         $this->seed(BuildingSpecSeeder::class);
     }
 
@@ -127,21 +130,37 @@ class ConstrucoesAdminTest extends TestCase
 
     // ─────────────────────────────────────────────────────────────── Silo ──
 
-    public function test_capacidade_padrao_e_10000_para_qualquer_recurso_e_nivel(): void
+    /**
+     * ⚠️ Este teste cravava **10.000 para todo recurso e todo nível**, e era ele que fazia o
+     * placeholder parecer decisão.
+     *
+     * A tabela foi plana durante toda a vida do projeto: o nível do Depósito Local não protegia nada,
+     * e 85% do estoque do mundo ficava exposto (D-198). Um teste que afirma o valor de um parâmetro em
+     * branco **defende o erro** — ele fica verde justamente porque nada mudou.
+     *
+     * Agora ele guarda a **propriedade**, que é o que nunca deveria ter deixado de valer: a capacidade
+     * existe para todo recurso do catálogo, e **sobe com o nível** (D-199).
+     */
+    public function test_a_capacidade_do_silo_existe_para_todos_e_sobe_com_o_nivel(): void
     {
         foreach (['oxigenio', 'niobio_alienigena'] as $recurso) {
+            $anterior = 0;
+
             foreach ([1, 5, 10] as $nivel) {
-                $this->assertSame(
-                    10_000,
-                    DB::table('silo_capacidades')->where(['resource_type' => $recurso, 'level' => $nivel])->value('capacidade'),
-                );
+                $capacidade = (int) DB::table('silo_capacidades')
+                    ->where(['resource_type' => $recurso, 'level' => $nivel])
+                    ->value('capacidade');
+
+                $this->assertGreaterThan(0, $capacidade, "{$recurso} n{$nivel} tem de proteger algo");
+                $this->assertGreaterThan($anterior, $capacidade, 'subir o Depósito protege mais');
+                $anterior = $capacidade;
             }
         }
     }
 
     public function test_admin_ajusta_capacidade_e_protegido_exposto_refletem(): void
     {
-        $user = \App\Models\User::factory()->create();
+        $user = User::factory()->create();
         $colonia = app(CreateColony::class)->handle($user, 'Silo Test', 0, 1);
 
         $this->actingAs($this->operador(), 'admin')
