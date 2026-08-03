@@ -10604,3 +10604,59 @@ o mundo · medir antes **e medir a coisa certa**.
 
 Cada um foi pago com um erro desta Alpha, e cada um é hoje guardado por teste. Estavam espalhados por
 trinta e cinco decisões; agora estão numa página.
+
+## D-197 — Neutralidade declarada, e a pergunta que a decisão 12 não respondia
+
+Antes do saque, como eu mesmo tinha dito que seria: publicar consequência sem a válvula de escape
+deixaria uma semana em que quem quisesse ficar fora não teria como.
+
+### ⚠️ A decisão 12 não dizia quanto a neutralidade custa — e sem isso ela não funciona
+
+> *"A neutralidade só pode ocorrer se declarada pelo jogador antes do início da guerra."*
+
+Se fosse grátis e reversível na hora, **todos se declarariam neutros e largariam o escudo no instante
+de atacar**. A neutralidade viraria o estado padrão do mundo, e a A2.10 inteira, decoração.
+
+Duas regras resolvem, e são arbitragem minha registrada:
+
+1. **Simetria.** A neutra não pode ser declarada **e não pode declarar**. É o que a palavra significa,
+   e é o custo que paga a proteção.
+2. **Carência para SAIR.** Encerrar só vale 24 h depois. Entrar é imediato; sair, não.
+
+⚠️ A assimetria é a mesma da aliança (D-182) **pelo motivo oposto**: lá, sair é livre porque ninguém
+deve ficar refém de um pacto; aqui, sair é lento porque ninguém deve poder atacar de dentro do abrigo.
+
+E **não se declara neutralidade em guerra** — seria fugir do que já começou. A saída de lá é a
+capitulação, que vem na fatia seguinte.
+
+### ⚠️ Um teste achou uma corrida real, não um defeito de teste
+
+`DeclararGuerra` confiava no modelo do **alvo** como ele chegou do roteador. Entre o início da
+requisição e a transação, o alvo pode declarar neutralidade — e a leitura velha diria que não. O alvo
+passou a ser relido **com trava**, como a `Diplomacia` já fazia com a colônia do autor.
+
+Não era um teste chato: era o teste encontrando exatamente a janela que o `lockForUpdate` existe para
+fechar.
+
+### ⚠️ E a mesma armadilha de estado velho, de novo, do outro lado
+
+O endpoint lia `$request->user()->colony->federation` — carregado uma vez e mantido em memória.
+Qualquer coisa que mudasse a federação **depois** daquele carregamento não apareceria. Em produção
+cada requisição reconstrói o usuário e o problema não dá as caras; sob `actingAs`, e em qualquer
+caminho que reaproveite o modelo, dá. A federação passou a ser relida.
+
+**Terceira vez nesta sessão** que "modelo em memória ≠ banco" me custa tempo: o `fert_micro` do
+D-195, o alvo aqui, e agora a relação do usuário.
+
+### Duas correções de método que se repetiram
+
+- **Pint encurta o FQCN antes da minha busca.** Duas edições minhas não aplicaram hoje porque procurei
+  `\App\Domain\...` onde já estava `Modificadores::class`. Editar PHP com texto exige olhar o
+  arquivo **depois** do formatador, não antes;
+- **A tela recarrega assíncrona**: o recado aparece antes da lista. Esperar o *seletor* em vez do
+  texto é a cura, e é a mesma do D-180.
+
+### Verificação
+
+1178 testes verdes (8 novos) e 10 suítes e2e verdes, com cinco asserções novas na Capital — incluindo
+a que prova que **pedir para sair não tira a proteção na hora**, que é a regra inteira num clique.

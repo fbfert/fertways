@@ -8,6 +8,7 @@ use App\Domain\Federacao\ContribuirParaOFundo;
 use App\Domain\Federacao\Diplomacia;
 use App\Domain\GuerraFederativa\DeclararGuerra;
 use App\Domain\GuerraFederativa\EncerrarGuerras;
+use App\Domain\GuerraFederativa\Neutralidade;
 use App\Exceptions\DomainRuleException;
 use App\Models\Colony;
 use App\Models\Federation;
@@ -293,6 +294,113 @@ class GuerraFederativaTest extends TestCase
 
         $this->assertGreaterThan($normal['fert'], $caro['fert']);
         $this->assertGreaterThan($normal['niobio'], $caro['niobio']);
+    }
+
+    // ─────────────────────────────── ⚠️ neutralidade declarada (decisão 12)
+
+    /** A neutra não pode ser alvo. É a proteção que a decisão 12 escolheu — e a única que há. */
+    public function test_a_neutra_nao_pode_ser_declarada(): void
+    {
+        [, $autor] = $this->federacao();
+        [$b, $autorB] = $this->federacao();
+
+        app(Neutralidade::class)->declarar($autorB);
+
+        $this->expectException(DomainRuleException::class);
+        app(DeclararGuerra::class)->handle($autor, $b);
+    }
+
+    /**
+     * ⚠️ E a neutra também não DECLARA — a simetria é o custo que paga a proteção.
+     *
+     * Sem ela, a neutralidade seria um abrigo de onde se ataca: declarar-se neutro e sair batendo
+     * seria a jogada certa sempre, e a guerra deixaria de existir.
+     */
+    public function test_a_neutra_tambem_nao_declara(): void
+    {
+        [, $autor] = $this->federacao();
+        [$b] = $this->federacao();
+
+        app(Neutralidade::class)->declarar($autor);
+
+        $this->expectException(DomainRuleException::class);
+        app(DeclararGuerra::class)->handle($autor, $b);
+    }
+
+    /**
+     * ⚠️ **A carência é o que impede o escudo de ser largado na hora do ataque.**
+     *
+     * Pedir para sair NÃO tira a proteção na hora: ela vale até a carência acabar. Sem isso, largar o
+     * abrigo no instante de declarar seria sempre a melhor jogada — e a neutralidade viraria o estado
+     * padrão do mundo.
+     */
+    public function test_pedir_para_sair_nao_tira_a_protecao_na_hora(): void
+    {
+        [$a, $autor] = $this->federacao();
+        [$b] = $this->federacao();
+
+        app(Neutralidade::class)->declarar($autor);
+        app(Neutralidade::class)->encerrar($autor);
+
+        $this->assertTrue(
+            app(Neutralidade::class)->vigente($a->fresh()),
+            'continua neutra durante a carência',
+        );
+
+        $this->expectException(DomainRuleException::class);
+        app(DeclararGuerra::class)->handle($autor, $b);
+    }
+
+    /** Passada a carência, a proteção acaba e a federação volta a poder declarar. */
+    public function test_depois_da_carencia_a_neutralidade_acaba(): void
+    {
+        [$a, $autor] = $this->federacao();
+        [$b] = $this->federacao();
+
+        app(Neutralidade::class)->declarar($autor);
+        app(Neutralidade::class)->encerrar($autor);
+
+        $this->travel((int) WarSetting::singleton()->neutralidade_carencia_horas + 1)->hours();
+
+        $this->assertFalse(app(Neutralidade::class)->vigente($a->fresh()));
+
+        $guerra = app(DeclararGuerra::class)->handle($autor, $b);
+        $this->assertSame('ativa', $guerra->status);
+    }
+
+    /** Não se declara neutralidade no meio de uma guerra: a saída de lá é a capitulação. */
+    public function test_nao_se_declara_neutralidade_em_guerra(): void
+    {
+        [, $autor] = $this->federacao();
+        [$b, $autorB] = $this->federacao();
+
+        app(DeclararGuerra::class)->handle($autor, $b);
+
+        $this->expectException(DomainRuleException::class);
+        app(Neutralidade::class)->declarar($autorB);
+    }
+
+    public function test_so_lider_ou_diplomata_declaram_neutralidade(): void
+    {
+        [, $autor] = $this->federacao(Federation::INTENDENTE);
+
+        $this->expectException(DomainRuleException::class);
+        app(Neutralidade::class)->declarar($autor);
+    }
+
+    /** O tick limpa quem cumpriu a carência, para o DADO não mentir. */
+    public function test_o_tick_limpa_a_neutralidade_vencida(): void
+    {
+        [$a, $autor] = $this->federacao();
+
+        app(Neutralidade::class)->declarar($autor);
+        app(Neutralidade::class)->encerrar($autor);
+
+        app(Neutralidade::class)->limparVencidas(
+            now()->addHours((int) WarSetting::singleton()->neutralidade_carencia_horas + 1),
+        );
+
+        $this->assertNull($a->fresh()->neutra_desde, 'o dado deixou de dizer que ela é neutra');
     }
 
     // ─────────────────────────────── o fundo em Fert$

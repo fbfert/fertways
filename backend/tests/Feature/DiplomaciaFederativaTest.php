@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Domain\Federacao\Aliancas;
 use App\Domain\Federacao\Concentracao;
 use App\Domain\Federacao\Diplomacia;
+use App\Domain\GuerraFederativa\Neutralidade;
 use App\Domain\Logistics\ConcluirTrechos;
 use App\Domain\Logistics\OcuparZonaNeutra;
 use App\Exceptions\DomainRuleException;
@@ -322,6 +323,21 @@ class DiplomaciaFederativaTest extends TestCase
         $this->assertSame('proposta', $corpo['relacoes'][0]['status']);
         $this->assertTrue($corpo['relacoes'][0]['propus']);
         $this->assertGreaterThan($corpo['desconto_alianca'], $corpo['desconto_interno']);
+    }
+
+    /** ⚠️ A neutralidade tem de CHEGAR à tela — senão é regra que ninguém consegue exercer. */
+    public function test_a_mesa_mostra_a_neutralidade(): void
+    {
+        [, $autor] = $this->federacao();
+
+        $antes = $this->actingAs($autor->user)->getJson('/federation/diplomacia')->json();
+        $this->assertFalse($antes['guerra']['neutra'], 'começa não-neutra');
+
+        app(Neutralidade::class)->declarar($autor);
+
+        $depois = $this->actingAs($autor->user)->getJson('/federation/diplomacia')->json();
+        $this->assertTrue($depois['guerra']['neutra'], 'e a tela passa a saber');
+        $this->assertNull($depois['guerra']['saindo_em']);
     }
 
     public function test_a_api_exige_autenticacao(): void

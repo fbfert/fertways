@@ -298,4 +298,11 @@ Route::middleware('auth:sanctum')->group(function () {
      */
     Route::post('/federations/{federation}/guerra', [FederationController::class, 'declararGuerra']);
     Route::post('/federation/fundo', [FederationController::class, 'contribuirParaOFundo']);
+
+    /*
+     * A2.10, decisão 12: a neutralidade é DECLARADA, e antes da guerra. Entrar é imediato; sair tem
+     * carência — senão o escudo se larga no instante do ataque.
+     */
+    Route::post('/federation/neutralidade', [FederationController::class, 'declararNeutralidade']);
+    Route::delete('/federation/neutralidade', [FederationController::class, 'encerrarNeutralidade']);
 });

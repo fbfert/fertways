@@ -100,6 +100,57 @@ export function MesaDiplomatica() {
             </p>
           )}
 
+          {/*
+            A neutralidade, e a carência dita ANTES de o jogador pedir para sair.
+
+            ⚠️ Descobrir depois que o escudo ainda vale por um dia seria descobrir tarde — e a
+            carência é justamente o que impede largá-lo na hora do ataque.
+          */}
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            {d.guerra.neutra ? (
+              <>
+                <Selo estado="info">neutra</Selo>
+                {d.guerra.saindo_em ? (
+                  <span className="text-ink-soft text-xs" data-neutra-saindo>
+                    Deixa de ser neutra em {new Date(d.guerra.saindo_em).toLocaleString('pt-BR')} —
+                    até lá continua protegida.
+                  </span>
+                ) : (
+                  <Botao
+                    variante="fantasma"
+                    tamanho="pequeno"
+                    onClick={() =>
+                      agir(
+                        () => api.encerrarNeutralidade(),
+                        `Saída pedida. A proteção ainda vale por ${d.guerra?.carencia_horas} h.`,
+                      )
+                    }
+                    disabled={ocupado || !d.pode_tratar}
+                    data-encerrar-neutralidade
+                    title={`A saída só vale depois de ${d.guerra.carencia_horas} h.`}
+                  >
+                    Encerrar neutralidade
+                  </Botao>
+                )}
+              </>
+            ) : (
+              d.pode_tratar && (
+                <Botao
+                  variante="secundaria"
+                  tamanho="pequeno"
+                  onClick={() =>
+                    agir(() => api.declararNeutralidade(), 'Neutralidade declarada.')
+                  }
+                  disabled={ocupado}
+                  data-declarar-neutralidade
+                  title="Neutra não pode ser declarada — e não declara. A saída tem carência."
+                >
+                  Declarar neutralidade
+                </Botao>
+              )
+            )}
+          </div>
+
           {d.guerra.em_guerra_com.map((g) => (
             <p key={g.id} className="text-perigo mt-1 text-sm" data-em-guerra={g.id}>
               ▲ Em guerra com <strong>{g.nome}</strong> até{' '}
@@ -146,7 +197,7 @@ export function MesaDiplomatica() {
                 D-193 diz que a tela tem de avisar antes — e descobrir depois seria traição do jogo,
                 não do jogador.
               */}
-              {d.pode_tratar && !d.guerra?.tregua && (
+              {d.pode_tratar && !d.guerra?.tregua && !d.guerra?.neutra && (
                 <Botao
                   variante="perigo"
                   tamanho="pequeno"

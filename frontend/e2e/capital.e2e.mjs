@@ -218,7 +218,36 @@ try {
     'e avisa que não há recusa antes de o jogador clicar',
   )
 
-  await clicar(page, '[data-declarar-guerra]')
+  console.log('\nNeutralidade declarada (A2.10, decisão 12) — a válvula de escape')
+  checar(
+    !!(await page.$('[data-declarar-neutralidade]')),
+    'a federação pode declarar-se neutra antes de qualquer guerra',
+  )
+
+  await clicar(page, '[data-declarar-neutralidade]')
+  checar(await esperarTexto(page, /Neutralidade declarada/), 'declarar-se neutra funciona')
+
+  /*
+   * ⚠️ Esperar o SELETOR, e não o recado. O recado é posto na hora; a lista recarrega depois, de
+   * forma assíncrona. Olhar uma vez logo após o clique pegaria a tela no estado anterior — é a
+   * mesma corrida do D-180, e a mesma cura.
+   */
+  await page.waitForSelector('[data-encerrar-neutralidade]', { timeout: 8000 })
+  checar(
+    !(await page.$('[data-declarar-guerra]')),
+    'e a neutra deixa de poder DECLARAR: a simetria é o custo que paga a proteção',
+  )
+
+  // ⚠️ Sair tem carência, e a tela diz isso antes de o jogador pedir.
+  await clicar(page, '[data-encerrar-neutralidade]')
+  checar(
+    await esperarTexto(page, /Saída pedida. A proteção ainda vale/),
+    'pedir para sair NÃO tira a proteção na hora — é o que impede largar o escudo no ataque',
+  )
+  checar(
+    !!(await page.$('[data-neutra-saindo]')),
+    'e a tela mostra a partir de quando ela deixa de valer',
+  )
   checar(
     await esperarTexto(page, /Guerra declarada a .* Sete dias|Faltam|fundo/),
     'o clique chega ao domínio e volta com resposta',

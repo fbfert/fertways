@@ -16,6 +16,7 @@ use App\Domain\Federacao\SacarDoFundo;
 use App\Domain\Federacao\SairDaFederacao;
 use App\Domain\Federacao\TransferirLideranca;
 use App\Domain\GuerraFederativa\DeclararGuerra;
+use App\Domain\GuerraFederativa\Neutralidade;
 use App\Exceptions\DomainRuleException;
 use App\Http\Controllers\Controller;
 use App\Models\Colony;
@@ -24,6 +25,7 @@ use App\Models\FederationHolding;
 use App\Models\FederationInvite;
 use App\Models\FederationSetting;
 use App\Models\FederationWar;
+use App\Models\WarSetting;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -185,6 +187,22 @@ class FederationController extends Controller
         ]);
     }
 
+    /** POST /federation/neutralidade — declara-se neutra (A2.10, decisão 12). Imediato. */
+    public function declararNeutralidade(Request $request): JsonResponse
+    {
+        $f = app(Neutralidade::class)->declarar($this->colonia($request));
+
+        return response()->json(['neutra_desde' => $f->neutra_desde?->toIso8601String()]);
+    }
+
+    /** DELETE /federation/neutralidade — pede para sair. ⚠️ Só vale depois da carência. */
+    public function encerrarNeutralidade(Request $request): JsonResponse
+    {
+        $f = app(Neutralidade::class)->encerrar($this->colonia($request));
+
+        return response()->json(['termina_em' => $f->neutralidade_termina_em?->toIso8601String()]);
+    }
+
     /** POST /federation/fundo — põe Fert$ no caixa comum. Qualquer membro pode. */
     public function contribuirParaOFundo(Request $request): JsonResponse
     {
@@ -208,6 +226,20 @@ class FederationController extends Controller
      */
     private function mesaDeGuerra(Federation $federacao): array
     {
+        /*
+         * ⚠️ Relê a federação, e não confia na relação que veio do usuário.
+         *
+         * `$request->user()->colony->federation` é carregado uma vez e fica em memória; qualquer
+         * coisa que mude a federação **depois** desse carregamento — declarar neutralidade, receber
+         * uma declaração de guerra — não apareceria aqui. Em produção cada requisição reconstrói o
+         * usuário e o problema não dá as caras; num teste com `actingAs`, e em qualquer caminho que
+         * reaproveite o modelo, dá.
+         *
+         * Uma consulta a mais no caminho de leitura vale menos que uma tela que mostra o estado
+         * anterior sem avisar.
+         */
+        $federacao = Federation::whereKey($federacao->id)->firstOrFail();
+
         $declarar = app(DeclararGuerra::class);
         $custo = $declarar->custo();
         $agora = now();
@@ -217,10 +249,20 @@ class FederationController extends Controller
             ->where(fn ($q) => $q->where('declarante_id', $federacao->id)->orWhere('alvo_id', $federacao->id))
             ->get();
 
+        $neutralidade = app(Neutralidade::class);
+
         return [
             'tregua' => app(Modificadores::class)->guerraBloqueada(null, $agora),
+
+            /*
+             * A neutralidade da PRÓPRIA federação. `saindo_em` preenchido significa carência em
+             * curso: ainda protegida, e já com data para deixar de estar.
+             */
+            'neutra' => $neutralidade->vigente($federacao, $agora),
+            'saindo_em' => $federacao->neutralidade_termina_em?->toIso8601String(),
             'custo_fert' => $custo['fert'] / Colony::MICRO_POR_FERT,
             'custo_niobio' => $custo['niobio'],
+            'carencia_horas' => (int) WarSetting::singleton()->neutralidade_carencia_horas,
             'em_guerra_com' => $emGuerra->map(fn ($g) => [
                 'id' => (int) $g->declarante_id === $federacao->id ? $g->alvo_id : $g->declarante_id,
                 'nome' => (int) $g->declarante_id === $federacao->id ? $g->alvo?->name : $g->declarante?->name,

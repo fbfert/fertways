@@ -1103,6 +1103,11 @@ export type MesaDiplomatica = {
   guerra?: {
     /** O Governo suspendeu declarações — o portão do Motor de Eventos está fechado. */
     tregua: boolean
+    /** A própria federação declarou-se neutra (A2.10, decisão 12). */
+    neutra: boolean
+    /** Preenchido = carência em curso: ainda protegida, e já com data para deixar de estar. */
+    saindo_em: string | null
+    carencia_horas: number
     /** O custo AGORA, já com o modificador de mobilização. Não é o custo de tabela. */
     custo_fert: number
     custo_niobio: number
@@ -1728,6 +1733,12 @@ export const api = {
   /** A2.10: declarar guerra. Não há recusa do outro lado — ver o D-193, decisão 4. */
   declararGuerra: (id: number) =>
     req<{ guerra: { id: number; termina_em: string } }>(`/federations/${id}/guerra`, { method: 'POST' }),
+
+  /** A2.10: declarar-se neutra. Imediato — sair, não. */
+  declararNeutralidade: () =>
+    req<{ neutra_desde: string | null }>('/federation/neutralidade', { method: 'POST' }),
+  encerrarNeutralidade: () =>
+    req<{ termina_em: string | null }>('/federation/neutralidade', { method: 'DELETE' }),
 
   contribuirParaOFundo: (fert: number) =>
     req<{ fundo_fert: number }>('/federation/fundo', {

@@ -33,9 +33,17 @@ class Federation extends Model
         'disbanded_at',
         // A2.10: o caixa do fundo. Sem ele, o custo de declarar guerra não teria de onde sair.
         'fert_micro',
+        // A2.10: a neutralidade declarada (decisão 12).
+        'neutra_desde',
+        'neutralidade_termina_em',
     ];
 
-    protected $casts = ['disbanded_at' => 'datetime', 'fert_micro' => 'integer'];
+    protected $casts = [
+        'disbanded_at' => 'datetime',
+        'fert_micro' => 'integer',
+        'neutra_desde' => 'datetime',
+        'neutralidade_termina_em' => 'datetime',
+    ];
 
     public function membros(): HasMany
     {

@@ -48,12 +48,23 @@ class DeclararGuerra
         private readonly Modificadores $eventos,
         private readonly EnviarMensagem $chat,
         private readonly PublicarNoticia $noticias,
+        private readonly Neutralidade $neutralidade,
     ) {}
 
     public function handle(Colony $autor, Federation $alvo): FederationWar
     {
         return DB::transaction(function () use ($autor, $alvo) {
             $minha = $this->federacaoDe($autor);
+
+            /*
+             * ⚠️ O ALVO é relido com trava, e não se confia no modelo que chegou.
+             *
+             * Ele veio do roteador, montado quando a requisição começou. Entre aquele instante e esta
+             * transação, o alvo pode ter declarado neutralidade — e a leitura velha diria que não. É
+             * a mesma corrida que a `Diplomacia` já trata relendo a colônia do autor: quem decide
+             * sobre estado alheio tem de lê-lo agora, não quando o pedido entrou.
+             */
+            $alvo = Federation::whereKey($alvo->id)->lockForUpdate()->firstOrFail();
 
             if ($minha->id === $alvo->id) {
                 throw new DomainRuleException('mesma_federacao', 'Uma federação não declara guerra a si mesma.');
@@ -76,6 +87,27 @@ class DeclararGuerra
                 throw new DomainRuleException(
                     'tregua_vigente',
                     'O Governo suspendeu as declarações de guerra. Nenhuma pode ser aberta agora.',
+                );
+            }
+
+            /*
+             * ⚠️ A neutralidade é SIMÉTRICA (decisão 12): a neutra não pode ser declarada, e não pode
+             * declarar. É o custo que paga a proteção — quem não entra na guerra não entra dos dois
+             * lados. Sem o primeiro caso, a neutralidade não protegeria; sem o segundo, seria um
+             * abrigo de onde se ataca.
+             */
+            if ($this->neutralidade->vigente($minha)) {
+                throw new DomainRuleException(
+                    'sou_neutra',
+                    'A sua federação é neutra. Encerre a neutralidade antes de declarar guerra — '
+                        .'e a saída tem carência.',
+                );
+            }
+
+            if ($this->neutralidade->vigente($alvo)) {
+                throw new DomainRuleException(
+                    'alvo_neutro',
+                    "A federação {$alvo->name} declarou-se neutra. Não pode ser alvo de guerra.",
                 );
             }
 
