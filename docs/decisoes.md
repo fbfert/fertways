@@ -10346,3 +10346,78 @@ curva na mão, a partir da mesma linha de parâmetros.
 ### Verificação
 
 1148 testes verdes (4 novos).
+
+## D-193 — As doze decisões da guerra federativa, tomadas
+
+O D-188 entregou o documento e travou o código até que as doze decisões existissem. Elas existem.
+`docs/alpha2/GDD_GUERRA_FEDERATIVA.md` passou a **DECIDIDO**, e o corpo do rascunho foi preservado —
+onde a escolha inverteu a recomendação, a seção original fica no lugar com a nota do que foi decidido.
+Reescrevê-la apagaria o raciocínio que produziu a pergunta, e é ele que explica por que a alternativa
+existia.
+
+### O que foi decidido
+
+| # | decisão |
+|---|---|
+| 1 | **construir e ligar agora** |
+| 2 | colônia **é** alvo, limitada ao **excedente do Depósito** |
+| 3 | declarar custa **Fert$ do fundo + Nióbio** |
+| 4 | **não há recusa** — quem é declarado está em guerra |
+| 5 | **7 dias** de duração |
+| 6 | Capital e Espaçoporto **fora, sempre** |
+| 7 | tropa **consome operadores** da colônia |
+| 8 | declarar guerra a uma aliada **rompe a aliança** |
+| 9 | capitulação: **o vencedor escolhe** entre uma zona e Fert$ |
+| 10 | fórmula do ranking segue como desenho próprio |
+| 11 | contas vinculadas: **travas econômicas + detecção com revisão humana** |
+| 12 | neutralidade **declarada antes da guerra**; inatividade **não** protege |
+
+Sete saíram como eu recomendava. Cinco não — e essas são as que valem registrar.
+
+### ⚠️ O "exposto" do Silo deixa de ser inerte
+
+O `Silo` calcula *protegido* e *exposto* desde o D-66/D-107, e o docblock dele dizia que *"conectar
+'exposto' a alguma consequência de jogo é uma entrega futura, deliberadamente fora desta"*. A decisão
+2 é essa entrega: **na colônia, o excedente do Depósito vira espólio; o protegido nunca é tocado.**
+
+Eu recomendava colônia intocável. A escolha foi outra, e ela tem uma virtude que a minha não tinha:
+dá função a uma peça que estava parada há meses, e cria pressão real para **retirar** mineral em vez
+de empilhar — que é pilar declarado do jogo.
+
+### ⚠️ Na ZONA, o Depósito deixa de proteger
+
+Decisão separada e mais forte: a zona conquistada é **totalmente saqueável**, revogando o D-66/D-107
+nesse contexto.
+
+**A consequência precisa ser dita:** o Depósito de zona perde a função de proteger, e com ela o motivo
+de subi-lo. O D-66 registrava que a extração deliberadamente **não** para no teto — *"o excedente
+empilha ao relento"* — justamente para haver espólio de guerra. Com saque total, o cálculo do jogador
+vira simples: **retirar sempre, acumular nunca**. É jogável, aumenta a pressão logística, e deixa
+`Domain\Guerra\Protegido` valendo só fora da guerra federativa.
+
+### ⚠️ A combinação colide com o §1.1, e isso foi escolhido de olhos abertos
+
+**Colônia saqueável + guerra de 7 dias + inatividade sem proteção.** As três juntas fazem de uma
+viagem de uma semana uma perda material, e o §1.1 do GDD diz para não exigir login constante.
+
+A mitigação é a **neutralidade declarada com antecedência** — e ela é real: neutralidade deixa de ser
+prêmio por ausência e vira **ato político tomado com o jogador presente**. Quem sabe que vai sumir,
+declara. O que ela não cobre é a ausência imprevista, e esse é o custo aceito.
+
+⚠️ **Recomendo uma medida desde o primeiro dia:** a telemetria da A2.0 deve acompanhar a **taxa de
+retorno de quem foi saqueado estando ausente**. Se quem apanha ausente não volta, o número aparece
+antes de virar êxodo, e o parâmetro de neutralidade ainda dá para mudar. É a mesma disciplina que
+salvou a ativação da população (D-178) e a da penalidade de eficiência (D-184): **medir antes de
+descobrir pelo estrago**.
+
+### O que ainda falta para a primeira linha de código
+
+O D-188 listou duas dependências que o roadmap exige e que **continuam não cumpridas** — uma delas
+deixou de estar:
+
+- **pesquisa**: ✅ resolvida. Ligada em produção no D-190;
+- **eventos**: ⚠️ **continua pendente**. O motor da A2.8 só sabe produção e consumo, e o §17 deste GDD
+  exige um **modificador de guerra** para que evento externo possa abrir janela, impor trégua ou mexer
+  no custo de mobilização. A própria A2.8 pôs "combate" na lista *Depois*.
+
+E a decisão 10 — a fórmula do ranking — segue sendo desenho próprio, não escolha binária.

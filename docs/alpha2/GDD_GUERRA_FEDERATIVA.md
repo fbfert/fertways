@@ -1,12 +1,18 @@
 # FERTWAYS — GDD da Guerra Federativa (A2.10)
 
-> **Status: RASCUNHO PARA DECISÃO.** O roadmap da A2.10 diz que esta é a *"única fase da Alpha 2 que
+> **Status: DECIDIDO em 2026-08-03.** As doze decisões foram tomadas pelo Dono; a tabela do fim
+> registra cada uma. Onde a escolha divergiu da minha recomendação, o documento diz as duas coisas —
+> o que eu recomendaria e o que foi decidido —, porque quem ler daqui a seis meses precisa saber que
+> a alternativa foi considerada e descartada, e não esquecida.
+>
+> **Status original: RASCUNHO PARA DECISÃO.** O roadmap da A2.10 diz que esta é a *"única fase da Alpha 2 que
 > exige um documento de design próprio antes de qualquer linha de código"*, e que *"nenhum prompt
 > deve ser disparado enquanto ele não existir"*. Este é esse documento.
 >
-> **Nenhuma linha de código da A2.10 foi escrita**, e nenhuma deve ser até que as decisões marcadas
-> com ❓ estejam respondidas. As marcadas com ✅ são recomendações minhas, derivadas de princípios que
-> o jogo já publicou — mas continuam sendo decisão do Dono.
+> ⚠️ **As seções abaixo preservam o texto original do rascunho**, com os ❓ como estavam. Onde a
+> decisão tomada divergiu do que a seção recomenda, vale **a tabela do fim** — ela é a autoridade.
+> Reescrever o corpo apagaria o raciocínio que levou à pergunta, e é justamente ele que explica por
+> que a alternativa existia.
 
 ---
 
@@ -76,6 +82,10 @@ O que se disputa:
 e que o "exposto" do `Silo` continue sem consequência até que exista um desenho próprio de saque de
 colônia — que **não é** esta fase.
 
+> **DECIDIDO ao contrário:** a colônia **é** alvo, limitada ao **excedente do Depósito** — o
+> "exposto" que o `Silo` já calcula e que estava sem consequência desde o D-107. O protegido nunca é
+> tocado. A peça deixa de ser inerte, e o texto acima fica como o registro do que se pesou contra.
+
 ---
 
 ## 3. Declaração
@@ -109,8 +119,11 @@ disso, um jogo de sessões de 5–10 minutos (§15) não sustenta mobilização 
 ✅ **O prazo não se estende por atividade.** Renovar por combate faria a guerra durar enquanto houver
 um insone de cada lado.
 
-❓ **Decisão 5.** 72 h é palpite fundamentado, não medida. Precisa de rodada da trilha A2.S contra o
-ritmo real de jogo (o intervalo mediano entre sessões, que a telemetria da A2.0 já sabe medir).
+❓ **Decisão 5.** 72 h é palpite fundamentado, não medida.
+
+> **DECIDIDO: 7 dias.** Campanha longa, com espaço para reviravolta, reforço e diplomacia no meio.
+> ⚠️ A rodada da trilha A2.S continua devendo — o intervalo mediano entre sessões, que a telemetria
+> da A2.0 já sabe medir, é o que dirá se sete dias cabem no ritmo real de jogo.
 
 ---
 
@@ -120,8 +133,10 @@ ritmo real de jogo (o intervalo mediano entre sessões, que a telemetria da A2.0
 
 - **A proteção de zona recém-ocupada continua valendo** (`protected_until`). Ocupar e ser atacado no
   mesmo dia é armadilha;
-- **O Depósito continua protegendo** o que cabe nele (`Protegido`). Só o excedente é espólio — a
-  regra já existe e já foi decidida no D-66/D-107.
+- ~~**O Depósito continua protegendo** o que cabe nele (`Protegido`).~~
+  > **DECIDIDO ao contrário para a zona:** em guerra federativa a zona conquistada é **totalmente
+  > saqueável**, e o D-66/D-107 fica revogado nesse contexto. Ver a tensão 2 no fim do documento.
+  > Na **colônia**, ao contrário, o Depósito continua protegendo: lá só o excedente é espólio.
 
 ❓ **Decisão 6 — Capital e Espaçoporto.** Recomendo ✅ **fora**: são infraestrutura de todos, e
 tomá-las daria a uma federação poder sobre o jogo dos outros, o que nenhum ranking deveria comprar.
@@ -343,19 +358,59 @@ A2.10.**
 
 ---
 
-## Resumo das decisões em aberto
+## As doze decisões, tomadas em 2026-08-03
 
-| # | decisão | recomendação |
-|---|---|---|
-| 1 | quando construir | esperar 3 federações e 15% das zonas ocupadas |
-| 2 | colônia nunca é alvo | sim |
-| 3 | custo da declaração | Fert$ do fundo + Nióbio; números por simulação |
-| 4 | há recusa de declaração | não |
-| 5 | duração | 72 h, a confirmar por simulação |
-| 6 | Capital e Espaçoporto | fora |
-| 7 | tropa consome operadores | sim; proporção a definir |
-| 8 | aliança e guerra são exclusivas | sim |
-| 9 | preço da capitulação | uma zona à escolha do vencedor |
-| 10 | fórmula do ranking | por diferença de força; desenho próprio |
-| 11 | contas vinculadas | tornar caro e visível, não detectar por heurística |
-| 12 | dias de inatividade para neutralidade forçada | — |
+| # | decisão | **decidido** | minha recomendação |
+|---|---|---|---|
+| 1 | quando construir | **construir e ligar agora** | esperar 3 federações |
+| 2 | colônia é alvo | **sim, só o excedente do Depósito** | nunca |
+| 3 | custo da declaração | **Fert$ do fundo + Nióbio** | igual |
+| 4 | há recusa de declaração | **não** | igual |
+| 5 | duração | **7 dias** | 72 h |
+| 6 | Capital e Espaçoporto | **fora, sempre** | igual |
+| 7 | tropa consome operadores | **sim, do bolo da colônia** | igual |
+| 8 | aliança e guerra coexistem | **não — declarar rompe** | igual |
+| 9 | preço da capitulação | **o vencedor escolhe: zona ou Fert$** | uma zona |
+| 10 | fórmula do ranking | *segue como desenho próprio* | por diferença de força |
+| 11 | contas vinculadas | **travas econômicas + detecção com revisão humana** | só as travas |
+| 12 | neutralidade e abandono | **declarada ANTES da guerra; inatividade não protege** | neutralidade forçada por inatividade |
+
+### O que o §12 decidido diz, na íntegra
+
+> *"A neutralidade só pode ocorrer se declarada pelo jogador antes do início da guerra. Jogador que
+> fica 7 dias offline não tem proteção. Zonas neutras ocupadas totalmente saqueáveis e podem ser
+> capturadas para um novo jogador tomar conta e ocupar ela. Colônias saqueáveis no que estiver acima
+> do limite do depósito."*
+
+A neutralidade existe, e é **um ato político tomado com o jogador presente** — não um prêmio por
+ausência. Quem quer ficar fora da guerra declara antes; quem não declarou está no jogo.
+
+---
+
+## ⚠️ Duas tensões que as decisões criam, registradas para não serem redescobertas como defeito
+
+### 1. A combinação colide com o §1.1 do GDD
+
+*"Não exigir login constante"* convive mal com **colônia saqueável + guerra de 7 dias + inatividade
+sem proteção**. As três juntas fazem de uma viagem de uma semana uma perda material.
+
+A mitigação escolhida é a **neutralidade declarada com antecedência**, e ela é real: quem sabe que
+vai sumir declara antes. O que ela não cobre é a ausência **imprevista** — e isso é o custo aceito.
+
+⚠️ Recomendo que a telemetria (A2.0) meça isto desde o primeiro dia: **taxa de retorno de quem foi
+saqueado estando ausente**. Se quem apanha ausente não volta, o número aparece antes de virar êxodo,
+e o parâmetro de neutralidade pode mudar. É a mesma disciplina que a população teve.
+
+### 2. "Totalmente saqueável" revoga o D-66/D-107 na guerra
+
+Hoje o Depósito da Zona Neutra **protege** o que cabe nele; só o excedente é espólio. A decisão o
+revoga: em guerra federativa, o vencedor leva tudo.
+
+⚠️ **Consequência que precisa ser dita:** o Depósito da zona perde a função de proteger, e com ela o
+motivo de subi-lo. Ele continua definindo capacidade, e o D-66 já registrava que a extração
+deliberadamente **não** para no teto — *"o excedente empilha ao relento"*, justamente para haver
+espólio de guerra. Com saque total, o cálculo do jogador vira simples: **retirar sempre, acumular
+nunca**.
+
+Isso é jogável e aumenta a pressão logística, que é pilar do jogo. Mas é uma peça de desenho que
+perde o propósito, e o `Domain\Guerra\Protegido` passa a valer só fora da guerra federativa.
