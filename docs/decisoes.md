@@ -10229,3 +10229,74 @@ nunca vencia. O relógio tem de andar de verdade (`travel()`).
 1144 testes verdes (7 novos). E2E vermelho uma vez em `Runtime.callFunctionOn timed out` — timeout
 de protocolo do Puppeteer, não asserção; rodado de novo **sem mudar nada**, 10 suítes verdes. Foi
 carga da máquina: eu havia disparado suíte, build e e2e juntos num servidor de 4 GB.
+
+## D-191 — O teto de estoque não pode ser ligado, e a medida diz por quê
+
+Última chave dormente. Fui medir o que aconteceria ao virá-la, e a resposta é clara: **não dá,
+como está.**
+
+### ⚠️ Ligar hoje faria 29 colônias pararem de produzir
+
+| | |
+|---|---|
+| pares colônia×recurso acima do teto | 112 de 725 |
+| **colônias com ao menos um recurso travado** | **29 de 29** |
+| quais recursos | oxigênio 29 · água 28 · biomassa 28 · metal 15 · energia 12 |
+
+São justamente os quatro essenciais. E o §6.7 é categórico: *"nenhuma colônia existente pode parar de
+produzir por uma regra que não existia quando ela foi construída."*
+
+### ⚠️ E o grandfathering pelo prédio é IMPOSSÍVEL
+
+O caminho óbvio seria o mesmo da população: subir o Depósito Local de cada colônia até caber o que
+ela já tem. A conta:
+
+| | |
+|---|---|
+| Depósito Local hoje | n1×25, n2×4 |
+| nível **necessário** | **n9 a n18** |
+| **nível máximo do prédio** | **10** |
+
+**Oito colônias precisariam de níveis que não existem.** E não é caso extremo: a **mediana** de
+oxigênio no mundo é **90.201** — nove vezes o teto do nível 1, e acima dos 74.501 que o nível 10
+oferece. O maior estoque do jogo é 406.555 de energia.
+
+### O que isso realmente significa
+
+A curva foi calibrada contra uma colônia madura **simulada** (rodada 8 da trilha A2.S: 20 h no n1,
+6,1 dias no n10, dentro da posição declarada). O mundo **real** acumulou por meses sem teto nenhum, e
+está entre **6× e 44×** além do que a curva foi desenhada para conter.
+
+É a lição do D-178 outra vez, e maior: **simulação não é o mundo.** A rodada não estava errada — ela
+mediu o ritmo de produção, que era a pergunta certa. O que ela não podia medir era o **acervo** de um
+mundo que rodou sem limite.
+
+### Os quatro caminhos, e o que cada um custa
+
+| # | caminho | custo |
+|---|---|---|
+| a | ligar como está | **29 colônias param de produzir** — viola o §6.7 |
+| b | subir `capacidade_base` para ~55.000 | o nível 1 passa a segurar ~4,5 dias de produção: o teto deixa de ensinar exatamente onde deveria |
+| c | elevar o máximo do Depósito Local acima de 10 | mudança de desenho de prédio que ninguém decidiu |
+| d | **piso pessoal por grandfathering** | veterano congela a vantagem que já tinha |
+
+✅ **Recomendo (d)**, e há uma coluna esperando por ela: `resources.storage_cap` existe desde o D-14,
+está **NULL em todas as 754 linhas**, e não é lida por ninguém — o `Silo` calcula sob demanda e o
+docblock dele diz que a coluna *"continua NULL de propósito"*.
+
+A regra seria: **o teto de cada linha é `max(curva do nível, o que a colônia já tinha na ativação)`**.
+
+- ninguém para de produzir — o §6.7 fica honrado por construção;
+- o teto passa a **morder para todo mundo daí em diante**: veterano não acumula mais, novato encontra
+  a curva de verdade;
+- é a mesma forma do teto habitacional (D-178) e do teto de zona (D-184): **trava o ganho, nunca tira
+  o que existe.**
+
+⚠️ O preço é real e precisa ser dito: o veterano fica com um teto pessoal alto para sempre. Mas ele o
+acumulou sob as regras que existiam, e o §6.7 existe precisamente para proteger isso.
+
+### Fica DORMENTE, e a decisão é do Dono
+
+Não vou ligar. Escolher entre (a), (b), (c) e (d) muda o jogo de formas materialmente diferentes num
+mundo com 29 colônias reais, e nenhuma das quatro é obviamente certa. O que eu podia fazer era
+transformar "está dormente" numa decisão informada — com os números na mesa.
