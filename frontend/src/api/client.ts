@@ -506,6 +506,37 @@ export type EventoDoMundo = {
   termina_em: string
 }
 
+/** A árvore de pesquisa (A2.3). */
+export type ArvoreDePesquisa = {
+  /** A chave-mestra do servidor. Desligada, a tela diz isso em vez de fingir. */
+  ativo: boolean
+  laboratorio: number
+  vagas: { total: number; ocupadas: number; livres: number; fontes: Record<string, number> }
+  /** O que JÁ está valendo — progressão que não se vê é indistinguível de progressão que não houve. */
+  meus_efeitos: {
+    desconto_tributo_pct: number
+    desconto_duracao_pct: number
+    producao_por_alvo: Record<string, number>
+  }
+  tecnologias: Array<{
+    id: number
+    chave: string
+    nome: string
+    descricao: string | null
+    trilha: string
+    nivel: number
+    nivel_maximo: number
+    laboratorio_minimo: number
+    custo: Record<string, number>
+    duracao_segundos: number
+    efeitos: Array<{ tipo: string; alvo: string; valor_bps: number }>
+    status: 'nao_iniciada' | 'pesquisando' | 'concluida'
+    termina_em: string | null
+    /** O porquê de não poder, para a tela não oferecer o que a regra recusaria. */
+    bloqueio: 'inativa' | 'laboratorio' | 'no_maximo' | 'em_andamento' | null
+  }>
+}
+
 /** Uma fala no rádio do planeta (§10; D-77). */
 export type MensagemDeChat = {
   id: number
@@ -1440,6 +1471,10 @@ export const api = {
 
   /** A2.8: os eventos de mundo que o jogador pode ver. */
   eventosDoMundo: () => req<{ eventos: EventoDoMundo[] }>('/eventos'),
+
+  /** A2.3: a árvore de pesquisa. */
+  arvoreDePesquisa: () => req<ArvoreDePesquisa>('/pesquisa'),
+  pesquisar: (id: number) => req<{ iniciada: boolean }>(`/pesquisa/${id}`, { method: 'POST' }),
 
   /** Dá (ou tira) um apelido do veículo. A placa não muda — é do veículo, não do dono (§16.3). */
   renomearVeiculo: (veiculo: number, nickname: string) =>

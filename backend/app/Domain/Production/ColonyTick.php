@@ -8,6 +8,8 @@ use App\Domain\Endurance\EfeitosDaEndurance;
 use App\Domain\Eventos\Modificadores;
 use App\Domain\Marco\ConcederXp;
 use App\Domain\Missoes\Progresso;
+use App\Domain\Pesquisa\ConcluirPesquisa;
+use App\Domain\Pesquisa\EfeitosDaPesquisa;
 use App\Domain\Populacao\Ciclo;
 use App\Domain\Populacao\Parametros;
 use App\Models\BuildQueue;
@@ -71,6 +73,8 @@ class ColonyTick
         private TetoDoTanque $tetoDoTanque,
         private TetoDoEstoque $tetoDoEstoque,
         private Modificadores $eventos,
+        private EfeitosDaPesquisa $efeitosDaPesquisa,
+        private ConcluirPesquisa $concluirPesquisa,
         private EfeitosDaEndurance $efeitosDaEndurance,
         private Parametros $parametrosDePopulacao,
         private Ciclo $cicloDePopulacao,
@@ -132,6 +136,20 @@ class ColonyTick
              * Uma vez só para o delta inteiro, e não por fatia de upgrade: as fatias são o mesmo
              * intervalo de tempo real, e remedi-las daria pesos diferentes ao mesmo minuto.
              */
+            /*
+             * ⚠️ A2.3: as pesquisas vencidas concluem ANTES de qualquer produção deste delta.
+             *
+             * O docblock de `ConcluirPesquisa` já afirmava que *"`ColonyTick` chama isto antes de
+             * calcular produção"* — e o `ColonyTick` NÃO o chamava. A frase descrevia uma intenção
+             * que ninguém tinha ligado, e o efeito era pior que não ter a frase: uma pesquisa
+             * iniciada nunca terminava, e a colônia perdia a vaga do Laboratório para sempre sem
+             * receber bônus nenhum.
+             *
+             * Antes da produção, e não depois, porque senão o bônus recém-conquistado só valeria a
+             * partir do minuto seguinte — e o jogador veria a barra encher sem nada mudar.
+             */
+            $this->concluirPesquisa->handle($colony);
+
             $this->eficienciaDaPopulacao = $this->medirEficiencia($colony);
 
             // Fatia o delta em cada conclusão de upgrade, na ordem em que ocorreram.
@@ -315,9 +333,22 @@ class ColonyTick
          */
         $bonusPorAlvo = $this->efeitosDaEndurance->bonusDeProducaoPorAlvo($colony);
         $tetoProducao = EfeitosDaEndurance::tetoBps(EfeitosDaEndurance::PRODUCAO_BONUS);
+
+        /*
+         * ⚠️ A2.3: a PESQUISA soma aqui, e o teto é AGREGADO — aplicado uma vez sobre as duas fontes.
+         *
+         * Cada fonte respeitar o teto sozinha permitiria que duas de 30% dessem 60%, e aí o teto
+         * deixaria de ser teto. Ele existe para limitar o TOTAL que uma colônia pode acumular; de
+         * quantos lugares o bônus veio é assunto de quem o produz, não de quem o limita.
+         *
+         * Com a pesquisa desligada — ou sem tecnologia concluída — isto devolve zero e nada muda.
+         */
+        $bonusDePesquisa = $this->efeitosDaPesquisa->bonusDeProducaoPorAlvo($colony);
+
         $bonusPara = fn (string $tipo): int => min(
             $tetoProducao,
-            max(0, ($bonusPorAlvo[$tipo] ?? 0) + ($bonusPorAlvo[EfeitosDaEndurance::ALVO_GLOBAL] ?? 0)),
+            max(0, ($bonusPorAlvo[$tipo] ?? 0) + ($bonusPorAlvo[EfeitosDaEndurance::ALVO_GLOBAL] ?? 0)
+                + ($bonusDePesquisa[$tipo] ?? 0) + ($bonusDePesquisa[EfeitosDaEndurance::ALVO_GLOBAL] ?? 0)),
         );
 
         // Taxas por hora, somadas entre construções. Desde o D-59 a soma é por LINHA, não por

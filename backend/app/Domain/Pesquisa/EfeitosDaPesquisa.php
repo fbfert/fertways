@@ -79,6 +79,50 @@ class EfeitosDaPesquisa
         return min($soma, Efeitos::tetoBps($tipoEfeito));
     }
 
+    /**
+     * O bônus de produção de TODAS as tecnologias concluídas, agrupado por alvo (A2.3).
+     *
+     * ⚠️ **Sem teto aqui, de propósito** — e isto responde ao aviso deixado em `somaBps()`: quem
+     * consome soma esta fonte com a da Endurance e aplica o teto **uma vez sobre o total**. Cada
+     * fonte se limitar sozinha permitiria que duas de 30% dessem 60%, e o teto deixaria de limitar
+     * o que existe para limitar.
+     *
+     * Uma consulta em lote, e não uma por construção erguida: o tick chama isto por colônia a cada
+     * minuto, e é o mesmo espírito anti-N+1 de `EfeitosDaEndurance::bonusDeProducaoPorAlvo()`.
+     *
+     * `efeitos_json` é JSON e não uma tabela de efeitos como a da Endurance, então a soma acontece
+     * em PHP — o número de tecnologias concluídas por colônia é pequeno por construção (o catálogo
+     * tem oito), e trocar isso por SQL de JSON custaria legibilidade sem ganhar nada.
+     *
+     * @return array<string,int> `building_type` (ou `'global'`) => soma de bps, SEM teto
+     */
+    public function bonusDeProducaoPorAlvo(Colony $colonia): array
+    {
+        $linhas = DB::table('colony_technologies')
+            ->join('technologies', 'technologies.id', '=', 'colony_technologies.technology_id')
+            ->where('colony_technologies.colony_id', $colonia->id)
+            ->where('colony_technologies.status', 'concluida')
+            ->get(['technologies.efeitos_json', 'colony_technologies.nivel']);
+
+        $porAlvo = [];
+
+        foreach ($linhas as $l) {
+            foreach (json_decode($l->efeitos_json ?? '[]', true) ?: [] as $efeito) {
+                if (($efeito['tipo'] ?? null) !== EfeitosDaEndurance::PRODUCAO_BONUS) {
+                    continue;
+                }
+
+                $alvo = (string) ($efeito['alvo'] ?? EfeitosDaEndurance::ALVO_GLOBAL);
+
+                // Por NÍVEL, como em `somaBps()`: o efeito é o do nível atual, não a soma da escada.
+                $porAlvo[$alvo] = ($porAlvo[$alvo] ?? 0)
+                    + (int) ($efeito['valor_bps'] ?? 0) * max(1, (int) $l->nivel);
+            }
+        }
+
+        return $porAlvo;
+    }
+
     public function bonusDeProducao(Colony $colonia, string $buildingType): int
     {
         return $this->somaBps($colonia, EfeitosDaEndurance::PRODUCAO_BONUS, [$buildingType]);

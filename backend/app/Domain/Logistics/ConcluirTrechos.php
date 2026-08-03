@@ -7,6 +7,7 @@ use App\Domain\Drone\DroneSpecs;
 use App\Domain\Endurance\EfeitosDaEndurance;
 use App\Domain\Federacao\Aliancas;
 use App\Domain\Market\Deposito;
+use App\Domain\Pesquisa\EfeitosDaPesquisa;
 use App\Domain\Trade\CreditarEntrega;
 use App\Domain\Transport\Conservacao;
 use App\Domain\Transport\MercadoDeUsados;
@@ -601,7 +602,20 @@ class ConcluirTrechos
 
         // D-132/D-135: o desconto de peças da Endurance é pessoal da colônia que entrega — vem por
         // cima do que o desconto de aliados já reduziu, nunca antes dele.
-        $desconto = $this->descontoDeEndurance->descontoDeTributo($origem);
+        /*
+         * ⚠️ A2.3: a PESQUISA desconta tributo junto com a Endurance, e o teto é AGREGADO.
+         *
+         * Cada fonte respeitar o limite sozinha permitiria que duas de 30% dessem 60% — e o teto
+         * existe para limitar o TOTAL que uma colônia acumula, não cada origem. É o mesmo tratamento
+         * que o `ColonyTick` dá ao bônus de produção.
+         */
+        $desconto = min(
+            EfeitosDaEndurance::tetoBps(
+                EfeitosDaEndurance::DESCONTO_TRIBUTO,
+            ),
+            $this->descontoDeEndurance->descontoDeTributo($origem)
+                + app(EfeitosDaPesquisa::class)->descontoDeTributo($origem),
+        );
 
         return EfeitosDaEndurance::aplicarDesconto($bpsCheio, $desconto);
     }

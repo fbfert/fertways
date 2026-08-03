@@ -19,6 +19,7 @@ use App\Http\Controllers\Api\MinistryController;
 use App\Http\Controllers\Api\MissoesController;
 use App\Http\Controllers\Api\NeutralZoneController;
 use App\Http\Controllers\Api\PerfilDaColoniaController;
+use App\Http\Controllers\Api\PesquisaController;
 use App\Http\Controllers\Api\PlayerController;
 use App\Http\Controllers\Api\ProfileController;
 use App\Http\Controllers\Api\ResumoController;
@@ -89,6 +90,13 @@ Route::middleware('auth:sanctum')->group(function () {
      * inerte — o mundo mudaria de comportamento e ninguém saberia por quê.
      */
     Route::get('/eventos', [EventosController::class, 'index']);
+
+    /*
+     * A2.3: a árvore de pesquisa. ⚠️ Não existia rota nenhuma — a fase entregou o modelo e parou,
+     * e a chave-mestra ligava um serviço que ninguém conseguia chamar.
+     */
+    Route::get('/pesquisa', [PesquisaController::class, 'index']);
+    Route::post('/pesquisa/{technology}', [PesquisaController::class, 'pesquisar']);
 
     Route::get('/zones', [NeutralZoneController::class, 'index']);
     Route::post('/zones/{zone}/occupy', [NeutralZoneController::class, 'occupy']);

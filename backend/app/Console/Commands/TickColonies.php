@@ -3,23 +3,25 @@
 namespace App\Console\Commands;
 
 use App\Domain\Capital\Patio;
-use App\Domain\Logistics\ConcluirTrechos;
+use App\Domain\Cargos\PagarCargosCivicos;
+use App\Domain\Chat\PurgarMensagens;
+use App\Domain\Drone\ConcluirMissoes;
 use App\Domain\Guerra\ChegarReforcos;
 use App\Domain\Guerra\ResolverCombates;
-use App\Domain\Zona\ConcluirObrasDaZona;
-use App\Domain\Zona\ConcluirUpgradeDaZona;
-use App\Domain\Zona\CobrarManutencaoTerritorial;
-use App\Domain\Zona\ExpirarApreensoes;
-use App\Domain\Zona\ProcessarSiderurgicaNaZona;
-use App\Domain\Zona\RefinarNaZona;
-use App\Domain\Logistics\ExtrairZonasNeutras;
-use App\Domain\Transport\FabricarVeiculos;
-use App\Domain\Cargos\PagarCargosCivicos;
 use App\Domain\Leilao\FecharLeiloes;
+use App\Domain\Logistics\ConcluirTrechos;
+use App\Domain\Logistics\ExtrairZonasNeutras;
 use App\Domain\Ministry\ExpirarPrazos;
 use App\Domain\Ministry\PagarConciliadores;
 use App\Domain\Production\ColonyTick;
 use App\Domain\Trade\ExpirarAcordos;
+use App\Domain\Transport\FabricarVeiculos;
+use App\Domain\Zona\CobrarManutencaoTerritorial;
+use App\Domain\Zona\ConcluirObrasDaZona;
+use App\Domain\Zona\ConcluirUpgradeDaZona;
+use App\Domain\Zona\ExpirarApreensoes;
+use App\Domain\Zona\ProcessarSiderurgicaNaZona;
+use App\Domain\Zona\RefinarNaZona;
 use App\Models\Colony;
 use App\Models\NeutralZone;
 use Illuminate\Console\Command;
@@ -61,8 +63,8 @@ class TickColonies extends Command
         ConcluirUpgradeDaZona $upgrades,
         CobrarManutencaoTerritorial $manutencao,
         ExpirarApreensoes $apreensoes,
-        \App\Domain\Drone\ConcluirMissoes $drones,
-        \App\Domain\Chat\PurgarMensagens $chat,
+        ConcluirMissoes $drones,
+        PurgarMensagens $chat,
         FecharLeiloes $leiloes,
         PagarCargosCivicos $cargosCivicos,
     ): int {

@@ -10156,3 +10156,76 @@ estados visuais de edifício, ameaças no mapa, identidade própria da Endurance
 desenho** — que é o oposto do que "revisão visual gigantesca" quer dizer. Fica dito: a A2.V está
 **começada e longe de pronta**, e o que entreguei foi a auditoria mais a correção da dívida que eu
 mesmo criei.
+
+## D-190 — "Ligue a pesquisa": a chave ligava o nada, e três peças faltavam
+
+Pedido para ligar a pesquisa. Parei antes de virar a chave — e ainda bem.
+
+### ⚠️ Ligar hoje não teria feito absolutamente nada
+
+| | |
+|---|---|
+| rota de API | **nenhuma** |
+| tela | **nenhuma** |
+| quem consome `EfeitosDaPesquisa` | **ninguém** |
+| quem chama `ConcluirPesquisa` | **ninguém** |
+| onde `research_settings.ativo` é lido | **um** lugar: um serviço inalcançável |
+
+A A2.3 entregou o **modelo** — catálogo, trilhas, custos, vagas, vocabulário de efeitos — e parou
+aí. O D-168 registrou isso no título: *"a estrutura entra, os números não"*. O que ninguém registrou
+é que a estrutura também não tinha porta.
+
+É o mesmo defeito da população no D-178, e a lição pegou: a primeira coisa que fiz foi conferir se a
+chave liga alguma coisa.
+
+### ⚠️ E um docblock que afirmava o que não acontecia
+
+`ConcluirPesquisa` dizia, com todas as letras: *"É por isso que `ColonyTick` chama isto **antes** de
+calcular produção."* **O `ColonyTick` não o chamava.** A frase descrevia uma intenção que ninguém
+tinha ligado — e isso é pior do que não ter a frase, porque quem lesse concluiria que estava feito.
+
+O efeito real: uma pesquisa iniciada **nunca terminava**. A colônia perdia a vaga do Laboratório
+para sempre e não recebia bônus nenhum.
+
+### O teto de produção passou a ser AGREGADO
+
+Endurance e pesquisa somam antes de o teto ser aplicado, e não cada uma por si. Duas fontes de 30%
+dariam 60% — e o teto existe para limitar o **total** que uma colônia acumula, não cada origem.
+
+Isto não é invenção minha: o docblock de `somaBps()` já avisava que *"a soma das duas fontes ainda
+pode passar do teto individual — quem quiser um teto conjunto precisa somá-las antes de limitar, no
+consumidor"*. Era uma dívida anotada esperando quem a pagasse.
+
+### O que foi construído
+
+- `bonusDeProducaoPorAlvo()` em lote na pesquisa, sem teto — quem consome soma e limita;
+- o bônus de produção e o desconto de tributo chegando ao tick e ao tributo, com teto agregado;
+- `ConcluirPesquisa` chamado pelo `ColonyTick` **antes** de produzir, como o docblock sempre disse;
+- `GET /pesquisa` e `POST /pesquisa/{id}`;
+- a tela, aberta **de dentro do Laboratório** — do jeito que o Depósito Local abre os recursos
+  (D-105). Sem essa porta, a rota seria peça inerte, que foi o erro do D-180.
+
+⚠️ A tela mostra **os efeitos que já estão valendo**, e não só o que dá para pesquisar. Sem isso o
+jogador concluiria uma tecnologia e não teria como saber se ela funciona — a mesma armadilha da
+penalidade invisível que a A2.6 evitou. **Progressão que não se vê é indistinguível de progressão
+que não aconteceu.**
+
+### ⚠️ Codificação dupla, terceira vez nesta sessão
+
+Passei `json_encode()` para uma coluna que o modelo já faz cast de `array`, e o `foreach` estourou.
+Aconteceu no `recompensa_federacao` (D-183), no seeder de missões, e agora aqui. **É o meu erro mais
+repetido nesta base**, e o sinal é sempre o mesmo: a coluna tem `_json` no nome e o modelo já cuida
+disso.
+
+### E um teste que me ensinou algo sobre o relógio
+
+`ConcluirPesquisa` compara `finishes_at` com `now()` — o relógio de parede, não o instante que o
+tick recebe. Está certo para a produção, onde o tick roda com o agora real. Mas um teste que só passa
+`now()->addHours(2)` como **argumento** não move o `now()` que a conclusão consulta, e a pesquisa
+nunca vencia. O relógio tem de andar de verdade (`travel()`).
+
+### Verificação
+
+1144 testes verdes (7 novos). E2E vermelho uma vez em `Runtime.callFunctionOn timed out` — timeout
+de protocolo do Puppeteer, não asserção; rodado de novo **sem mudar nada**, 10 suítes verdes. Foi
+carga da máquina: eu havia disparado suíte, build e e2e juntos num servidor de 4 GB.

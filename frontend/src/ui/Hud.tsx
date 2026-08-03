@@ -7,6 +7,7 @@ import type { Arte } from '../game/arte'
 import { IconeRecurso } from './IconeRecurso'
 import { Popup } from './Popup'
 import { INDUSTRIAIS, nomeRecurso, PRIMARIOS, RAROS } from './recursos'
+import { Pesquisa } from './Pesquisa'
 
 /**
  * A capacidade do Tanque de Combustível, por nível (§21.9, D-131) — a única curva de
@@ -412,6 +413,19 @@ export function Detalhe({
       {spec.type === 'deposito_local' && (
         <div className="border-rust/30 my-3 border-t pt-3">
           <Recursos colonia={colonia} />
+        </div>
+      )}
+
+      {/*
+        A2.3: o Laboratório abre a árvore de pesquisa, dentro dele mesmo — do jeito que o Depósito
+        Local abre os recursos (D-105).
+
+        ⚠️ Sem esta porta, a pesquisa continuaria sendo modelo sem jogo: rota no ar e ninguém
+        chegando nela. Foi o defeito do D-180, e aqui seria a fase inteira.
+      */}
+      {spec.type === 'laboratorio' && !emObra && (
+        <div className="border-rust/30 my-3 border-t pt-3">
+          <Pesquisa />
         </div>
       )}
 
