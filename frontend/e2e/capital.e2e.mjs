@@ -206,6 +206,24 @@ try {
     'e a relação passa a aparecer — quem propôs não recebe botão de aceitar a própria proposta',
   )
 
+  console.log('\nA mesa de guerra (A2.10) — o custo e a declaração')
+  await page.waitForSelector('[data-mesa-guerra]', { timeout: 8000 })
+  checar(true, 'a mesa de guerra aparece')
+  checar(
+    await esperarTexto(page, /Declarar guerra custa .* do fundo/),
+    'a tela diz o custo E de onde ele sai — decisão coletiva, não do bolso de quem declara',
+  )
+  checar(
+    await esperarTexto(page, /o outro lado não pode recusar/),
+    'e avisa que não há recusa antes de o jogador clicar',
+  )
+
+  await clicar(page, '[data-declarar-guerra]')
+  checar(
+    await esperarTexto(page, /Guerra declarada a .* Sete dias|Faltam|fundo/),
+    'o clique chega ao domínio e volta com resposta',
+  )
+
   console.log('\nVolta e abre o Ministério dos Transportes (slot 8)')
   await clicar(page, '[data-voltar-capital]')
   await clicar(page, '[data-slot-capital="8"]')

@@ -2,9 +2,11 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Domain\Eventos\Modificadores;
 use App\Domain\Federacao\Aliancas;
 use App\Domain\Federacao\AlterarCargo;
 use App\Domain\Federacao\Concentracao;
+use App\Domain\Federacao\ContribuirParaOFundo;
 use App\Domain\Federacao\CriarFederacao;
 use App\Domain\Federacao\Diplomacia;
 use App\Domain\Federacao\EnviarConviteOuPedido;
@@ -13,6 +15,7 @@ use App\Domain\Federacao\ResponderConviteOuPedido;
 use App\Domain\Federacao\SacarDoFundo;
 use App\Domain\Federacao\SairDaFederacao;
 use App\Domain\Federacao\TransferirLideranca;
+use App\Domain\GuerraFederativa\DeclararGuerra;
 use App\Exceptions\DomainRuleException;
 use App\Http\Controllers\Controller;
 use App\Models\Colony;
@@ -20,6 +23,7 @@ use App\Models\Federation;
 use App\Models\FederationHolding;
 use App\Models\FederationInvite;
 use App\Models\FederationSetting;
+use App\Models\FederationWar;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -144,6 +148,10 @@ class FederationController extends Controller
             // Os dois descontos lado a lado: é o que torna visível POR QUE filiar-se vale mais.
             'desconto_interno' => (int) $config->desconto_tributo_aliados_bps / 100,
             'desconto_alianca' => (int) $config->desconto_tributo_aliancas_bps / 100,
+            // A2.10: o caixa comum, e o que declarar guerra custaria agora.
+            'fundo_fert' => $federacao->fert_micro / Colony::MICRO_POR_FERT,
+            'guerra' => $this->mesaDeGuerra($federacao),
+
             'relacoes' => array_map(fn ($r) => [
                 'id' => $r['federacao']->id,
                 'nome' => $r['federacao']->name,
@@ -157,6 +165,69 @@ class FederationController extends Controller
                 ->get(['id', 'name'])
                 ->map(fn ($f) => ['id' => $f->id, 'nome' => $f->name]),
         ]);
+    }
+
+    /**
+     * POST /federations/{federation}/guerra — declara guerra (A2.10).
+     *
+     * A regra inteira mora no domínio. Aqui só se traduz colônia e alvo.
+     */
+    public function declararGuerra(Request $request, Federation $federation): JsonResponse
+    {
+        $guerra = app(DeclararGuerra::class)
+            ->handle($this->colonia($request), $federation);
+
+        return response()->json([
+            'guerra' => [
+                'id' => $guerra->id,
+                'termina_em' => $guerra->termina_em->toIso8601String(),
+            ],
+        ]);
+    }
+
+    /** POST /federation/fundo — põe Fert$ no caixa comum. Qualquer membro pode. */
+    public function contribuirParaOFundo(Request $request): JsonResponse
+    {
+        $dados = $request->validate(['fert' => ['required', 'numeric', 'min:0.01']]);
+
+        $f = app(ContribuirParaOFundo::class)->handle(
+            $this->colonia($request),
+            (int) round($dados['fert'] * Colony::MICRO_POR_FERT),
+        );
+
+        return response()->json(['fundo_fert' => $f->fert_micro / Colony::MICRO_POR_FERT]);
+    }
+
+    /**
+     * O estado de guerra da federação (A2.10).
+     *
+     * ⚠️ Traz o **custo agora**, e não o custo de tabela: um evento de mobilização pode tê-lo mudado,
+     * e o jogador precisa ver o preço que vai pagar, não o que estava no manual.
+     *
+     * @return array<string,mixed>
+     */
+    private function mesaDeGuerra(Federation $federacao): array
+    {
+        $declarar = app(DeclararGuerra::class);
+        $custo = $declarar->custo();
+        $agora = now();
+
+        $emGuerra = FederationWar::with(['declarante:id,name', 'alvo:id,name'])
+            ->where('status', 'ativa')
+            ->where(fn ($q) => $q->where('declarante_id', $federacao->id)->orWhere('alvo_id', $federacao->id))
+            ->get();
+
+        return [
+            'tregua' => app(Modificadores::class)->guerraBloqueada(null, $agora),
+            'custo_fert' => $custo['fert'] / Colony::MICRO_POR_FERT,
+            'custo_niobio' => $custo['niobio'],
+            'em_guerra_com' => $emGuerra->map(fn ($g) => [
+                'id' => (int) $g->declarante_id === $federacao->id ? $g->alvo_id : $g->declarante_id,
+                'nome' => (int) $g->declarante_id === $federacao->id ? $g->alvo?->name : $g->declarante?->name,
+                'eu_declarei' => (int) $g->declarante_id === $federacao->id,
+                'termina_em' => $g->termina_em->toIso8601String(),
+            ])->values(),
+        ];
     }
 
     /** POST /federations/{federation}/alianca — propõe. */

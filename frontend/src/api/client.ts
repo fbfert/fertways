@@ -1095,6 +1095,24 @@ export type MesaDiplomatica = {
     propus: boolean
   }>
   disponiveis?: Array<{ id: number; nome: string }>
+
+  /** O caixa comum (A2.10): é dele que sai o custo de declarar guerra. */
+  fundo_fert?: number
+
+  /** A mesa de guerra (A2.10, primeira fatia). */
+  guerra?: {
+    /** O Governo suspendeu declarações — o portão do Motor de Eventos está fechado. */
+    tregua: boolean
+    /** O custo AGORA, já com o modificador de mobilização. Não é o custo de tabela. */
+    custo_fert: number
+    custo_niobio: number
+    em_guerra_com: Array<{
+      id: number
+      nome: string | null
+      eu_declarei: boolean
+      termina_em: string
+    }>
+  }
 }
 
 export const api = {
@@ -1706,6 +1724,16 @@ export const api = {
     req<{ aliada: boolean }>(`/federations/${id}/alianca/accept`, { method: 'POST' }),
   romperAlianca: (id: number) =>
     req<{ rompida: boolean }>(`/federations/${id}/alianca`, { method: 'DELETE' }),
+
+  /** A2.10: declarar guerra. Não há recusa do outro lado — ver o D-193, decisão 4. */
+  declararGuerra: (id: number) =>
+    req<{ guerra: { id: number; termina_em: string } }>(`/federations/${id}/guerra`, { method: 'POST' }),
+
+  contribuirParaOFundo: (fert: number) =>
+    req<{ fundo_fert: number }>('/federation/fundo', {
+      method: 'POST',
+      body: JSON.stringify({ fert }),
+    }),
 
   /** O diretório público — para escolher a quem pedir entrada. */
   federacoes: () => req<FederationListItem[]>('/federations'),

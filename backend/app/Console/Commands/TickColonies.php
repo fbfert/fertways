@@ -8,6 +8,7 @@ use App\Domain\Chat\PurgarMensagens;
 use App\Domain\Drone\ConcluirMissoes;
 use App\Domain\Guerra\ChegarReforcos;
 use App\Domain\Guerra\ResolverCombates;
+use App\Domain\GuerraFederativa\EncerrarGuerras;
 use App\Domain\Leilao\FecharLeiloes;
 use App\Domain\Logistics\ConcluirTrechos;
 use App\Domain\Logistics\ExtrairZonasNeutras;
@@ -103,6 +104,15 @@ class TickColonies extends Command
         // Extração das zonas neutras ocupadas — fora do laço por colônia, como as entregas: a zona
         // rende por delta próprio, sem relação com o `last_tick_at` de ninguém (§07, D-52).
         $extraidas = $zonasNeutras->handle($agora);
+
+        /*
+         * A2.10: as guerras federativas que venceram o prazo terminam aqui.
+         *
+         * ⚠️ Sem isto elas ficariam `ativa` para sempre, e o cooldown do par — que conta a partir do
+         * fim — viraria bloqueio permanente entre as duas. É o defeito que a pesquisa teve por meses
+         * (D-190): quem inicia sem quem conclui.
+         */
+        $guerrasEncerradas = app(EncerrarGuerras::class)->handle($agora);
 
         /*
          * Fora do laço por colônia: um veículo da colônia A entrega na B, e o relógio da viagem

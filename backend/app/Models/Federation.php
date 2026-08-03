@@ -28,9 +28,14 @@ class Federation extends Model
     /** GDD: "Membros Máximo 12." Regra de jogo, não parâmetro que o operador configure. */
     public const MAX_COLONIAS = 12;
 
-    protected $fillable = ['name', 'disbanded_at'];
+    protected $fillable = [
+        'name',
+        'disbanded_at',
+        // A2.10: o caixa do fundo. Sem ele, o custo de declarar guerra não teria de onde sair.
+        'fert_micro',
+    ];
 
-    protected $casts = ['disbanded_at' => 'datetime'];
+    protected $casts = ['disbanded_at' => 'datetime', 'fert_micro' => 'integer'];
 
     public function membros(): HasMany
     {

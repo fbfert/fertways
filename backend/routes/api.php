@@ -291,4 +291,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/federations/{federation}/alianca', [FederationController::class, 'proporAlianca']);
     Route::post('/federations/{federation}/alianca/accept', [FederationController::class, 'aceitarAlianca']);
     Route::delete('/federations/{federation}/alianca', [FederationController::class, 'romperAlianca']);
+
+    /*
+     * A2.10, primeira fatia: declarar guerra, e abastecer o caixa que a paga. Sem a contribuição, o
+     * custo decidido no D-193 seria impagável por construção — o fundo nasceria em zero.
+     */
+    Route::post('/federations/{federation}/guerra', [FederationController::class, 'declararGuerra']);
+    Route::post('/federation/fundo', [FederationController::class, 'contribuirParaOFundo']);
 });

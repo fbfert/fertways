@@ -250,6 +250,18 @@ foreach ([[$c, "Pacto do Norte", "PN", $u], [$cv, "Liga do Sul", "LS", $v]] as [
         "federation_id" => $f->id,
         "federation_role" => App\Models\Federation::LIDER,
     ])->save();
+
+    /*
+     * A2.10: o fundo abastecido, para a mesa de guerra ter o que mostrar e o botão poder existir.
+     * Sem Fert$ e sem Nióbio, declarar seria recusado e o e2e testaria a recusa em vez da fase.
+     */
+    $cfg = App\Models\WarSetting::singleton();
+    $f->update(["fert_micro" => (int) $cfg->federativa_custo_fert_micro * 5]);
+    DB::table("federation_holdings")->insert([
+        "federation_id" => $f->id, "resource_type" => "niobio_alienigena",
+        "amount" => (int) $cfg->federativa_custo_niobio * 5,
+        "created_at" => now(), "updated_at" => now(),
+    ]);
 }
 
 // D-81: uma fala da vizinha no Global, para o e2e do Chat ter um nick alheio em que clicar.

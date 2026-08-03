@@ -111,6 +111,9 @@ class DirecaoDoLedger
         'custo_pesquisa',
         // A2.7: destrói recurso de verdade — vira capacidade de carga.
         'upgrade_veiculo',
+
+        // A2.10: sai da colônia e entra no fundo — é fluxo econômico de verdade.
+        'contribuicao_fundo',
     ];
 
     public function contaNoFluxo(string $tipo): bool

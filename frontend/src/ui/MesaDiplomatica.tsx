@@ -79,6 +79,37 @@ export function MesaDiplomatica() {
         {d.aliadas} de {d.max_aliadas} aliada(s).
       </div>
 
+      {/*
+        A2.10: a mesa de guerra.
+
+        ⚠️ Mostra o custo AGORA, e não o de tabela: um evento de mobilização pode tê-lo mudado, e o
+        jogador precisa ver o preço que vai pagar — não o que estava no manual.
+      */}
+      {d.guerra && (
+        <div className="border-perigo/30 bg-sand-light mb-3 border-l-4 px-3 py-2" data-mesa-guerra>
+          {d.guerra.tregua ? (
+            <p className="text-ink text-sm">
+              ▲ <strong>Trégua do Governo.</strong> Nenhuma declaração de guerra pode ser aberta agora.
+            </p>
+          ) : (
+            <p className="text-ink-soft text-sm">
+              Declarar guerra custa <strong>{d.guerra.custo_fert.toLocaleString('pt-BR')} F$</strong> e{' '}
+              <strong>{d.guerra.custo_niobio}</strong> de Nióbio, <strong>do fundo</strong> — que tem{' '}
+              {(d.fundo_fert ?? 0).toLocaleString('pt-BR')} F$. A campanha dura 7 dias e{' '}
+              <strong>o outro lado não pode recusar</strong>.
+            </p>
+          )}
+
+          {d.guerra.em_guerra_com.map((g) => (
+            <p key={g.id} className="text-perigo mt-1 text-sm" data-em-guerra={g.id}>
+              ▲ Em guerra com <strong>{g.nome}</strong> até{' '}
+              {new Date(g.termina_em).toLocaleString('pt-BR')}
+              {g.eu_declarei ? ' (você declarou)' : ' (declararam a você)'}.
+            </p>
+          ))}
+        </div>
+      )}
+
       {(d.relacoes ?? []).length > 0 && (
         <ul className="mb-3 flex flex-col gap-2">
           {(d.relacoes ?? []).map((r) => (
@@ -104,6 +135,36 @@ export function MesaDiplomatica() {
                   data-aceitar-alianca={r.id}
                 >
                   Aceitar
+                </Botao>
+              )}
+
+              {/*
+                Declarar guerra fica ao lado de romper, e não escondido noutra tela: são os dois atos
+                que quebram uma relação, e o jogador decide entre eles no mesmo lugar.
+
+                ⚠️ O aviso de que declarar ROMPE a aliança está no `title`, porque a decisão 8 do
+                D-193 diz que a tela tem de avisar antes — e descobrir depois seria traição do jogo,
+                não do jogador.
+              */}
+              {d.pode_tratar && !d.guerra?.tregua && (
+                <Botao
+                  variante="perigo"
+                  tamanho="pequeno"
+                  onClick={() =>
+                    agir(
+                      () => api.declararGuerra(r.id),
+                      `Guerra declarada a ${r.nome}. Sete dias.`,
+                    )
+                  }
+                  disabled={ocupado}
+                  data-declarar-guerra={r.id}
+                  title={
+                    r.status === 'aceita'
+                      ? 'Declarar guerra ROMPE a aliança automaticamente.'
+                      : 'A campanha dura 7 dias e o outro lado não pode recusar.'
+                  }
+                >
+                  Declarar guerra
                 </Botao>
               )}
 

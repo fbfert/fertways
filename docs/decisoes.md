@@ -10480,3 +10480,68 @@ para que seja cobrado.
 
 1155 testes verdes (7 novos), entre eles o que prova que `para()` recusa um pontual e o que prova que
 a trégua vale por instante: antes não bloqueia, durante bloqueia, depois não bloqueia mais.
+
+## D-195 — Guerra federativa, primeira fatia: o esqueleto
+
+Declaração, prazo de 7 dias, cooldown de par e aviso público. Cada regra é uma das doze decisões do
+D-193, e cada uma tem um teste que a guarda.
+
+### ⚠️ O custo decidido era impagável por construção
+
+A decisão 3 manda declarar custar *"Fert$ do fundo + Nióbio"*. Fui implementar e descobri que **a
+federação não tem dinheiro**: o fundo é `federation_holdings`, uma tabela de **recursos**, e o
+`federation_ledger` sequer aceita lançamento sem `resource_type`.
+
+Não havia de onde tirar o Fert$ — e não havia como pôr. O custo era uma regra que ninguém conseguiria
+cumprir, o que não é regra, é impedimento.
+
+Duas peças fecharam o laço: `federations.fert_micro` (o caixa que o D-114 sempre implicou ao chamá-lo
+de "fundo") e `ContribuirParaOFundo`, para qualquer membro abastecê-lo. **Sem a segunda, o saldo
+nasceria em zero e ficaria lá** — o mesmo impasse com outra cara.
+
+⚠️ Contribuir é de qualquer membro; sacar continua sendo de Líder e Intendente. A assimetria é a
+mesma do D-114: pôr no caixa comum não precisa de cargo, tirar precisa.
+
+### O primeiro consumidor do modificador de guerra
+
+O D-194 publicou `guerra_declaracao` e `guerra_custo` **sem consumidor**, e eu disse que ele viria na
+fatia seguinte. Veio: a trégua fecha o portão antes de qualquer outra conferência, e o custo de
+mobilização multiplica o preço. Os dois lidos **por instante**, nunca por média.
+
+### Três decisões que viraram trava com teste
+
+- **Não há recusa** (decisão 4): não existe caminho para o alvo negar. O teste confere que a guerra
+  existe do lado de quem foi declarado sem ele ter aceitado nada;
+- **Declarar a uma aliada rompe a aliança** (decisão 8) — e ⚠️ **só se a guerra realmente acontecer**.
+  A ruptura ficou depois de todas as conferências: se uma delas recusasse, a federação teria perdido
+  a aliada por uma guerra que não houve. Há teste para os dois lados;
+- **O cooldown é do PAR** (§10): impede declarar de novo à mesma federação, e **não** impede declarar
+  a um terceiro. Congelar a geopolítica puniria quem foi atacado.
+
+### E o encerramento existe, porque quem inicia sem quem conclui já me custou uma fase
+
+`EncerrarGuerras` entra no tick. Sem ele a guerra ficaria `ativa` para sempre, o cooldown — que conta
+a partir do fim — nunca começaria, e o par jamais poderia declarar de novo: proteção contra assédio
+virando bloqueio permanente. É exatamente o defeito que a pesquisa carregou por meses (D-190).
+
+### ⚠️ Dois erros meus, ambos pegos por teste
+
+**Uma vírgula comida por regex** no `$fillable` do `Federation` derrubou 97 testes de uma vez com
+`ParseError`. Barato porque foi imediato — e é o argumento contra editar PHP com expressão regular.
+
+**E li o modelo em memória em vez do banco:** o teste que prova que o custo sai do fundo comparava o
+saldo da colônia *antes*, lido de um objeto criado sem `fert_micro`, contra o valor real depois. Zero
+contra o saldo inicial que o banco dá. Mesma armadilha do D-166, terceira ou quarta aparição nesta
+base: **o modelo em memória não conhece os defaults do banco.**
+
+### O que esta fatia NÃO faz
+
+Nada de alvos, combate ou espólio — nenhuma zona muda de dono, nenhuma colônia é saqueada. A guerra
+existe, tem prazo e aparece; o que ela **faz** é a fatia seguinte, e antes dela vem a **neutralidade
+declarada**, que precisa existir antes do saque para não haver uma semana de consequência sem a
+válvula de escape que o D-193 escolheu.
+
+### Verificação
+
+1170 testes verdes (15 novos) e 10 suítes e2e verdes, com a mesa de guerra provada na Capital: o
+custo aparece, a tela avisa que o outro lado não pode recusar, e o clique chega ao domínio.

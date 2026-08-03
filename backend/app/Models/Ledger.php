@@ -24,6 +24,8 @@ class Ledger extends Model
     protected $casts = ['amount' => 'integer', 'created_at' => 'datetime'];
 
     public const TIPOS = [
+        // A2.10: Fert$ que sai da colônia para o fundo da federação. Saída, e por isso negativo.
+        'contribuicao_fundo',
         'producao',
         'custo_construcao',
         'subsidio_governo',   // §24.7: 100% das cinco essenciais até o nível 3
