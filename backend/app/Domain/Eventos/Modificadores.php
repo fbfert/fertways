@@ -42,6 +42,27 @@ class Modificadores
 
     public const CONSUMO = 'consumo';
 
+    /** O portão da guerra (A2.10 §17): `-10000` fecha, e ninguém declara enquanto durar. */
+    public const GUERRA_DECLARACAO = 'guerra_declaracao';
+
+    /** Quanto custa declarar e mobilizar, em bps sobre o custo normal. */
+    public const GUERRA_CUSTO = 'guerra_custo';
+
+    /** A lista canônica. A coluna deixou de ser `enum` para a verdade morar num lugar só. */
+    public const TODOS = [self::PRODUCAO, self::CONSUMO, self::GUERRA_DECLARACAO, self::GUERRA_CUSTO];
+
+    /**
+     * ⚠️ Os modificadores que se medem **por instante**, e nunca por média.
+     *
+     * Produção e consumo são taxas: correm no tempo, e a média ponderada é EXATA para elas. Guerra
+     * não é taxa — *"há trégua agora?"* e *"quanto custa declarar agora?"* são perguntas de um
+     * momento. Uma trégua que cobrisse metade do intervalo viraria "meio bloqueada", que não
+     * significa coisa alguma.
+     *
+     * `para()` recusa estes; quem pergunta por eles usa `em()`.
+     */
+    public const PONTUAIS = [self::GUERRA_DECLARACAO, self::GUERRA_CUSTO];
+
     /**
      * O multiplicador em pontos-base para o intervalo — 10.000 é "sem efeito".
      *
@@ -54,6 +75,19 @@ class Modificadores
         CarbonInterface $ate,
         ?string $recurso = null,
     ): int {
+        /*
+         * ⚠️ Recusa, e não converte em silêncio.
+         *
+         * Devolver a média de um portão daria um número plausível e errado — "meio em trégua" —, e
+         * quem o lesse não teria como desconfiar. Explodir aqui custa um teste vermelho; devolver
+         * 5.000 custaria uma guerra declarada durante uma trégua, meses depois, sem ninguém entender.
+         */
+        if (in_array($modificador, self::PONTUAIS, true)) {
+            throw new \LogicException(
+                "«{$modificador}» é pontual e não se mede por média: use `em()`. Ver o docblock.",
+            );
+        }
+
         $segundos = $ate->getTimestamp() - $de->getTimestamp();
 
         if ($segundos <= 0) {
@@ -75,6 +109,34 @@ class Modificadores
 
         // Piso em zero: −100% para a produção, e nunca uma taxa negativa que passasse a consumir.
         return max(0, 10_000 + $soma);
+    }
+
+    /**
+     * O efeito **num instante** — 10.000 é "sem efeito", 0 é "bloqueado".
+     *
+     * É a leitura certa para ato pontual: declarar guerra, pagar mobilização. Não há ponderação
+     * nenhuma porque não há intervalo — só vale o que está valendo naquele momento.
+     *
+     * ⚠️ Um evento **cancelado** deixa de valer no instante do cancelamento, e `vigenteEm()` já
+     * cuida disso: o rollback lógico da A2.8 continua valendo aqui sem código novo.
+     */
+    public function em(?Colony $colonia, string $modificador, CarbonInterface $quando): int
+    {
+        $soma = 0;
+
+        foreach ($this->vigentes($colonia, $modificador, $quando, $quando->copy()->addSecond()) as $evento) {
+            if ($evento->vigenteEm($quando)) {
+                $soma += (int) $evento->efeito_bps;
+            }
+        }
+
+        return max(0, 10_000 + $soma);
+    }
+
+    /** Atalho legível: há trégua agora? */
+    public function guerraBloqueada(?Colony $colonia, CarbonInterface $quando): bool
+    {
+        return $this->em($colonia, self::GUERRA_DECLARACAO, $quando) <= 0;
     }
 
     /**

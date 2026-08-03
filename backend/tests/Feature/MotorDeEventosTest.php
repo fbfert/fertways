@@ -297,6 +297,123 @@ class MotorDeEventosTest extends TestCase
         $this->assertNotNull($e->cancelado_em);
     }
 
+    // ────────────────────────────────────────────── ⚠️ o modificador de guerra (A2.10 §17)
+
+    /**
+     * ⚠️ **A distinção que sustenta esta entrega: portão não se mede por média.**
+     *
+     * O motor calcula média ponderada pelo tempo, e isso é EXATO para produção porque taxa é linear
+     * no tempo. Guerra não é taxa: *"há trégua agora?"* é pergunta de instante. Uma trégua cobrindo
+     * metade do intervalo viraria "meio bloqueada", que não significa coisa alguma — e o pior é que
+     * seria um número plausível, que ninguém desconfiaria.
+     *
+     * Por isso `para()` **recusa** em vez de converter em silêncio.
+     */
+    public function test_para_recusa_medir_um_modificador_pontual(): void
+    {
+        $this->expectException(\LogicException::class);
+
+        app(Modificadores::class)->para(
+            null, Modificadores::GUERRA_DECLARACAO, now(), now()->addHour(),
+        );
+    }
+
+    /** A trégua fecha o portão: −10000 é −100%, e o piso do motor é zero. */
+    public function test_a_tregua_bloqueia_a_declaracao_de_guerra(): void
+    {
+        $mod = app(Modificadores::class);
+
+        $this->assertFalse($mod->guerraBloqueada(null, now()), 'sem evento, ninguém está em trégua');
+
+        $this->evento([
+            'modificador' => Modificadores::GUERRA_DECLARACAO,
+            'efeito_bps' => -10_000,
+        ]);
+
+        $this->assertTrue($mod->guerraBloqueada(null, now()));
+        $this->assertSame(0, $mod->em(null, Modificadores::GUERRA_DECLARACAO, now()));
+    }
+
+    /**
+     * ⚠️ E a trégua vale por INSTANTE, não pelo intervalo.
+     *
+     * Antes de começar não bloqueia; durante, bloqueia; depois de acabar, não bloqueia mais. É a
+     * prova de que não há média nenhuma acontecendo por baixo.
+     */
+    public function test_a_tregua_vale_por_instante_e_nao_pelo_intervalo(): void
+    {
+        $inicio = Carbon::parse('2026-03-01 12:00:00');
+
+        $this->evento([
+            'modificador' => Modificadores::GUERRA_DECLARACAO,
+            'efeito_bps' => -10_000,
+            'comeca_em' => $inicio,
+            'termina_em' => $inicio->copy()->addHours(4),
+        ]);
+
+        $mod = app(Modificadores::class);
+
+        $this->assertFalse($mod->guerraBloqueada(null, $inicio->copy()->subMinute()), 'antes, não');
+        $this->assertTrue($mod->guerraBloqueada(null, $inicio->copy()->addHours(2)), 'durante, sim');
+        $this->assertFalse($mod->guerraBloqueada(null, $inicio->copy()->addHours(5)), 'depois, não');
+    }
+
+    /** Cancelar encerra a trégua no instante do cancelamento — o rollback lógico da A2.8 vale aqui. */
+    public function test_cancelar_a_tregua_reabre_a_declaracao(): void
+    {
+        $inicio = Carbon::parse('2026-03-01 12:00:00');
+
+        $e = $this->evento([
+            'modificador' => Modificadores::GUERRA_DECLARACAO,
+            'efeito_bps' => -10_000,
+            'comeca_em' => $inicio,
+            'termina_em' => $inicio->copy()->addHours(10),
+        ]);
+        $e->update(['status' => 'cancelado', 'cancelado_em' => $inicio->copy()->addHours(3)]);
+
+        $mod = app(Modificadores::class);
+
+        $this->assertTrue($mod->guerraBloqueada(null, $inicio->copy()->addHour()), 'antes do cancelamento');
+        $this->assertFalse($mod->guerraBloqueada(null, $inicio->copy()->addHours(4)), 'depois, reabriu');
+    }
+
+    /** O custo de mobilização é multiplicador, e o piso continua sendo zero. */
+    public function test_o_custo_de_guerra_e_multiplicador(): void
+    {
+        $this->evento([
+            'modificador' => Modificadores::GUERRA_CUSTO,
+            'efeito_bps' => 5_000,
+        ]);
+
+        $this->assertSame(
+            15_000,
+            app(Modificadores::class)->em(null, Modificadores::GUERRA_CUSTO, now()),
+            'declarar passa a custar 150% do normal',
+        );
+    }
+
+    /** Rascunho não vale nada, nem para guerra. */
+    public function test_tregua_em_rascunho_nao_bloqueia(): void
+    {
+        $this->evento([
+            'modificador' => Modificadores::GUERRA_DECLARACAO,
+            'efeito_bps' => -10_000,
+            'status' => 'rascunho',
+        ]);
+
+        $this->assertFalse(app(Modificadores::class)->guerraBloqueada(null, now()));
+    }
+
+    public function test_o_comando_cria_uma_tregua(): void
+    {
+        $this->artisan('fertways:evento', [
+            'slug' => 'tregua', '--nome' => 'Trégua',
+            '--guerra-declaracao' => -10_000, '--ativar' => true,
+        ])->assertSuccessful();
+
+        $this->assertTrue(app(Modificadores::class)->guerraBloqueada(null, now()));
+    }
+
     // ────────────────────────────────────────────── segredo
 
     /** `segredo` e `visibilidade` são afirmações separadas: quem quer segredo diz duas vezes. */

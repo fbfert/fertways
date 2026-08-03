@@ -10421,3 +10421,62 @@ deixou de estar:
   no custo de mobilização. A própria A2.8 pôs "combate" na lista *Depois*.
 
 E a decisão 10 — a fórmula do ranking — segue sendo desenho próprio, não escolha binária.
+
+## D-194 — O modificador de guerra, e a média que não servia
+
+Última dependência que o roadmap da A2.10 exigia. O motor da A2.8 só sabia produção e consumo; o §17
+do GDD da guerra pede que um evento externo possa **impor trégua** e **mexer no custo de mobilização**.
+
+### ⚠️ A decisão de desenho: portão não se mede por média
+
+O motor calcula **média ponderada pelo tempo**, e o D-185 provou que isso é **exato** para produção,
+porque taxa é linear no tempo. Guerra não é taxa: *"há trégua agora?"* e *"quanto custa declarar
+agora?"* são perguntas de **instante**.
+
+Uma trégua cobrindo metade do intervalo viraria "meio bloqueada" — e o pior não é ser errado, é ser
+**plausível**: 5.000 é um número que ninguém desconfiaria, e o erro apareceria meses depois como uma
+guerra declarada durante uma trégua.
+
+Por isso `Modificadores::em()` responde por instante, e **`para()` recusa** os pontuais com uma
+exceção em vez de converter em silêncio. Explodir custa um teste vermelho; devolver a média custaria
+um bug invisível.
+
+O docblock que escrevi no D-185 já avisava: *"isso vale porque a produção é linear no tempo; se um
+dia entrar um modificador não linear, ele precisa fatiar"*. Entrou, e o aviso foi honrado.
+
+### Dois modificadores, e não três
+
+- **`guerra_declaracao`** — o portão. `-10000` fecha, e ninguém declara enquanto durar;
+- **`guerra_custo`** — quanto custa declarar e mobilizar.
+
+*"Abrir janela de guerra"* e *"impor trégua"* são a mesma alavanca vista dos dois lados. Dois nomes
+para o mesmo portão só criariam a chance de os dois discordarem.
+
+⚠️ O preview avisa que **só −10000 fecha**: qualquer outro valor no portão não impede declaração
+nenhuma, e um operador que digitasse −5000 acharia ter imposto meia trégua.
+
+### ⚠️ O SQLite impõe `enum`, ao contrário do que eu supus
+
+A primeira versão da migration só mexia no MariaDB, com o comentário de que *"o SQLite dos testes não
+impõe a restrição"*. **Impõe** — o Laravel traduz `enum` em CHECK constraint, e o teste quebrou com
+*"CHECK constraint failed: modificador"*.
+
+É a assimetria SQLite×MariaDB de sempre, **invertida**: desta vez o banco dos testes era o mais
+estrito, e foi ele que pegou. O `change()` nativo resolve os dois sem ramo por driver — que era
+exatamente o erro.
+
+A coluna deixou de ser `enum` também por outra razão: a A2.8 promete mais seis modificadores (taxa,
+logística, construção, pesquisa, população, território), e `enum` obrigaria uma migration a cada um.
+A lista canônica agora mora em `Modificadores::TODOS`, onde o código já a procura.
+
+### ⚠️ E isto nasce sem consumidor, de propósito e por uma fatia só
+
+Nenhum código lê `guerra_declaracao` ainda, porque guerra federativa não existe. É a coisa que esta
+Alpha inteira vem condenando — peça sem uso apodrece —, e a diferença aqui é o prazo: o consumidor é
+a **próxima fatia**, não um "algum dia". Se a A2.10 não continuar, isto é código morto, e fica dito
+para que seja cobrado.
+
+### Verificação
+
+1155 testes verdes (7 novos), entre eles o que prova que `para()` recusa um pontual e o que prova que
+a trégua vale por instante: antes não bloqueia, durante bloqueia, depois não bloqueia mais.
