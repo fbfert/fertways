@@ -47,10 +47,15 @@ Medido na produção em 2026-08-02:
 |---|---|
 | colônias | 29 |
 | **federações ativas** | **1** |
-| **zonas neutras ocupadas** | **1** de 120 |
+| **zonas neutras ocupadas** | **1** de 77 |
 | alianças firmadas | 0 |
 
 **Uma federação não entra em guerra com ninguém, e uma zona ocupada não é geopolítica — é uma zona.**
+
+> ⚠️ **Correção de 2026-08-03:** este quadro dizia "1 de **120**". O mundo tem **77** zonas; 120 é o
+> número do semeador do e2e, e eu o carreguei para um documento sobre produção sem conferir. A
+> conclusão não muda — muda o fato, e fato errado em documento de decisão é como erro entra em
+> decisão.
 
 Isso não invalida a fase; muda a **ordem**. Construir guerra federativa hoje seria erguer um sistema
 que nenhum jogador consegue usar, e a Alpha 2 inteira vem provando que peça sem uso apodrece
@@ -240,7 +245,7 @@ reconhecimento — o que muda é de quem é o **produto**.
 ## 12. Perda
 
 ✅ **Perder território, nunca perder a colônia.** E o que se perde tem de ser **recuperável**: a zona
-tomada pode ser retomada, comprada de volta, ou substituída por outra das 120.
+tomada pode ser retomada, comprada de volta, ou substituída por outra das 77.
 
 ⚠️ **Nenhuma perda permanente**, em nenhuma hipótese. Num mundo sem reset, perda permanente acumula
 para sempre e produz uma casta de perdedores que nunca mais alcança. Esse é o defeito que mata jogos

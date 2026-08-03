@@ -1728,3 +1728,10 @@ reiniciá-lo.
   aquele** (com as chaves ainda PENDENTE marcadas), e `FERTWAYS_ALPHA2_MANUAL_MESTRE.html` reúne os
   **13 prompts de execução**. Os números D-n destas decisões **ainda não foram cunhados** — o último
   real é o D-160, e D-n só nasce na entrega.
+
+## O estado do jogo, medido
+
+`docs/alpha2/GDD_ESTADO_DO_JOGO.md` — o que o FERTWAYS **é hoje**, e não o que ele deve ser.
+Separa o que está no ar, o que dorme e o que não existe, com todos os números medidos contra a
+produção. É o primeiro documento a ler antes de mexer em qualquer mecânica: foi escrito porque a
+diferença entre "entregue" e "funcionando" foi o defeito mais caro desta Alpha.

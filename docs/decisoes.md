@@ -10545,3 +10545,62 @@ válvula de escape que o D-193 escolheu.
 
 1170 testes verdes (15 novos) e 10 suítes e2e verdes, com a mesa de guerra provada na Capital: o
 custo aparece, a tela avisa que o outro lado não pode recusar, e o clique chega ao domínio.
+
+## D-196 — O GDD do estado do jogo, e um número meu que estava errado
+
+Pedido para documentar tudo e consolidar num GDD atualizado. Saiu
+`docs/alpha2/GDD_ESTADO_DO_JOGO.md`.
+
+### Por que um documento novo, e não uma edição do GDD existente
+
+O `GDD_ALPHA2.md` diz o que o jogo **deve ser**; o roadmap, em que ordem construir; o `BALANCEAMENTO`,
+o que foi medido; o `decisoes.md`, o porquê de cada escolha. Faltava o que o jogo **é**.
+
+⚠️ E a diferença entre intenção e estado foi **o defeito mais caro desta Alpha**. Sete vezes uma fase
+estava "entregue" e a mecânica não fazia nada: `vehicles.level` sem rota, `population_settings.ativo`
+sem leitor, `.botao` sem definição, `EfeitosDaPesquisa` sem consumidor, `ConcluirPesquisa` sem quem o
+chamasse, `silo_capacidades` plana em todos os níveis, `BuildingOperatorRequirementSeeder` fora do
+seeder padrão.
+
+Por isso o documento separa **três** estados e nunca os mistura: **no ar**, **dormente**, **não
+existe**. *"Entregue"* não é um deles, e essa é a tese do documento inteiro.
+
+### ⚠️ Escrevendo, encontrei um número errado que eu mesmo publiquei
+
+O GDD da guerra federativa (D-188) dizia *"1 zona ocupada de **120**"*. A produção tem **77**. O 120 é
+o número do **semeador do e2e**, e eu o carreguei para um documento sobre produção sem conferir.
+
+A conclusão não muda — uma zona ocupada continua não sendo geopolítica. Mas **fato errado em documento
+de decisão é como erro entra em decisão**, e a correção ficou registrada no próprio documento em vez
+de apagada.
+
+Isso aconteceu porque escrevi de memória. O documento novo foi inteiro medido contra a produção no
+dia, e diz isso na primeira linha.
+
+### O que a fotografia revelou
+
+A leitura mais dura do quadro não é o que existe — é **o que não foi usado**:
+
+| mecânica | usos |
+|---|---|
+| tecnologias pesquisadas | **0** de 8 |
+| alianças firmadas | **0** |
+| veículos acima do nível 1 | **0** de 51 |
+| itens únicos | **0** |
+| eventos de mundo | **0** |
+| guerras | **0** |
+
+Quase todas subiram há horas ou dias, então não é sinal de defeito. É sinal de que **nenhuma foi
+validada por jogador**, e de que todo número deste documento continua hipótese até que seja.
+
+E um dado bom no meio: a população saiu de 535 para **559**. Ela está crescendo — a única mecânica
+desta Alpha que já tem prova de vida em campo.
+
+### Os sete invariantes, escritos pela primeira vez num lugar só
+
+Degrada não se perde · nada existente para por regra nova · o ledger registra o que aconteceu ·
+chave-mestra nasce desligada **e tem de ligar alguma coisa** · peça sem uso apodrece · simulação não é
+o mundo · medir antes **e medir a coisa certa**.
+
+Cada um foi pago com um erro desta Alpha, e cada um é hoje guardado por teste. Estavam espalhados por
+trinta e cinco decisões; agora estão numa página.
