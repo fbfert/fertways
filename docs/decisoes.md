@@ -10805,3 +10805,49 @@ nível**. Com a tabela antiga ele falharia — que é o que um teste deveria ter
 ### Verificação
 
 1182 testes verdes.
+
+## D-201 — Saquear colônia contradiz o §01, e onze jogadores já pagaram por uma defesa que não defende
+
+Segunda parada da fatia de espólio. A primeira foi um parâmetro em branco (D-198); esta é estrutural.
+
+### ⚠️ O §01 declara a colônia INVIOLÁVEL
+
+E não fui eu quem descobriu: o catálogo de funções já dizia, sobre a Torre de Defesa —
+
+> *"O GDD se contradiz: o slot principal é **INVIOLÁVEL (§01)**, então não há o que defender aqui. O
+> bônus nunca é dado em número. Hoje só consome energia."*
+
+A decisão 2 do D-193 torna a colônia saqueável no excedente do Depósito. Isso **revoga o §01**, e a
+revogação precisa ser consciente — não consequência lateral de uma decisão sobre espólio.
+
+### ⚠️ E a colônia não tem defesa nenhuma
+
+Todas as defesas do jogo — Muralha de Perímetro, Torre de Vigia, Bastião — são **estruturas de zona**.
+A colônia tem duas construções de aparência militar, e as duas são inertes:
+
+| construção | efeito hoje | erguidas em produção |
+|---|---|---|
+| `torre_de_defesa` | **nenhum** | **11** |
+| `quartel` | **nenhum** (só habilita atacar) | 3 |
+
+**Onze jogadores construíram uma torre que não defende nada.** Publicar saque de colônia sem dar
+função a ela seria transformar a decisão num imposto sobre estar menos online: o atacante manda, o
+defensor não tem o que opor, e o resultado é determinístico. Isso não é balanceamento ruim — é
+ausência de mecânica.
+
+### A oportunidade que o problema traz
+
+É o mesmo padrão que a A2.2 e a A2.6 já resolveram duas vezes: a Estrutura de Sobrevivência era
+`'efeito' => 'nenhum'` até a população lhe dar teto habitacional; o Abrigo de Robôs só servia de
+defesa contra o Predador até a A2.6 fazê-lo dispensar operadores.
+
+**O saque de colônia é o que finalmente dá número à Torre de Defesa** — e recompensa onze jogadores
+que apostaram nela antes de ela valer alguma coisa.
+
+### Por que parei outra vez
+
+Construir agora exigiria eu inventar, sozinho: o que a Torre faz, o que o Quartel faz na defesa, e
+como se ataca uma colônia — um fluxo que não existe, já que `Atacar` só aceita Zona Neutra.
+
+São decisões de desenho, não de fiação. E a diferença entre elas e as anteriores é que **esta revoga
+um parágrafo do GDD**: o §01 diz inviolável, e o jogo passaria a dizer o contrário.
