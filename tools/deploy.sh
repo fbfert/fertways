@@ -19,6 +19,7 @@ set -euo pipefail
 
 RAIZ="$(cd "$(dirname "$0")/.." && pwd)"
 DEPLOY=/home/fertways/deploy/fertways
+BACKUPS=/home/fertways/backups
 PUBLICO=/home/fertways/public_html
 PHP=/usr/bin/php84
 FPM=php84-php-fpm.service
@@ -64,6 +65,70 @@ if [ "$so_frontend" -eq 0 ]; then
   "${COMO[@]}" "$PHP" "$DEPLOY/backend/artisan" down --retry=15
   restaurar() { "${COMO[@]}" "$PHP" "$DEPLOY/backend/artisan" up || true; }
   trap 'echo "FALHOU — tirando da manutenção" >&2; restaurar' ERR
+
+  # ---------------------------------------------------------------- backup
+  #
+  # ⚠️ ANTES da migration, e DENTRO da manutenção — nesta ordem, e por dois motivos distintos.
+  #
+  # Dentro da manutenção porque o mundo não pode andar entre o retrato e o `migrate`: um backup
+  # tirado com o jogo no ar é de um estado que já não é o que a migration vai encontrar.
+  #
+  # E antes de tudo o mais porque **se o backup falhar, o deploy não acontece**. O D-208 achou o
+  # buraco que isto fecha: o hábito de tirar um backup manual antes de cada fase existia, parou sem
+  # que nada avisasse, e três fases subiram cobertas só pelo diário das 03:00 — até 24 h de perda.
+  # Hábito que depende de alguém lembrar não é proteção; passo de script é.
+  #
+  # O diário continua sendo o recurso contra desastre. Este é outro: desfazer UMA migration ruim,
+  # com o retrato do minuto anterior a ela. Ver docs/restauracao.md.
+  "${COMO[@]}" git -C "$DEPLOY" fetch --quiet origin main
+  # `sha_alvo`, e não `alvo`: `alvo` já é o destino do symlink, conferido lá em cima.
+  sha_alvo=$(git -C "$DEPLOY" rev-parse --short origin/main)
+
+  banco=$(sed -n 's/^DB_DATABASE=//p' "$DEPLOY/backend/.env" | tr -d '"'"'"'[:space:]')
+  if [ -z "$banco" ]; then
+    echo "ABORTADO: não achei DB_DATABASE em $DEPLOY/backend/.env." >&2
+    exit 1
+  fi
+
+  mkdir -p "$BACKUPS"
+  dump="$BACKUPS/${banco}-antes-${sha_alvo}-$(date +%Y%m%d-%H%M%S).sql.gz"
+
+  echo "==> backup de $banco antes de $sha_alvo"
+  # `--single-transaction`: retrato consistente sem travar tabela, que é o certo para InnoDB.
+  mysqldump --single-transaction --quick --routines "$banco" | gzip > "$dump"
+
+  # ⚠️ Backup que ninguém conferiu é hipótese (D-208). Três perguntas, e as três importam:
+  # o gzip fecha? tem tamanho de banco de verdade? e tem mesmo as tabelas do jogo dentro?
+  if ! gzip -t "$dump" 2>/dev/null; then
+    echo "ABORTADO: o backup $dump não passa no gzip -t. Nada foi publicado." >&2
+    rm -f "$dump"
+    exit 1
+  fi
+
+  tamanho=$(stat -c%s "$dump")
+  if [ "$tamanho" -lt 100000 ]; then
+    echo "ABORTADO: o backup tem só $tamanho bytes — o banco do jogo não cabe nisso." >&2
+    echo "Um dump vazio que passa no gzip -t é o pior tipo de backup: parece que existe." >&2
+    rm -f "$dump"
+    exit 1
+  fi
+
+  # ⚠️ `grep -c`, e NÃO `grep -q`. Com `set -o pipefail`, o `-q` fecha o cano no primeiro acerto,
+  # o `zcat` morre de SIGPIPE (141), e o pipeline inteiro vira falha — mesmo com a tabela presente.
+  # Escrito com `-q` da primeira vez, isto abortaria TODO deploy dizendo que o backup está errado.
+  if [ "$(zcat "$dump" | grep -c 'CREATE TABLE `colonies`' || true)" -eq 0 ]; then
+    echo 'ABORTADO: o backup não contém a tabela `colonies`. Não é o banco do jogo.' >&2
+    rm -f "$dump"
+    exit 1
+  fi
+
+  echo "==> backup conferido: $dump ($((tamanho / 1024)) KB)"
+
+  # Retenção. ~600 KB cada; vinte cobrem semanas de deploys e não chegam a 15 MB. O diário das
+  # 03:00 é quem guarda o longo prazo — estes são para desfazer a migration de agora.
+  # `|| true` no fim: sem backups antigos o `ls` sai com erro, e sob `set -e` isso derrubaria um
+  # deploy por causa da FALTA de lixo para limpar.
+  ls -1t "$BACKUPS/${banco}-antes-"*.sql.gz 2>/dev/null | tail -n +21 | xargs -r rm -f || true
 
   "${COMO[@]}" git -C "$DEPLOY" pull --ff-only origin main
   echo "==> deploy agora em $(git -C "$DEPLOY" log --oneline -1)"

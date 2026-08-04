@@ -98,10 +98,24 @@ sudo ./tools/deploy.sh --so-backend
 sudo ./tools/deploy.sh --so-frontend
 ```
 
+### ⚠️ O backup sai antes da migration, e o deploy morre se ele falhar (D-209)
+
+Todo deploy que toca o backend tira um dump de `fertwaysbd` para `/home/fertways/backups/`, **dentro
+da janela de manutenção e antes do `migrate`** — o mundo não pode andar entre o retrato e a migration
+que vai agir sobre ele. O arquivo leva o sha que está sendo publicado:
+`fertwaysbd-antes-<sha>-<carimbo>.sql.gz`.
+
+E ele é **conferido**: gzip fecha, tamanho de banco de verdade, e a tabela `colonies` lá dentro. Se
+qualquer das três falhar, **nada é publicado** — um dump vazio que passa no `gzip -t` é o pior tipo
+de backup, porque parece que existe.
+
+Retenção de 20 (~600 KB cada). Este backup serve para desfazer **uma migration ruim**; contra
+desastre o recurso continua sendo o diário das 03:00. Para restaurar, ver `docs/restauracao.md`.
+
 O script aborta se: o symlink não apontar para a cópia de deploy, a cópia tiver alteração local,
-`APP_DEBUG` estiver ligado, o bundle no ar não for o recém-compilado, ou a fumaça final
-(front 200, `/central/colony` 401) falhar. Se algo estourar no meio do backend, ele tira a
-aplicação da manutenção antes de sair.
+**o backup falhar em qualquer das três conferências**, `APP_DEBUG` estiver ligado, o bundle no ar não
+for o recém-compilado, ou a fumaça final (front 200, `/central/colony` 401) falhar. Se algo estourar
+no meio do backend, ele tira a aplicação da manutenção antes de sair.
 
 **Reverter a separação**, se precisar: os backups estão em `/home/fertways/deploy/.symlink-anterior`
 e `/home/fertways/deploy/.crontab-anterior`. São uma linha cada — o symlink com `ln -sfn`, o cron
