@@ -312,4 +312,21 @@ Route::middleware('auth:sanctum')->group(function () {
      */
     Route::post('/federation/neutralidade', [FederationController::class, 'declararNeutralidade']);
     Route::delete('/federation/neutralidade', [FederationController::class, 'encerrarNeutralidade']);
+
+    /*
+     * A2.10, decisões 8 e 9: as duas saídas antecipadas do §8 — "prazo, capitulação ou tratado de
+     * paz". O prazo já existia (`EncerrarGuerras`, no tick); estas são as outras duas.
+     *
+     * ⚠️ **A capitulação não tem `reject`, e o tratado tem.** Recusar uma paz é querer continuar
+     * lutando, que é posição legítima; recusar uma rendição prenderia o adversário numa derrota já
+     * decidida — que é exatamente o que o §9 existe para encurtar. Ver `Capitulacao`.
+     */
+    Route::post('/federation/wars/{war}/capitulacao', [FederationController::class, 'proporCapitulacao']);
+    Route::post('/federation/wars/{war}/capitulacao/accept', [FederationController::class, 'aceitarCapitulacao']);
+    Route::delete('/federation/wars/{war}/capitulacao', [FederationController::class, 'retirarCapitulacao']);
+
+    Route::post('/federation/wars/{war}/tratado', [FederationController::class, 'proporTratado']);
+    Route::post('/federation/wars/{war}/tratado/accept', [FederationController::class, 'aceitarTratado']);
+    Route::post('/federation/wars/{war}/tratado/reject', [FederationController::class, 'recusarTratado']);
+    Route::delete('/federation/wars/{war}/tratado', [FederationController::class, 'retirarTratado']);
 });

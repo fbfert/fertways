@@ -6,7 +6,6 @@ use App\Domain\News\PublicarNoticia;
 use App\Exceptions\DomainRuleException;
 use App\Models\Colony;
 use App\Models\Federation;
-use App\Models\FederationWar;
 use App\Models\WarSetting;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\DB;
@@ -27,7 +26,10 @@ use Illuminate\Support\Facades\DB;
  */
 class Neutralidade
 {
-    public function __construct(private readonly PublicarNoticia $noticias) {}
+    public function __construct(
+        private readonly PublicarNoticia $noticias,
+        private readonly EmGuerra $emGuerra,
+    ) {}
 
     /** A federação está protegida neste instante? */
     public function vigente(Federation $federacao, ?CarbonInterface $quando = null): bool
@@ -60,9 +62,9 @@ class Neutralidade
 
             /*
              * ⚠️ Não se declara neutralidade estando em guerra: seria fugir do que já começou. A
-             * saída de uma guerra em curso é a capitulação — decisão 9, fatia seguinte.
+             * saída de uma guerra em curso é a capitulação (decisão 9), no ar desde o D-206.
              */
-            if ($this->emGuerra($f)) {
+            if ($this->emGuerra->federacaoEmGuerra($f->id)) {
                 throw new DomainRuleException(
                     'em_guerra',
                     'Não dá para se declarar neutro no meio de uma guerra. A saída é a capitulação.',
@@ -130,13 +132,6 @@ class Neutralidade
         return Federation::whereNotNull('neutralidade_termina_em')
             ->where('neutralidade_termina_em', '<=', $agora)
             ->update(['neutra_desde' => null, 'neutralidade_termina_em' => null]);
-    }
-
-    private function emGuerra(Federation $f): bool
-    {
-        return FederationWar::where('status', 'ativa')
-            ->where(fn ($q) => $q->where('declarante_id', $f->id)->orWhere('alvo_id', $f->id))
-            ->exists();
     }
 
     /** Líder ou Diplomata — a mesma permissão da aliança e da guerra. Quem fala com fora é um só. */

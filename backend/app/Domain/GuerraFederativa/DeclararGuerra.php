@@ -10,6 +10,7 @@ use App\Domain\News\PublicarNoticia;
 use App\Exceptions\DomainRuleException;
 use App\Models\Colony;
 use App\Models\Federation;
+use App\Models\FederationLedger;
 use App\Models\FederationWar;
 use App\Models\WarSetting;
 use Carbon\CarbonInterface;
@@ -190,15 +191,38 @@ class DeclararGuerra
 
         $f->decrement('fert_micro', $custo['fert']);
 
-        DB::table('federation_ledger')->insert([
-            'federation_id' => $f->id,
-            'colony_id' => null,
-            'type' => 'debito',
-            'amount' => -$custo['niobio'],
-            'resource_type' => 'niobio_alienigena',
-            'ref' => 'guerra:declaracao:'.$f->id.':'.now()->getTimestampMs(),
-            'created_at' => now(),
-        ]);
+        $ref = 'guerra:declaracao:'.$f->id.':'.now()->getTimestampMs();
+
+        /*
+         * ⚠️ **O Fert$ saía do fundo sem deixar rastro** (corrigido no D-206). Só o Nióbio era
+         * lançado; os 500 F$ eram debitados no `decrement()` e não apareciam em extrato nenhum — o
+         * §18 promete que cada declaração e cada espólio ficam registrados, e metade do custo não
+         * ficava. Só dava para lançá-lo depois de `resource_type` virar anulável, que é o que a
+         * migration da capitulação fez.
+         *
+         * E pelo MODELO, não por `DB::table()->insert()`: a inserção crua passava por fora do
+         * `creating`, e com ela por fora da validação de `TIPOS` e da garantia de append-only.
+         */
+        /*
+         * ⚠️ O `ref` leva o sufixo do que se pagou porque `federation_ledger` tem único em
+         * (`federation_id`, `ref`) — duas linhas da MESMA declaração com o mesmo `ref` colidem. Foi
+         * exatamente assim que este lançamento quebrou dez testes ao ser escrito.
+         */
+        foreach ([['fert', $custo['fert'], null], ['niobio', $custo['niobio'], 'niobio_alienigena']] as [$sufixo, $qtd, $recurso]) {
+            if ($qtd <= 0) {
+                continue;
+            }
+
+            FederationLedger::create([
+                'federation_id' => $f->id,
+                'colony_id' => null,
+                'type' => 'debito',
+                'amount' => -$qtd,
+                'resource_type' => $recurso,
+                'ref' => "{$ref}:{$sufixo}",
+                'created_at' => now(),
+            ]);
+        }
     }
 
     private function conferirGuerraEmCurso(Federation $a, Federation $b): void

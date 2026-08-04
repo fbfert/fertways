@@ -8,35 +8,61 @@ use App\Domain\Admin\AlternarZonaNeutra;
 use App\Domain\Admin\Auditoria;
 use App\Domain\Admin\Contas;
 use App\Domain\Admin\CorrigirEstado;
-use App\Domain\Logistics\ZonasNeutras;
 use App\Domain\Admin\RealocarColonia;
 use App\Domain\Admin\Suspender;
+use App\Domain\Chat\ContaSistema;
+use App\Domain\Chat\EnviarMensagem;
+use App\Domain\Endurance\EfeitosDaEndurance;
 use App\Domain\Federacao\DissolverFederacao;
 use App\Domain\Finance\DeclararIntervencao;
+use App\Domain\Frete\Garagem;
+use App\Domain\Logistics\VeiculoSpecs;
+use App\Domain\Logistics\ZonasNeutras;
+use App\Domain\Market\OfertarComoGoverno;
+use App\Domain\Media\Biblioteca;
+use App\Domain\Media\NomesDeExibicao;
+use App\Domain\Media\Vinculaveis;
 use App\Domain\Ministry\Apelacao;
 use App\Domain\Ministry\DecidirCaso;
 use App\Domain\Ministry\GerirConciliador;
+use App\Domain\Ministry\PunicaoSpecs;
+use App\Domain\Missoes\Acoes;
 use App\Domain\News\PublicarNoticia;
+use App\Domain\Transport\Ministerio;
+use App\Domain\Transport\Placas;
 use App\Domain\Treasury\Tesouro;
 use App\Exceptions\DomainRuleException;
 use App\Http\Controllers\Controller;
 use App\Models\Admin;
-use App\Domain\Media\Biblioteca;
-use App\Domain\Media\Vinculaveis;
+use App\Models\Building;
+use App\Models\ChatSetting;
 use App\Models\Colony;
-use App\Models\ImageBinding;
-use App\Models\MediaAsset;
+use App\Models\ColonyEnduranceItem;
+use App\Models\EnduranceItem;
 use App\Models\Federation;
+use App\Models\FederationSetting;
+use App\Models\Feedback;
+use App\Models\FilaSetting;
+use App\Models\ImageBinding;
+use App\Models\KitInicialSetting;
+use App\Models\MediaAsset;
+use App\Models\MilestoneSetting;
+use App\Models\MissionAssignment;
+use App\Models\MissionTemplate;
 use App\Models\News;
+use App\Models\Punishment;
 use App\Models\Report;
+use App\Models\ResourceType;
 use App\Models\TransportSetting;
-use App\Models\WarSetting;
 use App\Models\User;
+use App\Models\Vehicle;
+use App\Models\WarSetting;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
@@ -149,7 +175,7 @@ class AcoesController extends Controller
      * Salva a lista inteira de uma vez — o formulário manda os 26 recursos, um por linha, e o
      * salvar reconcilia cada um com o que já está na vitrine (`OfertarComoGoverno::definir`).
      */
-    public function mercadoGoverno(Request $request, \App\Domain\Market\OfertarComoGoverno $ofertar): RedirectResponse
+    public function mercadoGoverno(Request $request, OfertarComoGoverno $ofertar): RedirectResponse
     {
         $dados = $request->validate([
             'qtd' => ['required', 'array'],
@@ -291,7 +317,7 @@ class AcoesController extends Controller
     // ── Bugs/Melhorias (D-95) ────────────────────────────────────────────────
 
     /** Marca lida/não lida — o mesmo alternar de `noticiaOcultar`, sem julgar o conteúdo. */
-    public function feedbackLida(\App\Models\Feedback $feedback): RedirectResponse
+    public function feedbackLida(Feedback $feedback): RedirectResponse
     {
         $voltando = $feedback->lida();
 
@@ -316,8 +342,8 @@ class AcoesController extends Controller
      */
     public function feedbackResponder(
         Request $request,
-        \App\Models\Feedback $feedback,
-        \App\Domain\Chat\EnviarMensagem $chat,
+        Feedback $feedback,
+        EnviarMensagem $chat,
     ): RedirectResponse {
         $dados = $request->validate([
             'resposta' => ['required', 'string', 'min:1', 'max:2000'],
@@ -333,7 +359,7 @@ class AcoesController extends Controller
             ])->save();
 
             $chat->sistema(
-                \App\Domain\Chat\ContaSistema::capital(),
+                ContaSistema::capital(),
                 $feedback->user,
                 "Resposta ao seu \"{$feedback->assunto}\": {$dados['resposta']}",
             );
@@ -343,7 +369,7 @@ class AcoesController extends Controller
     }
 
     /** FEITO — o registro de que aquele bug foi corrigido ou aquela sugestão foi implementada. */
-    public function feedbackFeito(\App\Models\Feedback $feedback): RedirectResponse
+    public function feedbackFeito(Feedback $feedback): RedirectResponse
     {
         $desfazendo = $feedback->feita();
 
@@ -370,7 +396,7 @@ class AcoesController extends Controller
      */
     private function parseSubsidio(array $quantidades): array
     {
-        $codigos = \App\Models\ResourceType::pluck('code')->push(Tesouro::FERT);
+        $codigos = ResourceType::pluck('code')->push(Tesouro::FERT);
 
         $entregas = [];
         foreach ($quantidades as $recurso => $valor) {
@@ -421,7 +447,7 @@ class AcoesController extends Controller
         }
 
         return $this->tentar('tesouro.subsidio_colono', function () use ($tesouro, $destino, $entregas) {
-            \Illuminate\Support\Facades\DB::transaction(function () use ($tesouro, $destino, $entregas) {
+            DB::transaction(function () use ($tesouro, $destino, $entregas) {
                 foreach ($entregas as $recurso => $qtd) {
                     $tesouro->distribuir($destino, $recurso, $qtd);
                 }
@@ -467,7 +493,7 @@ class AcoesController extends Controller
         }
 
         return $this->tentar('tesouro.subsidio_todos', function () use ($tesouro, $colonias, $porColonia) {
-            \Illuminate\Support\Facades\DB::transaction(function () use ($tesouro, $colonias, $porColonia) {
+            DB::transaction(function () use ($tesouro, $colonias, $porColonia) {
                 foreach ($colonias as $colonia) {
                     foreach ($porColonia as $recurso => $qtd) {
                         $tesouro->distribuir($colonia, $recurso, $qtd);
@@ -527,7 +553,27 @@ class AcoesController extends Controller
 
             // RepararModulo (D-118): fração do custo de construção da estrutura no nível atual.
             'reparo_bps_do_custo' => ['required', 'integer', 'min:0', 'max:10000'],
+
+            /*
+             * ⚠️ **Os seis da guerra federativa, que existiam e ninguém podia mudar** (D-206).
+             *
+             * A migration do D-193 diz por escrito que estes números moram em `war_settings` para
+             * "mudar sem deploy" — e o painel nunca ganhou os campos, nem o modelo o `fillable`. Só
+             * mudavam por SQL à mão, no banco de produção, que é o oposto do que foi prometido.
+             *
+             * `nullable` porque o formulário antigo não os manda: um painel salvo por quem não
+             * atualizou a tela não pode zerar a duração da guerra.
+             */
+            'federativa_duracao_horas' => ['nullable', 'integer', 'min:1'],
+            'federativa_cooldown_horas' => ['nullable', 'integer', 'min:0'],
+            'federativa_custo_fert_micro' => ['nullable', 'integer', 'min:0'],
+            'federativa_custo_niobio' => ['nullable', 'integer', 'min:0'],
+            'neutralidade_carencia_horas' => ['nullable', 'integer', 'min:0'],
+            'capitulacao_fert_micro' => ['nullable', 'integer', 'min:0'],
         ]);
+
+        // O que não veio no formulário não muda — `nullable` deixa passar ausente E nulo.
+        $dados = array_filter($dados, fn ($v) => $v !== null);
 
         $config = WarSetting::singleton();
         $antes = $config->only(array_keys($dados));
@@ -587,7 +633,7 @@ class AcoesController extends Controller
             'desconto_tributo_aliados_bps' => ['required', 'integer', 'min:0', 'max:10000'],
         ]);
 
-        $config = \App\Models\FederationSetting::singleton();
+        $config = FederationSetting::singleton();
         $antes = $config->only(array_keys($dados));
 
         return $this->tentar('federacao.parametros', function () use ($dados, $config, $antes) {
@@ -651,7 +697,7 @@ class AcoesController extends Controller
     public function fabricaConfig(Request $request): RedirectResponse
     {
         $dados = $request->validate([
-            'tipo' => ['required', 'string', Rule::in(\App\Domain\Transport\Ministerio::TIPOS)],
+            'tipo' => ['required', 'string', Rule::in(Ministerio::TIPOS)],
             'preco_fert' => ['required', 'numeric', 'min:0.000001'],
             'estoque_alvo' => ['required', 'integer', 'min:0', 'max:255'],
             'minutos_fabricacao' => ['required', 'integer', 'min:1', 'max:100000'],
@@ -676,7 +722,7 @@ class AcoesController extends Controller
                 ]);
             }
 
-            if (! \App\Models\ResourceType::whereKey($recurso)->exists()) {
+            if (! ResourceType::whereKey($recurso)->exists()) {
                 throw ValidationException::withMessages([
                     'custo' => "«{$recurso}» não é um recurso do catálogo.",
                 ]);
@@ -686,7 +732,7 @@ class AcoesController extends Controller
         }
 
         return $this->tentar('fabrica.config', function () use ($dados, $custo) {
-            \Illuminate\Support\Facades\DB::table('fabrica_veiculos')->where('tipo', $dados['tipo'])->update([
+            DB::table('fabrica_veiculos')->where('tipo', $dados['tipo'])->update([
                 'preco_micro' => (int) round(((float) $dados['preco_fert']) * 1_000_000),
                 'estoque_alvo' => $dados['estoque_alvo'],
                 'minutos_fabricacao' => $dados['minutos_fabricacao'],
@@ -708,28 +754,28 @@ class AcoesController extends Controller
     public function fabricaEncomendar(Request $request): RedirectResponse
     {
         $dados = $request->validate([
-            'tipo' => ['required', 'string', Rule::in(\App\Domain\Transport\Ministerio::TIPOS)],
+            'tipo' => ['required', 'string', Rule::in(Ministerio::TIPOS)],
             'quantidade' => ['required', 'integer', 'min:1', 'max:50'],
         ]);
 
         return $this->tentar('fabrica.encomendar', function () use ($dados) {
-            $config = \App\Domain\Transport\Ministerio::config($dados['tipo']);
-            $tesouro = app(\App\Domain\Treasury\Tesouro::class);
-            $placas = app(\App\Domain\Transport\Placas::class);
+            $config = Ministerio::config($dados['tipo']);
+            $tesouro = app(Tesouro::class);
+            $placas = app(Placas::class);
             $feitos = 0;
 
             for ($i = 0; $i < $dados['quantidade']; $i++) {
-                $ok = \Illuminate\Support\Facades\DB::transaction(function () use ($config, $dados, $tesouro, $placas) {
+                $ok = DB::transaction(function () use ($config, $dados, $tesouro, $placas) {
                     if (! $tesouro->gastar($config['custo'], "fabricacao_avulsa:{$dados['tipo']}")) {
                         return false;
                     }
 
-                    $veiculo = \App\Models\Vehicle::create([
+                    $veiculo = Vehicle::create([
                         'colony_id' => null,
                         'type' => $dados['tipo'],
                         'level' => 1,
                         'status' => 'fabricando',
-                        'capacity' => \App\Domain\Logistics\VeiculoSpecs::CAPACIDADE[$dados['tipo']],
+                        'capacity' => VeiculoSpecs::CAPACIDADE[$dados['tipo']],
                         'ready_at' => now()->addMinutes($config['minutos_fabricacao']),
                     ]);
                     $placas->registrar($veiculo);
@@ -765,7 +811,7 @@ class AcoesController extends Controller
             'xp_mercado_executado' => ['required', 'integer', 'min:0', 'max:100000'],
         ]);
 
-        $config = \App\Models\MilestoneSetting::singleton();
+        $config = MilestoneSetting::singleton();
         $antes = $config->only(array_keys($dados));
 
         return $this->tentar('marco.parametros', function () use ($dados, $config, $antes) {
@@ -794,7 +840,7 @@ class AcoesController extends Controller
      */
     public function kitInicial(Request $request): RedirectResponse
     {
-        $codigos = \App\Models\ResourceType::pluck('code');
+        $codigos = ResourceType::pluck('code');
 
         $dados = $request->validate([
             'fert' => ['required', 'numeric', 'min:0'],
@@ -812,13 +858,13 @@ class AcoesController extends Controller
             $agora = now();
 
             foreach ($recursos as $codigo => $qtd) {
-                \Illuminate\Support\Facades\DB::table('kit_inicial_recursos')->updateOrInsert(
+                DB::table('kit_inicial_recursos')->updateOrInsert(
                     ['resource_type' => $codigo],
                     ['amount' => $qtd, 'updated_at' => $agora],
                 );
             }
 
-            $config = \App\Models\KitInicialSetting::singleton();
+            $config = KitInicialSetting::singleton();
             $config->update([
                 'fert_micro' => (int) round(((float) $dados['fert']) * 1_000_000),
                 'furgoes' => $dados['furgoes'],
@@ -844,7 +890,7 @@ class AcoesController extends Controller
             $tocados = 0;
 
             foreach ($dados['niveis'] as $nivel => $minutos) {
-                \Illuminate\Support\Facades\DB::table('building_specs_overrides')->updateOrInsert(
+                DB::table('building_specs_overrides')->updateOrInsert(
                     ['building_type' => $dados['tipo'], 'level' => $nivel],
                     ['build_time_seconds' => $minutos * 60, 'admin_id' => auth('admin')->id(), 'updated_at' => $agora],
                 );
@@ -864,7 +910,7 @@ class AcoesController extends Controller
     {
         $dados = $this->validarAjusteDeConstrucao($request, ['niveis' => ['required', 'array'], 'niveis.*' => ['nullable', 'string', 'max:2000']]);
 
-        return $this->tentar('construcoes.custo', function () use ($dados, $request) {
+        return $this->tentar('construcoes.custo', function () use ($dados) {
             $agora = now();
             $tocados = 0;
 
@@ -875,7 +921,7 @@ class AcoesController extends Controller
                     continue;
                 }
 
-                \Illuminate\Support\Facades\DB::table('building_specs_overrides')->updateOrInsert(
+                DB::table('building_specs_overrides')->updateOrInsert(
                     ['building_type' => $dados['tipo'], 'level' => $nivel],
                     [
                         'cost_json' => json_encode($custo, JSON_UNESCAPED_UNICODE),
@@ -900,17 +946,17 @@ class AcoesController extends Controller
      */
     public function construcoesManutencao(Request $request): RedirectResponse
     {
-        $tipos = \Illuminate\Support\Facades\DB::table('building_specs')->distinct()->pluck('building_type');
+        $tipos = DB::table('building_specs')->distinct()->pluck('building_type');
 
         $dados = $request->validate([
             'building_type' => ['required', 'string', Rule::in($tipos->all())],
             'recursos' => ['nullable', 'string', 'max:2000'],
         ]);
 
-        $nome = \App\Domain\Media\NomesDeExibicao::de($dados['building_type']);
+        $nome = NomesDeExibicao::de($dados['building_type']);
         $consumo = $this->parseRecursosPorLinha($dados['recursos'] ?? '', 'recursos');
 
-        $permitidos = \App\Models\ResourceType::where('tax_class', '!=', 'raro')->pluck('code');
+        $permitidos = ResourceType::where('tax_class', '!=', 'raro')->pluck('code');
         foreach (array_keys($consumo) as $recurso) {
             if (! $permitidos->contains($recurso)) {
                 throw ValidationException::withMessages([
@@ -922,13 +968,13 @@ class AcoesController extends Controller
         return $this->tentar('construcoes.manutencao', function () use ($dados, $consumo, $nome) {
             $agora = now();
 
-            \Illuminate\Support\Facades\DB::transaction(function () use ($dados, $consumo, $agora) {
-                \Illuminate\Support\Facades\DB::table('manutencao_estruturas')
+            DB::transaction(function () use ($dados, $consumo, $agora) {
+                DB::table('manutencao_estruturas')
                     ->where('building_type', $dados['building_type'])
                     ->delete();
 
                 foreach ($consumo as $recurso => $qtd) {
-                    \Illuminate\Support\Facades\DB::table('manutencao_estruturas')->insert([
+                    DB::table('manutencao_estruturas')->insert([
                         'building_type' => $dados['building_type'],
                         'resource_type' => $recurso,
                         'qtd_hora' => $qtd,
@@ -955,13 +1001,13 @@ class AcoesController extends Controller
      */
     private function validarAjusteDeConstrucao(Request $request, array $regrasNiveis): array
     {
-        $tipos = \Illuminate\Support\Facades\DB::table('building_specs')->distinct()->pluck('building_type');
+        $tipos = DB::table('building_specs')->distinct()->pluck('building_type');
 
         $dados = $request->validate([
             'building_type' => ['required', 'string', Rule::in($tipos->all())],
         ] + $regrasNiveis);
 
-        $niveisValidos = \Illuminate\Support\Facades\DB::table('building_specs')
+        $niveisValidos = DB::table('building_specs')
             ->where('building_type', $dados['building_type'])->pluck('level')->all();
 
         $niveis = [];
@@ -974,7 +1020,7 @@ class AcoesController extends Controller
                 ]);
             }
 
-            if ($nivel === 1 && in_array($dados['building_type'], \App\Models\Building::NASCE_NO_NIVEL_UM, true)) {
+            if ($nivel === 1 && in_array($dados['building_type'], Building::NASCE_NO_NIVEL_UM, true)) {
                 throw ValidationException::withMessages([
                     'niveis' => "{$dados['building_type']} já nasce pronta no nível 1 — não há o que ajustar ali.",
                 ]);
@@ -985,7 +1031,7 @@ class AcoesController extends Controller
 
         return [
             'tipo' => $dados['building_type'],
-            'nome' => \App\Domain\Media\NomesDeExibicao::de($dados['building_type']),
+            'nome' => NomesDeExibicao::de($dados['building_type']),
             'niveis' => $niveis,
         ];
     }
@@ -1012,7 +1058,7 @@ class AcoesController extends Controller
                 ]);
             }
 
-            if (! \App\Models\ResourceType::whereKey($recurso)->exists()) {
+            if (! ResourceType::whereKey($recurso)->exists()) {
                 throw ValidationException::withMessages([
                     $campo => "«{$recurso}» não é um recurso do catálogo. Confira a grafia (ex.: ligas_metalicas).",
                 ]);
@@ -1031,7 +1077,7 @@ class AcoesController extends Controller
      */
     public function construcoesSilo(Request $request): RedirectResponse
     {
-        $codigos = \App\Models\ResourceType::pluck('code');
+        $codigos = ResourceType::pluck('code');
 
         $dados = $request->validate([
             'capacidades' => ['required', 'array'],
@@ -1054,7 +1100,7 @@ class AcoesController extends Controller
                         continue;
                     }
 
-                    \Illuminate\Support\Facades\DB::table('silo_capacidades')->updateOrInsert(
+                    DB::table('silo_capacidades')->updateOrInsert(
                         ['resource_type' => $recurso, 'level' => $nivel],
                         ['capacidade' => $capacidade, 'admin_id' => auth('admin')->id(), 'updated_at' => $agora],
                     );
@@ -1079,11 +1125,11 @@ class AcoesController extends Controller
         return $this->tentar('endurance.item.criar', function () use ($request) {
             [$dados, $efeitos] = $this->validarEnduranceItem($request);
 
-            $item = \App\Models\EnduranceItem::create($dados + ['admin_id' => auth('admin')->id()]);
+            $item = EnduranceItem::create($dados + ['admin_id' => auth('admin')->id()]);
             $item->efeitos()->createMany($efeitos);
 
             return "Item «{$item->nome}» ({$item->item_key}) criado em ".
-                \App\Models\EnduranceItem::SECOES[$item->secao].', com '.count($efeitos).' efeito(s).';
+                EnduranceItem::SECOES[$item->secao].', com '.count($efeitos).' efeito(s).';
         });
     }
 
@@ -1091,7 +1137,7 @@ class AcoesController extends Controller
      * Edita um item — os efeitos são SUBSTITUÍDOS por completo (apaga e recria), mais simples que
      * diff linha a linha e o volume é baixo (poucos efeitos por item).
      */
-    public function enduranceItemEditar(Request $request, \App\Models\EnduranceItem $item): RedirectResponse
+    public function enduranceItemEditar(Request $request, EnduranceItem $item): RedirectResponse
     {
         return $this->tentar('endurance.item.editar', function () use ($request, $item) {
             [$dados, $efeitos] = $this->validarEnduranceItem($request, $item->id);
@@ -1100,7 +1146,7 @@ class AcoesController extends Controller
                 throw new DomainRuleException(
                     'endurance.item.estoque_abaixo_do_vendido',
                     "«{$item->nome}» já vendeu {$item->quantidade_vendida} unidade(s) — não dá para ".
-                    "baixar o total abaixo disso.",
+                    'baixar o total abaixo disso.',
                 );
             }
 
@@ -1117,9 +1163,9 @@ class AcoesController extends Controller
      * bônus de produção teria o efeito arrancado silenciosamente do meio do jogo se isto não travasse
      * (mesma cautela do `missaoApagar`, que trava se a missão já foi sorteada).
      */
-    public function enduranceItemApagar(\App\Models\EnduranceItem $item): RedirectResponse
+    public function enduranceItemApagar(EnduranceItem $item): RedirectResponse
     {
-        if (\App\Models\ColonyEnduranceItem::where('endurance_item_id', $item->id)->exists()) {
+        if (ColonyEnduranceItem::where('endurance_item_id', $item->id)->exists()) {
             return $this->erro(
                 "«{$item->nome}» já foi comprado por alguma colônia — apagar arrancaria o efeito dela ".
                 'sem aviso. Baixe o estoque a zero em vez disso, se quiser parar de vender.',
@@ -1156,9 +1202,9 @@ class AcoesController extends Controller
                 'required', 'string', 'max:60', 'alpha_dash',
                 Rule::unique('endurance_items', 'item_key')->ignore($ignorarId),
             ],
-            'secao' => ['required', Rule::in(array_keys(\App\Models\EnduranceItem::SECOES))],
+            'secao' => ['required', Rule::in(array_keys(EnduranceItem::SECOES))],
             'nome' => ['required', 'string', 'max:120'],
-            'tipo' => ['required', Rule::in(\App\Models\EnduranceItem::TIPOS)],
+            'tipo' => ['required', Rule::in(EnduranceItem::TIPOS)],
             'quantidade_total' => ['required', 'integer', 'min:1', 'max:1000000'],
             'preco' => ['required', 'numeric', 'min:0.000001'],
             'marco' => ['nullable', 'integer', 'min:1', 'max:100'],
@@ -1167,7 +1213,7 @@ class AcoesController extends Controller
             'efeitos' => ['nullable', 'string'],
         ]);
 
-        if ($dados['tipo'] === \App\Models\EnduranceItem::UNICO) {
+        if ($dados['tipo'] === EnduranceItem::UNICO) {
             $dados['quantidade_total'] = 1;
         }
 
@@ -1191,14 +1237,14 @@ class AcoesController extends Controller
                 );
             }
 
-            if (! in_array($tipoEfeito, \App\Domain\Endurance\EfeitosDaEndurance::TIPOS, true)) {
+            if (! in_array($tipoEfeito, EfeitosDaEndurance::TIPOS, true)) {
                 throw new DomainRuleException(
                     'endurance.efeito.tipo',
                     "Tipo de efeito desconhecido: «{$tipoEfeito}».",
                 );
             }
 
-            $alvoExigido = in_array($tipoEfeito, \App\Domain\Endurance\EfeitosDaEndurance::EXIGE_ALVO, true);
+            $alvoExigido = in_array($tipoEfeito, EfeitosDaEndurance::EXIGE_ALVO, true);
             if ($alvoExigido && ($alvo === null || $alvo === '')) {
                 throw new DomainRuleException(
                     'endurance.efeito.alvo',
@@ -1243,7 +1289,7 @@ class AcoesController extends Controller
             'zona_vagas' => ['required', 'integer', 'min:1', 'max:20'],
         ]);
 
-        $config = \App\Models\FilaSetting::singleton();
+        $config = FilaSetting::singleton();
         $antes = $config->only(array_keys($dados));
 
         return $this->tentar('construcoes.fila', function () use ($dados, $config, $antes) {
@@ -1265,20 +1311,20 @@ class AcoesController extends Controller
      * tick): a Garagem é infraestrutura do serviço público, não economia — e o operador que a
      * expande está respondendo a demanda, não jogando. Fica tudo na auditoria.
      */
-    public function garagem(\App\Domain\Transport\Placas $placas): RedirectResponse
+    public function garagem(Placas $placas): RedirectResponse
     {
         return $this->tentar('garagem.encomendar', function () use ($placas) {
-            $caminhao = \App\Models\Vehicle::create([
+            $caminhao = Vehicle::create([
                 'colony_id' => null,
                 'type' => 'caminhao_de_carga',
                 'level' => 1,
                 'status' => 'ocioso',
-                'local' => \App\Models\Vehicle::NO_PATIO,
-                'capacity' => \App\Models\Vehicle::CAPACIDADE['caminhao_de_carga'],
+                'local' => Vehicle::NO_PATIO,
+                'capacity' => Vehicle::CAPACIDADE['caminhao_de_carga'],
             ]);
             $placas->registrar($caminhao);
 
-            $frota = \App\Domain\Frete\Garagem::frota()->count();
+            $frota = Garagem::frota()->count();
 
             return "Caminhão {$caminhao->plate} entregue à Garagem do Governo. Frota: {$frota}.";
         });
@@ -1296,10 +1342,10 @@ class AcoesController extends Controller
         ]);
 
         return $this->tentar('chat.silenciar', function () use ($user, $dados) {
-            \App\Models\Punishment::create([
+            Punishment::create([
                 'report_id' => null,   // pena do PAINEL, não de um caso — e a coluna é nulável por isso
                 'user_id' => $user->id,
-                'kind' => \App\Domain\Ministry\PunicaoSpecs::SILENCIO,
+                'kind' => PunicaoSpecs::SILENCIO,
                 'index_name' => 'conduta_social',
                 'points' => 0,
                 'applied_at' => now(),
@@ -1318,7 +1364,7 @@ class AcoesController extends Controller
             'termos' => ['nullable', 'string', 'max:5000'],
         ]);
 
-        $config = \App\Models\ChatSetting::singleton();
+        $config = ChatSetting::singleton();
         $antes = count($config->termos());
 
         return $this->tentar('chat.parametros', function () use ($config, $dados, $antes) {
@@ -1366,7 +1412,7 @@ class AcoesController extends Controller
     }
 
     /** Liga/desliga um molde de missão do §06 (D-78): o template com defeito sai do baralho sem deploy. */
-    public function missaoAlternar(\App\Models\MissionTemplate $template): RedirectResponse
+    public function missaoAlternar(MissionTemplate $template): RedirectResponse
     {
         return $this->tentar('missao.alternar', function () use ($template) {
             $template->update(['ativa' => ! $template->ativa]);
@@ -1382,7 +1428,7 @@ class AcoesController extends Controller
         $dados = $this->validarMissao($request);
 
         return $this->tentar('missao.criar', function () use ($dados) {
-            $t = \App\Models\MissionTemplate::create($dados + ['ativa' => true]);
+            $t = MissionTemplate::create($dados + ['ativa' => true]);
 
             return "Missão «{$t->titulo}» ({$t->chave}) criada, no baralho de {$t->categoria}.";
         });
@@ -1399,7 +1445,7 @@ class AcoesController extends Controller
      * que só freia amanhã não freia hoje. Editar o prêmio agora vale também para quem já está com a
      * missão na mão e ainda não completou.
      */
-    public function missaoEditar(Request $request, \App\Models\MissionTemplate $template): RedirectResponse
+    public function missaoEditar(Request $request, MissionTemplate $template): RedirectResponse
     {
         $dados = $this->validarMissao($request, $template->id);
         $antes = $template->only(['titulo', 'meta', 'acao', 'recompensa_fert_micro', 'recompensa_xp']);
@@ -1423,9 +1469,9 @@ class AcoesController extends Controller
      * seria destruída junto (a FK é `cascadeOnDelete`), e isso apagaria o rastro de uma recompensa
      * que já saiu do Tesouro. Para um molde com histórico, o botão certo é desativar.
      */
-    public function missaoApagar(\App\Models\MissionTemplate $template): RedirectResponse
+    public function missaoApagar(MissionTemplate $template): RedirectResponse
     {
-        if (\App\Models\MissionAssignment::where('template_id', $template->id)->exists()) {
+        if (MissionAssignment::where('template_id', $template->id)->exists()) {
             return $this->erro(
                 "«{$template->titulo}» já foi sorteada para alguém — apagar destruiria o histórico. Desative em vez disso.",
             );
@@ -1454,10 +1500,10 @@ class AcoesController extends Controller
     {
         $dados = $request->validate([
             'chave' => ['required', 'string', 'max:40', 'alpha_dash', Rule::unique('mission_templates', 'chave')->ignore($ignorarId)],
-            'categoria' => ['required', Rule::in(array_keys(\App\Models\MissionTemplate::CATEGORIAS))],
+            'categoria' => ['required', Rule::in(array_keys(MissionTemplate::CATEGORIAS))],
             'titulo' => ['required', 'string', 'max:80'],
             'descricao' => ['required', 'string', 'max:200'],
-            'acao' => ['required', Rule::in(array_keys(\App\Domain\Missoes\Acoes::TODAS))],
+            'acao' => ['required', Rule::in(array_keys(Acoes::TODAS))],
             'meta' => ['required', 'integer', 'min:1', 'max:999'],
             'recompensa_fert' => ['nullable', 'numeric', 'min:0', 'max:1000'],
             'recompensa_xp' => ['nullable', 'integer', 'min:0', 'max:100000'],
@@ -1497,7 +1543,7 @@ class AcoesController extends Controller
                 ]);
             }
 
-            if (! \App\Models\ResourceType::whereKey($recurso)->exists()) {
+            if (! ResourceType::whereKey($recurso)->exists()) {
                 throw ValidationException::withMessages([
                     'recompensa_recursos' => "«{$recurso}» não é um recurso do catálogo. Confira a grafia (ex.: ligas_metalicas).",
                 ]);
@@ -1544,7 +1590,7 @@ class AcoesController extends Controller
             $suspender->suspender($user, $dados['motivo'], $ate);
 
             return "{$user->nickname} suspenso.";
-        }, "admin.jogador", $user->id);
+        }, 'admin.jogador', $user->id);
     }
 
     public function reintegrar(Request $request, User $user, Suspender $suspender): RedirectResponse

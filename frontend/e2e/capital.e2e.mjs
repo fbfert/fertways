@@ -240,11 +240,62 @@ try {
    */
   janela.esperandoFalha = true
   await clicar(page, '[data-declarar-neutralidade]')
+  /*
+   * ⚠️ O regex era `/no meio de uma guerra|capitula/i`, e a alternativa `capitula` passou a casar com
+   * o botão **"Capitular"** que a fatia seguinte (D-206) pôs nesta mesma tela. A asserção continuava
+   * verde sem esperar a recusa chegar — e o e2e seguia adiante com a requisição ainda no ar, clicando
+   * num botão que ainda estava desabilitado.
+   *
+   * Um teste que passa por causa de um texto vizinho não afirma nada. A frase abaixo só existe na
+   * recusa do domínio.
+   */
   checar(
-    await esperarTexto(page, /no meio de uma guerra|capitula/i),
+    await esperarTexto(page, /Não dá para se declarar neutro no meio de uma guerra/),
     'e declarar-se neutro em guerra é recusado, dizendo que a saída é a capitulação',
   )
   janela.esperandoFalha = false
+
+  console.log('\nAs duas saídas da guerra (A2.10, decisões 8 e 9) — capitulação e tratado')
+  /*
+   * ⚠️ O que este bloco prova, e que o backend sozinho não prova: que a tela diz **quem escolhe o
+   * espólio** ANTES de o jogador clicar em "Capitular". A decisão 9 dá a escolha ao vencedor, e
+   * quem se rende sem saber disso está a assinar um cheque em branco por engano.
+   */
+  await page.waitForSelector('[data-saidas]', { timeout: 8000 })
+  checar(true, 'as saídas antecipadas aparecem na guerra em curso')
+
+  checar(
+    !!(await page.$('[data-capitular]')),
+    'há como capitular — o §9 exige que a saída esteja sempre disponível',
+  )
+  checar(
+    await esperarTexto(page, /Eles<\/strong> escolhem|escolhem: uma zona sua/i),
+    'e a tela diz que quem escolhe o espólio é o outro lado, antes do clique',
+  )
+
+  // O tratado: proposto e retirado. Não acaba a guerra (exige o aceite do outro), então o mundo do
+  // e2e continua em guerra para as telas que vêm depois.
+  /*
+   * ⚠️ `:not([disabled])`, e não só o seletor. Todos os botões desta tela desabilitam enquanto uma
+   * ação corre (`ocupado`), e o `click` do Puppeteer num botão desabilitado **não faz nada e não
+   * reclama** — o teste reprova três linhas adiante, longe da causa. Foi exatamente o que aconteceu
+   * aqui na primeira escrita.
+   */
+  await page.waitForSelector('[data-propor-tratado]:not([disabled])', { timeout: 8000 })
+  await clicar(page, '[data-propor-tratado]')
+  checar(await esperarTexto(page, /Paz proposta/), 'propor paz chega ao domínio')
+  checar(
+    !!(await page.$('[data-retirar-tratado]')),
+    'e quem propôs vê "retirar" — não "aceitar": ninguém responde à própria proposta',
+  )
+
+  await page.waitForSelector('[data-retirar-tratado]:not([disabled])', { timeout: 8000 })
+  await clicar(page, '[data-retirar-tratado]')
+  checar(await esperarTexto(page, /Proposta retirada/), 'e dá para tirar a proposta da mesa')
+  checar(
+    !!(await page.$('[data-propor-tratado]')),
+    'a mesa volta a ficar livre depois da retirada',
+  )
 
   console.log('\nVolta e abre o Ministério dos Transportes (slot 8)')
   await clicar(page, '[data-voltar-capital]')

@@ -24,6 +24,14 @@ class FederationLedger extends Model
         'credito',    // entrega física de um membro
         'saque',      // Líder/Intendente retiram para a própria colônia
         'dissolucao', // saída final, quando a federação dissolve (o saldo vai para o Tesouro)
+        'capitulacao', // espólio de guerra: sai do fundo de quem se rendeu, entra no do vencedor
+        /*
+         * ⚠️ `debito` já ESTAVA no banco antes de estar nesta lista: o `DeclararGuerra` (D-193)
+         * grava por `DB::table()->insert()`, que passa por fora do `creating` e portanto por fora
+         * desta validação. Acrescentado aqui para que a lista descreva o que existe — e a inserção
+         * passou a ser pelo modelo, para que a guarda volte a valer (D-206).
+         */
+        'debito',
     ];
 
     protected static function booted(): void

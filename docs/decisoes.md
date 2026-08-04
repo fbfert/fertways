@@ -11099,3 +11099,99 @@ edições refeitas à mão: o diff do frontend voltou a 54 linhas.
 `GuerraTest` com 5 testes novos, incluindo os dois controles que fazem a afirmação valer: federações
 **em paz** saqueiam 500, e guerra **encerrada durante a marcha** saqueia 500. Sem eles, o teste do
 saque total passaria por qualquer motivo.
+
+---
+
+## D-206 — Capitulação e tratado de paz, e três coisas que existiam sem poder ser usadas
+
+O §8 da guerra federativa publica **três** jeitos de uma guerra acabar — *"prazo, capitulação ou
+tratado de paz"* — e só o prazo existia. Esta fatia entrega os outros dois, que eram o que restava da
+A2.10 fora a fórmula do ranking.
+
+### As duas saídas, e por que são diferentes
+
+| | quem propõe | quem responde | o que muda de mãos |
+|---|---|---|---|
+| **capitulação** | quem quer sair | **o vencedor, escolhendo o espólio** | uma zona **ou** Fert$ do fundo |
+| **tratado de paz** | qualquer um dos dois | o outro, aceitando ou recusando | **nada** |
+
+**Capitular é oferecer sem saber o preço**, e isso é a decisão 9 à letra: *"o vencedor escolhe"*.
+Abrir a capitulação **é** consentir que o outro escolha — não há um terceiro passo em que o derrotado
+aprova o que lhe cobraram. O que protege quem se rende não é poder recusar: é o preço ser
+**estruturalmente limitado** a exatamente uma zona ou exatamente o valor publicado. O vencedor escolhe
+qual, nunca quanto.
+
+**E o vencedor não pode recusar uma rendição.** Não existe `recusar()` na `Capitulacao`, e existe no
+`TratadoDePaz`. Recusar uma paz é querer continuar lutando, que é posição legítima; recusar uma
+rendição prenderia o adversário na derrota que o §9 existe para encurtar — *"não é dificuldade, é
+tempo perdido"*. O que o vencedor pode fazer é **não responder**, e aí vale o prazo dos 7 dias.
+
+### ⚠️ Três medições, e a maior não é sobre a capitulação
+
+Antes do primeiro número, contra a produção:
+
+- **o fundo da única federação tem 0,00 F$.** Declarar guerra custa **500 F$ do fundo** (D-193): hoje
+  **ninguém no mundo consegue declarar guerra**, e isso não é limitação da capitulação — é da fase
+  inteira. Estava invisível porque nada obrigava a olhar o saldo;
+- colônia mais rica: 1.350 F$; mediana: 75,68 F$;
+- por isso o preço padrão da capitulação é **os mesmos 500 F$ da declaração**, e não um número novo:
+  capitular custa o que custou declarar. É simétrico, é um valor que o jogo já publica, e não inventa
+  uma âncora que ninguém poderia conferir.
+
+**E leva-se o que houver.** Fundo mais pobre que o preço não bloqueia a rendição: o vencedor recebe
+menos e a guerra acaba do mesmo jeito. Bloquear por pobreza é a armadilha que o §9 nomeia.
+
+### Quatro decisões de desenho que o GDD não tinha como tomar
+
+1. **A guarnição da zona cedida volta para casa, não morre.** Na conquista os robôs do derrotado são
+   destruídos porque não têm para onde recuar — houve batalha. Aqui não houve: apagá-los cobraria um
+   segundo preço que ninguém combinou, por cima do único que a decisão 9 autoriza.
+2. **`ZoneEvent` do tipo `cedida`, e não `conquistada`.** O ranking conta zonas *conquistadas*
+   (§27.13), e chamar de conquista uma zona entregue à mesa deixaria duas federações amigas encenarem
+   uma guerra e trocarem zonas para subir no ranking. Mas `cedida` **entra** na reconstrução do tempo
+   de controle: a posse mudou de verdade, e ignorá-la faria o relógio continuar a correr para quem já
+   não tem a zona.
+3. **`termina_em` não se antecipa.** O cooldown do par (§10) conta a partir dele. Antecipá-lo faria de
+   capitular o jeito barato de zerar a proteção contra assédio e ser declarado de novo no dia
+   seguinte. Quem capitula compra o fim da guerra, não o fim do que vem depois dela.
+4. **Zona sob combate não se entrega.** Dois donos disputariam o mesmo território no mesmo instante, e
+   o resolvedor leria um dono que mudou debaixo dele.
+
+### ⚠️ Três coisas que existiam e ninguém podia usar
+
+Achadas por estarem no caminho, não por busca:
+
+**1. Os seis parâmetros da guerra federativa não tinham como ser mudados.** A migration do D-193 diz,
+por escrito, que eles moram em `war_settings` para *"mudar sem deploy"* — e nem o `fillable` do modelo
+nem o painel do operador tinham os campos. Só mudavam por SQL à mão no banco de produção, que é o
+oposto do prometido. Os seis (duração, cooldown, custo em Fert$, custo em Nióbio, carência da
+neutralidade e o novo preço da capitulação) passam a existir de verdade.
+
+**2. O custo em Fert$ da declaração saía do fundo sem deixar rastro.** Só o Nióbio era lançado; os
+500 F$ eram debitados e não apareciam em extrato nenhum, com o §18 prometendo o contrário. Não dava
+para lançá-lo antes: `federation_ledger.resource_type` era NOT NULL e Fert$ não é recurso. O D-114
+tinha registrado a condição para abrir a coluna — *"quando o fundo em Fert$ tiver mais de um
+movimento"* —, e agora são três movimentos. A coluna abriu.
+
+**3. E a inserção passava por fora do próprio livro.** `DeclararGuerra` gravava por
+`DB::table()->insert()`, que não dispara o `creating` do modelo — logo não passava pela validação de
+`TIPOS` (o tipo `debito` que ele usa **nunca esteve na lista**) nem pela garantia de append-only.
+Passou a gravar pelo modelo.
+
+### ⚠️ E um teste que eu mesmo enfraqueci na mesma sessão
+
+A asserção da neutralidade em guerra (D-204) usava `/no meio de uma guerra|capitula/i`. O botão
+**"Capitular"** que esta fatia pôs na mesma tela passou a casar com a alternativa `capitula` — e a
+asserção ficava verde **sem esperar a recusa chegar**. O e2e seguia adiante com a requisição ainda no
+ar e clicava num botão ainda desabilitado; o `click` do Puppeteer num botão desabilitado **não faz
+nada e não reclama**, então a reprovação aparecia três linhas depois, longe da causa.
+
+Duas correções: o regex passou a exigir a frase que só existe na recusa, e os cliques esperam
+`:not([disabled])`. **Um teste que passa por causa de um texto vizinho não afirma nada** — e o texto
+vizinho aqui fui eu quem escreveu, uma fatia depois.
+
+### Verificação
+
+1211 testes verdes (11 novos) e 10 suítes e2e verdes, com sete asserções novas na Capital. A migration
+foi aplicada **e revertida** contra o MariaDB de dev antes de qualquer teste — o `artisan test` roda
+em SQLite, e o verde dele não prova DDL.

@@ -195,6 +195,10 @@ consequência.
 
 ✅ **Tratado de paz encerra antes do prazo**, e exige consentimento mútuo — simétrico à aliança.
 
+> ✅ **CONSTRUÍDO — D-206.** `Domain\GuerraFederativa\TratadoDePaz`. Qualquer um dos dois propõe;
+> quem propôs não responde. **Nada muda de mãos** — é isso que o separa da capitulação, e sem essa
+> diferença as duas saídas seriam a mesma coisa com dois nomes.
+
 ❓ **Decisão 8 — aliança e guerra são exclusivas?** Recomendo ✅ **sim**: declarar guerra a uma aliada
 rompe a aliança automaticamente, e a tela avisa antes. Deixar as duas coexistirem tornaria o
 vocabulário do jogo incoerente.
@@ -202,6 +206,13 @@ vocabulário do jogo incoerente.
 ---
 
 ## 9. Capitulação
+
+> ✅ **CONSTRUÍDO — D-206.** `Domain\GuerraFederativa\Capitulacao`. Quem se rende propõe **sem saber
+> o preço** — a decisão 9 dá a escolha ao vencedor —, e **o vencedor não pode recusar**: ele escolhe
+> zona ou Fert\$, e essa escolha é o aceite. Fundo mais pobre que o preço não bloqueia: leva-se o que
+> houver. A zona cedida sai com a guarnição **voltando para casa**, não destruída, e registra
+> `ZoneEvent` do tipo `cedida` — que conta para o tempo de controle e **não** para as conquistas do
+> ranking.
 
 ✅ **Sempre disponível, e sempre mais barata do que perder.**
 
@@ -214,6 +225,14 @@ reputação com consequência (§26) e ela existe para quebra de acordo, não pa
 
 ❓ **Decisão 9 — o preço da capitulação.** Sugestão: **uma zona à escolha do vencedor** entre as do
 perdedor, ou o equivalente em Fert$ do fundo se ele não tiver zonas.
+
+> ✅ **DECIDIDO e CONSTRUÍDO:** o vencedor escolhe **qual das duas**, sempre — não só quando o
+> perdedor não tem zonas. O valor em Fert\$ é `war_settings.capitulacao_fert_micro`, com padrão
+> **igual ao custo da declaração (500 F\$)**: capitular custa o que custou declarar.
+>
+> ⚠️ **Medido antes de escolher o número: o fundo da única federação do mundo tem 0,00 F\$** — o que
+> significa que hoje **nem declarar guerra é possível**, já que a declaração também sai do fundo. É a
+> constatação maior desta fatia, e não é sobre a capitulação. Ver D-206.
 
 ---
 

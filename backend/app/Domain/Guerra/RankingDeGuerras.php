@@ -173,12 +173,18 @@ class RankingDeGuerras
 
     /**
      * Tempo de controle: reconstruído do histórico de posse da zona (D-86, `ZoneEvent`). Cada
-     * intervalo vai de "começou a controlar" (`ocupada`/`conquistada`) até "parou" (conquistada
-     * por outro, abandonada, ou AGORA — se ainda é o dono). Zona por zona, em ordem cronológica.
+     * intervalo vai de "começou a controlar" (`ocupada`/`conquistada`/`cedida`) até "parou"
+     * (tomada por outro, abandonada, ou AGORA — se ainda é o dono). Zona por zona, em ordem
+     * cronológica.
+     *
+     * ⚠️ **`cedida` entra aqui e NÃO em `zonasConquistadas()`** (D-206). Uma zona entregue numa
+     * capitulação muda de dono de verdade — ignorá-la faria o tempo de controle continuar a correr
+     * para quem já não a tem —, mas não foi **conquistada**. Contá-la como conquista deixaria duas
+     * federações amigas encenarem uma guerra e trocarem zonas para subir no ranking.
      */
     private function tempoDeControleHoras(): array
     {
-        $eventos = ZoneEvent::whereIn('type', ['ocupada', 'conquistada', 'abandonada'])
+        $eventos = ZoneEvent::whereIn('type', ['ocupada', 'conquistada', 'cedida', 'abandonada'])
             ->orderBy('zone_id')
             ->orderBy('created_at')
             ->get(['zone_id', 'type', 'colony_id', 'created_at']);
@@ -203,7 +209,7 @@ class RankingDeGuerras
                 $zonaAtual = $e->zone_id;
             }
 
-            if (in_array($e->type, ['ocupada', 'conquistada'], true)) {
+            if (in_array($e->type, ['ocupada', 'conquistada', 'cedida'], true)) {
                 $fechar($e->created_at);
                 $atual = ['colony_id' => $e->colony_id, 'desde' => $e->created_at];
             } elseif ($e->type === 'abandonada') {

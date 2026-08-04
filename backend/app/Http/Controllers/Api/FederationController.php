@@ -15,8 +15,10 @@ use App\Domain\Federacao\ResponderConviteOuPedido;
 use App\Domain\Federacao\SacarDoFundo;
 use App\Domain\Federacao\SairDaFederacao;
 use App\Domain\Federacao\TransferirLideranca;
+use App\Domain\GuerraFederativa\Capitulacao;
 use App\Domain\GuerraFederativa\DeclararGuerra;
 use App\Domain\GuerraFederativa\Neutralidade;
+use App\Domain\GuerraFederativa\TratadoDePaz;
 use App\Exceptions\DomainRuleException;
 use App\Http\Controllers\Controller;
 use App\Models\Colony;
@@ -25,6 +27,8 @@ use App\Models\FederationHolding;
 use App\Models\FederationInvite;
 use App\Models\FederationSetting;
 use App\Models\FederationWar;
+use App\Models\FederationWarProposal;
+use App\Models\NeutralZone;
 use App\Models\WarSetting;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -263,13 +267,141 @@ class FederationController extends Controller
             'custo_fert' => $custo['fert'] / Colony::MICRO_POR_FERT,
             'custo_niobio' => $custo['niobio'],
             'carencia_horas' => (int) WarSetting::singleton()->neutralidade_carencia_horas,
-            'em_guerra_com' => $emGuerra->map(fn ($g) => [
-                'id' => (int) $g->declarante_id === $federacao->id ? $g->alvo_id : $g->declarante_id,
-                'nome' => (int) $g->declarante_id === $federacao->id ? $g->alvo?->name : $g->declarante?->name,
-                'eu_declarei' => (int) $g->declarante_id === $federacao->id,
-                'termina_em' => $g->termina_em->toIso8601String(),
-            ])->values(),
+            'capitulacao_fert' => (int) WarSetting::singleton()->capitulacao_fert_micro / Colony::MICRO_POR_FERT,
+            'em_guerra_com' => $emGuerra->map(function (FederationWar $g) use ($federacao) {
+                $outraId = (int) ($g->declarante_id === $federacao->id ? $g->alvo_id : $g->declarante_id);
+
+                return [
+                    'id' => $outraId,
+                    'nome' => (int) $g->declarante_id === $federacao->id ? $g->alvo?->name : $g->declarante?->name,
+                    'eu_declarei' => (int) $g->declarante_id === $federacao->id,
+                    'termina_em' => $g->termina_em->toIso8601String(),
+
+                    /*
+                     * A2.10, decisões 8 e 9: as duas saídas antecipadas. `war_id` sai daqui porque
+                     * é ele que as rotas pedem — sem o id, a tela teria de descobrir qual guerra é
+                     * a "minha com aquela federação", que é uma pergunta que o servidor já
+                     * respondeu ao montar esta lista.
+                     */
+                    'war_id' => $g->id,
+                    'capitulacao' => $this->proposta($g->id, FederationWarProposal::CAPITULACAO, $federacao->id),
+                    'tratado' => $this->proposta($g->id, FederationWarProposal::TRATADO, $federacao->id),
+
+                    /*
+                     * As zonas do inimigo — o cardápio de quem vai escolher o espólio. Só as que a
+                     * capitulação pode de facto levar: zona sob combate não se entrega (ver
+                     * `Capitulacao::tomarZona`), e oferecê-la na tela seria oferecer um botão que a
+                     * regra recusaria.
+                     */
+                    'zonas_do_inimigo' => NeutralZone::whereIn(
+                        'owner_colony_id',
+                        Colony::where('federation_id', $outraId)->pluck('id'),
+                    )
+                        ->whereNull('sieged_at')
+                        ->orderBy('id')
+                        ->get(['id', 'name', 'x', 'y', 'mineral', 'level'])
+                        ->map(fn (NeutralZone $z) => [
+                            'id' => $z->id,
+                            'nome' => $z->name ?? "({$z->x}, {$z->y})",
+                            'mineral' => $z->mineral,
+                            'nivel' => $z->level,
+                        ])->values(),
+                ];
+            })->values(),
         ];
+    }
+
+    /**
+     * O estado de uma proposta de fim de guerra, do ponto de vista de QUEM PERGUNTA.
+     *
+     * `de_mim` é o que decide o que a tela oferece: quem propôs pode retirar, quem recebeu pode
+     * responder. Sem isso o painel mostraria os dois botões aos dois lados, e metade dos cliques
+     * levaria a um 422.
+     *
+     * @return array{pendente: bool, de_mim: bool}
+     */
+    private function proposta(int $warId, string $tipo, int $minhaFederacaoId): array
+    {
+        $p = FederationWarProposal::where('war_id', $warId)
+            ->where('tipo', $tipo)
+            ->where('status', 'pendente')
+            ->first();
+
+        return [
+            'pendente' => $p !== null,
+            'de_mim' => $p !== null && (int) $p->proponente_federation_id === $minhaFederacaoId,
+        ];
+    }
+
+    /**
+     * POST /federation/wars/{war}/capitulacao — quem quer sair da guerra oferece a rendição.
+     *
+     * ⚠️ Sem preço no corpo, e é a decisão 9: **o vencedor escolhe**. Aceitar um preço vindo de
+     * quem se rende seria deixar o derrotado arbitrar a própria derrota.
+     */
+    public function proporCapitulacao(Request $request, FederationWar $war): JsonResponse
+    {
+        app(Capitulacao::class)->propor($this->colonia($request), $war->id);
+
+        return response()->json(['proposta' => true]);
+    }
+
+    /** POST /federation/wars/{war}/capitulacao/accept — o vencedor escolhe o espólio e a guerra acaba. */
+    public function aceitarCapitulacao(Request $request, FederationWar $war): JsonResponse
+    {
+        $dados = $request->validate([
+            'preco' => ['required', Rule::in(['zona', 'fert'])],
+            'zone_id' => ['required_if:preco,zona', 'nullable', 'integer'],
+        ]);
+
+        app(Capitulacao::class)->aceitar(
+            $this->colonia($request),
+            $war->id,
+            $dados['preco'],
+            $dados['zone_id'] ?? null,
+        );
+
+        return response()->json(['encerrada' => true]);
+    }
+
+    /** DELETE /federation/wars/{war}/capitulacao — quem se rendeu volta atrás, se ainda dá. */
+    public function retirarCapitulacao(Request $request, FederationWar $war): JsonResponse
+    {
+        app(Capitulacao::class)->retirar($this->colonia($request), $war->id);
+
+        return response()->json(['retirada' => true]);
+    }
+
+    /** POST /federation/wars/{war}/tratado — propõe paz. Qualquer um dos dois lados. */
+    public function proporTratado(Request $request, FederationWar $war): JsonResponse
+    {
+        app(TratadoDePaz::class)->propor($this->colonia($request), $war->id);
+
+        return response()->json(['proposta' => true]);
+    }
+
+    /** POST /federation/wars/{war}/tratado/accept — o outro lado aceita: acaba sem espólio. */
+    public function aceitarTratado(Request $request, FederationWar $war): JsonResponse
+    {
+        app(TratadoDePaz::class)->aceitar($this->colonia($request), $war->id);
+
+        return response()->json(['encerrada' => true]);
+    }
+
+    /** POST /federation/wars/{war}/tratado/reject — recusa. A guerra continua. */
+    public function recusarTratado(Request $request, FederationWar $war): JsonResponse
+    {
+        app(TratadoDePaz::class)->recusar($this->colonia($request), $war->id);
+
+        return response()->json(['recusada' => true]);
+    }
+
+    /** DELETE /federation/wars/{war}/tratado — tira a própria proposta da mesa. */
+    public function retirarTratado(Request $request, FederationWar $war): JsonResponse
+    {
+        app(TratadoDePaz::class)->retirar($this->colonia($request), $war->id);
+
+        return response()->json(['retirada' => true]);
     }
 
     /** POST /federations/{federation}/alianca — propõe. */

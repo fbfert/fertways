@@ -6,14 +6,20 @@ use App\Domain\Eventos\Modificadores;
 use App\Domain\Federacao\Aliancas;
 use App\Domain\Federacao\ContribuirParaOFundo;
 use App\Domain\Federacao\Diplomacia;
+use App\Domain\GuerraFederativa\Capitulacao;
 use App\Domain\GuerraFederativa\DeclararGuerra;
 use App\Domain\GuerraFederativa\EncerrarGuerras;
 use App\Domain\GuerraFederativa\Neutralidade;
+use App\Domain\GuerraFederativa\TratadoDePaz;
 use App\Exceptions\DomainRuleException;
 use App\Models\Colony;
 use App\Models\Federation;
+use App\Models\FederationLedger;
 use App\Models\FederationWar;
+use App\Models\FederationWarProposal;
 use App\Models\GameEvent;
+use App\Models\NeutralZone;
+use App\Models\Unit;
 use App\Models\User;
 use App\Models\WarSetting;
 use Database\Seeders\ResourceTypeSeeder;
@@ -424,5 +430,212 @@ class GuerraFederativaTest extends TestCase
 
         $this->expectException(DomainRuleException::class);
         app(ContribuirParaOFundo::class)->handle($c, 999_999_999);
+    }
+    // ─────────────────────────────── capitulação e tratado (decisões 8 e 9, D-206)
+
+    /** Duas federações com uma guerra ativa entre elas. Devolve [guerra, fedA, colA, fedB, colB]. */
+    private function guerraEntreDuas(): array
+    {
+        [$fa, $ca] = $this->federacao();
+        [$fb, $cb] = $this->federacao();
+
+        $guerra = FederationWar::create([
+            'declarante_id' => $fa->id, 'alvo_id' => $fb->id,
+            'comeca_em' => now()->subDay(), 'termina_em' => now()->addDays(6),
+            'status' => 'ativa', 'declarada_por_colony_id' => $ca->id,
+        ]);
+
+        return [$guerra, $fa->fresh(), $ca->fresh(), $fb->fresh(), $cb->fresh()];
+    }
+
+    private int $proximaCelulaDeZona = 0;
+
+    private function zonaDe(Colony $dono): NeutralZone
+    {
+        $cel = [[47, 47], [48, 48], [49, 49]][$this->proximaCelulaDeZona++];
+
+        return NeutralZone::create([
+            'x' => $cel[0], 'y' => $cel[1], 'district' => 'NE', 'mineral' => 'metal_bruto',
+            'level' => 1, 'owner_colony_id' => $dono->id, 'status' => 'ocupada',
+            'occupied_at' => now()->subDays(10), 'productive_at' => now()->subDays(9),
+            'last_extraction_at' => now(),
+        ]);
+    }
+
+    public function test_o_vencedor_escolhe_uma_zona_e_a_guerra_acaba(): void
+    {
+        [$guerra, , $ca, , $cb] = $this->guerraEntreDuas();
+
+        $zona = $this->zonaDe($cb);            // B é quem se rende
+        Unit::create([
+            'zone_id' => $zona->id, 'type' => 'robo_minerador',
+            'level' => 1, 'hp_bps' => Unit::INTEIRA, 'status' => 'na_zona',
+        ]);
+
+        app(Capitulacao::class)->propor($cb, $guerra->id);
+        app(Capitulacao::class)->aceitar($ca, $guerra->id, 'zona', $zona->id);
+
+        $this->assertSame('capitulada', $guerra->fresh()->status);
+        $this->assertSame('capitulacao', $guerra->fresh()->motivo_fim);
+        $this->assertSame($ca->id, (int) $zona->fresh()->owner_colony_id);
+
+        /*
+         * ⚠️ A guarnição VOLTA PARA CASA — não morre como na conquista. Entrega negociada não é
+         * batalha, e apagar os robôs cobraria um segundo preço que ninguém combinou.
+         */
+        $robo = Unit::where('type', 'robo_minerador')->first();
+        $this->assertNotNull($robo, 'o robô da zona cedida não pode ser destruído');
+        $this->assertSame($cb->id, (int) $robo->colony_id);
+        $this->assertNull($robo->zone_id);
+    }
+
+    /** O espólio em Fert$: sai do fundo de quem se rendeu, entra no do vencedor, e os dois extratos registram. */
+    public function test_o_vencedor_pode_escolher_fert_do_fundo(): void
+    {
+        [$guerra, $fa, $ca, $fb, $cb] = $this->guerraEntreDuas();
+
+        $preco = (int) WarSetting::singleton()->capitulacao_fert_micro;
+        $fb->update(['fert_micro' => $preco * 3]);
+        $fa->update(['fert_micro' => 0]);
+
+        app(Capitulacao::class)->propor($cb, $guerra->id);
+        app(Capitulacao::class)->aceitar($ca, $guerra->id, 'fert');
+
+        $this->assertSame($preco, (int) $fa->fresh()->fert_micro);
+        $this->assertSame($preco * 2, (int) $fb->fresh()->fert_micro);
+
+        $this->assertSame(-$preco, (int) FederationLedger::where('federation_id', $fb->id)
+            ->where('type', 'capitulacao')->value('amount'));
+        $this->assertSame($preco, (int) FederationLedger::where('federation_id', $fa->id)
+            ->where('type', 'capitulacao')->value('amount'));
+    }
+
+    /**
+     * ⚠️ Fundo mais pobre que o preço: leva-se o que há, e a guerra acaba do mesmo jeito.
+     *
+     * Bloquear por pobreza prenderia o derrotado na derrota — que é o que o §9 existe para encurtar.
+     */
+    public function test_fundo_menor_que_o_preco_nao_impede_a_capitulacao(): void
+    {
+        [$guerra, $fa, $ca, $fb, $cb] = $this->guerraEntreDuas();
+
+        $fb->update(['fert_micro' => 7]);
+        $fa->update(['fert_micro' => 0]);
+
+        app(Capitulacao::class)->propor($cb, $guerra->id);
+        app(Capitulacao::class)->aceitar($ca, $guerra->id, 'fert');
+
+        $this->assertSame('capitulada', $guerra->fresh()->status);
+        $this->assertSame(7, (int) $fa->fresh()->fert_micro);
+        $this->assertSame(0, (int) $fb->fresh()->fert_micro);
+        $this->assertSame(7, (int) FederationWarProposal::first()->preco_fert_micro);
+    }
+
+    /** Quem propõe não aceita: senão o derrotado escolheria o próprio preço. */
+    public function test_quem_se_rende_nao_escolhe_o_proprio_preco(): void
+    {
+        [$guerra, , , , $cb] = $this->guerraEntreDuas();
+
+        app(Capitulacao::class)->propor($cb, $guerra->id);
+
+        $this->expectException(DomainRuleException::class);
+        app(Capitulacao::class)->aceitar($cb, $guerra->id, 'fert');
+    }
+
+    /** Não se exige a zona de um terceiro que não está nesta guerra. */
+    public function test_nao_se_exige_zona_de_quem_nao_se_rendeu(): void
+    {
+        [$guerra, , $ca, , $cb] = $this->guerraEntreDuas();
+        [, $cc] = $this->federacao();
+
+        $zonaDeTerceiro = $this->zonaDe($cc);
+
+        app(Capitulacao::class)->propor($cb, $guerra->id);
+
+        $this->expectException(DomainRuleException::class);
+        app(Capitulacao::class)->aceitar($ca, $guerra->id, 'zona', $zonaDeTerceiro->id);
+    }
+
+    /**
+     * ⚠️ `termina_em` NÃO se antecipa: o cooldown do par (§10) conta a partir dele.
+     *
+     * Sem esta afirmação, capitular viraria o jeito barato de zerar a proteção contra assédio e ser
+     * declarado de novo no dia seguinte.
+     */
+    public function test_capitular_nao_encurta_o_cooldown_do_par(): void
+    {
+        [$guerra, , $ca, $fb, $cb] = $this->guerraEntreDuas();
+
+        $antes = $guerra->termina_em->toIso8601String();
+        $fb->update(['fert_micro' => 0]);
+
+        app(Capitulacao::class)->propor($cb, $guerra->id);
+        app(Capitulacao::class)->aceitar($ca, $guerra->id, 'fert');
+
+        $this->assertSame($antes, $guerra->fresh()->termina_em->toIso8601String());
+    }
+
+    public function test_o_tratado_aceito_acaba_a_guerra_sem_espolio(): void
+    {
+        [$guerra, $fa, $ca, $fb, $cb] = $this->guerraEntreDuas();
+
+        $fundoA = (int) $fa->fert_micro;
+        $fundoB = (int) $fb->fert_micro;
+
+        app(TratadoDePaz::class)->propor($ca, $guerra->id);
+        app(TratadoDePaz::class)->aceitar($cb, $guerra->id);
+
+        $this->assertSame('tratado', $guerra->fresh()->status);
+        $this->assertSame('tratado', $guerra->fresh()->motivo_fim);
+
+        // Nada mudou de mãos — é o que separa a paz da capitulação.
+        $this->assertSame($fundoA, (int) $fa->fresh()->fert_micro);
+        $this->assertSame($fundoB, (int) $fb->fresh()->fert_micro);
+    }
+
+    public function test_o_tratado_recusado_deixa_a_guerra_correndo(): void
+    {
+        [$guerra, , $ca, , $cb] = $this->guerraEntreDuas();
+
+        app(TratadoDePaz::class)->propor($ca, $guerra->id);
+        app(TratadoDePaz::class)->recusar($cb, $guerra->id);
+
+        $this->assertSame('ativa', $guerra->fresh()->status);
+        $this->assertSame('recusada', FederationWarProposal::first()->status);
+
+        // E a mesa fica livre: dá para propor de novo.
+        app(TratadoDePaz::class)->propor($ca, $guerra->id);
+        $this->assertSame(2, FederationWarProposal::count());
+    }
+
+    /** Uma pendente por tipo e por guerra, venha de qual lado vier. */
+    public function test_nao_ha_duas_propostas_do_mesmo_tipo_na_mesa(): void
+    {
+        [$guerra, , $ca, , $cb] = $this->guerraEntreDuas();
+
+        app(TratadoDePaz::class)->propor($ca, $guerra->id);
+
+        $this->expectException(DomainRuleException::class);
+        app(TratadoDePaz::class)->propor($cb, $guerra->id);
+    }
+
+    /** Quem não é Líder nem Diplomata não negocia o fim de nada. */
+    public function test_so_lider_ou_diplomata_negociam_o_fim(): void
+    {
+        [$guerra, , , , $cb] = $this->guerraEntreDuas();
+        $cb->update(['federation_role' => Federation::MEMBRO]);
+
+        $this->expectException(DomainRuleException::class);
+        app(Capitulacao::class)->propor($cb->fresh(), $guerra->id);
+    }
+
+    /** Guerra que já acabou não se negocia. */
+    public function test_guerra_encerrada_nao_aceita_proposta(): void
+    {
+        [$guerra, , , , $cb] = $this->guerraEntreDuas();
+        $guerra->update(['status' => 'encerrada']);
+
+        $this->expectException(DomainRuleException::class);
+        app(TratadoDePaz::class)->propor($cb, $guerra->id);
     }
 }

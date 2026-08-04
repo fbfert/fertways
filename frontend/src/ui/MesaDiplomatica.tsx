@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { api } from '../api/client'
-import type { MesaDiplomatica as Dados } from '../api/client'
+import type { GuerraEmCurso, MesaDiplomatica as Dados } from '../api/client'
 import { Botao, Selo } from './sistema'
 
 /**
@@ -152,11 +152,22 @@ export function MesaDiplomatica() {
           </div>
 
           {d.guerra.em_guerra_com.map((g) => (
-            <p key={g.id} className="text-perigo mt-1 text-sm" data-em-guerra={g.id}>
-              ▲ Em guerra com <strong>{g.nome}</strong> até{' '}
-              {new Date(g.termina_em).toLocaleString('pt-BR')}
-              {g.eu_declarei ? ' (você declarou)' : ' (declararam a você)'}.
-            </p>
+            <div key={g.id} className="border-ink/10 mt-2 border-t pt-2" data-em-guerra={g.id}>
+              <p className="text-perigo text-sm">
+                ▲ Em guerra com <strong>{g.nome}</strong> até{' '}
+                {new Date(g.termina_em).toLocaleString('pt-BR')}
+                {g.eu_declarei ? ' (você declarou)' : ' (declararam a você)'}.
+              </p>
+
+              {d.pode_tratar && (
+                <SaidasDaGuerra
+                  guerra={g}
+                  precoFert={d.guerra?.capitulacao_fert ?? 0}
+                  ocupado={ocupado}
+                  agir={agir}
+                />
+              )}
+            </div>
           ))}
         </div>
       )}
@@ -285,5 +296,195 @@ export function MesaDiplomatica() {
         </p>
       )}
     </section>
+  )
+}
+
+/**
+ * As duas saídas antecipadas de uma guerra (A2.10, decisões 8 e 9; D-206).
+ *
+ * O §8 lista três jeitos de uma guerra acabar — *"prazo, capitulação ou tratado de paz"* — e até
+ * aqui só o prazo existia. Esta é a porta dos outros dois, e ela precisa dizer o que o GDD diz e a
+ * tela sozinha não deixaria adivinhar:
+ *
+ *  - **capitular é oferecer sem saber o preço.** A decisão 9 dá a escolha ao vencedor, então quem
+ *    se rende precisa ver, antes de clicar, que aceita perder uma zona *ou* o valor do fundo — não
+ *    escolhe qual;
+ *  - **o tratado não move nada.** Sem isso as duas saídas pareceriam a mesma, e ninguém entenderia
+ *    por que existiriam duas;
+ *  - **quem propôs não responde.** Por isso os botões saem de `de_mim`, e não do lado da guerra:
+ *    mostrar "aceitar" a quem propôs seria um clique que o servidor recusaria com 422.
+ */
+function SaidasDaGuerra({
+  guerra: g,
+  precoFert,
+  ocupado,
+  agir,
+}: {
+  guerra: GuerraEmCurso
+  precoFert: number
+  ocupado: boolean
+  agir: (fn: () => Promise<unknown>, sucesso: string) => Promise<void>
+}) {
+  const [zona, setZona] = useState<string>('')
+
+  return (
+    <div className="mt-2 flex flex-col gap-2 text-sm" data-saidas={g.war_id}>
+      {/* ── capitulação ─────────────────────────────────────────────────────────────────── */}
+      {g.capitulacao.pendente ? (
+        g.capitulacao.de_mim ? (
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-ink-soft">
+              Você ofereceu capitulação. Espera-se que <strong>{g.nome}</strong> escolha o espólio.
+            </span>
+            <Botao
+              variante="perigo"
+              disabled={ocupado}
+              data-retirar-capitulacao={g.war_id}
+              onClick={() =>
+                void agir(() => api.retirarCapitulacao(g.war_id), 'Capitulação retirada.')
+              }
+            >
+              Retirar
+            </Botao>
+          </div>
+        ) : (
+          <div className="border-perigo/30 bg-sand-light border-l-4 px-2 py-2">
+            <p className="text-ink">
+              <strong>{g.nome}</strong> ofereceu capitulação. <strong>Você escolhe o espólio</strong>{' '}
+              — uma zona dela, ou {precoFert.toLocaleString('pt-BR')} F$ do fundo dela. A guerra
+              acaba no ato.
+            </p>
+
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <select
+                value={zona}
+                onChange={(e) => setZona(e.target.value)}
+                data-zona-do-espolio={g.war_id}
+                className="border-rust/25 bg-sand-light border px-2 py-1 text-sm"
+              >
+                <option value="">— escolher uma zona —</option>
+                {g.zonas_do_inimigo.map((z) => (
+                  <option key={z.id} value={z.id}>
+                    {z.nome} · {z.mineral} · nível {z.nivel}
+                  </option>
+                ))}
+              </select>
+
+              <Botao
+                disabled={ocupado || zona === ''}
+                data-exigir-zona={g.war_id}
+                onClick={() =>
+                  void agir(
+                    () => api.aceitarCapitulacao(g.war_id, 'zona', Number(zona)),
+                    'Capitulação aceita: a zona é sua e a guerra acabou.',
+                  )
+                }
+              >
+                Exigir a zona
+              </Botao>
+
+              <Botao
+                disabled={ocupado}
+                data-exigir-fert={g.war_id}
+                onClick={() =>
+                  void agir(
+                    () => api.aceitarCapitulacao(g.war_id, 'fert'),
+                    'Capitulação aceita: o valor caiu no fundo e a guerra acabou.',
+                  )
+                }
+              >
+                Exigir {precoFert.toLocaleString('pt-BR')} F$
+              </Botao>
+            </div>
+
+            {/* ⚠️ O limite existe e o vencedor tem de saber: se o fundo dela não cobrir, ele
+                recebe menos — e a guerra acaba do mesmo jeito. Prometer o valor cheio e entregar
+                menos seria a tela mentindo. */}
+            <p className="text-ink-soft/70 mt-1 text-xs">
+              Se o fundo dela tiver menos, você leva o que houver — a guerra acaba na mesma.
+              {g.zonas_do_inimigo.length === 0 && ' Ela não tem zona livre de cerco para ceder.'}
+            </p>
+          </div>
+        )
+      ) : (
+        <div className="flex flex-wrap items-center gap-2">
+          <Botao
+            variante="perigo"
+            disabled={ocupado}
+            data-capitular={g.war_id}
+            title="Quem escolhe o espólio é quem venceu — uma zona sua, ou o valor do seu fundo."
+            onClick={() =>
+              void agir(
+                () => api.proporCapitulacao(g.war_id),
+                'Capitulação oferecida. Cabe a eles escolher o espólio.',
+              )
+            }
+          >
+            Capitular
+          </Botao>
+          <span className="text-ink-soft/70 text-xs">
+            Acaba a guerra no ato. <strong>Eles</strong> escolhem: uma zona sua, ou{' '}
+            {precoFert.toLocaleString('pt-BR')} F$ do seu fundo.
+          </span>
+        </div>
+      )}
+
+      {/* ── tratado de paz ──────────────────────────────────────────────────────────────── */}
+      {g.tratado.pendente ? (
+        g.tratado.de_mim ? (
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-ink-soft">Paz proposta. Aguardando {g.nome}.</span>
+            <Botao
+              disabled={ocupado}
+              data-retirar-tratado={g.war_id}
+              onClick={() => void agir(() => api.retirarTratado(g.war_id), 'Proposta retirada.')}
+            >
+              Retirar
+            </Botao>
+          </div>
+        ) : (
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-ink">
+              <strong>{g.nome}</strong> propôs paz. Nada muda de mãos.
+            </span>
+            <Botao
+              disabled={ocupado}
+              data-aceitar-tratado={g.war_id}
+              onClick={() =>
+                void agir(() => api.aceitarTratado(g.war_id), 'Paz assinada. A guerra acabou.')
+              }
+            >
+              Aceitar a paz
+            </Botao>
+            <Botao
+              variante="perigo"
+              disabled={ocupado}
+              data-recusar-tratado={g.war_id}
+              onClick={() =>
+                void agir(() => api.recusarTratado(g.war_id), 'Paz recusada. A guerra continua.')
+              }
+            >
+              Recusar
+            </Botao>
+          </div>
+        )
+      ) : (
+        <div className="flex flex-wrap items-center gap-2">
+          <Botao
+            disabled={ocupado}
+            data-propor-tratado={g.war_id}
+            onClick={() =>
+              void agir(() => api.proporTratado(g.war_id), `Paz proposta a ${g.nome}.`)
+            }
+          >
+            Propor paz
+          </Botao>
+          <span className="text-ink-soft/70 text-xs">
+            Acaba antes do prazo, <strong>sem espólio</strong> para nenhum dos dois. Exige o aceite
+            deles.
+          </span>
+        </div>
+      )}
+    </div>
   )
 }

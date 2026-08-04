@@ -182,7 +182,10 @@ O esqueleto ganhou o que faltava, em quatro fatias:
 - **a porta** (D-204) — `GET /war/inimigos` e `POST /war/attack-colony`, com a tela no Quartel;
 - **saque total da zona conquistada** (D-205) — em guerra federativa a **invasão** leva o estoque
   **inteiro** da zona: o Depósito dela deixa de proteger. Só a invasão; o cerco de zona continua nos
-  30% do exposto.
+  30% do exposto;
+- **capitulação e tratado de paz** (D-206) — as duas saídas antecipadas do §8. Quem se rende propõe
+  **sem saber o preço** (o vencedor escolhe: zona ou Fert$) e **o vencedor não pode recusar**; o
+  tratado exige consentimento mútuo e **não move nada**.
 
 ⚠️ **O butim atravessa o teto de estoque da colônia** — `TetoDoEstoque` governa a produção, não o
 saque. Escolhido: nada se destrói (§6.6), e a colônia acima do teto para de produzir aquele recurso
@@ -216,8 +219,9 @@ um dia**, e isso está registrado porque a promessa era essa.
 
 | | |
 |---|---|
-| **capitulação e tratados** | decididos (o vencedor escolhe entre uma zona e Fert$), não construídos |
 | **uma segunda federação** | o mundo tem **uma**; nenhum jogador consegue exercitar guerra, blocos ou diplomacia |
+| **fundo de federação com saldo** | ⚠️ o único fundo do mundo tem **0,00 F$**, e declarar guerra custa 500 F$ dele: hoje **ninguém consegue declarar** (D-206) |
+| **telemetria de retorno de quem foi saqueado ausente** | recomendada desde o D-202, e a decisão que a torna necessária já está no ar |
 | **ranking de guerra** | fórmula ainda é desenho, não escolha binária |
 | **eventos da Endurance** no motor | adiado pelo Dono |
 | **descoberta por escavação** | o item único nasce na compra; escavar não existe |
@@ -304,8 +308,9 @@ promover número. **Nenhum número da guerra federativa passou por isso.**
 1. ✅ **Neutralidade declarada** — feita (D-201), e antes do saque, como o D-193 exigia;
 2. ✅ **Alvos e espólio** — feitos (D-203 a D-205), cada um precedido da medição contra a produção
    que salvou as três ativações anteriores;
-3. **Capitulação e tratados, e a fórmula do ranking** — o que resta da A2.10. A fórmula segue sendo
-   desenho: quando chegar a vez dela, o que se leva ao Dono são **propostas de fórmula**, não opções;
+3. ✅ **Capitulação e tratados** — feitos (D-206). Resta da A2.10 **só a fórmula do ranking**, que
+   segue sendo desenho: quando chegar a vez dela, o que se leva ao Dono são **propostas de fórmula**,
+   não opções;
 4. **Telemetria de retorno de quem foi saqueado ausente** — ainda não existe, e a decisão que a torna
    necessária já está no ar;
 5. **A2.V2 a A2.V6** — a maior dívida restante.

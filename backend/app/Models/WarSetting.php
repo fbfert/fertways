@@ -33,6 +33,18 @@ class WarSetting extends Model
         'predador_min_bps', 'predador_max_bps',
         'niobio_preco_micro',
         'reparo_bps_do_custo',
+        /*
+         * ⚠️ Os da guerra federativa faltavam aqui desde o D-193 — e a migration que os criou diz,
+         * por escrito, que eles moram em `war_settings` justamente para "mudar sem deploy". Sem
+         * `fillable` o painel nunca poderia gravá-los, e a promessa era falsa: só mudavam por SQL.
+         * Ver o docblock abaixo sobre por que a ausência custa caro exatamente aqui.
+         */
+        'federativa_duracao_horas',
+        'federativa_cooldown_horas',
+        'federativa_custo_fert_micro',
+        'federativa_custo_niobio',
+        'neutralidade_carencia_horas',
+        'capitulacao_fert_micro',
     ];
 
     protected $casts = [
@@ -46,6 +58,12 @@ class WarSetting extends Model
         'predador_min_bps' => 'integer',
         'predador_max_bps' => 'integer',
         'niobio_preco_micro' => 'integer',
+        'federativa_duracao_horas' => 'integer',
+        'federativa_cooldown_horas' => 'integer',
+        'federativa_custo_fert_micro' => 'integer',
+        'federativa_custo_niobio' => 'integer',
+        'neutralidade_carencia_horas' => 'integer',
+        'capitulacao_fert_micro' => 'integer',
         'reparo_bps_do_custo' => 'integer',
     ];
 

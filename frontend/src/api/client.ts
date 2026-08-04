@@ -1136,13 +1136,30 @@ export type MesaDiplomatica = {
     /** O custo AGORA, já com o modificador de mobilização. Não é o custo de tabela. */
     custo_fert: number
     custo_niobio: number
-    em_guerra_com: Array<{
-      id: number
-      nome: string | null
-      eu_declarei: boolean
-      termina_em: string
-    }>
+    /** O preço em Fert$ da capitulação, se o vencedor preferir dinheiro a território (D-206). */
+    capitulacao_fert: number
+    em_guerra_com: GuerraEmCurso[]
   }
+}
+
+/** O estado de uma proposta de fim de guerra, do ponto de vista de quem pergunta (D-206). */
+export type PropostaDeFim = {
+  pendente: boolean
+  /** Quem propôs pode RETIRAR; quem recebeu pode RESPONDER. É o que decide o botão. */
+  de_mim: boolean
+}
+
+export type GuerraEmCurso = {
+  id: number
+  nome: string | null
+  eu_declarei: boolean
+  termina_em: string
+  /** O id da guerra — é ele que as rotas de capitulação e tratado pedem. */
+  war_id: number
+  capitulacao: PropostaDeFim
+  tratado: PropostaDeFim
+  /** As zonas que a capitulação pode levar deste inimigo. Já sem as que estão sob cerco. */
+  zonas_do_inimigo: Array<{ id: number; nome: string; mineral: string; nivel: number }>
 }
 
 export const api = {
@@ -1772,6 +1789,30 @@ export const api = {
     req<{ neutra_desde: string | null }>('/federation/neutralidade', { method: 'POST' }),
   encerrarNeutralidade: () =>
     req<{ termina_em: string | null }>('/federation/neutralidade', { method: 'DELETE' }),
+
+  /*
+   * As duas saídas antecipadas do §8 (D-206). ⚠️ A capitulação não tem `recusar`, e o tratado tem:
+   * recusar uma paz é querer continuar lutando; recusar uma rendição prenderia o adversário numa
+   * derrota já decidida, que é o que a capitulação existe para encurtar.
+   */
+  proporCapitulacao: (warId: number) =>
+    req<{ proposta: boolean }>(`/federation/wars/${warId}/capitulacao`, { method: 'POST' }),
+  aceitarCapitulacao: (warId: number, preco: 'zona' | 'fert', zoneId?: number) =>
+    req<{ encerrada: boolean }>(`/federation/wars/${warId}/capitulacao/accept`, {
+      method: 'POST',
+      body: JSON.stringify({ preco, zone_id: zoneId ?? null }),
+    }),
+  retirarCapitulacao: (warId: number) =>
+    req<{ retirada: boolean }>(`/federation/wars/${warId}/capitulacao`, { method: 'DELETE' }),
+
+  proporTratado: (warId: number) =>
+    req<{ proposta: boolean }>(`/federation/wars/${warId}/tratado`, { method: 'POST' }),
+  aceitarTratado: (warId: number) =>
+    req<{ encerrada: boolean }>(`/federation/wars/${warId}/tratado/accept`, { method: 'POST' }),
+  recusarTratado: (warId: number) =>
+    req<{ recusada: boolean }>(`/federation/wars/${warId}/tratado/reject`, { method: 'POST' }),
+  retirarTratado: (warId: number) =>
+    req<{ retirada: boolean }>(`/federation/wars/${warId}/tratado`, { method: 'DELETE' }),
 
   contribuirParaOFundo: (fert: number) =>
     req<{ fundo_fert: number }>('/federation/fundo', {
