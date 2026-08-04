@@ -326,8 +326,10 @@ Restaura em ~4,5 s e bate com a produção linha a linha. O procedimento verific
 `docs/restauracao.md`, com as quatro armadilhas que o ensaio encontrou — a pior delas: extrair um
 banco do dump `--all-databases` carrega um `USE`, e restaurar "ao lado" **escreve na produção**.
 
-⚠️ **Mas o hábito de tirar backup manual antes de cada fase parou.** O último é de 2026-08-03 17:52;
-D-205, D-206 e D-207 subiram sem ele, cobertos só pelo diário das 03:00 (até 24 h de perda).
+✅ **E deixou de depender de alguém lembrar** (D-209): o backup virou **passo do `deploy.sh`**, dentro
+da manutenção e antes do `migrate`, conferido em três perguntas (gzip fecha, tamanho de banco de
+verdade, tabela `colonies` dentro). Falhando qualquer uma, **nada é publicado**. O arquivo produzido
+pelo primeiro deploy com o passo novo foi restaurado e bate com a produção linha a linha.
 
 ⚠️ **O mundo tem uma federação.** A guerra federativa, a diplomacia e o bloco antimonopólio não têm
 como ser exercitados por jogador nenhum. Alavancas baratas — tornar o desconto visível no mercado,

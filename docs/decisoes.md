@@ -11384,3 +11384,13 @@ até 24 h de perda possível.
 
 O hábito de tirar um backup antes de cada fase existia e se perdeu **sem que nada avisasse**. Não é
 decisão minha reinstaurá-lo como regra; fica registrado que ele parou.
+
+### Verificação
+
+Rodado em produção duas vezes. O passo aparece no log —
+`==> backup conferido: /home/fertways/backups/fertwaysbd-antes-a2f06c0-20260804-171121.sql.gz (619 KB)`
+— e o arquivo que ele produziu foi **restaurado num banco descartável e comparado com a produção**:
+89 tabelas, 29 colônias, 35.202 lançamentos, 111 migrations — **idênticos**.
+
+É o laço que o D-208 abriu, fechado: o backup não é só tirado e conferido, é tirado por um passo
+automático e **restaurado para provar que serve**.
