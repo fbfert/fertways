@@ -11297,3 +11297,90 @@ Foi preciso acrescentar um controle — o rating **mudou** — antes da igualdad
 1217 testes verdes (6 novos) e 10 suítes e2e verdes, com duas asserções novas — a que importa afirma
 que **a tela diz que o rating cai**, porque a soma zero precisa ser sabida antes de declarar, não
 descoberta na primeira derrota. Migration aplicada e revertida contra o MariaDB antes dos testes.
+
+---
+
+## D-208 — A restauração de backup foi testada, e quatro coisas nela estavam prontas para dar errado
+
+Oito backups existiam e **nenhum jamais tinha sido restaurado**. A pendência estava registrada há
+semanas com a frase certa: *backup que ninguém restaurou é hipótese.* Testada agora, de ponta a ponta,
+num banco descartável — nunca sobre produção. O procedimento verificado está em `docs/restauracao.md`.
+
+### A boa notícia primeiro
+
+**Restaura.** Os dez arquivos passam no `gzip -t`; o manual mais recente sobe em **4,2 s**; a seção do
+`fertwaysbd` do diário sobe em **4,6 s**; e as contagens batem com a produção linha a linha — 29
+colônias, 33 usuários, 457 construções, 754 recursos, 77 zonas. O `ledger` difere em 112 linhas, que é
+o jogo tendo andado desde as 03:00.
+
+A cópia externa no Drive existe e tem **três** dias, com bytes idênticos aos locais. E o
+`--master-data=2` está mesmo lá: `mysql-bin.000065:28540974` no topo do dump — a âncora da recuperação
+pontual que a documentação prometia e que ninguém tinha conferido.
+
+### ⚠️ 1. Extrair um banco do dump `--all-databases` escreve na PRODUÇÃO
+
+O uso que se vai querer quase sempre é *"restaurar o FERTWAYS ao lado, para olhar"*. A seção extraída
+traz `CREATE DATABASE fertwaysbd` e **dois** `USE \`fertwaysbd\`;`.
+
+**`mysql fertways_restore_teste < secao.sql` ignora o banco da linha de comando e escreve na
+produção.** Não há aviso, não há erro: o `USE` simplesmente vence.
+
+O runbook agora manda tirar essas linhas e **conferir que sobraram zero** antes de executar.
+
+### ⚠️ 2. `grep -v` truncou 2 MB em silêncio
+
+Filtrar as três linhas com `grep -vE` derrubou **2 MB de um arquivo de 5 MB**. Três linhas de 160
+bytes ao todo.
+
+A causa: o dump tem linhas de até **1 MB** (INSERTs em bloco), e o `grep` as cortou. O arquivo
+resultante continuava sendo SQL válido, restaurava **sem erro nenhum**, e vinha pela metade.
+
+Só apareceu porque a conta não fechou — 5,0 MB viraram 3,0 MB ao remover três linhas curtas. Refeito
+com `awk`, a aritmética fecha ao byte: `5.182.507 − 160 = 5.182.347`.
+
+**A regra que fica: conferir bytes, não confiar no "parece certo".** Um backup restaurado pela metade
+é pior que um backup que falha, porque parece sucesso.
+
+### ⚠️ 3. Sem o preâmbulo, morre na primeira chave estrangeira
+
+`FOREIGN_KEY_CHECKS=0` está no cabeçalho do arquivo **inteiro**, antes do primeiro banco. A seção
+extraída sozinha falha na primeira tabela com FK — as tabelas vêm em ordem alfabética, e `auctions`
+referencia `colonies`, que ainda não existe.
+
+Isto **não é defeito do backup**: o dump foi feito para ser restaurado por inteiro, e por inteiro ele
+funciona. É defeito de quem extrai — eu — e por isso o runbook monta preâmbulo + seção + rodapé.
+
+### ⚠️ 4. `DB_DATABASE=` não vence o cache de config, e eu testei a produção achando que testava o backup
+
+A primeira verificação *"a aplicação lê o banco restaurado?"* devolveu 29 colônias e um ranking de 29
+linhas. Números plausíveis, e **todos vindos da produção**: a árvore de deploy tem
+`bootstrap/cache/config.php`, e com ele a `env()` do Laravel é ignorada por completo.
+
+Foi leitura apenas, sem estrago. Mas o teste **não provava nada**, e era exatamente o formato de
+"passou porque nada aconteceu" que esta sessão inteira vem perseguindo.
+
+⚠️ É a mesma armadilha que o `tools/e2e.sh` documenta desde o D-27 — lá com consequência muito pior
+(um `migrate:fresh` chegou a apagar o banco do jogo). A proteção é a mesma:
+`APP_CONFIG_CACHE=<arquivo inexistente>`, e **confirmar `SELECT DATABASE()` antes de qualquer
+conclusão**.
+
+### E restaurar não devolve o jogo: falta migrar
+
+O backup é do banco de ontem; o código no ar é o de hoje. A aplicação reprova contra o restaurado:
+
+    SQLSTATE[42S22]: Column not found: 1054 Unknown column 'rating_guerra'
+
+Com as duas migrations pendentes aplicadas, tudo passa a servir — ranking, teto de estoque, saque da
+zona. **O procedimento é restaurar → migrar → servir**, e nenhum documento dizia isso.
+
+Descoberto de quebra: `fertways@localhost` **não tem permissão em banco recém-criado**. Num desastre
+real isso não aparece (restaura-se sobre `fertwaysbd`), mas num ensaio, sim.
+
+### ⚠️ O buraco que o ensaio encontrou e não fechou
+
+O backup manual mais recente é de **2026-08-03 17:52**, antes do cerco de colônia. **As três fases
+seguintes — D-205, D-206 e D-207 — subiram sem backup manual prévio.** O diário das 03:00 cobre, com
+até 24 h de perda possível.
+
+O hábito de tirar um backup antes de cada fase existia e se perdeu **sem que nada avisasse**. Não é
+decisão minha reinstaurá-lo como regra; fica registrado que ele parou.
