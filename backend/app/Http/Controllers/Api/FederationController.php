@@ -268,6 +268,13 @@ class FederationController extends Controller
             'custo_niobio' => $custo['niobio'],
             'carencia_horas' => (int) WarSetting::singleton()->neutralidade_carencia_horas,
             'capitulacao_fert' => (int) WarSetting::singleton()->capitulacao_fert_micro / Colony::MICRO_POR_FERT,
+            /*
+             * O ranking federativo (D-207). Mostrado ao lado do custo da guerra porque é a
+             * consequência de longo prazo dela — e porque um número que só aparece depois de perder
+             * não ensina nada a quem ainda está a decidir se declara.
+             */
+            'rating' => (int) $federacao->rating_guerra,
+            'posicao' => $this->posicaoNoRanking($federacao->id),
             'em_guerra_com' => $emGuerra->map(function (FederationWar $g) use ($federacao) {
                 $outraId = (int) ($g->declarante_id === $federacao->id ? $g->alvo_id : $g->declarante_id);
 
@@ -402,6 +409,33 @@ class FederationController extends Controller
         app(TratadoDePaz::class)->retirar($this->colonia($request), $war->id);
 
         return response()->json(['retirada' => true]);
+    }
+
+    /**
+     * A posição desta federação no ranking federativo, e quantas há (D-207).
+     *
+     * Um rating solto não diz nada — 1.000 é bom ou ruim? A posição diz. Federações dissolvidas
+     * ficam de fora: elas não disputam mais nada, e mantê-las na conta faria o denominador crescer
+     * para sempre.
+     *
+     * @return array{lugar:int, de:int}
+     */
+    private function posicaoNoRanking(int $federationId): array
+    {
+        $ratings = Federation::whereNull('disbanded_at')
+            ->orderByDesc('rating_guerra')
+            ->pluck('rating_guerra', 'id');
+
+        $lugar = 1;
+        $meu = (int) ($ratings[$federationId] ?? 0);
+
+        foreach ($ratings as $id => $r) {
+            if ((int) $id !== $federationId && (int) $r > $meu) {
+                $lugar++;
+            }
+        }
+
+        return ['lugar' => $lugar, 'de' => $ratings->count()];
     }
 
     /** POST /federations/{federation}/alianca — propõe. */

@@ -185,7 +185,12 @@ O esqueleto ganhou o que faltava, em quatro fatias:
   30% do exposto;
 - **capitulação e tratado de paz** (D-206) — as duas saídas antecipadas do §8. Quem se rende propõe
   **sem saber o preço** (o vencedor escolhe: zona ou Fert$) e **o vencedor não pode recusar**; o
-  tratado exige consentimento mútuo e **não move nada**.
+  tratado exige consentimento mútuo e **não move nada**;
+- **ranking federativo** (D-207) — rating tipo Elo, início 1.000, **soma zero e sem piso**. Escolhido
+  por isso: a guerra encenada entre federações amigas não dá ganho líquido ao par. Preenche também o
+  sexto sub-ranking do §27.13, vazio desde o D-128 — e com ele os pesos passam a somar 100.
+
+⚠️ **A A2.10 está completa.** As doze decisões do D-193 estão todas construídas.
 
 ⚠️ **O butim atravessa o teto de estoque da colônia** — `TetoDoEstoque` governa a produção, não o
 saque. Escolhido: nada se destrói (§6.6), e a colônia acima do teto para de produzir aquele recurso
@@ -308,9 +313,8 @@ promover número. **Nenhum número da guerra federativa passou por isso.**
 1. ✅ **Neutralidade declarada** — feita (D-201), e antes do saque, como o D-193 exigia;
 2. ✅ **Alvos e espólio** — feitos (D-203 a D-205), cada um precedido da medição contra a produção
    que salvou as três ativações anteriores;
-3. ✅ **Capitulação e tratados** — feitos (D-206). Resta da A2.10 **só a fórmula do ranking**, que
-   segue sendo desenho: quando chegar a vez dela, o que se leva ao Dono são **propostas de fórmula**,
-   não opções;
+3. ✅ **Capitulação, tratados e a fórmula do ranking** — feitos (D-206, D-207). **A A2.10 acabou.**
+   O que falta agora não é fase: é o mundo não ter com que exercitá-la;
 4. **Telemetria de retorno de quem foi saqueado ausente** — ainda não existe, e a decisão que a torna
    necessária já está no ar;
 5. **A2.V2 a A2.V6** — a maior dívida restante.

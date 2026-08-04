@@ -11,7 +11,7 @@ class FederationWar extends Model
 {
     protected $fillable = [
         'declarante_id', 'alvo_id', 'comeca_em', 'termina_em',
-        'status', 'encerrada_em', 'motivo_fim', 'declarada_por_colony_id',
+        'status', 'encerrada_em', 'motivo_fim', 'declarada_por_colony_id', 'rating_delta',
     ];
 
     protected $casts = [

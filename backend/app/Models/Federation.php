@@ -36,6 +36,14 @@ class Federation extends Model
         // A2.10: a neutralidade declarada (decisão 12).
         'neutra_desde',
         'neutralidade_termina_em',
+        /*
+         * ⚠️ A2.10: o rating do ranking federativo (D-207). A ausência dele aqui fez o `update()` do
+         * `RatingFederativo` ser descartado **em silêncio** — e um dos testes do Elo passou assim
+         * mesmo, porque o cenário que ele montava também era descartado e a comparação continuava
+         * verdadeira por acidente. É a quinta vez nesta fase que uma coluna nova fica de fora do
+         * `fillable` (`max_aliadas`, `operadores`, `fert_micro`, `war_id`); é sempre silencioso.
+         */
+        'rating_guerra',
     ];
 
     protected $casts = [
@@ -43,6 +51,7 @@ class Federation extends Model
         'fert_micro' => 'integer',
         'neutra_desde' => 'datetime',
         'neutralidade_termina_em' => 'datetime',
+        'rating_guerra' => 'integer',
     ];
 
     public function membros(): HasMany

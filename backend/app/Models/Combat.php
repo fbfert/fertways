@@ -54,6 +54,12 @@ class Combat extends Model
         'tipo', 'status', 'rodada',
         'chega_at', 'proxima_rodada_at', 'prazo_at',
         'alvo', 'resultado',
+        /*
+         * ⚠️ A guerra federativa sob a qual este ataque partiu (D-207), ou nulo fora dela. Sem o
+         * `fillable` o `create()` do despacho o descartaria em silêncio, e o saldo por prazo leria
+         * uma guerra sem batalha nenhuma — o defeito que já custou três correções nesta fase.
+         */
+        'war_id',
     ];
 
     protected $casts = [

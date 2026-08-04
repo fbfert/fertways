@@ -24,7 +24,10 @@ use Illuminate\Support\Facades\DB;
  */
 class EncerrarGuerras
 {
-    public function __construct(private readonly PublicarNoticia $noticias) {}
+    public function __construct(
+        private readonly PublicarNoticia $noticias,
+        private readonly RatingFederativo $rating,
+    ) {}
 
     public function handle(CarbonInterface $agora): int
     {
@@ -40,6 +43,14 @@ class EncerrarGuerras
                     'encerrada_em' => $agora,
                     'motivo_fim' => 'prazo',
                 ]);
+
+                /*
+                 * ⚠️ O rating por PRAZO sai do saldo da guerra (D-207), e não de um empate
+                 * automático: sete dias de batalhas em que um lado tomou três zonas do outro não
+                 * são empate, e tratá-los assim faria a única guerra "de verdade" — a que ninguém
+                 * encerra negociando — ser a única que não conta.
+                 */
+                $this->rating->aplicar($guerra, $this->rating->resultadoPorSaldo($guerra));
 
                 $this->noticias->publicar(
                     "Fim da guerra: {$guerra->declarante?->name} e {$guerra->alvo?->name}",

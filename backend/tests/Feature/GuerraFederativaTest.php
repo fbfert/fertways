@@ -10,9 +10,11 @@ use App\Domain\GuerraFederativa\Capitulacao;
 use App\Domain\GuerraFederativa\DeclararGuerra;
 use App\Domain\GuerraFederativa\EncerrarGuerras;
 use App\Domain\GuerraFederativa\Neutralidade;
+use App\Domain\GuerraFederativa\RatingFederativo;
 use App\Domain\GuerraFederativa\TratadoDePaz;
 use App\Exceptions\DomainRuleException;
 use App\Models\Colony;
+use App\Models\Combat;
 use App\Models\Federation;
 use App\Models\FederationLedger;
 use App\Models\FederationWar;
@@ -637,5 +639,147 @@ class GuerraFederativaTest extends TestCase
 
         $this->expectException(DomainRuleException::class);
         app(TratadoDePaz::class)->propor($cb, $guerra->id);
+    }
+    // ─────────────────────────────── o ranking federativo: Elo (decisão 10, D-207)
+
+    private function rating(int $federationId): int
+    {
+        return (int) Federation::whereKey($federationId)->value('rating_guerra');
+    }
+
+    /**
+     * A propriedade que decidiu a escolha da fórmula: **soma zero**.
+     *
+     * ⚠️ É o que torna a guerra encenada da decisão 11 inútil — duas federações amigas guerreando
+     * entre si não produzem nada líquido para o par. Se algum dia esta afirmação ficar vermelha, o
+     * motivo de o ranking ser Elo terá desaparecido junto.
+     */
+    public function test_o_rating_e_soma_zero(): void
+    {
+        [$guerra, $fa, $ca, $fb, $cb] = $this->guerraEntreDuas();
+
+        $antes = $this->rating($fa->id) + $this->rating($fb->id);
+        $fb->update(['fert_micro' => 0]);
+
+        app(Capitulacao::class)->propor($cb, $guerra->id);
+        app(Capitulacao::class)->aceitar($ca, $guerra->id, 'fert');
+
+        /*
+         * ⚠️ O controle vem PRIMEIRO, e não é decoração: "a soma não mudou" é verdade trivial num
+         * mundo onde nada aconteceu. Foi assim que uma versão anterior deste bloco ficou verde com
+         * o `rating_guerra` fora do `$fillable` — todos os `update()` descartados em silêncio, e a
+         * igualdade continuando a valer sobre dois números que ninguém tocou.
+         */
+        $this->assertNotSame(
+            RatingFederativo::INICIAL,
+            $this->rating($fa->id),
+            'o rating tem de ter se movido — senão a soma zero é verdade sobre coisa nenhuma',
+        );
+
+        $this->assertSame($antes, $this->rating($fa->id) + $this->rating($fb->id));
+    }
+
+    /** Entre iguais, o esperado é 0,5: vencer move metade do K, para cima e para baixo. */
+    public function test_vencer_um_igual_move_metade_do_k(): void
+    {
+        [$guerra, $fa, $ca, $fb, $cb] = $this->guerraEntreDuas();
+        $fb->update(['fert_micro' => 0]);
+
+        app(Capitulacao::class)->propor($cb, $guerra->id);
+        app(Capitulacao::class)->aceitar($ca, $guerra->id, 'fert');
+
+        $k = (int) WarSetting::singleton()->rating_k;
+
+        $this->assertSame(RatingFederativo::INICIAL + intdiv($k, 2), $this->rating($fa->id));
+        $this->assertSame(RatingFederativo::INICIAL - intdiv($k, 2), $this->rating($fb->id));
+        $this->assertSame(intdiv($k, 2), (int) $guerra->fresh()->rating_delta);
+    }
+
+    /**
+     * ⚠️ O §14 em uma asserção: **vencer um fraco vale menos que vencer um forte.**
+     *
+     * É a razão declarada de o ranking existir nesta forma — *"premia enfrentar quem é páreo"*. Sem
+     * este teste, a fórmula poderia ser trocada por qualquer outra sem que nada reclamasse.
+     */
+    public function test_vencer_um_mais_forte_rende_mais_que_vencer_um_mais_fraco(): void
+    {
+        // Cenário 1: o declarante é MUITO mais fraco e vence.
+        [$g1, $f1a, $c1a, $f1b, $c1b] = $this->guerraEntreDuas();
+        $f1a->update(['rating_guerra' => 800]);
+        $f1b->update(['rating_guerra' => 1200, 'fert_micro' => 0]);
+
+        app(Capitulacao::class)->propor($c1b, $g1->id);
+        app(Capitulacao::class)->aceitar($c1a, $g1->id, 'fert');
+
+        $ganhoContraForte = $this->rating($f1a->id) - 800;
+
+        // Cenário 2: o declarante é MUITO mais forte e vence.
+        [$g2, $f2a, $c2a, $f2b, $c2b] = $this->guerraEntreDuas();
+        $f2a->update(['rating_guerra' => 1200]);
+        $f2b->update(['rating_guerra' => 800, 'fert_micro' => 0]);
+
+        app(Capitulacao::class)->propor($c2b, $g2->id);
+        app(Capitulacao::class)->aceitar($c2a, $g2->id, 'fert');
+
+        $ganhoContraFraco = $this->rating($f2a->id) - 1200;
+
+        $this->assertGreaterThan(
+            $ganhoContraFraco,
+            $ganhoContraForte,
+            'enfrentar quem é páreo tem de render mais — é o §14 inteiro',
+        );
+    }
+
+    /** O tratado é empate: ninguém venceu, e a paz não move espólio nenhum. */
+    public function test_o_tratado_entre_iguais_nao_move_o_rating(): void
+    {
+        [$guerra, $fa, $ca, $fb, $cb] = $this->guerraEntreDuas();
+
+        app(TratadoDePaz::class)->propor($ca, $guerra->id);
+        app(TratadoDePaz::class)->aceitar($cb, $guerra->id);
+
+        $this->assertSame(RatingFederativo::INICIAL, $this->rating($fa->id));
+        $this->assertSame(RatingFederativo::INICIAL, $this->rating($fb->id));
+    }
+
+    /**
+     * A guerra que acaba pelo PRAZO: o resultado sai do saldo, e o saldo sai dos combates marcados
+     * com `war_id`. Sem a marca, sete dias de batalhas terminariam como empate técnico.
+     */
+    public function test_o_prazo_decide_pelo_saldo_de_zonas_tomadas(): void
+    {
+        [$guerra, $fa, $ca, $fb, $cb] = $this->guerraEntreDuas();
+
+        // O declarante tomou uma zona nesta guerra; o alvo, nenhuma.
+        Combat::create([
+            'zone_id' => $this->zonaDe($cb)->id,
+            'attacker_colony_id' => $ca->id,
+            'defender_colony_id' => $cb->id,
+            'war_id' => $guerra->id,
+            'tipo' => 'invasao',
+            'status' => 'vitoria_atacante',
+            'rodada' => 3,
+            'chega_at' => now()->subHour(),
+            'resultado' => ['saque' => 100],
+        ]);
+
+        $this->travelTo(now()->addDays(8));
+        app(EncerrarGuerras::class)->handle(now());
+
+        $this->assertSame('encerrada', $guerra->fresh()->status);
+        $this->assertGreaterThan(RatingFederativo::INICIAL, $this->rating($fa->id));
+        $this->assertLessThan(RatingFederativo::INICIAL, $this->rating($fb->id));
+    }
+
+    /** Sete dias sem que nenhum dos dois tirasse nada do outro É empate — e não vitória de quem declarou. */
+    public function test_prazo_sem_batalha_nenhuma_e_empate(): void
+    {
+        [$guerra, $fa, , $fb] = $this->guerraEntreDuas();
+
+        $this->travelTo(now()->addDays(8));
+        app(EncerrarGuerras::class)->handle(now());
+
+        $this->assertSame(RatingFederativo::INICIAL, $this->rating($fa->id));
+        $this->assertSame(RatingFederativo::INICIAL, $this->rating($fb->id));
     }
 }

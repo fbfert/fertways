@@ -219,6 +219,21 @@ try {
     'e avisa que não há recusa antes de o jogador clicar',
   )
 
+  /*
+   * ⚠️ O que se afirma aqui não é o número — é que a tela diz que ele **CAI**. O rating é soma zero
+   * (D-207), e essa propriedade é a razão de a fórmula ter sido escolhida: torna inútil a guerra
+   * encenada entre federações amigas. Um jogador que não saiba que perder custa posição lê a
+   * primeira derrota como bug.
+   */
+  checar(
+    !!(await page.$('[data-rating-federativo]')),
+    'o ranking federativo aparece ao lado do custo da guerra, e não só depois de perder',
+  )
+  checar(
+    await esperarTexto(page, /cai ao perder/),
+    'e a tela diz que o rating CAI — a soma zero precisa ser sabida antes de declarar',
+  )
+
   console.log('\nNeutralidade em guerra (A2.10, decisão 12) — a regra que a recusa')
   /*
    * ⚠️ O mundo do e2e tem uma GUERRA ativa (semeada para a seção de colônias inimigas), e a decisão

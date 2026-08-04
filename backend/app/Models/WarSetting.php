@@ -45,6 +45,7 @@ class WarSetting extends Model
         'federativa_custo_niobio',
         'neutralidade_carencia_horas',
         'capitulacao_fert_micro',
+        'rating_k',
     ];
 
     protected $casts = [
@@ -64,6 +65,7 @@ class WarSetting extends Model
         'federativa_custo_niobio' => 'integer',
         'neutralidade_carencia_horas' => 'integer',
         'capitulacao_fert_micro' => 'integer',
+        'rating_k' => 'integer',
         'reparo_bps_do_custo' => 'integer',
     ];
 

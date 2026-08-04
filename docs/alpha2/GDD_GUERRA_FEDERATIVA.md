@@ -293,6 +293,26 @@ entre os dois lados premia enfrentar quem é páreo — e é isso que produz a g
 ❓ **Decisão 10 — a fórmula.** Precisa de desenho próprio. `RankingDeGuerras` já existe e serve de
 ponto de partida.
 
+> ✅ **DECIDIDO e CONSTRUÍDO — D-207: rating tipo Elo.**
+>
+>     esperado = 1 / (1 + 10^((rating_do_outro − meu) / 400))
+>     rating  += K × (resultado − esperado)          K = 32, início 1.000
+>
+> *"Premia enfrentar quem é páreo"* **sai da fórmula sozinho**, sem peso inventado. Mas o que decidiu
+> foi outra coisa: Elo é **soma zero**, então a guerra encenada entre federações amigas (o ataque da
+> decisão 11) **não produz nada líquido para o par**. As alternativas de pontos acumulados faziam as
+> duas subirem.
+>
+> ⚠️ **Sem piso** — um chão devolveria o ganho ao par encenado. O §12 proíbe perda permanente de
+> território, não de posição num placar.
+>
+> Desfechos: capitulação 1/0 · tratado 0,5/0,5 · prazo pelo saldo (zonas, depois saque, depois
+> empate). Exigiu `combats.war_id`, sem o qual nenhuma batalha era atribuível a uma guerra.
+>
+> ⚠️ **Medido antes:** 0 combates, 0 conquistas, 0 guerras e 0 exércitos na história do jogo — o
+> ranking existente é uma tabela de 29 zeros. Nenhuma fórmula seria validável contra dados, e foi por
+> isso que o critério passou a ser resistência a fraude. Ver D-207.
+
 ---
 
 ## ⚠️ 15. Abuso por contas vinculadas

@@ -64,6 +64,8 @@ class AtacarColonia
                 'zone_id' => null,
                 'attacker_colony_id' => $atacante->id,
                 'defender_colony_id' => $alvo->id,
+                /* A guerra que autoriza este cerco (D-207) — `conferirGuerra` já provou que existe. */
+                'war_id' => $this->emGuerra->guerraEntreColonias($atacante->id, $alvo->id)?->id,
                 'tipo' => 'invasao',
                 'status' => 'marchando',
                 'rodada' => 0,

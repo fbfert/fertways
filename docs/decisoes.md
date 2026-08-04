@@ -11195,3 +11195,105 @@ vizinho aqui fui eu quem escreveu, uma fatia depois.
 1211 testes verdes (11 novos) e 10 suítes e2e verdes, com sete asserções novas na Capital. A migration
 foi aplicada **e revertida** contra o MariaDB de dev antes de qualquer teste — o `artisan test` roda
 em SQLite, e o verde dele não prova DDL.
+
+---
+
+## D-207 — O ranking federativo é Elo, e a soma zero é o argumento
+
+A decisão 10 era a última peça da A2.10: *"a fórmula do ranking segue como desenho próprio"*. O §14
+diz o que ele deve fazer — *"mede guerras travadas, não guerras vencidas"*, e *"considerar a diferença
+de força premia enfrentar quem é páreo"* — e não publica conta nenhuma.
+
+### ⚠️ A medição que mudou o critério de escolha
+
+| | |
+|---|---|
+| combates já resolvidos na história do jogo | **0** |
+| zonas já conquistadas | **0** |
+| guerras federativas já abertas | **0** |
+| colônias com exército | **0** (as 20 unidades do mundo são guarnição de zona) |
+| linhas do ranking existente com `geral > 0` | **0 de 29** |
+
+**O ranking de guerras que existe desde o D-128 é uma tabela de 29 zeros**, e vai continuar sendo:
+com todo fundo em 0 F$ e a declaração custando 500 F$, nenhuma guerra pode começar.
+
+Isso muda a pergunta. Não é *"qual fórmula descreve melhor o que acontece"* — nada acontece, e nenhuma
+seria validável contra dados. É **qual resiste a ser fraudada**, porque essa é a única propriedade que
+dá para julgar sem dados.
+
+### As três propostas, e o que separou
+
+| | prêmio por enfrentar forte | guerra encenada entre amigas |
+|---|---|---|
+| **A** pontos ponderados pela força | por peso inventado | **as duas ganham** |
+| **B** Elo | **sai da fórmula** | **o par não ganha nada** |
+| **C** território × contestação | nenhum | as duas dobram o território |
+
+**Escolhido B.** O argumento não é elegância: Elo é **soma zero**, então o ataque da decisão 11 — duas
+federações amigas guerreando entre si para subir juntas — não produz nada líquido para o par. É trava
+estrutural, não uma que alguém precise vigiar. Nas outras duas, a fraude paga.
+
+    esperado = 1 / (1 + 10^((rating_do_outro − meu) / 400))
+    rating  += K × (resultado − esperado)          K = 32, início 1.000
+
+⚠️ **Sem piso**, e é consequência direta do argumento: um chão devolveria o ganho ao par encenado — o
+perdedor pararia de cair e o vencedor continuaria a subir. O §12 proíbe perda permanente de
+**território**, não de posição num placar; e um ranking que só sobe é contador de tempo de jogo.
+
+⚠️ **O delta do alvo é o simétrico do delta do declarante, e não uma segunda conta.** Arredondar cada
+lado em separado faria a soma dar ±1 — e numa guerra encenada repetida o resíduo viraria ganho,
+destruindo exatamente a propriedade que motivou a escolha.
+
+### Os três desfechos
+
+| fim da guerra | resultado |
+|---|---|
+| capitulação | 1 e 0 — quem aceita venceu |
+| tratado | 0,5 e 0,5 — a paz não move espólio, e premiar quem propôs premiaria propor |
+| prazo | pelo **saldo**: zonas tomadas; empatando, o saque; empatando, empate |
+
+Sete dias sem que nenhum dos dois tirasse nada do outro **é** empate. Inventar desempate ali premiaria
+quem declarou por ter declarado.
+
+### `combats.war_id`: o pré-requisito que as três propostas dividiam
+
+**Nenhuma batalha era atribuível a uma guerra.** O combate guarda as duas colônias, nunca as
+federações. Sem a marca, o saldo por prazo não teria resposta e a única guerra "de verdade" — a que
+ninguém encerra negociando — seria a única que não contaria. Carimbado no **despacho**, nos dois
+pontos de ataque: é aí que se sabe sob que guerra o exército marchou, e uma guerra que acabe no meio
+da marcha não deve reescrever a história do ataque.
+
+### ✅ E o sexto sub-ranking do §27.13 enfim tem de onde sair
+
+*"Guerras Vencidas (Federação)"* (peso 10) estava vazio desde o D-128 porque **não existia guerra
+federativa**. O docblock registrou a pendência e recusou preenchê-la somando as vitórias dos membros —
+seria duplicar o sub-ranking 2 num agregado sem base.
+
+A A2.10 criou o conceito. Preenchido com o **rating da federação**, que é o que o próprio §27.13
+aponta ao dizer que este sub-ranking é *"só no ranking de federações"*. **Com ele os pesos passam a
+somar 100** — os cinco publicados somavam 90, e a recusa de renormalizar estava certa: não faltava
+correção, faltava a sexta parcela.
+
+Colônia sem federação fica com **zero**, e não com os 1.000 de partida: dar-lhe o rating inicial faria
+um solitário empatar com uma federação que nunca perdeu uma guerra.
+
+### ⚠️ Um `$fillable` esquecido, e o teste que passou por causa dele
+
+`rating_guerra` ficou fora do `$fillable` de `Federation`, e o `update()` do `RatingFederativo` foi
+descartado **em silêncio** — a quinta vez nesta fase (`max_aliadas`, `operadores`, `fert_micro`,
+`war_id`).
+
+O que vale registrar não é o esquecimento: é que **um dos testes do Elo passou assim mesmo**. Ele
+montava o cenário com `update(['rating_guerra' => 800])` — também descartado —, então comparava
+`1000 − 800 = 200` contra `1000 − 1200 = −200`, e `200 > −200` é verdade. **O cenário quebrado
+satisfazia a asserção.** Só dois dos três testes reprovaram, e o terceiro teria ficado verde para
+sempre defendendo uma fórmula que nunca rodou.
+
+O mesmo vale para a soma zero: *"a soma não mudou"* é verdade trivial num mundo onde nada aconteceu.
+Foi preciso acrescentar um controle — o rating **mudou** — antes da igualdade.
+
+### Verificação
+
+1217 testes verdes (6 novos) e 10 suítes e2e verdes, com duas asserções novas — a que importa afirma
+que **a tela diz que o rating cai**, porque a soma zero precisa ser sabida antes de declarar, não
+descoberta na primeira derrota. Migration aplicada e revertida contra o MariaDB antes dos testes.

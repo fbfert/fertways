@@ -101,6 +101,24 @@ export function MesaDiplomatica() {
           )}
 
           {/*
+            O ranking federativo (D-207). Fica ao lado do custo da guerra de propósito: é a
+            consequência de longo prazo dela, e um número que só aparecesse depois de perder não
+            ensinaria nada a quem ainda está a decidir se declara.
+
+            ⚠️ A tela diz que o rating CAI, e por quê. Sem isso, a primeira derrota pareceria bug —
+            e o motivo (soma zero, que é o que torna a guerra encenada inútil) é a coisa mais
+            importante a saber sobre este número.
+          */}
+          <p className="text-ink-soft mt-2 text-sm" data-rating-federativo={d.guerra.rating}>
+            Ranking federativo: <strong>{d.guerra.rating}</strong> —{' '}
+            {d.guerra.posicao.lugar}º de {d.guerra.posicao.de}.{' '}
+            <span className="text-ink-soft/70 text-xs">
+              Sobe ao vencer e <strong>cai ao perder</strong>: o que uma federação ganha, a outra
+              perde. Vencer quem é mais forte rende muito mais do que vencer quem é fraco.
+            </span>
+          </p>
+
+          {/*
             A neutralidade, e a carência dita ANTES de o jogador pedir para sair.
 
             ⚠️ Descobrir depois que o escudo ainda vale por um dia seria descobrir tarde — e a

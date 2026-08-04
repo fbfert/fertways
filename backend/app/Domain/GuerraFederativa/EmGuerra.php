@@ -60,17 +60,33 @@ class EmGuerra
     /** O mesmo, a partir dos ids das colônias — relendo a federação de cada uma agora. */
     public function entreColonias(?int $a, ?int $b): bool
     {
+        return $this->guerraEntreColonias($a, $b) !== null;
+    }
+
+    /**
+     * QUAL guerra, e não só se há uma (D-207).
+     *
+     * O saque total (D-205) só precisava do sim-ou-não. O rating precisa do id: é ele que o
+     * `combats.war_id` grava no despacho, e sem essa marca nenhuma batalha é atribuível à guerra
+     * que a causou — o que deixaria o desfecho por prazo sem como ser decidido.
+     */
+    public function guerraEntreColonias(?int $a, ?int $b): ?FederationWar
+    {
         if ($a === null || $b === null || $a === $b) {
-            return false;
+            return null;
         }
 
         $federacoes = DB::table('colonies')
             ->whereIn('id', [$a, $b])
             ->pluck('federation_id', 'id');
 
-        return $this->entreFederacoes(
-            $federacoes[$a] ?? null,
-            $federacoes[$b] ?? null,
-        );
+        $fa = $federacoes[$a] ?? null;
+        $fb = $federacoes[$b] ?? null;
+
+        if ($fa === null || $fb === null || $fa === $fb) {
+            return null;
+        }
+
+        return FederationWar::entre((int) $fa, (int) $fb)->where('status', 'ativa')->first();
     }
 }

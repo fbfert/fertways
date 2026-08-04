@@ -2,6 +2,7 @@
 
 namespace App\Domain\Guerra;
 
+use App\Domain\GuerraFederativa\EmGuerra;
 use App\Domain\Logistics\MapaFertways;
 use App\Exceptions\DomainRuleException;
 use App\Models\Colony;
@@ -27,7 +28,10 @@ class Atacar
     /** Slots por minuto de uma unidade civil — o Furgão do §21.2. */
     private const VELOCIDADE_CIVIL = 4.0;
 
-    public function __construct(private Forcas $forcas) {}
+    public function __construct(
+        private Forcas $forcas,
+        private EmGuerra $emGuerra,
+    ) {}
 
     /**
      * @param  list<int>  $unitIds  as unidades que marcham; têm de estar em casa, na colônia.
@@ -57,6 +61,13 @@ class Atacar
                 'zone_id' => $zona->id,
                 'attacker_colony_id' => $colony->id,
                 'defender_colony_id' => $zona->owner_colony_id,
+                /*
+                 * ⚠️ A guerra federativa em que este ataque acontece, ou nulo (D-207). Carimbada no
+                 * DESPACHO: é agora que se sabe sob que guerra o exército marchou, e uma guerra que
+                 * acabe no meio da marcha não deve reescrever a história do ataque. É desta marca
+                 * que sai o saldo de quem levou a melhor quando a guerra termina por prazo.
+                 */
+                'war_id' => $this->emGuerra->guerraEntreColonias($colony->id, $zona->owner_colony_id)?->id,
                 'tipo' => $tipo,
                 'status' => 'marchando',
                 'rodada' => 0,

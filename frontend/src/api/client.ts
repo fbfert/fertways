@@ -1138,6 +1138,12 @@ export type MesaDiplomatica = {
     custo_niobio: number
     /** O preço em Fert$ da capitulação, se o vencedor preferir dinheiro a território (D-206). */
     capitulacao_fert: number
+    /**
+     * O ranking federativo (D-207): rating tipo Elo, soma zero. Parte de 1.000, e **cai** — é o que
+     * torna a guerra encenada entre amigas inútil, porque o par não ganha nada líquido.
+     */
+    rating: number
+    posicao: { lugar: number; de: number }
     em_guerra_com: GuerraEmCurso[]
   }
 }

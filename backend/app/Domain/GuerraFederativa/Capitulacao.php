@@ -135,7 +135,17 @@ class Capitulacao
                 'preco_fert_micro' => $precoTipo === 'fert' ? $cobrado : null,
             ]);
 
-            $this->propostas->encerrar($guerra, 'capitulada');
+            /*
+             * O ranking federativo (D-207). Quem aceita a rendição venceu; quem a ofereceu perdeu —
+             * e o resultado vai sempre do ponto de vista do **declarante** da guerra, que pode ser
+             * qualquer um dos dois. Passar "1" cru daria a vitória a quem declarou, mesmo quando foi
+             * ele quem se rendeu.
+             */
+            $this->propostas->encerrar(
+                $guerra,
+                'capitulada',
+                (int) $guerra->declarante_id === $minha->id ? 1.0 : 0.0,
+            );
 
             $this->noticias->publicar(
                 "Capitulação aceita: {$outra->name} rende-se a {$minha->name}",

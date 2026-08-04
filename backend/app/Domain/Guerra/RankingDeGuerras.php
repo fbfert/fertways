@@ -4,6 +4,7 @@ namespace App\Domain\Guerra;
 
 use App\Models\Colony;
 use App\Models\Combat;
+use App\Models\Federation;
 use App\Models\Ledger;
 use App\Models\ResourceType;
 use App\Models\ZoneEvent;
@@ -18,15 +19,21 @@ use Illuminate\Support\Collection;
  * da letra: "jogador com 5 vitórias, máximo no servidor = 200 → percentil = 2,5"). O Ranking Geral
  * é a soma ponderada desses cinco percentis.
  *
- * **O sexto sub-ranking do documento, "Guerras Vencidas (Federação)" (10%), fica de fora desta
- * fatia.** O próprio texto diz que ele é "só no ranking de federações" — e o jogo não tem o
- * conceito de "guerra da federação": todo combate é sempre entre DUAS COLÔNIAS, nunca entre
- * federações como partes. Preenchê-lo exigiria inventar ou uma nova mecânica (guerra declarada
- * entre federações, que o GDD não descreve em lugar nenhum) ou uma leitura arbitrária (somar as
- * vitórias dos membros por federação, duplicando o sub-ranking 2 num agregado sem base clara) —
- * as duas são arbitragem nova, não extensão de uma regra já escrita. **Julgamento do
- * desenvolvedor, sinalizado para o usuário revisitar**: os cinco pesos publicados (25+20+20+15+10)
- * somam 90, não 100 — não renormalizamos para 100: é a régua do documento, não uma correção nossa.
+ * ## ✅ O sexto sub-ranking, que ficou vazio por quatro fases e enfim tem de onde sair
+ *
+ * *"Guerras Vencidas (Federação)"* (10%) ficava de fora porque **não existia guerra federativa**:
+ * todo combate era entre duas colônias, nunca entre federações como partes. Preenchê-lo somando as
+ * vitórias dos membros teria sido duplicar o sub-ranking 2 num agregado sem base — arbitragem nova
+ * disfarçada de extensão. Ficou registrado aqui como pendência para o usuário revisitar.
+ *
+ * A A2.10 criou o conceito que faltava. Preenchido no D-207 com o **rating Elo da federação**
+ * (`GuerraFederativa\RatingFederativo`), que é o que o próprio §27.13 sugere ao dizer que este
+ * sub-ranking é *"só no ranking de federações"*: é estatística da federação, e cada membro herda o
+ * percentil da dela.
+ *
+ * **E com isso os pesos passam a somar 100.** Os cinco publicados (25+20+20+15+10) somavam 90, e
+ * esta classe recusou renormalizar para não corrigir a régua do documento por conta própria — a
+ * recusa estava certa: não faltava correção, faltava a sexta parcela.
  *
  * **"Vitórias" e "sequência" seguem a régua que o próprio jogo já usa para "vitória" — o
  * `combate_vencido` do Marco (D-75, `ConcederXp`)**: invasão vencida pelo atacante, invasão
@@ -47,16 +54,33 @@ class RankingDeGuerras
 
     private const PESO_SEQUENCIA = 10;
 
+    /**
+     * ⚠️ O sexto sub-ranking, vazio desde o D-128 e preenchido agora (D-207).
+     *
+     * O §27.13 lhe dá peso 10 e diz que ele é *"só no ranking de federações"*. O docblock desta
+     * classe registrou que ficava de fora porque **não existia guerra federativa** — e que
+     * preenchê-lo somando as vitórias dos membros seria duplicar o sub-ranking 2 num agregado sem
+     * base. A A2.10 criou o conceito que faltava, e a resposta honesta é a que o próprio §27.13
+     * aponta: **é uma estatística da federação**, então cada membro herda o percentil da dela.
+     *
+     * Com ele, os pesos passam a somar **100** — os 25+20+20+15+10 do documento somavam 90, e a
+     * classe recusou renormalizar justamente para não corrigir a régua do documento por conta
+     * própria. Não havia o que corrigir: faltava a sexta parcela, e ela chegou.
+     */
+    private const PESO_FEDERACAO = 10;
+
     public function geral(): Collection
     {
         $zonas = $this->zonasConquistadas();
         $guerra = $this->vitoriasESequencia();
         $tempo = $this->tempoDeControleHoras();
         $saque = $this->saqueEmFert();
+        $ratings = $this->ratingDaFederacao();
 
         $linhas = Colony::orderBy('id')->pluck('name', 'id')->map(fn ($nome, $id) => [
             'colony_id' => $id,
             'colony_name' => $nome,
+            'rating_federacao' => $ratings[$id] ?? 0,
             'zonas_conquistadas' => $zonas[$id] ?? 0,
             'vitorias' => $guerra[$id]['vitorias'] ?? 0,
             'sequencia' => $guerra[$id]['sequencia'] ?? 0,
@@ -70,21 +94,24 @@ class RankingDeGuerras
         $maxTempo = $maximo('tempo_de_controle_horas');
         $maxSaque = $maximo('saque_fert');
         $maxSequencia = $maximo('sequencia');
+        $maxRating = $maximo('rating_federacao');
 
         $percentil = fn (int|float $valor, int|float $max) => $max > 0 ? ($valor / $max) * 100 : 0.0;
 
-        return $linhas->map(function ($l) use ($percentil, $maxZonas, $maxVitorias, $maxTempo, $maxSaque, $maxSequencia) {
+        return $linhas->map(function ($l) use ($percentil, $maxZonas, $maxVitorias, $maxTempo, $maxSaque, $maxSequencia, $maxRating) {
             $pZonas = $percentil($l['zonas_conquistadas'], $maxZonas);
             $pVitorias = $percentil($l['vitorias'], $maxVitorias);
             $pTempo = $percentil($l['tempo_de_controle_horas'], $maxTempo);
             $pSaque = $percentil($l['saque_fert'], $maxSaque);
             $pSequencia = $percentil($l['sequencia'], $maxSequencia);
+            $pFederacao = $percentil($l['rating_federacao'], $maxRating);
 
             $geral = $pZonas * self::PESO_ZONAS_CONQUISTADAS
                 + $pVitorias * self::PESO_VITORIAS
                 + $pTempo * self::PESO_TEMPO_DE_CONTROLE
                 + $pSaque * self::PESO_SAQUE
-                + $pSequencia * self::PESO_SEQUENCIA;
+                + $pSequencia * self::PESO_SEQUENCIA
+                + $pFederacao * self::PESO_FEDERACAO;
 
             return array_merge($l, [
                 'percentil' => [
@@ -93,12 +120,31 @@ class RankingDeGuerras
                     'tempo_de_controle' => round($pTempo, 1),
                     'saque' => round($pSaque, 1),
                     'sequencia' => round($pSequencia, 1),
+                    'federacao' => round($pFederacao, 1),
                 ],
                 'geral' => round($geral / 100, 1),
             ]);
         })
             ->sortByDesc('geral')
             ->values();
+    }
+
+    /**
+     * O rating da federação de cada colônia (D-207) — o sexto sub-ranking.
+     *
+     * Colônia sem federação fica com zero, e não com o rating inicial: quem não está em federação
+     * nenhuma não tem posição no ranking **federativo**, e dar-lhe os 1.000 de partida faria um
+     * solitário empatar com uma federação que nunca perdeu uma guerra.
+     *
+     * @return Collection<int,int> rating por colony_id
+     */
+    private function ratingDaFederacao(): Collection
+    {
+        $porFederacao = Federation::whereNull('disbanded_at')->pluck('rating_guerra', 'id');
+
+        return Colony::whereNotNull('federation_id')
+            ->pluck('federation_id', 'id')
+            ->map(fn ($f) => (int) ($porFederacao[$f] ?? 0));
     }
 
     private function zonasConquistadas(): Collection

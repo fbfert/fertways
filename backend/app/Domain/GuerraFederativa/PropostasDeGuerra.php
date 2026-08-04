@@ -21,6 +21,8 @@ use Illuminate\Support\Facades\DB;
  */
 class PropostasDeGuerra
 {
+    public function __construct(private readonly RatingFederativo $rating) {}
+
     /**
      * A guerra ativa em que esta colônia é parte, com a federação dela e a adversária.
      *
@@ -151,14 +153,21 @@ class PropostasDeGuerra
      * transformaria capitular num jeito barato de zerar o cooldown e ser declarado de novo no dia
      * seguinte. Quem capitula compra o fim da guerra, não o fim da proteção que vem depois dela.
      */
-    public function encerrar(FederationWar $guerra, string $status): void
+    public function encerrar(FederationWar $guerra, string $status, ?float $resultadoDoDeclarante = null): void
     {
-        DB::transaction(function () use ($guerra, $status) {
+        DB::transaction(function () use ($guerra, $status, $resultadoDoDeclarante) {
             $guerra->update([
                 'status' => $status,
                 'encerrada_em' => now(),
                 'motivo_fim' => $status === 'capitulada' ? 'capitulacao' : 'tratado',
             ]);
+
+            /*
+             * O ranking federativo (D-207). O **tratado é 0,5 para os dois**: ninguém venceu, e a
+             * paz não move espólio — dar vitória a um dos lados por ter proposto premiaria propor.
+             * A **capitulação** vem com o resultado de quem se rendeu, que quem chama já sabe.
+             */
+            $this->rating->aplicar($guerra, $resultadoDoDeclarante ?? 0.5);
         });
     }
 }
