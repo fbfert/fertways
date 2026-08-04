@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Domain\Avisos\Avisos;
 use App\Domain\Colony\CreateColony;
 use App\Domain\Logistics\MapaFertways;
 use App\Domain\Marco\Curva;
@@ -127,6 +128,25 @@ class ColonyController extends Controller
                 'ativo' => $parametros->ativo(),
             ] + $populacao->estado($colony),
         ]);
+    }
+
+    /**
+     * GET /avisos — o que exige ação, num lugar só (A2.V2, D-211).
+     *
+     * Rota própria, e não um campo de `GET /colony`: a faixa de avisos **recarrega sozinha** (o
+     * mundo anda no tick, e um cerco começa sem o jogador clicar em nada), e pendurá-la no payload
+     * da colônia obrigaria a rebuscar construções, recursos e veículos a cada sondagem para
+     * devolver uma lista de quatro linhas.
+     */
+    public function avisos(Request $request, Avisos $avisos): JsonResponse
+    {
+        $colony = $request->user()->colony()->with(['buildings', 'resources'])->first();
+
+        if (! $colony) {
+            return response()->json(['message' => 'Nenhuma colônia fundada.'], 404);
+        }
+
+        return response()->json(['avisos' => $avisos->paraColonia($colony)]);
     }
 
     /**

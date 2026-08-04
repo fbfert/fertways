@@ -65,6 +65,28 @@ try {
     'com o teto habitacional ao lado: é ele que trava o crescimento, e ninguém o via',
   )
 
+  console.log('\nA faixa de avisos (A2.V2) — o que exige ação, num lugar só')
+  /*
+   * ⚠️ O que se afirma aqui é o que a MEDIÇÃO decidiu: a faixa mostra a fila parada (3 de 29
+   * colônias em produção) e **não** mostra "população no teto" (28 de 29). Um aviso que quase todos
+   * veem sempre vira moldura e ensina a ignorar a faixa inteira — levando junto o aviso de cerco.
+   * Se alguém acrescentar o aviso cortado, é aqui e no `AvisosTest` que reprova.
+   */
+  await page.waitForSelector('[data-secao="avisos"]', { timeout: 8000 })
+  checar(true, 'a faixa de avisos aparece')
+  checar(
+    !!(await page.$('[data-aviso="fila_vazia"]')),
+    'a fila parada vira oportunidade — a colônia do e2e não está construindo nada',
+  )
+  checar(
+    !(await page.$('[data-aviso="populacao_no_teto"]')),
+    'e o aviso que 28 de 29 veriam sempre NÃO está lá: aviso é o que é verdade E raro',
+  )
+  checar(
+    !!(await page.$('[data-reabrir-resumo]')),
+    'e o "desde sua última visita" pode ser reaberto — fechado por engano, ia embora com a janela',
+  )
+
   console.log('\nColônias inimigas no Quartel (A2.10) — o cerco que revoga o §01')
   await irPara(page, '/quartel')
   await page.waitForSelector('[data-secao="inimigos"]', { timeout: 8000 })

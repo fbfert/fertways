@@ -11480,3 +11480,76 @@ contar-se a si mesmo — `ps` mostra zero. O número inicial de 12 era real; o p
 1220 testes verdes (3 novos, sobre o **contrato da rota** — é o que impede a tela de voltar a ser
 peça parada) e as 10 suítes e2e verdes numa máquina limpa, com três asserções novas provando que a
 população **aparece**, que o destaque é o disponível e que o teto está ao lado.
+
+---
+
+## D-211 — A faixa de avisos, e a medição que cortou dois avisos antes de eles existirem
+
+Segunda fatia da A2.V2. Os sinais do jogo estavam espalhados por seis telas: o combate só no
+Quartel, o cerco só em Minhas Zonas, a manutenção atrasada só ao abrir a zona, a vaga do Laboratório
+só na Pesquisa. Quem não abrisse a tela certa não ficava sabendo — e o §1.1 promete um jogo que não
+exige login constante, o que só é honesto se, ao voltar, o que importa estiver à vista.
+
+### ⚠️ A medição decidiu o desenho, e o mais importante foi o que ela mandou NÃO construir
+
+Contadas as 29 colônias de produção, quantas disparariam cada candidato:
+
+| candidato | dispara para | decisão |
+|---|---|---|
+| estoque cheio (produção parada) | **1** | ✅ atenção |
+| fila de obras vazia | **3** | ✅ oportunidade |
+| laboratório ocioso | 15 | ✅ oportunidade |
+| combate / cerco | 0 | ✅ urgente |
+| ~~população no teto~~ | **28** | ❌ cortado |
+| ~~sem colonos livres~~ | 19 | ❌ cortado |
+
+**Um aviso que 28 de 29 veem sempre deixa de ser aviso e vira moldura** — e, pior, ensina o jogador a
+ignorar a faixa inteira, levando junto o aviso de cerco, que é o único que custa caro. Os dois
+cortados já moram no painel de População (D-210), que é onde a informação pertence.
+
+**Aviso não é tudo o que é verdade; é o que é verdade e raro.** Há um teste guardando isso, porque a
+tentação de acrescentar é permanente e o custo é invisível.
+
+### ⚠️ E o número do laboratório que eu tinha medido estava errado
+
+Medi "15 de 29 com laboratório ocioso" filtrando `status = 'em_curso'` — valor que **não existe**: o
+`Pesquisa\Vagas` usa `pesquisando`. A consulta devolvia zero para todo mundo, e o aviso teria
+disparado para toda colônia com Laboratório, com o número parecendo confirmá-lo.
+
+Refeito com o valor certo: **15 colônias têm Laboratório e as 15 estão paradas** — a tabela
+`colony_technologies` está vazia, coerente com o "0 de 8 tecnologias pesquisadas" que o GDD do estado
+já registrava. O número final é o mesmo por acaso; o filtro estava errado.
+
+### Três severidades, e elas ordenam a lista
+
+`urgente` destrói valor agora (sob ataque, zona cercada). `atencao` desperdiça (estoque cheio,
+escassez, manutenção atrasada). `oportunidade` é ganho não colhido (fila parada, laboratório ocioso).
+A ordem da lista é a ordem de agir — sem isso, a vaga do Laboratório podia aparecer acima de uma zona
+sendo estrangulada.
+
+**Estar sob ataque é urgente; atacar é só atenção** — quem marcha escolheu marchar.
+
+**Silêncio é estado válido:** sem avisos, a faixa some. Um "está tudo bem" permanente ocuparia espaço
+para não dizer nada e faria o jogador parar de olhar justamente para onde a má notícia vai aparecer.
+
+E o *"desde sua última visita"* ganhou como ser **reaberto**: ele se convida no login e, até aqui,
+fechado por engano ia embora com a janela — num resumo desenhado (§5.1) para quem volta depois de
+dias.
+
+### ⚠️ Verificação incompleta, e é preciso dizer
+
+**1226 testes verdes** (6 novos) e o typecheck limpo. **O e2e não foi confirmado nesta fatia**, e não
+por causa dela: a suíte passou a reprovar **no login**, migrando de suíte a cada corrida (telas,
+telas, resumo) com três erros diferentes — frame desanexado, frame desanexado, timeout de 30 s.
+
+Fiz o experimento decisivo: **desmontei a faixa e rodei de novo — reprovou igual**. Não é o código
+desta fatia. A corrida imediatamente anterior (D-210) tinha ficado 10/10 verde na mesma máquina.
+
+⚠️ **E li dois screenshots velhos pelo caminho.** As suítes gravam a foto da falha dentro de um
+`try{}catch{}`; com o frame desanexado a gravação falha **em silêncio**, e o arquivo antigo fica.
+Analisei `/tmp/e2e-resumo-falha.png` duas vezes concluindo que painéis não renderizavam — a imagem
+era de **31 de julho**. Conferir o `mtime` de um artefato antes de tirar conclusão dele não é
+paranoia: sem isso, um arquivo de quatro dias atrás dita o diagnóstico.
+
+**Não publiquei.** O backend está coberto por teste; o frontend, não — e a regra da casa (D-200) é não
+publicar com verificação vermelha. Fica commitado e fora do ar até a suíte rodar limpa.

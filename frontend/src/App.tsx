@@ -15,6 +15,7 @@ import { Missoes } from './ui/Missoes'
 import { Mapa } from './ui/Mapa'
 import { Header } from './ui/Header'
 import { EventosDoMundo } from './ui/EventosDoMundo'
+import { Avisos } from './ui/Avisos'
 import { ResumoDeRetorno } from './ui/ResumoDeRetorno'
 import { MobileNav } from './ui/MobileNav'
 import { Route, Routes, useNavigate, useParams } from 'react-router-dom'
@@ -280,6 +281,9 @@ export default function App() {
       */}
       {/* Só desktop — no mobile, a mesma dupla vive dentro de "Mais" (`MobileNav.tsx`). */}
       <div className="absolute top-24 right-5 hidden w-64 space-y-4 md:block">
+        {/* A2.V2 (D-211): a faixa de avisos, acima de tudo o mais na coluna — o que exige ação
+            não pode estar abaixo do que é rotina. Ela SOME quando não há nada a dizer. */}
+        <Avisos aoAbrirResumo={() => setResumoAberto(true)} />
         {fila && <FilaDeObras fila={fila} />}
         {colonia && <TaxasDeRecursos colonia={colonia} />}
         {/* A2.V2 (D-210): a população, que estava no ar desde o D-178 e não tinha tela. Fica ao

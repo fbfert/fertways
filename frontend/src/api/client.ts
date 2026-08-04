@@ -57,6 +57,14 @@ export type Marco = {
   xp_do_proximo: number | null
 }
 
+/** Um aviso da faixa (A2.V2, D-211). A ordem da lista é a ordem de agir. */
+export type Aviso = {
+  codigo: string
+  severidade: 'urgente' | 'atencao' | 'oportunidade'
+  titulo: string
+  detalhe: string
+}
+
 export type Colonia = {
   id: number
   name: string
@@ -1210,6 +1218,9 @@ export const api = {
   logout: () => req<{ message: string }>('/logout', { method: 'POST' }),
 
   colonia: () => req<Colonia>('/colony'),
+
+  /** A faixa de avisos (D-211). Rota própria porque sonda sozinha — o mundo anda no tick. */
+  avisos: () => req<{ avisos: Aviso[] }>('/avisos'),
 
   /*
    * O GET **não** move o marcador — quem move é o `resumoVisto`, chamado ao FECHAR a tela. Se o GET

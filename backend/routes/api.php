@@ -56,6 +56,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/profile/password', [ProfileController::class, 'password']);
 
     Route::get('/colony', [ColonyController::class, 'show']);
+    // A2.V2 (D-211): a faixa de avisos. Rota própria porque sonda sozinha — ver o controller.
+    Route::get('/avisos', [ColonyController::class, 'avisos']);
 
     /*
      * "Desde sua última visita" (A2.0.3). Dois verbos de propósito: o GET monta e NÃO move o
