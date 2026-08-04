@@ -8,6 +8,7 @@ use App\Models\Colony;
 use App\Models\Combat;
 use App\Models\NeutralZone;
 use App\Models\Unit;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -130,7 +131,7 @@ class Atacar
      * Reserva as unidades. Têm de estar EM CASA, na colônia, e ser do tipo que o ataque exige.
      *
      * @param  list<int>  $unitIds
-     * @return \Illuminate\Support\Collection<int,Unit>
+     * @return Collection<int,Unit>
      */
     private function reservarUnidades(Colony $colony, string $tipo, array $unitIds)
     {

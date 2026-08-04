@@ -1195,7 +1195,8 @@ function distancia(a: { x: number; y: number }, b: { x: number; y: number }): nu
  *  - **O que cada ataque leva e o que cada um ganha.** Só a Invasão toma a zona. O Cerco leva 30%
  *    e não conquista; a Sabotagem e a Apreensão não levam recurso nenhum — desligam uma estrutura.
  *  - **Que só o EXPOSTO é saqueável.** O que cabe no Depósito está protegido, e uma zona bem
- *    cuidada não tem butim nenhum. Atacá-la é gastar exército de graça.
+ *    cuidada não tem butim nenhum. Atacá-la é gastar exército de graça — **fora de guerra
+ *    federativa**, em que a invasão leva o estoque inteiro (D-205).
  *  - **Que Infiltrador e Predador morrem se forem vistos.** Não é batalha, é aposta.
  */
 function Atacar({ zona, aoFeito }: { zona: ZonaNeutra; aoFeito: () => Promise<void> | void }) {
@@ -1262,7 +1263,11 @@ function Atacar({ zona, aoFeito }: { zona: ZonaNeutra; aoFeito: () => Promise<vo
         data-tipo-ataque
         className="border-rust/25 bg-sand-light focus:border-rust mt-1 w-full border px-2 py-1 text-sm outline-none"
       >
-        <option value="invasao">Invasão — toma a zona e saqueia 50% do exposto</option>
+        {/* Em guerra federativa a invasão leva o estoque inteiro (D-205). A tela não sabe se HÁ
+            guerra com o dono desta zona, então diz as duas regras em vez de afirmar a errada. */}
+        <option value="invasao">
+          Invasão — toma a zona e saqueia 50% do exposto (tudo, em guerra federativa)
+        </option>
         <option value="cerco">Cerco — fecha a zona 48 h e leva 30%. Não conquista</option>
         <option value="sabotagem">Sabotagem — desliga uma estrutura. Um Infiltrador</option>
         <option value="apreensao">Apreensão — leva um módulo. Um Predador</option>

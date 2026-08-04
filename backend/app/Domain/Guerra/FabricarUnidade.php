@@ -2,6 +2,7 @@
 
 namespace App\Domain\Guerra;
 
+use App\Domain\Missoes\Progresso;
 use App\Exceptions\DomainRuleException;
 use App\Models\Building;
 use App\Models\Colony;
@@ -109,7 +110,7 @@ class FabricarUnidade
 
             $agora = now();
 
-            app(\App\Domain\Missoes\Progresso::class)->registrar($colony->id, 'fabricar_unidade', $quantidade);
+            app(Progresso::class)->registrar($colony->id, 'fabricar_unidade', $quantidade);
 
             Unit::insert(array_fill(0, $quantidade, [
                 'colony_id' => $colony->id,

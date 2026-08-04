@@ -6,7 +6,6 @@ use App\Domain\Guerra\Forcas;
 use App\Exceptions\DomainRuleException;
 use App\Models\Colony;
 use App\Models\Combat;
-use App\Models\FederationWar;
 use App\Models\Unit;
 use Illuminate\Support\Facades\DB;
 
@@ -35,7 +34,10 @@ use Illuminate\Support\Facades\DB;
  */
 class AtacarColonia
 {
-    public function __construct(private readonly Forcas $forcas) {}
+    public function __construct(
+        private readonly Forcas $forcas,
+        private readonly EmGuerra $emGuerra,
+    ) {}
 
     /** @param list<int> $unitIds */
     public function handle(Colony $atacante, Colony $alvo, array $unitIds): Combat
@@ -104,11 +106,7 @@ class AtacarColonia
             throw new DomainRuleException('mesma_federacao', 'Vocês são da mesma federação.');
         }
 
-        $emGuerra = FederationWar::entre($atacante->federation_id, $alvo->federation_id)
-            ->where('status', 'ativa')
-            ->exists();
-
-        if (! $emGuerra) {
+        if (! $this->emGuerra->entreFederacoes($atacante->federation_id, $alvo->federation_id)) {
             throw new DomainRuleException(
                 'sem_guerra',
                 'As suas federações não estão em guerra. Fora dela, a colônia é inviolável (§01).',

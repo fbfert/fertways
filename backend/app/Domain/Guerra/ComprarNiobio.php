@@ -2,6 +2,7 @@
 
 namespace App\Domain\Guerra;
 
+use App\Domain\Missoes\Progresso;
 use App\Domain\Treasury\Tesouro;
 use App\Exceptions\DomainRuleException;
 use App\Models\Colony;
@@ -86,7 +87,7 @@ class ComprarNiobio
                 'created_at' => now(),
             ]);
 
-            app(\App\Domain\Missoes\Progresso::class)->registrar($colony->id, 'niobio_comprado');
+            app(Progresso::class)->registrar($colony->id, 'niobio_comprado');
 
             return $quantidade;
         });

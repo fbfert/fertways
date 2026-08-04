@@ -26,6 +26,11 @@ use App\Models\ZoneMaterial;
  *
  * O efeito no jogo é o que se queria: deixar mineral rendendo na zona vira risco de verdade,
  * retirá-lo vira hábito, e subir o Depósito vale a pena porque protege mais.
+ *
+ * ⚠️ **E em guerra federativa nada disto vale** (D-205). Na zona tomada por invasão entre colônias
+ * de federações em guerra, o Depósito não protege coisa alguma: leva-se o estoque inteiro. A
+ * decisão é do usuário e é deliberada — quem está em guerra declarada não tem cofre. Fora dela esta
+ * classe continua valendo à letra, e é o caso comum: o mundo tem uma federação só.
  */
 class Protegido
 {
@@ -61,15 +66,27 @@ class Protegido
      * pelo `estoqueTotal()`: toda unidade dele perde a MESMA fração `$bps` do resto do saque,
      * sempre — não existe "canteiro protegido".
      *
-     * @param  int  $bps  5000 na Invasão Direta (§27.8), 3000 no Cerco (§28.10).
+     * ## ⚠️ `$ignorarDeposito`: em guerra federativa, o Depósito não protege nada (D-205)
+     *
+     * A base da conta deixa de ser o **exposto** e passa a ser o **estoque total** — é isto, e não o
+     * `$bps`, que revoga a proteção. Com `$bps = 10000` sobre o exposto o Depósito continuaria
+     * salvando o que cabe nele; a decisão do usuário foi que, na zona conquistada em guerra, não
+     * sobra nada.
+     *
+     * Fora da guerra federativa nada muda: 50% do exposto na invasão, 30% no cerco.
+     *
+     * @param  int  $bps  5000 na Invasão Direta (§27.8), 3000 no Cerco (§28.10), 10000 na conquista
+     *                    em guerra federativa.
+     * @param  bool  $ignorarDeposito  a base é o estoque inteiro, e não só o que transborda.
      * @return array{bruto: int, refinado: int, minerais: array<string,int>, canteiro: array<string,int>, total: int}
      */
-    public function saqueDetalhado(NeutralZone $zona, int $bps): array
+    public function saqueDetalhado(NeutralZone $zona, int $bps, bool $ignorarDeposito = false): array
     {
-        $vazio = ['bruto' => 0, 'refinado' => 0, 'minerais' => [], 'canteiro' => [], 'total' => 0];
-
-        $total = intdiv($this->exposto($zona) * $bps, 10000);
         $estoque = $zona->estoqueTotal();
+
+        $base = $ignorarDeposito ? $estoque : $this->exposto($zona);
+
+        $total = intdiv($base * $bps, 10000);
 
         if ($total > 0 && $estoque > 0) {
             // Proporcional a cada pote, do mais valioso ao menos — cada um absorve o arredondamento
@@ -113,8 +130,8 @@ class Protegido
     }
 
     /** O butim total, em unidades. Atalho de `saqueDetalhado()`. */
-    public function saque(NeutralZone $zona, int $bps): int
+    public function saque(NeutralZone $zona, int $bps, bool $ignorarDeposito = false): int
     {
-        return $this->saqueDetalhado($zona, $bps)['total'];
+        return $this->saqueDetalhado($zona, $bps, $ignorarDeposito)['total'];
     }
 }

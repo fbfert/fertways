@@ -10995,3 +10995,107 @@ diferença entre um teste que aceita erro e um que **prova** que o erro certo ac
 
 1195 testes verdes (3 novos) e 10 suítes e2e verdes, com quatro asserções novas no Quartel — incluindo
 a que prova que a tela diz **os dois lados da revogação do §01**: fora de guerra, inviolável.
+
+---
+
+## D-205 — O saque total da zona conquistada, e o teto de estoque que o butim atravessa
+
+A decisão do usuário estava tomada desde o D-202 e nunca virou código: **a zona conquistada em guerra
+federativa é totalmente saqueável, revogando o D-66/D-107 nesse contexto.** Esta a entrega.
+
+### ⚠️ A medição contra a produção mudou o desenho, outra vez
+
+Antes da primeira linha, como em toda ativação desta sessão:
+
+| medida | produção, hoje |
+|---|---|
+| zonas ocupadas no mundo | **1** |
+| estoque nela | **34.438** (31.358 bruto + 2.450 refinado + 630 minerais) |
+| capacidade do Depósito dela | **500** (nível 1) |
+| protegido / exposto | **500 / 33.938** |
+
+Três coisas caíram dessa tabela, e nenhuma eu teria acertado no papel.
+
+**1. O Depósito já não protegia quase nada.** No nível 1 ele guarda 1,4% do que a zona tem. Revogar a
+proteção em guerra custa, hoje, **500 unidades** — a mudança é grande no desenho e minúscula no
+mundo. É bom saber antes, não depois.
+
+**2. A conquista já levava o estoque junto.** A zona muda de dono na vitória, e o que não foi saqueado
+fica no depósito — de uma zona que agora é do atacante. O que o saque total muda é **onde o recurso
+cai**: direto na colônia, e não parado na zona recém-tomada, à espera de veículo e vulnerável a
+reconquista. A justificativa registrada no D-202 — *"retirar sempre, acumular nunca"* — já valia antes
+desta decisão; ela morde de verdade é no **cerco**, que não toma a zona. Registro porque o argumento
+não é o que eu tinha escrito.
+
+**3. `bps = 10000` não é saque total, e o teste prova.** Com tudo dentro da capacidade o exposto é
+zero, e 100% de zero é zero: a proteção sobreviveria inteira à guerra. O que muda é a **base** da
+conta (`estoqueTotal()` em vez de `exposto()`), não a porcentagem. `saqueDetalhado()` ganhou
+`$ignorarDeposito`, e não um `$bps` maior.
+
+### ⚠️ O butim atravessa o teto de estoque da colônia — e isso foi escolhido, não esquecido
+
+`TetoDoEstoque` está ligado desde o D-191, mas ele governa a **produção**: quem credita saque é
+`ResolverCombates::saquear()`, com `increment()` direto, e sempre foi assim. Com o saque total a
+diferença deixou de ser teórica:
+
+- a maior folga de `metal_bruto` entre as 29 colônias é **14.663**;
+- o saque total daquela zona entrega **31.358** só de bruto.
+
+**Um saque total estoura o teto de todas as 29.** Mantido de propósito, e é a opção que não destrói
+nada (§6.6/§14: o jogador perde oportunidade, nunca estoque): a colônia recebe o butim inteiro e passa
+a produzir **zero** daquele recurso até gastá-lo, porque `espacoLivre()` devolve `max(0, …)`. O freio é
+o próprio espólio — quem leva mais do que cabe paralisa a própria mina.
+
+A alternativa, travar o saque no teto, deixaria o resto na zona (que numa conquista já é do atacante,
+logo não freia nada) e no cerco viraria **escudo grátis para o defensor**: bastaria o atacante estar
+cheio para o saque ser zero.
+
+### O que NÃO mudou
+
+- **O cerco de zona continua nos 30% do exposto**, em guerra ou fora dela. A decisão fala da zona
+  **conquistada**, e o §27.8 declara a hierarquia: quem quer tudo invade e toma o território; quem
+  cerca leva uma fatia e vai embora. Estender o saque total ao cerco apagaria a diferença entre os
+  dois ataques;
+- **fora de guerra federativa nada muda** — e este é o caso de todo o mundo hoje, que tem uma
+  federação só.
+
+### A guerra é conferida no instante da VITÓRIA, não no despacho
+
+Entre a marcha e a chegada uma guerra pode acabar (as 7 dias) ou uma federação pode mudar. Quem chega
+depois da paz saqueia como em tempo de paz. É a mesma regra de instante que os modificadores de evento
+usam — e o defensor é o **dono atual** da zona, não o `defender_colony_id` do combate, porque o §27.10
+deixa dois exércitos marcharem sobre a mesma zona.
+
+### `EmGuerra`: a quarta cópia da mesma pergunta
+
+"Estas duas estão em guerra?" já existia inline em `AtacarColonia`, no `WarController` e, privada, na
+`Neutralidade`. Virou classe. Se a definição mudar — uma trégua por evento, uma guerra suspensa — quem
+tivesse a cópia esquecida responderia o contrário das outras, e o jogador veria a mesma guerra existir
+numa tela e não existir na outra.
+
+Ela lê a federação **do banco**, não do modelo em mãos: o combate marcha por horas, e o erro é caro nos
+dois sentidos — saquear tudo de quem já saiu da guerra, ou proteger quem já entrou nela.
+
+### As telas passam a dizer qual regime está valendo
+
+Quatro lugares afirmavam *"só o que EXCEDE o Depósito pode ser saqueado"*. Em guerra isso é falso, e um
+número de tela que **subestima** o risco é pior que nenhum, porque é com base nele que o defensor
+decide não reagir. `MinhasZonas` e o Quartel passam a mostrar o estoque inteiro quando a regra é essa;
+a tela da zona troca o parágrafo; o mapa diz as duas regras, porque não sabe se há guerra com o dono
+daquela zona.
+
+### ⚠️ Rodei `npx prettier --write` num projeto que não usa prettier
+
+Cinco arquivos do frontend foram reformatados por inteiro — aspas duplas, ponto e vírgula, o oposto do
+estilo da casa — e as minhas dez linhas de mudança sumiram dentro de mil. Não há `.prettierrc` nem
+prettier no `package.json`; o `npx` baixou a ferramenta na hora e aplicou os padrões dela. Revertido
+por `git stash` (a entrada **`prettier-acidental`** continua na pilha, e pode ser descartada) e as
+edições refeitas à mão: o diff do frontend voltou a 54 linhas.
+
+**Antes de formatar, confirmar que o projeto formata** — `npx` instala qualquer coisa sem perguntar.
+
+### Verificação
+
+`GuerraTest` com 5 testes novos, incluindo os dois controles que fazem a afirmação valer: federações
+**em paz** saqueiam 500, e guerra **encerrada durante a marcha** saqueia 500. Sem eles, o teste do
+saque total passaria por qualquer motivo.

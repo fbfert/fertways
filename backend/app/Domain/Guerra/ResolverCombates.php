@@ -2,6 +2,7 @@
 
 namespace App\Domain\Guerra;
 
+use App\Domain\GuerraFederativa\EmGuerra;
 use App\Domain\Marco\ConcederXp;
 use App\Domain\Missoes\Progresso;
 use App\Domain\Zona\AvisoDeAtaque;
@@ -55,6 +56,7 @@ class ResolverCombates
         private Protegido $protegido,
         private Sorteio $sorteio,
         private AvisoDeAtaque $avisoDeAtaque,
+        private EmGuerra $emGuerra,
     ) {}
 
     /** @return int quantos combates avançaram */
@@ -308,12 +310,31 @@ class ResolverCombates
      *
      * O butim vai **direto para a colônia do atacante**: o exército o carrega. Não exigimos veículo,
      * e não cobramos tributo — saque não é entrega comercial, e o §25.2 tributa comércio.
+     *
+     * ⚠️ **Em guerra federativa é 100% do estoque INTEIRO** (D-205) — o Depósito deixa de proteger.
+     * Ver o bloco no corpo do método: a guerra é conferida no instante da vitória, não no despacho.
      */
     private function vitoriaDoAtacante(Combat $combate, NeutralZone $zona): void
     {
         $donoAnterior = $zona->owner_colony_id;
 
-        $butim = $this->saquear($combate, $zona, Combat::SAQUE_BPS, "combate:{$combate->id}");
+        /*
+         * ⚠️ **O saque total da guerra federativa (D-205).**
+         *
+         * A pergunta é feita AGORA, na vitória, e não no despacho: entre a marcha e a chegada uma
+         * guerra pode ter terminado (as 7 dias do `EncerrarGuerras`) ou uma federação pode ter
+         * mudado. Quem chega depois da paz saqueia como em tempo de paz — é a regra do instante do
+         * ato, a mesma que os modificadores de evento usam.
+         *
+         * E o defensor é o **dono atual da zona**, não o `defender_colony_id` do combate: o §27.10
+         * deixa dois exércitos marcharem sobre a mesma zona, então o dono pode ter mudado desde o
+         * despacho. Perguntar pelo dono registrado daria a guerra errada.
+         */
+        $guerraTotal = $this->emGuerra->entreColonias($combate->attacker_colony_id, $donoAnterior);
+
+        $butim = $guerraTotal
+            ? $this->saquear($combate, $zona, self::CHEIO, "combate:{$combate->id}", ignorarDeposito: true)
+            : $this->saquear($combate, $zona, Combat::SAQUE_BPS, "combate:{$combate->id}");
 
         /*
          * A zona muda de dono, e o novo dono **espera o tempo de ocupação** antes de extrair
@@ -365,6 +386,7 @@ class ResolverCombates
             'saque_bruto' => $butim['bruto'],
             'saque_refinado' => $butim['refinado'],
             'saque_minerais' => $butim['minerais'],
+            'saque_total_de_guerra' => $guerraTotal,
             'mineral' => $zona->mineral,
             'rodadas' => $combate->rodada,
         ]);
@@ -700,11 +722,32 @@ class ResolverCombates
      * O exército carrega. Não exigimos veículo, e não cobramos tributo: saque não é entrega comercial,
      * e o §25.2 tributa comércio.
      *
+     * ## ⚠️ O butim **não respeita o teto de estoque da colônia**, e isso foi medido antes de ser aceito
+     *
+     * `TetoDoEstoque` está ligado desde o D-191, mas ele governa a **produção** (`ColonyTick`) — este
+     * caminho credita direto, e sempre creditou. Com o saque total (D-205) a diferença deixou de ser
+     * teórica: a única zona ocupada do mundo guarda **34.438 unidades**, e a maior folga de
+     * `metal_bruto` entre as 29 colônias é **14.663**. Um saque total estoura o teto de todas elas.
+     *
+     * Escolhido de propósito, e é a opção que **não destrói nada** (§6.6/§14: o jogador perde
+     * oportunidade, nunca estoque). A colônia acima do teto recebe o butim inteiro e passa a produzir
+     * **zero** daquele recurso até gastá-lo — `espacoLivre()` devolve `max(0, …)`. O freio é o próprio
+     * espólio: quem leva mais do que cabe paralisa a própria mina, e a saída é escoar.
+     *
+     * A alternativa — travar o saque no teto — deixaria o resto na zona, que numa **conquista** já é
+     * do atacante de qualquer forma, e num **cerco** viraria escudo grátis para o defensor: bastaria
+     * o atacante estar cheio para o saque ser zero.
+     *
      * @return array{bruto: int, refinado: int, minerais: array<string,int>, total: int}
      */
-    private function saquear(Combat $combate, NeutralZone $zona, int $bps, string $ref): array
-    {
-        $butim = $this->protegido->saqueDetalhado($zona, $bps);
+    private function saquear(
+        Combat $combate,
+        NeutralZone $zona,
+        int $bps,
+        string $ref,
+        bool $ignorarDeposito = false,
+    ): array {
+        $butim = $this->protegido->saqueDetalhado($zona, $bps, $ignorarDeposito);
 
         if ($butim['total'] <= 0) {
             return $butim;

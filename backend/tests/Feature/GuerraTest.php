@@ -10,10 +10,15 @@ use App\Domain\Guerra\Sorteio;
 use App\Exceptions\DomainRuleException;
 use App\Models\Colony;
 use App\Models\Combat;
+use App\Models\Federation;
+use App\Models\FederationWar;
 use App\Models\NeutralZone;
 use App\Models\Unit;
 use App\Models\User;
 use App\Models\ZoneMineral;
+use Database\Seeders\BuildingSpecSeeder;
+use Database\Seeders\ComponentRecipeSeeder;
+use Database\Seeders\ResourceTypeSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Concerns\ErgueEstruturasDaZona;
 use Tests\TestCase;
@@ -27,15 +32,15 @@ use Tests\TestCase;
  */
 class GuerraTest extends TestCase
 {
-    use RefreshDatabase;
     use ErgueEstruturasDaZona;
+    use RefreshDatabase;
 
     protected function setUp(): void
     {
         parent::setUp();
-        $this->seed(\Database\Seeders\ResourceTypeSeeder::class);
-        $this->seed(\Database\Seeders\ComponentRecipeSeeder::class);
-        $this->seed(\Database\Seeders\BuildingSpecSeeder::class);
+        $this->seed(ResourceTypeSeeder::class);
+        $this->seed(ComponentRecipeSeeder::class);
+        $this->seed(BuildingSpecSeeder::class);
     }
 
     // ── andaime ─────────────────────────────────────────────────────────────────────────────────
@@ -299,6 +304,147 @@ class GuerraTest extends TestCase
         );
         $this->assertSame(92, $zona->fresh()->minerais()->where('resource_type', 'ouro')->value('amount'));
         $this->assertSame(458, $zona->fresh()->deposit_amount);
+    }
+
+    // ── o saque TOTAL da guerra federativa (D-205) ──────────────────────────────────────────────
+
+    /** Põe as duas colônias em federações inimigas, com uma guerra ativa entre elas. */
+    private function guerraEntre(Colony $a, Colony $b): FederationWar
+    {
+        $fa = Federation::create(['name' => 'Alfa', 'tag' => 'ALF']);
+        $fb = Federation::create(['name' => 'Beta', 'tag' => 'BET']);
+
+        $a->update(['federation_id' => $fa->id]);
+        $b->update(['federation_id' => $fb->id]);
+
+        return FederationWar::create([
+            'declarante_id' => $fa->id, 'alvo_id' => $fb->id,
+            'comeca_em' => now()->subDay(), 'termina_em' => now()->addDays(6),
+            'status' => 'ativa', 'declarada_por_colony_id' => $a->id,
+        ]);
+    }
+
+    /**
+     * A decisão do usuário: em guerra federativa **o Depósito não protege nada**. O mesmo cenário do
+     * teste de cima — 1.500 no depósito, 500 protegidos — dá butim de 1.500, e não de 500.
+     *
+     * É o contraste que prova a regra: o número muda por causa da guerra, e só dela.
+     */
+    public function test_em_guerra_federativa_a_conquista_leva_o_estoque_inteiro(): void
+    {
+        $atacante = $this->colono('Atacante');
+        $defensor = $this->colono('Defensor');
+
+        $zona = $this->zonaDe($defensor, 1500);
+        $this->guerraEntre($atacante, $defensor);
+
+        $antes = $atacante->resources()->where('resource_type', 'metal_bruto')->value('amount');
+
+        $ids = $this->sentinelas($atacante, 20);
+        $fim = $this->correrAte(app(Atacar::class)->handle($atacante, $zona, 'invasao', $ids));
+
+        $this->assertSame('vitoria_atacante', $fim->status);
+        $this->assertSame(1500, $fim->resultado['saque']);
+        $this->assertTrue($fim->resultado['saque_total_de_guerra']);
+
+        $this->assertSame(0, $zona->fresh()->deposit_amount);   // não sobra nada na zona
+        $this->assertSame(
+            $antes + 1500,
+            $atacante->fresh()->resources()->where('resource_type', 'metal_bruto')->value('amount'),
+        );
+    }
+
+    /**
+     * ⚠️ O caso que a versão ingênua erraria: **`bps = 10000` sobre o exposto não é saque total.**
+     *
+     * Com tudo dentro da capacidade do Depósito o exposto é ZERO, e 100% de zero é zero — a
+     * proteção sobreviveria inteira à guerra. É a base da conta que muda, não a porcentagem.
+     */
+    public function test_em_guerra_leva_ate_o_que_cabe_no_deposito(): void
+    {
+        $atacante = $this->colono('Atacante');
+        $defensor = $this->colono('Defensor');
+
+        $zona = $this->zonaDe($defensor, 400);   // cabe nos 500 do nível 1: nada exposto
+        $this->guerraEntre($atacante, $defensor);
+
+        $ids = $this->sentinelas($atacante, 20);
+        $fim = $this->correrAte(app(Atacar::class)->handle($atacante, $zona, 'invasao', $ids));
+
+        $this->assertSame('vitoria_atacante', $fim->status);
+        $this->assertSame(400, $fim->resultado['saque']);
+        $this->assertSame(0, $zona->fresh()->deposit_amount);
+    }
+
+    /**
+     * A guerra é conferida no **instante da vitória**, não no despacho: quem chega depois da paz
+     * saqueia como em tempo de paz. Sem isto, um exército despachado no último dia da guerra
+     * saquearia tudo uma semana depois de ela ter acabado.
+     */
+    public function test_guerra_encerrada_durante_a_marcha_derruba_o_saque_total(): void
+    {
+        $atacante = $this->colono('Atacante');
+        $defensor = $this->colono('Defensor');
+
+        $zona = $this->zonaDe($defensor, 1500);
+        $guerra = $this->guerraEntre($atacante, $defensor);
+
+        $ids = $this->sentinelas($atacante, 20);
+        $combate = app(Atacar::class)->handle($atacante, $zona, 'invasao', $ids);
+
+        $guerra->update(['status' => 'encerrada', 'encerrada_em' => now(), 'motivo_fim' => 'prazo']);
+
+        $fim = $this->correrAte($combate);
+
+        $this->assertSame('vitoria_atacante', $fim->status);
+        $this->assertSame(500, $fim->resultado['saque']);   // 50% do exposto: a regra da paz
+        $this->assertFalse($fim->resultado['saque_total_de_guerra']);
+        $this->assertSame(1000, $zona->fresh()->deposit_amount);
+    }
+
+    /**
+     * Federações **sem guerra** não mudam nada — o saque total é da guerra, não da federação. Sem
+     * esta afirmação, bastaria entrar numa federação qualquer para saquear tudo.
+     */
+    public function test_federacoes_em_paz_saqueiam_pela_regra_comum(): void
+    {
+        $atacante = $this->colono('Atacante');
+        $defensor = $this->colono('Defensor');
+
+        $zona = $this->zonaDe($defensor, 1500);
+
+        $atacante->update(['federation_id' => Federation::create(['name' => 'Alfa', 'tag' => 'ALF'])->id]);
+        $defensor->update(['federation_id' => Federation::create(['name' => 'Beta', 'tag' => 'BET'])->id]);
+
+        $ids = $this->sentinelas($atacante, 20);
+        $fim = $this->correrAte(app(Atacar::class)->handle($atacante, $zona, 'invasao', $ids));
+
+        $this->assertSame(500, $fim->resultado['saque']);
+        $this->assertFalse($fim->resultado['saque_total_de_guerra']);
+    }
+
+    /**
+     * O **cerco** de zona continua nos 30% do exposto, mesmo em guerra (§27.8: a hierarquia).
+     *
+     * Quem quer tudo invade e toma a zona; quem cerca leva uma fatia e deixa o território. Estender
+     * o saque total ao cerco apagaria a diferença entre os dois ataques — e a decisão do usuário
+     * fala da zona **conquistada**.
+     */
+    public function test_o_cerco_nao_ganha_saque_total_em_guerra(): void
+    {
+        $atacante = $this->colono('Atacante');
+        $defensor = $this->colono('Defensor');
+
+        $zona = $this->zonaDe($defensor, 1500);   // 500 protegidos, 1.000 expostos
+        $this->guerraEntre($atacante, $defensor);
+
+        $ids = $this->sentinelas($atacante, 20);
+        $fim = $this->correrAte(app(Atacar::class)->handle($atacante, $zona, 'cerco', $ids), 96);
+
+        $this->assertSame('rendido', $fim->status);
+        $this->assertSame(300, $fim->resultado['saque']);   // 30% dos 1.000 expostos
+        $this->assertSame(1200, $zona->fresh()->deposit_amount);
+        $this->assertSame($defensor->id, $zona->fresh()->owner_colony_id);   // o cerco não toma
     }
 
     /** Zona com o depósito dentro da capacidade: tudo protegido, saque ZERO. */

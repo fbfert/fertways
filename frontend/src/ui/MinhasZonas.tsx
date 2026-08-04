@@ -13,8 +13,9 @@ import { dataHumana, nomeRecurso } from './recursos'
  *
  * Cada linha mostra o que decide se ele precisa largar o que está fazendo:
  *
- *  - **exposto** — o que a guerra pode levar. Só o que EXCEDE o Depósito é saqueável (D-66), e é o
- *    único número da tela que significa "vá agora".
+ *  - **exposto** — o que a guerra pode levar. Fora de guerra federativa, só o que EXCEDE o Depósito
+ *    é saqueável (D-66); **em guerra é o estoque inteiro** (D-205). É o único número da tela que
+ *    significa "vá agora", então ele tem de valer o que o ataque leva de facto, nos dois regimes.
  *  - **cercada** — nada entra nem sai, e o que se extrai **se perde** (§28.10).
  *  - **obra** — o que está sendo erguido, e quando fica pronto.
  */
@@ -79,10 +80,15 @@ export function MinhasZonas() {
                 depósito {z.deposito} / {z.capacidade}
               </div>
 
-              {/* O número que significa "vá buscar antes que alguém venha". */}
+              {/* O número que significa "vá buscar antes que alguém venha". Em guerra federativa
+                  ele já vem como o estoque INTEIRO (D-205), e o rótulo muda com ele: "exposto"
+                  sugeriria que o resto está a salvo, e não está. */}
               {z.exposto > 0 && (
                 <div className="text-rust text-xs font-bold">
-                  {z.exposto} exposto ao saque
+                  {z.exposto}{' '}
+                  {z.saque_total_por_guerra
+                    ? 'em risco — guerra, o Depósito não protege'
+                    : 'exposto ao saque'}
                 </div>
               )}
 

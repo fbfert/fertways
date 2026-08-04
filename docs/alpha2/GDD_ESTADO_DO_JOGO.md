@@ -172,9 +172,27 @@ Declaração, prazo de **7 dias**, cooldown de par de 7 dias, aviso público no 
 - **declarar a uma aliada rompe a aliança** — e só se a guerra realmente acontecer;
 - a **trégua do Governo** fecha o portão, pelo Motor de Eventos.
 
-⚠️ **Nada de alvos, combate ou espólio ainda.** Nenhuma zona muda de dono, nenhuma colônia é saqueada.
+### 2.10 Guerra federativa — alvos e espólio (A2.10 — D-201 a D-205)
 
-### 2.10 Segurança (A2.12 — D-186)
+O esqueleto ganhou o que faltava, em quatro fatias:
+
+- **neutralidade declarada** (D-201) — só antes da guerra; inatividade **não** protege;
+- **cerco de colônia** (D-203) — o §01 revogado *só* dentro de guerra declarada, saque limitado ao
+  **excedente do Depósito**, Capital e Espaçoporto fora, exige Quartel;
+- **a porta** (D-204) — `GET /war/inimigos` e `POST /war/attack-colony`, com a tela no Quartel;
+- **saque total da zona conquistada** (D-205) — em guerra federativa a **invasão** leva o estoque
+  **inteiro** da zona: o Depósito dela deixa de proteger. Só a invasão; o cerco de zona continua nos
+  30% do exposto.
+
+⚠️ **O butim atravessa o teto de estoque da colônia** — `TetoDoEstoque` governa a produção, não o
+saque. Escolhido: nada se destrói (§6.6), e a colônia acima do teto para de produzir aquele recurso
+até escoá-lo. Medido: um saque total daquela única zona ocupada (**34.438**) estoura a folga de
+todas as 29 colônias (a maior é **14.663**).
+
+⚠️ **E nada disto é exercitável por jogador:** o mundo tem **uma federação**. Toda a guerra
+federativa vive hoje só nos testes.
+
+### 2.11 Segurança (A2.12 — D-186)
 
 ⚠️ `/login` e `/register` **aceitavam tentativas sem limite**, com o jogo no ar. Era a falha mais séria
 da Alpha 2, e estava lá desde o começo. Agora: dez erros por minuto por **e-mail + IP**, e **só o
@@ -198,10 +216,8 @@ um dia**, e isso está registrado porque a promessa era essa.
 
 | | |
 |---|---|
-| **combate federativo, alvos, espólio** | a guerra declara e termina; não faz nada entre uma coisa e outra |
-| **saque de colônia** | decidido (excedente do Depósito), não construído |
-| **neutralidade declarada** | decidida, não construída — **e precisa vir antes do saque** |
-| **capitulação e tratados** | decididos, não construídos |
+| **capitulação e tratados** | decididos (o vencedor escolhe entre uma zona e Fert$), não construídos |
+| **uma segunda federação** | o mundo tem **uma**; nenhum jogador consegue exercitar guerra, blocos ou diplomacia |
 | **ranking de guerra** | fórmula ainda é desenho, não escolha binária |
 | **eventos da Endurance** no motor | adiado pelo Dono |
 | **descoberta por escavação** | o item único nasce na compra; escavar não existe |
@@ -285,12 +301,14 @@ promover número. **Nenhum número da guerra federativa passou por isso.**
 
 ## 7. O que vem a seguir
 
-1. **Neutralidade declarada** — antes do saque, senão haveria uma semana de consequência sem a válvula
-   de escape que o D-193 escolheu;
-2. **Alvos e espólio** — e as duas mudanças de regra em mundo vivo (colônia e zona) exigem a mesma
-   medição prévia que salvou as três ativações anteriores;
-3. **Telemetria de retorno de quem foi saqueado ausente** — junto da fatia 2, não depois;
-4. **A2.V2 a A2.V6** — a maior dívida restante.
+1. ✅ **Neutralidade declarada** — feita (D-201), e antes do saque, como o D-193 exigia;
+2. ✅ **Alvos e espólio** — feitos (D-203 a D-205), cada um precedido da medição contra a produção
+   que salvou as três ativações anteriores;
+3. **Capitulação e tratados, e a fórmula do ranking** — o que resta da A2.10. A fórmula segue sendo
+   desenho: quando chegar a vez dela, o que se leva ao Dono são **propostas de fórmula**, não opções;
+4. **Telemetria de retorno de quem foi saqueado ausente** — ainda não existe, e a decisão que a torna
+   necessária já está no ar;
+5. **A2.V2 a A2.V6** — a maior dívida restante.
 
 ### E duas coisas que não são fase nenhuma
 

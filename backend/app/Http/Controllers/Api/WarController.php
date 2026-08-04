@@ -13,6 +13,7 @@ use App\Domain\Guerra\RankingDeGuerras;
 use App\Domain\Guerra\Reforcar;
 use App\Domain\Guerra\RomperCerco;
 use App\Domain\GuerraFederativa\AtacarColonia;
+use App\Domain\GuerraFederativa\EmGuerra;
 use App\Http\Controllers\Controller;
 use App\Models\Colony;
 use App\Models\Combat;
@@ -286,7 +287,7 @@ class WarController extends Controller
      * combate durar ~2 h justamente para dar "tempo suficiente para o defensor receber notificação,
      * recrutar reforços e despachá-los".
      */
-    public function combates(Request $request, Protegido $protegido): JsonResponse
+    public function combates(Request $request, Protegido $protegido, EmGuerra $emGuerra): JsonResponse
     {
         $colony = $request->user()->colony()->firstOrFail();
 
@@ -325,25 +326,43 @@ class WarController extends Controller
                 return $c->chega_at->copy()->subMinutes($antecedencia)->isPast();
             })
             ->values()
-            ->map(fn (Combat $c) => [
-                'id' => $c->id,
-                'tipo' => $c->tipo,
-                'status' => $c->status,
-                'sou_o_atacante' => $c->attacker_colony_id === $colony->id,
-                'zona' => ['id' => $c->zone->id, 'x' => $c->zone->x, 'y' => $c->zone->y],
-                'rodada' => $c->rodada,
-                'chega_at' => $c->chega_at,
-                'proxima_rodada_at' => $c->proxima_rodada_at,
-                'prazo_at' => $c->prazo_at,
-                'alvo' => $c->alvo,
-                'forca_ofensiva' => $c->resultado['forca_ofensiva'] ?? null,
-                'forca_defensiva' => $c->resultado['forca_defensiva'] ?? null,
-                // O que está em jogo: só o exposto é saqueável (D-66).
-                'exposto' => $protegido->exposto($c->zone),
-                // Cercada, nada entra nem sai — nem tropa (§28.10). É o que decide se a tela oferece
-                // "reforçar" ou "romper o cerco": sob sítio, reforçar é impossível por desenho (D-70).
-                'cercada' => $c->zone->cercada(),
-            ]);
+            ->map(function (Combat $c) use ($colony, $protegido, $emGuerra) {
+                /*
+                 * ⚠️ **O saque total da guerra federativa, na tela** (D-205).
+                 *
+                 * Numa invasão entre federações em guerra o Depósito não protege nada: vai o estoque
+                 * INTEIRO. Sem isto o defensor leria "1.000 exposto" enquanto perde 34.438 — e um
+                 * número de tela que subestima o risco é pior que nenhum, porque é com base nele que
+                 * ele decide não reagir.
+                 *
+                 * Só a **invasão**: o cerco fica nos 30% do exposto, em guerra ou fora dela.
+                 */
+                $saqueTotal = $c->tipo === 'invasao'
+                    && $emGuerra->entreColonias($c->attacker_colony_id, $c->zone->owner_colony_id);
+
+                return [
+                    'id' => $c->id,
+                    'tipo' => $c->tipo,
+                    'status' => $c->status,
+                    'sou_o_atacante' => $c->attacker_colony_id === $colony->id,
+                    'zona' => ['id' => $c->zone->id, 'x' => $c->zone->x, 'y' => $c->zone->y],
+                    'rodada' => $c->rodada,
+                    'chega_at' => $c->chega_at,
+                    'proxima_rodada_at' => $c->proxima_rodada_at,
+                    'prazo_at' => $c->prazo_at,
+                    'alvo' => $c->alvo,
+                    'forca_ofensiva' => $c->resultado['forca_ofensiva'] ?? null,
+                    'forca_defensiva' => $c->resultado['forca_defensiva'] ?? null,
+                    // O que está em jogo: só o exposto é saqueável (D-66) — fora da guerra.
+                    'exposto' => $protegido->exposto($c->zone),
+                    'saque_total' => $saqueTotal,
+                    // O número que o jogador precisa ler: o que este ataque pode levar de facto.
+                    'em_jogo' => $saqueTotal ? $c->zone->estoqueTotal() : $protegido->exposto($c->zone),
+                    // Cercada, nada entra nem sai — nem tropa (§28.10). É o que decide se a tela oferece
+                    // "reforçar" ou "romper o cerco": sob sítio, reforçar é impossível por desenho (D-70).
+                    'cercada' => $c->zone->cercada(),
+                ];
+            });
 
         return response()->json(['combats' => $combates]);
     }

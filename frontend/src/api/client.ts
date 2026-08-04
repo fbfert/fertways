@@ -393,6 +393,10 @@ export type Combate = {
   forca_defensiva: number | null
   /** Só o exposto é saqueável: o que cabe no Depósito está protegido (D-66). */
   exposto: number
+  /** Invasão em guerra federativa: o Depósito não protege nada, vai tudo (D-205). */
+  saque_total: boolean
+  /** O que ESTE ataque pode levar de facto — `exposto`, ou o estoque inteiro em guerra. */
+  em_jogo: number
   /** A zona está cercada AGORA (§28.10): nada entra nem sai — nem tropa. Só romper a abre (D-70). */
   cercada: boolean
 }
@@ -570,8 +574,13 @@ export type MinhaZona = {
   mineral: string
   deposito: number
   capacidade: number
-  /** O que a guerra pode levar. Só o que EXCEDE o Depósito é saqueável (D-66). */
+  /**
+   * O que a guerra pode levar. Fora de guerra federativa é só o que EXCEDE o Depósito (D-66);
+   * **em guerra é o estoque inteiro** (D-205), e o servidor já manda o número certo aqui.
+   */
   exposto: number
+  /** A federação do dono está em guerra: o Depósito não protege nada (D-205). */
+  saque_total_por_guerra: boolean
   cercada: boolean
   produtiva: boolean
   obra: { nome: string; nivel: number; termina_at: string } | null
@@ -1920,6 +1929,11 @@ export type ZonaDetalhe = {
     /** O que cabe no Depósito está a salvo do saque; o que transborda é butim (D-66). */
     protegido: number
     exposto: number
+    /**
+     * ⚠️ Quando `true`, `protegido` deixa de significar o que diz: em guerra federativa a invasão
+     * leva o estoque INTEIRO (D-205). A tela precisa dizer qual regime está valendo.
+     */
+    saque_total_por_guerra: boolean
   }
   extracao_hora: number
   refino_hora: number

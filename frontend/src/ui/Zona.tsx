@@ -533,11 +533,22 @@ export function Zona() {
             </div>
           </div>
 
-          <p className="text-ink-soft mt-2 text-xs">
-            <strong>Só o que EXCEDE o Depósito pode ser saqueado.</strong> O que cabe nele está a
-            salvo. Suba o Depósito para proteger mais — ou retire a carga antes que alguém venha
-            buscá-la.
-          </p>
+          {/* ⚠️ Dois regimes, e o jogador tem de saber em qual está (D-205). Fora de guerra o
+              Depósito é cofre; dentro dela não é nada, e mostrar só o "exposto" faria o defensor
+              subestimar a perda justamente quando ela é maior. */}
+          {z.deposito.saque_total_por_guerra ? (
+            <p className="text-rust mt-2 text-xs" data-saque-total>
+              <strong>⚠ Guerra federativa: o Depósito não protege nada.</strong> Uma invasão inimiga
+              leva o estoque <strong>inteiro</strong> — os {z.deposito.protegido} “protegidos”
+              inclusive. Enquanto a guerra durar, retire a carga; acumular aqui é entregá-la.
+            </p>
+          ) : (
+            <p className="text-ink-soft mt-2 text-xs">
+              <strong>Só o que EXCEDE o Depósito pode ser saqueado.</strong> O que cabe nele está a
+              salvo. Suba o Depósito para proteger mais — ou retire a carga antes que alguém venha
+              buscá-la.
+            </p>
+          )}
 
           {/* Retirar — qualquer coisa que esteja no Depósito, genericamente (D-86: bruto, refinado,
               ou qualquer mineral futuro). Sem isto, o que a Refinaria e a Siderúrgica produzem

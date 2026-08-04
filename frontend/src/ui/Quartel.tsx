@@ -543,7 +543,12 @@ export function Quartel() {
                   {c.status === 'em_curso' && (
                     <p className="text-ink-soft mt-1 text-xs">
                       Ataque {c.forca_ofensiva} × Defesa {c.forca_defensiva}
-                      {c.exposto > 0 && ` · ${c.exposto} exposto ao saque`}
+                      {/* Em guerra a invasão leva o estoque inteiro (D-205): o número que importa
+                          é `em_jogo`, não `exposto`. Ver o comentário do WarController. */}
+                      {c.em_jogo > 0 &&
+                        (c.saque_total
+                          ? ` · ⚠ ${c.em_jogo} em jogo — guerra, vai TUDO`
+                          : ` · ${c.em_jogo} exposto ao saque`)}
                       {c.prazo_at && ` · prazo ${dataHumana(c.prazo_at)}`}
                     </p>
                   )}

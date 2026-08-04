@@ -445,6 +445,13 @@ e o parâmetro de neutralidade pode mudar. É a mesma disciplina que a populaç�
 
 ### 2. "Totalmente saqueável" revoga o D-66/D-107 na guerra
 
+> ✅ **CONSTRUÍDO — D-205.** No ar em `Protegido::saqueDetalhado($zona, $bps, $ignorarDeposito)` e em
+> `ResolverCombates::vitoriaDoAtacante()`. Só a **invasão**; o cerco de zona continua nos 30% do
+> exposto (§27.8: quem quer tudo invade e toma o território). A guerra é conferida no instante da
+> **vitória**, não no despacho. Três correções ao que este bloco dizia, todas medidas contra a
+> produção, estão no D-205 — a principal: **a conquista já levava o estoque junto**, porque a zona
+> muda de dono, e o que o saque total muda é *onde o recurso cai*, não *se ele se perde*.
+
 Hoje o Depósito da Zona Neutra **protege** o que cabe nele; só o excedente é espólio. A decisão o
 revoga: em guerra federativa, o vencedor leva tudo.
 

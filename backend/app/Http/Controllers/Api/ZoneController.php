@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Domain\Building\Demolir;
 use App\Domain\Guerra\Protegido;
+use App\Domain\GuerraFederativa\EmGuerra;
 use App\Domain\Logistics\DespacharVeiculo;
 use App\Domain\Populacao\Parametros;
 use App\Domain\Zona\ConstruirNaZona;
@@ -41,15 +42,16 @@ class ZoneController extends Controller
      * É o que a barra lateral da colônia lista. Cada linha traz o que decide se o colono precisa
      * largar o que está fazendo:
      *
-     *  - **exposto** — o que a guerra pode levar. Só o que EXCEDE o Depósito é saqueável (D-66), e
-     *    uma zona com 3.000 expostos é um convite pendurado no mapa.
+     *  - **exposto** — o que a guerra pode levar. Fora de guerra federativa é só o que EXCEDE o
+     *    Depósito (D-66), e uma zona com 3.000 expostos é um convite pendurado no mapa; **em guerra
+     *    é o estoque inteiro** (D-205), e o campo passa a valer isso.
      *  - **cercada** — nada entra nem sai, e o que se extrai se perde (§28.10). É a urgência maior.
      *  - **obra** — o que está sendo erguido, e quando fica pronto.
      *  - **guarnição, canteiro, nível/upgrade, manutenção** (D-88) — o card ganhou mais informação
      *    de propósito: antes, para saber se a defesa estava fraca ou a manutenção atrasada, era
      *    preciso abrir a zona. É a mesma zona da tela cheia (`show()`), resumida para a lateral.
      */
-    public function minhas(Request $request, Protegido $protegido): JsonResponse
+    public function minhas(Request $request, Protegido $protegido, EmGuerra $emGuerra): JsonResponse
     {
         $colony = $request->user()->colony()->firstOrFail();
 
@@ -57,7 +59,7 @@ class ZoneController extends Controller
             ->with('obras', 'materiais')
             ->orderBy('id')
             ->get()
-            ->map(function (NeutralZone $z) use ($protegido) {
+            ->map(function (NeutralZone $z) use ($protegido, $emGuerra, $colony) {
                 $obra = $z->obras->first();
 
                 return [
@@ -68,8 +70,17 @@ class ZoneController extends Controller
                     'mineral' => $z->mineral,
                     'deposito' => $z->estoqueTotal(),
                     'capacidade' => $z->capacidadeDeposito(),
-                    // ⚠️ O número que decide se há urgência: é isto que um invasor leva.
-                    'exposto' => $protegido->exposto($z),
+                    /*
+                     * ⚠️ O número que decide se há urgência: é isto que um invasor leva.
+                     *
+                     * **Em guerra federativa é o estoque inteiro** (D-205) — o Depósito para de
+                     * proteger, e mandar o jogador olhar para o "exposto" seria mandá-lo olhar para
+                     * o número errado no exato momento em que ele mais importa.
+                     */
+                    'exposto' => $emGuerra->federacaoEmGuerra($colony->federation_id)
+                        ? $z->estoqueTotal()
+                        : $protegido->exposto($z),
+                    'saque_total_por_guerra' => $emGuerra->federacaoEmGuerra($colony->federation_id),
                     'cercada' => $z->cercada(),
                     'produtiva' => $z->estaProdutiva(),
                     'obra' => $obra ? [
@@ -126,8 +137,13 @@ class ZoneController extends Controller
         ];
     }
 
-    public function show(Request $request, NeutralZone $zone, Protegido $protegido, RepararModulo $reparo): JsonResponse
-    {
+    public function show(
+        Request $request,
+        NeutralZone $zone,
+        Protegido $protegido,
+        RepararModulo $reparo,
+        EmGuerra $emGuerra,
+    ): JsonResponse {
         $colony = $request->user()->colony()->firstOrFail();
 
         if ($zone->owner_colony_id !== $colony->id) {
@@ -200,6 +216,13 @@ class ZoneController extends Controller
                 // o Depósito é o cofre, e o que transborda é butim.
                 'protegido' => $protegido->protegido($zone),
                 'exposto' => $protegido->exposto($zone),
+                /*
+                 * ⚠️ **E em guerra federativa o cofre não vale nada** (D-205). Com uma guerra ativa
+                 * contra a federação do dono, uma invasão leva o estoque INTEIRO — `protegido` vira
+                 * um número que mente. A tela precisa dizer qual dos dois regimes está valendo, ou
+                 * o jogador defende a zona errada.
+                 */
+                'saque_total_por_guerra' => $emGuerra->federacaoEmGuerra($colony->federation_id),
             ],
 
             'extracao_hora' => $zone->extracaoPorHora(),
