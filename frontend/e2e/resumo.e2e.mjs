@@ -18,8 +18,7 @@ import {
   esperarTexto,
   falhas,
   relatar,
-  BASE,
-} from './comum.mjs'
+  BASE, fecharNavegador } from './comum.mjs'
 
 const { navegador, page } = await abrirNavegador()
 
@@ -87,6 +86,6 @@ try {
   await page.screenshot({ path: '/tmp/e2e-resumo-falha.png' }).catch(() => {})
   console.log('\nscreenshot em /tmp/e2e-resumo-falha.png')
 } finally {
-  await navegador.close()
+  await fecharNavegador(navegador)
   relatar('Resumo de retorno')
 }

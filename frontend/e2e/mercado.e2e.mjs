@@ -33,8 +33,7 @@ import {
   falhas,
   janela,
   relatar,
-  textoDaPagina,
-} from './comum.mjs'
+  textoDaPagina, fecharNavegador } from './comum.mjs'
 
 const { navegador, page } = await abrirNavegador()
 
@@ -331,7 +330,7 @@ try {
     console.log('\nscreenshot em /tmp/e2e-falha.png')
   } catch {}
 } finally {
-  await navegador.close()
+  await fecharNavegador(navegador)
 }
 
 process.exit(relatar('Mercado'))

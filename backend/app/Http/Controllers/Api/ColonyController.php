@@ -4,6 +4,9 @@ namespace App\Http\Controllers\Api;
 
 use App\Domain\Colony\CreateColony;
 use App\Domain\Logistics\MapaFertways;
+use App\Domain\Marco\Curva;
+use App\Domain\Populacao\Parametros;
+use App\Domain\Populacao\Populacao;
 use App\Domain\Production\TaxasDeProducao;
 use App\Exceptions\DomainRuleException;
 use App\Http\Controllers\Controller;
@@ -78,8 +81,12 @@ class ColonyController extends Controller
         ], 201);
     }
 
-    public function show(Request $request, TaxasDeProducao $taxas): JsonResponse
-    {
+    public function show(
+        Request $request,
+        TaxasDeProducao $taxas,
+        Populacao $populacao,
+        Parametros $parametros,
+    ): JsonResponse {
         $colony = $request->user()->colony()->with(['buildings', 'resources', 'vehicles'])->first();
 
         if (! $colony) {
@@ -101,6 +108,24 @@ class ColonyController extends Controller
             'taxas_hora' => $taxas->porRecurso($colony),
             // O Marco do §03/§05 (D-75): número, título publicado, e quanto falta para o próximo.
             'marco' => $this->marco($colony),
+
+            /*
+             * ⚠️ **A população, que estava no ar e não aparecia em tela nenhuma** (A2.V2, D-210).
+             *
+             * `Populacao::estado()` existe desde o D-176 e devolve exatamente isto — e **nunca teve
+             * consumidor**. Ligada em produção no D-178, ela governa o teto habitacional, os
+             * operadores e o consumo, e o jogador não tinha como ver um único desses números.
+             *
+             * Medido antes: **28 das 29 colônias estão no teto**, e nenhuma delas sabe. O teto é o
+             * que trava o crescimento, e subir a Estrutura de Sobrevivência é o que o destrava —
+             * uma decisão que não existe enquanto o número não aparece.
+             *
+             * `ativo` vai junto porque o jogo tem chave-mestra: com ela desligada a tela precisa
+             * calar-se em vez de mostrar zeros, que seriam lidos como colônia sem gente.
+             */
+            'populacao' => [
+                'ativo' => $parametros->ativo(),
+            ] + $populacao->estado($colony),
         ]);
     }
 
@@ -225,17 +250,17 @@ class ColonyController extends Controller
     }
 
     /** @return array{numero: int, titulo: string, xp: int, xp_do_proximo: int|null} */
-    private function marco(\App\Models\Colony $colony): array
+    private function marco(Colony $colony): array
     {
         $xp = (int) $colony->xp;
-        $numero = \App\Domain\Marco\Curva::marco($xp);
+        $numero = Curva::marco($xp);
 
         return [
             'numero' => $numero,
-            'titulo' => \App\Domain\Marco\Curva::titulo($numero),
+            'titulo' => Curva::titulo($numero),
             'xp' => $xp,
             // No 100 não há próximo: a Lenda é o teto, e a tela não deve prometer um 101.
-            'xp_do_proximo' => $numero >= 100 ? null : \App\Domain\Marco\Curva::xpDoMarco($numero + 1),
+            'xp_do_proximo' => $numero >= 100 ? null : Curva::xpDoMarco($numero + 1),
         ];
     }
 }

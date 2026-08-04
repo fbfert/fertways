@@ -9,7 +9,7 @@
  */
 import {
   clicar,
-  abrirNavegador, assentar, checar, entrar, esperarTexto, falhas, relatar } from './comum.mjs'
+  abrirNavegador, assentar, checar, entrar, esperarSumir, esperarTexto, falhas, relatar, fecharNavegador } from './comum.mjs'
 
 const { navegador, page } = await abrirNavegador({ width: 390, height: 844 })
 
@@ -50,7 +50,9 @@ try {
   await assentar()
   checar(!!(await page.$('[data-tela="chat"]')), 'o painel do Chat abre')
   await clicar(page, '[data-fechar-chat]')
-  await assentar()
+  // ⚠️ Espera SUMIR: `assentar()` sozinho é uma aposta de 300 ms, e o painel ainda aberto cobre o
+  // botão que o passo seguinte vai procurar. Ver `esperarSumir` em comum.mjs.
+  await esperarSumir(page, '[data-tela="chat"]')
 
   console.log('\nMapa: navega de verdade (rota própria, D-67) — e a barra continua na tela')
   await clicar(page, '[data-nav="mapa"]')
@@ -90,7 +92,9 @@ try {
   checar(!!(await page.$('[data-tela="obras-e-zonas"]')), 'o painel de Obras e zonas abre')
   checar(await esperarTexto(page, /Fila de construção/), 'mostra a fila')
   await clicar(page, '[data-fechar-obras-e-zonas]')
-  await assentar()
+  // ⚠️ Espera SUMIR: `assentar()` sozinho é uma aposta de 300 ms, e o painel ainda aberto cobre o
+  // botão que o passo seguinte vai procurar. Ver `esperarSumir` em comum.mjs.
+  await esperarSumir(page, '[data-tela="obras-e-zonas"]')
 
   await clicar(page, '[data-nav="mais"]')
   await assentar()
@@ -100,7 +104,9 @@ try {
   await assentar()
   checar(!!(await page.$('[data-tela="missoes"]')), 'o painel de Missões abre')
   await clicar(page, '[data-fechar-missoes]')
-  await assentar()
+  // ⚠️ Espera SUMIR: `assentar()` sozinho é uma aposta de 300 ms, e o painel ainda aberto cobre o
+  // botão que o passo seguinte vai procurar. Ver `esperarSumir` em comum.mjs.
+  await esperarSumir(page, '[data-tela="missoes"]')
 
   await clicar(page, '[data-nav="mais"]')
   await assentar()
@@ -110,7 +116,9 @@ try {
   await assentar()
   checar(!!(await page.$('[data-tela="bugs-melhorias"]')), 'o painel de Bugs/Melhorias abre')
   await clicar(page, '[data-fechar-bugs-melhorias]')
-  await assentar()
+  // ⚠️ Espera SUMIR: `assentar()` sozinho é uma aposta de 300 ms, e o painel ainda aberto cobre o
+  // botão que o passo seguinte vai procurar. Ver `esperarSumir` em comum.mjs.
+  await esperarSumir(page, '[data-tela="bugs-melhorias"]')
 
   console.log('\nSair: de dentro do Mapa (uma tela sem × próprio agora) — prova que o header é mesmo global')
   await clicar(page, '[data-nav="mapa"]')
@@ -130,7 +138,7 @@ try {
     console.log('\nscreenshot em /tmp/e2e-mobile-falha.png')
   } catch {}
 } finally {
-  await navegador.close()
+  await fecharNavegador(navegador)
 }
 
 process.exit(relatar('Mobile'))

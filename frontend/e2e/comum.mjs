@@ -104,6 +104,48 @@ export async function esperarTexto(page, regex, timeout = 8000) {
  */
 export const assentar = () => new Promise((r) => setTimeout(r, 300))
 
+/**
+ * Espera um elemento SUMIR da tela, em vez de dormir e olhar uma vez.
+ *
+ * ⚠️ `assentar()` é um `setTimeout` de 300 ms, e 300 ms é uma aposta: com a máquina carregada o
+ * painel ainda está fechando quando o clique seguinte procura o botão que ele cobre. Foi assim que
+ * a suíte mobile reprovou em `[data-nav="mais"]` depois de fechar Missões — o botão existia, só não
+ * ainda. A mesma lição já estava escrita em `resumo.e2e.mjs`; aqui ela vira ferramenta.
+ *
+ * Devolve `true` se sumiu, `false` se o prazo estourou — quem chama decide se isso é falha.
+ */
+export const esperarSumir = (page, seletor, timeout = 8000) =>
+  page
+    .waitForSelector(seletor, { hidden: true, timeout })
+    .then(() => true)
+    .catch(() => false)
+
+/**
+ * Fecha o navegador de verdade — com força, se preciso.
+ *
+ * ⚠️ `navegador.close()` **não mata** um Chromium cujo frame se desanexou ou que parou de responder,
+ * e é justamente aí que ele é chamado: no `finally` de uma suíte que estourou. O `process.exit()` da
+ * linha seguinte derruba o node e deixa o Chromium **órfão**, comendo memória.
+ *
+ * Foi assim que doze deles se acumularam em 2026-08-04 e passaram a estrangular as execuções
+ * seguintes: cada suíte reprovada tornava a próxima mais provável de reprovar, e as falhas mudavam
+ * de lugar a cada corrida — o retrato perfeito de um problema que parece do código e é da máquina.
+ *
+ * Tenta o fim gracioso com prazo; passado ele, mata o processo.
+ */
+export async function fecharNavegador(navegador) {
+  const processo = navegador.process?.()
+
+  const fechou = await Promise.race([
+    navegador.close().then(() => true).catch(() => false),
+    new Promise((r) => setTimeout(() => r(false), 5000)),
+  ])
+
+  if (!fechou && processo) {
+    try { processo.kill('SIGKILL') } catch {}
+  }
+}
+
 const ignoravel = (url) => (url ?? '').endsWith('/favicon.ico')
 
 /**

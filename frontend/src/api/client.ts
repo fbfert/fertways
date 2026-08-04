@@ -68,6 +68,22 @@ export type Colonia = {
   resources: Record<string, number>
   taxas_hora: Record<string, { produzido: number; consumido: number }>
   marco: Marco
+  /**
+   * A população da colônia (A2.V2, D-210) — no ar desde o D-178 e sem tela nenhuma até agora.
+   *
+   * ⚠️ `ativo` é a chave-mestra: desligada, a tela precisa **calar-se** em vez de mostrar zeros,
+   * que seriam lidos como colônia sem gente.
+   */
+  populacao: {
+    ativo: boolean
+    total: number
+    /** O teto habitacional, da Estrutura de Sobrevivência. `total` pode passar dele (D-191). */
+    capacidade: number
+    em_construcoes: number
+    em_zonas: number
+    /** O número que decide alguma coisa: sem gente livre não se ocupa zona nem se cresce. */
+    disponivel: number
+  }
 }
 
 /** Um efeito empilhado de um item da Endurance (D-135) — o vocabulário fechado de `EfeitosDaEndurance`. */

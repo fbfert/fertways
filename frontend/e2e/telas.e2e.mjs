@@ -26,8 +26,7 @@ import {
   relatar,
   textoDaPagina,
   todosPorTexto,
-  irPara,
-} from './comum.mjs'
+  irPara, fecharNavegador } from './comum.mjs'
 
 const { navegador, page } = await abrirNavegador()
 
@@ -46,6 +45,24 @@ try {
   checar(
     await esperarTexto(page, /produção -20%/),
     'e o efeito também: o jogador vê POR QUE a produção caiu',
+  )
+
+  console.log('\nA população na tela (A2.V2) — a mecânica que estava no ar e não aparecia')
+  /*
+   * ⚠️ Isto não afirma um número: afirma que a mecânica **é visível**. A população foi ligada em
+   * produção no D-178 e governa o teto habitacional, os operadores e o consumo de 29 colônias —
+   * 28 delas no teto — sem que uma única tela a mostrasse. `Populacao::estado()` existia desde o
+   * D-176 e não tinha consumidor. É o defeito que esta Alpha já encontrou sete vezes.
+   */
+  await page.waitForSelector('[data-secao="populacao"]', { timeout: 8000 })
+  checar(true, 'o painel de população aparece na colônia')
+  checar(
+    !!(await page.$('[data-populacao-disponivel]')),
+    'e destaca o DISPONÍVEL — total é curiosidade, livre é o que decide se dá para ocupar zona',
+  )
+  checar(
+    !!(await page.$('[data-populacao-teto]')),
+    'com o teto habitacional ao lado: é ele que trava o crescimento, e ninguém o via',
   )
 
   console.log('\nColônias inimigas no Quartel (A2.10) — o cerco que revoga o §01')
@@ -229,7 +246,7 @@ try {
     console.log('\nscreenshot em /tmp/e2e-telas-falha.png')
   } catch {}
 } finally {
-  await navegador.close()
+  await fecharNavegador(navegador)
 }
 
 process.exit(relatar('Mapa e Frota'))

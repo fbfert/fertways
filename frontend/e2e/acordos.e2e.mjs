@@ -19,8 +19,7 @@ import {
   falhas,
   relatar,
   textoDaPagina,
-  todosPorTexto,
-} from './comum.mjs'
+  todosPorTexto, fecharNavegador } from './comum.mjs'
 
 const { navegador, page } = await abrirNavegador()
 
@@ -195,7 +194,7 @@ try {
     console.log('\nscreenshot em /tmp/e2e-acordos-falha.png')
   } catch {}
 } finally {
-  await navegador.close()
+  await fecharNavegador(navegador)
 }
 
 process.exit(relatar('Acordo de Troca'))

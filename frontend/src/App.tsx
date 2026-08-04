@@ -25,7 +25,7 @@ import { MinhasZonas } from './ui/MinhasZonas'
 import { Ministerio } from './ui/Ministerio'
 import { Perfil } from './ui/Perfil'
 import { Popup } from './ui/Popup'
-import { Detalhe, FilaDeObras, SlotVazio, TaxasDeRecursos } from './ui/Hud'
+import { Detalhe, FilaDeObras, Populacao, SlotVazio, TaxasDeRecursos } from './ui/Hud'
 
 /** Sem websocket nesta fase: polling simples, como o plano define. */
 const INTERVALO_MS = 5000
@@ -282,6 +282,9 @@ export default function App() {
       <div className="absolute top-24 right-5 hidden w-64 space-y-4 md:block">
         {fila && <FilaDeObras fila={fila} />}
         {colonia && <TaxasDeRecursos colonia={colonia} />}
+        {/* A2.V2 (D-210): a população, que estava no ar desde o D-178 e não tinha tela. Fica ao
+            lado das taxas porque é a mesma pergunta — o que a colônia consegue sustentar. */}
+        {colonia && <Populacao colonia={colonia} />}
         <MinhasZonas />
       </div>
 

@@ -17,8 +17,7 @@ import {
   esperarTexto,
   falhas,
   irPara,
-  relatar,
-} from './comum.mjs'
+  relatar, fecharNavegador } from './comum.mjs'
 
 const { navegador, page } = await abrirNavegador()
 
@@ -294,7 +293,7 @@ try {
     console.log('\nscreenshot em /tmp/e2e-zonas-falha.png')
   } catch {}
 } finally {
-  await navegador.close()
+  await fecharNavegador(navegador)
 }
 
 process.exit(relatar('Zonas Neutras'))

@@ -144,6 +144,96 @@ export function TaxasDeRecursos({ colonia }: { colonia: Colonia }) {
   )
 }
 
+/**
+ * A população da colônia (A2.V2 — docs/decisoes.md D-210).
+ *
+ * ## ⚠️ Uma mecânica que estava no ar e não aparecia em tela nenhuma
+ *
+ * A população foi ligada em produção no D-178 e governa três coisas desde então: o **teto
+ * habitacional**, os **operadores** que cada construção e cada zona exigem, e o **consumo** da
+ * cesta. `Populacao::estado()` existia desde o D-176 e devolvia exatamente estes números — e
+ * **nunca teve consumidor**. O colono não tinha como ver um único deles.
+ *
+ * Medido em produção antes de escrever esta tela: **28 das 29 colônias estão no teto habitacional**,
+ * e nenhuma sabia. O teto é o que trava o crescimento, e subir a Estrutura de Sobrevivência é o que
+ * o destrava — uma decisão que não existe enquanto o número não aparece.
+ *
+ * ## O número em destaque é o DISPONÍVEL, e não o total
+ *
+ * Total é curiosidade; **disponível é o que decide**. Sem gente livre não se ocupa zona nova nem se
+ * ergue o que precisa de operador, e é essa a pergunta que o colono traz para cá.
+ *
+ * ## ⚠️ E o total pode passar do teto — de propósito
+ *
+ * O grandfathering do D-178 concedeu a quem já tinha construções mais colonos do que a Estrutura de
+ * Sobrevivência abriga, porque o §6.7 proíbe que uma regra nova pare quem já estava produzindo.
+ * A tela diz "acima do teto" em vez de esconder: o número não é erro, e quem o vê precisa saber que
+ * **não cresce mais** até subir a Estrutura.
+ */
+export function Populacao({ colonia }: { colonia: Colonia }) {
+  const p = colonia.populacao
+
+  // Chave-mestra desligada: a tela cala-se. Zeros seriam lidos como colônia sem gente.
+  if (!p?.ativo) return null
+
+  const noTeto = p.total >= p.capacidade
+  const acimaDoTeto = p.total > p.capacidade
+
+  return (
+    <div className="painel bg-sand-light w-72 p-4" data-secao="populacao">
+      <span className="text-rust eyebrow">População</span>
+
+      <div className="mt-2 flex items-baseline gap-2">
+        <span className="text-ink text-2xl font-bold tabular-nums" data-populacao-disponivel>
+          {p.disponivel.toLocaleString('pt-BR')}
+        </span>
+        <span className="text-ink-soft text-sm">livre(s) de {p.total.toLocaleString('pt-BR')}</span>
+      </div>
+
+      <div className="border-rust/10 mt-2 border-t pt-2 text-xs">
+        <div className="flex items-center justify-between">
+          <span className="text-ink-soft">nas construções</span>
+          <span className="tabular-nums">{p.em_construcoes.toLocaleString('pt-BR')}</span>
+        </div>
+        <div className="flex items-center justify-between">
+          <span className="text-ink-soft">nas zonas</span>
+          <span className="tabular-nums">{p.em_zonas.toLocaleString('pt-BR')}</span>
+        </div>
+        <div className="flex items-center justify-between">
+          <span className="text-ink-soft">teto habitacional</span>
+          <span className={`tabular-nums ${noTeto ? 'text-rust font-bold' : ''}`} data-populacao-teto>
+            {p.total.toLocaleString('pt-BR')} / {p.capacidade.toLocaleString('pt-BR')}
+          </span>
+        </div>
+      </div>
+
+      {/* ⚠️ O aviso que faltava: no teto, a colônia PAROU de crescer — e o remédio tem nome. */}
+      {noTeto && (
+        <p className="text-rust mt-2 text-xs" data-populacao-no-teto>
+          {acimaDoTeto ? (
+            <>
+              <strong>Acima do teto.</strong> Você tem mais colonos do que a Estrutura de
+              Sobrevivência abriga — nada se perde, mas <strong>não entra mais ninguém</strong> até
+              ela subir.
+            </>
+          ) : (
+            <>
+              <strong>No teto.</strong> A população parou de crescer. Suba a Estrutura de
+              Sobrevivência para abrir vaga.
+            </>
+          )}
+        </p>
+      )}
+
+      {p.disponivel <= 0 && (
+        <p className="text-ink-soft/70 mt-1 text-xs" data-populacao-sem-livres>
+          Sem gente livre: não dá para ocupar zona nova nem erguer o que exige operador.
+        </p>
+      )}
+    </div>
+  )
+}
+
 function Contagem({ ate }: { ate: string | null }) {
   if (!ate) return <span className="text-ink-soft text-xs">na fila</span>
   const restam = Math.max(0, Math.round((new Date(ate).getTime() - Date.now()) / 1000))

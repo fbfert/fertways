@@ -10,7 +10,7 @@
  *
  *     node e2e/foto.mjs        # com a pilha do e2e.sh já de pé
  */
-import { abrirNavegador, BASE, clicarNaConstrucao, entrar, assentar } from './comum.mjs'
+import { abrirNavegador, BASE, clicarNaConstrucao, entrar, assentar, fecharNavegador } from './comum.mjs'
 
 const { navegador, page } = await abrirNavegador()
 
@@ -34,5 +34,5 @@ try {
   await page.screenshot({ path: '/tmp/foto-capital.png' })
   console.log('capital → /tmp/foto-capital.png')
 } finally {
-  await navegador.close()
+  await fecharNavegador(navegador)
 }

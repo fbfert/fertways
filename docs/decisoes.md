@@ -11394,3 +11394,89 @@ Rodado em produção duas vezes. O passo aparece no log —
 
 É o laço que o D-208 abriu, fechado: o backup não é só tirado e conferido, é tirado por um passo
 automático e **restaurado para provar que serve**.
+
+---
+
+## D-210 — A população estava no ar e não aparecia em tela nenhuma (A2.V2)
+
+Primeira fatia da revisão visual da navegação. O roadmap lista oito itens para a A2.V2 — HUD global,
+notificações, "desde sua última visita", alertas de produção, alertas militares, fila, pesquisa e
+**população**. Medido antes de escolher por onde começar: só **fila** e **pesquisa** existiam na
+camada de navegação.
+
+### ⚠️ Uma mecânica ligada em produção, invisível para todo mundo
+
+A população foi ativada no D-178 e governa três coisas desde então: o **teto habitacional**, os
+**operadores** que cada construção e cada zona exigem, e o **consumo** da cesta.
+`Populacao::estado()` existia desde o D-176 e devolvia exatamente os números de uma tela — e **nunca
+teve consumidor**. Nenhuma rota a publicava; `grep -rl "populacao" ui/` não achava um arquivo.
+
+Medido em produção:
+
+| | |
+|---|---|
+| colonos no mundo | **565** |
+| colônias **no teto habitacional** | **28 de 29** |
+| colônias em déficit de operadores | 21 de 29 |
+| colônias perdendo produção por escassez **agora** | **0** |
+
+⚠️ **Os dois últimos números importam juntos.** Ninguém está perdendo produção hoje — a penalidade
+por falta de operador na colônia ainda não foi ligada (está escrito no `ColonyTick`: *"NÃO faz,
+ainda"*). Então isto **não é vazamento**, é **constraint invisível**: 28 colônias pararam de crescer
+e não têm como saber, nem como saber que o remédio é subir a Estrutura de Sobrevivência.
+
+É o oitavo caso do mesmo padrão nesta Alpha (`vehicles.level` sem rota, `EfeitosDaPesquisa` sem
+consumidor, o `exposto` do Silo sem consequência…). A diferença é que aqui a peça parada era a
+**tela**, não a regra.
+
+### O que entrou
+
+`GET /colony` passa a publicar `populacao`, e o HUD ganhou um painel. Três escolhas que não são
+óbvias:
+
+1. **O número em destaque é o DISPONÍVEL, não o total.** Total é curiosidade; sem gente livre não se
+   ocupa zona nova nem se ergue o que exige operador, e é essa a pergunta que o colono traz.
+2. **`ativo` viaja no payload.** Com a chave-mestra desligada a tela **se cala**, em vez de mostrar
+   zeros — que um jogador lê como colônia morta. A distinção entre *"não há gente"* e *"esta regra
+   não vale aqui"* é do servidor, não da tela.
+3. **A tela diz "acima do teto" em vez de esconder.** O grandfathering do D-178 concedeu a muita
+   colônia mais colonos do que a Estrutura abriga; o número não é erro, e quem o vê precisa saber
+   que **não cresce mais** até subir o prédio.
+
+### ⚠️ Editei a árvore de deploy por engano
+
+Três edições saíram por caminho **relativo** a partir de `/home/fertways/deploy/fertways/backend`, e
+foram parar na cópia que o Apache serve. A cópia de deploy tem de ser descartável — o próprio
+`deploy.sh` aborta se ela tiver alteração local, então o estrago seria descobrir isso no deploy
+seguinte, longe da causa.
+
+Revertido por `git stash` depois de guardar as versões, e reaplicado na árvore de trabalho com
+caminhos absolutos. **A ferramenta de edição, que usa caminho absoluto, acertou as três vezes; o
+`python3` com caminho relativo errou as três.**
+
+### ⚠️ E três suítes de e2e reprovaram em lugares diferentes, sem eu ter tocado nelas
+
+Resumo, mobile e chat reprovaram em execuções consecutivas, cada uma passando na corrida seguinte. A
+tentação era caçar o defeito no código novo. A causa era a **máquina**:
+
+- **~10 Chromium órfãos** acumulados de execuções abortadas. `navegador.close()` **não mata** um
+  browser com frame desanexado — que é exatamente o estado em que ele é chamado, no `finally` de uma
+  suíte que estourou —, e o `process.exit()` seguinte deixa o processo vivo. Cada suíte reprovada
+  tornava a próxima mais provável de reprovar;
+- e a suíte mobile fecha painéis com `assentar()`, um `setTimeout` de **300 ms**. Com a máquina
+  carregada o painel ainda cobre o botão que o passo seguinte procura. O próprio repositório já tinha
+  escrito essa lição em `resumo.e2e.mjs` — *"espera o elemento SUMIR, em vez de dormir 300 ms"* — e
+  ela não tinha virado ferramenta.
+
+Duas correções: `fecharNavegador()` tenta o fim gracioso com prazo e **mata o processo** se ele não
+vier; `esperarSumir()` substitui o sono nos quatro fechamentos de painel da suíte mobile.
+
+⚠️ **E um erro de leitura meu no meio:** contei os órfãos com `pgrep -c -f "chrome|chromium"`, que
+**casa com o próprio comando de busca**. O "2 restantes" que eu vinha reportando era o `pgrep` a
+contar-se a si mesmo — `ps` mostra zero. O número inicial de 12 era real; o piso de 2, não.
+
+### Verificação
+
+1220 testes verdes (3 novos, sobre o **contrato da rota** — é o que impede a tela de voltar a ser
+peça parada) e as 10 suítes e2e verdes numa máquina limpa, com três asserções novas provando que a
+população **aparece**, que o destaque é o disponível e que o teto está ao lado.

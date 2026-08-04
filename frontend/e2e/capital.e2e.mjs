@@ -25,8 +25,7 @@ import {
   irPara,
   relatar,
   textoDaPagina,
-  janela,
-} from './comum.mjs'
+  janela, fecharNavegador } from './comum.mjs'
 
 const { navegador, page } = await abrirNavegador()
 
@@ -486,7 +485,7 @@ try {
     console.log('\nscreenshot em /tmp/e2e-capital-falha.png')
   } catch {}
 } finally {
-  await navegador.close()
+  await fecharNavegador(navegador)
 }
 
 process.exit(relatar('Capital'))

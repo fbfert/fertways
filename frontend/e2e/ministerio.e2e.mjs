@@ -19,8 +19,7 @@ import {
   esperarTexto,
   falhas,
   relatar,
-  textoDaPagina,
-} from './comum.mjs'
+  textoDaPagina, fecharNavegador } from './comum.mjs'
 
 const { navegador, page } = await abrirNavegador()
 
@@ -162,7 +161,7 @@ try {
     console.log('\nscreenshot em /tmp/e2e-ministerio-falha.png')
   } catch {}
 } finally {
-  await navegador.close()
+  await fecharNavegador(navegador)
 }
 
 process.exit(relatar('Ministério das Reputações'))
