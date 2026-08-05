@@ -7,6 +7,7 @@ use App\Models\Colony;
 use App\Models\Ledger;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Hash;
 use Tests\TestCase;
 
@@ -159,6 +160,67 @@ class ResumoDeRetornoTest extends TestCase
 
         $this->actingAs($u)->postJson('/resumo/visto')->assertOk();
         $this->actingAs($u)->postJson('/resumo/visto')->assertOk();
+    }
+
+    // ──────────────────────── reabrir: o botão que não abria nada (2026-08-05)
+
+    /**
+     * ⚠️ O defeito, em um teste: fechar o resumo e clicar em "Ver o que aconteceu desde sua última
+     * visita" não abria nada.
+     *
+     * A causa não era a tela. `resumo_visto_em` avança ao FECHAR, então um minuto depois a "última
+     * visita" era um minuto atrás — janela vazia — e o piso de uma hora ainda barrava por cima. O
+     * botão pedia uma janela que ele mesmo tinha acabado de consumir.
+     */
+    public function test_reabrir_mostra_a_janela_anterior_mesmo_dentro_do_piso(): void
+    {
+        [$u] = $this->colonoComColonia();
+        $u->forceFill(['resumo_visto_em' => now()->subHours(5)])->save();
+
+        // O jogador viu e fechou: o marcador avança e a janela de 5 h vira a ANTERIOR.
+        $this->actingAs($u)->postJson('/resumo/visto')->assertOk();
+
+        // Sem `reabrir`, o piso silencia — e é isso que ele deve continuar fazendo.
+        $auto = $this->actingAs($u)->getJson('/resumo')->assertOk()->json();
+        $this->assertFalse($auto['mostrar']);
+        $this->assertSame('piso_de_uma_hora', $auto['motivo']);
+
+        // Com `reabrir`, a janela de 5 h volta inteira.
+        $r = $this->actingAs($u)->getJson('/resumo?reabrir=1')->assertOk()->json();
+        $this->assertTrue($r['mostrar']);
+        $this->assertTrue(
+            Carbon::parse($r['desde'])->lessThan(now()->subHours(4)),
+            'reabrir tem de devolver a janela ANTERIOR, não um intervalo de zero minuto',
+        );
+    }
+
+    /** Reler não consome: reabrir não pode mover marcador nenhum, ou só funcionaria uma vez. */
+    public function test_reabrir_nao_move_os_marcadores(): void
+    {
+        [$u] = $this->colonoComColonia();
+        $u->forceFill(['resumo_visto_em' => now()->subHours(5)])->save();
+        $this->actingAs($u)->postJson('/resumo/visto')->assertOk();
+
+        $antes = $u->fresh();
+
+        $this->actingAs($u)->getJson('/resumo?reabrir=1')->assertOk();
+        $this->actingAs($u)->getJson('/resumo?reabrir=1')->assertOk();
+
+        $depois = $u->fresh();
+        $this->assertEquals($antes->resumo_visto_em, $depois->resumo_visto_em);
+        $this->assertEquals($antes->resumo_anterior_em, $depois->resumo_anterior_em);
+    }
+
+    /** Quem nunca fechou um resumo não tem o que reabrir — e o servidor diz isso, em vez de inventar. */
+    public function test_sem_janela_anterior_nao_ha_o_que_reabrir(): void
+    {
+        [$u] = $this->colonoComColonia();
+        $u->forceFill(['resumo_visto_em' => null, 'resumo_anterior_em' => null])->save();
+
+        $r = $this->actingAs($u)->getJson('/resumo?reabrir=1')->assertOk()->json();
+
+        $this->assertFalse($r['mostrar']);
+        $this->assertSame('sem_janela_anterior', $r['motivo']);
     }
 
     // ──────────────────────────────────────────────────────────── o conteúdo

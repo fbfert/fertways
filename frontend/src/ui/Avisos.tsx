@@ -31,11 +31,16 @@ const CORES: Record<Aviso['severidade'], string> = {
   oportunidade: 'border-ink-soft/30 bg-sand-light text-ink-soft',
 }
 
-const SIMBOLO: Record<Aviso['severidade'], string> = {
-  urgente: '▲',
-  atencao: '!',
-  oportunidade: '·',
-}
+/*
+ * ⚠️ O símbolo antes do título SAIU (pedido do usuário, 2026-08-05). Era `▲`/`!`/`·` por severidade.
+ *
+ * A regra do deck que o justificava continua valendo — *estado nunca se anuncia só por cor*, porque
+ * a paleta é quente por identidade e o vermelho fica a 14° do `rust` da marca. O que mudou é de onde
+ * vem o segundo canal: **o título de cada aviso é uma frase inteira** ("Biomassa encheu e parou de
+ * produzir", "Sua zona está sob cerco"), e o próprio `docs/design-tokens.md` diz que é assim que a
+ * regra se cumpre — *"o componente `Erro` escreve a palavra 'Erro' pelo mesmo motivo"*. A palavra
+ * carrega o aviso quando a cor falha; o glifo era um terceiro canal, não o segundo.
+ */
 
 export function Avisos({ aoAbrirResumo }: { aoAbrirResumo?: () => void }) {
   const [avisos, setAvisos] = useState<Aviso[]>([])
@@ -72,9 +77,7 @@ export function Avisos({ aoAbrirResumo }: { aoAbrirResumo?: () => void }) {
           data-severidade={a.severidade}
           className={`border-l-4 px-3 py-1.5 text-sm ${CORES[a.severidade]}`}
         >
-          <strong>
-            {SIMBOLO[a.severidade]} {a.titulo}
-          </strong>
+          <strong>{a.titulo}</strong>
           <span className="text-ink-soft ml-2 text-xs">{a.detalhe}</span>
         </div>
       ))}

@@ -16,9 +16,19 @@ use Illuminate\Http\Request;
  */
 class ResumoController extends Controller
 {
+    /**
+     * `?reabrir=1` é o clique explícito em "Ver o que aconteceu desde sua última visita".
+     *
+     * Ele **reabre a janela anterior** em vez de pedir uma nova, e não é sutileza: o marcador avança
+     * ao fechar, então sem isto o botão pedia um intervalo de zero minuto e ainda apanhava do piso
+     * de uma hora — não abria nada, que foi exatamente a queixa (2026-08-05). O piso do §5.1 existe
+     * para conter o popup que se convida sozinho; um clique não é isso.
+     */
     public function show(Request $request, ResumoDeRetorno $resumo): JsonResponse
     {
-        return response()->json($resumo->montar($request->user()));
+        return response()->json(
+            $resumo->montar($request->user(), $request->boolean('reabrir')),
+        );
     }
 
     /**

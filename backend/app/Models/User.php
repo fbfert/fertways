@@ -63,6 +63,8 @@ class User extends Authenticatable
              * produção, com o usuário vindo do banco pelo Sanctum.
              */
             'resumo_visto_em' => 'datetime',
+            // A janela que o resumo mostrou da última vez — é ela que a reabertura explícita reabre.
+            'resumo_anterior_em' => 'datetime',
         ];
     }
 

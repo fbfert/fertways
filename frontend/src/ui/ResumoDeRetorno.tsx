@@ -28,7 +28,21 @@ import { rotulo } from '../game/ColonyScene'
  * ⚠️ A marcação é disparada e **não esperada** — ver `fechar()`. Se ela falhar, o resumo reaparece
  * na próxima visita, o que é bem melhor do que um botão pendurado esperando um POST.
  */
-export function ResumoDeRetorno({ aoFechar }: { aoFechar: () => void }) {
+export function ResumoDeRetorno({
+  aoFechar,
+  reabrindo = false,
+}: {
+  aoFechar: () => void
+  /**
+   * Veio do clique em "Ver o que aconteceu desde sua última visita", e não do convite automático.
+   *
+   * Muda **duas** coisas, e as duas são necessárias para o botão funcionar: o servidor devolve a
+   * janela ANTERIOR (o marcador já avançou ao fechar, então pedir "desde a última visita" daria um
+   * intervalo de zero minuto) e ignora o piso de uma hora, que existe para conter o popup que se
+   * convida sozinho. E fechar **não** marca nada: reler não consome janela.
+   */
+  reabrindo?: boolean
+}) {
   const [dados, setDados] = useState<Resumo | null>(null)
   const [erro, setErro] = useState<string | null>(null)
 
@@ -36,7 +50,7 @@ export function ResumoDeRetorno({ aoFechar }: { aoFechar: () => void }) {
     let vivo = true
 
     api
-      .resumo()
+      .resumo(reabrindo)
       .then((r) => {
         if (!vivo) return
         // O servidor decide se aparece (primeira visita, piso de uma hora, sem colônia). A tela
@@ -64,7 +78,9 @@ export function ResumoDeRetorno({ aoFechar }: { aoFechar: () => void }) {
    * irritante, e muito melhor do que um botão que parece travado.
    */
   function fechar() {
-    void api.resumoVisto().catch(() => {})
+    // Reabrir é reler, e reler não consome: marcar aqui empurraria o marcador de novo e apagaria
+    // justamente a janela que o botão acabou de mostrar — ele deixaria de funcionar na segunda vez.
+    if (!reabrindo) void api.resumoVisto().catch(() => {})
     aoFechar()
   }
 

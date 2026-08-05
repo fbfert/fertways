@@ -188,7 +188,13 @@ export default function App() {
    * para mostrar (primeira visita, piso de uma hora, sem colônia; GDD ALPHA 2 §5.1). Aqui `true`
    * significa só "ainda não foi dispensado nesta carga".
    */
-  const [resumoAberto, setResumoAberto] = useState(true)
+  /*
+   * E `'auto'` vs `'reabrindo'` não é detalhe de estado: são dois pedidos diferentes ao servidor.
+   * O automático pede "desde a última visita" e apanha do piso de uma hora; o reaberto pede a
+   * janela ANTERIOR, que o marcador já deixou para trás ao fechar. Um booleano só não daria conta
+   * — e foi por não distinguir os dois que o botão da faixa não abria nada (2026-08-05).
+   */
+  const [resumoAberto, setResumoAberto] = useState<'auto' | 'reabrindo' | null>('auto')
   const [missoesAbertas, setMissoesAbertas] = useState(false)
   const [bugsAbertos, setBugsAbertos] = useState(false)
   const [chatPendente, setChatPendente] = useState(0)
@@ -283,7 +289,7 @@ export default function App() {
       <div className="absolute top-24 right-5 hidden w-64 space-y-4 md:block">
         {/* A2.V2 (D-211): a faixa de avisos, acima de tudo o mais na coluna — o que exige ação
             não pode estar abaixo do que é rotina. Ela SOME quando não há nada a dizer. */}
-        <Avisos aoAbrirResumo={() => setResumoAberto(true)} />
+        <Avisos aoAbrirResumo={() => setResumoAberto('reabrindo')} />
         {fila && <FilaDeObras fila={fila} />}
         {colonia && <TaxasDeRecursos colonia={colonia} />}
         {/* A2.V2 (D-210): a população, que estava no ar desde o D-178 e não tinha tela. Fica ao
@@ -380,7 +386,12 @@ export default function App() {
       */}
       {/* A2.8: o mundo avisa quando está diferente. Ver o docblock de `EventosDoMundo`. */}
       {colonia && <EventosDoMundo />}
-      {colonia && resumoAberto && <ResumoDeRetorno aoFechar={() => setResumoAberto(false)} />}
+      {colonia && resumoAberto && (
+        <ResumoDeRetorno
+          reabrindo={resumoAberto === 'reabrindo'}
+          aoFechar={() => setResumoAberto(null)}
+        />
+      )}
 
       <Routes>
         <Route path="/" element={jogo} />

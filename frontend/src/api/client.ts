@@ -1242,7 +1242,13 @@ export const api = {
    * O GET **não** move o marcador — quem move é o `resumoVisto`, chamado ao FECHAR a tela. Se o GET
    * movesse, abrir e fechar sem ler já teria consumido a janela (§5.1).
    */
-  resumo: () => req<ResumoDeRetorno>('/resumo'),
+  /**
+   * `reabrindo` é o clique explícito no "Ver o que aconteceu desde sua última visita": o servidor
+   * devolve **a janela anterior** e ignora o piso de uma hora, em vez de montar uma janela nova de
+   * zero minuto (que era o motivo de o botão não abrir nada).
+   */
+  resumo: (reabrindo = false) =>
+    req<ResumoDeRetorno>(`/resumo${reabrindo ? '?reabrir=1' : ''}`),
   resumoVisto: () => req<{ message: string }>('/resumo/visto', { method: 'POST' }),
 
   /*

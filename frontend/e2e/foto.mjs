@@ -28,6 +28,21 @@ try {
   await page.screenshot({ path: '/tmp/foto-detalhe.png' })
   console.log('detalhe → /tmp/foto-detalhe.png')
 
+  /*
+   * O painel de uma construção TRAVADA (A2.V3). O selo no hexágono diz que algo parou; é aqui que o
+   * jogador lê **o quê e por quê**, e é texto que nenhum teste de clique confere.
+   *
+   * A Fazenda é a escolhida porque o `e2e.sh` enche a Biomassa até o teto logo antes destas fotos —
+   * sem esse preparo, a colônia recém-semeada não tem nenhuma construção travada para fotografar, e
+   * o cartão sairia igual ao de qualquer outra.
+   */
+  await page.keyboard.press('Escape')
+  await new Promise((r) => setTimeout(r, 600))
+  await clicarNaConstrucao(page, 'Fazenda')
+  await new Promise((r) => setTimeout(r, 2000))
+  await page.screenshot({ path: '/tmp/foto-travada.png' })
+  console.log('travada → /tmp/foto-travada.png')
+
   await page.goto(`${BASE}/capital`, { waitUntil: 'domcontentloaded' })
   await assentar()
   await new Promise((r) => setTimeout(r, 2500))

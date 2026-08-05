@@ -8,6 +8,7 @@ use App\Domain\Populacao\Parametros;
 use App\Models\Colony;
 use App\Models\Combat;
 use App\Models\NeutralZone;
+use App\Models\ResourceType;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -152,12 +153,25 @@ class Avisos
         }
 
         if ($cheios !== []) {
+            /*
+             * ⚠️ O aviso NOMEIA o recurso (pedido do usuário, 2026-08-05).
+             *
+             * A primeira versão dizia "Um recurso encheu e parou de produzir" e deixava o colono
+             * caçar qual — numa colônia com 26 recursos, um aviso que não diz o quê é quase um
+             * aviso que não diz nada. Ele já sabia quais eram (`$cheios`); só não contava.
+             *
+             * Acima de três, a lista vira ruído e a contagem volta: o nome dos três primeiros já
+             * dá o rumo, e o resto o Depósito Local mostra.
+             */
+            $nomes = ResourceType::whereIn('code', $cheios)->pluck('nome', 'code');
+            $legiveis = array_map(fn ($c) => $nomes[$c] ?? $c, $cheios);
+
             $avisos[] = [
                 'codigo' => 'estoque_cheio',
                 'severidade' => self::ATENCAO,
-                'titulo' => count($cheios) === 1
-                    ? 'Um recurso encheu e parou de produzir'
-                    : count($cheios).' recursos encheram e pararam de produzir',
+                'titulo' => count($legiveis) === 1
+                    ? $legiveis[0].' encheu e parou de produzir'
+                    : $this->listar($legiveis).' encheram e pararam de produzir',
                 // O teto TRAVA, não derrama (§14): não se perde estoque, perde-se a hora de produção.
                 'detalhe' => 'Nada se perde — mas nada mais entra. Gaste, venda ou suba o Depósito Local.',
             ];
@@ -248,5 +262,27 @@ class Avisos
         }
 
         return $avisos;
+    }
+
+    /**
+     * "Biomassa e Água", "Biomassa, Água e Oxigênio", "Biomassa, Água e mais 2".
+     *
+     * O corte em três é arbitrário e assumido: acima disso a frase fica mais longa do que o aviso
+     * que ela deveria dar, e a faixa existe para ser lida de relance. Mas os três primeiros vão
+     * **nomeados** mesmo assim — o pedido era saber QUAL recurso, e "4 recursos" não responde isso.
+     *
+     * @param  list<string>  $nomes
+     */
+    private function listar(array $nomes): string
+    {
+        if (count($nomes) > 3) {
+            $sobram = count($nomes) - 2;
+
+            return implode(', ', array_slice($nomes, 0, 2)).' e mais '.$sobram;
+        }
+
+        $ultimo = array_pop($nomes);
+
+        return implode(', ', $nomes).' e '.$ultimo;
     }
 }

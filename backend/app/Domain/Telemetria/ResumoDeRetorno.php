@@ -5,6 +5,7 @@ namespace App\Domain\Telemetria;
 use App\Models\Colony;
 use App\Models\Ledger;
 use App\Models\User;
+use Carbon\CarbonInterface;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
@@ -54,7 +55,7 @@ class ResumoDeRetorno
     /**
      * @return array{mostrar: bool, motivo: string, desde: ?string, ate: string, ...}
      */
-    public function montar(User $user): array
+    public function montar(User $user, bool $reabrindo = false): array
     {
         $agora = now();
         $colonia = $user->colony;
@@ -62,6 +63,30 @@ class ResumoDeRetorno
         if (! $colonia) {
             // Sem colônia não há o que resumir — e é o estado de quem ainda não fundou.
             return $this->nada('sem_colonia', $agora);
+        }
+
+        /*
+         * ⚠️ Reabertura explícita: mostra DE NOVO a janela anterior, e não uma janela nova.
+         *
+         * O botão "Ver o que aconteceu desde sua última visita" não abria nada, e a causa estava
+         * aqui, não na tela: `resumo_visto_em` avança ao FECHAR, então um minuto depois de fechar a
+         * "última visita" era um minuto atrás — janela vazia — e o piso de uma hora ainda barrava.
+         * O botão pedia uma janela que ele mesmo já tinha consumido.
+         *
+         * O piso do §5.1 governa o resumo **automático**, que é o que ele existe para conter: um
+         * popup que se convida sozinho a cada carga de página. Um clique explícito não é isso, e
+         * negá-lo era transformar uma proteção contra insistência em proibição de reler.
+         *
+         * Nada é movido aqui: reabrir não consome janela nenhuma.
+         */
+        if ($reabrindo) {
+            $desde = $user->resumo_anterior_em ?? $user->resumo_visto_em;
+
+            if ($desde === null) {
+                return $this->nada('sem_janela_anterior', $agora);
+            }
+
+            return $this->janela($colonia, $desde, $agora);
         }
 
         if ($user->resumo_visto_em === null) {
@@ -87,6 +112,15 @@ class ResumoDeRetorno
             return $this->nada('piso_de_uma_hora', $agora, $desde);
         }
 
+        return $this->janela($colonia, $desde, $agora);
+    }
+
+    /**
+     * Monta o resumo de um intervalo. Extraído para que a reabertura explícita e o resumo automático
+     * contem **a mesma história** sobre a mesma janela — duas montagens seriam duas verdades.
+     */
+    private function janela(Colony $colonia, CarbonInterface $desde, CarbonInterface $agora): array
+    {
         $producao = $this->producao($colonia, $desde, $agora);
         $fert = $this->fert($colonia, $desde, $agora);
         $obras = $this->obras($colonia, $desde, $agora);
@@ -109,10 +143,19 @@ class ResumoDeRetorno
         ];
     }
 
-    /** Move o marcador. Chamado quando o jogador FECHA o resumo, não quando o abre. */
+    /**
+     * Move o marcador. Chamado quando o jogador FECHA o resumo, não quando o abre.
+     *
+     * A janela que acabou de ser mostrada é guardada em `resumo_anterior_em` — é ela que o botão
+     * "Ver o que aconteceu desde sua última visita" reabre. Sem isto, fechar o resumo apagava para
+     * sempre o que ele dizia, e o botão abria uma janela de zero minuto.
+     */
     public function marcarVisto(User $user): void
     {
-        $user->forceFill(['resumo_visto_em' => now()])->save();
+        $user->forceFill([
+            'resumo_anterior_em' => $user->resumo_visto_em,
+            'resumo_visto_em' => now(),
+        ])->save();
 
         app(RegistrarEvento::class)->handle('resumo_visto', $user);
     }

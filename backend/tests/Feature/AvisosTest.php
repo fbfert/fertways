@@ -66,6 +66,51 @@ class AvisosTest extends TestCase
         $this->assertNotContains('sem_colonos_livres', $codigos);
     }
 
+    /**
+     * ⚠️ O aviso diz QUAL recurso encheu (pedido do usuário, 2026-08-05).
+     *
+     * Antes dizia "Um recurso encheu e parou de produzir" e deixava o colono caçar qual, entre 26.
+     * O dado sempre esteve à mão — o aviso é montado a partir da lista dos cheios; ele só não
+     * contava. Um aviso que não diz o quê é quase um aviso que não diz nada.
+     */
+    public function test_o_aviso_de_estoque_cheio_nomeia_o_recurso(): void
+    {
+        $user = $this->colono();
+        DB::table('estoque_settings')->where('id', 1)->update(['ativo' => true, 'capacidade_base' => 100]);
+
+        $colonia = $user->colony;
+        $colonia->resources()->update(['amount' => 0]);
+        $colonia->resources()->where('resource_type', 'biomassa')->update(['amount' => 999_999]);
+
+        $colonia = Colony::with(['buildings', 'resources'])->findOrFail($colonia->id);
+        $aviso = collect(app(Avisos::class)->paraColonia($colonia))
+            ->firstWhere('codigo', 'estoque_cheio');
+
+        $this->assertNotNull($aviso, 'o aviso de estoque cheio devia ter disparado');
+        $this->assertStringContainsString('Biomassa', $aviso['titulo']);
+    }
+
+    /** Com vários, os primeiros vão nomeados mesmo assim: "4 recursos" não responde "qual?". */
+    public function test_com_varios_cheios_os_primeiros_continuam_nomeados(): void
+    {
+        $user = $this->colono();
+        DB::table('estoque_settings')->where('id', 1)->update(['ativo' => true, 'capacidade_base' => 100]);
+
+        $colonia = $user->colony;
+        $colonia->resources()->update(['amount' => 0]);
+        $colonia->resources()
+            ->whereIn('resource_type', ['biomassa', 'agua', 'oxigenio', 'metal_bruto'])
+            ->update(['amount' => 999_999]);
+
+        $colonia = Colony::with(['buildings', 'resources'])->findOrFail($colonia->id);
+        $aviso = collect(app(Avisos::class)->paraColonia($colonia))
+            ->firstWhere('codigo', 'estoque_cheio');
+
+        $this->assertNotNull($aviso);
+        $this->assertMatchesRegularExpression('/[A-ZÁ-Ú]/', $aviso['titulo']);
+        $this->assertStringContainsString('e mais', $aviso['titulo']);
+    }
+
     /** Sem nada a dizer, a faixa fica vazia — silêncio é estado válido, e a tela some. */
     public function test_colonia_ocupada_e_sem_problema_nao_gera_urgencia(): void
     {
