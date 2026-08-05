@@ -36,6 +36,26 @@ return Application::configure(basePath: dirname(__DIR__))
     })
     ->withExceptions(function (Exceptions $exceptions) {
         /*
+         * Violação de regra de jogo NÃO vai para o log. Isto é o jogo funcionando: "falta energia",
+         * "não cabe no depósito", "a zona não é sua" são respostas da regra a um pedido inválido,
+         * não defeitos do servidor — e viram 422, com código estável, para o front. O Laravel trata
+         * a `ValidationException` do mesmo jeito e pela mesma razão.
+         *
+         * Gravá-las em nível ERROR mentia duas vezes. Sobre a gravidade: um 422 esperado ficava com
+         * a mesma cara de um 500. E sobre o volume: em produção rendia ~79 linhas por dia de um
+         * único ator repetindo o mesmo despacho impossível a cada 20 minutos, com o `laravel.log`
+         * já em 90 MB — ruído que esconde o erro de verdade no meio dele (medido em 2026-08-05).
+         *
+         * ⚠️ Isto aqui, e não um `report()` na classe. `report()` devolvendo `false` significa
+         * "siga com o tratamento padrão", ou seja, **loga assim mesmo** — o oposto do que o nome
+         * sugere. Escrito daquele jeito primeiro, e foi o teste que desmentiu.
+         *
+         * Quem precisa contar tentativa fracassada é a telemetria (D-163), que deriva do ledger e
+         * sabe de quem é a tentativa. Log de aplicação não é lugar de métrica de gameplay.
+         */
+        $exceptions->dontReport(\App\Exceptions\DomainRuleException::class);
+
+        /*
          * Esta é uma API. Sem isto, um GET a /colony sem `Accept: application/json` faz o
          * Laravel tentar redirecionar para a rota `login`, que não existe aqui, e devolver
          * 500 em vez de 401. O front sempre manda o header, mas curl, monitores de uptime e
