@@ -12,6 +12,9 @@ export const CORES = {
   sandLight: 0xfdf0e2,
   ink: 0x1e1c17,
   inkSoft: 0x372f27,
+  // Paleta de estado (D-161, docs/design-tokens.md). `info` é escura de propósito — a superfície do
+  // jogo é clara, e cor de estado só vira legível se for mais escura que o fundo.
+  info: 0x243c48,
 }
 
 /**
@@ -186,6 +189,49 @@ export class ColonyScene extends Phaser.Scene {
     g.setDepth(-1)
   }
 
+  /**
+   * O selo de estado, no vértice superior direito do hexágono (A2.V3).
+   *
+   * ## Por que um selo, e por que ele tem glifo
+   *
+   * O deck proíbe anunciar estado **só por cor** (`docs/design-tokens.md`): a paleta do FERTWAYS é
+   * quente por identidade, o vermelho fica a 14° de matiz do `rust` da marca, e num relance — ou para
+   * quem tem deficiência de visão de cor — dois estados viram o mesmo. O glifo é o **segundo canal**,
+   * e não é enfeite: é o que carrega o aviso quando a cor falha. Mesma regra do `Botao` de variante
+   * `perigo`, que desenha um triângulo antes do rótulo.
+   *
+   * ⚠️ E `ember` **não é cor de texto** — sobre areia dá 1,62:1, ilegível. Como *fundo*, com letra
+   * `ink`, dá 8,71:1. Por isso o selo de aviso pinta o fundo, ao contrário de tudo o mais na cena.
+   *
+   * O vértice superior direito fica a -30°; o selo é posto um pouco para dentro dele, para não
+   * brigar com o nível (que mora no topo, no centro) nem com o nome (que mora embaixo).
+   */
+  private desenharSelo(r: number, glifo: string, fundo: number, tinta: string) {
+    const c = this.add.container(r * 0.62, -r * 0.36)
+    const raio = Math.max(7, r * 0.26)
+
+    const g = this.add.graphics()
+    g.fillStyle(fundo, 1)
+    g.fillCircle(0, 0, raio)
+    // Aro claro: o selo cai sobre a arte do prédio, que é escura e irregular.
+    g.lineStyle(Math.max(1.5, raio * 0.16), CORES.sandLight, 1)
+    g.strokeCircle(0, 0, raio)
+    c.add(g)
+
+    c.add(
+      this.add
+        .text(0, 0, glifo, {
+          fontFamily: 'Archivo, Inter, sans-serif',
+          fontSize: `${Math.round(raio * 1.25)}px`,
+          fontStyle: 'bold',
+          color: tinta,
+        })
+        .setOrigin(0.5),
+    )
+
+    return c
+  }
+
   private hexPontos(cx: number, cy: number, r: number): Phaser.Math.Vector2[] {
     // Hexágono "pontudo em cima", como o do logo.
     return Array.from({ length: 6 }, (_, i) => {
@@ -349,6 +395,33 @@ export class ColonyScene extends Phaser.Scene {
         })
         .setOrigin(0.5, 0),
     )
+
+    /*
+     * O selo de estado (A2.V3), por último: ele fica POR CIMA da arte e do texto de propósito.
+     *
+     * Os dois estados que ganham selo são os que o servidor sabia e a tela calava — ver
+     * `App\Domain\Building\EstadoDaConstrucao`:
+     *
+     * - **melhorando**: subir do 3 para o 4 era idêntico a estar parado no 3. O `finishes_at` já
+     *   vinha no payload desde sempre; a cena só olhava `level > 0`.
+     * - **travada**: o §14 promete que *"o jogador perde oportunidade, nunca estoque"*. Perder
+     *   oportunidade sem saber é perder as duas — e no dia da medição havia 5 recursos no teto em 2
+     *   colônias, com o prédio rodando e rendendo zero.
+     *
+     * `erguendo` não ganha selo: o ⏳ no lugar do nível já ocupa a construção inteira, e um segundo
+     * sinal para o mesmo fato só polui.
+     *
+     * ⚠️ **Sem tween aqui, e de propósito.** A A2.V3 pede "animações sutis", e uma pulsação no selo
+     * de travada seria a candidata óbvia — mas `desenhar()` reconstrói a árvore inteira
+     * (`removeAll(true)`) a cada hover, resize e atualização de specs, e tween sobre alvo destruído é
+     * exatamente a classe de defeito que obrigou a guarda `viva()` a existir. A animação entra quando
+     * tiver ciclo de vida próprio; o estado não precisa esperar por ela.
+     */
+    if (spec.estado === 'melhorando') {
+      c.add(this.desenharSelo(r, '↑', CORES.info, '#fdf0e2'))
+    } else if (spec.estado === 'travada') {
+      c.add(this.desenharSelo(r, '!', CORES.ember, '#1e1c17'))
+    }
 
     return c
   }

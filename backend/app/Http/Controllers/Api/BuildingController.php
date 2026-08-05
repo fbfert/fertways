@@ -6,6 +6,7 @@ use App\Domain\Building\BuildingSpecs;
 use App\Domain\Building\ConstruirEmSlot;
 use App\Domain\Building\Demolir;
 use App\Domain\Building\EnqueueUpgrade;
+use App\Domain\Building\EstadoDaConstrucao;
 use App\Domain\Building\Funcoes;
 use App\Domain\Colony\Slots;
 use App\Domain\Production\ColonyTick;
@@ -245,7 +246,7 @@ class BuildingController extends Controller
      * atrás do botão "Evoluir". O jogador precisa saber para que serve o prédio antes de saber
      * o preço dele.
      */
-    public function specs(Request $request, BuildingSpecs $specs): JsonResponse
+    public function specs(Request $request, BuildingSpecs $specs, EstadoDaConstrucao $estados): JsonResponse
     {
         $user = $request->user();
         $colony = $user->colony;
@@ -253,6 +254,11 @@ class BuildingController extends Controller
         if (! $colony) {
             throw new DomainRuleException('sem_colonia', 'Funde uma colônia primeiro.');
         }
+
+        // Uma leitura do estoque para as 22 construções (A2.V3). O estado de cada uma depende do
+        // que a colônia TEM — e perguntar por construção seria N+1 no caminho que abre a colônia.
+        $estoque = $colony->resources()->pluck('amount', 'resource_type')
+            ->map(fn ($v) => (int) $v)->all();
 
         // Uma consulta só para todas as construções da colônia: com repetição (D-59) uma colônia
         // pode ter quatro Minas, e uma consulta por linha viraria N+1 de verdade.
@@ -276,11 +282,26 @@ class BuildingController extends Controller
         ] : null;
 
         return response()->json(
-            $colony->buildings->map(function (Building $b) use ($specs, $user, $efeito) {
+            $colony->buildings->map(function (Building $b) use ($specs, $user, $efeito, $estados, $colony, $estoque) {
                 $alvo = $b->level + 1;
                 $max = $specs->nivelMaximo($b->type);
 
+                $atual = $efeito($b->type, $b->level);
+                /*
+                 * A2.V3: em que pé ela está, para a colmeia desenhar. `producao_hora` já vem com a
+                 * ressalva da Indústria Siderúrgica resolvida (ela declara INSUMO ali, e o `$efeito`
+                 * acima devolve `null` nesse caso) — então o estado herda a correção de graça, em vez
+                 * de repetir a regra e arriscar as duas divergirem.
+                 */
+                $estado = $estados->de($colony, $b, $atual['producao_hora'] ?? null, $estoque);
+
                 $base = [
+                    // Um de `erguendo`/`melhorando`/`travada`/`produzindo`, ou `null` quando não dá
+                    // para afirmar nada (construção que não declara produção). Ver EstadoDaConstrucao.
+                    'estado' => $estado['estado'],
+                    // Vai junto mesmo quando o estado é outro: uma construção que rende dois recursos
+                    // com um deles no teto produz pela metade, e a tela pode contar isso.
+                    'recursos_no_teto' => $estado['recursos_no_teto'],
                     'id' => $b->id,
                     'type' => $b->type,
                     'level' => $b->level,
@@ -298,7 +319,7 @@ class BuildingController extends Controller
                     // O que ela FAZ: a frase do GDD, a fonte, e a nota honesta de quando o efeito
                     // ainda não morde no jogo.
                     'funcao' => Funcoes::de($b->type),
-                    'efeito_atual' => $efeito($b->type, $b->level),
+                    'efeito_atual' => $atual,
                     'efeito_proximo' => $efeito($b->type, $alvo),
                     // Só a Oficina escolhe receita (§24.5). Sem este campo a UI não teria como
                     // mostrar qual das três está ativa, e o `PATCH .../recipe` ficava órfão.

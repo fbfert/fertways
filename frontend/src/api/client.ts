@@ -232,7 +232,23 @@ export type Spec = {
   efeito_proximo: Efeito | null
   /** Só a Oficina tem receita (§24.5). Nas demais vem `null`. */
   recipe?: string | null
+  /**
+   * Em que pé ela está, para a colmeia desenhar (A2.V3).
+   *
+   * `null` quando o servidor não tem o que afirmar — construção que não declara produção (Quartel,
+   * Mercado Local) ou a Indústria Siderúrgica, cujo `producao_hora` é insumo. Nesse caso a cena
+   * desenha o que sempre desenhou: **ausência de afirmação, nunca afirmação errada.**
+   */
+  estado?: EstadoDaConstrucao | null
+  /**
+   * Quais dos recursos que ela produz estão no teto (§14). Vem mesmo quando o estado é outro: uma
+   * construção que rende dois recursos com um deles cheio produz pela metade, e isso é contável.
+   */
+  recursos_no_teto?: string[]
 }
+
+/** Ver `App\Domain\Building\EstadoDaConstrucao` — os nomes são os mesmos dos dois lados. */
+export type EstadoDaConstrucao = 'erguendo' | 'melhorando' | 'travada' | 'produzindo'
 
 /** Uma construção que o colono pode erguer num slot vazio (D-59). */
 export type Erguivel = {

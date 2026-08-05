@@ -7,6 +7,7 @@ import type { Arte } from '../game/arte'
 import { IconeRecurso } from './IconeRecurso'
 import { Popup } from './Popup'
 import { INDUSTRIAIS, nomeRecurso, PRIMARIOS, RAROS } from './recursos'
+import { explicacaoDoEstado } from './estadoDaConstrucao'
 import { Pesquisa } from './Pesquisa'
 
 /**
@@ -494,6 +495,23 @@ export function Detalhe({
         {emObra ? 'em obra' : `nível ${spec.level} de ${spec.max_level}`}
         {spec.essencial && <span className="text-rust"> · essencial</span>}
       </div>
+
+      {/*
+        O porquê do selo (A2.V3). O hexágono diz QUE algo mudou; aqui é onde cabe dizer o quê e o
+        que fazer a respeito. `aviso` é o único estado do deck que pinta o FUNDO — `ember` sobre
+        areia dá 1,62:1 e é ilegível como texto, mas como fundo, com letra `ink`, dá 8,71:1
+        (docs/design-tokens.md). E o glifo vai junto: estado nunca se anuncia só por cor.
+      */}
+      {explicacaoDoEstado(spec) && (
+        <p
+          className={`mt-2 rounded px-2 py-1.5 text-xs ${
+            spec.estado === 'travada' ? 'bg-ember text-ink' : 'text-ink-soft bg-sand'
+          }`}
+        >
+          <span aria-hidden="true">{spec.estado === 'travada' ? '! ' : '↑ '}</span>
+          {explicacaoDoEstado(spec)}
+        </p>
+      )}
 
       <OQueFaz funcao={spec.funcao} atual={spec.efeito_atual} proximo={spec.efeito_proximo} />
 

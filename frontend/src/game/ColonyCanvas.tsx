@@ -4,6 +4,7 @@ import { colmeia, ColonyScene, rotulo } from './ColonyScene'
 import { ControlesDeZoom } from './ControlesDeZoom'
 import { useVista } from './vista'
 import { relogio, segundosRestantes } from '../ui/recursos'
+import { resumoDoEstado } from '../ui/estadoDaConstrucao'
 import type { Spec } from '../api/client'
 
 type Props = {
@@ -103,8 +104,20 @@ export function ColonyCanvas({ specs, linhas, onSelecionar, onSlotVazio }: Props
 
       {centros.map(([x, y], slot) => {
         const spec = porSlot.get(slot)
+        /*
+         * O estado entra no NOME ACESSÍVEL, e não só no selo pintado (A2.V3). O selo é pixel de
+         * canvas: leitor de tela não o alcança. Sem isto, "esta construção parou de render" seria
+         * informação exclusiva de quem enxerga — o mesmo erro que o D-59 evitou nos cliques.
+         */
+        const estado = spec ? resumoDoEstado(spec) : null
         const nome = spec
-          ? `${rotulo(spec.type)}, ${spec.level > 0 ? `nível ${spec.level}` : 'em obra'}`
+          ? [
+              rotulo(spec.type),
+              spec.level > 0 ? `nível ${spec.level}` : 'em obra',
+              estado,
+            ]
+              .filter(Boolean)
+              .join(', ')
           : `Slot ${slot}, vazio — construir aqui`
         const restam = spec?.finishes_at ? segundosRestantes(spec.finishes_at) : 0
 

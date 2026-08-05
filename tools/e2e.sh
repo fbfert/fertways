@@ -476,5 +476,26 @@ E2E_URL="http://127.0.0.1:$PORTA_WEB" node e2e/fundacao.e2e.mjs
 # de clique ou de texto as alcança. Foi assim que os sete ministérios da Capital saíram pálidos com
 # os sete e2e verdes (D-63). Quando mexer em cena, rode isto e olhe.
 if [ "${E2E_FOTOS:-}" = "1" ]; then
+  # ⚠️ Os dois estados da A2.V3 não acontecem sozinhos num mundo recém-semeado, e um selo que
+  # ninguém consegue fotografar é um selo que ninguém confere. Forçamos os dois AQUI — depois de
+  # todas as suítes e só quando as fotos foram pedidas —, porque isto suja o mundo de propósito:
+  # um recurso no teto e uma obra em curso quebrariam testes de mercado e de fila se viessem antes.
+  echo "==> forçando os estados da colmeia para a foto (A2.V3)"
+  (cd "$RAIZ/backend" && $PHP artisan tinker --execute='
+$c = App\Models\Colony::where("name", "Colônia e2e")->firstOrFail();
+
+// TRAVADA: enche a Biomassa até o teto. A Fazenda continua de pé e não rende nada (§14).
+$teto = app(App\Domain\Colony\TetoDoEstoque::class);
+Illuminate\Support\Facades\DB::table("estoque_settings")->where("id", 1)->update(["ativo" => true]);
+$c->resources()->where("resource_type", "biomassa")
+  ->update(["amount" => max(1, (int) $teto->capacidade($c, "biomassa"))]);
+
+// MELHORANDO: um relógio numa construção já erguida — o estado que era idêntico a estar parado.
+$c->buildings()->where("type", "captacao_de_agua")
+  ->update(["upgrade_finish_at" => now()->addHours(3)]);
+
+echo "biomassa no teto, e a Captação de Água subindo de nível\n";
+' 2>&1 | tail -2)
+
   E2E_URL="http://127.0.0.1:$PORTA_WEB" node e2e/foto.mjs || true
 fi
