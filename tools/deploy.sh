@@ -90,6 +90,22 @@ if [ "$so_frontend" -eq 0 ]; then
     exit 1
   fi
 
+  # ⚠️ E o `fertways` consegue LER esse .env? A pergunta parece boba e derrubou a produção uma vez
+  # (2026-08-05, D-214). O `sed` acima roda como root e enxerga o arquivo mesmo se ele estiver
+  # `root:root 600` — foi assim que um `chown` esquecido depois de editar o .env passou daqui.
+  #
+  # O que acontece então é pior do que um erro: o `artisan` roda como `fertways`, NÃO lê o .env,
+  # e o Laravel **cai silenciosamente nos defaults** — `DB_CONNECTION=sqlite`. O `migrate` cria um
+  # banco SQLite vazio do zero e o `config:cache` assa esse default para o php-fpm. A produção
+  # passa a servir um mundo vazio, e o `artisan` continua respondendo "sucesso" a cada passo.
+  if ! "${COMO[@]}" test -r "$DEPLOY/backend/.env"; then
+    echo "ABORTADO: o usuário fertways não consegue ler $DEPLOY/backend/.env." >&2
+    echo "Provável \`chown\` esquecido depois de editar o arquivo. Corrija com:" >&2
+    echo "  chown fertways:fertways $DEPLOY/backend/.env && chmod 600 $DEPLOY/backend/.env" >&2
+    ls -l "$DEPLOY/backend/.env" >&2
+    exit 1
+  fi
+
   mkdir -p "$BACKUPS"
   dump="$BACKUPS/${banco}-antes-${sha_alvo}-$(date +%Y%m%d-%H%M%S).sql.gz"
 
@@ -135,6 +151,22 @@ if [ "$so_frontend" -eq 0 ]; then
 
   cd "$DEPLOY/backend"
   "${COMO[@]}" "$PHP" /bin/composer install --no-dev --optimize-autoloader --no-interaction
+
+  # ⚠️ Contra qual banco o `artisan` está mesmo falando? Isto vem ANTES do `migrate` de propósito:
+  # é o passo que o D-214 provou ser o mais caro de errar. Um `migrate` apontado para o lugar errado
+  # não falha — ele **cria** o lugar errado, com as 111 migrations, e sai com status 0.
+  #
+  # A guarda de leitura do .env lá em cima cobre a causa conhecida; esta cobre o resto (config cache
+  # velho, .env editado com o nome errado do banco, variável de ambiente atravessada). Compara o que
+  # a aplicação resolve com o que o .env declara — as duas pontas, não uma só.
+  resolvido=$("${COMO[@]}" "$PHP" artisan tinker --execute='echo DB::connection()->getDatabaseName();' 2>/dev/null | tail -1)
+  if [ "$resolvido" != "$banco" ]; then
+    echo "ABORTADO: o .env declara [$banco] e a aplicação resolve [$resolvido]." >&2
+    echo "NADA foi migrado. Se [$resolvido] termina em .sqlite, o Laravel caiu no default por não" >&2
+    echo "conseguir ler o .env — confira o dono do arquivo." >&2
+    exit 1
+  fi
+  echo "==> banco conferido: a aplicação fala com [$resolvido]"
 
   # A migration antes de tirar da manutenção, nunca depois.
   "${COMO[@]}" "$PHP" artisan migrate --force

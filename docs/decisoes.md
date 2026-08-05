@@ -11712,3 +11712,86 @@ o mundo humano é de **12 contas e 9 colônias**. O `ROADMAP_ALPHA2.md` diz, na 
 "um programa externo, em servidor e banco próprios (`staging.tars.art.br`)". Eles estão rodando
 contra a **produção**, com token ativo no minuto desta medição. Nada foi mexido: se é deliberado,
 o roadmap é que está desatualizado; se não é, é decisão do usuário, não minha.
+
+---
+
+## D-214 — Derrubei a produção editando o .env, e o deploy inteiro disse "sucesso"
+
+Eu quebrei a produção nesta sessão. Fica registrado com o detalhe todo, porque o modo como o erro
+passou por **cinco guardas** é mais instrutivo do que o erro em si.
+
+### O que fiz
+
+Editei `/home/fertways/deploy/fertways/backend/.env` para dar rotação ao log (D-213). A edição em si
+estava certa — o arquivo ficou correto, `DB_CONNECTION=mysql`, `DB_DATABASE=fertwaysbd`, conferido
+depois linha a linha. **O que eu esqueci foi o `chown`.** O arquivo ficou `root:root 600`.
+
+É a armadilha que a memória do projeto já registrava para arquivos de código ("edito como root e
+apodreço o dono dos arquivos"), e que eu venho aplicando a cada commit desta sessão. **Não a apliquei
+ao `.env`, porque `.env` não é versionado e não passa pelo `git status`** — nada me lembraria.
+
+### O que acontece quando o Laravel não consegue ler o .env
+
+Não é um erro. É um **fallback silencioso**: sem `.env`, `config/database.php` cai no default do
+framework, que é `DB_CONNECTION=sqlite`. Daí em diante, em cascata:
+
+1. `composer install` roda `ComposerScripts::postAutoloadDump`, que **apaga o config cache**. A
+   partir daqui, tudo depende de ler o `.env` — que o `fertways` não lê.
+2. `artisan migrate --force` **não falha: ele cria**. Fez um `database/database.sqlite` do zero e
+   aplicou as **111 migrations** nele, em 40 ms, com status 0 e a saída bonita de um deploy normal.
+   Foi a linha `rating_federativo ... DONE` que me fez desconfiar — uma migration de ontem não tinha
+   por que rodar hoje.
+3. `artisan config:cache` **assou o default sqlite** em `bootstrap/cache/config.php`, e o php-fpm
+   passou a servir dali.
+4. A produção ficou servindo **um mundo vazio** por ~11 minutos. `GET /central/estatisticas`
+   devolvia `{"colonos":0,"colonias":0,...}`.
+
+### ⚠️ As cinco guardas que passaram, e por que cada uma passou
+
+O `deploy.sh` é um script cuidadoso, com guardas escritas por cicatriz. **Nenhuma pegou:**
+
+| Guarda | Por que passou |
+|---|---|
+| symlink aponta para o deploy | apontava mesmo — a pergunta era outra |
+| backup antes do migrate | **funcionou** — o `sed` que lê `DB_DATABASE` roda como **root**, então leu o `.env` perfeitamente e o dump saiu certo, de `fertwaysbd`, 620 KB, conferido nas três perguntas |
+| `APP_DEBUG` está off | "off" — porque o default do framework é `false`. A guarda mediu o default, não o `.env` |
+| opcache executa a árvore de deploy | executava mesmo, e o `index.php` era o certo |
+| fumaça 200/401 | o `200` é o front estático; o `401` sai do middleware de auth **antes de tocar o banco** |
+
+A lição é dura e vale mais do que a correção: **as duas guardas mais fortes do script (o backup e a
+fumaça) mediram a coisa certa pelo caminho errado.** O backup passou justamente porque root lê o que
+o `fertways` não lê — a assimetria que causou o incidente é a mesma que escondeu o incidente. E a
+fumaça nunca tocou uma linha do banco.
+
+### O que restou, e o que não restou
+
+**Nada foi perdido.** O MariaDB não recebeu uma escrita sequer durante a janela: 33 usuários, 29
+colônias, 35.398 lançamentos, iguais antes e depois. Os três usuários que apareceram no SQLite eram
+as contas de sistema (Capital, Missões, Federação) criadas pelas próprias migrations — **nenhum
+jogador se cadastrou na janela**. O arquivo intruso foi retirado da árvore.
+
+O log registrou o sintoma exato, e por sorte antes de eu ter mudado o nível: duas linhas de
+`MissingAppKeyException: No application encryption key has been specified` às 19:24:44 UTC — o
+`APP_KEY` também mora no `.env`, e ele também sumiu.
+
+Correção: `chown fertways:fertways .env`, `config:cache` de novo, `systemctl reload php84-php-fpm`.
+
+### As duas guardas novas
+
+**A — o `fertways` consegue ler o `.env`?** Cobre a causa exata, e é a mais barata do script. Roda
+antes do backup.
+
+**B — o banco que a aplicação RESOLVE é o que o `.env` DECLARA?** Roda **antes do `migrate`**, que é
+o passo caro: um `migrate` apontado para o lugar errado não reclama, ele cria o lugar errado. Compara
+as duas pontas em vez de acreditar em uma.
+
+As duas foram testadas reproduzindo o defeito, não por leitura. A guarda A aborta com o `.env`
+`root:root`. A guarda B só vale com o config cache limpo — que é exatamente o estado em que o
+`composer install` a deixa — e nessa condição ela resolve
+`/home/.../backend/database/database.sqlite` contra um `.env` que declara `fertwaysdev`, e aborta.
+Testada na árvore de trabalho, que não é servida.
+
+### O que eu faria diferente
+
+Editar `.env` de produção é a única operação desta sessão que **não passa pelo git** e por isso não
+tem rede nenhuma. Se voltar a acontecer: `chown` no mesmo comando que edita, sempre.
