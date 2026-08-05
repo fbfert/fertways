@@ -11553,3 +11553,79 @@ paranoia: sem isso, um arquivo de quatro dias atrás dita o diagnóstico.
 
 **Não publiquei.** O backend está coberto por teste; o frontend, não — e a regra da casa (D-200) é não
 publicar com verificação vermelha. Fica commitado e fora do ar até a suíte rodar limpa.
+
+---
+
+## D-212 — A suíte de e2e não era flaky por azar: cinco causas, quatro corrigidas
+
+O D-211 ficou fora do ar porque a suíte reprovava **no login**, mudando de lugar a cada corrida com
+erros diferentes. Isso parece azar de máquina e é a aparência mais enganosa que um teste pode ter:
+convida a repetir até passar. Investigado com evidência, eram causas somáveis.
+
+### 1. ⚠️ A API do e2e atendia UMA requisição por vez — e ela mesma avisava
+
+`/tmp/e2e-api.log`, que eu nunca tinha aberto em toda a sessão:
+
+    WARN Unable to respect the `PHP_CLI_SERVER_WORKERS` environment variable
+         without the `--no-reload` flag. Only creating a single server.
+
+O jogo dispara **dez requisições** logo após o login. Servidas em fila, os tempos eram todos ~500 ms
+— `/login` 501, `/avisos` 512, `/zones/minhas` 512, `/chat/pendencias` 500. Essa igualdade suspeita
+**é** a assinatura da serialização, e estava no log desde sempre.
+
+Com `--no-reload` e três workers: `/avisos` caiu de **512 ms para 0,15 ms**. Três, e não seis —
+cada worker é um processo PHP, e a máquina tem 4 GB sem swap dividida com o MariaDB de produção.
+
+### 2. ⚠️ `--disable-dev-shm-usage` estava a fazer o contrário do que devia
+
+A flag existe para contornar `/dev/shm` minúsculo (64 MB, o padrão do Docker): manda o Chromium usar
+`/tmp`, isto é, **disco**. Nesta máquina `/dev/shm` tem **1,8 GB com 236 KB em uso**. Estava a trocar
+RAM ociosa por I/O de disco. Retirada.
+
+### 3. ⚠️ O teto do heap do JS estava em 256 MB, e o renderer morria nele
+
+`--js-flags=--max-old-space-size=256`, com o comentário *"o jogo inteiro cabe folgado em 256 MB"* —
+verdade quando foi escrito, antes das cenas de Phaser da colônia e da Capital e do mapa 101×101.
+Estourar o teto **derruba o renderer**, e o sintoma é exatamente `Target closed` **sem uma linha de
+OOM no kernel**: não era o kernel a matar, era o V8 a desistir. Subido para 512 MB.
+
+⚠️ Confirmei que não era OOM olhando o `dmesg`: as cinco mortes do dia eram de **outro serviço**
+(`gerenciador-whatsapp`), e a última tinha sido às 15:10 — as minhas falhas foram às 17:5x.
+
+### 4. ⚠️ O `entrar()` esperava a REDE, não o elemento
+
+`page.goto(BASE, { waitUntil: 'networkidle2' })` devolve o controlo quando a rede aquieta — que pode
+ser antes de a página estar montada. O `page.type` seguinte agarrava um frame que se desanexava, e o
+erro caía **sempre nesta linha**, mudando de suíte conforme o tempo. Passou a esperar o campo existir
+e, depois do clique, a esperar o campo **sumir**.
+
+O `resumo.e2e.mjs` já tinha metade desta lição escrita no corpo desde sempre.
+
+### 5. ⚠️ E cada suíte reprovada deixava um Chromium órfão
+
+`navegador.close()` não mata um browser com frame desanexado — que é o estado em que ele é chamado,
+no `finally` de uma suíte que estourou. Doze deles acumularam-se e passaram a estrangular as corridas
+seguintes: **cada falha tornava a próxima mais provável**, e as falhas mudavam de lugar. Corrigido
+com `fecharNavegador()`, que mata o processo se o fim gracioso não vier. Órfãos hoje: zero.
+
+⚠️ Contei-os a primeira vez com `pgrep -c -f "chrome|chromium"`, que **casa com o próprio comando**.
+O piso de "2 restantes" que reportei era o `pgrep` a contar-se a si mesmo.
+
+### O que isto deu, e o que NÃO deu
+
+| corrida | suítes verdes |
+|---|---|
+| antes | 0 — morria na 1ª ou 2ª |
+| com a API paralela | 2 |
+| sem a flag de shm | 5 |
+| com o heap em 512 | **10 — verde completo** |
+| confirmação | 5 — o Chromium morreu no Mercado |
+
+⚠️ **Não está resolvido.** Uma corrida verde depois de muitas vermelhas pode ser sorte, e a corrida
+de confirmação provou que ainda é: o browser morre no Mercado, sem OOM, com 1,5 GB livres. O que se
+pode afirmar é que as quatro causas acima **eram reais e foram medidas** — não que a instabilidade
+acabou.
+
+O que eu investigaria a seguir, com a máquina em paz: a suíte do Mercado é a mais longa (334 linhas)
+e reusa o mesmo browser do princípio ao fim. Um renderer que acumula seis cenas de Phaser é o
+próximo suspeito, e a medida seria o `rss` do processo ao longo da corrida — não mais uma tentativa.

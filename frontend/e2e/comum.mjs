@@ -165,12 +165,30 @@ export async function abrirNavegador(viewport = { width: 1400, height: 900 }) {
     // não é teste reprovado, é o kernel escolhendo uma vítima.
     args: [
       '--no-sandbox',
-      '--disable-dev-shm-usage',
+      /*
+       * ⚠️ `--disable-dev-shm-usage` foi RETIRADO (D-212), e não por descuido.
+       *
+       * Ele existe para contornar `/dev/shm` minúsculo (64 MB é o padrão do Docker): manda o
+       * Chromium usar `/tmp`, ou seja, **disco**, em vez de memória compartilhada. Nesta máquina
+       * `/dev/shm` tem **1,8 GB e 236 KB em uso** — a flag estava trocando RAM ociosa por I/O de
+       * disco e deixando o browser a estoirar no meio das suítes, sem registro de OOM no kernel
+       * (não era o kernel a matar; era o Chromium a cair).
+       *
+       * Se um dia `/dev/shm` encolher, a flag volta — mas então com a medida na mão.
+       */
       '--disable-gpu',
       '--disable-extensions',
       '--no-first-run',
-      // O teto do heap do JS dentro do Chromium. O jogo inteiro cabe folgado em 256 MB.
-      '--js-flags=--max-old-space-size=256',
+      /*
+       * ⚠️ 512, e não 256 (D-212). O teto anterior dizia que "o jogo inteiro cabe folgado em 256 MB"
+       * — e cabia, quando foi escrito. Depois vieram as cenas de Phaser da colônia e da Capital, o
+       * mapa 101×101 e mais telas. Estourar o teto do heap **derruba o renderer**, e o sintoma é
+       * exatamente o que a suíte vinha dando: `Target closed` sem uma linha de OOM no kernel — não
+       * era o kernel a matar, era o V8 a desistir.
+       *
+       * 512 MB continua sendo dieta: a máquina tem 1,7 GB livres durante a corrida.
+       */
+      '--js-flags=--max-old-space-size=512',
       // Sem isto o Chromium abre um processo de renderização por origem, e cada um custa ~100 MB.
       '--renderer-process-limit=2',
     ],
@@ -204,10 +222,31 @@ export async function abrirNavegador(viewport = { width: 1400, height: 900 }) {
 }
 
 export async function entrar(page) {
-  await page.goto(BASE, { waitUntil: 'networkidle2' })
+  /*
+   * ⚠️ `domcontentloaded` + esperar o CAMPO, e não `networkidle2` (D-212).
+   *
+   * `networkidle2` resolve quando a rede aquieta — e devolve o controlo num instante em que a
+   * página ainda pode estar a montar. O `page.type` seguinte agarrava um frame que se desanexava
+   * no meio, e o erro (`Attempted to use detached Frame`) aparecia sempre nesta linha, mudando de
+   * suíte a cada corrida conforme o tempo caísse de um lado ou do outro. Parecia flake de máquina.
+   *
+   * O `resumo.e2e.mjs` já tinha escrito metade desta lição no próprio corpo — *"depois de logado o
+   * jogo consulta o servidor a cada poucos segundos, então a rede NUNCA fica ociosa"*. Aqui vale a
+   * outra metade: **espere o elemento, não a rede**.
+   */
+  await page.goto(BASE, { waitUntil: 'domcontentloaded' })
+  await page.waitForSelector('input[type=email]', { timeout: 15000 })
+
   await page.type('input[type=email]', EMAIL)
   await page.type('input[type=password]', SENHA)
-  await Promise.all([page.click('button[type=submit]'), page.waitForNetworkIdle({ idleTime: 800 })])
+  await page.click('button[type=submit]')
+
+  // O HUD só existe depois de o servidor responder ao login: esperá-lo é esperar o login terminar,
+  // sem depender de a rede aquietar — o que, com o jogo a sondar, pode nunca acontecer.
+  await page.waitForFunction(
+    () => !document.querySelector('input[type=email]'),
+    { timeout: 20000 },
+  )
 }
 
 /**

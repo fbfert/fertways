@@ -18,6 +18,11 @@ export PATH="/usr/local/lib/nodejs/node-v22.12.0-linux-x64/bin:$PATH"
 
 BANCO="$(mktemp -t fertways-e2e-XXXXXX.sqlite)"
 PORTA_API=8199
+# Requisições em paralelo, como a produção faz. Ver o bloco que sobe a API. (D-212)
+# ⚠️ TRÊS, e não seis: cada worker é um processo PHP, e esta máquina tem 4 GB SEM SWAP dividida com
+# o MariaDB de produção. Três já eliminam a fila (o login dispara dez requisições, mas curtas) sem
+# disputar memória com o Chromium — que é quem o kernel mata primeiro (`oom_score_adj:300`).
+export PHP_CLI_SERVER_WORKERS="${PHP_CLI_SERVER_WORKERS:-3}"
 PORTA_WEB=5199
 
 # `env()` do Laravel não sobrescreve variável já exportada, então isto vence o .env.
@@ -386,8 +391,22 @@ App\Models\News::create([
 echo "colono e2e pronto na colônia {$c->id}\n";
 ' | tail -1
 
-echo "==> subindo a API em :$PORTA_API"
-$PHP artisan serve --port="$PORTA_API" >/tmp/e2e-api.log 2>&1 &
+# ⚠️ **A API do e2e atendia UMA requisição por vez**, e foi a causa raiz da instabilidade da suíte
+# (D-212). O próprio `artisan serve` avisava no log e ninguém lia:
+#
+#     WARN Unable to respect the `PHP_CLI_SERVER_WORKERS` environment variable
+#          without the `--no-reload` flag. Only creating a single server.
+#
+# O jogo dispara **dez requisições** logo após o login (/colony, /queue, /buildings, /buildings/
+# catalogo, /images, /eventos, /resumo, /zones/minhas, /chat/pendencias, /avisos). Servidas em fila,
+# cada uma esperava a anterior — os tempos no log eram todos ~500 ms, que é a assinatura disso — e a
+# suíte reprovava no login, mudando de lugar a cada corrida conforme o tempo caísse de um lado ou do
+# outro do prazo. Parecia flake de máquina; era serialização.
+#
+# `--no-reload` destrava os workers (não há por que vigiar arquivo: o bundle e o código são fixos
+# durante a corrida). Seis workers, que é o que a produção serve com php-fpm.
+echo "==> subindo a API em :$PORTA_API (com $PHP_CLI_SERVER_WORKERS workers)"
+PHP_CLI_SERVER_WORKERS="$PHP_CLI_SERVER_WORKERS" $PHP artisan serve --port="$PORTA_API" --no-reload >/tmp/e2e-api.log 2>&1 &
 pids+=($!)
 
 # ⚠️ **`build` + `preview`, e não `vite dev`** (D-70). O servidor tem 4 GB, e o `dev` guarda o grafo
