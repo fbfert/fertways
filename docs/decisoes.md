@@ -11795,3 +11795,107 @@ Testada na árvore de trabalho, que não é servida.
 
 Editar `.env` de produção é a única operação desta sessão que **não passa pelo git** e por isso não
 tem rede nenhuma. Se voltar a acontecer: `chown` no mesmo comando que edita, sempre.
+
+---
+
+## D-215 — A2.V3, primeira fatia: a colmeia sabia três estados, e dois já eram verdade no servidor
+
+A cena da colônia distinguia **três** coisas: slot vazio, obra nova e construção erguida. Três, para
+a tela que é o jogo inteiro.
+
+Medido contra a produção **antes** de escolher o que desenhar — o método que o D-210 fixou —, dois
+estados já eram verdade no servidor e não apareciam em lugar nenhum:
+
+| estado | o dado existia? | na tela |
+|---|---|---|
+| **melhorando** | `upgrade_finish_at`, no payload desde sempre | **nada** — subir do 3 para o 4 era idêntico a estar parado no 3 |
+| **travada pelo teto** (§14) | `TetoDoEstoque` | **nada** — 5 recursos no teto em 2 colônias no dia da medida |
+
+O segundo é o que dói. O §14 promete que *"o jogador perde oportunidade, nunca estoque"*; **perder
+oportunidade sem saber é perder as duas.** Gerador, Captação, Fazenda e Reator estavam de pé,
+rodando e rendendo **zero**, e nenhuma tela dizia isso.
+
+### O que NÃO foi inventado
+
+O roadmap da A2.V3 também lista *"falta de energia"* e *"operadores"*. **Nenhum dos dois existe como
+estado de construção**, e desenhá-los seria publicar regra que ninguém decidiu:
+
+- **energia** não trava prédio nenhum. O saldo pode ficar negativo e o estoque trava em zero (D-20);
+  o GDD nunca definiu construção parada por falta de energia.
+- **operadores** são de **zona neutra** (D-184), não da colmeia. São da A2.V4.
+
+Onde não dá para afirmar, `EstadoDaConstrucao` devolve `null` e a cena desenha o que sempre desenhou.
+**Ausência de afirmação, nunca afirmação errada.**
+
+### Duas armadilhas que o teste guarda
+
+- a **Indústria Siderúrgica** declara em `producao_hora_json` o que **consome** (D-82). O estado
+  herda a correção que o controller já fazia — repetir a regra no serviço criaria duas verdades;
+- o **Biocombustível** não passa pelo teto geral: quem trava a Destilaria é o **Tanque**
+  (§21.9/D-131). Perguntar só ao teto geral diria "tem espaço" com o tanque cheio, justo na
+  construção cuja parada é mais confusa.
+
+### O selo, e por que ele tem glifo
+
+O deck proíbe anunciar estado **só por cor**: a paleta é quente por identidade e o vermelho fica a
+14° do `rust` da marca. O glifo é o **segundo canal**. E `ember` pinta o **fundo** — 1,62:1 como
+texto, 8,71:1 como fundo com letra `ink`.
+
+O estado entra também no **`aria-label`** do botão de cada slot: o selo é pixel de canvas, e leitor
+de tela não o alcança. Seria informação exclusiva de quem enxerga — o erro que o D-59 evitou nos
+cliques, repetido na informação.
+
+### ⚠️ Sem animação, e por escrito
+
+A A2.V3 pede "animações sutis", e uma pulsação no selo de travada era a candidata óbvia. Ficou de
+fora: `desenhar()` reconstrói a árvore inteira a cada hover, resize e atualização de specs, e tween
+sobre alvo destruído é a classe de defeito que obrigou a guarda `viva()` a existir. **Isto estreita a
+entrega, e por isso está escrito.**
+
+### E o que a foto mostrou de brinde
+
+⚠️ **A faixa de eventos do mundo (A2.8) está ilegível**: ela é desenhada em fluxo no topo do
+documento, e as duas barras de navegação (`Header` no desktop, `MobileNav` no mobile) são
+`absolute top-0` por cima dela. O texto sai picado atrás do cabeçalho. O e2e passa porque o texto
+**existe no DOM** — o falso-verde do D-63 outra vez, e a razão de `foto.mjs` existir. Não foi
+corrigido aqui: o conserto é do layout global (A2.V2) e empurraria dez telas.
+
+---
+
+## D-216 — Os três pedidos sobre a faixa de avisos, e o botão que nunca funcionou
+
+Pedidos do usuário olhando a faixa em produção.
+
+### 1. O símbolo saiu
+
+Era `▲`/`!`/`·` por severidade. A regra do deck continua valendo — *estado nunca se anuncia só por
+cor* —, mas o segundo canal já existe e é melhor: **o título é uma frase inteira**. O próprio
+`design-tokens.md` diz que é assim que a regra se cumpre (*"o componente `Erro` escreve a palavra
+'Erro' pelo mesmo motivo"*). O glifo era um terceiro canal, não o segundo.
+
+### 2. O aviso passa a dizer QUAL recurso
+
+Dizia *"Um recurso encheu e parou de produzir"* e deixava o colono caçar qual, entre 26. O aviso é
+montado **a partir da lista dos cheios** — ele sempre soube, só não contava. Acima de três, os dois
+primeiros continuam nomeados (*"Biomassa, Água e mais 2"*): `"4 recursos"` não responde *"qual?"*.
+
+### 3. ⚠️ O botão "Ver o que aconteceu desde sua última visita" não abria nada
+
+E a causa não era a tela.
+
+`resumo_visto_em` avança quando o jogador **fecha** o resumo. Um minuto depois de fechar, *"desde a
+última visita"* é um intervalo de um minuto — janela vazia — e o **piso de uma hora** do §5.1 ainda
+barra por cima. **O botão pedia uma janela que ele mesmo tinha acabado de consumir.** Existe desde o
+D-211 e nunca funcionou fora da primeira hora de uma conta nova.
+
+Guardar o marcador **anterior** resolve sem tocar no §5.1:
+
+- o piso continua governando o resumo **automático**, que é o que ele existe para conter — um popup
+  que se convida a cada carga de página;
+- `?reabrir=1` é o clique **explícito**: devolve a janela anterior e ignora o piso. Negá-lo era
+  transformar proteção contra insistência em proibição de reler;
+- **reabrir não move marcador nenhum.** Se movesse, apagaria a janela que acabou de mostrar, e o
+  botão pararia de funcionar na segunda vez. Tem teste.
+
+A migration `janela_anterior_do_resumo` foi exercitada **nos dois sentidos no MariaDB**, e não só no
+SQLite dos testes — é a lição do D-59, que já quebrou a produção uma vez.
