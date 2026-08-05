@@ -47,8 +47,24 @@ Sessão de conferência, sem código de jogo novo. O que foi medido:
   sem registro aqui. Corrigido pela ponte D-144 a D-212 abaixo.
 - **O D-209 não tinha entrada própria em `docs/decisoes.md`** — o texto existia, arquivado como
   subseção do D-208, e o índice pulava de D-208 para D-210. Promovido a entrada própria.
-- **Dois achados novos de produção**, ainda abertos e anotados em "Pendências conhecidas": o log
-  sem rotação em nível `debug`, e o erro de regra de negócio gravado como ERROR a cada ~20 min.
+- **O log de produção, corrigido (D-213).** `DomainRuleException` era gravada como ERROR — ela é o
+  jogo funcionando, vira 422, e agora não vai para o log (`dontReport`, não `report()`: devolver
+  `false` de `report()` significa "logue assim mesmo", e foi o teste que me desmentiu). O canal
+  virou `daily`/14 dias/`info`, e o `laravel.log` de 90 MB foi arquivado em 1 MB. 1229 testes.
+- ⚠️ **E aí eu derrubei a produção (D-214).** Editei o `.env` de produção e **esqueci o `chown`**;
+  o `fertways` deixou de ler o arquivo, o Laravel caiu no default `sqlite` **sem falhar**, o
+  `migrate` do deploy **criou** um banco SQLite vazio, e a produção serviu um mundo vazio por ~11
+  minutos. **Nada foi perdido** — o MariaDB não recebeu uma escrita (33 usuários, 29 colônias,
+  35.398 lançamentos, iguais antes e depois). **Nenhuma das cinco guardas do `deploy.sh` pegou**, e
+  duas delas passaram por motivos que valem ser lidos no D-214: o backup passou **porque root lê o
+  que o `fertways` não lê**, e a fumaça passou porque `401` sai do middleware de auth antes de
+  tocar o banco. Duas guardas novas entraram, testadas reproduzindo o defeito.
+- **Os "33 usuários" não são 33 jogadores.** 21 são colonos simulados
+  (`*@bots.fertways.local`), e 20 das 29 colônias são deles: o mundo humano é de **12 contas e 9
+  colônias**. Eles estavam com token ativo no minuto da medição. ⚠️ O `ROADMAP_ALPHA2.md` diz na
+  A2.11 que os bots são "um programa externo, em servidor e banco próprios (`staging.tars.art.br`)"
+  — mas estão rodando **contra a produção**. Nada foi mexido: se é deliberado, o roadmap é que está
+  velho; se não é, é decisão do usuário.
 
 ## Onde o projeto está
 
@@ -1668,16 +1684,15 @@ ida→vigia→volta), sem tabela nova além de `drone_sightings` (as fotos).
 
 ## Pendências conhecidas, sem bloquear
 
-- ⚠️ **O log de produção cresce sem rotação, e regra de negócio entra nele como ERROR**
-  (achado em 2026-08-05, ainda não corrigido). Três fatos que se somam:
-  - `LOG_CHANNEL=stack` com **arquivo único** e `LOG_LEVEL=debug` em produção: `laravel.log`
-    está com **90 MB**. O disco está em 77% (22 GB livres) — não é urgente, mas não para de crescer.
-  - Uma `DomainRuleException` — *rejeição esperada*, o jogo funcionando — é gravada em nível
-    **ERROR**. O nível mente sobre a gravidade, e o ruído esconde erro de verdade.
-  - Consequência medida: **`Falta energia para esta viagem`, userId 12, a cada ~20 minutos, ~79 por
-    dia, desde pelo menos 01/08.** Vem de `DespacharVeiculo.php:795` por **rota HTTP**, não pelo
-    tick — é um cliente preso repetindo o despacho, não um job. Vale olhar as duas coisas: o nível
-    do log e o que aquele jogador está tentando fazer e não consegue.
+- ⚠️ **Editar o `.env` de produção é a única operação sem rede nenhuma.** Ele **não é versionado**,
+  então não aparece no `git status` e nada lembra do `chown` — e um `.env` que o `fertways` não lê
+  faz o Laravel cair no default `sqlite` **em silêncio**, sem erro nenhum (D-214, e derrubou a
+  produção). O `deploy.sh` agora tem duas guardas contra isto, mas elas só rodam **no deploy**: se
+  você editar o `.env` à mão, faça o `chown` **no mesmo comando**.
+- **Um colono simulado repete um despacho impossível a cada ~20 minutos** (`sim_3xevap`, "Falta
+  energia para esta viagem", desde pelo menos 01/08). Desde o D-213 isso não polui mais o log, mas
+  **o bot continua preso no mesmo laço** — não foi investigado, e é do programa externo, não do
+  repositório.
 - **O bundle do frontend passa de 1,9 MB** (era 1,5 MB quando isto foi anotado; quase tudo é
   Phaser, sem code splitting). O `vite build` avisa a cada compilação. Não incomoda ainda.
 - **O repositório tem 53 branches locais, 20 mescladas de fato.** As outras aparecem como "não
