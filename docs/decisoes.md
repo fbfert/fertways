@@ -11660,3 +11660,55 @@ acabou.
 O que eu investigaria a seguir, com a máquina em paz: a suíte do Mercado é a mais longa (334 linhas)
 e reusa o mesmo browser do princípio ao fim. Um renderer que acumula seis cenas de Phaser é o
 próximo suspeito, e a medida seria o `rss` do processo ao longo da corrida — não mais uma tentativa.
+
+---
+
+## D-213 — Regra de jogo não é erro de servidor, e o log de produção não tinha rotação
+
+Achado numa auditoria de estado, não numa queixa: o `laravel.log` de produção estava com **90 MB**,
+arquivo único, `LOG_LEVEL=debug`, **sem rotação nenhuma**. E ~79 linhas por dia dele eram uma só
+exceção, em nível ERROR:
+
+    production.ERROR: Falta energia para esta viagem. {"userId":12}
+
+A cada ~20 minutos, ininterruptamente desde pelo menos 01/08, vinda de `DespacharVeiculo.php:795`
+**por rota HTTP** — não pelo tick. O ator é um **colono simulado** (`sim_3xevap@bots.fertways.local`,
+colônia HAL9000) repetindo um despacho que não tem energia para pagar.
+
+### A menor das duas: um arquivo que só cresce
+
+Corrigido no `.env` de produção — `daily`, 14 dias, `info`. Como o `.env` **não é versionado**, o
+aviso ficou no `.env.example`, que é o único lugar onde ele sobrevive a uma reinstalação. O disco
+está em 77% (22 GB livres), então isto nunca foi urgente; era só uma dívida que não parava.
+
+### A maior: o nível mentia sobre a gravidade
+
+`DomainRuleException` é **o jogo funcionando**. "Falta energia", "não cabe no depósito", "a zona não
+é sua" são respostas da regra a um pedido inválido, e viram **422 com código estável** para o front.
+O Laravel não loga `ValidationException`, e é o mesmo caso.
+
+Gravá-las como ERROR mentia duas vezes: um 422 esperado ficava com a mesma cara de um 500, e o
+volume escondia o erro de verdade no meio do ruído. Quem precisa contar tentativa fracassada é a
+**telemetria (D-163)**, que deriva do ledger e sabe de quem é a tentativa. Log de aplicação não é
+lugar de métrica de gameplay.
+
+### ⚠️ O defeito meu, e quem o desmentiu
+
+Escrevi primeiro como `report(): bool { return false; }` na própria classe. **Está errado, e o nome
+engana:** devolver `false` ali significa *"siga com o tratamento padrão"* — ou seja, **loga assim
+mesmo**. É o oposto do que se lê. O certo é `dontReport()` no `bootstrap/app.php`.
+
+Quem desmentiu foi o teste, na primeira corrida: *"should be called exactly 0 times but called 1
+times"*. É por isso que ele testa **os dois lados** — a regra não vai para o log, **e a exceção
+inesperada continua indo**. Um `dontReport` largo demais seria pior do que o barulho: o sintoma
+apareceria só no dia em que algo quebrasse de verdade, com a produção emudecida.
+
+1229 testes verdes (eram 1226; os três novos são estes).
+
+### O que isto deixou em aberto
+
+Há **21 colonos simulados entre os 33 usuários** de produção, e **20 das 29 colônias** são deles —
+o mundo humano é de **12 contas e 9 colônias**. O `ROADMAP_ALPHA2.md` diz, na A2.11, que os bots são
+"um programa externo, em servidor e banco próprios (`staging.tars.art.br`)". Eles estão rodando
+contra a **produção**, com token ativo no minuto desta medição. Nada foi mexido: se é deliberado,
+o roadmap é que está desatualizado; se não é, é decisão do usuário, não minha.
