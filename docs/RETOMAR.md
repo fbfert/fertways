@@ -5,7 +5,7 @@
 > e então **faça ao usuário as perguntas da seção "Perguntas em aberto"** antes de escolher
 > o que fazer. Atualize este arquivo ao fim de cada sessão.
 
-**Última atualização:** 2026-07-31 · **Branch:** `main`
+**Última atualização:** 2026-08-05 · **Branch:** `main`
 
 > **Se o usuário disser "retome" e houver uma seção "EM ANDAMENTO AGORA" abaixo**, ela já tem
 > autorização permanente para seguir sem novas perguntas ("siga por todas as fases... quero que
@@ -14,15 +14,41 @@
 > O commit não é anotado aqui de propósito: ele fica velho a cada sessão e a página passa a
 > mentir. Rode `git log --oneline -1`.
 
-> **O Alpha 2 está planejado e ainda não teve uma linha escrita** (2026-07-31). O pacote inteiro
-> vive em **`docs/alpha2/`** — o GDD da etapa, o roadmap das 13 fases, o balanceamento e o manual
-> com os prompts de execução. Ele foi conferido contra o estado real do repositório e cada ponto
-> vermelho e amarelo foi decidido com o usuário antes de virar documento. **Leia-o antes de propor
-> qualquer trabalho novo**: várias fases dependem de sistemas que ainda não existem (telemetria,
-> população, pesquisa, motor de eventos), e a ordem entre elas não é arbitrária. O canônico desta
-> etapa é o **GDD v39**; o v35 só serve onde o v39 tem lacuna.
+> ⚠️ **Esta página afirmou por 34 decisões que "o Alpha 2 ainda não teve uma linha escrita".**
+> Era verdade em 2026-07-31 e deixou de ser no dia seguinte; ninguém a atualizou até 2026-08-05.
+> Se você está lendo uma frase daqui que soa categórica, confira antes de agir sobre ela.
+>
+> **O Alpha 2 está quase inteiro no ar** (2026-08-05). As fases **A2.0 a A2.10 e a A2.12 estão
+> entregues** — telemetria, onboarding, população, pesquisa, especializações, Federação como
+> infraestrutura, zonas neutras com automação, upgrades de veículo, Motor de Eventos, Endurance,
+> guerra federativa e o hardening. Falta a **revisão visual A2.V**, que corre em paralelo: a V1
+> (design system) e a V2 (HUD e navegação) fecharam; **V3 (Colônia), V4 (Mapa e zonas), V5 (Capital
+> e Endurance) e V6 (Combate e eventos) são o que resta do Alpha 2**. A A2.11 (bots) está fora do
+> escopo por decisão.
+>
+> O pacote inteiro vive em **`docs/alpha2/`** — o GDD da etapa, o roadmap das 13 fases, o
+> balanceamento e o manual com os prompts de execução. **Leia o roadmap antes de propor qualquer
+> trabalho novo**: a ordem entre as fases não é arbitrária. O canônico desta etapa é o **GDD v39**;
+> o v35 só serve onde o v39 tem lacuna.
 
 ---
+
+## Sessão de 2026-08-05 — auditoria de estado, e o que ela achou
+
+Sessão de conferência, sem código de jogo novo. O que foi medido:
+
+- **Suíte verde**: 1226 testes, 6095 asserções, ~40 s.
+- **A produção estava dois commits atrás do `main`** — o deploy parara no D-210, e o **D-211 (a
+  faixa de avisos) estava pronto e invisível para todo jogador**. Publicado nesta sessão: deploy e
+  `main` agora em `406226a` (D-212), bundle `index-m9RuX68c.js` no ar, `/central/avisos` → 401,
+  fumaça 200/401, opcache conferido executando a árvore de deploy. O backup automático do D-209
+  disparou e passou nas três conferências.
+- **Esta página estava parada no D-143** (não no D-178, como a data do topo sugeria): 69 decisões
+  sem registro aqui. Corrigido pela ponte D-144 a D-212 abaixo.
+- **O D-209 não tinha entrada própria em `docs/decisoes.md`** — o texto existia, arquivado como
+  subseção do D-208, e o índice pulava de D-208 para D-210. Promovido a entrada própria.
+- **Dois achados novos de produção**, ainda abertos e anotados em "Pendências conhecidas": o log
+  sem rotação em nível `debug`, e o erro de regra de negócio gravado como ERROR a cada ~20 min.
 
 ## Onde o projeto está
 
@@ -1344,6 +1370,81 @@ rollback limpos — os outros três não mudam schema), `npx tsc -b`/lint/build 
 **Para retomar isto:** não há mais pendência — os cinco itens são o estado normal do painel
 agora.
 
+## Ponte D-144 a D-212 (2026-07-21 a 2026-08-04) — o Alpha 2 inteiro, detalhe em `docs/decisoes.md`
+
+⚠️ **Esta página tinha parado no D-143.** A narrativa abaixo cobre as 69 decisões seguintes em uma
+linha cada; **cada uma tem entrada completa em `docs/decisoes.md`** (arbitragem, medida, teste,
+verificação). Tudo aqui está **no ar em produção**, salvo onde eu disser o contrário.
+
+**Fim do Alpha 1 — mapa, zona neutra e o GDD v39 (D-144 a D-160).**
+D-144 (zona neutra vira colmeia de slots, crescimento por nível) · D-145 (aba Mapa no admin, o
+planeta 101×101 sem névoa; e a ficha rápida em modal) · D-146 (Mover Colônias por dois cliques) ·
+D-147 (a periferia deixa de ser "qualquer lugar" — só a célula que o admin liberar) · D-148 (Criar
+Zona Neutra pelo mapa) · D-149/D-150/D-151/D-152 (a dança dos slots: Depósito Local ao 14, de volta
+ao 10, Reator ao 6; e o Frete do Governo passa a levar vários recursos) · D-153 (card "Recursos por
+hora", produzido e gasto separados) · D-154 a D-156 e D-158 (`/mapa` em tela cheia, pinça de dois
+dedos, a regressão da roda do mouse corrigida, viewBox retangular, legenda) · D-157 (o Reator vai
+até o nível 15) · **D-159/D-160 (regeneração e o GDD v39, canônico desta etapa)**.
+
+**A2.V1 — design system (D-161, D-162).** A cor deixa de ser escolhida a olho; a fonte Archivo é
+auto-hospedada. Base em `docs/design-tokens.md`.
+
+**A2.0 — telemetria e observabilidade (D-163, D-164, D-165, D-173).** A medida **deriva do ledger,
+não o duplica**; "Desde sua última visita"; painel de métricas onde *zero* e *ninguém mediu* não
+têm a mesma cara. ⚠️ O D-173 achou as **duas métricas mais valiosas da fase gravando no vazio**.
+
+**A2.1 — onboarding (D-166).** A fase era menor do que o plano supunha; o motor de Missões (D-78)
+já dava quase tudo.
+
+**A2.2/A2.S — população e o simulador (D-167, D-176, D-177, D-178, D-179).** O modelo entra
+**desligado** e o simulador nasce junto; os parâmetros são escolhidos com evidência, não a olho;
+**população é mão de obra, não bocas a alimentar**. ⚠️ O D-178 (cont.) achou que a conferência do
+teto não valia nada e que o `min()` violava o §6.7. **No ar desde o D-179.**
+
+**A2.3/A2.4 — pesquisa e especializações (D-168 a D-172, D-190).** A estrutura entra, os números
+não; a trilha A2.S reprova a árvore no próprio critério e ela é corrigida três vezes; a trilha de
+Indústria apontava para o pior produtor do jogo. ⚠️ **D-190: "ligue a pesquisa" — a chave ligava o
+nada, e faltavam três peças.**
+
+**A2.5 — Federação como infraestrutura (D-174, D-182, D-183).** O teto antimonopólio deixa de
+bloquear sem avisar; o Diplomata ganha o sistema que o nome prometia; **objetivos federativos** de
+verdade, no lugar de missões pessoais disfarçadas.
+
+**A2.6 — zonas neutras + população (D-184).** A população passa a **restringir**.
+
+**A2.7 — upgrade de veículo (D-175, D-180, D-181).** O nível existia sem caminho para subir, e
+depois sem tela. Fecha com o teto que trava e a prova de que o upgrade é escolha.
+
+**A2.8 — Motor de Eventos (D-185).** A média ponderada dispensou fatiar o tick.
+
+**A2.9 — Endurance (D-187).** O item único ganha a identidade que a fase exigia.
+
+**A2.12 — hardening (D-186).** ⚠️ **Não havia limite de tentativa nenhum no login.**
+
+**Teto de estoque (D-191, D-192).** O teto não podia ser ligado, e a medida disse por quê; o **piso
+pessoal** o destravou.
+
+**A2.10 — guerra federativa (D-188, D-193 a D-207).** A fase mais longa do Alpha 2, e a que mais
+mexeu no mundo: as doze decisões tomadas antes de escrever código (D-193), o modificador de guerra
+(D-194), o esqueleto (D-195), o GDD do estado do jogo (D-196), a neutralidade declarada (D-197), o
+saque de colônia (D-198 a D-201), o cerco de colônia (D-202 a D-204), o saque total da zona
+conquistada (D-205), capitulação e tratado de paz (D-206) e o **ranking Elo, com a soma zero como
+argumento** (D-207). ⚠️ **Duas contradições do §01 foram revogadas na prática, conscientemente**
+(D-201, D-203) — leia as entradas antes de "consertar" qualquer uma. ⚠️ **D-200: publiquei com um
+teste vermelho, e o teste defendia o erro.**
+
+**Backup e deploy (D-208, D-209).** A restauração foi testada de ponta a ponta e quatro coisas nela
+iam dar errado; o backup virou **passo do deploy**, com o deploy morrendo se ele falhar — e foi
+restaurado num banco descartável para provar que serve. Runbook em `docs/restauracao.md`.
+
+**A2.V2 — HUD e navegação (D-210, D-211).** ⚠️ **A população estava ligada em produção desde o
+D-178 e não aparecia em tela nenhuma.** A faixa de avisos entrou no D-211, com a medição cortando
+dois avisos antes de eles existirem.
+
+**D-212 — a suíte de e2e não era flaky por azar:** cinco causas, quatro corrigidas.
+
+---
+
 ## Ponte D-100 a D-143 (2026-07-16 a 2026-07-21) — resumo, detalhe em `docs/decisoes.md`
 
 Esta página parou de ser atualizada decisão a decisão desde o D-99. Tudo abaixo está **no ar em
@@ -1545,11 +1646,43 @@ ida→vigia→volta), sem tabela nova além de `drone_sightings` (as fotos).
    A atualização moveu **23 pacotes**, não os 2 que o dry-run previa — os outros 21 são point releases
    de symfony/guzzle que vieram junto pelo `--with-all-dependencies`. Nenhum major além do framework.
 
-   **A pergunta que sobra é só a porta de entrada do Alpha 2**, e a resposta natural agora é
-   **A2.V1 + A2.0** (a A2.V1 vem antes ou junto com a A2.0; ver `docs/alpha2/ROADMAP_ALPHA2.md`).
+   ~~**A pergunta que sobra é só a porta de entrada do Alpha 2**~~ — respondida e **vencida**: a
+   A2.V1 + A2.0 entraram (D-161 a D-165) e o Alpha 2 correu quase inteiro desde então. O Laravel 12
+   está no ar em produção desde então; não é mais pendência.
+
+6. **A pergunta viva é o que resta do Alpha 2: a revisão visual.** Fecharam a **A2.V1** (design
+   system, D-161/D-162, auditada no D-189) e a **A2.V2** (HUD e navegação, D-210/D-211). Restam,
+   na ordem do roadmap:
+   - **A2.V3 — Colônia**: leitura espacial, estados visuais de edifício, construção, upgrade,
+     produção, falta de recurso, falta de energia, operadores, animações sutis;
+   - **A2.V4 — Mapa e zonas**: mapa planetário, seleção, ameaças, Federação, zonas, trajetos,
+     leitura de distância, estados territoriais;
+   - **A2.V5 — Capital e Endurance**: áreas institucionais, identidade própria da Endurance,
+     exploração por seções, peças, raridades, eventos;
+   - **A2.V6 — Combate e eventos**: avisos, preparação, impacto, relatórios, timeline, efeitos
+     ambientais.
+
+   A A2.V3 é a sucessora natural, e o D-210 deu o método que funcionou nas duas anteriores:
+   **medir o que já existe na tela antes de escolher o que desenhar** — foi assim que se descobriu
+   que a população estava ligada e invisível. A A2.11 (bots) está **fora do escopo** por decisão.
 
 ## Pendências conhecidas, sem bloquear
 
+- ⚠️ **O log de produção cresce sem rotação, e regra de negócio entra nele como ERROR**
+  (achado em 2026-08-05, ainda não corrigido). Três fatos que se somam:
+  - `LOG_CHANNEL=stack` com **arquivo único** e `LOG_LEVEL=debug` em produção: `laravel.log`
+    está com **90 MB**. O disco está em 77% (22 GB livres) — não é urgente, mas não para de crescer.
+  - Uma `DomainRuleException` — *rejeição esperada*, o jogo funcionando — é gravada em nível
+    **ERROR**. O nível mente sobre a gravidade, e o ruído esconde erro de verdade.
+  - Consequência medida: **`Falta energia para esta viagem`, userId 12, a cada ~20 minutos, ~79 por
+    dia, desde pelo menos 01/08.** Vem de `DespacharVeiculo.php:795` por **rota HTTP**, não pelo
+    tick — é um cliente preso repetindo o despacho, não um job. Vale olhar as duas coisas: o nível
+    do log e o que aquele jogador está tentando fazer e não consegue.
+- **O bundle do frontend passa de 1,9 MB** (era 1,5 MB quando isto foi anotado; quase tudo é
+  Phaser, sem code splitting). O `vite build` avisa a cada compilação. Não incomoda ainda.
+- **O repositório tem 53 branches locais, 20 mescladas de fato.** As outras aparecem como "não
+  mescladas" porque foram para o `main` por squash — o conteúdo está no ar, só o ponteiro ficou.
+  Limpeza cosmética, sem risco.
 - **O tributo do Mercado contradiz o §07 de propósito** (D-32). O §07 proíbe dupla incidência e
   isentaria depósito e retirada; o usuário arbitrou pelo §25.8, que tributa cada entrega física.
   **Não "conserte" sem perguntar.**
@@ -1598,8 +1731,6 @@ ida→vigia→volta), sem tabela nova além de `drone_sightings` (as fotos).
   só o `artisan fertways:admin --criar` recupera o acesso. **Crie um segundo dono.**
 - **Zonas neutras como destino de carga** — o despacho aceita `colonia`; zona neutra precisa do
   Depósito de Zona Neutra. Entra no escopo do D-52.
-- **Frontend** — o bundle passa de 1,5 MB sem code splitting (quase tudo é Phaser). Não incomoda
-  ainda. O `vite build` avisa a cada compilação.
 - **`cp` é alias de `cp -i` para o root.** No passo de deploy do frontend ele trava num prompt e
   copia nada, em silêncio, com saída que *parece* sucesso. Use `/bin/cp -rf dist/. …`. O
   `tools/deploy.sh` já cuida disso e aborta se o bundle no ar não for o recém-compilado.

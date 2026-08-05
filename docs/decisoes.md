@@ -11385,6 +11385,37 @@ até 24 h de perda possível.
 O hábito de tirar um backup antes de cada fase existia e se perdeu **sem que nada avisasse**. Não é
 decisão minha reinstaurá-lo como regra; fica registrado que ele parou.
 
+---
+
+## D-209 — O backup vira passo do deploy, e o deploy morre se ele falhar
+
+O D-208 achou o buraco e não o fechou: o hábito de tirar um backup manual antes de cada fase existia,
+parou **sem que nada avisasse**, e três fases subiram cobertas só pelo diário das 03:00 — até 24 h de
+perda possível. Hábito que depende de alguém lembrar não é proteção; passo de script é.
+
+Todo deploy que toca o backend agora tira um dump de `fertwaysbd` **dentro da janela de manutenção** e
+**antes do `migrate`**. As duas posições têm motivos distintos: dentro da manutenção porque o mundo não
+pode andar entre o retrato e a migration que vai agir sobre ele; antes de tudo o mais porque **se o
+backup falhar, o deploy não acontece**. O arquivo leva o sha que está sendo publicado, e por isso se
+sabe depois a qual estado ele pertence.
+
+### Backup que ninguém conferiu é hipótese — três perguntas, e as três importam
+
+O gzip fecha? Tem tamanho de banco de verdade? Tem mesmo a tabela `colonies` lá dentro? Falhando
+qualquer uma, o dump é apagado e nada é publicado. **Um dump vazio que passa no `gzip -t` é o pior tipo
+de backup, porque parece que existe.**
+
+Retenção de 20 arquivos (~600 KB cada). Contra desastre o recurso continua sendo o diário das 03:00;
+este é outro — desfazer **uma** migration ruim, com o retrato do minuto anterior a ela.
+
+### ⚠️ Dois defeitos meus no caminho, os dois achados antes de rodar
+
+- `alvo` colidia com a variável do symlink, já conferida no topo do script.
+- `grep -qm1` fecha o cano no primeiro acerto e mata o `zcat` com SIGPIPE. Sob `set -o pipefail` o
+  pipeline sai **141 mesmo com a tabela presente** — e isso abortaria **todo** deploy dizendo que o
+  backup está errado. Medido: 141 com `-qm1`, achou 1 com `-c`. A guarda escrita para proteger o
+  deploy teria sido o que o derrubaria.
+
 ### Verificação
 
 Rodado em produção duas vezes. O passo aparece no log —
