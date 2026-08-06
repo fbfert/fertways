@@ -114,6 +114,8 @@ export function Recursos({ colonia }: { colonia: Colonia }) {
  */
 export function TaxasDeRecursos({ colonia }: { colonia: Colonia }) {
   const codigos = [...PRIMARIOS, ...INDUSTRIAIS, ...RAROS].filter((c) => c in colonia.taxas_hora)
+  const energia = colonia.energia_operacional
+  const deficit = energia && energia.saldo < 0 ? energia : null
 
   return (
     <div className="painel bg-sand-light w-72 p-4">
@@ -141,6 +143,41 @@ export function TaxasDeRecursos({ colonia }: { colonia: Colonia }) {
           )
         })}
       </div>
+
+      {/*
+        ⚠️ O déficit de energia, dito por extenso (D-220).
+
+        A linha de cima mostra `+150 −273` e deixava a subtração por conta do jogador. Desde o D-219
+        a colmeia manda 58 fábricas do mundo para cá — todas com o mesmo diagnóstico —, e o destino
+        de todas elas não pode ser um número que ainda precisa ser interpretado.
+
+        O número é o OPERACIONAL, e não o da linha acima: aquele soma o que as receitas pediriam se
+        rodassem, e sem energia elas não rodam. Mostrar o déficit nominal seria tratar taxa nominal
+        como previsão — o erro que o D-219 quase publicou.
+
+        Só aparece no vermelho. Uma colônia equilibrada não precisa de aviso nenhum, e um "está tudo
+        bem" permanente ensina a não olhar para o lugar onde a má notícia vai aparecer.
+      */}
+      {deficit && (
+        <div className="border-perigo text-perigo bg-sand mt-3 border-l-4 px-2 py-1.5" data-energia-deficit>
+          <div className="text-xs font-bold">
+            Déficit de energia: −{Math.abs(deficit.saldo).toLocaleString('pt-BR')}/h
+          </div>
+          {/*
+            ⚠️ A frase precisa explicar a diferença entre este número e o da linha de Energia acima.
+            Lá o consumo é NOMINAL e soma o que as receitas pediriam; aqui é só o que as construções
+            debitam por existir. Sem essa explicação são dois números para "energia consumida" no
+            mesmo painel, e a discrepância lê como defeito.
+          */}
+          <div className="text-ink-soft mt-1 text-xs">
+            O Reator gera {deficit.gerada.toLocaleString('pt-BR')}/h e as construções consomem{' '}
+            {deficit.operacional.toLocaleString('pt-BR')}/h só para operar — a linha acima soma
+            também o que as receitas pediriam, e sem energia elas não rodam. Não sobra energia
+            guardada, então Oficina, Refinaria e Destilaria não convertem nada. Suba o Reator de
+            Energia: a curva dele é 1,5× por nível, e ele vai até o 15.
+          </div>
+        </div>
+      )}
     </div>
   )
 }

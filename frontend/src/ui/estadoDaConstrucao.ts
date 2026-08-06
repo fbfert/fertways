@@ -50,7 +50,7 @@ export function explicacaoDoEstado(spec: Spec): string | null {
     const soEnergia = faltando.length === 1 && spec.insumos_em_falta?.[0] === 'energia'
 
     return soEnergia
-      ? 'Parada: não sobra energia guardada para um lote. Toda construção consome energia por hora, e a receita precisa de um excedente — suba o Reator de Energia ou desligue consumo.'
+      ? 'Parada: não sobra energia guardada para um lote. Toda construção consome energia por hora, e a receita precisa de um excedente — suba o Reator de Energia. Veja o saldo em "Recursos por hora".'
       : `Parada por falta de ${listar(faltando)}. Ela está de pé e não converte nada até o insumo chegar.`
   }
 

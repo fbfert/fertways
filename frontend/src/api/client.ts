@@ -75,6 +75,16 @@ export type Colonia = {
   buildings: { type: string; level: number }[]
   resources: Record<string, number>
   taxas_hora: Record<string, { produzido: number; consumido: number }>
+  /**
+   * O balanço de energia **operacional** (D-220): o que o Reator gera contra o que as construções
+   * debitam por hora só para existir.
+   *
+   * ⚠️ **Não é** `taxas_hora.energia`. Lá o consumo soma também o que as receitas pediriam — e essa
+   * parcela é nominal, porque sem energia elas não rodam. `saldo` negativo significa colônia
+   * construída além do que o Reator sustenta: o estoque fica preso em zero e nenhuma fábrica de
+   * conversão converte.
+   */
+  energia_operacional?: { gerada: number; operacional: number; saldo: number }
   marco: Marco
   /**
    * A população da colônia (A2.V2, D-210) — no ar desde o D-178 e sem tela nenhuma até agora.

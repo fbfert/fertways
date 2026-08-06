@@ -12084,3 +12084,53 @@ lote, ele não converte nada. Perguntar só por zero deixaria a Refinaria com 3 
 que pede 6 dizendo que produz.
 
 1248 testes verdes; suíte e2e inteira verde. Fotografado: os três estados lado a lado na colmeia.
+
+---
+
+## D-220 — O déficit de energia dito por extenso, e os dois números que não podiam brigar
+
+Fecho do D-219. Aquele mandou 58 fábricas do mundo apontarem para a energia como causa, e o destino
+de todas elas era uma linha do HUD que dizia `Energia +150 −273` — deixando **a subtração por conta
+do jogador**. Um diagnóstico que exige aritmética de cabeça não é diagnóstico.
+
+### ⚠️ O número certo não era o que estava à mão
+
+A tentação era subtrair a própria linha. Seria errado, e pelo mesmo motivo que quase publicou um
+alarme falso no D-219: `taxas_hora['energia']['consumido']` soma **duas coisas de naturezas
+diferentes** —
+
+- o que **toda construção debita por hora só para existir** (acontece sempre), e
+- o que as **receitas** pediriam se rodassem (nominal — e sem energia elas não rodam).
+
+Somar as duas e chamar de déficit descreve um mundo que não existe. Nasceu
+`TaxasDeProducao::energiaOperacional()`, que devolve `gerada`/`operacional`/`saldo` a partir do
+`consumoEnergia` que o `taxasNominais()` já separava — o dado sempre esteve lá, faltava alguém
+perguntar por ele.
+
+### E os dois números precisaram ser reconciliados na tela
+
+Na primeira foto o painel mostrava `−273` na linha e `261` na caixa. Doze de diferença — exatamente a
+energia da receita da Refinaria que **não** roda. Dois números para "energia consumida" no mesmo
+painel, e a discrepância lê como defeito. A frase passou a nomear a diferença: *"a linha acima soma
+também o que as receitas pediriam, e sem energia elas não rodam"*.
+
+Foi a foto que mostrou isso, de novo. Nenhum teste compara dois números que estão certos.
+
+### A boa notícia que a medição trouxe
+
+Das 17 colônias com saldo negativo, quase todas estão com o **Reator no nível 1** (150/h) consumindo
+300–400/h. A curva é 1,5× por nível: o nível 3 já dá 338/h e o nível 4, 506/h. **Ninguém está preso
+— estava no escuro.** É por isso que a mensagem termina apontando o Reator, com a curva junto: o
+jogador precisa saber que a saída existe e é barata.
+
+### Onde NÃO foi posto, e por quê
+
+Não virou aviso da faixa. São **17 de 29 colônias**, a mesma faixa dos avisos que o D-211 cortou por
+virarem moldura ("população no teto", 28/29; "sem colonos livres", 19/29). Um aviso que 6 em cada 10
+veem sempre ensina a ignorar a faixa inteira, e leva junto o aviso de cerco. O lugar é a linha do
+recurso, onde a pergunta nasce.
+
+Só aparece no vermelho: colônia equilibrada não recebe aviso nenhum. Um "está tudo bem" permanente
+ensina a não olhar para o lugar onde a má notícia vai aparecer.
+
+1250 testes verdes; suíte e2e inteira verde; fotografado.

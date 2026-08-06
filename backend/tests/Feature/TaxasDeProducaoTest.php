@@ -63,6 +63,58 @@ class TaxasDeProducaoTest extends TestCase
         $this->assertArrayNotHasKey('metal_bruto', $r); // sem Mina, sem entrada nenhuma
     }
 
+    // ─────────────── o balanço OPERACIONAL de energia (D-220), que não é o da linha acima
+
+    /**
+     * ⚠️ A distinção inteira deste método em um teste.
+     *
+     * `porRecurso()['energia']['consumido']` soma **duas coisas de naturezas diferentes**: o que as
+     * construções debitam por hora só para existir, e o que as receitas pediriam se rodassem. A
+     * segunda parcela é nominal — e quando falta energia ela justamente **não acontece**.
+     *
+     * Mostrar o déficit somando as duas seria tratar taxa nominal como previsão, que é o erro que o
+     * D-219 quase publicou. O saldo daqui é o que acontece toda hora.
+     */
+    public function test_o_saldo_operacional_ignora_a_energia_das_receitas(): void
+    {
+        $user = $this->colono();
+        // A Destilaria pede 3 de energia por lote e produz 20/h: 60/h de energia NOMINAL na receita.
+        $this->erguerPredio($user->colony, 'destilaria', 1);
+
+        $colony = $user->colony->fresh();
+        $r = app(TaxasDeProducao::class)->porRecurso($colony);
+        $e = app(TaxasDeProducao::class)->energiaOperacional($colony);
+
+        // A linha do card soma receita + operação...
+        $this->assertGreaterThan($e['operacional'], $r['energia']['consumido']);
+
+        // ...e o balanço operacional não: só o que toda construção debita por existir.
+        $this->assertSame(150, $e['gerada']);
+        $this->assertSame($e['gerada'] - $e['operacional'], $e['saldo']);
+        $this->assertGreaterThan(0, $e['saldo'], 'cinco essenciais + Destilaria ainda cabem no Reator 1');
+    }
+
+    /**
+     * O caso que manda a mensagem aparecer: colônia construída além do que o Reator sustenta.
+     *
+     * Medido em produção quando este saldo nasceu: **17 das 29 colônias** estavam assim, quase todas
+     * com o Reator ainda no nível 1 — e nenhuma tela dizia isso.
+     */
+    public function test_colonia_construida_alem_do_reator_tem_saldo_negativo(): void
+    {
+        $user = $this->colono();
+        // O Reator 1 dá 150/h e as cinco essenciais consomem 62 — sobram 88. Quatro Oficinas
+        // (25 cada) passam disso. ⚠️ A Mina não serviria: ela consome **zero** de energia.
+        foreach (range(1, 4) as $ignorado) {
+            $this->erguerPredio($user->colony, 'oficina', 1);
+        }
+
+        $e = app(TaxasDeProducao::class)->energiaOperacional($user->colony->fresh());
+
+        $this->assertLessThan(0, $e['saldo']);
+        $this->assertSame($e['gerada'] - $e['operacional'], $e['saldo']);
+    }
+
     public function test_duas_minas_somam_o_produzido_por_linha_nao_por_tipo(): void
     {
         $user = $this->colono();

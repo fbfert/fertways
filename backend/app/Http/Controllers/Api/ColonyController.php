@@ -107,6 +107,15 @@ class ColonyController extends Controller
             // Taxa nominal de produção/consumo por hora (D-153) — não é o que o tick vai creditar
             // de fato (isso depende do insumo disponível no momento), é a capacidade plena.
             'taxas_hora' => $taxas->porRecurso($colony),
+            /*
+             * O balanço de energia OPERACIONAL (D-220), à parte do `taxas_hora` de propósito.
+             *
+             * Lá o consumo de energia soma o que as construções debitam por hora com o que as
+             * receitas pediriam — e a segunda parcela é nominal, porque sem energia elas não rodam.
+             * Este é o número que de fato acontece, e é o que decide se sobra energia guardada para
+             * uma Oficina, uma Refinaria ou uma Destilaria converterem alguma coisa.
+             */
+            'energia_operacional' => $taxas->energiaOperacional($colony),
             // O Marco do §03/§05 (D-75): número, título publicado, e quanto falta para o próximo.
             'marco' => $this->marco($colony),
 

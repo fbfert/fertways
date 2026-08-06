@@ -22,6 +22,35 @@ class TaxasDeProducao
     {
     }
 
+    /**
+     * O balanço de energia **operacional** da colônia (D-220).
+     *
+     * ## Por que separado de `porRecurso()`
+     *
+     * Ali a energia aparece como `produzido`/`consumido`, e o `consumido` soma duas coisas de
+     * naturezas diferentes: o que **toda construção debita por hora só para existir** e o que as
+     * **receitas** pediriam se rodassem. A segunda parcela é nominal — e quando falta energia ela
+     * justamente **não acontece**, porque `converter()` não converte sem insumo.
+     *
+     * Somar as duas e chamar de déficit seria mostrar ao jogador um número que não descreve o mundo.
+     * É o mesmo erro que quase foi publicado no D-219: taxa nominal tratada como previsão.
+     *
+     * O saldo daqui é o que **de fato** acontece toda hora, e é o que decide se sobra energia
+     * guardada para uma receita. Negativo significa colônia construída além do que o Reator sustenta:
+     * o estoque fica preso em zero (D-20) e nenhuma fábrica de conversão converte.
+     *
+     * @return array{gerada: int, operacional: int, saldo: int}
+     */
+    public function energiaOperacional(Colony $colony): array
+    {
+        $n = $this->tick->taxasNominais($colony);
+
+        $gerada = (int) round($n['taxas']['energia'] ?? 0);
+        $operacional = (int) round($n['consumoEnergia']);
+
+        return ['gerada' => $gerada, 'operacional' => $operacional, 'saldo' => $gerada - $operacional];
+    }
+
     /** @return array<string, array{produzido: int, consumido: int}> */
     public function porRecurso(Colony $colony): array
     {
