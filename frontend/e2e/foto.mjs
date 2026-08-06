@@ -160,6 +160,33 @@ try {
   await new Promise((r) => setTimeout(r, 2500))
   await page.screenshot({ path: '/tmp/foto-capital.png' })
   console.log('capital → /tmp/foto-capital.png')
+
+  /*
+   * O MERCADO CENTRAL — o sistema mais exercitado do jogo (1.448 ordens executadas em produção,
+   * medido no D-226) e, até aqui, o único que nunca tinha sido fotografado.
+   */
+  await page.goto(`${BASE}/mercado/central`, { waitUntil: 'domcontentloaded' })
+  await assentar()
+  await new Promise((r) => setTimeout(r, 2500))
+  await page.screenshot({ path: '/tmp/foto-mercado.png' })
+  console.log('mercado → /tmp/foto-mercado.png')
+
+  // A aba das OFERTAS — é ali que moram as 1.448 execuções, e é a superfície mais usada do jogo.
+  const abriu = await page.evaluate(() => {
+    const aba = [...document.querySelectorAll('button')].find((b) =>
+      /ofertas globais/i.test(b.textContent ?? ''),
+    )
+    aba?.click()
+
+    return Boolean(aba)
+  })
+  if (abriu) {
+    await new Promise((r) => setTimeout(r, 2000))
+    await page.screenshot({ path: '/tmp/foto-mercado-ofertas.png' })
+    console.log('ofertas → /tmp/foto-mercado-ofertas.png')
+  } else {
+    console.log('⚠️ não achei a aba de ofertas globais')
+  }
 } finally {
   await fecharNavegador(navegador)
 }

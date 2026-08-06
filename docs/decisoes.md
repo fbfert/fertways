@@ -12500,3 +12500,60 @@ situação de ameaças/zonas/trajetos na A2.V4. O que sobra com dado real é a C
 o Mercado. Fica registrado para não se gastar a fase no lado morto.
 
 Suíte e2e inteira verde; fotografado antes e depois.
+
+---
+
+## D-227 — A referência que só o vendedor via, e a correção de um número que eu publiquei ontem
+
+### ⚠️ Primeiro, a correção
+
+O D-226 diz que *"o Mercado Central é o sistema mais exercitado do jogo — 1.448 ordens executadas"*.
+**Está errado, e o erro é meu**: eu não separei humano de bot.
+
+| | |
+|---|---|
+| ordens executadas | 1.440 |
+| **de bots** | **1.440 (100%)** |
+| **de humanos** | **0** |
+
+Nenhum jogador humano executou **uma única ordem**. Eles têm 11 ofertas abertas e 1 parcial, e
+compram do governo (51 lançamentos `compra_mercado` no ledger) — mas o livro entre colonos, que o
+D-58 abriu, nunca fechou um negócio humano.
+
+É a terceira vez nesta sessão que uma medida minha quase virou conclusão errada (taxa nominal no
+D-219, banco de dev no D-225). O padrão é o mesmo: **o número estava certo, a população dele é que
+não era a que eu supus.**
+
+O que os 9 humanos de fato fazem, pelo ledger: estacionamento (1.257), custo de construção (355),
+subsídio (325), tesouro (64), **compra no mercado (51)**, manutenção territorial (44). E **5 das 9**
+agiram hoje — as outras 4 pararam em 23/07.
+
+### A referência que só o vendedor via
+
+O formulário de anunciar mostra *"Referência 0,0062 Fert$ · taxa de 3%"*. **A vitrine não mostrava
+nada.** Quem lia a lista via só "0,0100 Fert$" e não tinha como saber se era caro ou barato — que é a
+única pergunta que um comprador faz.
+
+E o dado **já vinha no payload**: `Vitrine.catalogo` traz `preco_base_micro` de cada recurso, e
+ninguém o lia. É o mesmo defeito que esta Alpha achou oito vezes — dado servido sem consumidor.
+
+Agora cada oferta diz a referência e a razão: *"referência 0,0062 Fert$ · 1,61× acima"*, em `perigo`
+acima e `sucesso` abaixo. `null` quando não há base — sem número para comparar, dizer "no preço"
+seria afirmar o que não se sabe.
+
+⚠️ E a medida dá o contexto que torna isto mais do que enfeite: os 1.440 negócios fechados saíram a
+**exatamente 1× a referência**. Um mercado onde o preço justo é invisível não convida ninguém a
+discordar dele — e os bots, que enxergam o banco, negociam no ponto exato em que ninguém precisa
+pensar.
+
+### E o resto da A2.V6, medido
+
+A fase é "Combate e eventos", e **as duas metades estão vazias**: 0 combates desde sempre, e
+**0 eventos** em `game_events`. O motor do D-185 funciona — mas criar evento é ato do Dono, por
+`artisan fertways:evento`, e nenhum foi disparado. Não há o que desenhar em nenhuma das duas.
+
+Com isto, **três das seis sub-fases visuais (A2.V4 combate/território, A2.V5 Endurance, A2.V6) não
+têm sujeito**. O padrão da revisão inteira: onde há uso real, sempre havia verdade que a tela calava;
+onde não há, não há o que polir.
+
+Suíte e2e inteira verde; fotografado antes e depois.

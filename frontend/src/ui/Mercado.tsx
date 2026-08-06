@@ -1248,6 +1248,10 @@ function OfertasGlobais({
               key={o.id}
               oferta={o}
               saldo={conta?.deposito.find((d) => d.resource_type === o.resource_type)}
+              // O catálogo já vinha na vitrine, com o preço base de cada recurso — e ninguém o lia.
+              base={
+                vitrine?.catalogo.find((c) => c.code === o.resource_type)?.preco_base_micro ?? null
+              }
               agir={agir}
             />
           ))}
@@ -1260,12 +1264,21 @@ function OfertasGlobais({
 function LinhaDaVitrine({
   oferta,
   saldo,
+  base,
   agir,
 }: {
   oferta: OfertaGlobal
   saldo: SaldoDoRecurso | undefined
+  /** O preço de referência do recurso (§06, D-35), ou `null` se o catálogo não o trouxe. */
+  base: number | null
   agir: (a: () => Promise<unknown>) => Promise<void>
 }) {
+  /*
+   * A razão contra a referência, arredondada a duas casas. `null` quando não há base: sem número
+   * para comparar, dizer "no preço" seria afirmar o que não se sabe.
+   */
+  const razao = base && base > 0 ? Math.round((oferta.price_micro / base) * 100) / 100 : null
+
   const [qtd, setQtd] = useState('')
   const quantidade = Number(qtd) || oferta.qty
   const [confirmacao, setConfirmacao] = useState<{ qtd: number; recurso: string } | null>(null)
@@ -1317,6 +1330,33 @@ function LinhaDaVitrine({
             {' · total '}
             {fert(oferta.qty * oferta.price_micro, 2)} Fert$
           </div>
+
+          {/*
+            ⚠️ A REFERÊNCIA, que só o vendedor via (A2.V5, D-227).
+
+            O formulário de anunciar mostra "Referência 0,0062 Fert$"; a vitrine, não. Quem lê a
+            lista via só "0,0100 Fert$" e não tinha como saber se era caro ou barato — a única
+            pergunta que um comprador faz. O dado já vinha no payload (`Vitrine.catalogo`), sem
+            consumidor: é o mesmo defeito que esta Alpha achou oito vezes.
+
+            Medido em produção: os 1.440 negócios fechados saíram a **exatamente 1× a referência** —
+            e todos são de bots. Nenhum humano executou uma ordem sequer. Um mercado onde o preço
+            justo é invisível não convida ninguém a discordar dele.
+          */}
+          {base !== null && (
+            <div className="text-ink-soft text-xs" data-referencia>
+              referência{' '}
+              <span className="tabular-nums">{fert(base)} Fert$</span>
+              {razao !== null && (
+                <span className={razao > 1 ? 'text-perigo' : razao < 1 ? 'text-sucesso' : ''}>
+                  {' · '}
+                  {razao === 1
+                    ? 'no preço'
+                    : `${razao.toFixed(2).replace('.', ',')}× ${razao > 1 ? 'acima' : 'abaixo'}`}
+                </span>
+              )}
+            </div>
+          )}
           {!oferta.minha && (
             <div className="text-rust mt-0.5 text-xs font-bold">
               {vende
