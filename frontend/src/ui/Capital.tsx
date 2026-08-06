@@ -34,15 +34,26 @@ type Sub = 'tesouro' | 'financas' | 'noticias' | 'transportes' | 'espacoporto' |
  * crescer, e não uma lista — e o GDD publica os 20. O 9 (Quartel de Alianças) saiu de "reservado"
  * pra "ativo" no D-114 — Federação, Fatia 1.
  */
+/*
+ * ⚠️ O `curto` existe porque a Capital mostrava só NÚMEROS (A2.V5, D-226).
+ *
+ * Nove instituições — Tributos, Notícias, Finanças, Reputações, Transportes, Alianças — e o jogador
+ * tinha de **clicar em cada hexágono para descobrir o que era**. Os números eram decisão registrada,
+ * mas para os slots VAGOS: *"é o que faz a Capital parecer um lugar que vai crescer, e não um menu"*.
+ * Isso vale para o que ainda não existe; para o que já funciona, número é charada.
+ *
+ * O rótulo curto é o que cabe na grade (hexágonos de ~20px de raio, linhas a ~51px). O nome inteiro
+ * continua sendo o título do painel que abre ao clicar.
+ */
 const SLOTS: SlotDaCapital[] = [
   { n: 1, nome: 'Administração Pública', abre: null, estado: 'em_breve' },
-  { n: 2, nome: 'Central de Tributos', abre: 'tesouro', estado: 'ativo' },
-  { n: 3, nome: 'Central de Pesquisas e Notícias', abre: 'noticias', estado: 'ativo' },
-  { n: 4, nome: 'Secretaria de Finanças e Tesouro', abre: 'financas', estado: 'ativo' },
+  { n: 2, nome: 'Central de Tributos', curto: 'Tributos', abre: 'tesouro', estado: 'ativo' },
+  { n: 3, nome: 'Central de Pesquisas e Notícias', curto: 'Notícias', abre: 'noticias', estado: 'ativo' },
+  { n: 4, nome: 'Secretaria de Finanças e Tesouro', curto: 'Finanças', abre: 'financas', estado: 'ativo' },
   { n: 5, nome: 'Ministério da Segurança e Guerra', abre: null, estado: 'em_breve' },
-  { n: 7, nome: 'Ministério das Reputações', abre: 'ministerio', estado: 'ativo' },
-  { n: 8, nome: 'Ministério dos Transportes', abre: 'transportes', estado: 'ativo' },
-  { n: 9, nome: 'Quartel de Alianças', abre: 'federacao', estado: 'ativo' },
+  { n: 7, nome: 'Ministério das Reputações', curto: 'Reputações', abre: 'ministerio', estado: 'ativo' },
+  { n: 8, nome: 'Ministério dos Transportes', curto: 'Transportes', abre: 'transportes', estado: 'ativo' },
+  { n: 9, nome: 'Quartel de Alianças', curto: 'Alianças', abre: 'federacao', estado: 'ativo' },
   ...Array.from({ length: 11 }, (_, i) => ({
     n: 10 + i,
     nome: 'Vago',

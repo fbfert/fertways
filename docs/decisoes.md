@@ -12448,3 +12448,55 @@ Só **1 das 29** colônias está devendo operadores — o destaque em vermelho �
 (a regra do D-211). As outras 28 continuam vendo o disponível de sempre.
 
 1261 testes verdes; suíte e2e inteira verde.
+
+---
+
+## D-226 — A2.V5: a Endurance está morta, a Capital é o sistema mais usado, e ela mostrava só números
+
+Primeira fatia da A2.V5, e ela começou pela medida — a lição que a A2.V4 cobrou caro. A fase se chama
+"Capital e Endurance", e as duas metades estão em extremos opostos:
+
+| sistema | uso real |
+|---|---|
+| **Mercado Central** | **1.448 ordens executadas**, 116 abertas, 15 parciais |
+| Missões | 53 modelos, **155 concluídas**, 32 ativas |
+| Acordos de troca | 3 |
+| **Endurance** | **1 item no catálogo, 1 nas mãos de um colono, 0 transferências, 1 leilão** |
+
+**A Endurance é a segunda A2.V4**: sistema construído (D-132 a D-140 — a Loja refeita, os efeitos no
+motor, as missões narrativas, os leilões) e praticamente **não jogado**. Polir a tela dela seria polir
+uma porta que ninguém abre. Não foi tocada.
+
+A Capital é o oposto: é por onde se chega ao Mercado, e o Mercado é o sistema mais exercitado do jogo.
+
+### Nove instituições, todas anônimas
+
+O Governo Central desenhava **hexágonos com números**. Tributos, Notícias, Finanças, Reputações,
+Transportes e Alianças — seis coisas que funcionam — e descobrir o que cada uma era exigia **clicar em
+todas**.
+
+⚠️ Os números **eram decisão registrada**, e continuam certos onde foram decididos: *"o vago não
+engana... é o que faz a Capital parecer um lugar que vai crescer, e não um menu"*. Isso vale para o
+que **ainda não existe**. Para o que já funciona, número é charada.
+
+A linha que ficou: **só o ativo ganha nome.** O vago segue numerado e apagado — a promessa de
+crescimento fica intacta — e o `em_breve` também, porque nomear o que não abre seria oferecer uma
+porta que não existe.
+
+### O rótulo é curto de propósito
+
+Os hexágonos do Norte têm ~20px de raio e as linhas distam ~51px. *"Central de Pesquisas e
+Notícias"* não cabe em lugar nenhum dessa grade, e forçá-lo quebraria em três linhas por cima do
+vizinho. O nome inteiro continua existindo — é o **título do painel** que abre ao clicar. No hexágono
+vale a palavra que identifica: Tributos, Notícias, Finanças, Reputações, Transportes, Alianças.
+
+A placa por baixo é o mesmo remédio do D-218: quando a cor do texto não passa sobre um fundo
+qualquer, **pinte o fundo**.
+
+### O que a medida deixa decidido para o resto da A2.V5
+
+A metade "Endurance" da fase **não tem o que desenhar** enquanto o sistema não for jogado — mesma
+situação de ameaças/zonas/trajetos na A2.V4. O que sobra com dado real é a Capital e, por trás dela,
+o Mercado. Fica registrado para não se gastar a fase no lado morto.
+
+Suíte e2e inteira verde; fotografado antes e depois.

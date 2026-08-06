@@ -114,6 +114,15 @@ export function plantaDaCapital(largura: number, altura: number, vista: Vista = 
 export type SlotDaCapital = {
   n: number
   nome: string
+  /**
+   * O rótulo que cabe embaixo do hexágono (A2.V5, D-226).
+   *
+   * ⚠️ Curto **de propósito**, e não é preguiça: os hexágonos do Norte têm ~20px de raio e as linhas
+   * distam ~51px. "Central de Pesquisas e Notícias" não cabe em lugar nenhum dessa grade, e forçá-lo
+   * quebraria em três linhas por cima do vizinho. O nome inteiro continua existindo — é o título do
+   * painel que abre ao clicar. Aqui vale a palavra que identifica.
+   */
+  curto?: string
   /** `null` = ainda não abre nada. */
   abre: string | null
   estado: 'ativo' | 'em_breve' | 'reservado' | 'vago'
@@ -367,6 +376,46 @@ export class CapitalScene extends Phaser.Scene {
         .setOrigin(0.5)
         .setAlpha(estado === 'ativo' || estado === 'em_breve' ? 1 : 0.4),
     )
+
+    /*
+     * O nome, embaixo do hexágono — só nos ATIVOS (A2.V5, D-226).
+     *
+     * A Capital mostrava nove instituições como números, e descobrir o que cada uma era exigia
+     * clicar em todas. Os números eram decisão registrada, mas para os slots **vagos**: *"é o que
+     * faz a Capital parecer um lugar que vai crescer, e não um menu"*. Isso vale para o que ainda
+     * não existe; para o que já funciona, número é charada.
+     *
+     * ⚠️ Só o ativo ganha nome, e é essa a linha: o vago continua numerado e apagado — a promessa de
+     * crescimento fica intacta —, e o `em_breve` também, porque nomear o que não abre seria oferecer
+     * uma porta que não existe.
+     *
+     * A placa por baixo é o mesmo remédio do D-218: sobre um fundo qualquer, quando a cor do texto
+     * não passa, **pinte o fundo**. Aqui o texto cai fora do hexágono, sobre a área do Norte.
+     */
+    if (estado === 'ativo' && slot?.curto) {
+      const tam = Math.max(8, Math.round(r * 0.34))
+      const rotulo = this.add
+        .text(0, r * 1.06, slot.curto, {
+          fontFamily: 'Archivo, Inter, sans-serif',
+          fontSize: `${tam}px`,
+          color: '#1e1c17',
+        })
+        .setOrigin(0.5, 0)
+
+      const folga = Math.max(2, r * 0.1)
+      const placa = this.add.graphics()
+      placa.fillStyle(CORES.sandLight, 0.94)
+      placa.fillRoundedRect(
+        -rotulo.width / 2 - folga,
+        rotulo.y - folga * 0.4,
+        rotulo.width + folga * 2,
+        rotulo.height + folga * 0.8,
+        Math.max(2, r * 0.08),
+      )
+
+      c.add(placa)
+      c.add(rotulo)
+    }
 
     return c
   }
