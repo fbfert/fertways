@@ -12134,3 +12134,48 @@ Só aparece no vermelho: colônia equilibrada não recebe aviso nenhum. Um "est�
 ensina a não olhar para o lugar onde a má notícia vai aparecer.
 
 1250 testes verdes; suíte e2e inteira verde; fotografado.
+
+---
+
+## D-221 — A pulsação sem tween, e a regra: anima-se evento, não condição
+
+Último item da A2.V3. O D-215 tinha adiado *"animações sutis"* **por escrito**, e o motivo continuava
+de pé: `desenhar()` reconstrói a árvore inteira (`removeAll(true)`) a cada hover, resize e
+atualização de specs. Um tween guardaria referência a um objeto que o próximo redesenho destrói — e
+tween sobre alvo destruído é **exatamente** a classe de defeito que obrigou a guarda `viva()` a
+existir.
+
+### A saída foi não ter estado
+
+A escala sai de uma **função do relógio da cena**, aplicada em `update()`. Não há tween, não há
+ciclo de vida, não há referência a manter viva: o objeto recriado no meio do ciclo pega a fase
+corrente e continua liso, **porque a fase nunca morou nele**.
+
+A lista de pulsantes é zerada na mesma linha em que a árvore é destruída, e não depois — `update()`
+roda no laço de quadros, e deixar a lista velha de pé por um instante seria pedir um `setScale` num
+objeto morto. É o mesmo defeito de sempre, entrando pela porta dos fundos.
+
+### ⚠️ A regra de desenho que saiu daqui
+
+**Anima-se evento, não condição.**
+
+- `erguendo` e `melhorando` são coisas **acontecendo**, com hora para acabar, e no máximo duas por
+  colônia pelo teto da fila. Pulsam.
+- `travada` e `sem_insumo` são **condições**. Numa colônia com quatro fábricas paradas, quatro selos
+  pulsando viram ruído; num mundo com **58** delas (D-219), viraria um pisca-pisca. Ficam estáticos.
+
+Condição se lê; evento se nota. Sem essa regra, "animações sutis" vira animação em tudo, e a tela que
+o D-218 acabou de limpar sujaria de novo — por movimento em vez de por texto.
+
+Amplitude 6% (0,94–1,06) num ciclo de ~2,8 s: perto do limiar de percepção, que é onde "sutil" mora.
+
+### Como foi conferido, já que foto não prova movimento
+
+`e2e/foto.mjs` passou a tirar **dois quadros do mesmo recorte**, separados por meio ciclo, e a
+comparar os bytes. Se forem idênticos, nada se moveu — ou a `update()` deixou de ser chamada, ou a
+lista de pulsantes ficou vazia. É grosseiro de propósito: não afirma que a animação está bonita,
+afirma que ela **existe**, que é o que um redesenho quebrado apagaria em silêncio.
+
+Resultado: `pulsação: viva (211699 vs 211841 bytes)`.
+
+Com isto a **A2.V3 fecha**. 1250 testes verdes; suíte e2e inteira verde.

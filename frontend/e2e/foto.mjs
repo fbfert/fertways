@@ -65,6 +65,24 @@ try {
   await page.screenshot({ path: '/tmp/foto-colonia.png' })
   console.log('colônia → /tmp/foto-colonia.png')
 
+  /*
+   * ⚠️ A pulsação (A2.V3) — e foto nenhuma prova movimento.
+   *
+   * Dois quadros do MESMO recorte, separados por meio ciclo (~1,4 s de um ciclo de 2,8 s). Se os
+   * bytes forem idênticos, nada se moveu: ou a `update()` da cena parou de ser chamada, ou a lista
+   * de pulsantes ficou vazia. É grosseiro de propósito — não afirma que a animação está bonita,
+   * afirma que ela **existe**, que é o que um redesenho quebrado apagaria em silêncio.
+   */
+  const recorte = { x: 560, y: 200, width: 480, height: 480 }
+  const a = await page.screenshot({ clip: recorte })
+  await new Promise((r) => setTimeout(r, 1400))
+  const b = await page.screenshot({ clip: recorte })
+  console.log(
+    a.equals(b)
+      ? '⚠️ pulsação: NADA se moveu entre os dois quadros'
+      : `pulsação: viva (${a.length} vs ${b.length} bytes)`,
+  )
+
   // O cartão de detalhe: abre uma construção COM arte e fotografa a imagem grande.
   await clicarNaConstrucao(page, 'Reator de Energia')
   await new Promise((r) => setTimeout(r, 2500))

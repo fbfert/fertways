@@ -128,6 +128,14 @@ export class ColonyScene extends Phaser.Scene {
   private vista: Vista = VISTA_INICIAL
   private raiz!: Phaser.GameObjects.Container
 
+  /**
+   * Os objetos que pulsam — ver `update()`.
+   *
+   * É lista, e não um objeto só: uma colônia pode ter duas obras ao mesmo tempo (o teto da fila),
+   * e as duas precisam pulsar **em fase**, porque estão contando o mesmo tempo.
+   */
+  private pulsantes: (Phaser.GameObjects.Container | Phaser.GameObjects.Text)[] = []
+
   constructor() {
     super('colonia')
   }
@@ -241,8 +249,44 @@ export class ColonyScene extends Phaser.Scene {
     })
   }
 
+  /**
+   * A pulsação sutil do que está EM CURSO (A2.V3), quadro a quadro.
+   *
+   * ## ⚠️ Por que aqui, e não num tween
+   *
+   * `desenhar()` reconstrói a árvore inteira (`removeAll(true)`) a cada hover, resize e atualização
+   * de specs. Um tween guardaria referência a um objeto que o próximo redesenho destrói — e tween
+   * sobre alvo destruído é **exatamente** a classe de defeito que obrigou a guarda `viva()` a
+   * existir. Foi por isso que o D-215 adiou a animação, por escrito.
+   *
+   * A saída é não ter estado nenhum: a escala sai de uma **função do relógio da cena**. O objeto
+   * recriado no meio do ciclo pega a fase corrente e continua liso, porque a fase nunca morava nele.
+   *
+   * ## O que pulsa, e a regra que decide
+   *
+   * **Anima-se evento, não condição.** `erguendo` e `melhorando` são coisas que estão acontecendo e
+   * têm hora para acabar — no máximo duas por colônia, pelo teto da fila. `travada` e `sem_insumo`
+   * são **condições**: numa colônia com quatro fábricas paradas, quatro selos pulsando viram ruído,
+   * e um mundo com 58 delas viraria um pisca-pisca. Condição se lê; evento se nota.
+   */
+  update(tempo: number) {
+    if (this.pulsantes.length === 0) return
+
+    // ~2,8 s por ciclo, 6% de amplitude: perto do limiar de percepção, que é o ponto de "sutil".
+    const fase = (Math.sin(tempo / 450) + 1) / 2
+    const escala = 0.94 + fase * 0.12
+
+    this.pulsantes.forEach((o) => o.setScale(escala))
+  }
+
   private desenhar() {
     this.raiz.removeAll(true)
+    /*
+     * Zerado JUNTO com a árvore, e não depois: os objetos que estavam aqui acabaram de ser
+     * destruídos por `removeAll(true)`, e `update()` roda no laço de quadros. Deixar a lista velha
+     * de pé por um instante seria pedir um `setScale` num objeto morto.
+     */
+    this.pulsantes = []
     if (!this.linhas.length) return
 
     const { width, height } = this.scale
@@ -394,19 +438,25 @@ export class ColonyScene extends Phaser.Scene {
     const nivelY = temArte ? -r * 0.66 : -r * 0.3
     const nivelTam = temArte ? Math.round(r * 0.3) : Math.round(r * 0.5)
 
-    rotulos.add(
-      this.add
-        .text(0, nivelY, erguida ? String(spec.level) : '⏳', {
-          fontFamily: 'Archivo, Inter, sans-serif',
-          fontSize: `${nivelTam}px`,
-          fontStyle: 'bold',
-          color: temArte ? '#b4450b' : erguida ? '#fdf0e2' : '#b4450b',
-          // Contorno claro: mesmo no topo, o dígito pode cair sobre uma antena ou uma chaminé.
-          stroke: temArte ? '#fdf0e2' : undefined,
-          strokeThickness: temArte ? 4 : 0,
-        })
-        .setOrigin(0.5),
-    )
+    const nivel = this.add
+      .text(0, nivelY, erguida ? String(spec.level) : '⏳', {
+        fontFamily: 'Archivo, Inter, sans-serif',
+        fontSize: `${nivelTam}px`,
+        fontStyle: 'bold',
+        color: temArte ? '#b4450b' : erguida ? '#fdf0e2' : '#b4450b',
+        // Contorno claro: mesmo no topo, o dígito pode cair sobre uma antena ou uma chaminé.
+        stroke: temArte ? '#fdf0e2' : undefined,
+        strokeThickness: temArte ? 4 : 0,
+      })
+      .setOrigin(0.5)
+
+    rotulos.add(nivel)
+
+    // A ampulheta da obra pulsa: é o único sinal de que o relógio corre numa cena que, fora isso,
+    // é estática. Ver `update()` — e a regra de anima-se evento, não condição.
+    if (!erguida) {
+      this.pulsantes.push(nivel)
+    }
 
     /*
      * O nome vai DENTRO do hexágono. Numa colmeia de hexágonos pontudos as linhas distam `1,5·r`,
@@ -473,7 +523,10 @@ export class ColonyScene extends Phaser.Scene {
      * tiver ciclo de vida próprio; o estado não precisa esperar por ela.
      */
     if (spec.estado === 'melhorando') {
-      rotulos.add(this.desenharSelo(r, '↑', CORES.info, '#fdf0e2'))
+      const selo = this.desenharSelo(r, '↑', CORES.info, '#fdf0e2')
+      rotulos.add(selo)
+      // Subir de nível está ACONTECENDO e tem hora para acabar — evento, então pulsa.
+      this.pulsantes.push(selo)
     } else if (spec.estado === 'travada') {
       rotulos.add(this.desenharSelo(r, '!', CORES.ember, '#1e1c17'))
     } else if (spec.estado === 'sem_insumo') {
