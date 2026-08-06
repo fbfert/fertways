@@ -58,7 +58,22 @@ try {
   await clicar(page, '[data-nav="mapa"]')
   await assentar()
   checar(page.url().endsWith('/mapa'), 'a URL vira /mapa')
-  checar(await esperarTexto(page, /Grade \d+×\d+/), 'o Mapa carrega')
+  /*
+   * ⚠️ Afirma o MAPA, e não um texto do painel lateral (A2.V4).
+   *
+   * Isto checava `/Grade \d+×\d+/`, que é a frase de orientação dentro do painel — e passava por
+   * efeito colateral: o painel estava aberto porque **cobria o mapa inteiro** numa tela de 390px
+   * (288px de painel). Agora ele recolhe atrás de um botão quando não há seleção, e o texto some.
+   *
+   * A troca não é para o teste passar: é para ele afirmar o que importa. Que o desenho está lá
+   * (`[data-mapa]`) e que existe o controle para abrir o resto (`[data-legenda-mapa]`) prova a tela
+   * funcional no mobile — o texto do painel provava só que o painel estava por cima.
+   */
+  checar(!!(await page.$('[data-mapa]')), 'o Mapa carrega — o desenho está na tela')
+  checar(
+    !!(await page.$('[data-legenda-mapa]')),
+    'e a legenda tem por onde ser aberta sem tapar o mapa',
+  )
   checar(!!(await page.$('[data-nav-mobile]')), 'a barra inferior continua visível fora da colônia')
   checar(await estaAtivo('mapa'), 'Mapa passa a estar ativo')
   checar(!(await estaAtivo('colonia')), 'Colônia deixa de estar ativa')

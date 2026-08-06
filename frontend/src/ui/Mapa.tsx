@@ -128,6 +128,17 @@ export function Mapa({
   const [erro, setErro] = useState<string | null>(null)
   const [selecao, setSelecao] = useState<Selecao>(null)
   const [infoAberta, setInfoAberta] = useState<number | null>(null)
+  /**
+   * O painel lateral, no MOBILE e **sem seleção** (A2.V4).
+   *
+   * Medido numa tela de 390px: o painel tem 288px de largura e cobre o mapa quase inteiro. Com uma
+   * zona ou colônia selecionada isso é o certo — o painel É a resposta ao clique, e foi por isso que
+   * ele nasceu visível em toda largura. Sem seleção ele é legenda e listas, e legenda que tapa o
+   * mapa inverte a tela: o acessório vira o conteúdo.
+   *
+   * Só o caso sem seleção recolhe, e só no mobile. No desktop nada muda.
+   */
+  const [legendaAberta, setLegendaAberta] = useState(false)
 
   // Nasce nula: o enquadramento inicial depende de onde é a sua colônia, e isso só se sabe quando
   // o diretório chega.
@@ -378,7 +389,19 @@ export function Mapa({
           a COMPARAÇÃO que decide a pintura final é entre este contêiner (sem z, perde do header)
           e o header, não entre o botão e o header diretamente. Foi exatamente isto que aconteceu
           (os botões +/− sumiam atrás do header) até esta troca pra `relative`. */}
-      <div className="bg-sand relative h-screen w-screen overflow-hidden">
+      {/*
+        ⚠️ No MOBILE o mapa termina acima da barra de baixo, e não embaixo dela (A2.V4).
+
+        Medido: a barra fixa começa em **780** numa janela de 844 — 64px opacos. O mapa é
+        `h-screen` de propósito (D-154/D-156), mas o que fica debaixo de uma barra opaca não é mapa
+        visível, é mapa desperdiçado. E era ali que a régua do X ia parar depois de fugir do
+        cabeçalho: sair de uma barra para cair na outra não é conserto.
+
+        `dvh` e não `vh`: no mobile a barra de endereço entra e sai, e `100vh` mede a janela maior,
+        que é justamente a que não está na tela. O `env(safe-area-inset-bottom)` acompanha o recorte
+        do aparelho — no navegador de teste ele é zero, e a conta dá os 780 medidos.
+      */}
+      <div className="bg-sand relative h-[calc(100dvh-4rem-env(safe-area-inset-bottom))] w-screen overflow-hidden md:h-screen">
         {erro && (
           <p
             data-erro-mapa
@@ -438,10 +461,36 @@ export function Mapa({
               </div>
             )}
 
+            {/*
+              No mobile e SEM seleção, o painel vira um botão (A2.V4). Com seleção, nada muda: ele
+              continua abrindo em qualquer largura, porque aí é a resposta direta ao clique.
+            */}
+            {!selecao && (
+              <button
+                type="button"
+                onClick={() => setLegendaAberta((v) => !v)}
+                data-legenda-mapa
+                aria-expanded={legendaAberta}
+                /*
+                 * Embaixo à esquerda, e as três alternativas foram descartadas por medida: em cima
+                 * à esquerda ele cai sobre a marca; em cima à direita, sobre os controles de zoom;
+                 * e na faixa de `top-20` mora o aviso de evento de mundo. Aqui não disputa com nada,
+                 * e ainda fica onde o polegar alcança. Acima da régua do X, que vive nos últimos 30px.
+                 */
+                className="painel bg-sand-light text-rust absolute bottom-14 left-9 z-[26] px-3 py-1.5 text-xs font-bold md:hidden"
+              >
+                {legendaAberta ? 'Fechar legenda' : 'Legenda e zonas'}
+              </button>
+            )}
+
             {/* Os cards flutuantes — em qualquer largura de tela (não só desktop): aqui o
                 painel de seleção não é acessório como a fila de obras da colônia, é a resposta
                 direta ao clique numa zona/colônia. */}
-            <div className="absolute top-24 right-5 z-20 max-h-[calc(100vh-7rem)] w-72 space-y-4 overflow-y-auto">
+            <div
+              className={`absolute top-24 right-5 z-20 max-h-[calc(100vh-7rem)] w-72 space-y-4 overflow-y-auto ${
+                selecao || legendaAberta ? '' : 'hidden md:block'
+              }`}
+            >
               <div className="painel bg-sand-light p-4">
                 <p className="text-ink-soft text-sm">
                   Grade {dir.side}×{dir.side}. Capital em ({dir.capital.x}, {dir.capital.y}). Você

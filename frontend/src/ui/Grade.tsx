@@ -89,12 +89,27 @@ export function Reguas({
 
   return (
     <g fontSize={g * 0.5} className="tabular-nums select-none" textAnchor="middle">
+      {/*
+        ⚠️ A régua do X mora na calha de BAIXO, e não na de cima (A2.V4).
+
+        O mapa é `h-screen w-screen` de propósito (D-154/D-156), e as duas barras de navegação são
+        `absolute top-0`, fora do fluxo. Com os números em cima, a régua inteira nascia **atrás do
+        cabeçalho**: na foto dava para ver `-7`, `-6`, `1` e `7` espiando entre os chips, e mais nada.
+        Um mapa cujo eixo horizontal não se lê é um mapa sem coordenada — e nenhum teste reclamava,
+        porque os `<text>` estavam todos lá, no DOM.
+
+        A calha de baixo já era **reservada e ficava vazia**: `totalComReguas` a soma dos dois lados
+        de propósito, para o rótulo da última coluna não sair pela metade. Mudar de lado não custa
+        pixel nenhum de layout — só usa espaço que já estava pago.
+
+        É o mesmo achado do D-217, na terceira tela: chrome flutuante por cima de conteúdo em fluxo.
+      */}
       <g data-regua-x>
         {multiplos(xDe, xAte, passo).map((x) => (
           <text
             key={`x${x}`}
             x={proj.px(x)}
-            y={caixa.y0 - g * 0.45}
+            y={caixa.y0 + caixa.altura + g * 0.45}
             fill={cor(x)}
             dominantBaseline="central"
           >

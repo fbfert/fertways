@@ -12179,3 +12179,63 @@ afirma que ela **existe**, que é o que um redesenho quebrado apagaria em silên
 Resultado: `pulsação: viva (211699 vs 211841 bytes)`.
 
 Com isto a **A2.V3 fecha**. 1250 testes verdes; suíte e2e inteira verde.
+
+---
+
+## D-222 — A2.V4 primeira fatia: o mapa não tinha eixo, e no telefone o painel tapava o planeta
+
+Primeira fatia da A2.V4, e ela saiu inteira da **primeira foto** — o `foto.mjs` não fotografava o
+mapa até hoje.
+
+### O eixo X estava atrás do cabeçalho
+
+O mapa é `h-screen w-screen` de propósito (D-154/D-156) e as duas barras de navegação são
+`absolute top-0`, fora do fluxo. A régua do X mora na calha de cima do `viewBox` — ou seja, **debaixo
+do cabeçalho**. Na foto dava para ver `-7`, `-6`, `1` e `7` espiando entre os chips, e mais nada.
+
+**Um mapa cujo eixo horizontal não se lê é um mapa sem coordenada.** E nenhum teste reclamava: os
+`<text>` estavam todos no DOM, e o e2e do mapa até **conta** quantos números a régua tem — ele
+contava 25 números invisíveis e dava verde. É o falso-verde do D-63 pela quarta vez nesta sessão.
+
+A régua mudou para a calha de **baixo**, que já era reservada e ficava vazia: `totalComReguas` a soma
+dos dois lados de propósito, para o rótulo da última coluna não sair pela metade. Não custou um pixel
+de layout — só usou espaço que já estava pago.
+
+### ⚠️ E aí ela caiu na outra barra
+
+Medido no viewport de 390×844: a régua foi para 823–837, e a barra fixa de baixo começa em **780**.
+Sair de uma barra para cair na outra não é conserto.
+
+No mobile o mapa passa a terminar **acima** da barra: `h-[calc(100dvh-4rem-env(safe-area-inset-bottom))]`.
+O que fica debaixo de uma barra opaca não é mapa visível, é mapa desperdiçado. `dvh` e não `vh`
+porque a barra de endereço entra e sai, e `100vh` mede a janela maior — justamente a que não está na
+tela.
+
+Depois: régua em 759–773, `coberta_por: 0` nos dois tamanhos.
+
+### O painel de 288px numa tela de 390px
+
+Com o mapa enfim visível, a foto do mobile mostrou o problema maior: **o painel lateral cobria o
+planeta inteiro**. E ele nasceu visível em toda largura por decisão registrada — *"aqui o painel de
+seleção não é acessório, é a resposta direta ao clique numa zona/colônia"*.
+
+A decisão está certa **para o caso que ela descreve**. Sem seleção, porém, o painel é legenda e
+listas — e legenda que tapa o mapa inverte a tela: o acessório vira o conteúdo. Só o caso **sem
+seleção** recolhe, e só no mobile. Com seleção, nada muda.
+
+O botão foi para baixo à esquerda depois de três posições descartadas **por medida**: em cima à
+esquerda cai sobre a marca; em cima à direita, sobre os controles de zoom; em `top-20` mora o aviso
+de evento de mundo. E `left-9`, não `left-3`, para não encostar nos números do eixo Y — a calha tem
+29px nessa largura.
+
+### O teste que precisou mudar, e por quê
+
+O e2e mobile afirmava `/Grade \d+×\d+/` — a frase de orientação **dentro do painel**. Ele passava por
+efeito colateral: o texto estava visível porque o painel cobria o mapa. Agora afirma `[data-mapa]` e
+`[data-legenda-mapa]`.
+
+⚠️ **Não foi enfraquecido para passar.** O texto do painel provava que o painel estava por cima; o
+desenho mais o controle de abrir provam a tela funcional. A asserção ficou mais forte, não mais
+frouxa.
+
+Suíte e2e inteira verde.

@@ -116,6 +116,26 @@ try {
   await page.screenshot({ path: '/tmp/foto-sem-insumo.png' })
   console.log('sem insumo → /tmp/foto-sem-insumo.png')
 
+  // O MAPA (A2.V4). Vale a mesma regra do canvas: nenhum teste de clique alcança o que está coberto.
+  await page.goto(`${BASE}/mapa`, { waitUntil: 'domcontentloaded' })
+  await assentar()
+  await new Promise((r) => setTimeout(r, 2500))
+  await page.screenshot({ path: '/tmp/foto-mapa.png' })
+  console.log('mapa → /tmp/foto-mapa.png')
+  console.log('  régua x:', JSON.stringify(await medirRegua(page)))
+
+  /*
+   * E o mapa no MOBILE, num viewport próprio: lá as barras são DUAS (topo `p-3` e a fixa de baixo),
+   * e uma régua que fugiu de uma pode ter caído na outra.
+   */
+  await page.setViewport({ width: 390, height: 844 })
+  await new Promise((r) => setTimeout(r, 1500))
+  await page.screenshot({ path: '/tmp/foto-mapa-mobile.png' })
+  console.log('mapa mobile → /tmp/foto-mapa-mobile.png')
+  console.log('  régua x:', JSON.stringify(await medirRegua(page)))
+  await page.setViewport({ width: 1400, height: 900 })
+  await new Promise((r) => setTimeout(r, 1200))
+
   await page.goto(`${BASE}/capital`, { waitUntil: 'domcontentloaded' })
   await assentar()
   await new Promise((r) => setTimeout(r, 2500))
@@ -123,4 +143,40 @@ try {
   console.log('capital → /tmp/foto-capital.png')
 } finally {
   await fecharNavegador(navegador)
+}
+
+/**
+ * A régua do X está visível, ou caiu atrás de alguma barra?
+ *
+ * Compara a caixa dos números com a de **cada barra de navegação** — as duas, porque no mobile são
+ * duas (a de cima `absolute` e a de baixo `fixed`) e a régua só tem dois lugares para morar.
+ */
+async function medirRegua(page) {
+  return page.evaluate(() => {
+    const regua = document.querySelector('[data-regua-x]')
+    if (!regua) return { erro: 'sem régua no DOM' }
+
+    const r = regua.getBoundingClientRect()
+    if (r.width === 0 || r.height === 0) return { erro: 'régua com caixa zero' }
+
+    const barras = [...document.querySelectorAll('header, nav')]
+      .flatMap((b) => [...b.children])
+      .map((n) => n.getBoundingClientRect())
+      .filter((b) => b.width > 0 && b.height > 0)
+
+    const cruza = barras.filter(
+      (b) => r.left < b.right && r.right > b.left && r.top < b.bottom && r.bottom > b.top,
+    )
+
+    // O topo do que cobre: é a folga que a régua precisa ganhar para escapar.
+    const barraDeBaixo = cruza.reduce((menor, b) => Math.min(menor, b.top), Infinity)
+
+    return {
+      topo: Math.round(r.top),
+      base: Math.round(r.bottom),
+      janela: window.innerHeight,
+      coberta_por: cruza.length,
+      barra_de_baixo_comeca: Number.isFinite(barraDeBaixo) ? Math.round(barraDeBaixo) : null,
+    }
+  })
 }
