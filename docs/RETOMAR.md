@@ -1686,26 +1686,34 @@ ida→vigia→volta), sem tabela nova além de `drone_sightings` (as fotos).
    - **A2.V6 — Combate e eventos**: avisos, preparação, impacto, relatórios, timeline, efeitos
      ambientais.
 
-   ⚠️ **A A2.V3 COMEÇOU (2026-08-05) e está em duas fatias, as duas no ar.** O que já foi:
-   - **D-215** — estados de construção: `melhorando` e `travada` (§14) passaram a existir na tela.
-     Os dois já eram verdade no servidor e nenhuma tela os mostrava.
+   ✅ **A A2.V3 FECHOU (2026-08-05), inteira no ar**, em cinco fatias:
+   - **D-215** — estados de construção: `melhorando` e `travada` (§14). Os dois já eram verdade no
+     servidor e nenhuma tela os mostrava.
    - **D-218** — leitura espacial: o sprite da linha de baixo pintava por cima do nome da linha de
      cima. Duas passadas de desenho, e a placa no lugar do contorno.
+   - **D-219** — `sem_insumo`: **58 das 66 fábricas do mundo** produziam nada e a tela chamava todas
+     de "produzindo". A escassez que existe no FERTWAYS é **industrial**, não populacional.
+   - **D-220** — o déficit de energia dito por extenso, com o número **operacional** (não o nominal).
+   - **D-221** — a pulsação, sem tween: a escala sai do relógio da cena, então não há alvo para
+     morrer. ⚠️ **Regra que ficou: anima-se evento, não condição** — `erguendo`/`melhorando` pulsam;
+     `travada`/`sem_insumo` não, senão um mundo com 58 fábricas paradas vira pisca-pisca.
 
-   **O que resta da A2.V3**, e por que cada um está aberto:
-   - **animações sutis** — adiadas com motivo escrito no D-215: `desenhar()` reconstrói a árvore
-     inteira a cada hover e resize, e tween sobre alvo destruído é a classe de defeito que criou a
-     guarda `viva()`. Entram quando tiverem ciclo de vida próprio.
-   - **falta de recurso** (§6.6, escassez da população) — a mecânica é viva, mas **0 colônias
-     degradadas** na medição; já aparece na faixa de avisos. Falta decidir se merece estado no
-     hexágono.
-   - ~~falta de energia~~ e ~~operadores~~ — **não existem** como estado de construção: energia
-     nunca trava prédio (D-20) e operadores são de zona (D-184, são da A2.V4). Não invente.
+   ⚠️ **Duas coisas do roadmap desta fase eram falsas, e ficam registradas:**
+   - **falta de recurso** (§6.6, escassez da população) — **arbitrado com o usuário (D-219): é rede
+     de segurança, não pressão econômica.** Inalcançável de propósito: a folga mínima do mundo é de
+     40 dias e o consumo é ~3% da produção (D-177). **Não reabrir** — ver `BALANCEAMENTO.md` §7.1.1.
+   - **falta de energia** — eu afirmei no D-215 que não existia, e **estava errado** (D-219). Não
+     trava a *operação* do prédio, mas trava as *receitas*: sem energia, `converter()` não converte.
+   - **operadores** — esses sim são de zona (D-184). São da A2.V4.
+
+   **A próxima é a A2.V4 (Mapa e zonas)** — e é lá que os **operadores** entram, o item que saiu da
+   A2.V3 por ser de zona e não da colmeia.
 
    O método é o do D-210 e ele segue rendendo: **medir o que já existe na tela antes de escolher o
    que desenhar**. E, em cena de Phaser, **fotografar e olhar** — `E2E_SO_FOTOS=1 ./tools/e2e.sh`
-   dá as fotos em ~1 min sem rodar suíte nenhuma (D-217). Foi a foto, e não um teste, que achou os
-   três defeitos dos D-217 e D-218. A A2.11 (bots) está **fora do escopo** por decisão.
+   dá as fotos em ~1 min sem rodar suíte nenhuma (D-217). Nesta fase a **foto achou cinco defeitos**
+   que a suíte inteira aprovava (D-217, D-218, D-220), incluindo dois números certos que juntos
+   liam como erro. A A2.11 (bots) está **fora do escopo** por decisão.
 
 ## Pendências conhecidas, sem bloquear
 
