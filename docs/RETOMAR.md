@@ -59,6 +59,14 @@ Sessão de conferência, sem código de jogo novo. O que foi medido:
   duas delas passaram por motivos que valem ser lidos no D-214: o backup passou **porque root lê o
   que o `fertways` não lê**, e a fumaça passou porque `401` sai do middleware de auth antes de
   tocar o banco. Duas guardas novas entraram, testadas reproduzindo o defeito.
+- **A A2.V3 andou duas fatias, e três defeitos vieram de olhar a foto** (D-215, D-217, D-218): a
+  faixa de eventos do mundo estava **ilegível** atrás do cabeçalho, o cabeçalho **cobria o topo da
+  faixa de avisos**, e o prédio de uma linha pintava por cima do nome da linha de cima. Os três
+  passavam por toda a suíte — o e2e afirma que o texto existe no DOM, e existia. Entrou uma
+  asserção **geométrica** no e2e e o atalho `E2E_SO_FOTOS=1`.
+- **A faixa de avisos ganhou os três pedidos do usuário** (D-216): sem o `!` na frente, dizendo
+  **qual** recurso encheu, e o "Ver o que aconteceu desde sua última visita" **funcionando** — ele
+  nunca funcionou fora da primeira hora de uma conta nova, e a causa não era a tela.
 - **Os "33 usuários" não são 33 jogadores.** 21 são colonos simulados
   (`*@bots.fertways.local`), e 20 das 29 colônias são deles: o mundo humano é de **12 contas e 9
   colônias**. Eles estavam com token ativo no minuto da medição. ⚠️ O `ROADMAP_ALPHA2.md` diz na
@@ -1678,9 +1686,26 @@ ida→vigia→volta), sem tabela nova além de `drone_sightings` (as fotos).
    - **A2.V6 — Combate e eventos**: avisos, preparação, impacto, relatórios, timeline, efeitos
      ambientais.
 
-   A A2.V3 é a sucessora natural, e o D-210 deu o método que funcionou nas duas anteriores:
-   **medir o que já existe na tela antes de escolher o que desenhar** — foi assim que se descobriu
-   que a população estava ligada e invisível. A A2.11 (bots) está **fora do escopo** por decisão.
+   ⚠️ **A A2.V3 COMEÇOU (2026-08-05) e está em duas fatias, as duas no ar.** O que já foi:
+   - **D-215** — estados de construção: `melhorando` e `travada` (§14) passaram a existir na tela.
+     Os dois já eram verdade no servidor e nenhuma tela os mostrava.
+   - **D-218** — leitura espacial: o sprite da linha de baixo pintava por cima do nome da linha de
+     cima. Duas passadas de desenho, e a placa no lugar do contorno.
+
+   **O que resta da A2.V3**, e por que cada um está aberto:
+   - **animações sutis** — adiadas com motivo escrito no D-215: `desenhar()` reconstrói a árvore
+     inteira a cada hover e resize, e tween sobre alvo destruído é a classe de defeito que criou a
+     guarda `viva()`. Entram quando tiverem ciclo de vida próprio.
+   - **falta de recurso** (§6.6, escassez da população) — a mecânica é viva, mas **0 colônias
+     degradadas** na medição; já aparece na faixa de avisos. Falta decidir se merece estado no
+     hexágono.
+   - ~~falta de energia~~ e ~~operadores~~ — **não existem** como estado de construção: energia
+     nunca trava prédio (D-20) e operadores são de zona (D-184, são da A2.V4). Não invente.
+
+   O método é o do D-210 e ele segue rendendo: **medir o que já existe na tela antes de escolher o
+   que desenhar**. E, em cena de Phaser, **fotografar e olhar** — `E2E_SO_FOTOS=1 ./tools/e2e.sh`
+   dá as fotos em ~1 min sem rodar suíte nenhuma (D-217). Foi a foto, e não um teste, que achou os
+   três defeitos dos D-217 e D-218. A A2.11 (bots) está **fora do escopo** por decisão.
 
 ## Pendências conhecidas, sem bloquear
 
