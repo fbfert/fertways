@@ -12557,3 +12557,63 @@ têm sujeito**. O padrão da revisão inteira: onde há uso real, sempre havia v
 onde não há, não há o que polir.
 
 Suíte e2e inteira verde; fotografado antes e depois.
+
+---
+
+## D-228 — O que trava a primeira troca humana: não é regra, é que ninguém tem o que o outro quer
+
+Pedido do usuário: mapear a primeira troca entre humanos como o D-223 mapeou os portões do
+território. A medida diz que **não há portão** — e o que há é pior de consertar.
+
+### Nenhum bloqueio mecânico
+
+| conferido | resultado |
+|---|---|
+| gate de marco no Mercado | **não existe** — o D-75 o recusou de propósito (§03 promete o primeiro lote ao recém-chegado) |
+| Confiança Comercial (limiar 200) | as 9 colônias humanas estão em **500** |
+| depósito na Capital | **4 das 9** têm, e cheios (2.142 Ligas, 995 Oxigênio, 970 Oxigênio…) |
+| Fert$ | têm |
+
+O livro está aberto, a doca está aberta, a carga está na Capital. Ninguém está barrado.
+
+### As 12 ordens humanas, e o que elas dizem
+
+| lado | preço vs referência | idade |
+|---|---|---|
+| 4 ordens de **compra** | 0,02× · 0,03× · 0,06× · 0,18× (uma a 0,6×) | 27–28 dias |
+| 8 ordens de **venda** | 0,80× a 1,03× — **justas** — e uma a 16× | 14–22 dias |
+
+⚠️ **As vendas humanas são honestas e ninguém as pega.** Água a 0,81×, Biomassa a 0,84×, Oxigênio a
+0,80× — abaixo da referência, paradas há duas semanas.
+
+### A causa: todos têm demais exatamente a mesma coisa
+
+|  | água | oxigênio | biomassa | energia | metal | ligas | componentes |
+|---|---|---|---|---|---|---|---|
+| Maior Colonia | 183.350 | 213.303 | 150.802 | 80.552 | 30.434 | 12.426 | **395** |
+| Agua Preta | 77.696 | 91.142 | 36.200 | 81.231 | 18.780 | **113** | **271** |
+| SnowsLand | 44.294 | 82.806 | 33.744 | 22.429 | **2.240** | 2.102 | **292** |
+| Energizer | **2.587** | 48.261 | 44.463 | 333.825 | **592** | **806** | **100** |
+
+**O que os humanos oferecem é justamente o que todos têm às dezenas de milhares** — água, oxigênio,
+biomassa, em lotes de 49 unidades (0,25 Fert$). Vender isso é oferecer areia no deserto.
+
+E há vantagem comparativa real, **não anunciada**: Maior Colonia tem **100× mais Ligas** que Agua
+Preta e 13× mais Metal que SnowsLand; Energizer tem 4× a energia dos outros. Nada disso está no
+livro a preço razoável — a única oferta de Ligas está a **16× a referência**.
+
+⚠️ E o bem mais escasso do planeta — **Componentes Eletrônicos**, entre 100 e 500 em todas — os
+jogadores **não podem produzir**: a Oficina precisa dos 8 minerais eletrônicos, e o §4.3 os dá só ao
+governo. O gargalo da economia é, por desenho, um monopólio estatal.
+
+### O que foi feito, e o que não foi
+
+Feito: **a aba agora conta as ofertas dos outros** ("Ofertas globais (12)"). As abas eram rótulos
+secos, e o Mercado era um lugar que só encontra quem já ia lá. Some no zero — zero pendurado vira
+moldura (D-211).
+
+⚠️ **Não feito, e é decisão do usuário:** o mercado mostra oferta e quase não mostra **procura**. Um
+sinal de escassez — "o planeta está sem Componentes" — criaria o outro lado do livro. Isso é desenho
+de economia, não de tela, e não se inventa sozinho.
+
+Suíte e2e inteira verde.

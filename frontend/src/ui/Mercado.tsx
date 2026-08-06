@@ -88,6 +88,8 @@ export function Mercado({
   const [conta, setConta] = useState<ContaDoMercado | null>(null)
   const [vitrine, setVitrine] = useState<Vitrine | null>(null)
   const [leiloes, setLeiloes] = useState<{ abertos: Leilao[]; minhas: Leilao[] } | null>(null)
+  /** Quantas ofertas de OUTROS colonos há na vitrine — ver a `<nav>` das abas. */
+  const ofertasDeOutros = (vitrine?.ofertas ?? []).filter((o) => !o.minha).length
   const [itensVendaveis, setItensVendaveis] = useState<ItemVendavelEmLeilao[]>([])
   const [vizinhas, setVizinhas] = useState<ColoniaVizinha[]>([])
   const [zonas, setZonas] = useState<MinhaZona[]>([])
@@ -184,6 +186,16 @@ export function Mercado({
           )}
         </header>
 
+        {/*
+          ⚠️ A contagem na aba (A2.V5, D-228) — e ela existe por uma medida, não por enfeite.
+          As abas eram rótulos secos: **nada dizia que havia ofertas esperando**. Medido em produção,
+          o livro tem ~100 ordens abertas e os jogadores humanos **nunca executaram uma sequer** em
+          28 dias. O Mercado era um lugar que só encontra quem já ia lá.
+
+          Conta só as **dos outros**: a própria oferta não é convite para nada, e somá-la faria a
+          aba prometer o que não entrega. Zero não vira "(0)" — um zero pendurado o tempo todo vira
+          moldura, e é a mesma regra do D-211.
+        */}
         <nav className="border-rust/20 mt-5 flex flex-wrap gap-1 border-b">
           {abas.map((a) => (
             <button
@@ -195,6 +207,12 @@ export function Mercado({
               }`}
             >
               {a.rotulo}
+              {a.chave === 'globais' && ofertasDeOutros > 0 && (
+                <span className="tabular-nums" data-conta-ofertas>
+                  {' '}
+                  ({ofertasDeOutros})
+                </span>
+              )}
             </button>
           ))}
         </nav>
