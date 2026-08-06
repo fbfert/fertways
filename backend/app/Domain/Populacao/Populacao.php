@@ -40,13 +40,64 @@ class Populacao
         $construcoes = $this->alocadaEmConstrucoes($colonia);
         $zonas = $this->alocadaEmZonas($colonia);
 
+        $disponivel = $total - $construcoes - $zonas;
+        $nivel = $this->nivelDaEstrutura($colonia);
+
         return [
             'total' => $total,
             'capacidade' => $this->capacidade($colonia),
             'em_construcoes' => $construcoes,
             'em_zonas' => $zonas,
-            'disponivel' => $total - $construcoes - $zonas,
+            'disponivel' => $disponivel,
+            /*
+             * ⚠️ O déficit, dito como DÍVIDA e não como "menos dez livres" (A2.V4, D-225).
+             *
+             * `disponivel` pode ser negativo — o docblock de `Operadores::disponivel()` avisa, e
+             * quem consome já fazia `max(0, ...)`. Só a tela não fazia, e mostrava "−10 livre(s) de
+             * 28", que não se lê: não existe menos dez pessoas. O que existe é uma colônia devendo
+             * 10 operadores ao que ela já tem de pé.
+             *
+             * Medido em produção: um dos dois líderes humanos estava exatamente assim.
+             */
+            'deficit' => max(0, -$disponivel),
+            /*
+             * O nível da Estrutura, e o nível que **cobriria o que já está de pé**.
+             *
+             * Sem isto o aviso "suba a Estrutura de Sobrevivência" é conselho incompleto: para a
+             * colônia medida (28 colonos, 38 exigidos, Estrutura no 2) **uma** subida não resolve —
+             * o nível 3 abriga 27, ainda abaixo dos 38. Dizer o alvo é a diferença entre saber o
+             * remédio e saber a dose.
+             */
+            'estrutura_nivel' => $nivel,
+            'estrutura_nivel_para_o_que_ja_tem' => $this->nivelQueAbriga($construcoes + $zonas),
         ];
+    }
+
+    /**
+     * O menor nível da Estrutura de Sobrevivência cujo teto abriga esta gente.
+     *
+     * `null` quando nem o nível máximo dá conta — e é um estado possível, não um erro: uma colônia
+     * grandfatherada (D-178) pode ter erguido mais do que a habitação do jogo comporta. Devolver o
+     * nível máximo mentiria dizendo que subir resolve.
+     */
+    public function nivelQueAbriga(int $pessoas): ?int
+    {
+        $maximo = (int) DB::table('building_specs')
+            ->where('building_type', 'estrutura_de_sobrevivencia')->max('level');
+
+        for ($nivel = 1; $nivel <= $maximo; $nivel++) {
+            if ($this->parametros->capacidade($nivel) >= $pessoas) {
+                return $nivel;
+            }
+        }
+
+        return null;
+    }
+
+    private function nivelDaEstrutura(Colony $colonia): int
+    {
+        return (int) ($colonia->buildings
+            ->firstWhere('type', 'estrutura_de_sobrevivencia')?->level ?? 0);
     }
 
     /**

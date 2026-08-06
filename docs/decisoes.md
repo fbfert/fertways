@@ -12386,3 +12386,65 @@ toca chega perto de acordos; ficou registrado por honestidade, não por diagnós
 
 1256 testes verdes; suíte e2e inteira verde; fotografados os dois casos — o que pode ocupar e o que
 não pode.
+
+---
+
+## D-225 — "−10 livre(s)" não se lê, e a colônia nova nascia estéril
+
+O usuário pediu para conferir se o caminho do gargalo de população está claro na tela — era o segundo
+dos três portões que o D-223 mapeou. A conferência achou um defeito de leitura e, atrás dele, um bug
+que ainda não tinha mordido ninguém.
+
+### O painel do D-210 já era bom, e errava num ponto
+
+Ele mostra o disponível em destaque, o teto, e **nomeia o remédio** ("suba a Estrutura de
+Sobrevivência"). O que faltava:
+
+**1. O negativo era impresso cru.** `Operadores::disponivel()` pode ser negativo — o docblock avisa,
+e todo consumidor já fazia `max(0, ...)`. Só a tela não fazia, e mostrava **"−10 livre(s) de 28"**.
+Não se lê: não existe menos dez pessoas. O que existe é uma colônia **devendo 10 operadores ao que já
+tem de pé**. Medido em produção: um dos dois líderes humanos estava exatamente assim (28 colonos, 38
+exigidos).
+
+⚠️ E o déficit **não degrada nada** — conferido antes de escrever a frase. `eficienciaBps` é de zona,
+e nenhuma penalidade de operador atinge a produção da colônia. Ele só barra **ocupar zona e alocar
+operador**, e é isso que a tela diz. Chamá-lo de penalidade seria inventar regra.
+
+**2. O remédio vinha sem a dose.** "Suba a Estrutura" é conselho incompleto quando falta mais de um
+nível: a colônia medida está no **nível 2** (teto 16) e precisa abrigar **38** — o nível 3 abriga 27,
+ainda insuficiente. Ela pagaria a obra e continuaria travada, sem entender por quê. O painel passa a
+dizer o **alvo**, e `null` quando nem o nível máximo resolve — aí a saída é demolir, e mandar subir
+seria mandar gastar à toa.
+
+### ⚠️ E o bug atrás disso: colônia nova nascia estéril
+
+`colonies.populacao` tem `default(0)` e o **`CreateColony` nunca a escreveu**. O crescimento do
+`Ciclo` é multiplicativo (`total × taxa`) e o próprio código devolve `parado` quando `total <= 0`:
+**de zero a população nunca sai.**
+
+Uma colônia fundada hoje ficaria para sempre com **0 colonos** — sem ocupar zona, sem alocar
+operador, sem erguer o que exige equipe. A produção não sofreu **por acaso**: o
+`fertways:populacao-grandfather` preencheu as 29 existentes em 2026-08-01 e ninguém fundou desde
+então. O próximo a fundar é que pagaria — o pior tipo de defeito, o que só morde quem chega depois.
+
+A colônia passa a nascer com a **mesma conta do grandfathering** (§6.7), aplicada no momento em que
+ela faz sentido: gente para operar o que recebe ao nascer, com a mesma folga, limitada pelo próprio
+teto. Reusar a regra em vez de inventar um número é o que impede as duas de divergirem.
+
+### Como isto quase passou batido
+
+O defeito apareceu porque um **teste meu falhou por um motivo que eu não esperava**: ao afirmar
+"colônia com gente sobrando", a colônia recém-fundada veio com disponível negativo. Era para ser um
+ajuste de fixture; era o bug.
+
+⚠️ E o susto seguinte foi meu: medi "colônia com população 0" e quase publiquei alarme — a medida
+tinha rodado contra o **banco de dev**, não a produção. Em produção nenhuma colônia está em zero. É a
+segunda vez nesta sessão que a taxa/medida errada quase virou conclusão (a primeira foi a taxa
+nominal do D-219). Conferir de onde vem o número é parte de medir.
+
+### O que a tela mostra hoje, medido
+
+Só **1 das 29** colônias está devendo operadores — o destaque em vermelho é raro, e não moldura
+(a regra do D-211). As outras 28 continuam vendo o disponível de sempre.
+
+1261 testes verdes; suíte e2e inteira verde.

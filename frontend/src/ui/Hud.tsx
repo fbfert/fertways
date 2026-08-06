@@ -216,16 +216,43 @@ export function Populacao({ colonia }: { colonia: Colonia }) {
 
   const noTeto = p.total >= p.capacidade
   const acimaDoTeto = p.total > p.capacidade
+  // `?? max(0, -disponivel)`: o campo é novo, e um payload de antes do D-225 ainda tem de somar.
+  const deficit = p.deficit ?? Math.max(0, -p.disponivel)
+  const alvo = p.estrutura_nivel_para_o_que_ja_tem
+  const nivel = p.estrutura_nivel ?? 0
 
   return (
     <div className="painel bg-sand-light w-72 p-4" data-secao="populacao">
       <span className="text-rust eyebrow">População</span>
 
+      {/*
+        ⚠️ Devendo operadores, o número em destaque muda de PERGUNTA (D-225).
+
+        `disponivel` pode ser negativo, e a versão anterior o imprimia cru: "−10 livre(s) de 28".
+        Não se lê — não existe menos dez pessoas. O que existe é uma colônia devendo 10 operadores
+        ao que ela já tem erguido, e é isso que o destaque passa a dizer. Medido em produção: um dos
+        dois líderes humanos estava exatamente assim.
+      */}
       <div className="mt-2 flex items-baseline gap-2">
-        <span className="text-ink text-2xl font-bold tabular-nums" data-populacao-disponivel>
-          {p.disponivel.toLocaleString('pt-BR')}
-        </span>
-        <span className="text-ink-soft text-sm">livre(s) de {p.total.toLocaleString('pt-BR')}</span>
+        {deficit > 0 ? (
+          <>
+            <span className="text-perigo text-2xl font-bold tabular-nums" data-populacao-deficit>
+              −{deficit.toLocaleString('pt-BR')}
+            </span>
+            <span className="text-ink-soft text-sm">
+              operador(es) para o que já está de pé
+            </span>
+          </>
+        ) : (
+          <>
+            <span className="text-ink text-2xl font-bold tabular-nums" data-populacao-disponivel>
+              {p.disponivel.toLocaleString('pt-BR')}
+            </span>
+            <span className="text-ink-soft text-sm">
+              livre(s) de {p.total.toLocaleString('pt-BR')}
+            </span>
+          </>
+        )}
       </div>
 
       <div className="border-rust/10 mt-2 border-t pt-2 text-xs">
@@ -266,6 +293,32 @@ export function Populacao({ colonia }: { colonia: Colonia }) {
       {p.disponivel <= 0 && (
         <p className="text-ink-soft/70 mt-1 text-xs" data-populacao-sem-livres>
           Sem gente livre: não dá para ocupar zona nova nem erguer o que exige operador.
+        </p>
+      )}
+
+      {/*
+        ⚠️ A DOSE, e não só o remédio (D-225).
+
+        "Suba a Estrutura de Sobrevivência" é conselho incompleto quando falta mais de um nível. Na
+        colônia medida — 28 colonos, 38 exigidos, Estrutura no nível 2 — subir uma vez leva o teto a
+        27, ainda abaixo dos 38: o jogador pagaria a obra e continuaria travado, sem entender por quê.
+
+        E `alvo === null` é dito, não escondido: quando nem o nível máximo abriga o que já está de
+        pé, mandar subir seria mandar gastar à toa. A saída aí é demolir, e quem decide é ele.
+      */}
+      {deficit > 0 && alvo !== undefined && (
+        <p className="text-rust mt-1 text-xs" data-populacao-alvo>
+          {alvo === null ? (
+            <>
+              Nem a Estrutura de Sobrevivência no nível máximo abriga tudo o que você já ergueu — só
+              demolindo algo que exija operador.
+            </>
+          ) : (
+            <>
+              A Estrutura de Sobrevivência está no <strong>nível {nivel}</strong> e precisa chegar ao{' '}
+              <strong>nível {alvo}</strong> para abrigar o que já está de pé.
+            </>
+          )}
         </p>
       )}
     </div>

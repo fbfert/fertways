@@ -2,6 +2,7 @@
 
 namespace App\Domain\Colony;
 
+use App\Domain\Populacao\Populacao;
 use App\Domain\Transport\Placas;
 use App\Exceptions\DomainRuleException;
 use App\Models\Building;
@@ -96,6 +97,32 @@ class CreateColony
                     array_keys(Slots::DEPOSITO_LOCAL),
                 ),
             ]);
+
+            /*
+             * ⚠️ A COLÔNIA NASCE POVOADA — e sem isto ela nasceria estéril (D-225).
+             *
+             * `colonies.populacao` tem `default(0)`, e `CreateColony` nunca a escreveu. O
+             * crescimento do `Ciclo` é **multiplicativo** (`total × taxa`), e o próprio código
+             * devolve `parado` quando `total <= 0`: **de zero a população nunca sai.** Uma colônia
+             * fundada hoje ficaria para sempre com 0 colonos — sem poder ocupar zona, alocar
+             * operador ou erguer o que exige equipe.
+             *
+             * A produção não sofreu por acaso: o `fertways:populacao-grandfather` preencheu as 29
+             * existentes em 2026-08-01, e ninguém fundou desde então. O próximo a fundar pagaria.
+             *
+             * O número não é novo: é a **mesma conta do grandfathering** (§6.7), aplicada no momento
+             * em que ela faz sentido — gente suficiente para operar o que a colônia recebe ao nascer,
+             * com a mesma folga. Reusar a regra em vez de inventar um número é o que impede as duas
+             * de divergirem.
+             */
+            $colony->refresh()->load('buildings');
+            $populacao = app(Populacao::class);
+            $colony->forceFill([
+                'populacao' => min(
+                    $populacao->necessariaParaOQueJaTem($colony),
+                    $populacao->capacidade($colony),
+                ),
+            ])->save();
 
             $recursosDoKit = KitInicial::recursos();
 

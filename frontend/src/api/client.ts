@@ -99,8 +99,24 @@ export type Colonia = {
     capacidade: number
     em_construcoes: number
     em_zonas: number
-    /** O número que decide alguma coisa: sem gente livre não se ocupa zona nem se cresce. */
+    /**
+     * O número que decide alguma coisa: sem gente livre não se ocupa zona nem se cresce.
+     *
+     * ⚠️ **Pode ser negativo** — a colônia deve operadores ao que já tem de pé. Para exibir, use
+     * `deficit`: "−10 livre(s)" não se lê, porque não existe menos dez pessoas.
+     */
     disponivel: number
+    /** Quantos operadores faltam para o que já está erguido. Zero quando há gente sobrando (D-225). */
+    deficit?: number
+    estrutura_nivel?: number
+    /**
+     * O nível que a Estrutura de Sobrevivência precisa alcançar para abrigar o que já está de pé.
+     *
+     * `null` quando nem o nível máximo dá conta — estado possível numa colônia grandfatherada
+     * (D-178), e por isso não é o máximo disfarçado: dizer "suba até o 5" quando o 5 não resolve
+     * seria mandar o jogador gastar à toa.
+     */
+    estrutura_nivel_para_o_que_ja_tem?: number | null
   }
 }
 
