@@ -12617,3 +12617,65 @@ sinal de escassez — "o planeta está sem Componentes" — criaria o outro lado
 de economia, não de tela, e não se inventa sozinho.
 
 Suíte e2e inteira verde.
+
+---
+
+## D-229 — O silício sai de 5,54× para 0,83×, e o que a medida achou antes de mexer
+
+Arbitragem do usuário (2026-08-06), depois do D-228: *"foi escolha pra ser um mineral raro, mas vamos
+corrigir esse valor... faça um preço justo e acessível para o crescimento."*
+
+⚠️ **Não era vírgula trocada** — eu supus que fosse, e o usuário corrigiu: o 0,2000 era deliberado,
+para fazer do silício um mineral raro. A mudança é de balanceamento, não conserto de defeito.
+
+### O que a medida achou antes de escolher o número
+
+**1. Cinco dos oito minerais já têm fonte, e ela funciona.** A Indústria Siderúrgica (D-82) foi criada
+exatamente para isto, e está entregando: Maior Colonia acumulou 1.505 Alumínio, 1.290 Cobre, 860
+Estanho, 222 Ouro, 93 Tungstênio. **Dar esses cinco de graça competiria com o prédio que os jogadores
+construíram** — foi por isso que a proposta de distribuir os oito por marco/missão/evento foi
+estreitada antes de virar código.
+
+**2. Só três não têm fonte nenhuma:** silício, lítio e tântalo. E entre eles, **só o silício trava
+tudo** — as **três** receitas da Oficina o exigem; lítio e tântalo só a intermediária e a avançada.
+
+**3. E só o silício estava fora da faixa.** O livro inteiro do Governo, contra a referência:
+
+```
+quartzo 1,05x · nióbio 0,95x · resina 0,95x · oxigênio 0,90x · tântalo 0,89x
+metal bruto 0,84x · água 0,81x · lítio 0,79x · ouro 0,79x · tungstênio 0,71x
+alumínio 0,43x · estanho 0,32x · biocombustível 0,29x        mediana: 0,84x
+                              silício 5,54x   ← sozinho lá em cima
+```
+
+Lítio (0,79×) e tântalo (0,89×) — os outros dois "na mesma situação" — **já estavam justos**. O preço
+de nenhum deles foi tocado.
+
+### O número, e a âncora dele
+
+**Silício: 0,2000 → 0,0300**, que é **0,83× a referência — a mediana do próprio livro do Governo**. A
+âncora não é gosto: é a faixa que o operador já pratica nos outros 23 recursos.
+
+### ⚠️ E a quantidade, que teria tornado o preço cosmético
+
+Uma ocupação de zona pede 400 Componentes = **2.400 de silício**, e o Governo oferecia **500**. Preço
+justo com estoque de 500 deixaria a cadeia travada do mesmo jeito.
+
+Os três sem fonte foram a **2.500 à venda** (o Tesouro tinha ~9.450 de cada; ficou com ~7.450). É a
+diferença entre "o preço é justo" e "dá para crescer", que é o que o pedido dizia.
+
+| | antes | depois |
+|---|---|---|
+| silício, preço | 0,2000 (5,54×) | **0,0300 (0,83×)** |
+| silício/lítio/tântalo, à venda | 500 | **2.500** |
+| custo do silício de uma ocupação | 480 Fert$ | **72 Fert$** |
+
+Maior Colonia tem 172 Fert$ — antes não alcançava, agora alcança com folga.
+
+### Como foi feito, e como se desfaz
+
+Pelo `OfertarComoGoverno::definir()`, que é o mesmo comando que o painel do admin chama — não por
+`UPDATE` à mão. Com a quantidade igual ele só troca o preço; subindo-a, ele debita a diferença do
+Tesouro para o escrow, e descê-la devolve. **Some código não mudou: nada a publicar.** O estado
+anterior está registrado aqui e no scratchpad da sessão:
+`silicio qtd=500 preco=200000 · litio qtd=500 preco=40000 · tantalo qtd=500 preco=90000`.
