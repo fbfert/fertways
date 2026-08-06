@@ -515,7 +515,15 @@ $slot = ((int) $c->buildings()->max("slot")) + 1;
 $c->buildings()->create(["type" => "refinaria_quimica", "level" => 1, "slot" => $slot]);
 $c->resources()->where("resource_type", "energia")->update(["amount" => 0]);
 
-echo "biomassa no teto, Captação subindo de nível, e uma Refinaria sem energia\n";
+/*
+ * A2.V4 (D-224): o colono do e2e nasce rico e conseguiria ocupar qualquer zona, então a caixa "o
+ * que ainda falta" nunca apareceria na foto. Seco duas parcelas para retratar o caso REAL — os dois
+ * líderes de produção estão bloqueados por componentes, Fert$ e colonos livres ao mesmo tempo.
+ */
+$c->resources()->where("resource_type", "componentes_eletronicos")->update(["amount" => 12]);
+$c->update(["fert_micro" => 140 * 1000000]);
+
+echo "biomassa no teto, Captação subindo de nível, Refinaria sem energia, e ocupação bloqueada\n";
 ' 2>&1 | tail -2)
 
   E2E_URL="http://127.0.0.1:$PORTA_WEB" node e2e/foto.mjs || true

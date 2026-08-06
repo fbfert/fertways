@@ -4,6 +4,7 @@ import { api, ApiError } from '../api/client'
 import type {
   ColoniaVizinha,
   Diretorio,
+  RequisitosDeOcupacao,
   EstadoDaGuerra,
   TipoDeAtaque,
   Veiculo,
@@ -11,6 +12,7 @@ import type {
 } from '../api/client'
 import { CelulaSobOCursor, Faixas, Grade, Planeta, Reguas } from './Grade'
 import { InfoJogador } from './InfoJogador'
+import { nomeRecurso } from './recursos'
 import {
   JANELA_PADRAO,
   LADO_SVG,
@@ -775,6 +777,30 @@ function alvoY(s: Exclude<Selecao, null>): number {
   return s.tipo === 'colonia' ? s.c.y : s.z.y
 }
 
+/**
+ * A conta de ocupar, por extenso, a partir do que o servidor mandou (D-224).
+ *
+ * Os recursos primeiro e o Fert$ por último, porque é a ordem em que doem: o material é o que o
+ * jogador precisa **produzir**, e o Fert$ ele costuma ter.
+ */
+function listarCusto(r: RequisitosDeOcupacao): string {
+  const partes = Object.entries(r.recursos).map(
+    ([recurso, qtd]) => `${qtd.toLocaleString('pt-BR')} ${nomeRecurso(recurso)}`,
+  )
+  partes.push(`${r.fert.toLocaleString('pt-BR')} Fert$`)
+
+  return partes.join(' + ')
+}
+
+/** O nome legível do que falta — recurso vira nome de recurso; o resto já vem em português. */
+function rotuloDoQueFalta(f: RequisitosDeOcupacao['falta'][number]): string {
+  if (f.tipo === 'recurso') return nomeRecurso(f.o_que)
+  if (f.tipo === 'marco') return `${f.o_que}, em XP`
+  if (f.tipo === 'teto') return 'você já ocupa o máximo de zonas'
+
+  return f.o_que
+}
+
 function corDaZona(z: ZonaNeutra, selecao: Selecao): string {
   if (selecao?.tipo === 'zona' && selecao.z.id === z.id) return 'var(--color-rust-bright)'
   if (z.mine) return 'var(--color-ember)'
@@ -867,6 +893,31 @@ function PainelZona({
   const produtiva = z.productive_at ? new Date(z.productive_at).getTime() <= Date.now() : false
 
   const deposito = z.deposit_amount ?? 0
+
+  /*
+   * Os requisitos de ocupação (A2.V4, D-224). Buscados **só quando a zona é livre** — para zona com
+   * dono não existe botão de ocupar, e pedir isso a cada seleção seria uma chamada por nada.
+   */
+  const [requisitos, setRequisitos] = useState<RequisitosDeOcupacao | null>(null)
+  useEffect(() => {
+    if (z.owner) {
+      setRequisitos(null)
+
+      return
+    }
+
+    let vivo = true
+    api
+      .requisitosDeOcupacao()
+      .then((r) => vivo && setRequisitos(r))
+      // Sem requisitos a tela cai no comportamento antigo: botão habilitado, servidor decide. Pior
+      // do que saber, melhor do que travar o único caminho para ocupar por causa de uma chamada.
+      .catch(() => vivo && setRequisitos(null))
+
+    return () => {
+      vivo = false
+    }
+  }, [z.id, z.owner])
 
   useEffect(() => {
     const cap = ociosos[0]?.capacity ?? 0
@@ -969,16 +1020,49 @@ function PainelZona({
 
       {erro && <p className="text-rust mt-2 text-sm">{erro}</p>}
 
-      {/* Livre: ocupar. Pesada (D-52): Posto + 20 Robôs + tempo. */}
+      {/*
+        Livre: ocupar. Pesada (D-52): Posto + 20 Robôs + tempo.
+
+        ⚠️ O custo vem do SERVIDOR (D-224). A frase daqui era escrita à mão e mentia: dizia "800
+        Metal Bruto ... e 20 Robôs Mineradores" para uma cobrança de **1.020 Metal Bruto, 1.200 Ligas
+        e 400 Componentes** — os 220 de metal dos robôs escondidos atrás da palavra "robôs", e as
+        duas maiores parcelas não citadas. Custo escrito à mão nasce certo e envelhece sozinho.
+      */}
       {!z.owner && (
         <div className="mt-3">
           <p className="text-ink-soft/80 text-xs">
-            Ocupar custa 800 Metal Bruto + 300 Fert$ (Posto de Comando) e 20 Robôs Mineradores, e leva
-            20 h para produzir.
+            Ocupar custa {requisitos ? listarCusto(requisitos) : '…'} e leva 20 h para produzir.
           </p>
+
+          {/*
+            O que falta, TUDO de uma vez. O servidor confere em ordem e para no primeiro erro — o
+            certo para uma transação, péssimo para uma tela: o jogador conseguiria Fert$, clicaria de
+            novo, e só então descobriria que faltam colonos.
+          */}
+          {requisitos && !requisitos.pode && (
+            <div className="border-perigo text-perigo bg-sand mt-2 border-l-4 px-2 py-1.5 text-xs" data-falta-ocupar>
+              <strong>Ainda não dá para ocupar:</strong>
+              <ul className="mt-1 space-y-0.5">
+                {requisitos.falta.map((f) => (
+                  <li key={f.tipo + f.o_que}>
+                    {rotuloDoQueFalta(f)}{' '}
+                    <span className="text-ink-soft tabular-nums">
+                      ({f.tem.toLocaleString('pt-BR')} de {f.precisa.toLocaleString('pt-BR')})
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
           <button
             onClick={() => void ocupar()}
-            disabled={enviando}
+            /*
+             * Desabilitado quando o servidor já disse que vai recusar. Enquanto os requisitos não
+             * chegam (`null`), o botão fica ativo: o servidor continua sendo quem decide, e travar
+             * o único caminho para ocupar por causa de uma chamada pendente seria pior.
+             */
+            disabled={enviando || requisitos?.pode === false}
             data-ocupar
             className="bg-rust text-sand-light hover:bg-rust-bright mt-2 w-full py-2 text-sm font-bold disabled:opacity-40"
           >

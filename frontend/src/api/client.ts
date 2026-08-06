@@ -394,6 +394,26 @@ export type ZonaNeutra = {
   obras_vagas: number | null
 }
 
+/**
+ * O que ocupar uma zona neutra exige, e o que falta a esta colônia (A2.V4, D-224).
+ *
+ * `falta` vem com **todos** os impedimentos de uma vez, e não com o primeiro: o comando do servidor
+ * confere em ordem e para no primeiro erro — o certo para uma transação, péssimo para uma tela. O
+ * jogador conseguiria Fert$, clicaria de novo, e só então descobriria que faltam colonos.
+ */
+export type RequisitosDeOcupacao = {
+  /** O marco do §05 que abre território (20, Desbravador). */
+  marco: number
+  fert: number
+  /** O custo material inteiro: Posto **mais** a guarnição de 20 robôs. */
+  recursos: Record<string, number>
+  operadores: number
+  zonas_ocupadas: number
+  teto_de_zonas: number
+  falta: { tipo: 'marco' | 'fert' | 'recurso' | 'operadores' | 'teto'; o_que: string; tem: number; precisa: number }[]
+  pode: boolean
+}
+
 /** Um Drone de Exploração no hangar do Quartel (§21.4; D-74). */
 export type Drone = {
   id: number
@@ -1348,6 +1368,15 @@ export const api = {
   /** Ocupa uma zona livre: Posto de Comando + 20 Robôs Mineradores + tempo de ocupação (§07). */
   ocuparZona: (id: number) =>
     req<ZonaNeutra>(`/zones/${id}/occupy`, { method: 'POST' }),
+
+  /**
+   * O que ocupar exige, e o que falta a esta colônia (A2.V4, D-224).
+   *
+   * ⚠️ A tela **não** recalcula o custo: ele vem daqui, do mesmo código que o comando cobra. A frase
+   * anterior era escrita à mão e mentia — dizia 800 de Metal Bruto para uma cobrança de 1.020, e não
+   * citava as 1.200 Ligas nem os 400 Componentes.
+   */
+  requisitosDeOcupacao: () => req<RequisitosDeOcupacao>('/zones/requisitos'),
 
   /** Sobe o nível da zona (D-84): custo e guarnição cobrados na hora, o nível sobe no tick. */
   upgradeZona: (id: number) =>

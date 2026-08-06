@@ -12325,3 +12325,64 @@ continuar de pé. E os dois testes que fixavam `5_000` para dizer "marco 10" pas
 `Curva::xpDoMarco(10)` — número cru em teste é armadilha para a próxima recalibragem.
 
 1251 testes verdes.
+
+---
+
+## D-224 — O botão que sempre podia ser clicado, e o custo escrito à mão que mentia
+
+Segunda fatia da A2.V4, e ela nasceu do D-223: assim que o portão do marco abriu para duas colônias,
+o mapa virou a tela onde elas iriam tentar ocupar. Aí a pergunta ficou concreta — **a tela diz o que
+ainda falta?**
+
+### Duas mentiras numa linha só
+
+O painel da zona livre trazia uma frase escrita à mão:
+
+> *"Ocupar custa 800 Metal Bruto + 300 Fert$ (Posto de Comando) e 20 Robôs Mineradores"*
+
+A cobrança real é **1.020 Metal Bruto + 1.200 Ligas Metálicas + 400 Componentes + 300 Fert$**:
+
+- o Metal Bruto verdadeiro é 1.020 — os 800 do Posto **mais 220 dos robôs**, escondidos atrás da
+  palavra "robôs";
+- e as **duas maiores parcelas da conta** (1.200 Ligas, 400 Componentes) não eram citadas.
+
+Custo escrito à mão nasce certo e envelhece sozinho: o custo do Robô Minerador é **editável pelo
+operador** (D-108), então a frase estava condenada desde o primeiro dia.
+
+### E o botão nunca sabia se ia funcionar
+
+Sempre habilitado. O jogador clicava, o servidor recusava, e o motivo vinha **um de cada vez**, na
+ordem em que o comando confere — que é o certo para uma transação e péssimo para uma tela: ele
+conseguiria Fert$, clicaria de novo, e só então descobriria que faltam colonos.
+
+Medido no dia em que o D-223 abriu o portão: os dois líderes humanos estavam bloqueados por
+**componentes, Fert$ e população livre ao mesmo tempo**.
+
+### A regra e a tela passam a ler o MESMO código
+
+`custoDeRecursos()` era privado do `OcuparZonaNeutra` e virou `RequisitosDeOcupacao`, servido por
+`GET /zones/requisitos`. O painel não recalcula nada — ele **mostra o que o comando cobra**.
+
+O teste que existe por causa do defeito compara a **conta anunciada** com o **débito real** da
+ocupação, recurso a recurso. Enquanto eram dois lugares, eles divergiram por 220 de metal e duas
+linhas inteiras.
+
+⚠️ E `falta` traz **todos** os impedimentos juntos, não o primeiro — com o que se tem e o que se
+precisa em cada um. O botão desabilita quando o servidor já disse que vai recusar; enquanto os
+requisitos não chegam, ele fica ativo, porque travar o único caminho para ocupar por causa de uma
+chamada pendente seria pior do que não saber.
+
+### Rota própria, e não campo de cada zona
+
+O custo é o **mesmo para as 77 zonas** — repeti-lo 77 vezes seria payload por nada. E ela vem antes
+de `/zones/{zone}` na tabela, pelo mesmo motivo que `/zones/minhas`: senão o Laravel procuraria uma
+zona de id "requisitos".
+
+### Nota de corrida
+
+A suíte de Acordo de Troca reprovou na primeira corrida e passou na segunda, sem mudança nenhuma no
+meio — a instabilidade que o D-212 mediu e deixou explicitamente em aberto. Nada do que esta fatia
+toca chega perto de acordos; ficou registrado por honestidade, não por diagnóstico.
+
+1256 testes verdes; suíte e2e inteira verde; fotografados os dois casos — o que pode ocupar e o que
+não pode.

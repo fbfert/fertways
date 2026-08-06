@@ -125,6 +125,25 @@ try {
   console.log('  régua x:', JSON.stringify(await medirRegua(page)))
 
   /*
+   * O painel de uma zona LIVRE (A2.V4, D-224): o custo real e o que falta. É texto vindo do
+   * servidor, e texto é justamente o que nenhum teste de clique confere.
+   */
+  const clicou = await page.evaluate(() => {
+    const zona = document.querySelector('[data-zona]')
+    if (!zona) return false
+    zona.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+
+    return true
+  })
+  if (clicou) {
+    await new Promise((r) => setTimeout(r, 1800))
+    await page.screenshot({ path: '/tmp/foto-zona-livre.png' })
+    console.log('zona livre → /tmp/foto-zona-livre.png')
+  } else {
+    console.log('⚠️ nenhuma zona no mapa para fotografar')
+  }
+
+  /*
    * E o mapa no MOBILE, num viewport próprio: lá as barras são DUAS (topo `p-3` e a fixa de baixo),
    * e uma régua que fugiu de uma pode ter caído na outra.
    */

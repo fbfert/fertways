@@ -101,6 +101,14 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/pesquisa/{technology}', [PesquisaController::class, 'pesquisar']);
 
     Route::get('/zones', [NeutralZoneController::class, 'index']);
+    /*
+     * A2.V4 (D-224): o que ocupar exige, e o que falta a esta colônia. Vem antes de `/zones/{zone}`
+     * pelo mesmo motivo que `/zones/minhas` — senão o Laravel procuraria uma zona de id "requisitos".
+     *
+     * Rota própria, e não campo de cada zona: o custo é o MESMO para as 77, e repeti-lo 77 vezes
+     * seria payload por nada.
+     */
+    Route::get('/zones/requisitos', [NeutralZoneController::class, 'requisitos']);
     Route::post('/zones/{zone}/occupy', [NeutralZoneController::class, 'occupy']);
     Route::post('/zones/{zone}/upgrade', [NeutralZoneController::class, 'upgrade']);
     Route::post('/zones/{zone}/withdraw', [NeutralZoneController::class, 'withdraw']);

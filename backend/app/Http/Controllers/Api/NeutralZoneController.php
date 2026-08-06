@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Domain\Logistics\DespacharVeiculo;
 use App\Domain\Logistics\OcuparZonaNeutra;
+use App\Domain\Logistics\RequisitosDeOcupacao;
 use App\Domain\Zona\Estruturas;
 use App\Domain\Zona\SubirNivelDaZona;
 use App\Http\Controllers\Controller;
@@ -101,6 +102,24 @@ class NeutralZoneController extends Controller
             });
 
         return response()->json(['zones' => $zonas]);
+    }
+
+    /**
+     * O que ocupar exige, e o que falta a esta colônia (A2.V4, D-224).
+     *
+     * O painel do mapa anunciava o custo numa frase escrita à mão — que dizia 800 de Metal Bruto
+     * para uma cobrança de 1.020, e não citava as 1.200 Ligas nem os 400 Componentes — e oferecia um
+     * botão **sempre habilitado**. Agora a tela lê o mesmo código que o comando cobra.
+     */
+    public function requisitos(Request $request, RequisitosDeOcupacao $requisitos): JsonResponse
+    {
+        $colony = $request->user()->colony()->first();
+
+        if (! $colony) {
+            return response()->json(['message' => 'Funde uma colônia antes de ocupar zonas.'], 422);
+        }
+
+        return response()->json($requisitos->para($colony));
     }
 
     public function occupy(Request $request, NeutralZone $zone, OcuparZonaNeutra $ocupar): JsonResponse

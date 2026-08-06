@@ -237,19 +237,15 @@ class OcuparZonaNeutra
      *
      * @return array<string,int>
      */
+    /**
+     * ⚠️ Delega, e não repete: a conta mora em `RequisitosDeOcupacao` desde o D-224, para que a
+     * TELA leia exatamente o que o comando cobra. Enquanto eram dois lugares, o painel do mapa
+     * anunciava "800 Metal Bruto" para uma cobrança de 1.020, e não citava as Ligas nem os
+     * Componentes.
+     */
     private function custoDeRecursos(): array
     {
-        $custoRobo = json_decode(
-            DB::table('building_specs')->where('building_type', 'robo_minerador')->where('level', 1)->value('cost_json') ?? '{}',
-            true,
-        );
-
-        $custo = ['metal_bruto' => NeutralZone::POSTO_METAL_BRUTO];
-        foreach ($custoRobo as $recurso => $qtd) {
-            $custo[$recurso] = ($custo[$recurso] ?? 0) + $qtd * NeutralZone::GUARNICAO_INICIAL;
-        }
-
-        return $custo;
+        return app(RequisitosDeOcupacao::class)->custoDeRecursos();
     }
 
     /** @param array<string,int> $custo */
