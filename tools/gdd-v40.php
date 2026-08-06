@@ -1,3 +1,222 @@
+#!/usr/bin/env php
+<?php
+
+/**
+ * Gera o FERTWAYS GDD v40 (D-62, atualizado no D-141, no D-160 e no D-230).
+ *
+ *     /usr/bin/php84 tools/gdd-v40.php > docs/FERTWAYS_GDD_v40_CONSOLIDADO.html
+ *
+ * Este arquivo é uma cópia evoluída de `gdd-v39.php` (que fica intocado, como o v38, o v36 e o v35
+ * ficaram intocados quando o v39 nasceu — D-141, D-160). Herda tudo o que estava atualizado até o
+ * D-159, e acrescenta o que mudou desde então — **D-160 a D-229, setenta decisões**, que são a
+ * Alpha 2 inteira.
+ *
+ * É o maior salto entre versões deste documento, e por um motivo: entre o v39 e o v40 o jogo ganhou
+ * **quatro sistemas que não existiam** e reescreveu dois que existiam.
+ *
+ *  - **População** (`§13`, novo) — teto habitacional pela Estrutura de Sobrevivência, operadores por
+ *    construção e por zona, consumo da cesta, crescimento, e a degradação do §6.6. É a mecânica que
+ *    mais mudou o jogo, e a que mais exigiu medida antes de ligar (D-167 a D-179, D-184).
+ *  - **Pesquisa** (`§14`, novo) — trilhas, vagas do Laboratório e efeitos que mexem no motor
+ *    (D-168 a D-172, D-190).
+ *  - **Eventos de mundo** (`§15`, novo) — o motor que muda produção e consumo do planeta por
+ *    janela de tempo, com preview obrigatório e cancelamento que não apaga o passado (D-185).
+ *  - **Guerra federativa** (`§8.9` a `§8.14`) — cerco de colônia, saque, capitulação, tratado de
+ *    paz, neutralidade declarada e ranking Elo (D-193 a D-207). ⚠️ Duas contradições do §01 foram
+ *    **revogadas na prática, conscientemente** (D-201, D-203).
+ *  - **Teto de estoque** (`§3.5`) — o §14 do balanceamento enfim ligável, com o piso pessoal que o
+ *    §6.7 exigiu (D-191, D-192, D-199).
+ *  - **Upgrade de veículos** (`§5.6`) — o nível que existia sem caminho para subir (D-175, D-180,
+ *    D-181).
+ *  - **A curva do Marco recalibrada** (`§4.6`): BASE 50 → 15, com âncora medida em campo (D-223).
+ *
+ * ⚠️ **E uma seção nova de natureza diferente: `§16`, "O que o campo mediu".** Ela publica o que 24
+ * dias de produção com 29 colônias ensinaram — e não é enfeite: metade das decisões desta leva saiu
+ * de uma medida que contradisse o que estava escrito. Um GDD que só publica a regra e nunca o que
+ * aconteceu com ela é a metade que envelhece primeiro.
+ *
+ * Ficaram de fora, de propósito, as ~25 decisões que só mudam tela e não mecânica — a revisão visual
+ * inteira (A2.V1 a A2.V6: D-161, D-162, D-210 a D-222, D-224 a D-228), o backup do deploy (D-208,
+ * D-209) e o hardening do login (D-186) —, pelo mesmo critério que a seção 0 já publica. O que elas
+ * corrigiram **na regra**, e não no desenho, entrou nas seções correspondentes.
+ *
+ * ---
+ *
+ * **Por que isto é um gerador, e não um arquivo escrito à mão.**
+ *
+ * O v35 era um documento estático, e por isso **envelheceu**: o jogo mudou 59 vezes e o texto não.
+ * As tabelas numéricas deste documento não são digitadas — são **lidas do mesmo banco de onde o
+ * jogo lê** (`building_specs`, `resource_types`, e agora também `fabrica_veiculos`,
+ * `federation_settings`, `silo_capacidades`, `population_settings`, `estoque_settings`), e boa
+ * parte tem **testes que provam que batem com o GDD** (`tests/Gdd/GddSpecsTest`,
+ * `tests/Gdd/LogisticaSpecsTest`).
+ *
+ * Consequência: **o documento não pode divergir do jogo**. Se um número mudar no código, ele muda
+ * aqui na próxima geração. Foi a única maneira que encontrei de escrever um GDD que não vira mentira
+ * na semana seguinte — que é exatamente o que aconteceu com o v35.
+ *
+ * A prosa, as regras e as arbitragens são curadas à mão, aqui neste arquivo. Os números, não.
+ *
+ * **Rode-o com o banco de DEV** (`fertwaysdev`). Ele só lê, mas não há razão para apontar um gerador
+ * de documento para a produção.
+ */
+
+require __DIR__.'/../backend/vendor/autoload.php';
+$app = require __DIR__.'/../backend/bootstrap/app.php';
+$app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+
+use App\Domain\Building\Funcoes;
+use App\Domain\Cargos\CargosCivicosSpecs;
+use App\Domain\Capital\Patio;
+use App\Domain\Colony\KitInicial;
+use App\Domain\Colony\Slots;
+use App\Domain\Colony\TetoDoTanque;
+use App\Domain\Endurance\EfeitosDaEndurance;
+use App\Domain\Leilao\ListarLeilao;
+use App\Domain\Logistics\MapaFertways;
+use App\Domain\Logistics\VeiculoSpecs;
+use App\Domain\Market\Deposito;
+use App\Domain\Trade\AcordoSpecs;
+use App\Domain\Transport\Ministerio;
+use App\Domain\Zona\Estruturas;
+use App\Domain\Zona\ZonaSlots;
+use App\Models\Building;
+use App\Models\Colony;
+use App\Models\EnduranceItem;
+use App\Models\FederationSetting;
+use App\Models\FilaSetting;
+use App\Models\TransportSetting;
+use App\Models\Vehicle;
+use Illuminate\Support\Facades\DB;
+
+// ─────────────────────────────────────────────────────────────── helpers de marcação
+
+/** O que o jogo ENTREGA hoje. */
+function entregue(string $t = 'Implementado'): string
+{
+    return '<span class="sel sel-ok">'.e($t).'</span>';
+}
+
+/** O que o GDD PROMETE e o jogo ainda não faz. */
+function promessa(string $t = 'Promessa'): string
+{
+    return '<span class="sel sel-prom">'.e($t).'</span>';
+}
+
+/** Número que o GDD NUNCA publicou e que ninguém arbitrou. **Não se inventa.** */
+function lacuna(string $t = 'Lacuna aberta'): string
+{
+    return '<span class="sel sel-lac">'.e($t).'</span>';
+}
+
+/** Número que o GDD não publica e que o usuário decidiu. */
+function arbitrado(string $d): string
+{
+    return '<span class="sel sel-arb">Arbitrado · '.e($d).'</span>';
+}
+
+function e(string $s): string
+{
+    return htmlspecialchars($s, ENT_QUOTES, 'UTF-8');
+}
+
+function n(int|float $v, int $casas = 0): string
+{
+    return number_format($v, $casas, ',', '.');
+}
+
+/**
+ * O nome de exibição.
+ *
+ * ⚠️ **A lista vive em `App\Domain\Media\NomesDeExibicao`, e não mais aqui.** Ela passou a ser usada
+ * também pelo painel de gestão de imagens (D-68), que lista as construções para o operador escolher a
+ * arte de cada uma. Duas cópias divergiriam no dia em que alguém corrigisse só uma — e um GDD que
+ * escreve "Refinaria quimica" e um painel que escreve "Refinaria Química" seriam dois jogos.
+ *
+ * A guarda abaixo continua valendo, e agora protege as duas pontas.
+ */
+function nomesProprios(): array
+{
+    return App\Domain\Media\NomesDeExibicao::mapa();
+}
+
+function humano(string $slug): string
+{
+    return nomesProprios()[$slug] ?? ucfirst(str_replace('_', ' ', $slug));
+}
+
+// ─────────────────────────────────────────────────────────────── dados, do mesmo banco do jogo
+
+$recursos = DB::table('resource_types')->orderBy('tax_class')->orderBy('nome')->get();
+$specs = DB::table('building_specs')->orderBy('building_type')->orderBy('level')->get();
+$config = TransportSetting::singleton();
+// O kit inicial (D-85) é editável pelo admin desde o D-92 — lido ao vivo, como o resto.
+$kitFertMicro = KitInicial::fertMicro();
+$kitRecursos = KitInicial::recursos();
+$kitFrota = KitInicial::frota();
+
+// A fábrica do Ministério (D-60, generalizada por tipo no D-109) — Caminhão e, desde então, Furgão.
+$fabricaVeiculos = [];
+foreach (Ministerio::TIPOS as $tipoVeiculo) {
+    $fabricaVeiculos[$tipoVeiculo] = Ministerio::config($tipoVeiculo);
+}
+
+// O painel da Federação (D-119/D-120) — os dois números do §04 que o operador ajusta sem deploy.
+$fedConfig = FederationSetting::singleton();
+
+// O Silo/Depósito Local (D-107/108) — a capacidade por nível é uma grade editável (26 recursos ×
+// 10 níveis); mostramos só um recurso representativo, porque a grade inteira não cabe numa tabela
+// de leitura, e o padrão de partida é o mesmo número em todos os 26.
+$siloExemplo = DB::table('silo_capacidades')->where('resource_type', 'metal_bruto')->orderBy('level')->pluck('capacidade', 'level');
+
+// O catálogo da Loja de Peças da Endurance (D-135) — dinâmico, o admin cria/edita/apaga; contamos
+// só quantos itens existem hoje, não listamos cada um (o documento descreve a REGRA do catálogo,
+// não o inventário do momento, que muda pelo painel sem deploy).
+$enduranceItensCount = DB::table('endurance_items')->count();
+
+/*
+ * ── O que a Alpha 2 acrescentou, e que o v40 publica pela primeira vez (D-230) ──
+ *
+ * Todos lidos do banco, pela mesma razão de sempre: número digitado à mão envelhece sozinho. Os
+ * parâmetros de População e de teto de estoque são editáveis pelo operador **sem deploy**, então
+ * publicá-los de uma constante seria publicar mentira já na semana seguinte.
+ */
+$pop = DB::table('population_settings')->find(1);
+$estoqueCfg = DB::table('estoque_settings')->find(1);
+$tecnologias = DB::table('technologies')->orderBy('trilha')->orderBy('nome')->get();
+
+/* Operadores por construção: a tabela tem 60 linhas (tipo × nível); o documento publica a REGRA
+ * (1 por nível de construção produtora, D-176) e uma amostra que prova que ela é o que está no
+ * banco — não as 60 linhas, que seriam planilha e não documento. */
+$operadoresAmostra = DB::table('building_operator_requirements')
+    ->whereIn('building_type', ['fazenda', 'captacao_de_agua', 'gerador_de_atmosfera'])
+    ->orderBy('building_type')->orderBy('level')->get();
+
+$zonaOperadores = json_decode($pop->zona_operadores_por_nivel ?? '{}', true) ?: [];
+
+/*
+ * Falha ALTO se uma construção nova não tiver nome próprio no mapa acima.
+ *
+ * Sem esta guarda, o `humano()` cai no fallback e o GDD sai com o nome do prédio escrito errado — sem
+ * acento, sem maiúscula — e ninguém percebe até alguém ler. Um documento que erra o nome das coisas
+ * que descreve não serve. É melhor o gerador parar.
+ */
+$faltando = array_diff(Building::MVP, array_keys(nomesProprios()));
+
+if ($faltando !== []) {
+    fwrite(STDERR, "ERRO: estas construções não têm nome próprio no mapa `nomesProprios()`:\n  - "
+        .implode("\n  - ", $faltando)."\n\n"
+        ."O GDD sairia com o nome delas escrito errado (sem acento, do slug). Acrescente-as e rode de novo.\n");
+    exit(1);
+}
+
+$porTipo = [];
+foreach ($specs as $s) {
+    $porTipo[$s->building_type][$s->level] = $s;
+}
+
+ob_start();
+?>
 <!doctype html>
 <html lang="pt-BR">
 <head>
@@ -63,7 +282,7 @@
       dias de produção com 29 colônias ensinaram, inclusive onde a medida contradisse a regra escrita.
     </p>
     <p style="font-size:.85rem;color:rgba(253,240,226,.55);margin-top:20px">
-      Gerado em 06/08/2026 · As tabelas numéricas são lidas do mesmo banco de onde o jogo lê.
+      Gerado em <?= date('d/m/Y') ?> · As tabelas numéricas são lidas do mesmo banco de onde o jogo lê.
     </p>
   </div>
 </header>
@@ -93,7 +312,7 @@
       duas redações concorrentes. Onde o v35 dizia duas coisas, aqui há uma — e uma nota dizendo qual
       foi descartada e por quê.</li>
   <li><b>As lacunas são marcadas como lacunas.</b> Onde o GDD nunca publicou um número, este
-      documento <b>não inventa um</b>: escreve <span class="sel sel-lac">Lacuna aberta</span> e segue. É a regra de ouro do projeto
+      documento <b>não inventa um</b>: escreve <?= lacuna() ?> e segue. É a regra de ouro do projeto
       aplicada ao próprio documento — e faz deste documento, de quebra, a lista de tudo o que ainda
       falta decidir.</li>
   <li><b>O que o jogo entrega é separado do que ele promete.</b> Sete construções o GDD descreve com
@@ -117,10 +336,10 @@
 <h3>A legenda, e como ler este documento</h3>
 
 <div class="legenda">
-  <div><span class="sel sel-ok">Implementado</span><p style="margin:6px 0 0;font-size:.84rem">Está no jogo, hoje. Você pode jogar isto.</p></div>
-  <div><span class="sel sel-prom">Promessa</span><p style="margin:6px 0 0;font-size:.84rem">O GDD descreve. O jogo ainda não faz.</p></div>
-  <div><span class="sel sel-lac">Lacuna aberta</span><p style="margin:6px 0 0;font-size:.84rem">O GDD nunca publicou o número. <b>Ninguém o inventou.</b></p></div>
-  <div><span class="sel sel-arb">Arbitrado · exemplo</span><p style="margin:6px 0 0;font-size:.84rem">Não é do GDD: foi decidido por nós, e a decisão está registrada.</p></div>
+  <div><?= entregue() ?><p style="margin:6px 0 0;font-size:.84rem">Está no jogo, hoje. Você pode jogar isto.</p></div>
+  <div><?= promessa() ?><p style="margin:6px 0 0;font-size:.84rem">O GDD descreve. O jogo ainda não faz.</p></div>
+  <div><?= lacuna() ?><p style="margin:6px 0 0;font-size:.84rem">O GDD nunca publicou o número. <b>Ninguém o inventou.</b></p></div>
+  <div><?= arbitrado('exemplo') ?><p style="margin:6px 0 0;font-size:.84rem">Não é do GDD: foi decidido por nós, e a decisão está registrada.</p></div>
 </div>
 
 <p>
@@ -186,11 +405,11 @@
 
 <table>
   <tr><th>Elemento</th><th>Regra</th><th>Estado</th></tr>
-  <tr><td>Grade</td><td><b>101 × 101</b>, coordenadas com sinal, de −50 a +50</td><td><span class="sel sel-ok">Implementado</span></td></tr>
-  <tr><td>Capital</td><td>No centro exato: <b>(0, 0)</b></td><td><span class="sel sel-ok">Implementado</span></td></tr>
-  <tr><td>Disco de founders</td><td>d ≤ 4 — 48 células, 28 populáveis</td><td><span class="sel sel-ok">Implementado</span></td></tr>
-  <tr><td>Anel livre</td><td>4 &lt; d ≤ 5</td><td><span class="sel sel-ok">Implementado</span></td></tr>
-  <tr><td>Periferia</td><td>d &gt; 5 — fundável <b>só na célula que o Dono liberar</b></td><td><span class="sel sel-ok">Implementado</span> <span class="d">D-147</span></td></tr>
+  <tr><td>Grade</td><td><b><?= MapaFertways::LADO ?> × <?= MapaFertways::LADO ?></b>, coordenadas com sinal, de −<?= MapaFertways::RAIO ?> a +<?= MapaFertways::RAIO ?></td><td><?= entregue() ?></td></tr>
+  <tr><td>Capital</td><td>No centro exato: <b>(<?= MapaFertways::CAPITAL_X ?>, <?= MapaFertways::CAPITAL_Y ?>)</b></td><td><?= entregue() ?></td></tr>
+  <tr><td>Disco de founders</td><td>d ≤ <?= MapaFertways::RAIO_FOUNDER ?> — 48 células, 28 populáveis</td><td><?= entregue() ?></td></tr>
+  <tr><td>Anel livre</td><td><?= MapaFertways::RAIO_FOUNDER ?> &lt; d ≤ <?= MapaFertways::RAIO_ANEL ?></td><td><?= entregue() ?></td></tr>
+  <tr><td>Periferia</td><td>d &gt; <?= MapaFertways::RAIO_ANEL ?> — fundável <b>só na célula que o Dono liberar</b></td><td><?= entregue() ?> <span class="d">D-147</span></td></tr>
 </table>
 
 <div class="nota">
@@ -243,26 +462,26 @@
 
 <table>
   <tr><th>Área</th><th>O que tem</th><th>Estado</th></tr>
-  <tr><td><b>Norte</b></td><td>Governo Central — a grade dos 19 slots institucionais (1–5, 7–8, 9–20; o 9–20 aparece <b>visível e travado</b>, expansão futura)</td><td><span class="sel sel-ok">Implementado</span></td></tr>
-  <tr><td><b>Oeste</b></td><td>Os destroços da <b>Endurance</b> — mapa das 8 seções do casco, uma Loja de Peças dinâmica por seção, e as missões narrativas que contam a história da escavação. Ver <span class="d">§10</span></td><td><span class="sel sel-ok">Implementado</span> <span class="d">D-132 a D-140</span></td></tr>
-  <tr><td><b>Leste</b></td><td>O <b>slot 6 inteiro</b>: Mercado Central + Pátio Logístico, juntos. Clicar abre o Mercado</td><td><span class="sel sel-ok">Implementado</span> <span class="d">D-65</span></td></tr>
-  <tr><td><b>Sul</b></td><td>O futuro <b>Espaçoporto</b> — mostra os 5 planetas do §23 com distância e risco, e diz que ninguém viaja ainda</td><td><span class="sel sel-prom">Promessa</span></td></tr>
-  <tr><td><b>Centro</b></td><td>A praça — 1 slot de tamanho, decorativa</td><td><span class="sel sel-ok">Implementado</span></td></tr>
+  <tr><td><b>Norte</b></td><td>Governo Central — a grade dos 19 slots institucionais (1–5, 7–8, 9–20; o 9–20 aparece <b>visível e travado</b>, expansão futura)</td><td><?= entregue() ?></td></tr>
+  <tr><td><b>Oeste</b></td><td>Os destroços da <b>Endurance</b> — mapa das 8 seções do casco, uma Loja de Peças dinâmica por seção, e as missões narrativas que contam a história da escavação. Ver <span class="d">§10</span></td><td><?= entregue() ?> <span class="d">D-132 a D-140</span></td></tr>
+  <tr><td><b>Leste</b></td><td>O <b>slot 6 inteiro</b>: Mercado Central + Pátio Logístico, juntos. Clicar abre o Mercado</td><td><?= entregue() ?> <span class="d">D-65</span></td></tr>
+  <tr><td><b>Sul</b></td><td>O futuro <b>Espaçoporto</b> — mostra os 5 planetas do §23 com distância e risco, e diz que ninguém viaja ainda</td><td><?= promessa() ?></td></tr>
+  <tr><td><b>Centro</b></td><td>A praça — 1 slot de tamanho, decorativa</td><td><?= entregue() ?></td></tr>
 </table>
 
 <p><b>O Norte, slot a slot:</b></p>
 
 <table>
   <tr><th>#</th><th>Instituição</th><th>Função</th><th>Estado</th></tr>
-  <tr><td>1</td><td>Administração Pública</td><td>Regras, comunicados, sanções finais</td><td><span class="sel sel-ok">Painel de admin</span></td></tr>
-  <tr><td>2</td><td>Central de Tributos</td><td>Painel de taxas e o <b>caixa real</b> do Tesouro</td><td><span class="sel sel-ok">Implementado</span> <span class="d">D-57</span></td></tr>
-  <tr><td>3</td><td>Central de Pesquisas e Notícias</td><td>Mural de comunicados; Gagarin</td><td><span class="sel sel-ok">Implementado</span></td></tr>
-  <tr><td>4</td><td>Secretaria de Finanças</td><td>Preços de referência, intervenção de preço</td><td><span class="sel sel-ok">Implementado</span> <span class="d">D-35</span></td></tr>
-  <tr><td>5</td><td>Ministério da Segurança e Guerra</td><td>Conflitos, tratados, auditoria de combate</td><td><span class="sel sel-ok">Implementado</span> <span class="d">D-66</span></td></tr>
-  <tr><td>7</td><td>Ministério das Reputações</td><td>Denúncias, conciliação, recursos</td><td><span class="sel sel-ok">Implementado</span></td></tr>
-  <tr><td>8</td><td><b>Ministério dos Transportes</b></td><td>Fábrica de caminhões, registro de placas, oficina, e a Garagem do frete público</td><td><span class="sel sel-ok">Implementado</span> <span class="d">D-60, D-76</span></td></tr>
-  <tr><td>9</td><td>Embaixada Interplanetária</td><td>—</td><td><span class="sel sel-prom">Fora do MVP</span></td></tr>
-  <tr><td>10–20</td><td>Expansão controlada</td><td>—</td><td><span class="sel sel-prom">Fora do MVP</span></td></tr>
+  <tr><td>1</td><td>Administração Pública</td><td>Regras, comunicados, sanções finais</td><td><?= entregue('Painel de admin') ?></td></tr>
+  <tr><td>2</td><td>Central de Tributos</td><td>Painel de taxas e o <b>caixa real</b> do Tesouro</td><td><?= entregue() ?> <span class="d">D-57</span></td></tr>
+  <tr><td>3</td><td>Central de Pesquisas e Notícias</td><td>Mural de comunicados; Gagarin</td><td><?= entregue() ?></td></tr>
+  <tr><td>4</td><td>Secretaria de Finanças</td><td>Preços de referência, intervenção de preço</td><td><?= entregue() ?> <span class="d">D-35</span></td></tr>
+  <tr><td>5</td><td>Ministério da Segurança e Guerra</td><td>Conflitos, tratados, auditoria de combate</td><td><?= entregue() ?> <span class="d">D-66</span></td></tr>
+  <tr><td>7</td><td>Ministério das Reputações</td><td>Denúncias, conciliação, recursos</td><td><?= entregue() ?></td></tr>
+  <tr><td>8</td><td><b>Ministério dos Transportes</b></td><td>Fábrica de caminhões, registro de placas, oficina, e a Garagem do frete público</td><td><?= entregue() ?> <span class="d">D-60, D-76</span></td></tr>
+  <tr><td>9</td><td>Embaixada Interplanetária</td><td>—</td><td><?= promessa('Fora do MVP') ?></td></tr>
+  <tr><td>10–20</td><td>Expansão controlada</td><td>—</td><td><?= promessa('Fora do MVP') ?></td></tr>
 </table>
 
 <div class="nota grave">
@@ -286,8 +505,8 @@
 </div>
 
 <p>
-  A colônia é uma <b>colmeia de 22 slots</b>, em linhas de
-  4/4/5/4/4/1. Toda construção tem <b>posição</b>, e
+  A colônia é uma <b>colmeia de <?= Slots::TOTAL ?> slots</b>, em linhas de
+  <?= implode('/', Slots::LINHAS) ?>. Toda construção tem <b>posição</b>, e
   <b>construção não erguida não ocupa slot</b> — ela passa a existir quando o colono aponta o buraco.
 </p>
 
@@ -309,17 +528,11 @@
 
 <table>
   <tr><th>Construção</th><th class="num">Slot</th><th>Observação</th></tr>
-    <tr><td>Gerador de Atmosfera</td><td class="num">9</td>
-      <td>Cria e mantém a cúpula atmosférica do slot.</td></tr>
-    <tr><td>Reator de Energia</td><td class="num">6</td>
-      <td>Produção de energia do slot.</td></tr>
-    <tr><td>Estrutura de Sobrevivência</td><td class="num">11</td>
-      <td>Habitação dos colonos. Cresce em módulos.</td></tr>
-    <tr><td>Fazenda</td><td class="num">5</td>
-      <td>Plantio e colheita de biomassa.</td></tr>
-    <tr><td>Captação de Água</td><td class="num">15</td>
-      <td>Produção e armazenamento de água.</td></tr>
-  </table>
+  <?php foreach (Slots::MIOLO as $tipo => $slot): ?>
+  <tr><td><?= e(humano($tipo)) ?></td><td class="num"><?= $slot ?></td>
+      <td><?= e(Funcoes::de($tipo)['frase']) ?></td></tr>
+  <?php endforeach; ?>
+</table>
 
 <div class="nota">
   <b>Isto vai além do §24.7, que só subsidiava o custo.</b> O v35 dizia que o Governo custeia as cinco
@@ -350,7 +563,7 @@
   O 22º slot: a colmeia ganhou uma linha solta de 1 ao final (o slot 21) — um <b>acréscimo</b>,
   nunca uma inserção, que teria deslocado a numeração de tudo e quebrado toda colônia já erguida.
   A construção em si mora hoje no <b>centro exato da colmeia</b>
-  (slot 10), o slot mais visível e mais alcançável, por
+  (slot <?= Slots::DEPOSITO_LOCAL['deposito_local'] ?>), o slot mais visível e mais alcançável, por
   ser a que o colono mais abre <span class="d">D-142, D-150</span>.
   Nasce <b>pronto, no nível 1</b>, subsidiado pelo Governo como as cinco essenciais, mas
   <b>indemolível sem ser "essencial"</b>: não entra no auto-subsídio do §24.7 nem ganha o selo de
@@ -375,27 +588,21 @@
 
 <table>
   <tr><th class="num">Nível</th><th class="num">Capacidade por recurso</th></tr>
-    <tr><td class="num">1</td><td class="num">50.000</td></tr>
-    <tr><td class="num">2</td><td class="num">62.500</td></tr>
-    <tr><td class="num">3</td><td class="num">78.125</td></tr>
-    <tr><td class="num">4</td><td class="num">97.656</td></tr>
-    <tr><td class="num">5</td><td class="num">122.070</td></tr>
-    <tr><td class="num">6</td><td class="num">152.587</td></tr>
-    <tr><td class="num">7</td><td class="num">190.733</td></tr>
-    <tr><td class="num">8</td><td class="num">238.416</td></tr>
-    <tr><td class="num">9</td><td class="num">298.020</td></tr>
-    <tr><td class="num">10</td><td class="num">372.525</td></tr>
-  </table>
+  <?php foreach ($siloExemplo as $nivel => $capacidade): ?>
+  <tr><td class="num"><?= $nivel ?></td><td class="num"><?= n($capacidade) ?></td></tr>
+  <?php endforeach; ?>
+</table>
 
 <p style="margin-top:-6px">
-  <span class="sel sel-arb">Arbitrado · 10.000 em todos os 26 recursos, em todos os 10 níveis, é só o valor de partida</span>  — o operador ajusta célula a célula pelo painel (Gestão de Construções → Silo).
+  <?= arbitrado('10.000 em todos os 26 recursos, em todos os 10 níveis, é só o valor de partida') ?>
+  — o operador ajusta célula a célula pelo painel (Gestão de Construções → Silo).
 </p>
 
 <h3>2.3 Repetíveis e únicas</h3>
 
 <p>
   Quatro construções podem ocupar <b>mais de um slot</b>, cada cópia com o seu nível:
-  <b>Mina Local, Oficina, Refinaria Química, Destilaria, Indústria Siderúrgica</b>. São as produtoras:
+  <b><?= e(implode(', ', array_map('humano', Building::REPETIVEIS))) ?></b>. São as produtoras:
   repetir é especializar a colônia, e produção e consumo de energia somam linearmente.
 </p>
 
@@ -408,7 +615,7 @@
 
 <div class="nota">
   <b>E o freio subiu: o Reator vai até o nível
-  15</b> <span class="d">D-157</span>.
+  <?= max(array_keys($porTipo['reator_de_energia'] ?? [5 => null])) ?></b> <span class="d">D-157</span>.
   O v35 o publica só <b>até o 5</b> — o mesmo teto que ele dá a todas as 5 essenciais e a mais 11
   construções de progressão, um <i>boilerplate</i> do documento, não uma decisão sobre o Reator. Os
   níveis 6 em diante <b>não são números novos</b>: saem das mesmas duas curvas que o próprio GDD já
@@ -430,7 +637,7 @@
   <li><b>O colono tem de escrever a palavra <code>DEMOLIR</code></b> — e a API a exige, não só a tela.</li>
 </ul>
 
-<p>O v35 <b>não fala em demolição</b>, nem na palavra nem no conceito. <span class="sel sel-arb">Arbitrado · tudo acima</span></p>
+<p>O v35 <b>não fala em demolição</b>, nem na palavra nem no conceito. <?= arbitrado('tudo acima') ?></p>
 
 <h3>2.5 O Marco <span class="d">D-75, §03/§05</span></h3>
 
@@ -507,196 +714,23 @@
 <h3>3.1 O catálogo</h3>
 
 <p>
-  <b>26 recursos.</b> A <b>classe tributária</b> define a alíquota do §8.3, que
+  <b><?= count($recursos) ?> recursos.</b> A <b>classe tributária</b> define a alíquota do §8.3, que
   incide <b>na entrega física</b> — e é <b>retida no próprio recurso</b>, não cobrada em Fert$
   <span class="d">D-12</span>.
 </p>
 
 <table>
   <tr><th>Recurso</th><th>Classe</th><th class="num">Alíquota</th><th class="num">Preço-base (F$)</th><th class="num">Produção máx./h</th></tr>
-    <tr>
-    <td>Água</td>
-    <td>primario</td>
-    <td class="num">3%</td>
-    <td class="num">0,0062</td>
-    <td class="num">405</td>
+  <?php foreach ($recursos as $r): ?>
+  <tr>
+    <td><?= e($r->nome) ?><?= $r->preco_base_derivado ? ' <span class="d">derivado</span>' : '' ?></td>
+    <td><?= e($r->tax_class) ?></td>
+    <td class="num"><?= n($r->tax_bps / 100, 0) ?>%</td>
+    <td class="num"><?= n($r->preco_base_micro / 1_000_000, 4) ?></td>
+    <td class="num"><?= $r->producao_max_hora ?: '—' ?></td>
   </tr>
-    <tr>
-    <td>Biomassa</td>
-    <td>primario</td>
-    <td class="num">3%</td>
-    <td class="num">0,0083</td>
-    <td class="num">304</td>
-  </tr>
-    <tr>
-    <td>Energia</td>
-    <td>primario</td>
-    <td class="num">3%</td>
-    <td class="num">0,0033</td>
-    <td class="num">759</td>
-  </tr>
-    <tr>
-    <td>Metal Bruto <span class="d">derivado</span></td>
-    <td>primario</td>
-    <td class="num">3%</td>
-    <td class="num">0,0333</td>
-    <td class="num">76</td>
-  </tr>
-    <tr>
-    <td>Oxigênio</td>
-    <td>primario</td>
-    <td class="num">3%</td>
-    <td class="num">0,0050</td>
-    <td class="num">506</td>
-  </tr>
-    <tr>
-    <td>Alumínio</td>
-    <td>secundario</td>
-    <td class="num">2%</td>
-    <td class="num">0,0253</td>
-    <td class="num">100</td>
-  </tr>
-    <tr>
-    <td>Biocombustível</td>
-    <td>secundario</td>
-    <td class="num">2%</td>
-    <td class="num">0,0345</td>
-    <td class="num">152</td>
-  </tr>
-    <tr>
-    <td>Cobre</td>
-    <td>secundario</td>
-    <td class="num">2%</td>
-    <td class="num">0,0316</td>
-    <td class="num">80</td>
-  </tr>
-    <tr>
-    <td>Componentes Eletrônicos</td>
-    <td>secundario</td>
-    <td class="num">2%</td>
-    <td class="num">1,2778</td>
-    <td class="num">76</td>
-  </tr>
-    <tr>
-    <td>Compostos Químicos</td>
-    <td>secundario</td>
-    <td class="num">2%</td>
-    <td class="num">0,0166</td>
-    <td class="num">152</td>
-  </tr>
-    <tr>
-    <td>Estanho</td>
-    <td>secundario</td>
-    <td class="num">2%</td>
-    <td class="num">0,0316</td>
-    <td class="num">80</td>
-  </tr>
-    <tr>
-    <td>Ligas Metálicas</td>
-    <td>secundario</td>
-    <td class="num">2%</td>
-    <td class="num">0,0125</td>
-    <td class="num">202</td>
-  </tr>
-    <tr>
-    <td>Lítio</td>
-    <td>secundario</td>
-    <td class="num">2%</td>
-    <td class="num">0,0506</td>
-    <td class="num">50</td>
-  </tr>
-    <tr>
-    <td>Ouro</td>
-    <td>secundario</td>
-    <td class="num">2%</td>
-    <td class="num">0,1265</td>
-    <td class="num">20</td>
-  </tr>
-    <tr>
-    <td>Silício</td>
-    <td>secundario</td>
-    <td class="num">2%</td>
-    <td class="num">0,0361</td>
-    <td class="num">70</td>
-  </tr>
-    <tr>
-    <td>Tântalo</td>
-    <td>secundario</td>
-    <td class="num">2%</td>
-    <td class="num">0,1012</td>
-    <td class="num">25</td>
-  </tr>
-    <tr>
-    <td>Tungstênio</td>
-    <td>secundario</td>
-    <td class="num">2%</td>
-    <td class="num">0,0562</td>
-    <td class="num">45</td>
-  </tr>
-    <tr>
-    <td>Bioenergia Curativa</td>
-    <td>raro</td>
-    <td class="num">1%</td>
-    <td class="num">0,5060</td>
-    <td class="num">5</td>
-  </tr>
-    <tr>
-    <td>Cristal de Hélio-3</td>
-    <td>raro</td>
-    <td class="num">1%</td>
-    <td class="num">0,3163</td>
-    <td class="num">8</td>
-  </tr>
-    <tr>
-    <td>Ferro Vermelho</td>
-    <td>raro</td>
-    <td class="num">1%</td>
-    <td class="num">0,2108</td>
-    <td class="num">12</td>
-  </tr>
-    <tr>
-    <td>Fungo Bioluminescente</td>
-    <td>raro</td>
-    <td class="num">1%</td>
-    <td class="num">0,2530</td>
-    <td class="num">10</td>
-  </tr>
-    <tr>
-    <td>Gelo de Metano</td>
-    <td>raro</td>
-    <td class="num">1%</td>
-    <td class="num">0,2530</td>
-    <td class="num">10</td>
-  </tr>
-    <tr>
-    <td>Nióbio Alienígena</td>
-    <td>raro</td>
-    <td class="num">1%</td>
-    <td class="num">0,3163</td>
-    <td class="num">8</td>
-  </tr>
-    <tr>
-    <td>Plasma Fossilizado</td>
-    <td>raro</td>
-    <td class="num">1%</td>
-    <td class="num">0,4217</td>
-    <td class="num">6</td>
-  </tr>
-    <tr>
-    <td>Quartzo Piezoelétrico</td>
-    <td>raro</td>
-    <td class="num">1%</td>
-    <td class="num">0,3163</td>
-    <td class="num">8</td>
-  </tr>
-    <tr>
-    <td>Resina Orgânica</td>
-    <td>raro</td>
-    <td class="num">1%</td>
-    <td class="num">0,3163</td>
-    <td class="num">8</td>
-  </tr>
-  </table>
+  <?php endforeach; ?>
+</table>
 
 <div class="nota grave">
   <b>O v35 publicava TRÊS tabelas de preço que não batiam entre si</b> (§07, §22.2, §24.8). A regra
@@ -712,153 +746,33 @@
 <p>
   Vive em <b>micro-unidades</b> (1 F$ = 1.000.000 µF$), não em centavos: a taxa de mercado e o preço
   por unidade produzem frações muito menores que um centavo, e arredondá-las criaria ou destruiria
-  valor a cada transação. <span class="d">D-07</span> <span class="sel sel-ok">Implementado</span></p>
+  valor a cada transação. <span class="d">D-07</span> <?= entregue() ?>
+</p>
 
 <h3>3.2.1 O kit inicial <span class="d">D-85, D-92</span></h3>
 
 <p>
-  Toda colônia nova recebe <b>100 F$</b>, um valor
+  Toda colônia nova recebe <b><?= n($kitFertMicro / Colony::MICRO_POR_FERT) ?> F$</b>, um valor
   fixo por recurso do catálogo, e a frota abaixo. Uma tabela única, substituindo de vez os 50 F$
   do GDD, os raros calculados do "muro de progressão" (D-17) e o kit fixo do D-57.
 </p>
 
 <table>
   <tr><th>Recurso</th><th>Classe</th><th class="num">Quantidade no kit</th></tr>
-    <tr>
-    <td>Água</td>
-    <td>primario</td>
-    <td class="num">500</td>
+  <?php foreach ($recursos as $r): ?>
+  <tr>
+    <td><?= e($r->nome) ?></td>
+    <td><?= e($r->tax_class) ?></td>
+    <td class="num"><?= n($kitRecursos[$r->code] ?? 0) ?></td>
   </tr>
-    <tr>
-    <td>Biomassa</td>
-    <td>primario</td>
-    <td class="num">500</td>
-  </tr>
-    <tr>
-    <td>Energia</td>
-    <td>primario</td>
-    <td class="num">500</td>
-  </tr>
-    <tr>
-    <td>Metal Bruto</td>
-    <td>primario</td>
-    <td class="num">500</td>
-  </tr>
-    <tr>
-    <td>Oxigênio</td>
-    <td>primario</td>
-    <td class="num">500</td>
-  </tr>
-    <tr>
-    <td>Alumínio</td>
-    <td>secundario</td>
-    <td class="num">25</td>
-  </tr>
-    <tr>
-    <td>Biocombustível</td>
-    <td>secundario</td>
-    <td class="num">100</td>
-  </tr>
-    <tr>
-    <td>Cobre</td>
-    <td>secundario</td>
-    <td class="num">25</td>
-  </tr>
-    <tr>
-    <td>Componentes Eletrônicos</td>
-    <td>secundario</td>
-    <td class="num">100</td>
-  </tr>
-    <tr>
-    <td>Compostos Químicos</td>
-    <td>secundario</td>
-    <td class="num">100</td>
-  </tr>
-    <tr>
-    <td>Estanho</td>
-    <td>secundario</td>
-    <td class="num">25</td>
-  </tr>
-    <tr>
-    <td>Ligas Metálicas</td>
-    <td>secundario</td>
-    <td class="num">250</td>
-  </tr>
-    <tr>
-    <td>Lítio</td>
-    <td>secundario</td>
-    <td class="num">25</td>
-  </tr>
-    <tr>
-    <td>Ouro</td>
-    <td>secundario</td>
-    <td class="num">25</td>
-  </tr>
-    <tr>
-    <td>Silício</td>
-    <td>secundario</td>
-    <td class="num">10</td>
-  </tr>
-    <tr>
-    <td>Tântalo</td>
-    <td>secundario</td>
-    <td class="num">10</td>
-  </tr>
-    <tr>
-    <td>Tungstênio</td>
-    <td>secundario</td>
-    <td class="num">10</td>
-  </tr>
-    <tr>
-    <td>Bioenergia Curativa</td>
-    <td>raro</td>
-    <td class="num">5</td>
-  </tr>
-    <tr>
-    <td>Cristal de Hélio-3</td>
-    <td>raro</td>
-    <td class="num">5</td>
-  </tr>
-    <tr>
-    <td>Ferro Vermelho</td>
-    <td>raro</td>
-    <td class="num">5</td>
-  </tr>
-    <tr>
-    <td>Fungo Bioluminescente</td>
-    <td>raro</td>
-    <td class="num">0</td>
-  </tr>
-    <tr>
-    <td>Gelo de Metano</td>
-    <td>raro</td>
-    <td class="num">15</td>
-  </tr>
-    <tr>
-    <td>Nióbio Alienígena</td>
-    <td>raro</td>
-    <td class="num">0</td>
-  </tr>
-    <tr>
-    <td>Plasma Fossilizado</td>
-    <td>raro</td>
-    <td class="num">2</td>
-  </tr>
-    <tr>
-    <td>Quartzo Piezoelétrico</td>
-    <td>raro</td>
-    <td class="num">2</td>
-  </tr>
-    <tr>
-    <td>Resina Orgânica</td>
-    <td>raro</td>
-    <td class="num">5</td>
-  </tr>
-  </table>
+  <?php endforeach; ?>
+</table>
 
 <p style="margin-top:10px">
   Frota do kit:
-      <b>1× Furgão de Comércio</b>,       <b>0× Caminhão de Carga</b>  .
+  <?php foreach ($kitFrota as $tipo => $qtd): ?>
+    <b><?= n($qtd) ?>× <?= e(humano($tipo)) ?></b><?= $tipo !== array_key_last($kitFrota) ? ', ' : '' ?>
+  <?php endforeach; ?>.
 </p>
 
 <div class="nota grave">
@@ -911,7 +825,7 @@
 <table>
   <tr><th>Regra</th><th>Valor</th></tr>
   <tr><td>Base</td><td>A <b>mesma conta do tick</b> — o método que calcula a taxa nominal de cada construção erguida foi extraído do <code>ColonyTick</code>, não reescrito ao lado dele. Duas contas divergiriam</td></tr>
-  <tr><td>Taxa</td><td><b>Nominal</b>: capacidade plena, sem refletir a clampagem por insumo escasso que o tick de verdade aplica <span class="sel sel-arb">Arbitrado · mesma leitura que a zona neutra já dava na extração e no refino</span></td></tr>
+  <tr><td>Taxa</td><td><b>Nominal</b>: capacidade plena, sem refletir a clampagem por insumo escasso que o tick de verdade aplica <?= arbitrado('mesma leitura que a zona neutra já dava na extração e no refino') ?></td></tr>
   <tr><td>Indústria Siderúrgica</td><td>O tick credita em <b>lotes inteiros</b> de 1.000 Metal Bruto; o card mostra a <b>média suavizada</b> por hora — em colônia pequena, os minerais mais raros arredondam para zero, o que é honesto: a essa taxa eles não rendem uma unidade inteira por hora</td></tr>
   <tr><td>Bônus da Endurance</td><td>Entram na conta — é a mesma taxa que o tick usa (§10.2)</td></tr>
 </table>
@@ -920,8 +834,8 @@
 <h2 id="s4">4. Construções</h2>
 
 <p>
-  <b>18 construções</b> — 5 essenciais e
-  13 de progressão. Custo e tempo saem da curva do GDD, e as tabelas
+  <b><?= count(Building::MVP) ?> construções</b> — <?= count(Building::ESSENCIAIS) ?> essenciais e
+  <?= count(Building::PROGRESSAO) ?> de progressão. Custo e tempo saem da curva do GDD, e as tabelas
   abaixo são lidas do banco.
 </p>
 
@@ -940,149 +854,23 @@
 
 <table>
   <tr><th>Construção</th><th>O GDD promete</th><th>§</th><th>O jogo entrega</th></tr>
-    <tr>
-    <td><b>Gerador de Atmosfera</b></td>
-    <td>Cria e mantém a cúpula atmosférica do slot.</td>
-    <td>§17.1</td>
+  <?php foreach (Building::MVP as $tipo):
+      $f = Funcoes::de($tipo);
+      $inerte = $f['efeito'] === 'nenhum';
+  ?>
+  <tr>
+    <td><b><?= e(humano($tipo)) ?></b></td>
+    <td><?= e($f['frase']) ?></td>
+    <td><?= e($f['fonte']) ?></td>
     <td>
-      <span class="sel sel-ok">Produz</span>          </td>
+      <?= $inerte ? promessa('Só consome energia') : entregue(ucfirst($f['efeito'])) ?>
+      <?php if ($f['nota']): ?>
+        <div style="font-size:.8rem;color:var(--ink-soft);margin-top:4px"><?= e($f['nota']) ?></div>
+      <?php endif; ?>
+    </td>
   </tr>
-    <tr>
-    <td><b>Estrutura de Sobrevivência</b></td>
-    <td>Habitação dos colonos. Cresce em módulos.</td>
-    <td>§17.1</td>
-    <td>
-      <span class="sel sel-prom">Só consome energia</span>              <div style="font-size:.8rem;color:var(--ink-soft);margin-top:4px">O GDD não diz quantos colonos ela abriga, nem o que a população faz. Hoje ela só consome energia — o efeito ainda não existe no jogo.</div>
-          </td>
-  </tr>
-    <tr>
-    <td><b>Fazenda</b></td>
-    <td>Plantio e colheita de biomassa.</td>
-    <td>§17.1</td>
-    <td>
-      <span class="sel sel-ok">Produz</span>          </td>
-  </tr>
-    <tr>
-    <td><b>Reator de Energia</b></td>
-    <td>Produção de energia do slot.</td>
-    <td>§17.1</td>
-    <td>
-      <span class="sel sel-ok">Produz</span>              <div style="font-size:.8rem;color:var(--ink-soft);margin-top:4px">É o teto real da colônia: cada construção erguida consome energia, e nada a limita senão o que o Reator sustenta (§19.8).</div>
-          </td>
-  </tr>
-    <tr>
-    <td><b>Captação de Água</b></td>
-    <td>Produção e armazenamento de água.</td>
-    <td>§17.1</td>
-    <td>
-      <span class="sel sel-ok">Produz</span>              <div style="font-size:.8rem;color:var(--ink-soft);margin-top:4px">Produz água, sim. O &quot;armazenamento&quot; da frase o GDD nunca quantifica: não há teto de estoque no jogo.</div>
-          </td>
-  </tr>
-    <tr>
-    <td><b>Oficina</b></td>
-    <td>Produção de ligas metálicas.</td>
-    <td>§17.2</td>
-    <td>
-      <span class="sel sel-ok">Converte</span>              <div style="font-size:.8rem;color:var(--ink-soft);margin-top:4px">Fabrica Componentes Eletrônicos pelas três receitas do §24.5 — escolha a receita no painel. As Ligas Metálicas do §19.3 NÃO são produzidas AQUI: desde o D-83, só a Indústria Siderúrgica as produz (D-82), que já converte Metal Bruto numa proporção real. Duas fontes de &quot;Metal Bruto vira Ligas&quot; com regras diferentes seria confuso, não redundante.</div>
-          </td>
-  </tr>
-    <tr>
-    <td><b>Refinaria Química</b></td>
-    <td>Produz Compostos Químicos a partir de minerais e água.</td>
-    <td>§17.2</td>
-    <td>
-      <span class="sel sel-ok">Converte</span>              <div style="font-size:.8rem;color:var(--ink-soft);margin-top:4px">Converte Metal Bruto, Água, Biomassa e Energia em Compostos Químicos (D-83) — 1 Metal Bruto + 10 Água + 5 Biomassa + 6 Energia por Composto. O GDD nunca publica a receita, só a taxa (30/h no nível 1); nessa proporção ela pediria 300 Água/h contra os 80/h que a Captação nível 1 produz, então a taxa em vigor é outra e bem menor (2/h no nível 1) — calibrada para caber com folga.</div>
-          </td>
-  </tr>
-    <tr>
-    <td><b>Laboratório</b></td>
-    <td>Pesquisa tecnológica.</td>
-    <td>§17.2</td>
-    <td>
-      <span class="sel sel-prom">Só consome energia</span>              <div style="font-size:.8rem;color:var(--ink-soft);margin-top:4px">O GDD diz duas palavras e nunca publica árvore de pesquisa, tecnologias, custo nem tempo. Hoje o Laboratório só consome energia — o efeito não existe.</div>
-          </td>
-  </tr>
-    <tr>
-    <td><b>Antena de Comunicação</b></td>
-    <td>Comunicação com a Capital, alertas, eventos.</td>
-    <td>§17.2</td>
-    <td>
-      <span class="sel sel-prom">Só consome energia</span>              <div style="font-size:.8rem;color:var(--ink-soft);margin-top:4px">Sem número de efeito em lugar nenhum do GDD. Hoje só consome energia.</div>
-          </td>
-  </tr>
-    <tr>
-    <td><b>Torre de Defesa</b></td>
-    <td>Defesa básica do slot.</td>
-    <td>§17.2</td>
-    <td>
-      <span class="sel sel-prom">Só consome energia</span>              <div style="font-size:.8rem;color:var(--ink-soft);margin-top:4px">O GDD se contradiz: o slot principal é INVIOLÁVEL (§01), então não há o que defender aqui. O bônus nunca é dado em número. Hoje só consome energia.</div>
-          </td>
-  </tr>
-    <tr>
-    <td><b>Mercado Local</b></td>
-    <td>Comércio direto com vizinhos.</td>
-    <td>§17.2</td>
-    <td>
-      <span class="sel sel-ok">Porta</span>              <div style="font-size:.8rem;color:var(--ink-soft);margin-top:4px">É por aqui que se abrem os Acordos de Troca com outros colonos — que é exatamente o que a frase do GDD descreve. O Mercado Central, esse é instituição da Capital (§2.1) e se alcança pelo mapa.</div>
-          </td>
-  </tr>
-    <tr>
-    <td><b>Quartel</b></td>
-    <td>Recruta e treina Robôs Mineradores, Infiltradores e Predadores. Necessário para ocupar zonas neutras ou atacar.</td>
-    <td>§17.2</td>
-    <td>
-      <span class="sel sel-ok">Converte</span>              <div style="font-size:.8rem;color:var(--ink-soft);margin-top:4px">Recruta Sentinela, Robô Minerador, Infiltrador e Predador — consome recurso e credita a unidade (§27.1), desde o D-66. Exige o Quartel nível 1 ou mais.</div>
-          </td>
-  </tr>
-    <tr>
-    <td><b>Plataforma de Pouso</b></td>
-    <td>Hangar onde as Naves de Transporte Planetária ficam estacionadas. Upgrades aumentam capacidade de naves estacionadas e reduzem tempo de construção.</td>
-    <td>§17.2</td>
-    <td>
-      <span class="sel sel-prom">Só consome energia</span>              <div style="font-size:.8rem;color:var(--ink-soft);margin-top:4px">O GDD promete &quot;mais naves&quot; e &quot;menos tempo&quot; sem publicar um número sequer, e a Nave de Transporte Planetária está fora do MVP. Hoje só consome energia.</div>
-          </td>
-  </tr>
-    <tr>
-    <td><b>Central de Transportes</b></td>
-    <td>Produção e gestão de Caminhões de Carga e Naves de Transporte Planetária.</td>
-    <td>§17.2</td>
-    <td>
-      <span class="sel sel-ok">Porta</span>              <div style="font-size:.8rem;color:var(--ink-soft);margin-top:4px">É por aqui que se vê a Frota, e o nível dela LIMITA quantos Caminhões o colono pode ter — máximo(1, nível), desde o D-60. Nenhum Caminhão é fabricado aqui: quem fabrica é o Ministério dos Transportes (D-60); a Central só dá vaga.</div>
-          </td>
-  </tr>
-    <tr>
-    <td><b>Mina Local</b></td>
-    <td>A fonte individual de Metal Bruto no slot principal. Complementa a oferta governamental e a extração territorial, sem substituir as zonas neutras.</td>
-    <td>§04</td>
-    <td>
-      <span class="sel sel-ok">Produz</span>              <div style="font-size:.8rem;color:var(--ink-soft);margin-top:4px">Pode ser repetida em mais de um slot: duas Minas produzem o dobro (D-59).</div>
-          </td>
-  </tr>
-    <tr>
-    <td><b>Destilaria</b></td>
-    <td>Converte 2 Biomassas + 3 Energias em 1 Biocombustível. A conversão não tem receita alternativa: a taxa é fixa.</td>
-    <td>§04</td>
-    <td>
-      <span class="sel sel-ok">Converte</span>              <div style="font-size:.8rem;color:var(--ink-soft);margin-top:4px">Pode ser repetida em mais de um slot (D-59). Vai até o nível 10.</div>
-          </td>
-  </tr>
-    <tr>
-    <td><b>Tanque de Combustível</b></td>
-    <td>Armazena Gelo de Metano refinado. Disponível no slot principal e nas zonas neutras.</td>
-    <td>§21.9</td>
-    <td>
-      <span class="sel sel-prom">Só consome energia</span>              <div style="font-size:.8rem;color:var(--ink-soft);margin-top:4px">O GDD publica a capacidade (200 no nível 1, até 1.012), mas o jogo ainda não tem teto de estoque nenhum — guardar mais não faz diferença. Hoje só consome energia.</div>
-          </td>
-  </tr>
-    <tr>
-    <td><b>Indústria Siderúrgica</b></td>
-    <td>Não está no GDD — construção nova, pedida pelo usuário (D-82).</td>
-    <td>—</td>
-    <td>
-      <span class="sel sel-ok">Converte</span>              <div style="font-size:.8rem;color:var(--ink-soft);margin-top:4px">Processa Metal Bruto em Ligas Metálicas e nos cinco minerais eletrônicos que, na Temporada 1, só o governo extrai (§4.3) — arbitragem consciente, não lacuna. A cada 1000 Metal Bruto: 350 Ligas, 35 Alumínio, 30 Cobre, 20 Estanho, 4 Ouro, 1 Tungstênio. Só credita em lotes inteiros de 1000; o resto fica guardado para o próximo tick. Taxa de processamento igual à Mina Local, nível a nível. Pode ser repetida em mais de um slot (D-59): duas somam produção.</div>
-          </td>
-  </tr>
-  </table>
+  <?php endforeach; ?>
+</table>
 
 <div class="nota grave">
   <b>Sete destas construções não fazem nada além de consumir energia.</b> O v35 as descreve com uma
@@ -1094,1225 +882,42 @@
 
 <h3>4.2 Custo e tempo, por construção</h3>
 
-<h4>Gerador de Atmosfera <span class="d">(até o nível 5)</span></h4>
+<?php foreach (Building::MVP as $tipo):
+    $niveis = $porTipo[$tipo] ?? [];
+    if (! $niveis) { continue; }
+    ksort($niveis);
+    $recursosUsados = [];
+    foreach ($niveis as $s) {
+        foreach (json_decode($s->cost_json, true) ?? [] as $k => $v) { $recursosUsados[$k] = true; }
+    }
+    $recursosUsados = array_keys($recursosUsados);
+?>
+<h4><?= e(humano($tipo)) ?> <span class="d">(até o nível <?= max(array_keys($niveis)) ?>)</span></h4>
 <table>
   <tr>
     <th class="num">Nível</th>
     <th class="num">Tempo</th>
-    <th class="num">Água</th><th class="num">Biomassa</th><th class="num">Energia</th><th class="num">Oxigênio</th>    <th class="num">Energia/h</th>
+    <?php foreach ($recursosUsados as $r): ?><th class="num"><?= e(humano($r)) ?></th><?php endforeach; ?>
+    <th class="num">Energia/h</th>
   </tr>
-    <tr>
-    <td class="num">1</td>
-    <td class="num">
-              4 min          </td>
-          <td class="num">50</td>
-          <td class="num">30</td>
-          <td class="num">10</td>
-          <td class="num">5</td>
-        <td class="num">25</td>
-  </tr>
-    <tr>
-    <td class="num">2</td>
-    <td class="num">
-              5 min          </td>
-          <td class="num">83</td>
-          <td class="num">50</td>
-          <td class="num">17</td>
-          <td class="num">8</td>
-        <td class="num">38</td>
-  </tr>
-    <tr>
-    <td class="num">3</td>
-    <td class="num">
-              8 min          </td>
-          <td class="num">136</td>
-          <td class="num">82</td>
-          <td class="num">27</td>
-          <td class="num">14</td>
-        <td class="num">56</td>
-  </tr>
-    <tr>
-    <td class="num">4</td>
-    <td class="num">
-              12 min          </td>
-          <td class="num">225</td>
-          <td class="num">135</td>
-          <td class="num">45</td>
-          <td class="num">22</td>
-        <td class="num">84</td>
-  </tr>
-    <tr>
-    <td class="num">5</td>
-    <td class="num">
-              18 min          </td>
-          <td class="num">371</td>
-          <td class="num">222</td>
-          <td class="num">74</td>
-          <td class="num">37</td>
-        <td class="num">127</td>
-  </tr>
-  </table>
-<h4>Estrutura de Sobrevivência <span class="d">(até o nível 5)</span></h4>
-<table>
+  <?php foreach ($niveis as $nivel => $s): $custo = json_decode($s->cost_json, true) ?? []; ?>
   <tr>
-    <th class="num">Nível</th>
-    <th class="num">Tempo</th>
-    <th class="num">Água</th><th class="num">Biomassa</th><th class="num">Ligas Metálicas</th><th class="num">Oxigênio</th><th class="num">Energia</th>    <th class="num">Energia/h</th>
-  </tr>
-    <tr>
-    <td class="num">1</td>
-    <td class="num">
-              6 min          </td>
-          <td class="num">20</td>
-          <td class="num">40</td>
-          <td class="num">15</td>
-          <td class="num">15</td>
-          <td class="num">8</td>
-        <td class="num">10</td>
-  </tr>
-    <tr>
-    <td class="num">2</td>
-    <td class="num">
-              8 min          </td>
-          <td class="num">33</td>
-          <td class="num">66</td>
-          <td class="num">25</td>
-          <td class="num">25</td>
-          <td class="num">13</td>
-        <td class="num">15</td>
-  </tr>
-    <tr>
-    <td class="num">3</td>
-    <td class="num">
-              13 min          </td>
-          <td class="num">54</td>
-          <td class="num">109</td>
-          <td class="num">41</td>
-          <td class="num">41</td>
-          <td class="num">22</td>
-        <td class="num">22</td>
-  </tr>
-    <tr>
-    <td class="num">4</td>
-    <td class="num">
-              19 min          </td>
-          <td class="num">90</td>
-          <td class="num">180</td>
-          <td class="num">67</td>
-          <td class="num">67</td>
-          <td class="num">36</td>
-        <td class="num">34</td>
-  </tr>
-    <tr>
-    <td class="num">5</td>
-    <td class="num">
-              28 min          </td>
-          <td class="num">148</td>
-          <td class="num">296</td>
-          <td class="num">111</td>
-          <td class="num">111</td>
-          <td class="num">59</td>
-        <td class="num">51</td>
-  </tr>
-  </table>
-<h4>Fazenda <span class="d">(até o nível 5)</span></h4>
-<table>
-  <tr>
-    <th class="num">Nível</th>
-    <th class="num">Tempo</th>
-    <th class="num">Água</th><th class="num">Ligas Metálicas</th><th class="num">Oxigênio</th><th class="num">Energia</th>    <th class="num">Energia/h</th>
-  </tr>
-    <tr>
-    <td class="num">1</td>
-    <td class="num">
-              4 min          </td>
-          <td class="num">35</td>
-          <td class="num">10</td>
-          <td class="num">10</td>
-          <td class="num">12</td>
-        <td class="num">15</td>
-  </tr>
-    <tr>
-    <td class="num">2</td>
-    <td class="num">
-              6 min          </td>
-          <td class="num">58</td>
-          <td class="num">17</td>
-          <td class="num">17</td>
-          <td class="num">20</td>
-        <td class="num">22</td>
-  </tr>
-    <tr>
-    <td class="num">3</td>
-    <td class="num">
-              9 min          </td>
-          <td class="num">95</td>
-          <td class="num">27</td>
-          <td class="num">27</td>
-          <td class="num">33</td>
-        <td class="num">34</td>
-  </tr>
-    <tr>
-    <td class="num">4</td>
-    <td class="num">
-              14 min          </td>
-          <td class="num">157</td>
-          <td class="num">45</td>
-          <td class="num">45</td>
-          <td class="num">54</td>
-        <td class="num">51</td>
-  </tr>
-    <tr>
-    <td class="num">5</td>
-    <td class="num">
-              21 min          </td>
-          <td class="num">259</td>
-          <td class="num">74</td>
-          <td class="num">74</td>
-          <td class="num">89</td>
-        <td class="num">76</td>
-  </tr>
-  </table>
-<h4>Reator de Energia <span class="d">(até o nível 15)</span></h4>
-<table>
-  <tr>
-    <th class="num">Nível</th>
-    <th class="num">Tempo</th>
-    <th class="num">Água</th><th class="num">Ligas Metálicas</th><th class="num">Compostos Químicos</th><th class="num">Oxigênio</th><th class="num">Biomassa</th>    <th class="num">Energia/h</th>
-  </tr>
-    <tr>
-    <td class="num">1</td>
-    <td class="num">
-              7 min          </td>
-          <td class="num">15</td>
-          <td class="num">40</td>
-          <td class="num">10</td>
-          <td class="num">8</td>
-          <td class="num">5</td>
-        <td class="num">—</td>
-  </tr>
-    <tr>
-    <td class="num">2</td>
-    <td class="num">
-              10 min          </td>
-          <td class="num">25</td>
-          <td class="num">66</td>
-          <td class="num">17</td>
-          <td class="num">13</td>
-          <td class="num">8</td>
-        <td class="num">—</td>
-  </tr>
-    <tr>
-    <td class="num">3</td>
-    <td class="num">
-              16 min          </td>
-          <td class="num">41</td>
-          <td class="num">109</td>
-          <td class="num">27</td>
-          <td class="num">22</td>
-          <td class="num">14</td>
-        <td class="num">—</td>
-  </tr>
-    <tr>
-    <td class="num">4</td>
-    <td class="num">
-              24 min          </td>
-          <td class="num">67</td>
-          <td class="num">180</td>
-          <td class="num">45</td>
-          <td class="num">36</td>
-          <td class="num">22</td>
-        <td class="num">—</td>
-  </tr>
-    <tr>
-    <td class="num">5</td>
-    <td class="num">
-              35 min          </td>
-          <td class="num">111</td>
-          <td class="num">296</td>
-          <td class="num">74</td>
-          <td class="num">59</td>
-          <td class="num">37</td>
-        <td class="num">—</td>
-  </tr>
-    <tr>
-    <td class="num">6</td>
-    <td class="num">
-              53 min          </td>
-          <td class="num">183</td>
-          <td class="num">489</td>
-          <td class="num">122</td>
-          <td class="num">98</td>
-          <td class="num">61</td>
-        <td class="num">—</td>
-  </tr>
-    <tr>
-    <td class="num">7</td>
-    <td class="num">
-              80 min          </td>
-          <td class="num">303</td>
-          <td class="num">807</td>
-          <td class="num">202</td>
-          <td class="num">161</td>
-          <td class="num">101</td>
-        <td class="num">—</td>
-  </tr>
-    <tr>
-    <td class="num">8</td>
-    <td class="num">
-              120 min          </td>
-          <td class="num">499</td>
-          <td class="num">1.332</td>
-          <td class="num">333</td>
-          <td class="num">266</td>
-          <td class="num">166</td>
-        <td class="num">—</td>
-  </tr>
-    <tr>
-    <td class="num">9</td>
-    <td class="num">
-              179 min          </td>
-          <td class="num">824</td>
-          <td class="num">2.198</td>
-          <td class="num">549</td>
-          <td class="num">440</td>
-          <td class="num">275</td>
-        <td class="num">—</td>
-  </tr>
-    <tr>
-    <td class="num">10</td>
-    <td class="num">
-              269 min          </td>
-          <td class="num">1.360</td>
-          <td class="num">3.626</td>
-          <td class="num">906</td>
-          <td class="num">725</td>
-          <td class="num">453</td>
-        <td class="num">—</td>
-  </tr>
-    <tr>
-    <td class="num">11</td>
-    <td class="num">
-              404 min          </td>
-          <td class="num">2.244</td>
-          <td class="num">5.983</td>
-          <td class="num">1.496</td>
-          <td class="num">1.197</td>
-          <td class="num">748</td>
-        <td class="num">—</td>
-  </tr>
-    <tr>
-    <td class="num">12</td>
-    <td class="num">
-              605 min          </td>
-          <td class="num">3.702</td>
-          <td class="num">9.872</td>
-          <td class="num">2.468</td>
-          <td class="num">1.974</td>
-          <td class="num">1.234</td>
-        <td class="num">—</td>
-  </tr>
-    <tr>
-    <td class="num">13</td>
-    <td class="num">
-              908 min          </td>
-          <td class="num">6.108</td>
-          <td class="num">16.288</td>
-          <td class="num">4.072</td>
-          <td class="num">3.258</td>
-          <td class="num">2.036</td>
-        <td class="num">—</td>
-  </tr>
-    <tr>
-    <td class="num">14</td>
-    <td class="num">
-              1.362 min          </td>
-          <td class="num">10.078</td>
-          <td class="num">26.875</td>
-          <td class="num">6.719</td>
-          <td class="num">5.375</td>
-          <td class="num">3.359</td>
-        <td class="num">—</td>
-  </tr>
-    <tr>
-    <td class="num">15</td>
-    <td class="num">
-              2.044 min          </td>
-          <td class="num">16.629</td>
-          <td class="num">44.344</td>
-          <td class="num">11.086</td>
-          <td class="num">8.869</td>
-          <td class="num">5.543</td>
-        <td class="num">—</td>
-  </tr>
-  </table>
-<h4>Captação de Água <span class="d">(até o nível 5)</span></h4>
-<table>
-  <tr>
-    <th class="num">Nível</th>
-    <th class="num">Tempo</th>
-    <th class="num">Biomassa</th><th class="num">Ligas Metálicas</th><th class="num">Oxigênio</th><th class="num">Energia</th>    <th class="num">Energia/h</th>
-  </tr>
-    <tr>
-    <td class="num">1</td>
-    <td class="num">
-              5 min          </td>
-          <td class="num">10</td>
-          <td class="num">25</td>
-          <td class="num">6</td>
-          <td class="num">10</td>
-        <td class="num">12</td>
-  </tr>
-    <tr>
-    <td class="num">2</td>
-    <td class="num">
-              7 min          </td>
-          <td class="num">17</td>
-          <td class="num">41</td>
-          <td class="num">10</td>
-          <td class="num">17</td>
-        <td class="num">18</td>
-  </tr>
-    <tr>
-    <td class="num">3</td>
-    <td class="num">
-              11 min          </td>
-          <td class="num">27</td>
-          <td class="num">68</td>
-          <td class="num">16</td>
-          <td class="num">27</td>
-        <td class="num">27</td>
-  </tr>
-    <tr>
-    <td class="num">4</td>
-    <td class="num">
-              17 min          </td>
-          <td class="num">45</td>
-          <td class="num">112</td>
-          <td class="num">27</td>
-          <td class="num">45</td>
-        <td class="num">40</td>
-  </tr>
-    <tr>
-    <td class="num">5</td>
-    <td class="num">
-              25 min          </td>
-          <td class="num">74</td>
-          <td class="num">185</td>
-          <td class="num">44</td>
-          <td class="num">74</td>
-        <td class="num">61</td>
-  </tr>
-  </table>
-<h4>Oficina <span class="d">(até o nível 5)</span></h4>
-<table>
-  <tr>
-    <th class="num">Nível</th>
-    <th class="num">Tempo</th>
-    <th class="num">Biomassa</th><th class="num">Ligas Metálicas</th><th class="num">Compostos Químicos</th><th class="num">Água</th><th class="num">Energia</th><th class="num">Ferro vermelho</th>    <th class="num">Energia/h</th>
-  </tr>
-    <tr>
-    <td class="num">1</td>
-    <td class="num">
-              18 min          </td>
-          <td class="num">30</td>
-          <td class="num">50</td>
-          <td class="num">15</td>
-          <td class="num">15</td>
-          <td class="num">20</td>
-          <td class="num">1</td>
-        <td class="num">25</td>
-  </tr>
-    <tr>
-    <td class="num">2</td>
-    <td class="num">
-              26 min          </td>
-          <td class="num">50</td>
-          <td class="num">83</td>
-          <td class="num">25</td>
-          <td class="num">25</td>
-          <td class="num">33</td>
-          <td class="num">2</td>
-        <td class="num">38</td>
-  </tr>
-    <tr>
-    <td class="num">3</td>
-    <td class="num">
-              39 min          </td>
-          <td class="num">82</td>
-          <td class="num">136</td>
-          <td class="num">41</td>
-          <td class="num">41</td>
-          <td class="num">54</td>
-          <td class="num">3</td>
-        <td class="num">56</td>
-  </tr>
-    <tr>
-    <td class="num">4</td>
-    <td class="num">
-              59 min          </td>
-          <td class="num">135</td>
-          <td class="num">225</td>
-          <td class="num">67</td>
-          <td class="num">67</td>
-          <td class="num">90</td>
-          <td class="num">4</td>
-        <td class="num">84</td>
-  </tr>
-    <tr>
-    <td class="num">5</td>
-    <td class="num">
-              89 min          </td>
-          <td class="num">222</td>
-          <td class="num">371</td>
-          <td class="num">111</td>
-          <td class="num">111</td>
-          <td class="num">148</td>
-          <td class="num">7</td>
-        <td class="num">127</td>
-  </tr>
-  </table>
-<h4>Refinaria Química <span class="d">(até o nível 5)</span></h4>
-<table>
-  <tr>
-    <th class="num">Nível</th>
-    <th class="num">Tempo</th>
-    <th class="num">Água</th><th class="num">Ligas Metálicas</th><th class="num">Energia</th><th class="num">Oxigênio</th><th class="num">Quartzo piezoeletrico</th>    <th class="num">Energia/h</th>
-  </tr>
-    <tr>
-    <td class="num">1</td>
-    <td class="num">
-              24 min          </td>
-          <td class="num">60</td>
-          <td class="num">70</td>
-          <td class="num">25</td>
-          <td class="num">10</td>
-          <td class="num">1</td>
-        <td class="num">28</td>
-  </tr>
-    <tr>
-    <td class="num">2</td>
-    <td class="num">
-              37 min          </td>
-          <td class="num">99</td>
-          <td class="num">116</td>
-          <td class="num">41</td>
-          <td class="num">17</td>
-          <td class="num">2</td>
-        <td class="num">42</td>
-  </tr>
-    <tr>
-    <td class="num">3</td>
-    <td class="num">
-              55 min          </td>
-          <td class="num">163</td>
-          <td class="num">191</td>
-          <td class="num">68</td>
-          <td class="num">27</td>
-          <td class="num">3</td>
-        <td class="num">63</td>
-  </tr>
-    <tr>
-    <td class="num">4</td>
-    <td class="num">
-              83 min          </td>
-          <td class="num">270</td>
-          <td class="num">314</td>
-          <td class="num">112</td>
-          <td class="num">45</td>
-          <td class="num">4</td>
-        <td class="num">94</td>
-  </tr>
-    <tr>
-    <td class="num">5</td>
-    <td class="num">
-              124 min          </td>
-          <td class="num">445</td>
-          <td class="num">519</td>
-          <td class="num">185</td>
-          <td class="num">74</td>
-          <td class="num">7</td>
-        <td class="num">142</td>
-  </tr>
-  </table>
-<h4>Laboratório <span class="d">(até o nível 5)</span></h4>
-<table>
-  <tr>
-    <th class="num">Nível</th>
-    <th class="num">Tempo</th>
-    <th class="num">Ligas Metálicas</th><th class="num">Compostos Químicos</th><th class="num">Componentes Eletrônicos</th><th class="num">Energia</th><th class="num">Água</th><th class="num">Resina organica</th>    <th class="num">Energia/h</th>
-  </tr>
-    <tr>
-    <td class="num">1</td>
-    <td class="num">
-              21 min          </td>
-          <td class="num">60</td>
-          <td class="num">40</td>
-          <td class="num">20</td>
-          <td class="num">18</td>
-          <td class="num">12</td>
-          <td class="num">2</td>
-        <td class="num">20</td>
-  </tr>
-    <tr>
-    <td class="num">2</td>
-    <td class="num">
-              32 min          </td>
-          <td class="num">99</td>
-          <td class="num">66</td>
-          <td class="num">33</td>
-          <td class="num">30</td>
-          <td class="num">20</td>
-          <td class="num">3</td>
-        <td class="num">30</td>
-  </tr>
-    <tr>
-    <td class="num">3</td>
-    <td class="num">
-              47 min          </td>
-          <td class="num">163</td>
-          <td class="num">109</td>
-          <td class="num">54</td>
-          <td class="num">49</td>
-          <td class="num">33</td>
-          <td class="num">5</td>
-        <td class="num">45</td>
-  </tr>
-    <tr>
-    <td class="num">4</td>
-    <td class="num">
-              71 min          </td>
-          <td class="num">270</td>
-          <td class="num">180</td>
-          <td class="num">90</td>
-          <td class="num">81</td>
-          <td class="num">54</td>
-          <td class="num">9</td>
-        <td class="num">68</td>
-  </tr>
-    <tr>
-    <td class="num">5</td>
-    <td class="num">
-              106 min          </td>
-          <td class="num">445</td>
-          <td class="num">296</td>
-          <td class="num">148</td>
-          <td class="num">133</td>
-          <td class="num">89</td>
-          <td class="num">15</td>
-        <td class="num">101</td>
-  </tr>
-  </table>
-<h4>Antena de Comunicação <span class="d">(até o nível 5)</span></h4>
-<table>
-  <tr>
-    <th class="num">Nível</th>
-    <th class="num">Tempo</th>
-    <th class="num">Ligas Metálicas</th><th class="num">Componentes Eletrônicos</th><th class="num">Energia</th><th class="num">Quartzo piezoeletrico</th>    <th class="num">Energia/h</th>
-  </tr>
-    <tr>
-    <td class="num">1</td>
-    <td class="num">
-              10 min          </td>
-          <td class="num">35</td>
-          <td class="num">30</td>
-          <td class="num">10</td>
-          <td class="num">2</td>
-        <td class="num">8</td>
-  </tr>
-    <tr>
-    <td class="num">2</td>
-    <td class="num">
-              16 min          </td>
-          <td class="num">58</td>
-          <td class="num">50</td>
-          <td class="num">17</td>
-          <td class="num">3</td>
-        <td class="num">12</td>
-  </tr>
-    <tr>
-    <td class="num">3</td>
-    <td class="num">
-              24 min          </td>
-          <td class="num">95</td>
-          <td class="num">82</td>
-          <td class="num">27</td>
-          <td class="num">5</td>
-        <td class="num">18</td>
-  </tr>
-    <tr>
-    <td class="num">4</td>
-    <td class="num">
-              35 min          </td>
-          <td class="num">157</td>
-          <td class="num">135</td>
-          <td class="num">45</td>
-          <td class="num">9</td>
-        <td class="num">27</td>
-  </tr>
-    <tr>
-    <td class="num">5</td>
-    <td class="num">
-              53 min          </td>
-          <td class="num">259</td>
-          <td class="num">222</td>
-          <td class="num">74</td>
-          <td class="num">15</td>
-        <td class="num">40</td>
-  </tr>
-  </table>
-<h4>Torre de Defesa <span class="d">(até o nível 5)</span></h4>
-<table>
-  <tr>
-    <th class="num">Nível</th>
-    <th class="num">Tempo</th>
-    <th class="num">Ligas Metálicas</th><th class="num">Compostos Químicos</th><th class="num">Energia</th><th class="num">Niobio alienigena</th>    <th class="num">Energia/h</th>
-  </tr>
-    <tr>
-    <td class="num">1</td>
-    <td class="num">
-              14 min          </td>
-          <td class="num">80</td>
-          <td class="num">20</td>
-          <td class="num">15</td>
-          <td class="num">2</td>
-        <td class="num">18</td>
-  </tr>
-    <tr>
-    <td class="num">2</td>
-    <td class="num">
-              21 min          </td>
-          <td class="num">132</td>
-          <td class="num">33</td>
-          <td class="num">25</td>
-          <td class="num">3</td>
-        <td class="num">27</td>
-  </tr>
-    <tr>
-    <td class="num">3</td>
-    <td class="num">
-              32 min          </td>
-          <td class="num">218</td>
-          <td class="num">54</td>
-          <td class="num">41</td>
-          <td class="num">5</td>
-        <td class="num">40</td>
-  </tr>
-    <tr>
-    <td class="num">4</td>
-    <td class="num">
-              47 min          </td>
-          <td class="num">359</td>
-          <td class="num">90</td>
-          <td class="num">67</td>
-          <td class="num">9</td>
-        <td class="num">61</td>
-  </tr>
-    <tr>
-    <td class="num">5</td>
-    <td class="num">
-              71 min          </td>
-          <td class="num">593</td>
-          <td class="num">148</td>
-          <td class="num">111</td>
-          <td class="num">15</td>
-        <td class="num">91</td>
-  </tr>
-  </table>
-<h4>Mercado Local <span class="d">(até o nível 5)</span></h4>
-<table>
-  <tr>
-    <th class="num">Nível</th>
-    <th class="num">Tempo</th>
-    <th class="num">Biomassa</th><th class="num">Ligas Metálicas</th><th class="num">Resina organica</th>    <th class="num">Energia/h</th>
-  </tr>
-    <tr>
-    <td class="num">1</td>
-    <td class="num">
-              13 min          </td>
-          <td class="num">55</td>
-          <td class="num">30</td>
-          <td class="num">1</td>
-        <td class="num">6</td>
-  </tr>
-    <tr>
-    <td class="num">2</td>
-    <td class="num">
-              19 min          </td>
-          <td class="num">91</td>
-          <td class="num">50</td>
-          <td class="num">2</td>
-        <td class="num">9</td>
-  </tr>
-    <tr>
-    <td class="num">3</td>
-    <td class="num">
-              28 min          </td>
-          <td class="num">150</td>
-          <td class="num">82</td>
-          <td class="num">3</td>
-        <td class="num">14</td>
-  </tr>
-    <tr>
-    <td class="num">4</td>
-    <td class="num">
-              43 min          </td>
-          <td class="num">247</td>
-          <td class="num">135</td>
-          <td class="num">4</td>
-        <td class="num">20</td>
-  </tr>
-    <tr>
-    <td class="num">5</td>
-    <td class="num">
-              64 min          </td>
-          <td class="num">408</td>
-          <td class="num">222</td>
-          <td class="num">7</td>
-        <td class="num">30</td>
-  </tr>
-  </table>
-<h4>Quartel <span class="d">(até o nível 5)</span></h4>
-<table>
-  <tr>
-    <th class="num">Nível</th>
-    <th class="num">Tempo</th>
-    <th class="num">Ligas Metálicas</th><th class="num">Compostos Químicos</th><th class="num">Energia</th><th class="num">Niobio alienigena</th>    <th class="num">Energia/h</th>
-  </tr>
-    <tr>
-    <td class="num">1</td>
-    <td class="num">
-              20 min          </td>
-          <td class="num">90</td>
-          <td class="num">30</td>
-          <td class="num">20</td>
-          <td class="num">3</td>
-        <td class="num">20</td>
-  </tr>
-    <tr>
-    <td class="num">2</td>
-    <td class="num">
-              29 min          </td>
-          <td class="num">149</td>
-          <td class="num">50</td>
-          <td class="num">33</td>
-          <td class="num">5</td>
-        <td class="num">30</td>
-  </tr>
-    <tr>
-    <td class="num">3</td>
-    <td class="num">
-              44 min          </td>
-          <td class="num">245</td>
-          <td class="num">82</td>
-          <td class="num">54</td>
-          <td class="num">8</td>
-        <td class="num">45</td>
-  </tr>
-    <tr>
-    <td class="num">4</td>
-    <td class="num">
-              66 min          </td>
-          <td class="num">404</td>
-          <td class="num">135</td>
-          <td class="num">90</td>
-          <td class="num">13</td>
-        <td class="num">68</td>
-  </tr>
-    <tr>
-    <td class="num">5</td>
-    <td class="num">
-              99 min          </td>
-          <td class="num">667</td>
-          <td class="num">222</td>
-          <td class="num">148</td>
-          <td class="num">22</td>
-        <td class="num">101</td>
-  </tr>
-  </table>
-<h4>Plataforma de Pouso <span class="d">(até o nível 5)</span></h4>
-<table>
-  <tr>
-    <th class="num">Nível</th>
-    <th class="num">Tempo</th>
-    <th class="num">Ligas Metálicas</th><th class="num">Componentes Eletrônicos</th><th class="num">Energia</th><th class="num">Gelo de metano</th>    <th class="num">Energia/h</th>
-  </tr>
-    <tr>
-    <td class="num">1</td>
-    <td class="num">
-              28 min          </td>
-          <td class="num">120</td>
-          <td class="num">60</td>
-          <td class="num">25</td>
-          <td class="num">3</td>
-        <td class="num">16</td>
-  </tr>
-    <tr>
-    <td class="num">2</td>
-    <td class="num">
-              42 min          </td>
-          <td class="num">198</td>
-          <td class="num">99</td>
-          <td class="num">41</td>
-          <td class="num">5</td>
-        <td class="num">24</td>
-  </tr>
-    <tr>
-    <td class="num">3</td>
-    <td class="num">
-              63 min          </td>
-          <td class="num">327</td>
-          <td class="num">163</td>
-          <td class="num">68</td>
-          <td class="num">8</td>
-        <td class="num">36</td>
-  </tr>
-    <tr>
-    <td class="num">4</td>
-    <td class="num">
-              94 min          </td>
-          <td class="num">539</td>
-          <td class="num">270</td>
-          <td class="num">112</td>
-          <td class="num">13</td>
-        <td class="num">54</td>
-  </tr>
-    <tr>
-    <td class="num">5</td>
-    <td class="num">
-              142 min          </td>
-          <td class="num">889</td>
-          <td class="num">445</td>
-          <td class="num">185</td>
-          <td class="num">22</td>
-        <td class="num">81</td>
-  </tr>
-  </table>
-<h4>Central de Transportes <span class="d">(até o nível 10)</span></h4>
-<table>
-  <tr>
-    <th class="num">Nível</th>
-    <th class="num">Tempo</th>
-    <th class="num">Ligas Metálicas</th><th class="num">Componentes Eletrônicos</th>    <th class="num">Energia/h</th>
-  </tr>
-    <tr>
-    <td class="num">1</td>
-    <td class="num">
-              6 min <span class="d">derivado</span>          </td>
-          <td class="num">70</td>
-          <td class="num">20</td>
-        <td class="num">22</td>
-  </tr>
-    <tr>
-    <td class="num">2</td>
-    <td class="num">
-              9 min <span class="d">derivado</span>          </td>
-          <td class="num">116</td>
-          <td class="num">33</td>
-        <td class="num">33</td>
-  </tr>
-    <tr>
-    <td class="num">3</td>
-    <td class="num">
-              14 min <span class="d">derivado</span>          </td>
-          <td class="num">191</td>
-          <td class="num">54</td>
-        <td class="num">50</td>
-  </tr>
-    <tr>
-    <td class="num">4</td>
-    <td class="num">
-              20 min <span class="d">derivado</span>          </td>
-          <td class="num">314</td>
-          <td class="num">90</td>
-        <td class="num">74</td>
-  </tr>
-    <tr>
-    <td class="num">5</td>
-    <td class="num">
-              30 min <span class="d">derivado</span>          </td>
-          <td class="num">519</td>
-          <td class="num">148</td>
-        <td class="num">111</td>
-  </tr>
-    <tr>
-    <td class="num">6</td>
-    <td class="num">
-              46 min <span class="d">derivado</span>          </td>
-          <td class="num">856</td>
-          <td class="num">245</td>
-        <td class="num">167</td>
-  </tr>
-    <tr>
-    <td class="num">7</td>
-    <td class="num">
-              68 min <span class="d">derivado</span>          </td>
-          <td class="num">1.413</td>
-          <td class="num">404</td>
-        <td class="num">251</td>
-  </tr>
-    <tr>
-    <td class="num">8</td>
-    <td class="num">
-              103 min <span class="d">derivado</span>          </td>
-          <td class="num">2.331</td>
-          <td class="num">666</td>
-        <td class="num">376</td>
-  </tr>
-    <tr>
-    <td class="num">9</td>
-    <td class="num">
-              154 min <span class="d">derivado</span>          </td>
-          <td class="num">3.846</td>
-          <td class="num">1.099</td>
-        <td class="num">564</td>
-  </tr>
-    <tr>
-    <td class="num">10</td>
-    <td class="num">
-              231 min <span class="d">derivado</span>          </td>
-          <td class="num">6.345</td>
-          <td class="num">1.813</td>
-        <td class="num">847</td>
-  </tr>
-  </table>
-<h4>Mina Local <span class="d">(até o nível 5)</span></h4>
-<table>
-  <tr>
-    <th class="num">Nível</th>
-    <th class="num">Tempo</th>
-    <th class="num">Ligas Metálicas</th><th class="num">Compostos Químicos</th>    <th class="num">Energia/h</th>
-  </tr>
-    <tr>
-    <td class="num">1</td>
-    <td class="num">
-              14 min          </td>
-          <td class="num">30</td>
-          <td class="num">10</td>
-        <td class="num">—</td>
-  </tr>
-    <tr>
-    <td class="num">2</td>
-    <td class="num">
-              21 min          </td>
-          <td class="num">50</td>
-          <td class="num">17</td>
-        <td class="num">—</td>
-  </tr>
-    <tr>
-    <td class="num">3</td>
-    <td class="num">
-              32 min          </td>
-          <td class="num">82</td>
-          <td class="num">27</td>
-        <td class="num">—</td>
-  </tr>
-    <tr>
-    <td class="num">4</td>
-    <td class="num">
-              47 min          </td>
-          <td class="num">135</td>
-          <td class="num">45</td>
-        <td class="num">—</td>
-  </tr>
-    <tr>
-    <td class="num">5</td>
-    <td class="num">
-              71 min          </td>
-          <td class="num">222</td>
-          <td class="num">74</td>
-        <td class="num">—</td>
-  </tr>
-  </table>
-<h4>Destilaria <span class="d">(até o nível 10)</span></h4>
-<table>
-  <tr>
-    <th class="num">Nível</th>
-    <th class="num">Tempo</th>
-    <th class="num">Ligas Metálicas</th><th class="num">Compostos Químicos</th>    <th class="num">Energia/h</th>
-  </tr>
-    <tr>
-    <td class="num">1</td>
-    <td class="num">
-              10 min <span class="d">derivado</span>          </td>
-          <td class="num">40</td>
-          <td class="num">15</td>
-        <td class="num">—</td>
-  </tr>
-    <tr>
-    <td class="num">2</td>
-    <td class="num">
-              15 min <span class="d">derivado</span>          </td>
-          <td class="num">66</td>
-          <td class="num">25</td>
-        <td class="num">—</td>
-  </tr>
-    <tr>
-    <td class="num">3</td>
-    <td class="num">
-              22 min <span class="d">derivado</span>          </td>
-          <td class="num">109</td>
-          <td class="num">41</td>
-        <td class="num">—</td>
-  </tr>
-    <tr>
-    <td class="num">4</td>
-    <td class="num">
-              34 min <span class="d">derivado</span>          </td>
-          <td class="num">180</td>
-          <td class="num">67</td>
-        <td class="num">—</td>
-  </tr>
-    <tr>
-    <td class="num">5</td>
-    <td class="num">
-              51 min <span class="d">derivado</span>          </td>
-          <td class="num">296</td>
-          <td class="num">111</td>
-        <td class="num">—</td>
-  </tr>
-    <tr>
-    <td class="num">6</td>
-    <td class="num">
-              76 min <span class="d">derivado</span>          </td>
-          <td class="num">489</td>
-          <td class="num">183</td>
-        <td class="num">—</td>
-  </tr>
-    <tr>
-    <td class="num">7</td>
-    <td class="num">
-              114 min <span class="d">derivado</span>          </td>
-          <td class="num">807</td>
-          <td class="num">303</td>
-        <td class="num">—</td>
-  </tr>
-    <tr>
-    <td class="num">8</td>
-    <td class="num">
-              171 min <span class="d">derivado</span>          </td>
-          <td class="num">1.332</td>
-          <td class="num">499</td>
-        <td class="num">—</td>
-  </tr>
-    <tr>
-    <td class="num">9</td>
-    <td class="num">
-              256 min <span class="d">derivado</span>          </td>
-          <td class="num">2.198</td>
-          <td class="num">824</td>
-        <td class="num">—</td>
-  </tr>
-    <tr>
-    <td class="num">10</td>
-    <td class="num">
-              384 min <span class="d">derivado</span>          </td>
-          <td class="num">3.626</td>
-          <td class="num">1.360</td>
-        <td class="num">—</td>
-  </tr>
-  </table>
-<h4>Tanque de Combustível <span class="d">(até o nível 5)</span></h4>
-<table>
-  <tr>
-    <th class="num">Nível</th>
-    <th class="num">Tempo</th>
-    <th class="num">Ligas Metálicas</th><th class="num">Componentes Eletrônicos</th><th class="num">Metal Bruto</th>    <th class="num">Energia/h</th>
-  </tr>
-    <tr>
-    <td class="num">1</td>
-    <td class="num">
-              12 min          </td>
-          <td class="num">50</td>
-          <td class="num">15</td>
-          <td class="num">10</td>
-        <td class="num">—</td>
-  </tr>
-    <tr>
-    <td class="num">2</td>
-    <td class="num">
-              18 min          </td>
-          <td class="num">83</td>
-          <td class="num">25</td>
-          <td class="num">17</td>
-        <td class="num">—</td>
-  </tr>
-    <tr>
-    <td class="num">3</td>
-    <td class="num">
-              27 min          </td>
-          <td class="num">136</td>
-          <td class="num">41</td>
-          <td class="num">27</td>
-        <td class="num">—</td>
-  </tr>
-    <tr>
-    <td class="num">4</td>
-    <td class="num">
-              41 min          </td>
-          <td class="num">225</td>
-          <td class="num">67</td>
-          <td class="num">45</td>
-        <td class="num">—</td>
-  </tr>
-    <tr>
-    <td class="num">5</td>
-    <td class="num">
-              61 min          </td>
-          <td class="num">371</td>
-          <td class="num">111</td>
-          <td class="num">74</td>
-        <td class="num">—</td>
-  </tr>
-  </table>
-<h4>Indústria Siderúrgica <span class="d">(até o nível 5)</span></h4>
-<table>
-  <tr>
-    <th class="num">Nível</th>
-    <th class="num">Tempo</th>
-    <th class="num">Ligas Metálicas</th><th class="num">Compostos Químicos</th>    <th class="num">Energia/h</th>
-  </tr>
-    <tr>
-    <td class="num">1</td>
-    <td class="num">
-              18 min          </td>
-          <td class="num">38</td>
-          <td class="num">13</td>
-        <td class="num">—</td>
-  </tr>
-    <tr>
-    <td class="num">2</td>
-    <td class="num">
-              26 min          </td>
-          <td class="num">63</td>
-          <td class="num">21</td>
-        <td class="num">—</td>
-  </tr>
-    <tr>
-    <td class="num">3</td>
-    <td class="num">
-              40 min          </td>
-          <td class="num">103</td>
-          <td class="num">35</td>
-        <td class="num">—</td>
-  </tr>
-    <tr>
-    <td class="num">4</td>
-    <td class="num">
-              59 min          </td>
-          <td class="num">171</td>
-          <td class="num">58</td>
-        <td class="num">—</td>
-  </tr>
-    <tr>
-    <td class="num">5</td>
-    <td class="num">
-              89 min          </td>
-          <td class="num">282</td>
-          <td class="num">96</td>
-        <td class="num">—</td>
-  </tr>
-  </table>
+    <td class="num"><?= $nivel ?></td>
+    <td class="num">
+      <?php if ($s->build_time_seconds === null): ?>
+        <?= lacuna('sem tempo') ?>
+      <?php else: ?>
+        <?= n($s->build_time_seconds / 60, 0) ?> min<?= $s->build_time_derivado ? ' <span class="d">derivado</span>' : '' ?>
+      <?php endif; ?>
+    </td>
+    <?php foreach ($recursosUsados as $r): ?>
+      <td class="num"><?= isset($custo[$r]) ? n($custo[$r]) : '—' ?></td>
+    <?php endforeach; ?>
+    <td class="num"><?= $s->energia_consumo_hora ?: '—' ?></td>
+  </tr>
+  <?php endforeach; ?>
+</table>
+<?php endforeach; ?>
 
 <div class="nota grave">
   <b>O v35 não publica tempo de construção para 10 das 25 tabelas.</b> Onde ele publica, usamos o
@@ -2326,14 +931,15 @@
   A tabela acima é a curva BASE do GDD, mas o operador pode sobrepor custo e tempo por
   (construção, nível) numa tabela à parte (<code>building_specs_overrides</code>), sem deploy e
   sem risco de o ajuste se perder no próximo <code>db:seed</code> — o Silo (§2.2) foi o primeiro a
-  usar esse mecanismo (nível máximo 5→10), mas ele vale para qualquer uma das 18.
+  usar esse mecanismo (nível máximo 5→10), mas ele vale para qualquer uma das <?= count(Building::MVP) ?>.
   Ver <span class="d">§11.3</span>.
 </div>
 
 <div class="nota">
   <b>Duas construções passam do nível 5 que o v35 publica</b>: o <b>Depósito Local</b>, até o 10
   (<span class="d">D-108</span>, §2.2), e o <b>Reator de Energia</b>, até o
-  15  (<span class="d">D-157</span>, §2.3). Nos dois casos os níveis novos saem das <b>mesmas curvas</b>
+  <?= max(array_keys($porTipo['reator_de_energia'] ?? [5 => null])) ?>
+  (<span class="d">D-157</span>, §2.3). Nos dois casos os níveis novos saem das <b>mesmas curvas</b>
   do documento, e as linhas acima são as do banco — não uma tabela paralela escrita à mão. O teste
   que reconfere <i>todo</i> <code>build_time_seconds</code> contra a curva do GDD, célula por
   célula, cobre também os níveis estendidos: se a extrapolação tivesse um erro de aritmética, ele
@@ -2345,7 +951,8 @@
 <p>
   Além do consumo de energia do §19.x (que continua exatamente como sempre foi — balanceamento do
   GDD, intocado), o operador pode ligar um consumo <b>extra</b> de qualquer recurso primário ou
-  industrial, por hora, por TIPO de construção — não por nível. <span class="sel sel-arb">Arbitrado · recurso primário/industrial apenas; os 9 raros ficam de fora de propósito, para não mexer na escassez que já é o mecanismo do §22.4</span></p>
+  industrial, por hora, por TIPO de construção — não por nível. <?= arbitrado('recurso primário/industrial apenas; os 9 raros ficam de fora de propósito, para não mexer na escassez que já é o mecanismo do §22.4') ?>
+</p>
 
 <div class="nota">
   <b>Aditivo, nunca substitui.</b> Enquanto o operador não configurar nada, nenhuma construção
@@ -2363,21 +970,21 @@
   <tr><th>Veículo</th><th class="num">Capacidade</th><th class="num">Velocidade</th><th class="num">Energia</th><th>Estado</th></tr>
   <tr>
     <td><b>Furgão de Comércio</b></td>
-    <td class="num">6.000 un. (6 m³)</td>
+    <td class="num"><?= n(VeiculoSpecs::CAPACIDADE['furgao_de_comercio']) ?> un. (6 m³)</td>
     <td class="num">4 slots/min</td>
     <td class="num">1 kW/h por min</td>
-    <td><span class="sel sel-ok">Implementado</span> — 1× no kit, e fabricado pelo Ministério desde o D-109 <span class="d">D-92, D-109</span></td>
+    <td><?= entregue() ?> — <?= n($kitFrota['furgao_de_comercio'] ?? 0) ?>× no kit, e fabricado pelo Ministério desde o D-109 <span class="d">D-92, D-109</span></td>
   </tr>
   <tr>
     <td><b>Caminhão de Carga</b></td>
-    <td class="num">30.000 un. (30 m³)</td>
+    <td class="num"><?= n(VeiculoSpecs::CAPACIDADE['caminhao_de_carga']) ?> un. (30 m³)</td>
     <td class="num">1,5 slots/min</td>
     <td class="num">3 kW/h por min</td>
-    <td><span class="sel sel-ok">Implementado</span> — 0× no kit, comprado no Ministério <span class="d">D-92</span></td>
+    <td><?= entregue() ?> — <?= n($kitFrota['caminhao_de_carga'] ?? 0) ?>× no kit, comprado no Ministério <span class="d">D-92</span></td>
   </tr>
-  <tr><td>Drone de Exploração</td><td class="num">não carrega</td><td class="num">8 slots/min</td><td class="num">bateria, não energia</td><td><span class="sel sel-ok">Implementado</span> <span class="d">D-74</span></td></tr>
-  <tr><td>Nave de Transporte Planetária</td><td class="num">4.000 un.</td><td class="num">10 slots/min</td><td class="num">Gelo de Metano</td><td><span class="sel sel-prom">Fora do MVP</span></td></tr>
-  <tr><td>Cargueiro Interplanetário</td><td class="num">—</td><td class="num">—</td><td class="num">—</td><td><span class="sel sel-prom">Depende do Espaçoporto</span></td></tr>
+  <tr><td>Drone de Exploração</td><td class="num">não carrega</td><td class="num">8 slots/min</td><td class="num">bateria, não energia</td><td><?= entregue() ?> <span class="d">D-74</span></td></tr>
+  <tr><td>Nave de Transporte Planetária</td><td class="num">4.000 un.</td><td class="num">10 slots/min</td><td class="num">Gelo de Metano</td><td><?= promessa('Fora do MVP') ?></td></tr>
+  <tr><td>Cargueiro Interplanetário</td><td class="num">—</td><td class="num">—</td><td class="num">—</td><td><?= promessa('Depende do Espaçoporto') ?></td></tr>
 </table>
 
 <p>
@@ -2394,7 +1001,7 @@
   <li>A <b>carga sai do estoque no despacho</b>, não na entrega: o recurso está fisicamente no
       veículo. É o que torna o calote "real e visível" (§25.7).</li>
   <li>A <b>energia dos dois trechos</b> é debitada no despacho — assim nenhum veículo parte sem ter
-      como voltar. O v35 não diz quando cobrar. <span class="sel sel-arb">Arbitrado · cobrar na saída</span></li>
+      como voltar. O v35 não diz quando cobrar. <?= arbitrado('cobrar na saída') ?></li>
   <li>O <b>tributo incide na entrega física</b>, uma vez por lote.</li>
 </ul>
 
@@ -2417,10 +1024,10 @@
 
 <table>
   <tr><th>Parâmetro</th><th class="num">Hoje</th><th>Onde se muda</th></tr>
-  <tr><td>Desgaste por hora de <b>uso ativo</b></td><td class="num">0,5%</td><td rowspan="4">Painel de admin → Transportes. <b>Sem deploy.</b></td></tr>
-  <tr><td>Piso de desempenho</td><td class="num">25%</td></tr>
-  <tr><td>Manutenção (fração do custo do veículo)</td><td class="num">10%</td></tr>
-  <tr><td>Perda de teto por manutenção</td><td class="num">5 pontos</td></tr>
+  <tr><td>Desgaste por hora de <b>uso ativo</b></td><td class="num"><?= n($config->desgaste_bps_por_hora / 100, 1) ?>%</td><td rowspan="4">Painel de admin → Transportes. <b>Sem deploy.</b></td></tr>
+  <tr><td>Piso de desempenho</td><td class="num"><?= n($config->piso_desempenho_bps / 100, 0) ?>%</td></tr>
+  <tr><td>Manutenção (fração do custo do veículo)</td><td class="num"><?= n($config->manutencao_bps_do_custo / 100, 0) ?>%</td></tr>
+  <tr><td>Perda de teto por manutenção</td><td class="num"><?= n($config->perda_de_teto_bps / 100, 0) ?> pontos</td></tr>
 </table>
 
 <div class="nota grave">
@@ -2453,28 +1060,26 @@
 <p>
   <b>Fabrica dois veículos hoje</b>: o Caminhão de Carga (GDD §21.3, nível 1 — desde o D-60) e,
   desde o <span class="d">D-109</span>, o <b>Furgão de Comércio</b> também — antes, o Furgão só
-  vinha no kit inicial. <span class="sel sel-arb">Arbitrado · contraria o §17.2, que atribui a fábrica à Central de Transportes</span></p>
+  vinha no kit inicial. <?= arbitrado('contraria o §17.2, que atribui a fábrica à Central de Transportes') ?>
+</p>
 
 <table>
   <tr><th>Veículo</th><th class="num">Preço</th><th>Custo de fabricação (Tesouro)</th><th class="num">Tempo</th><th class="num">Prateleira</th></tr>
-    <tr>
-    <td><b>Caminhão de Carga</b></td>
-    <td class="num">300 F$</td>
-    <td>90 Ligas Metálicas · 25 Componentes Eletrônicos · 16 Metal Bruto</td>
-    <td class="num">60 min</td>
-    <td class="num">5 prontos</td>
+  <?php foreach ($fabricaVeiculos as $tipoVeiculo => $cfg):
+      $custoTexto = implode(' · ', array_map(fn ($k, $v) => "{$v} ".humano($k), array_keys($cfg['custo']), $cfg['custo']));
+  ?>
+  <tr>
+    <td><b><?= e(humano($tipoVeiculo)) ?></b></td>
+    <td class="num"><?= n($cfg['preco_micro'] / Colony::MICRO_POR_FERT) ?> F$</td>
+    <td><?= e($custoTexto) ?></td>
+    <td class="num"><?= $cfg['minutos_fabricacao'] ?> min</td>
+    <td class="num"><?= $cfg['estoque_alvo'] ?> prontos</td>
   </tr>
-    <tr>
-    <td><b>Furgão de Comércio</b></td>
-    <td class="num">150 F$</td>
-    <td>36 Ligas Metálicas · 10 Componentes Eletrônicos · 6 Metal Bruto</td>
-    <td class="num">24 min</td>
-    <td class="num">5 prontos</td>
-  </tr>
-  </table>
+  <?php endforeach; ?>
+</table>
 
 <p>
-  <span class="sel sel-arb">Arbitrado · todos os números da tabela — inclusive o Furgão a 40% do Caminhão em cada coluna, arredondado</span>,
+  <?= arbitrado('todos os números da tabela — inclusive o Furgão a 40% do Caminhão em cada coluna, arredondado') ?>,
   editáveis pelo painel (Gestão de Construções → Fábrica, <span class="d">§11.3</span>), sem
   deploy, desde o D-109 — antes eram constantes de PHP. <b>Entrega física</b> nos dois: o veículo
   dirige-se sozinho da Capital até a colônia. Placa sequencial global (§16.3):
@@ -2504,11 +1109,11 @@
 
 <table>
   <tr><th>Regra</th><th>Valor</th><th>Origem</th></tr>
-  <tr><td>Preço</td><td><b>1 F$ + 0,02 F$/slot</b> de distância</td><td><span class="sel sel-arb">Arbitrado · deliberadamente perto de subsídio</span></td></tr>
-  <tr><td>Carga máxima por viagem</td><td>30.000 unidades, <b>somando quantos recursos couberem</b> na mesma viagem <span class="d">D-151</span></td><td><span class="sel sel-arb">Arbitrado · </span></td></tr>
+  <tr><td>Preço</td><td><b>1 F$ + 0,02 F$/slot</b> de distância</td><td><?= arbitrado('deliberadamente perto de subsídio') ?></td></tr>
+  <tr><td>Carga máxima por viagem</td><td>30.000 unidades, <b>somando quantos recursos couberem</b> na mesma viagem <span class="d">D-151</span></td><td><?= arbitrado('') ?></td></tr>
   <tr><td>Tributo</td><td><b>Incide na chegada</b>, como qualquer entrega física</td><td>D-32 — frete não é rota de fuga</td></tr>
   <tr><td>Receita</td><td>Vai ao <b>Tesouro</b></td><td>—</td></tr>
-  <tr><td>Desgaste</td><td><b>A frota pública não desgasta</b> — a viagem de frete é isenta do §16.4</td><td><span class="sel sel-arb">Arbitrado · </span></td></tr>
+  <tr><td>Desgaste</td><td><b>A frota pública não desgasta</b> — a viagem de frete é isenta do §16.4</td><td><?= arbitrado('') ?></td></tr>
 </table>
 
 <div class="nota">
@@ -2555,7 +1160,8 @@
 <p>
   A oferta <b>repousa</b> e fica visível até alguém executá-la. O livro antigo <b>casava as ordens no
   ato</b>, e por isso parecia deserto: a oferta que cruzava era consumida antes de qualquer um a ver.
-  Trocamos a descoberta de preço pela visibilidade, conscientemente. <span class="sel sel-ok">Implementado</span></p>
+  Trocamos a descoberta de preço pela visibilidade, conscientemente. <?= entregue() ?>
+</p>
 
 <h3>6.2.1 O Governo vende, na mesma vitrine <span class="d">D-87</span></h3>
 
@@ -2578,13 +1184,19 @@
 
 <table>
   <tr><th>Classe</th><th class="num">Teto</th></tr>
-    <tr><td>Primário</td><td class="num">10.000</td></tr>
-    <tr><td>Secundário</td><td class="num">2.500</td></tr>
-    <tr><td>Raro</td><td class="num">100</td></tr>
-  </table>
+  <?php
+  // O teto vive por CLASSE, e a classe vive no catálogo. Perguntamos o teto de um recurso
+  // representativo de cada classe, em vez de duplicar a tabela aqui — se ela mudar, isto acompanha.
+  $classes = [];
+  foreach ($recursos as $r) { $classes[$r->tax_class] ??= $r->code; }
+  foreach ($classes as $classe => $exemplo):
+  ?>
+  <tr><td><?= e(humano($classe)) ?></td><td class="num"><?= n(Deposito::teto($exemplo)) ?></td></tr>
+  <?php endforeach; ?>
+</table>
 
 <p>
-  <span class="sel sel-arb">Arbitrado · o v35 não põe teto nenhum</span> Ocupa espaço o saldo <b>mais</b> o que está preso em
+  <?= arbitrado('o v35 não põe teto nenhum') ?> Ocupa espaço o saldo <b>mais</b> o que está preso em
   ofertas — de venda <b>e</b> de compra. Se o depósito encher durante a viagem, entra o que couber e
   <b>o excedente volta na carroceria, sem tributo</b>: o que não entrou não foi entregue.
 </p>
@@ -2598,7 +1210,7 @@
 
 <table>
   <tr><th>Regra</th><th>Valor</th></tr>
-  <tr><td>Cobrança</td><td><b>0,005 F$/hora</b>, por veículo, hora cheia, sem limite de vagas — vai ao Tesouro</td></tr>
+  <tr><td>Cobrança</td><td><b><?= n(Patio::TARIFA_MICRO_HORA / Colony::MICRO_POR_FERT, 3) ?> F$/hora</b>, por veículo, hora cheia, sem limite de vagas — vai ao Tesouro</td></tr>
   <tr><td>Sem Fert$ para pagar</td><td>O veículo é <b>rebocado de graça</b> para casa — nunca fica refém</td></tr>
   <tr><td>Chamar de volta, vazio, por vontade própria</td><td>Paga a energia da distância, como qualquer despacho — mas <b>não</b> exige Confiança Comercial: é reaver o próprio veículo, não usar o Mercado <span class="d">D-91</span></td></tr>
   <tr><td>Aviso da Capital</td><td>Uma mensagem no rádio (chat), de "Capital", ao estacionar e a cada 24h que continuar lá — diz a tarifa e lembra de chamá-lo de volta <span class="d">D-91</span></td></tr>
@@ -2612,7 +1224,7 @@
   <tr><th>Regra</th><th>Valor</th></tr>
   <tr><td>Escrow</td><td><b>Nenhum.</b> O calote é real e deliberado</td></tr>
   <tr><td>Cumprir é</td><td>Entregar <b>fisicamente</b>, e vale o <b>líquido que chega</b> (já tributado)</td></tr>
-  <tr><td>Prazo mínimo</td><td>viagem + 12 h de folga <span class="sel sel-arb">Arbitrado · a folga</span></td></tr>
+  <tr><td>Prazo mínimo</td><td>viagem + <?= intdiv(AcordoSpecs::FOLGA_PRAZO_SEGUNDOS, 3600) ?> h de folga <?= arbitrado('a folga') ?></td></tr>
   <tr><td>Confiança Comercial</td><td>começa em 500 · bloqueia abaixo de 200 · +10 / −50</td></tr>
 </table>
 
@@ -2663,7 +1275,7 @@
 <table>
   <tr><th>Regra</th><th>Valor</th></tr>
   <tr><td>Acesso</td><td>A MESMA Confiança Comercial que já fecha o Mercado Central (&lt; 200, §9.4/D-43) — nenhum gate novo</td></tr>
-  <tr><td>Duração</td><td><b>1 a 72 horas</b>, escolhida por quem anuncia</td></tr>
+  <tr><td>Duração</td><td><b><?= ListarLeilao::DURACAO_MIN_HORAS ?> a <?= ListarLeilao::DURACAO_MAX_HORAS ?> horas</b>, escolhida por quem anuncia</td></tr>
   <tr><td>Lance mínimo</td><td>Arbitrado por quem anuncia — não há preço-base de leilão no GDD</td></tr>
   <tr><td>Lance</td><td>Escrow NA HORA. Quem é superado recebe de volta NO MESMO INSTANTE, não no fechamento</td></tr>
   <tr><td>Incremento mínimo</td><td>Nenhum — qualquer valor acima do lance vigente (ou do mínimo) vale</td></tr>
@@ -2673,7 +1285,8 @@
 </table>
 
 <p>
-  <span class="sel sel-arb">Arbitrado · todos os números acima — duração, ausência de incremento mínimo, a exigência física de já estar na doca</span>  Desde o <span class="d">D-136</span>, um leilão também pode vender <b>um item da Loja de Peças da
+  <?= arbitrado('todos os números acima — duração, ausência de incremento mínimo, a exigência física de já estar na doca') ?>
+  Desde o <span class="d">D-136</span>, um leilão também pode vender <b>um item da Loja de Peças da
   Endurance</b> (§10.3) em vez de um recurso — a mesma máquina de escrow/lance/fechamento, só
   trocando o depósito de origem (a posse do item, não o recurso) e zerando o tributo (a Endurance
   não tem alíquota publicada).
@@ -2694,7 +1307,7 @@
   <tr><td>Confiança Comercial</td><td>Cumprir ou calotear Acordos de Troca</td></tr>
   <tr><td>Conduta Social</td><td>Comportamento; alimentado pelas denúncias</td></tr>
   <tr><td>Status Cívico</td><td>Cargos e serviço público</td></tr>
-  <tr><td>Honra Militar-Diplomática</td><td>Guerra e tratados <span class="sel sel-prom">a guerra existe (D-66); tratados, não</span></td></tr>
+  <tr><td>Honra Militar-Diplomática</td><td>Guerra e tratados <?= promessa('a guerra existe (D-66); tratados, não') ?></td></tr>
 </table>
 
 <h3>7.2 O rito <span class="d">D-44, D-49</span></h3>
@@ -2710,7 +1323,8 @@
 
 <div class="nota grave">
   <b>O §26.8 nunca publicou a tabela de penas.</b> Ela é nossa. <span class="d">D-49</span>
-  <span class="sel sel-arb">Arbitrado · a tabela inteira</span></div>
+  <?= arbitrado('a tabela inteira') ?>
+</div>
 
 <div class="nota">
   <b>As duas punições que ficaram inertes desde o D-44 já mordem.</b> O <b>bloqueio de leilões</b>
@@ -2745,7 +1359,8 @@
   <b>O silêncio "cala a praça, não a boca".</b> A punição do §9.4 fecha Global e Vizinhança; a
   privada segue funcionando. <b>O canal Federação foi deixado FORA do silêncio</b>, por leitura
   minha, não do GDD: um círculo de aliados está mais para conversa fechada do que para praça
-  pública. <span class="sel sel-arb">Arbitrado · a isenção do canal Federação à pena de silêncio</span></div>
+  pública. <?= arbitrado('a isenção do canal Federação à pena de silêncio') ?>
+</div>
 
 <h3>7.4 Cargos Públicos <span class="d">D-130</span></h3>
 
@@ -2758,22 +1373,23 @@
 
 <table>
   <tr><th>Cargo</th><th>O que faz</th><th>Estado</th></tr>
-  <tr><td><b>Repórter</b></td><td>Publica no mesmo mural da Central de Notícias, marcado "boletim" — distinto do comunicado oficial</td><td><span class="sel sel-ok">Implementado</span></td></tr>
-  <tr><td><b>Fiscal de Mercado</b></td><td>Sinaliza preço suspeito para a equipe; bônus só paga quando a equipe CONFIRMA, nunca no ato de sinalizar</td><td><span class="sel sel-ok">Implementado</span></td></tr>
-  <tr><td><b>Auxiliar de Tesouro</b></td><td>Aponta inconsistência financeira, mesmo desenho do Fiscal</td><td><span class="sel sel-ok">Implementado</span></td></tr>
-  <tr><td>Atendente do Espaçoporto</td><td>Ajuda com rotas, taxas e docas do Espaçoporto</td><td><span class="sel sel-prom">100% dependente do Espaçoporto, que não existe</span></td></tr>
+  <tr><td><b>Repórter</b></td><td>Publica no mesmo mural da Central de Notícias, marcado "boletim" — distinto do comunicado oficial</td><td><?= entregue() ?></td></tr>
+  <tr><td><b>Fiscal de Mercado</b></td><td>Sinaliza preço suspeito para a equipe; bônus só paga quando a equipe CONFIRMA, nunca no ato de sinalizar</td><td><?= entregue() ?></td></tr>
+  <tr><td><b>Auxiliar de Tesouro</b></td><td>Aponta inconsistência financeira, mesmo desenho do Fiscal</td><td><?= entregue() ?></td></tr>
+  <tr><td>Atendente do Espaçoporto</td><td>Ajuda com rotas, taxas e docas do Espaçoporto</td><td><?= promessa('100% dependente do Espaçoporto, que não existe') ?></td></tr>
 </table>
 
 <p>
-  <b>Salário e bônus reaproveitam os números do Conciliador</b> (50 F$/dia,
-  3 F$/bônus) — é o
+  <b>Salário e bônus reaproveitam os números do Conciliador</b> (<?= n(\App\Domain\Ministry\PunicaoSpecs::SALARIO_DIARIO_MICRO / Colony::MICRO_POR_FERT) ?> F$/dia,
+  <?= n(\App\Domain\Ministry\PunicaoSpecs::BONUS_MICRO / Colony::MICRO_POR_FERT) ?> F$/bônus) — é o
   único número que QUALQUER revisão do §14 publica para cargo cívico, e a v32 descreve todos os
-  cinco como do mesmo porte. <span class="sel sel-arb">Arbitrado · teto semanal de 400 F$, e nomeação 100% manual do operador — mesmo caminho do Conciliador, sem gate de elegibilidade automático</span></p>
+  cinco como do mesmo porte. <?= arbitrado('teto semanal de '.n(CargosCivicosSpecs::TETO_SEMANAL_MICRO / Colony::MICRO_POR_FERT).' F$, e nomeação 100% manual do operador — mesmo caminho do Conciliador, sem gate de elegibilidade automático') ?>
+</p>
 
 <!-- ══════════════════════════════════════════════════════════════ 8 -->
 <h2 id="s8">8. Território e zonas neutras</h2>
 
-<p><b>120 zonas, em 4 distritos</b>, cada distrito com o seu mineral. <span class="sel sel-ok">Implementado</span> <span class="d">D-52</span></p>
+<p><b>120 zonas, em 4 distritos</b>, cada distrito com o seu mineral. <?= entregue() ?> <span class="d">D-52</span></p>
 
 <table>
   <tr><th>Distrito</th><th>Mineral</th></tr>
@@ -2785,7 +1401,7 @@
 
 <p>
   <b>Ocupação:</b> Posto de Comando (800 Metal Bruto + 300 F$ + 8 h) + 20 Robôs Mineradores + 12 h.
-  <b>Extração:</b> 100/h. <span class="sel sel-arb">Arbitrado · todos estes números</span> — o v35 não publica nenhum deles.
+  <b>Extração:</b> 100/h. <?= arbitrado('todos estes números') ?> — o v35 não publica nenhum deles.
 </p>
 
 <div class="nota">
@@ -2804,14 +1420,14 @@
   duas coisas ao mesmo tempo.
 </div>
 
-<h3>8.0 A zona é uma colmeia de 22 slots <span class="d">D-144</span></h3>
+<h3>8.0 A zona é uma colmeia de <?= ZonaSlots::TOTAL ?> slots <span class="d">D-144</span></h3>
 
 <p>
   Até o D-144 a zona era uma <b>planta com áreas fixas</b> — a Muralha no perímetro, a Torre no alto
   — e cada estrutura era uma <i>coluna</i> da própria zona: uma linha, treze níveis, nenhum lugar. Ela
   passou a ser a <b>mesma colmeia da colônia</b>: linhas de
-  4/4/5/4/4/1, <b>22 slots</b>, a estrutura tem
-  <b>posição</b>, e estrutura não erguida não ocupa slot. O <b>slot 10</b>
+  <?= implode('/', ZonaSlots::LINHAS) ?>, <b><?= ZonaSlots::TOTAL ?> slots</b>, a estrutura tem
+  <b>posição</b>, e estrutura não erguida não ocupa slot. O <b>slot <?= ZonaSlots::POSTO_SLOT ?></b>
   (o centro) é fixo do <b>Posto de Comando</b> — o centro pertence ao que é mais essencial, o mesmo
   critério que dá o centro da colônia ao Depósito Local (§2.1).
 </p>
@@ -2828,18 +1444,20 @@ todos desde a fundação, e os da zona se abrem conforme ela sobe.</p>
 
 <table>
   <tr><th class="num">Nível da zona</th><th class="num">Slots livres abertos</th><th>Observação</th></tr>
-  <tr><td class="num">1</td><td class="num">12</td><td>O bastante para uma cópia de cada uma das 12 estruturas erguíveis de hoje — <b>nenhuma zona já ocupada perdeu nada</b>, em nenhum dos níveis 1–5 em que estivesse</td></tr>
-  <tr><td class="num">2 a 10</td><td class="num">+1 por nível</td><td>Fecha em 22 no nível 10 — o mesmo total da colônia</td></tr>
+  <tr><td class="num">1</td><td class="num"><?= count(ZonaSlots::NIVEL1_SLOTS) ?></td><td>O bastante para uma cópia de cada uma das <?= count(Estruturas::CONSTRUIVEIS) ?> estruturas erguíveis de hoje — <b>nenhuma zona já ocupada perdeu nada</b>, em nenhum dos níveis 1–5 em que estivesse</td></tr>
+  <tr><td class="num">2 a 10</td><td class="num">+1 por nível</td><td>Fecha em <?= ZonaSlots::TOTAL ?> no nível 10 — o mesmo total da colônia</td></tr>
 </table>
 
 <p>
-  O <b>nível máximo da zona subiu de 5 para 10</b>, pelo
+  O <b>nível máximo da zona subiu de 5 para <?= App\Models\NeutralZone::NIVEL_MAXIMO ?></b>, pelo
   mesmo precedente (e a mesma curva 1,65) do Depósito Local no D-108.
-  <span class="sel sel-arb">Arbitrado · o v35 não publica nem os slots, nem o teto de nível de uma zona</span></p>
+  <?= arbitrado('o v35 não publica nem os slots, nem o teto de nível de uma zona') ?>
+</p>
 
-<p><b>Repetíveis</b> — só as 3 que processam:
-  <b>Refinaria de Campo, Indústria Siderúrgica, Estrutura de Extração</b>, espelhando a mesma
-  família de repetíveis da colônia (§2.3). As outras 10  continuam <b>únicas</b>, e não por acaso: as seis que a Sabotagem e a Apreensão miram (§8.9) são
+<p><b>Repetíveis</b> — só as <?= count(Estruturas::REPETIVEIS) ?> que processam:
+  <b><?= e(implode(', ', array_map('humano', Estruturas::REPETIVEIS))) ?></b>, espelhando a mesma
+  família de repetíveis da colônia (§2.3). As outras <?= count(Estruturas::TODAS) - count(Estruturas::REPETIVEIS) ?>
+  continuam <b>únicas</b>, e não por acaso: as seis que a Sabotagem e a Apreensão miram (§8.9) são
   todas de defesa ou controle, e <b>nenhuma delas é repetível</b> — o ataque continua identificando o
   alvo só pelo tipo, sem a ambiguidade de "qual cópia".
 </p>
@@ -2871,7 +1489,7 @@ todos desde a fundação, e os da zona se abrem conforme ela sobe.</p>
   <tr><th>Fórmula</th><th>Valor</th></tr>
   <tr><td>Força Ofensiva</td><td>Σ ataque das Sentinelas enviadas, vivas</td></tr>
   <tr><td>Força Defensiva</td><td>Σ defesa das unidades na zona × bônus de construção</td></tr>
-  <tr><td>Dano por rodada</td><td>(Força própria / Total) × <b>15%</b> × Força do outro lado, sobre a força <b>inicial</b> do combate <span class="sel sel-arb">Arbitrado · não a &quot;atual&quot; — a redação literal do §27.5 não termina</span></td></tr>
+  <tr><td>Dano por rodada</td><td>(Força própria / Total) × <b>15%</b> × Força do outro lado, sobre a força <b>inicial</b> do combate <?= arbitrado('não a "atual" — a redação literal do §27.5 não termina') ?></td></tr>
   <tr><td>Combate equilibrado (1000 vs 800)</td><td><b>12 rodadas</b> (120 min) — bate com o exemplo publicado no GDD</td></tr>
   <tr><td>Reforço chegando</td><td>Recongela a força — novo dano constante a partir da chegada</td></tr>
 </table>
@@ -2967,7 +1585,7 @@ todos desde a fundação, e os da zona se abrem conforme ela sobe.</p>
 </p>
 
 <ul>
-  <li><b>Teto de 5 zonas por jogador</b> <span class="sel sel-arb">Arbitrado · o GDD não publica número</span>.</li>
+  <li><b>Teto de 5 zonas por jogador</b> <?= arbitrado('o GDD não publica número') ?>.</li>
   <li><b>Upgrade de 1 a 5</b>: sobe a extração (já seguia a curva do §19.1) e a capacidade do
       Depósito. Custo debitado direto da colônia, como a ocupação — não do canteiro.</li>
   <li><b>Manutenção territorial (§27.12) ativada pela primeira vez</b>: custo diário por nível,
@@ -3034,7 +1652,7 @@ todos desde a fundação, e os da zona se abrem conforme ela sobe.</p>
 </table>
 
 <p>
-  Custo de reparo/resgate: <span class="sel sel-arb">Arbitrado · uma fração do custo de CONSTRUÇÃO da estrutura no nível atual, mesmo padrão da manutenção de veículos do Ministério (§5.3), ajustável no painel da Guerra</span>.
+  Custo de reparo/resgate: <?= arbitrado('uma fração do custo de CONSTRUÇÃO da estrutura no nível atual, mesmo padrão da manutenção de veículos do Ministério (§5.3), ajustável no painel da Guerra') ?>.
   Estruturas sob um Bastião são imunes só à Apreensão — a Sabotagem não é bloqueada, como o próprio
   GDD distingue.
 </p>
@@ -3066,7 +1684,7 @@ todos desde a fundação, e os da zona se abrem conforme ela sobe.</p>
   <tr><td>Tempo de Controle</td><td class="num">20%</td><td>Histórico de posse da zona (§8.7)</td></tr>
   <tr><td>Recursos Saqueados em Fert$</td><td class="num">15%</td><td>Ledger de saque, convertido pelo preço-base do catálogo</td></tr>
   <tr><td>Maior Sequência</td><td class="num">10%</td><td>A mesma régua de vitória, em série</td></tr>
-  <tr><td>Guerras Vencidas (Federação)</td><td class="num">10%</td><td><span class="sel sel-prom">o jogo não tem &quot;guerra de federação&quot; — todo combate é entre DUAS COLÔNIAS</span></td></tr>
+  <tr><td>Guerras Vencidas (Federação)</td><td class="num">10%</td><td><?= promessa('o jogo não tem "guerra de federação" — todo combate é entre DUAS COLÔNIAS') ?></td></tr>
 </table>
 
 <p>
@@ -3110,7 +1728,8 @@ todos desde a fundação, e os da zona se abrem conforme ela sobe.</p>
 <div class="nota">
   <b>Se a federação dissolve, o saldo do fundo vai para o Tesouro</b> — não para quem saiu por
   último. Evita o exploit óbvio (expulsar todo mundo e embolsar o fundo sozinho) e segue a
-  convenção de sempre: valor não reclamado cai no Tesouro. <span class="sel sel-arb">Arbitrado · </span></div>
+  convenção de sempre: valor não reclamado cai no Tesouro. <?= arbitrado('') ?>
+</div>
 
 <h3>9.2 O limite antimonopólio <span class="d">D-119, §04</span></h3>
 
@@ -3121,12 +1740,12 @@ todos desde a fundação, e os da zona se abrem conforme ela sobe.</p>
   <b>teto fixo</b>, ajustável no painel.
 </p>
 
-<p><b>Teto hoje: 20%</b> das 120 zonas do jogo, editável em Federações → sem deploy.</p>
+<p><b>Teto hoje: <?= n($fedConfig->teto_ocupacao_zonas_bps / 100) ?>%</b> das 120 zonas do jogo, editável em Federações → sem deploy.</p>
 
 <h3>9.3 Desconto de tributo entre aliados <span class="d">D-120, §04/§07</span></h3>
 
 <p>
-  A v3.0 publica o número com todas as letras: <b>50%</b>
+  A v3.0 publica o número com todas as letras: <b><?= n($fedConfig->desconto_tributo_aliados_bps / 100) ?>%</b>
   de desconto — mora no painel mesmo assim, pelo mesmo precedente do §9.2. Vale só entre
   <b>DUAS colônias federadas</b> na mesma federação, entrega física entre elas — nunca na
   contribuição ao próprio fundo (§9.1), e nunca quando origem e destino são a MESMA colônia
@@ -3180,49 +1799,29 @@ todos desde a fundação, e os da zona se abrem conforme ela sobe.</p>
   O admin cria/edita/apaga itens à vontade pelo painel — nada de linha fixa. Cada item tem tipo
   (comum/raro/único), estoque GLOBAL do servidor (não por colônia), preço em Fert$, marco mínimo
   OPCIONAL, e uma lista de efeitos EMPILHÁVEIS — um item pode ter vários. Hoje o catálogo tem
-  <b>0</b> item(ns) cadastrado(s).
+  <b><?= $enduranceItensCount ?></b> item(ns) cadastrado(s).
 </p>
 
 <table>
   <tr><th>Tipo de efeito</th><th>Alvo</th><th class="num">Teto agregado</th></tr>
-    <tr>
-    <td><code>desconto_tributo</code></td>
-    <td>— (sem alvo)</td>
-    <td class="num">30%</td>
+  <?php foreach (EfeitosDaEndurance::TIPOS as $tipoEfeito):
+      $exigeAlvo = in_array($tipoEfeito, EfeitosDaEndurance::EXIGE_ALVO, true);
+  ?>
+  <tr>
+    <td><code><?= e($tipoEfeito) ?></code></td>
+    <td><?= $exigeAlvo ? 'building_type ou veículo, ou "global"/"todos"' : '— (sem alvo)' ?></td>
+    <td class="num"><?= n(EfeitosDaEndurance::tetoBps($tipoEfeito) / 100) ?>%</td>
   </tr>
-    <tr>
-    <td><code>producao_bonus</code></td>
-    <td>building_type ou veículo, ou "global"/"todos"</td>
-    <td class="num">50%</td>
-  </tr>
-    <tr>
-    <td><code>velocidade_veiculo</code></td>
-    <td>building_type ou veículo, ou "global"/"todos"</td>
-    <td class="num">50%</td>
-  </tr>
-    <tr>
-    <td><code>capacidade_veiculo</code></td>
-    <td>building_type ou veículo, ou "global"/"todos"</td>
-    <td class="num">50%</td>
-  </tr>
-    <tr>
-    <td><code>drone_raio</code></td>
-    <td>— (sem alvo)</td>
-    <td class="num">100%</td>
-  </tr>
-    <tr>
-    <td><code>drone_bateria</code></td>
-    <td>— (sem alvo)</td>
-    <td class="num">100%</td>
-  </tr>
-  </table>
+  <?php endforeach; ?>
+</table>
 
 <p>
   Cada efeito soma <code>valor_bps × quantidade possuída</code>, entre TODOS os itens da colônia
   que o têm, capado pelo teto da tabela acima. <b>Produção em construção sem insumo é bônus de
   graça; em construção de conversão (Destilaria, Indústria Siderúrgica, Refinaria Química,
   Oficina) é THROUGHPUT</b> — mais saída, mas também mais insumo consumido, proporcionalmente.
-  <span class="sel sel-arb">Arbitrado · os 6 tipos de efeito, os tetos por tipo, e a distinção grátis/throughput</span></p>
+  <?= arbitrado('os 6 tipos de efeito, os tetos por tipo, e a distinção grátis/throughput') ?>
+</p>
 
 <h3>10.3 Leilões vendendo item <span class="d">D-136</span></h3>
 
@@ -3258,7 +1857,8 @@ todos desde a fundação, e os da zona se abrem conforme ela sobe.</p>
 </table>
 
 <p>
-  <span class="sel sel-arb">Arbitrado · tema, ordem e recompensa dos 4 capítulos — o GDD só dá o rótulo &quot;missões narrativas&quot;, nenhum conteúdo</span>  Só o capítulo 1 ganhou uma ação dedicada (<code>comprar_item_endurance</code>); os demais
+  <?= arbitrado('tema, ordem e recompensa dos 4 capítulos — o GDD só dá o rótulo "missões narrativas", nenhum conteúdo') ?>
+  Só o capítulo 1 ganhou uma ação dedicada (<code>comprar_item_endurance</code>); os demais
   reaproveitam ações genéricas já existentes, tematizadas como a "escavação" continuando.
 </p>
 
@@ -3365,7 +1965,7 @@ todos desde a fundação, e os da zona se abrem conforme ela sobe.</p>
 <p>
   A única visão espacial do painel eram duas tabelas com <code>(x, y)</code> escrito como texto —
   quem investigava um caso de suporte não conseguia <i>ver</i> o planeta. A aba <b>Mapa</b> desenha a
-  grade <b>101×101</b> inteira, com todas as colônias e
+  grade <b><?= MapaFertways::LADO ?>×<?= MapaFertways::LADO ?></b> inteira, com todas as colônias e
   todas as zonas, <b>sem névoa</b>: é ferramenta interna, e o mapa do jogador já não tem névoa
   nenhuma. Clicar numa colônia abre uma ficha rápida em modal (jogador, colônia, zonas ocupadas), com
   atalho para a ficha completa.
@@ -3430,18 +2030,20 @@ todos desde a fundação, e os da zona se abrem conforme ela sobe.</p>
 <p>
   Quem abriga é a <b>Estrutura de Sobrevivência</b> — a construção que o catálogo descrevia como
   <i>"efeito: nenhum"</i> até esta leva. A capacidade é
-  <b>10</b> no nível 1, multiplicada por
-  <b>1,65×</b> a cada nível.
+  <b><?= (int) $pop->capacidade_base ?></b> no nível 1, multiplicada por
+  <b><?= n($pop->capacidade_fator_milesimos / 1000, 2) ?>×</b> a cada nível.
 </p>
 
 <table>
   <tr><th class="num">Nível</th><th class="num">Colonos abrigados</th></tr>
-    <tr><td class="num">1</td><td class="num">10</td></tr>
-    <tr><td class="num">2</td><td class="num">16</td></tr>
-    <tr><td class="num">3</td><td class="num">27</td></tr>
-    <tr><td class="num">4</td><td class="num">44</td></tr>
-    <tr><td class="num">5</td><td class="num">74</td></tr>
-  </table>
+  <?php
+  $capNivel = (float) $pop->capacidade_base;
+  for ($i = 1; $i <= 5; $i++):
+      if ($i > 1) { $capNivel = $capNivel * $pop->capacidade_fator_milesimos / 1000; }
+  ?>
+  <tr><td class="num"><?= $i ?></td><td class="num"><?= (int) floor($capNivel) ?></td></tr>
+  <?php endfor; ?>
+</table>
 
 <div class="nota grave">
   <b>O total pode passar do teto — e isso é regra, não defeito.</b> O grandfathering do §6.7
@@ -3463,82 +2065,14 @@ todos desde a fundação, e os da zona se abrem conforme ela sobe.</p>
 
 <table>
   <tr><th>Construção</th><th class="num">Nível</th><th class="num">Operadores</th></tr>
-    <tr>
-    <td>Captação de Água</td>
-    <td class="num">1</td>
-    <td class="num">1</td>
+  <?php foreach ($operadoresAmostra as $o): ?>
+  <tr>
+    <td><?= e(humano($o->building_type)) ?></td>
+    <td class="num"><?= $o->level ?></td>
+    <td class="num"><?= $o->operadores ?></td>
   </tr>
-    <tr>
-    <td>Captação de Água</td>
-    <td class="num">2</td>
-    <td class="num">2</td>
-  </tr>
-    <tr>
-    <td>Captação de Água</td>
-    <td class="num">3</td>
-    <td class="num">3</td>
-  </tr>
-    <tr>
-    <td>Captação de Água</td>
-    <td class="num">4</td>
-    <td class="num">4</td>
-  </tr>
-    <tr>
-    <td>Captação de Água</td>
-    <td class="num">5</td>
-    <td class="num">5</td>
-  </tr>
-    <tr>
-    <td>Fazenda</td>
-    <td class="num">1</td>
-    <td class="num">1</td>
-  </tr>
-    <tr>
-    <td>Fazenda</td>
-    <td class="num">2</td>
-    <td class="num">2</td>
-  </tr>
-    <tr>
-    <td>Fazenda</td>
-    <td class="num">3</td>
-    <td class="num">3</td>
-  </tr>
-    <tr>
-    <td>Fazenda</td>
-    <td class="num">4</td>
-    <td class="num">4</td>
-  </tr>
-    <tr>
-    <td>Fazenda</td>
-    <td class="num">5</td>
-    <td class="num">5</td>
-  </tr>
-    <tr>
-    <td>Gerador de Atmosfera</td>
-    <td class="num">1</td>
-    <td class="num">1</td>
-  </tr>
-    <tr>
-    <td>Gerador de Atmosfera</td>
-    <td class="num">2</td>
-    <td class="num">2</td>
-  </tr>
-    <tr>
-    <td>Gerador de Atmosfera</td>
-    <td class="num">3</td>
-    <td class="num">3</td>
-  </tr>
-    <tr>
-    <td>Gerador de Atmosfera</td>
-    <td class="num">4</td>
-    <td class="num">4</td>
-  </tr>
-    <tr>
-    <td>Gerador de Atmosfera</td>
-    <td class="num">5</td>
-    <td class="num">5</td>
-  </tr>
-  </table>
+  <?php endforeach; ?>
+</table>
 
 <p>
   A <b>zona neutra</b> tem tabela própria, mais pesada porque território é compromisso:
@@ -3546,17 +2080,10 @@ todos desde a fundação, e os da zona se abrem conforme ela sobe.</p>
 
 <table>
   <tr><th class="num">Nível da zona</th><th class="num">Operadores exigidos</th></tr>
-    <tr><td class="num">1</td><td class="num">2</td></tr>
-    <tr><td class="num">2</td><td class="num">3</td></tr>
-    <tr><td class="num">3</td><td class="num">4</td></tr>
-    <tr><td class="num">4</td><td class="num">5</td></tr>
-    <tr><td class="num">5</td><td class="num">6</td></tr>
-    <tr><td class="num">6</td><td class="num">8</td></tr>
-    <tr><td class="num">7</td><td class="num">10</td></tr>
-    <tr><td class="num">8</td><td class="num">12</td></tr>
-    <tr><td class="num">9</td><td class="num">14</td></tr>
-    <tr><td class="num">10</td><td class="num">16</td></tr>
-  </table>
+  <?php foreach ($zonaOperadores as $nivel => $quantos): ?>
+  <tr><td class="num"><?= (int) $nivel ?></td><td class="num"><?= (int) $quantos ?></td></tr>
+  <?php endforeach; ?>
+</table>
 
 <div class="nota">
   <b>Zona desfalcada degrada; não se perde.</b> Se a população cair abaixo do exigido, a zona
@@ -3578,13 +2105,13 @@ todos desde a fundação, e os da zona se abrem conforme ela sobe.</p>
 
 <table>
   <tr><th>Parâmetro</th><th class="num">Valor</th></tr>
-  <tr><td>Água por colono/hora</td><td class="num">0,100</td></tr>
-  <tr><td>Oxigênio por colono/hora</td><td class="num">0,120</td></tr>
-  <tr><td>Biomassa por colono/hora</td><td class="num">0,080</td></tr>
-  <tr><td>Energia por colono/hora</td><td class="num">0,000</td></tr>
-  <tr><td>Crescimento por hora</td><td class="num">0,70%</td></tr>
-  <tr><td>Suprimento mínimo para crescer</td><td class="num">80%</td></tr>
-  <tr><td>Piso de eficiência na escassez</td><td class="num">50%</td></tr>
+  <tr><td>Água por colono/hora</td><td class="num"><?= n($pop->agua_milli_por_colono_hora / 1000, 3) ?></td></tr>
+  <tr><td>Oxigênio por colono/hora</td><td class="num"><?= n($pop->oxigenio_milli_por_colono_hora / 1000, 3) ?></td></tr>
+  <tr><td>Biomassa por colono/hora</td><td class="num"><?= n($pop->biomassa_milli_por_colono_hora / 1000, 3) ?></td></tr>
+  <tr><td>Energia por colono/hora</td><td class="num"><?= n($pop->energia_milli_por_colono_hora / 1000, 3) ?></td></tr>
+  <tr><td>Crescimento por hora</td><td class="num"><?= n($pop->crescimento_bps_hora / 100, 2) ?>%</td></tr>
+  <tr><td>Suprimento mínimo para crescer</td><td class="num"><?= n($pop->crescimento_min_suprimento_bps / 100, 0) ?>%</td></tr>
+  <tr><td>Piso de eficiência na escassez</td><td class="num"><?= n($pop->escassez_eficiencia_bps / 100, 0) ?>%</td></tr>
 </table>
 
 <div class="nota grave">
@@ -3629,63 +2156,16 @@ todos desde a fundação, e os da zona se abrem conforme ela sobe.</p>
 
 <table>
   <tr><th>Tecnologia</th><th>Trilha</th><th class="num">Nível máx.</th><th class="num">Laboratório mín.</th><th class="num">Duração</th></tr>
-    <tr>
-    <td>Cultivo Pressurizado</td>
-    <td>biosfera</td>
-    <td class="num">3</td>
-    <td class="num">1</td>
-    <td class="num">6,0 h</td>
+  <?php foreach ($tecnologias as $t): ?>
+  <tr>
+    <td><?= e($t->nome) ?></td>
+    <td><?= e($t->trilha) ?></td>
+    <td class="num"><?= (int) $t->nivel_maximo ?></td>
+    <td class="num"><?= (int) $t->laboratorio_minimo ?></td>
+    <td class="num"><?= n($t->duracao_segundos / 3600, 1) ?> h</td>
   </tr>
-    <tr>
-    <td>Método Experimental</td>
-    <td>ciencia</td>
-    <td class="num">1</td>
-    <td class="num">3</td>
-    <td class="num">12,0 h</td>
-  </tr>
-    <tr>
-    <td>Escrituração Aduaneira</td>
-    <td>comercio</td>
-    <td class="num">2</td>
-    <td class="num">2</td>
-    <td class="num">10,0 h</td>
-  </tr>
-    <tr>
-    <td>Blindagem Modular</td>
-    <td>defesa</td>
-    <td class="num">3</td>
-    <td class="num">2</td>
-    <td class="num">10,0 h</td>
-  </tr>
-    <tr>
-    <td>Regulação de Reator</td>
-    <td>energia</td>
-    <td class="num">3</td>
-    <td class="num">1</td>
-    <td class="num">6,0 h</td>
-  </tr>
-    <tr>
-    <td>Metalurgia Aplicada</td>
-    <td>industria</td>
-    <td class="num">3</td>
-    <td class="num">2</td>
-    <td class="num">8,0 h</td>
-  </tr>
-    <tr>
-    <td>Suspensão Reforçada</td>
-    <td>logistica</td>
-    <td class="num">3</td>
-    <td class="num">2</td>
-    <td class="num">8,0 h</td>
-  </tr>
-    <tr>
-    <td>Prospecção Profunda</td>
-    <td>territorio</td>
-    <td class="num">3</td>
-    <td class="num">1</td>
-    <td class="num">8,0 h</td>
-  </tr>
-  </table>
+  <?php endforeach; ?>
+</table>
 
 <div class="nota">
   <b>A especialização É a trilha de pesquisa</b>, e não um sistema paralelo. O perfil econômico da
@@ -3861,7 +2341,7 @@ todos desde a fundação, e os da zona se abrem conforme ela sobe.</p>
   três ações que vivem nele (D-145 a D-148, §11.6); o <b>Frete do Governo com vários recursos na
   mesma viagem</b> (D-151, §5.6); a <b>taxa nominal por hora</b>, produzida e gasta, separadas
   (D-153, §3.4); e o <b>teto do Reator de Energia</b>, estendido ao nível
-  15 pelas curvas do próprio GDD
+  <?= max(array_keys($porTipo['reator_de_energia'] ?? [5 => null])) ?> pelas curvas do próprio GDD
   (D-157, §2.3).
 </p>
 
@@ -3946,3 +2426,5 @@ todos desde a fundação, e os da zona se abrem conforme ela sobe.</p>
 
 </body>
 </html>
+<?php
+echo ob_get_clean();

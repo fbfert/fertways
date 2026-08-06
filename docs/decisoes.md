@@ -12679,3 +12679,63 @@ Pelo `OfertarComoGoverno::definir()`, que é o mesmo comando que o painel do adm
 Tesouro para o escrow, e descê-la devolve. **Some código não mudou: nada a publicar.** O estado
 anterior está registrado aqui e no scratchpad da sessão:
 `silicio qtd=500 preco=200000 · litio qtd=500 preco=40000 · tantalo qtd=500 preco=90000`.
+
+---
+
+## D-230 — O GDD v40: a Alpha 2 inteira, e a seção que nenhuma versão anterior teve
+
+Quarta regeneração do v36. O v39 (D-160) fechou no **D-159**; o v40 cobre **D-160 a D-229 — setenta
+decisões**, que é a Alpha 2 do começo ao fim. É o maior salto entre versões deste documento, e por
+um motivo simples: entre uma e outra o jogo ganhou **quatro sistemas que não existiam**.
+
+### O que entrou
+
+| seção | o que é | decisões |
+|---|---|---|
+| **§13 População** | teto habitacional, operadores, consumo, crescimento, escassez | D-167 a D-179, D-184, D-225 |
+| **§14 Pesquisa** | trilhas, vagas do Laboratório, efeitos no motor | D-168 a D-172, D-190 |
+| **§15 Eventos de mundo** | modificadores por janela, três graus de visibilidade | D-185 |
+| **§16 O que o campo mediu** | *(novo em natureza — ver abaixo)* | D-219 a D-229 |
+
+E, dentro das seções que já existiam: a **guerra federativa** (cerco de colônia, saque, capitulação,
+tratado, neutralidade, Elo — D-193 a D-207), o **teto de estoque com piso pessoal** (D-191, D-192,
+D-199), o **upgrade de veículos** (D-175, D-180, D-181) e a **curva do Marco recalibrada** (D-223).
+
+### ⚠️ A §16 é de outra natureza, e é o que esta versão tem de diferente
+
+Nenhum GDD anterior publicava **o que aconteceu com a regra depois de ela existir**. Este publica: 24
+dias de produção, 29 colônias, e o que a medida encontrou — a guerra que nunca teve um combate, o XP
+que caiu 98,5% em quatro semanas, a economia entre jogadores que não tinha sobre o que acontecer.
+
+O critério: **metade das decisões desta leva saiu de uma medida que contradisse o que estava
+escrito**. Um documento que só publica a regra e nunca o que aconteceu com ela é a metade que
+envelhece primeiro — foi exatamente assim que o v35 virou mentira.
+
+A §16.4 publica também as **três vezes em que uma medida minha quase virou conclusão errada** (taxa
+nominal como previsão, banco de dev lido como produção, bots contados como jogadores). Registrar o
+método que falha é mais útil do que registrar só o que deu certo.
+
+### O que ficou de fora, e por quê
+
+As ~25 decisões que só mudam **tela** e não mecânica: a revisão visual inteira (A2.V1 a A2.V6), o
+backup do deploy (D-208/D-209) e o hardening do login (D-186). É o mesmo critério que a seção 0 já
+publica. O que elas corrigiram **na regra** entrou nas seções correspondentes.
+
+### Os números continuam não sendo digitados
+
+O v40 lê duas fontes novas — `population_settings` e `estoque_settings` — além das cinco que o v39
+já lia. São parâmetros **editáveis pelo operador sem deploy**: publicá-los de uma constante seria
+publicar mentira já na semana seguinte. A tabela de operadores publica a **regra** (1 por nível) e
+uma amostra que prova que ela é o que está no banco — não as 60 linhas, que seriam planilha.
+
+35 testes de `tests/Gdd` verdes: as tabelas batem com o jogo.
+
+### E a cópia à mão que o gerador não faz
+
+`frontend/public/gdd.html` — o arquivo estático que o Vite publica em `/gdd.html` na landing page —
+foi copiado com `/bin/cp -f` e conferido com `diff` (176.097 bytes idênticos). O gerador só escreve
+em `docs/`, e **gerar o documento não alcança a landing page**; o alias `cp -i` do root já copiou
+nada em silêncio uma vez.
+
+O v39, o v38, o v36 e o v35 ficam **intocados**. Cada versão é um gerador novo, nunca uma edição
+destrutiva da anterior — é isso que permite ler o que o jogo era em cada corte.
