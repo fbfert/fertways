@@ -286,7 +286,19 @@ export default function App() {
         quando ele tem alguma — empurravam a fila pra baixo da dobra em quem tinha várias.
       */}
       {/* Só desktop — no mobile, a mesma dupla vive dentro de "Mais" (`MobileNav.tsx`). */}
-      <div className="absolute top-24 right-5 hidden w-64 space-y-4 md:block">
+      {/*
+        ⚠️ `top-32`, e não `top-24`: os chips da DIREITA do cabeçalho (Marco, nome da colônia com o
+        saldo, e os dois ícones) descem até **117px**, enquanto os de navegação param em 80px. Com
+        `top-24` (96px) esta coluna nascia 21px por baixo deles, e o primeiro painel dela — a faixa
+        de avisos, que é justamente o que exige ação — saía com o topo cortado.
+
+        O defeito é anterior à A2.V3 e vinha MASCARADO: a faixa de eventos de mundo era desenhada em
+        fluxo e empurrava a tela inteira uns 48px para baixo, o que por acaso resolvia a colisão —
+        mas só enquanto houvesse evento ativo. Tirá-la do fluxo (D-217) revelou o que já estava lá.
+
+        Medido no navegador, não estimado: ver as caixas que `e2e/foto.mjs` imprime.
+      */}
+      <div className="absolute top-32 right-5 hidden w-64 space-y-4 md:block">
         {/* A2.V2 (D-211): a faixa de avisos, acima de tudo o mais na coluna — o que exige ação
             não pode estar abaixo do que é rotina. Ela SOME quando não há nada a dizer. */}
         <Avisos aoAbrirResumo={() => setResumoAberto('reabrindo')} />

@@ -438,8 +438,19 @@ if [ "${api:-}" != "200" ] || [ "${web:-}" != "200" ]; then
   exit 1
 fi
 
-echo "==> rodando os testes"
 cd "$RAIZ/frontend"
+
+# ⚠️ `E2E_SO_FOTOS=1` sobe a pilha, força os estados e vai direto às fotos, sem rodar suíte nenhuma.
+#
+# A A2.V é uma fase inteiramente VISUAL, e nela a foto é o instrumento — mas ela só saía depois de
+# todas as suítes passarem, e a suíte ainda é instável (D-212: quatro corridas para uma verde, cada
+# uma falhando em ponto diferente). Na prática isso tornava "fotografe e olhe" caro justamente na
+# fase que mais depende de olhar. Isto NÃO substitui a suíte: é o atalho para conferir desenho.
+if [ "${E2E_SO_FOTOS:-}" = "1" ]; then
+  echo "==> pulando as suítes (E2E_SO_FOTOS=1): só as fotos"
+  E2E_FOTOS=1
+else
+echo "==> rodando os testes"
 
 # Nesta ordem, e não noutra: compartilham o mesmo banco efêmero. O de Mapa e Frota vem primeiro
 # porque espera os três furgões ociosos, no pátio; o do Mercado deixa dois em rota, e o do Acordo
@@ -469,6 +480,7 @@ E2E_URL="http://127.0.0.1:$PORTA_WEB" node e2e/ministerio.e2e.mjs
 E2E_URL="http://127.0.0.1:$PORTA_WEB" node e2e/zonas.e2e.mjs
 # Por último: funda uma quinta colônia pelo seletor do D-51, o que mexeria nas contagens acima.
 E2E_URL="http://127.0.0.1:$PORTA_WEB" node e2e/fundacao.e2e.mjs
+fi
 
 # As FOTOS (D-68). Não afirmam nada — só deixam as imagens em /tmp para alguém OLHAR.
 #

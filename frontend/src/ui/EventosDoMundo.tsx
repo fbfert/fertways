@@ -36,10 +36,39 @@ export function EventosDoMundo() {
 
   if (eventos.length === 0) return null
 
+  /*
+   * ⚠️ A faixa é CHROME, e não conteúdo — e não era (achado ao fotografar a colônia, D-215).
+   *
+   * Ela nascia em fluxo, como primeiro elemento do documento. Só que as duas barras de navegação
+   * (`Header` no desktop, `MobileNav` no mobile) são `absolute top-0`, fora do fluxo, e pintavam
+   * **por cima** dela: o texto saía picado atrás do cabeçalho, ilegível. E, por estar em fluxo, ela
+   * ainda empurrava a colônia inteira para baixo — a colônia é `h-screen`, então o que sobrava era
+   * uma tela maior que a janela, deslocada.
+   *
+   * ⚠️ E o e2e passava. Ele afirma que o texto **existe no DOM** (`esperarTexto`), e existia; nada
+   * num teste de texto ou de clique alcança o que está visualmente coberto. É o falso-verde do D-63,
+   * e a razão de `e2e/foto.mjs` existir: quando mexer em tela, fotografe e olhe.
+   *
+   * Agora ela mora na mesma camada das barras, logo abaixo delas:
+   *
+   * - `absolute` e não `fixed`: um aviso que acompanha a rolagem para sempre vira moldura, e o
+   *   evento não é urgente a ponto de perseguir o jogador tela abaixo;
+   * - `z-20` contra o `z-[25]` das barras: nunca cobre a navegação, que é o caminho de saída;
+   * - `pointer-events-none`: na colônia ela flutua sobre a colmeia, e um aviso que rouba clique de
+   *   um slot seria pior do que um aviso invisível;
+   * - `md:pr-72` reserva a coluna do HUD (`right-5 w-64`), que começa no mesmo `top-24`.
+   */
   return (
-    <div className="border-rust/30 bg-sand mx-auto mt-2 max-w-4xl border-l-4 px-3 py-2" data-eventos>
-      {eventos.map((e, i) => (
-        <p key={i} className="text-ink text-sm" data-evento={e.parcial ? 'parcial' : 'anunciado'}>
+    <div
+      className="pointer-events-none absolute inset-x-0 top-20 z-20 flex justify-center px-4 md:top-24 md:pr-72"
+      data-eventos-faixa
+    >
+      <div
+        className="border-rust/30 bg-sand max-w-4xl border-l-4 px-3 py-2 shadow-sm"
+        data-eventos
+      >
+        {eventos.map((e, i) => (
+          <p key={i} className="text-ink text-sm" data-evento={e.parcial ? 'parcial' : 'anunciado'}>
           {e.parcial ? (
             <>
               <strong>Algo está afetando a produção no planeta.</strong>{' '}
@@ -54,10 +83,11 @@ export function EventosDoMundo() {
                 {(e.efeito ?? 0) > 0 ? '+' : ''}
                 {e.efeito}%{e.recurso ? ` em ${e.recurso}` : ' em tudo'})
               </span>
-            </>
-          )}
-        </p>
-      ))}
+              </>
+            )}
+          </p>
+        ))}
+      </div>
     </div>
   )
 }

@@ -47,6 +47,52 @@ try {
     'e o efeito também: o jogador vê POR QUE a produção caiu',
   )
 
+  /*
+   * ⚠️ E ela precisa estar VISÍVEL, não só presente no DOM.
+   *
+   * As três asserções acima passavam com a faixa **coberta pelo cabeçalho**: ela nascia em fluxo, no
+   * topo do documento, e as barras de navegação são `absolute top-0` por cima. O texto saía picado e
+   * ilegível, e nenhum teste de texto ou de clique alcança isso — foi a FOTO que pegou (D-215), do
+   * mesmo jeito que o D-63 pegou os ministérios pálidos.
+   *
+   * A asserção é geométrica de propósito: dois retângulos que não podem se sobrepor. Não afirma
+   * posição nem estilo — só que o aviso não está escondido atrás da navegação.
+   */
+  const coberto = await page.evaluate(() => {
+    /*
+     * ⚠️ Comparar com os CHIPS, e não com o `<header>`.
+     *
+     * O `<header>` é `inset-x-0 pointer-events-none`: uma caixa vazia de 1400×137 que cobre a
+     * largura inteira. Medir contra ela reprovaria qualquer layout, inclusive o certo — foi a
+     * primeira versão desta asserção, e ela estava errada. O que se vê são os chips: os de
+     * navegação param em 80px, os da direita (Marco, colônia, ícones) descem até 117px.
+     */
+    const chips = [...(document.querySelector('header')?.children ?? [])]
+      .flatMap((c) => [...c.children])
+      .map((n) => n.getBoundingClientRect())
+      .filter((b) => b.width > 0 && b.height > 0)
+
+    const cruza = (a, b) => a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top
+
+    const conferir = (sel, nome) => {
+      const el = document.querySelector(sel)
+      if (!el) return `${nome}: não está na tela`
+
+      const r = el.getBoundingClientRect()
+      if (r.width === 0 || r.height === 0) return `${nome}: caixa zero`
+
+      const colide = chips.find((c) => cruza(r, c))
+
+      return colide ? `${nome} (top ${Math.round(r.top)}) fica sob um chip que desce até ${Math.round(colide.bottom)}` : null
+    }
+
+    return conferir('[data-eventos]', 'a faixa de eventos') ?? conferir('[data-secao="avisos"]', 'a faixa de avisos')
+  })
+  checar(
+    coberto === null,
+    `nada do que exige ação fica escondido atrás da navegação (${coberto ?? 'ok'})`,
+  )
+
   console.log('\nA população na tela (A2.V2) — a mecânica que estava no ar e não aparecia')
   /*
    * ⚠️ Isto não afirma um número: afirma que a mecânica **é visível**. A população foi ligada em

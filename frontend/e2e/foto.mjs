@@ -19,6 +19,49 @@ try {
   await assentar()
   await new Promise((r) => setTimeout(r, 2500)) // a arte carrega depois da cena (D-68)
 
+  /*
+   * O resumo se convida sozinho (A2.0.3) e cobre metade da colmeia. Rodando a suíte inteira ele já
+   * vinha dispensado — `resumo.e2e.mjs` o fecha —, mas com `E2E_SO_FOTOS=1` nenhuma suíte roda e a
+   * foto saía com um popup por cima do que se queria olhar.
+   */
+  const fechou = await page.evaluate(() => {
+    const botao = [...document.querySelectorAll('button')].find((b) => b.textContent?.trim() === 'Continuar')
+    botao?.click()
+
+    return Boolean(botao)
+  })
+  if (fechou) await new Promise((r) => setTimeout(r, 1200))
+
+  /*
+   * As caixas do chrome, impressas para PODEREM SER CONFERIDAS a olho junto com a foto. Duas
+   * ocultações já nasceram de barra flutuante por cima de conteúdo (a faixa de eventos, e depois a
+   * coluna do HUD), e as duas passaram por todos os testes de texto e de clique.
+   */
+  const caixas = await page.evaluate(() => {
+    const r = (sel) => {
+      const el = document.querySelector(sel)
+      if (!el) return null
+      const b = el.getBoundingClientRect()
+
+      return { top: Math.round(b.top), bottom: Math.round(b.bottom), left: Math.round(b.left), right: Math.round(b.right) }
+    }
+
+    /*
+     * ⚠️ O `<header>` é uma caixa VAZIA de largura inteira (`inset-x-0`, `pointer-events-none`): o
+     * que se vê são os chips dentro dele. Medir o contêiner diria que tudo colide com tudo.
+     */
+    const filhos = [...(document.querySelector('header')?.children ?? [])].flatMap((c) =>
+      [...c.children].map((n) => {
+        const b = n.getBoundingClientRect()
+
+        return { texto: (n.textContent ?? '').trim().slice(0, 18), top: Math.round(b.top), bottom: Math.round(b.bottom), left: Math.round(b.left), right: Math.round(b.right) }
+      }),
+    )
+
+    return { barra: r('header'), chips: filhos, faixa: r('[data-eventos]'), avisos: r('[data-secao="avisos"]') }
+  })
+  console.log('caixas:', JSON.stringify(caixas))
+
   await page.screenshot({ path: '/tmp/foto-colonia.png' })
   console.log('colônia → /tmp/foto-colonia.png')
 

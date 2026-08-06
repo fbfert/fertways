@@ -11899,3 +11899,68 @@ Guardar o marcador **anterior** resolve sem tocar no §5.1:
 
 A migration `janela_anterior_do_resumo` foi exercitada **nos dois sentidos no MariaDB**, e não só no
 SQLite dos testes — é a lição do D-59, que já quebrou a produção uma vez.
+
+---
+
+## D-217 — A faixa de eventos era chrome e vivia no fluxo, e o conserto revelou outra oclusão
+
+A faixa dos eventos de mundo (A2.8) estava **ilegível em produção**, e ninguém tinha visto porque
+nenhum teste consegue ver isso. Foi a foto do D-215 que pegou.
+
+### O defeito
+
+Ela nascia em fluxo, como **primeiro elemento do documento**. As duas barras de navegação —
+`Header` no desktop, `MobileNav` no mobile — são `absolute top-0`, fora do fluxo, e pintavam por
+cima: o texto saía picado atrás do cabeçalho. E, por estar em fluxo, ela ainda **empurrava a colônia
+inteira para baixo** — a colônia é `h-screen`, então o resultado era uma tela maior que a janela.
+
+⚠️ **E o e2e passava**, com três asserções sobre ela. Todas afirmavam que o texto **existe no DOM**,
+e existia. Nada num teste de texto ou de clique alcança o que está visualmente coberto. É o
+falso-verde do D-63 na veia, e a razão de `e2e/foto.mjs` existir.
+
+### O conserto
+
+A faixa é **chrome**, não conteúdo — e o lugar dela é a camada das barras, não o fluxo:
+
+- `absolute`, não `fixed`: aviso que persegue a rolagem vira moldura;
+- `z-20` contra o `z-[25]` das barras: **nunca** cobre a navegação, que é o caminho de saída;
+- `pointer-events-none`: na colônia ela flutua sobre a colmeia, e um aviso que rouba o clique de um
+  slot é pior do que um aviso invisível;
+- `md:pr-72` reserva a coluna do HUD.
+
+### ⚠️ E aí apareceu a segunda oclusão, que estava lá o tempo todo
+
+Com a faixa fora do fluxo, a coluna do HUD subiu para o lugar dela — e o **cabeçalho passou a cobrir
+o topo da faixa de avisos**. Medido no navegador, não estimado:
+
+| elemento | caixa |
+|---|---|
+| chips de navegação (esquerda) | descem até **80px** |
+| chips da direita (Marco, colônia, ícones) | descem até **117px** |
+| coluna do HUD | começava em **96px** (`top-24`) |
+
+21px de sobreposição, bem no primeiro painel da coluna — a faixa de avisos, que é justamente o que
+exige ação. Corrigido para `top-32` (128px).
+
+**O defeito é anterior a tudo isto e vinha mascarado**: a faixa em fluxo empurrava a tela uns 48px,
+o que por acaso resolvia a colisão — mas só enquanto houvesse evento ativo. Sem evento, a oclusão
+sempre existiu.
+
+### Duas ferramentas, porque a fase é visual
+
+**A asserção que faltava.** O e2e agora confere geometria: nem a faixa de eventos nem a de avisos
+podem cruzar um chip da navegação. ⚠️ A primeira versão comparava com o `<header>` e **estava
+errada** — ele é `inset-x-0 pointer-events-none`, uma caixa vazia de 1400×137 que cobre a largura
+inteira, e reprovaria qualquer layout. O que se vê são os chips.
+
+**`E2E_SO_FOTOS=1`.** Sobe a pilha e vai direto às fotos, sem rodar suíte nenhuma. A A2.V é uma fase
+inteiramente visual, e a foto é o instrumento — mas ela só saía depois de todas as suítes passarem,
+e a suíte é instável (D-212: **quatro corridas para uma verde** nesta sessão, cada uma falhando em
+ponto diferente). Isso tornava "fotografe e olhe" caro justamente na fase que mais depende de olhar.
+Não substitui a suíte: é o atalho para conferir desenho.
+
+### E o glifo saiu do painel também
+
+O `!` que o D-216 tirou da faixa de avisos saiu do painel de estado da construção pelo mesmo motivo:
+onde há frase inteira, **o texto é o segundo canal**. O selo no hexágono mantém o glifo — lá não cabe
+frase nenhuma, e ele é o único segundo canal possível.

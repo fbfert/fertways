@@ -500,7 +500,13 @@ export function Detalhe({
         O porquê do selo (A2.V3). O hexágono diz QUE algo mudou; aqui é onde cabe dizer o quê e o
         que fazer a respeito. `aviso` é o único estado do deck que pinta o FUNDO — `ember` sobre
         areia dá 1,62:1 e é ilegível como texto, mas como fundo, com letra `ink`, dá 8,71:1
-        (docs/design-tokens.md). E o glifo vai junto: estado nunca se anuncia só por cor.
+        (docs/design-tokens.md).
+
+        ⚠️ **Sem glifo aqui**, ao contrário do selo no hexágono, e a diferença tem regra: o deck
+        exige um segundo canal além da cor, e aqui ele já existe — a frase inteira ("Produção
+        travada: Biomassa está no teto do depósito"). No hexágono não cabe frase nenhuma, e é lá que
+        o glifo é o único segundo canal possível. Mesma decisão que tirou o `!` da faixa de avisos
+        (D-216): onde há texto, o texto é o canal.
       */}
       {explicacaoDoEstado(spec) && (
         <p
@@ -508,7 +514,6 @@ export function Detalhe({
             spec.estado === 'travada' ? 'bg-ember text-ink' : 'text-ink-soft bg-sand'
           }`}
         >
-          <span aria-hidden="true">{spec.estado === 'travada' ? '! ' : '↑ '}</span>
           {explicacaoDoEstado(spec)}
         </p>
       )}
