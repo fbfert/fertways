@@ -511,7 +511,11 @@ export function Detalhe({
       {explicacaoDoEstado(spec) && (
         <p
           className={`mt-2 rounded px-2 py-1.5 text-xs ${
-            spec.estado === 'travada' ? 'bg-ember text-ink' : 'text-ink-soft bg-sand'
+            spec.estado === 'travada'
+              ? 'bg-ember text-ink'
+              : spec.estado === 'sem_insumo'
+                ? 'border-perigo text-perigo border-l-4 bg-sand'
+                : 'text-ink-soft bg-sand'
           }`}
         >
           {explicacaoDoEstado(spec)}

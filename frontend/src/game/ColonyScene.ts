@@ -12,9 +12,10 @@ export const CORES = {
   sandLight: 0xfdf0e2,
   ink: 0x1e1c17,
   inkSoft: 0x372f27,
-  // Paleta de estado (D-161, docs/design-tokens.md). `info` é escura de propósito — a superfície do
-  // jogo é clara, e cor de estado só vira legível se for mais escura que o fundo.
+  // Paleta de estado (D-161, docs/design-tokens.md). As duas são escuras de propósito — a superfície
+  // do jogo é clara, e cor de estado só vira legível se for mais escura que o fundo.
   info: 0x243c48,
+  perigo: 0x78180c,
 }
 
 /**
@@ -475,6 +476,16 @@ export class ColonyScene extends Phaser.Scene {
       rotulos.add(this.desenharSelo(r, '↑', CORES.info, '#fdf0e2'))
     } else if (spec.estado === 'travada') {
       rotulos.add(this.desenharSelo(r, '!', CORES.ember, '#1e1c17'))
+    } else if (spec.estado === 'sem_insumo') {
+      /*
+       * A fábrica de boca fechada (D-219). Glifo próprio, e não o mesmo `!` da travada: os dois são
+       * "parada", mas pedem ações **opostas** — a travada quer que o jogador GASTE o que ela fez, e
+       * esta quer que ele TRAGA o que falta. Um único símbolo para as duas mandaria metade dos
+       * jogadores para o lado errado.
+       *
+       * Eram 58 das 66 fábricas do mundo nesta situação, todas desenhadas como se produzissem.
+       */
+      rotulos.add(this.desenharSelo(r, '×', CORES.perigo, '#fdf0e2'))
     }
 
     return { base: c, rotulos }

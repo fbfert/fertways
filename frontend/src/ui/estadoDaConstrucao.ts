@@ -22,6 +22,8 @@ export function resumoDoEstado(spec: Spec): string | null {
       return 'melhorando'
     case 'travada':
       return 'produção travada'
+    case 'sem_insumo':
+      return 'parada por falta de insumo'
     default:
       // `erguendo` já é dito por "em obra", que o nome do botão sempre carregou.
       return null
@@ -37,6 +39,20 @@ export function resumoDoEstado(spec: Spec): string | null {
  */
 export function explicacaoDoEstado(spec: Spec): string | null {
   const cheios = (spec.recursos_no_teto ?? []).map(nomeRecurso)
+  const faltando = (spec.insumos_em_falta ?? []).map(nomeRecurso)
+
+  /*
+   * A boca fechada vem primeiro, como no servidor. E a frase evita a palavra "escassez": o que
+   * falta quase sempre é **energia**, e energia não está "em falta" no sentido de estoque — a
+   * colônia gera e gasta tudo por hora. Dizer "sem energia guardada" é o que descreve o mundo.
+   */
+  if (spec.estado === 'sem_insumo') {
+    const soEnergia = faltando.length === 1 && spec.insumos_em_falta?.[0] === 'energia'
+
+    return soEnergia
+      ? 'Parada: não sobra energia guardada para um lote. Toda construção consome energia por hora, e a receita precisa de um excedente — suba o Reator de Energia ou desligue consumo.'
+      : `Parada por falta de ${listar(faltando)}. Ela está de pé e não converte nada até o insumo chegar.`
+  }
 
   if (spec.estado === 'travada') {
     return `Produção travada: ${listar(cheios)} ${

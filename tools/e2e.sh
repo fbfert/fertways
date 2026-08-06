@@ -506,7 +506,16 @@ $c->resources()->where("resource_type", "biomassa")
 $c->buildings()->where("type", "captacao_de_agua")
   ->update(["upgrade_finish_at" => now()->addHours(3)]);
 
-echo "biomassa no teto, e a Captação de Água subindo de nível\n";
+/*
+ * SEM_INSUMO (D-219): uma Refinaria Química com a energia zerada. É o caso mais comum do jogo
+ * real — 58 das 66 fábricas do mundo estavam assim —, e o mundo do e2e nasce com energia sobrando,
+ * então ele não acontece sozinho.
+ */
+$slot = ((int) $c->buildings()->max("slot")) + 1;
+$c->buildings()->create(["type" => "refinaria_quimica", "level" => 1, "slot" => $slot]);
+$c->resources()->where("resource_type", "energia")->update(["amount" => 0]);
+
+echo "biomassa no teto, Captação subindo de nível, e uma Refinaria sem energia\n";
 ' 2>&1 | tail -2)
 
   E2E_URL="http://127.0.0.1:$PORTA_WEB" node e2e/foto.mjs || true

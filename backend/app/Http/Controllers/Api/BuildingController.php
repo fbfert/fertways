@@ -302,6 +302,9 @@ class BuildingController extends Controller
                     // Vai junto mesmo quando o estado é outro: uma construção que rende dois recursos
                     // com um deles no teto produz pela metade, e a tela pode contar isso.
                     'recursos_no_teto' => $estado['recursos_no_teto'],
+                    // Os insumos da receita que não dão nem para um lote (D-219). Idem: vai junto
+                    // mesmo quando o estado principal é outro.
+                    'insumos_em_falta' => $estado['insumos_em_falta'],
                     'id' => $b->id,
                     'type' => $b->type,
                     'level' => $b->level,

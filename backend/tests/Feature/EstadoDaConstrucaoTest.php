@@ -198,15 +198,17 @@ class EstadoDaConstrucaoTest extends TestCase
 
         $servico = app(EstadoDaConstrucao::class);
         $producao = ['biocombustivel' => 20];
+        // Insumos da receita em caixa: sem isto ela seria `sem_insumo`, e este teste é sobre o TETO.
+        $insumos = ['biomassa' => 500, 'energia' => 500];
 
         // Tanque de nível 1 cabe 200. Com 199 ainda entra o próximo litro.
         $this->assertSame(
             EstadoDaConstrucao::PRODUZINDO,
-            $servico->de($colony, $destilaria, $producao, ['biocombustivel' => 199])['estado'],
+            $servico->de($colony, $destilaria, $producao, $insumos + ['biocombustivel' => 199])['estado'],
         );
 
         // No teto do tanque ela para de converter, sem gastar Biomassa/Energia à toa (D-131).
-        $cheio = $servico->de($colony, $destilaria, $producao, ['biocombustivel' => 200]);
+        $cheio = $servico->de($colony, $destilaria, $producao, $insumos + ['biocombustivel' => 200]);
         $this->assertSame(EstadoDaConstrucao::TRAVADA, $cheio['estado']);
         $this->assertSame(['biocombustivel'], $cheio['recursos_no_teto']);
     }
@@ -240,9 +242,111 @@ class EstadoDaConstrucaoTest extends TestCase
         $this->assertSame(EstadoDaConstrucao::TRAVADA, $specs['fazenda']['estado']);
         $this->assertSame(['biomassa'], $specs['fazenda']['recursos_no_teto']);
 
-        // O Metal Bruto dela é insumo: sem produção declarada, o serviço cala.
-        $this->assertNull($specs['industria_siderurgica']['estado']);
+        /*
+         * A Siderúrgica não é confundida com produtora de Metal Bruto (o `producao_hora` dela vem
+         * `null`) — mas ela **processa** Metal Bruto, e a colônia está sem. Então o que a tela ouve
+         * não é silêncio, é `sem_insumo`: o prédio está de pé e não processa nada.
+         */
+        $this->assertSame(EstadoDaConstrucao::SEM_INSUMO, $specs['industria_siderurgica']['estado']);
+        $this->assertSame(['metal_bruto'], $specs['industria_siderurgica']['insumos_em_falta']);
         $this->assertSame([], $specs['industria_siderurgica']['recursos_no_teto']);
+    }
+
+    // ─────────────────────── a boca fechada (D-219): 58 de 66 fábricas paradas
+
+    /**
+     * ⚠️ O estado que faltava, e o mais caro de não ter tido.
+     *
+     * Medido em produção: **58 das 66 fábricas de conversão do mundo** não produziam nada, 53 delas
+     * por falta de **energia** — e todas apareciam na colmeia como `produzindo`. Treze Refinarias
+     * Químicas erguidas e custeadas sem jamais converter um lote.
+     *
+     * Energia é o caso normal, e não o exótico: ela é estoque **e** fluxo, e uma colônia que gasta o
+     * que gera fica com estoque zero — o D-184 chama isso de estado normal de quem opera.
+     */
+    public function test_refinaria_sem_energia_nao_esta_produzindo(): void
+    {
+        $user = $this->colono();
+        $colony = $user->colony()->first();
+
+        $livre = ((int) $colony->buildings()->max('slot')) + 1;
+        $refinaria = Building::create([
+            'colony_id' => $colony->id, 'type' => 'refinaria_quimica', 'level' => 1, 'slot' => $livre,
+        ]);
+
+        $servico = app(EstadoDaConstrucao::class);
+        $producao = ['compostos_quimicos' => 2];
+
+        // A receita do §24 pede metal_bruto 1, agua 10, biomassa 5 e energia 6.
+        $completo = ['metal_bruto' => 100, 'agua' => 100, 'biomassa' => 100, 'energia' => 100];
+        $this->assertSame(
+            EstadoDaConstrucao::PRODUZINDO,
+            $servico->de($colony, $refinaria, $producao, $completo)['estado'],
+        );
+
+        $semEnergia = $servico->de($colony, $refinaria, $producao, ['energia' => 0] + $completo);
+        $this->assertSame(EstadoDaConstrucao::SEM_INSUMO, $semEnergia['estado']);
+        $this->assertSame(['energia'], $semEnergia['insumos_em_falta']);
+    }
+
+    /**
+     * ⚠️ `< o que um lote pede`, e não `<= 0` — é o que `converter()` faz.
+     *
+     * Ele calcula quantos lotes cabem no insumo disponível e, faltando para um, não converte nada.
+     * Perguntar só por zero deixaria a Refinaria com 3 de energia numa receita que pede 6 dizendo
+     * que produz — parada do mesmo jeito.
+     */
+    public function test_insumo_insuficiente_para_um_lote_ja_e_falta(): void
+    {
+        $user = $this->colono();
+        $colony = $user->colony()->first();
+
+        $livre = ((int) $colony->buildings()->max('slot')) + 1;
+        $refinaria = Building::create([
+            'colony_id' => $colony->id, 'type' => 'refinaria_quimica', 'level' => 1, 'slot' => $livre,
+        ]);
+
+        $estado = app(EstadoDaConstrucao::class)->de(
+            $colony, $refinaria, ['compostos_quimicos' => 2],
+            ['metal_bruto' => 100, 'agua' => 100, 'biomassa' => 100, 'energia' => 3],
+        );
+
+        $this->assertSame(EstadoDaConstrucao::SEM_INSUMO, $estado['estado']);
+        $this->assertSame(['energia'], $estado['insumos_em_falta']);
+    }
+
+    /** A Oficina tem TRÊS receitas (§24.5) e escolhe uma: a falta é da receita ATIVA, não do tipo. */
+    public function test_a_oficina_e_medida_pela_receita_que_escolheu(): void
+    {
+        $user = $this->colono();
+        $colony = $user->colony()->first();
+
+        $livre = ((int) $colony->buildings()->max('slot')) + 1;
+        $oficina = Building::create([
+            'colony_id' => $colony->id, 'type' => 'oficina', 'level' => 1, 'slot' => $livre,
+            'recipe' => 'basica',
+        ]);
+
+        // A básica pede estanho 8, cobre 8, silicio 6, aluminio 5, agua 5, energia 10.
+        $estado = app(EstadoDaConstrucao::class)->de(
+            $colony, $oficina, ['componentes_eletronicos' => 15],
+            ['estanho' => 100, 'cobre' => 100, 'silicio' => 100, 'aluminio' => 100, 'agua' => 100, 'energia' => 0],
+        );
+
+        $this->assertSame(EstadoDaConstrucao::SEM_INSUMO, $estado['estado']);
+        $this->assertSame(['energia'], $estado['insumos_em_falta']);
+    }
+
+    /** Fazenda, Reator e companhia não têm receita: produzem do nada, e nunca ficam `sem_insumo`. */
+    public function test_construcao_sem_receita_nunca_fica_sem_insumo(): void
+    {
+        $this->ligarTeto();
+        $user = $this->colono();
+
+        $estado = $this->estadoDe($user, 'fazenda');
+
+        $this->assertSame(EstadoDaConstrucao::PRODUZINDO, $estado['estado']);
+        $this->assertSame([], $estado['insumos_em_falta']);
     }
 
     // ─────────────────────────────────── o silêncio honesto

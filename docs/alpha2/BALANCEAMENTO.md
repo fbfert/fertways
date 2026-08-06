@@ -322,7 +322,14 @@ Comando: `php84 artisan fertways:simular-populacao --dias=60 --nivel-habitacao=3
 **Leitura:** com esta produção a colônia satura o teto rápido e depois vive cronicamente em
 escassez — o que o §7.3 descreve como a faixa de *frustração*, não a de *decisão estratégica*. Ou a
 produção de essenciais precisa ser maior do que a desta rodada, ou o consumo per capita precisa
-cair. **Falta arbitrar qual dos dois**, e é decisão do usuário.
+cair. ~~**Falta arbitrar qual dos dois**, e é decisão do usuário.~~
+
+> ⚠️ **ARBITRADO — não aja sobre o parágrafo acima.** As rodadas 6 e 7 (mais abaixo, mesma data)
+> responderam: *"consumo per capita fica onde está... é escolha, não omissão"*. E a medição de campo
+> de 2026-08-05 (§7.1.1) mostrou que a premissa desta rodada era irreal: ela simulou uma colônia
+> produzindo **2 de água/hora**, e a produção de verdade é **80** — 40× mais. A escassez crônica que
+> esta rodada previu **não existe em nenhuma das 29 colônias**. Este bloco fica como registro
+> histórico da evidência; a conclusão dele está vencida.
 
 ⚠️ A métrica-chave do §7.3 — percentual de população comprometida — **ainda não é mensurável**:
 `building_operator_requirements` está vazia, e imprimir "0%" seria ausência de dado com cara de
@@ -440,6 +447,66 @@ lenta, e aí se ajusta; ninguém reclama de um mecanismo que deixou de significa
     consumo: 3% da produção (tempero, por decisão)
 
 Tudo continua **HIPÓTESE** e `ativo` continua `false`. Simulação é evidência, não campo.
+
+> ⚠️ **Dois desvios do campo em relação a este bloco, ambos posteriores e deliberados:**
+>
+> - **energia saiu da cesta** (D-184): o `60` acima é **`0`** em produção. Com energia dentro, **17
+>   das 29 colônias** cairiam a metade da produção de uma vez — não por escassez, mas por **dupla
+>   contagem**: energia é estoque *e* fluxo, e toda construção já a debita por hora. Uma colônia que
+>   gasta o que gera fica com estoque zero, e esse é o estado **normal** de quem opera.
+> - **`ativo` é `true` desde 2026-08-01** (D-178/D-184). O mecanismo está em campo.
+>
+> A configuração viva, e não esta, é `population_settings` — leia de lá antes de citar número.
+
+## 7.1.1 Medição de campo — 2026-08-05 (ARBITRADO: escassez é rede de segurança)
+
+Primeira medição **do campo**, e não do simulador: 29 colônias reais, com o mecanismo `ativo` há
+cinco dias. Ela responde de vez a pergunta que a Rodada 1 deixou no ar.
+
+### A penalidade do §6.6 é inalcançável, e isso é consequência de decisão, não defeito
+
+| medida | valor |
+|---|---|
+| população máxima possível no jogo | **74** (Estrutura de Sobrevivência nível 5) |
+| consumo da colônia inteira nesse teto | água **7,4/h** · oxigênio 8,9/h · biomassa 5,9/h |
+| uma Captação de Água **nível 1** | **80/h** |
+| razão | um prédio essencial de nível 1 rende **10,8×** o consumo máximo teórico da colônia |
+| folga até a penalidade, menor do mundo | **953 horas (40 dias)** |
+| folga mediana | ~14.000 horas (~1,6 ano) |
+| colônias degradadas hoje | **0 de 29** |
+
+E o gatilho aperta mais: `Ciclo::avancar` compara o **estoque** com **uma hora** de consumo. Uma
+colônia de 28 colonos só começa a degradar abaixo de **2,8 de água** no depósito. Não é uma curva de
+escassez, é um cheque de tanque vazio.
+
+### A arbitragem, fechada
+
+**Escassez de população é REDE DE SEGURANÇA, não pressão econômica.** É o desfecho coerente com o
+D-177 (*"população é mão de obra, não bocas"*), com o §7.2 (*"não virar 'The Sims'"*) e com o §6.7.
+A penalidade existe para a colônia que seca **de verdade** — produção destruída em guerra, cerco —
+e não para criar decisão de rotina.
+
+⚠️ **O que isso proíbe, e por quê.** Subir o consumo per capita para "dar peso" à população exigiria
+~**30×** só na água, no nível 1 do prédio. E a penalidade é **multiplicativa e da colônia inteira**:
+faltar água não reduz água, reduz **tudo** até o piso de 50%. É a forma exata do desastre que o D-184
+mediu e desarmou. Não reabrir sem decisão nova e explícita.
+
+### ⚠️ A escassez que EXISTE é industrial, e nada na tela a mostrava
+
+A mesma medição achou o que de fato aperta este mundo — e não é a fome dos colonos:
+
+| | |
+|---|---|
+| fábricas de conversão erguidas | **66** |
+| **produzindo nada** por falta de insumo | **58 (88%)** |
+| parariam de estar paradas só com **energia** | **13** |
+| colônias com estoque de energia zerado | **17 de 29** |
+
+As três receitas da Oficina exigem energia (10/14/20), a Refinaria 6, a Destilaria 3. Como energia é
+estoque **e** fluxo, quem opera no que gera fica em zero — e `ColonyTick::converter()` não converte
+sem insumo. **Treze Refinarias Químicas foram erguidas e custeadas sem jamais converter um lote.**
+
+É para cá que o esforço de balanceamento da população deve ir, e não para o consumo per capita.
 
 ## 7.2 Objetivo
 

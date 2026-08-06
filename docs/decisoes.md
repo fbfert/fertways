@@ -12006,3 +12006,81 @@ Fotografado antes e depois, com `E2E_SO_FOTOS=1` (D-217) — é o único jeito d
 colmeia é canvas e os testes de clique passam por cima dela sem enxergar nada. Suíte e2e inteira
 verde depois da mudança: os alvos de clique são botões de DOM e não dependem da ordem de desenho, mas
 isso precisava ser demonstrado, não suposto.
+
+---
+
+## D-219 — A escassez que existe é industrial, e 58 das 66 fábricas do mundo mentiam na tela
+
+O usuário pediu para falar de escassez de recursos. A conversa começou pela penalidade do §6.6 e
+terminou noutro lugar — porque a medição levou para lá.
+
+### A arbitragem, fechada: escassez de população é REDE DE SEGURANÇA
+
+O `BALANCEAMENTO.md` §7.1 tinha uma pergunta em aberto desde a Rodada 1 (*"ou a produção precisa ser
+maior, ou o consumo per capita precisa cair — falta arbitrar"*). Duas coisas a respondem:
+
+1. **As rodadas 6 e 7 já a tinham fechado**, no mesmo dia: *"consumo per capita fica onde está… é
+   escolha, não omissão"*. Quem lesse a página de cima para baixo pararia na pergunta velha.
+2. **A medição de campo (§7.1.1)** mostrou que a premissa da Rodada 1 era irreal: ela simulou uma
+   colônia produzindo **2 de água/hora**, e a produção de verdade é **80**.
+
+Os números do campo, com 29 colônias e o mecanismo ligado há cinco dias:
+
+| medida | valor |
+|---|---|
+| população máxima possível | **74** (Estrutura nível 5) |
+| consumo da colônia nesse teto | água 7,4/h · oxigênio 8,9/h · biomassa 5,9/h |
+| uma Captação de Água **nível 1** | **80/h** — 10,8× o consumo máximo teórico |
+| folga até a penalidade, menor do mundo | **953 h (40 dias)** |
+| colônias degradadas | **0 de 29** |
+
+E o gatilho compara o estoque com **uma hora** de consumo: uma colônia de 28 colonos só degrada
+abaixo de 2,8 de água. Não é curva de escassez, é cheque de tanque vazio.
+
+⚠️ **Por que não "dar peso" à população.** Exigiria ~30× no consumo só da água, e a penalidade é
+**multiplicativa e da colônia inteira** — faltar água não reduz água, reduz **tudo** até o piso de
+50%. É a forma exata do desastre que o D-184 mediu (17 de 29 colônias a metade da produção de uma
+vez) e que o §6.7 proíbe. Arbitrado com o usuário: **não reabrir**.
+
+### ⚠️ E o que a medição achou no lugar
+
+| | |
+|---|---|
+| fábricas de conversão erguidas no mundo | **66** |
+| **produzindo nada** por falta de insumo | **58 (88%)** |
+| parariam de estar paradas só com energia | **13** |
+| colônias com estoque de energia zerado | **17 de 29** |
+
+As três receitas da Oficina pedem energia (10/14/20), a Refinaria 6, a Destilaria 3. Energia é
+estoque **e** fluxo: quem opera no que gera fica em zero — o D-184 chama isso de estado **normal**.
+E `ColonyTick::converter()` não converte sem insumo. **Treze Refinarias Químicas foram erguidas e
+custeadas sem jamais converter um lote**, e a colmeia desenhava todas como `produzindo`.
+
+### Duas correções minhas
+
+**1. Eu publiquei uma afirmação errada no D-215.** Escrevi que *"energia não trava construção
+nenhuma"*, citando o D-20. É verdade para a **operação** do prédio e **falso para as receitas**. O
+item *"falta de energia"* do roadmap da A2.V3 existe — só não na forma que o roadmap descreve.
+
+**2. E antes disso quase publiquei um alarme falso.** Medi com `TaxasDeProducao` (taxa **nominal**) e
+concluí que 4 colônias secariam a água em 4 dias. Errado: aquele dreno é da Refinaria, que **está
+parada por energia**. A própria classe avisa no docblock que não é projeção. Amostrei o estoque em
+dois instantes — a água está **subindo** (+78/h). Taxa nominal não é previsão, e eu tratei como se
+fosse.
+
+### O estado `sem_insumo`
+
+Vem **antes** do teto de saída na ordem, e a escolha tem razão: a boca fechada é **a montante** — uma
+fábrica que não consegue consumir também não está enchendo nada. E é a menos descobrível: o depósito
+cheio o jogador vê no Depósito Local, com número e barra; a energia que falta para a receita não
+aparecia em tela nenhuma.
+
+O selo é `×` em `perigo`, e **não** o mesmo `!` da travada, de propósito: os dois são "parada", mas
+pedem ações **opostas** — a travada quer que o jogador **gaste** o que ela fez; esta quer que ele
+**traga** o que falta. Um símbolo só mandaria metade dos jogadores para o lado errado.
+
+O limiar é `< o que um lote pede`, e não `<= 0`, porque é o que `converter()` faz: faltando para um
+lote, ele não converte nada. Perguntar só por zero deixaria a Refinaria com 3 de energia numa receita
+que pede 6 dizendo que produz.
+
+1248 testes verdes; suíte e2e inteira verde. Fotografado: os três estados lado a lado na colmeia.

@@ -245,10 +245,22 @@ export type Spec = {
    * construção que rende dois recursos com um deles cheio produz pela metade, e isso é contável.
    */
   recursos_no_teto?: string[]
+  /**
+   * Os insumos da receita que não dão nem para um lote (D-219). A fábrica está de pé e não converte.
+   *
+   * Quase sempre `energia`: ela é estoque **e** fluxo, e a colônia que gasta o que gera fica com
+   * estoque zero — o estado normal de quem opera. Eram 58 das 66 fábricas do mundo assim.
+   */
+  insumos_em_falta?: string[]
 }
 
 /** Ver `App\Domain\Building\EstadoDaConstrucao` — os nomes são os mesmos dos dois lados. */
-export type EstadoDaConstrucao = 'erguendo' | 'melhorando' | 'travada' | 'produzindo'
+export type EstadoDaConstrucao =
+  | 'erguendo'
+  | 'melhorando'
+  | 'travada'
+  | 'sem_insumo'
+  | 'produzindo'
 
 /** Uma construção que o colono pode erguer num slot vazio (D-59). */
 export type Erguivel = {

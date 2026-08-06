@@ -86,6 +86,18 @@ try {
   await page.screenshot({ path: '/tmp/foto-travada.png' })
   console.log('travada → /tmp/foto-travada.png')
 
+  /*
+   * E o painel de uma fábrica de BOCA FECHADA (D-219) — o estado mais comum do jogo real, e o que
+   * mais precisa de texto: "parada" e "parada" são a mesma palavra para duas ações opostas (gastar
+   * o que sobrou, ou trazer o que falta).
+   */
+  await page.keyboard.press('Escape')
+  await new Promise((r) => setTimeout(r, 600))
+  await clicarNaConstrucao(page, 'Refinaria Química')
+  await new Promise((r) => setTimeout(r, 2000))
+  await page.screenshot({ path: '/tmp/foto-sem-insumo.png' })
+  console.log('sem insumo → /tmp/foto-sem-insumo.png')
+
   await page.goto(`${BASE}/capital`, { waitUntil: 'domcontentloaded' })
   await assentar()
   await new Promise((r) => setTimeout(r, 2500))
