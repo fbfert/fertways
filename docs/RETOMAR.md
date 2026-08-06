@@ -59,6 +59,15 @@ Sessão de conferência, sem código de jogo novo. O que foi medido:
   duas delas passaram por motivos que valem ser lidos no D-214: o backup passou **porque root lê o
   que o `fertways` não lê**, e a fumaça passou porque `401` sai do middleware de auth antes de
   tocar o banco. Duas guardas novas entraram, testadas reproduzindo o defeito.
+- ⚠️ **Duas vezes nesta sessão a medida errada quase virou conclusão** — e as duas foram pegas por
+  medir de novo, não por desconfiança:
+  - **taxa nominal tratada como previsão** (D-219): quase publiquei que 4 colônias secariam a água
+    em 4 dias. `TaxasDeProducao` avisa no próprio docblock que não é projeção — o dreno era de uma
+    Refinaria **parada** por energia. Duas amostras do estoque mostraram a água **subindo**.
+  - **banco de dev lido como produção** (D-225): quase publiquei que havia colônias com população
+    zero. O comando tinha rodado em `apps/`, não em `deploy/`. Em produção não havia nenhuma.
+
+  **Antes de concluir de um número: de onde ele veio, e ele é medida ou capacidade?**
 - **A A2.V3 andou duas fatias, e três defeitos vieram de olhar a foto** (D-215, D-217, D-218): a
   faixa de eventos do mundo estava **ilegível** atrás do cabeçalho, o cabeçalho **cobria o topo da
   faixa de avisos**, e o prédio de uma linha pintava por cima do nome da linha de cima. Os três
@@ -1706,14 +1715,54 @@ ida→vigia→volta), sem tabela nova além de `drone_sightings` (as fotos).
      trava a *operação* do prédio, mas trava as *receitas*: sem energia, `converter()` não converte.
    - **operadores** — esses sim são de zona (D-184). São da A2.V4.
 
-   **A próxima é a A2.V4 (Mapa e zonas)** — e é lá que os **operadores** entram, o item que saiu da
-   A2.V3 por ser de zona e não da colmeia.
+   🔄 **A A2.V4 (Mapa e zonas) COMEÇOU (2026-08-06)**, e a medição dela mudou o rumo da fase:
+   - **D-222** — o mapa não tinha eixo: a régua do X nascia na calha de cima, atrás do cabeçalho.
+     Foi para a calha de baixo, e no mobile o mapa passa a terminar acima da barra fixa. E o painel
+     lateral (288px numa tela de 390px) **cobria o planeta** — recolhe atrás de um botão quando não
+     há seleção.
+   - **D-223** — ⚠️ a medida do "o que o mapa não mostra" respondeu **que não há o que mostrar**:
+     1 zona ocupada de 77, 0 cercos, 0 veículos em rota, **0 combates desde sempre**. Ver abaixo.
+   - **D-224** — o painel anunciava um custo de ocupação **escrito à mão e errado**, com um botão
+     sempre habilitado. Agora lê o mesmo código que o comando cobra, e lista tudo o que falta.
+   - **D-225** — o painel de população imprimia `disponivel` negativo cru ("−10 livre(s)"), e o
+     conselho vinha sem a dose. E, atrás disso, **colônia nova nascia estéril**.
+
+   ⚠️ **O QUE A A2.V4 NÃO PODE FAZER, e por quê.** Quatro dos oito itens — **ameaças, zonas,
+   trajetos e estados territoriais** — não têm dado nenhum, porque o jogo não chega lá. E
+   **Federação** não tem campo no payload: `ColoniaVizinha` chega à tela sem nada de federação, então
+   pintar aliado no mapa exige backend antes de desenho.
+
+   **A próxima fatia com dado é a A2.V5 (Capital e Endurance)**, que tem uso real — a menos que
+   alguém ocupe a primeira zona, e aí a A2.V4 ganha o que desenhar.
 
    O método é o do D-210 e ele segue rendendo: **medir o que já existe na tela antes de escolher o
-   que desenhar**. E, em cena de Phaser, **fotografar e olhar** — `E2E_SO_FOTOS=1 ./tools/e2e.sh`
-   dá as fotos em ~1 min sem rodar suíte nenhuma (D-217). Nesta fase a **foto achou cinco defeitos**
-   que a suíte inteira aprovava (D-217, D-218, D-220), incluindo dois números certos que juntos
-   liam como erro. A A2.11 (bots) está **fora do escopo** por decisão.
+   que desenhar**. E, em cena de Phaser ou SVG, **fotografar e olhar** — `E2E_SO_FOTOS=1
+   ./tools/e2e.sh` dá as fotos em ~1 min sem rodar suíte nenhuma (D-217). Entre A2.V3 e A2.V4 a
+   **foto achou sete defeitos** que a suíte inteira aprovava (D-217, D-218, D-220, D-222), incluindo
+   dois números certos que juntos liam como erro e uma régua de 25 números invisíveis que o e2e
+   **contava**. A A2.11 (bots) está **fora do escopo** por decisão.
+
+## ⚠️ Os três portões do território (D-223 a D-225) — leia antes de mexer em número de jogo
+
+A guerra federativa inteira (D-193 a D-207, a fase mais longa do Alpha 2) **nunca teve um combate**,
+e a causa não era desenho: ninguém conseguia ocupar zona. Eram **três portões empilhados**.
+
+| portão | estava | agora |
+|---|---|---|
+| **marco 20** (§05, Desbravador) | 20.000 XP — 3× o total de vida do melhor jogador | **6.000** (BASE 50 → 15, D-223) |
+| **custo material** | anunciado errado na tela | anunciado pelo servidor, com o que falta (D-224) |
+| **população livre** | `−10 livre(s)`, sem dose | déficit legível + o nível-alvo da Estrutura (D-225) |
+
+⚠️ **A recalibragem do marco é arbitragem do usuário, com âncora medida** — não a desfaça sem ler o
+D-223. O XP do mundo caiu **98,5%** em quatro semanas (69.100 → 1.000 por semana) porque **96% dele
+vem de `obra_concluida`**, que é fonte de largada: a colônia se ergue uma vez e a curva de custo
+engasga o resto. A quadrática do marco sobe; a fonte que a alimenta desce. Se alguém mexer na
+`Curva::BASE` de novo, o teste `test_a_base_poe_o_jogador_mais_avancado_na_faixa_do_territorio`
+guarda a razão, não o número.
+
+**Efeito medido:** colônias no marco 20+ foram de **0 para 2**, e as duas são humanas. Hoje elas
+estão a poucos passos da primeira zona do planeta — e os dois conseguem pagar a subida da Estrutura
+que o painel recomenda (conferido em 2026-08-06).
 
 ## Pendências conhecidas, sem bloquear
 
