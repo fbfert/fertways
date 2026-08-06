@@ -250,16 +250,40 @@ export class ColonyScene extends Phaser.Scene {
     const { r, centros } = colmeia(this.linhas, width, height, this.vista)
     const porSlot = new Map(this.specs.map((s) => [s.slot, s]))
 
+    /*
+     * ⚠️ DUAS PASSADAS: primeiro todo o terreno e todos os prédios, e só depois toda a rotulagem.
+     *
+     * Numa passada só — um contêiner completo por slot, na ordem dos slots — o **sprite da linha de
+     * baixo pintava por cima do rótulo da linha de cima**. E não por descuido: o sprite transborda o
+     * hexágono em `1,72·r` de propósito (é o que o faz parecer um prédio pousado no terreno, e não um
+     * selo colado), então ele invade o espaço do vizinho de cima por desenho.
+     *
+     * A conta: o topo do sprite fica a `0,86·r` acima do centro dele, as linhas distam `1,71·r`, e o
+     * nome da linha de cima ocupa de `0,52·r` a `0,86·r` abaixo do centro dela. Os dois se encontram
+     * exatamente na borda — e em nome de duas linhas ("Central de Transportes", "Estrutura de
+     * Sobrevivência") o rótulo perdia a disputa, porque quem desenha depois vence.
+     *
+     * Separar as passadas resolve sem mexer em posição nenhuma: nada do que **informa** (nível, nome,
+     * selo de estado) pode ser coberto pelo que **ilustra**.
+     */
+    const frente: Phaser.GameObjects.Container[] = []
+
     centros.forEach(([x, y], slot) => {
       const spec = porSlot.get(slot)
       const realce = this.realcado === slot
 
-      this.raiz.add(
-        spec
-          ? this.desenharConstrucao(spec, x, y, r, realce)
-          : this.desenharVazio(x, y, r, realce),
-      )
+      if (!spec) {
+        this.raiz.add(this.desenharVazio(x, y, r, realce))
+
+        return
+      }
+
+      const { base, rotulos } = this.desenharConstrucao(spec, x, y, r, realce)
+      this.raiz.add(base)
+      frente.push(rotulos)
     })
+
+    frente.forEach((c) => this.raiz.add(c))
   }
 
   /**
@@ -298,8 +322,16 @@ export class ColonyScene extends Phaser.Scene {
     return c
   }
 
+  /**
+   * Uma construção, em **duas camadas**: o que ilustra e o que informa.
+   *
+   * `base` é o terreno e o prédio; `rotulos` é o nível, o nome e o selo de estado. A cena desenha
+   * todas as `base` primeiro e todos os `rotulos` depois — ver `desenhar()`, que explica por quê.
+   * As duas ficam na mesma posição `(x, y)`, então nada aqui precisa saber da separação.
+   */
   private desenharConstrucao(spec: Spec, x: number, y: number, r: number, realce: boolean) {
     const c = this.add.container(x, y)
+    const rotulos = this.add.container(x, y)
     // Nível 0 = está em obra: a linha já existe e ocupa o slot, mas a construção não subiu.
     const erguida = spec.level > 0
     const pontos = this.hexPontos(0, 0, r)
@@ -361,7 +393,7 @@ export class ColonyScene extends Phaser.Scene {
     const nivelY = temArte ? -r * 0.66 : -r * 0.3
     const nivelTam = temArte ? Math.round(r * 0.3) : Math.round(r * 0.5)
 
-    c.add(
+    rotulos.add(
       this.add
         .text(0, nivelY, erguida ? String(spec.level) : '⏳', {
           fontFamily: 'Archivo, Inter, sans-serif',
@@ -377,24 +409,46 @@ export class ColonyScene extends Phaser.Scene {
 
     /*
      * O nome vai DENTRO do hexágono. Numa colmeia de hexágonos pontudos as linhas distam `1,5·r`,
-     * então não sobra faixa livre abaixo de um hexágono: o da linha seguinte é desenhado depois e
-     * pinta por cima do rótulo. Não era truncamento de texto, era oclusão.
+     * então não sobra faixa livre abaixo de um hexágono — a linha seguinte ocuparia o rótulo.
+     *
+     * ⚠️ E ele ganhou uma PLACA no lugar do contorno.
+     *
+     * O contorno claro em volta de cada glifo resolvia o contraste e criava outro problema: sobre um
+     * telhado irregular, letra contornada vira renda — legível de perto, ruído a olho corrido, e a
+     * colmeia inteira ficava suja de texto. Foi o que a foto do D-215 mostrou em "Central de
+     * Transportes" e "Estrutura de Sobrevivência", os dois nomes de duas linhas.
+     *
+     * A placa é o mesmo remédio que o deck usa no estado `aviso`: quando a cor de texto não passa
+     * sobre um fundo qualquer, **pinte o fundo**. Uma faixa `sandLight` atrás do nome dá contraste
+     * constante, independente do que houver embaixo — e lê como uma placa de identificação no
+     * terreno, que é o que ela é.
      */
-    c.add(
-      this.add
-        .text(0, temArte ? r * 0.52 : r * 0.12, rotulo(spec.type), {
-          fontFamily: 'Archivo, Inter, sans-serif',
-          fontSize: `${Math.max(9, Math.round(r * 0.14))}px`,
-          color: temArte ? '#1e1c17' : erguida ? '#fdf0e2' : '#372f27',
-          // Sobre a arte, o nome precisa de contorno pelo mesmo motivo que o número: ele cai em
-          // cima do prédio, e um texto escuro sobre um telhado escuro desaparece.
-          stroke: temArte ? '#fdf0e2' : undefined,
-          strokeThickness: temArte ? 3 : 0,
-          align: 'center',
-          wordWrap: { width: r * 1.15, useAdvancedWrap: true },
-        })
-        .setOrigin(0.5, 0),
-    )
+    const nome = this.add
+      .text(0, temArte ? r * 0.52 : r * 0.12, rotulo(spec.type), {
+        fontFamily: 'Archivo, Inter, sans-serif',
+        fontSize: `${Math.max(9, Math.round(r * 0.14))}px`,
+        color: temArte ? '#1e1c17' : erguida ? '#fdf0e2' : '#372f27',
+        align: 'center',
+        wordWrap: { width: r * 1.15, useAdvancedWrap: true },
+      })
+      .setOrigin(0.5, 0)
+
+    if (temArte) {
+      const folgaX = Math.max(3, r * 0.06)
+      const folgaY = Math.max(1, r * 0.02)
+      const placa = this.add.graphics()
+      placa.fillStyle(CORES.sandLight, 0.92)
+      placa.fillRoundedRect(
+        -nome.width / 2 - folgaX,
+        nome.y - folgaY,
+        nome.width + folgaX * 2,
+        nome.height + folgaY * 2,
+        Math.max(2, r * 0.04),
+      )
+      rotulos.add(placa)
+    }
+
+    rotulos.add(nome)
 
     /*
      * O selo de estado (A2.V3), por último: ele fica POR CIMA da arte e do texto de propósito.
@@ -418,11 +472,11 @@ export class ColonyScene extends Phaser.Scene {
      * tiver ciclo de vida próprio; o estado não precisa esperar por ela.
      */
     if (spec.estado === 'melhorando') {
-      c.add(this.desenharSelo(r, '↑', CORES.info, '#fdf0e2'))
+      rotulos.add(this.desenharSelo(r, '↑', CORES.info, '#fdf0e2'))
     } else if (spec.estado === 'travada') {
-      c.add(this.desenharSelo(r, '!', CORES.ember, '#1e1c17'))
+      rotulos.add(this.desenharSelo(r, '!', CORES.ember, '#1e1c17'))
     }
 
-    return c
+    return { base: c, rotulos }
   }
 }

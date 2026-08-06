@@ -11964,3 +11964,45 @@ Não substitui a suíte: é o atalho para conferir desenho.
 O `!` que o D-216 tirou da faixa de avisos saiu do painel de estado da construção pelo mesmo motivo:
 onde há frase inteira, **o texto é o segundo canal**. O selo no hexágono mantém o glifo — lá não cabe
 frase nenhuma, e ele é o único segundo canal possível.
+
+---
+
+## D-218 — A2.V3, leitura espacial: o prédio de baixo pintava por cima do nome de cima
+
+Segunda fatia da A2.V3, e a primeira sobre *"nova leitura espacial"*. Saiu de olhar a foto do D-215,
+não de um relatório: os nomes da colmeia estavam sujos, e dois deles — **"Central de Transportes"** e
+**"Estrutura de Sobrevivência"**, os de duas linhas — mal se liam.
+
+### A causa: quem desenha depois vence
+
+A cena montava **um contêiner completo por slot** (hexágono, prédio, nível, nome) e os adicionava na
+ordem dos slots. Só que o sprite transborda o hexágono em `1,72·r` **de propósito** — é o que o faz
+parecer um prédio pousado no terreno, e não um selo colado. Resultado: o sprite da linha de baixo
+invadia o espaço do vizinho de cima e pintava por cima do rótulo dele.
+
+A conta fecha: o topo do sprite fica a `0,86·r` acima do centro dele, as linhas distam `1,71·r`, e o
+nome da linha de cima ocupa de `0,52·r` a `0,86·r` abaixo do centro dela. **Encontram-se exatamente
+na borda** — e em nome de duas linhas o rótulo perdia.
+
+**Duas passadas** resolvem sem mover nada: todo o terreno e todos os prédios primeiro, toda a
+rotulagem depois. A regra que fica: **nada do que informa (nível, nome, selo de estado) pode ser
+coberto pelo que ilustra.**
+
+### A placa, no lugar do contorno
+
+O nome era desenhado com contorno claro em volta de cada glifo. Aquilo resolvia o contraste e criava
+outro problema: sobre um telhado irregular, letra contornada vira **renda** — legível de perto, ruído
+a olho corrido, e a colmeia inteira ficava suja de texto.
+
+A placa é o mesmo remédio que o deck usa no estado `aviso`: quando a cor do texto não passa sobre um
+fundo qualquer, **pinte o fundo**. Uma faixa `sandLight` atrás do nome dá contraste constante, seja
+qual for o telhado embaixo — e lê como placa de identificação no terreno, que é o que ela é.
+
+Sem arte, nada muda: o hexágono chapado já dava contraste, e uma placa ali seria enfeite.
+
+### Como foi conferido
+
+Fotografado antes e depois, com `E2E_SO_FOTOS=1` (D-217) — é o único jeito de ver isto, porque a
+colmeia é canvas e os testes de clique passam por cima dela sem enxergar nada. Suíte e2e inteira
+verde depois da mudança: os alvos de clique são botões de DOM e não dependem da ordem de desenho, mas
+isso precisava ser demonstrado, não suposto.
