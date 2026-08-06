@@ -12239,3 +12239,89 @@ desenho mais o controle de abrir provam a tela funcional. A asserção ficou mai
 frouxa.
 
 Suíte e2e inteira verde.
+
+---
+
+## D-223 — O portão do território era assintótico, e ele não é o único
+
+O usuário pediu a medição da A2.V4 (*"que verdade do servidor o mapa não mostra?"*). A resposta foi
+que **o mapa não tem o que mostrar**, e o motivo não é de desenho.
+
+### O que o mapa não pinta — e por que isso importa menos do que parecia
+
+`corDaZona` pinta a zona **só por dono**. Ignora `maintenance_unpaid_since`, `sieged_at`,
+`modules_offline`, `structures_saboted`, `garrison` e `status`. A frota é carregada e **não é
+desenhada** — não há trajetos. E a colônia vizinha chega à tela sem campo nenhum de federação.
+
+Só que o mundo, medido:
+
+| camada | hoje |
+|---|---|
+| zonas ocupadas | **1 de 77** |
+| inadimplentes · sob cerco · sabotadas · protegidas | 0 · 0 · 0 · 0 |
+| **combates registrados, desde sempre** | **0** |
+| veículos em rota | 0 (41 ociosos) |
+
+A guerra federativa inteira — D-193 a D-207, a fase mais longa do Alpha 2 — **nunca teve um
+combate**. Polir "ameaças" e "estados territoriais" seria polir portas que ninguém consegue abrir.
+
+### ⚠️ O XP não é lento: ele parou
+
+A primeira leitura foi ingênua. Dividi o XP total por 24 dias e conclui "46 dias para o líder". A
+série temporal desmente:
+
+| semana | atos | XP do mundo inteiro |
+|---|---|---|
+| 13/07 | 519 | **69.100** |
+| 20/07 | 70 | 8.150 |
+| 27/07 | 18 | 2.200 |
+| 04/08 | 10 | **1.000** |
+
+Queda de **98,5%**. O ritmo de hoje é ~300 XP/dia para as 29 colônias **somadas**, e nos últimos 14
+dias só **cinco** colônias pontuaram — uma delas (Energizer do Gamer, humana) fez 2.950 dos 4.550.
+
+A causa é estrutural: **96% do XP vem de `obra_concluida`**, que é fonte de largada. A colônia se
+ergue na primeira semana e depois a curva de custo (1,5×/1,65×) engasga o ritmo. A quadrática do
+marco sobe; a fonte que a alimenta desce. Com BASE 50, o marco 20 não era distante — era
+**assintótico**.
+
+### A recalibragem, e a âncora dela
+
+BASE **50 → 15**. O 50 foi escolhido no D-75 sem campo nenhum (o Marco tinha acabado de nascer); o 15
+sai de uma âncora medida:
+
+> **O §05 dá o território ao marco 20 (Desbravador).** Com BASE 50 a colônia mais avançada do mundo
+> estava no marco **11** — o portão pedia **3× o total de vida do melhor jogador**. Com 15 ela fica
+> no **21**: o jogador mais avançado acaba de alcançar a faixa que o GDD associa a território, que é
+> o que o documento descreve.
+
+Efeito medido antes de publicar: colônias no marco 20+ vão de **0 para 2** — e as duas são
+**humanas**. Os bots ficam no 15–16. A mediana (2.600) fica no marco 13: território é conquista, não
+piso.
+
+O D-75 avisou que mexer na BASE **reescala o marco de todo mundo** e que isso é arbitragem, não
+balanceamento. É arbitragem, e foi do usuário.
+
+### ⚠️ E isto sozinho NÃO destrava o território
+
+A medida seguinte é a que impede a comemoração. Ocupar uma zona exige, além do marco: **300 Fert$ +
+1.020 Metal Bruto + 1.200 Ligas + 400 Componentes**, e **população livre**. Os dois líderes humanos:
+
+| colônia | falta |
+|---|---|
+| Maior Colonia | 5 componentes, 128 Fert$ — e **0 colonos livres** |
+| Energizer do Gamer | 453 metal, 394 ligas, 300 componentes, 153 Fert$ — e **−9 colonos livres** |
+
+São **três portões empilhados** (marco, material, população), e o marco era o mais fora de escala —
+não o único. O gargalo seguinte é **população livre**, que se destrava subindo a Estrutura de
+Sobrevivência. Nenhum deles foi tocado aqui: mexer em três números de uma vez tornaria impossível
+saber qual causou o quê, que é a lição do D-184.
+
+### O teste que guarda a razão, e não o número
+
+`test_a_base_poe_o_jogador_mais_avancado_na_faixa_do_territorio` afirma a **âncora**: 6.900 XP tem de
+dar Desbravador, e a mediana medida não. Se alguém mexer na BASE de novo, é esse sentido que precisa
+continuar de pé. E os dois testes que fixavam `5_000` para dizer "marco 10" passaram a derivar de
+`Curva::xpDoMarco(10)` — número cru em teste é armadilha para a próxima recalibragem.
+
+1251 testes verdes.

@@ -51,7 +51,7 @@ class MarcoTest extends TestCase
         $colony->forceFill(['xp' => $xp])->save();
     }
 
-    // ---------------------------------------------------------------- a curva (50×N²)
+    // ---------------------------------------------------------------- a curva (BASE×N²)
 
     public function test_a_curva_e_os_titulos_publicados(): void
     {
@@ -59,20 +59,42 @@ class MarcoTest extends TestCase
         $this->assertSame(1, Curva::marco(0));
         $this->assertSame('Sobrevivente', Curva::titulo(1));
 
-        // Os degraus da arbitragem: 50×N².
-        $this->assertSame(1_250, Curva::xpDoMarco(5));
-        $this->assertSame(5_000, Curva::xpDoMarco(10));
-        $this->assertSame(20_000, Curva::xpDoMarco(20));
-        $this->assertSame(500_000, Curva::xpDoMarco(100));
+        // Os degraus da arbitragem, recalibrados contra o campo no D-223: BASE 50 → 15.
+        $this->assertSame(375, Curva::xpDoMarco(5));
+        $this->assertSame(1_500, Curva::xpDoMarco(10));
+        $this->assertSame(6_000, Curva::xpDoMarco(20));
+        $this->assertSame(150_000, Curva::xpDoMarco(100));
 
         // E os oito nomes do §03/§05, por faixa.
-        $this->assertSame('Colono', Curva::titulo(Curva::marco(1_250)));
-        $this->assertSame('Pioneiro', Curva::titulo(Curva::marco(5_000)));
-        $this->assertSame('Desbravador', Curva::titulo(Curva::marco(20_000)));
-        $this->assertSame('Lenda de Fertways', Curva::titulo(Curva::marco(500_000)));
+        $this->assertSame('Colono', Curva::titulo(Curva::marco(375)));
+        $this->assertSame('Pioneiro', Curva::titulo(Curva::marco(1_500)));
+        $this->assertSame('Desbravador', Curva::titulo(Curva::marco(6_000)));
+        $this->assertSame('Lenda de Fertways', Curva::titulo(Curva::marco(150_000)));
 
         // O teto é 100: não existe marco 101, por mais XP que se acumule.
         $this->assertSame(100, Curva::marco(9_999_999));
+    }
+
+    /**
+     * ⚠️ A âncora do D-223, e ela é do CAMPO — o que este teste guarda não é o 15, é a razão dele.
+     *
+     * A colônia mais avançada do mundo tinha **6.900 XP** depois de 24 dias, com o XP semanal do
+     * planeta caindo 98,5% (69.100 → 1.000). Com BASE 50 ela ficava no marco 11, e o §05 dá o
+     * território ao marco 20: o portão pedia **3× o total de vida do melhor jogador**, alimentado por
+     * uma fonte que decai (96% do XP é obra concluída, e a colônia só se ergue uma vez).
+     *
+     * A calibragem põe o jogador mais avançado do mundo **na faixa que o GDD associa a território**.
+     * Se alguém mexer na BASE de novo, é este número que precisa continuar fazendo sentido.
+     */
+    public function test_a_base_poe_o_jogador_mais_avancado_na_faixa_do_territorio(): void
+    {
+        $marcoDoLider = Curva::marco(6_900);
+
+        $this->assertGreaterThanOrEqual(20, $marcoDoLider, 'o líder do campo tem de alcançar o Desbravador');
+        $this->assertSame('Desbravador', Curva::titulo($marcoDoLider));
+
+        // E a mediana medida (2.600) fica abaixo dele: território é conquista, não piso.
+        $this->assertLessThan(20, Curva::marco(2_600));
     }
 
     // ---------------------------------------------------------------- o ledger
@@ -244,7 +266,9 @@ class MarcoTest extends TestCase
     public function test_o_painel_de_jogadores_mostra_o_marco(): void
     {
         $user = $this->colono();
-        $this->darXp($user->colony, 5_000);
+        // Derivado da curva, e não o número cru: o que o teste quer é "uma colônia no marco 10", e
+        // isso precisa continuar verdade quando a BASE for recalibrada de novo (D-223).
+        $this->darXp($user->colony, Curva::xpDoMarco(10));
 
         $admin = Admin::create([
             'name' => 'Op2', 'email' => 'op2@fertways.test',
@@ -284,13 +308,13 @@ class MarcoTest extends TestCase
     public function test_a_colonia_publica_o_marco_no_payload(): void
     {
         $user = $this->colono();
-        $this->darXp($user->colony, 5_000);
+        $this->darXp($user->colony, Curva::xpDoMarco(10));
 
         $this->actingAs($user)->getJson('/colony')
             ->assertOk()
             ->assertJsonPath('marco.numero', 10)
             ->assertJsonPath('marco.titulo', 'Pioneiro')
-            ->assertJsonPath('marco.xp', 5_000)
+            ->assertJsonPath('marco.xp', Curva::xpDoMarco(10))
             ->assertJsonPath('marco.xp_do_proximo', Curva::xpDoMarco(11));
     }
 }
