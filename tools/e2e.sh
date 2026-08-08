@@ -523,7 +523,52 @@ $c->resources()->where("resource_type", "energia")->update(["amount" => 0]);
 $c->resources()->where("resource_type", "componentes_eletronicos")->update(["amount" => 12]);
 $c->update(["fert_micro" => 140 * 1000000]);
 
-echo "biomassa no teto, Captação subindo de nível, Refinaria sem energia, e ocupação bloqueada\n";
+/*
+ * A2.V6 (D-236): TRÊS eventos vivos e uma cesta entregue.
+ *
+ * Nenhum dos dois acontece num mundo recém-semeado, e os dois são o que a A2.V6 precisa olhar. A
+ * produção tem três eventos simultâneos desde o D-234 — a faixa empilha um parágrafo por evento —,
+ * e é exatamente essa pilha que ninguém nunca viu numa tela de telefone.
+ *
+ * Os textos são cópia dos de produção, e não amostras curtas: o risco é o COMPRIMENTO, e um
+ * "evento de teste" de doze caracteres fotografaria um problema que não existe.
+ */
+$janela = ["comeca_em" => now()->subHour(), "termina_em" => now()->addDays(30), "status" => "ativo"];
+
+App\Models\GameEvent::updateOrCreate(["slug" => "cesta_de_presente"], $janela + [
+  "nome" => "Cesta de Presente",
+  "mensagem_publica" => "O Governo de Fertways abre os armazéns: uma cesta para cada colônia, e o portão do território cede a 5% do XP de sempre por 30 dias.",
+  "modificador" => "ocupacao_marco", "efeito_bps" => -9500,
+  "recompensas" => ["energia" => 20000, "ligas_metalicas" => 1300, "__fert__" => 400000000],
+]);
+App\Models\GameEvent::updateOrCreate(["slug" => "cesta_de_presente_colonos"], $janela + [
+  "nome" => "Cesta de Presente — mutirão de colonos",
+  "mensagem_publica" => "Durante a Cesta, ocupar uma zona neutra não exige colonos livres. A zona nasce com equipe; amplie a habitação para não ficar devendo operadores.",
+  "modificador" => "ocupacao_populacao", "efeito_bps" => -10000,
+]);
+App\Models\GameEvent::updateOrCreate(["slug" => "cesta_de_presente_2"], $janela + [
+  "nome" => "Cesta de Presente — segunda remessa",
+  "mensagem_publica" => "Os armazéns do Governo abrem de novo: Ligas Metálicas para erguer o Posto de Comando, e energia para movê-lo. O portão do território segue aberto até 06/09.",
+  "modificador" => null, "efeito_bps" => null,
+  "recompensas" => ["ligas_metalicas" => 1300, "energia" => 5000],
+]);
+
+/*
+ * E a cesta CHEGANDO: sem lançamento no ledger o "Desde sua última visita" não tem presente para
+ * mostrar, e a seção nova do D-235 sairia da foto vazia — que é o mesmo que não fotografar.
+ *
+ * O marcador vai para trás na mesma tacada: dentro do piso de uma hora o resumo não aparece, e o
+ * popup é o que se quer olhar.
+ */
+foreach ([["energia", 20000], ["ligas_metalicas", 1300], [null, 400000000]] as [$rec, $qtd]) {
+    App\Models\Ledger::create([
+        "colony_id" => $c->id, "type" => "presente_evento", "amount" => $qtd,
+        "resource_type" => $rec, "ref" => "evento:cesta_de_presente", "created_at" => now()->subHours(2),
+    ]);
+}
+$c->user->forceFill(["resumo_visto_em" => now()->subHours(5)])->save();
+
+echo "biomassa no teto, Captação subindo de nível, Refinaria sem energia, ocupação bloqueada, 3 eventos vivos e uma cesta entregue\n";
 ' 2>&1 | tail -2)
 
   E2E_URL="http://127.0.0.1:$PORTA_WEB" node e2e/foto.mjs || true

@@ -24,6 +24,23 @@ try {
    * vinha dispensado — `resumo.e2e.mjs` o fecha —, mas com `E2E_SO_FOTOS=1` nenhuma suíte roda e a
    * foto saía com um popup por cima do que se queria olhar.
    */
+  /*
+   * ⚠️ Mas ANTES de dispensá-lo, fotografe-o (A2.V6, D-236).
+   *
+   * O resumo é a tela onde a cesta de evento vira notícia (D-235), e ela nunca tinha sido
+   * fotografada — o script sempre fechou o popup como estorvo. Enquanto ele mostrava só produção e
+   * obras isso passava; agora ele carrega uma lista de recursos que pode ser longa, dentro de um
+   * `Popup`, e "cabe na tela?" é pergunta que só a foto responde.
+   */
+  const temResumo = await page.$('[data-resumo]')
+  if (temResumo) {
+    await page.screenshot({ path: '/tmp/foto-resumo.png' })
+    console.log('resumo → /tmp/foto-resumo.png')
+    console.log('  presentes na tela:', JSON.stringify(await medirResumo(page)))
+  } else {
+    console.log('⚠️ o resumo não apareceu — sem ele a seção de presentes não é conferível')
+  }
+
   const fechou = await page.evaluate(() => {
     const botao = [...document.querySelectorAll('button')].find((b) => b.textContent?.trim() === 'Continuar')
     botao?.click()
@@ -64,6 +81,51 @@ try {
 
   await page.screenshot({ path: '/tmp/foto-colonia.png' })
   console.log('colônia → /tmp/foto-colonia.png')
+
+  /*
+   * ⚠️ A faixa de eventos NO TELEFONE, com os três eventos que a produção tem (A2.V6, D-236).
+   *
+   * No desktop a faixa é uma linha por evento e ninguém repara. Em 390 px cada frase quebra em
+   * várias linhas, e três delas empilhadas podem virar uma parede sobre a colmeia — que é
+   * `pointer-events-none` e portanto nem se fecha. É a terceira vez que uma barra flutuante desta
+   * tela cobre conteúdo (D-215, D-217), e as duas primeiras passaram por todos os testes.
+   */
+  await page.setViewport({ width: 390, height: 844 })
+  await new Promise((r) => setTimeout(r, 1800))
+  await page.screenshot({ path: '/tmp/foto-colonia-mobile.png' })
+  console.log('colônia mobile → /tmp/foto-colonia-mobile.png')
+  console.log('  faixa mobile (fechada):', JSON.stringify(await medirFaixa(page)))
+
+  /*
+   * ABERTA e DISPENSADA (D-236). Os três estados da faixa importam por motivos diferentes: fechada
+   * é o que o jogador vê sempre, aberta é o pior caso de altura, e dispensada tem de devolver a
+   * colmeia inteira — se o × não sumir com ela, o conserto não consertou nada.
+   */
+  const abriuFaixa = await page.evaluate(() => {
+    const b = document.querySelector('[data-eventos-detalhes]')
+    b?.click()
+
+    return Boolean(b)
+  })
+  if (abriuFaixa) {
+    await new Promise((r) => setTimeout(r, 700))
+    await page.screenshot({ path: '/tmp/foto-colonia-mobile-aberta.png' })
+    console.log('colônia mobile, faixa aberta → /tmp/foto-colonia-mobile-aberta.png')
+    console.log('  faixa mobile (aberta):', JSON.stringify(await medirFaixa(page)))
+  } else {
+    console.log('⚠️ não achei o botão de detalhes da faixa')
+  }
+
+  await page.evaluate(() => document.querySelector('[data-eventos-fechar]')?.click())
+  await new Promise((r) => setTimeout(r, 700))
+  await page.screenshot({ path: '/tmp/foto-colonia-mobile-sem-faixa.png' })
+  console.log('colônia mobile, faixa dispensada → /tmp/foto-colonia-mobile-sem-faixa.png')
+  console.log('  faixa depois do ×:', JSON.stringify(await medirFaixa(page)))
+
+  await page.setViewport({ width: 1400, height: 900 })
+  await page.reload({ waitUntil: 'domcontentloaded' })
+  await assentar()
+  await new Promise((r) => setTimeout(r, 2000))
 
   /*
    * ⚠️ A pulsação (A2.V3) — e foto nenhuma prova movimento.
@@ -189,6 +251,74 @@ try {
   }
 } finally {
   await fecharNavegador(navegador)
+}
+
+/**
+ * A seção de presentes cabe no popup, ou transborda? (A2.V6, D-236)
+ *
+ * Não afirma nada sobre beleza. Diz quantos itens há, onde a seção começa e acaba, e se o fundo dela
+ * passou da janela — que é a única forma de o jogador não conseguir ler o que recebeu.
+ */
+async function medirResumo(page) {
+  return page.evaluate(() => {
+    const sec = document.querySelector('[data-resumo-presentes]')
+    if (!sec) return { erro: 'sem seção de presentes no DOM' }
+
+    const b = sec.getBoundingClientRect()
+    const popup = document.querySelector('[data-resumo]')?.getBoundingClientRect()
+
+    return {
+      itens: sec.querySelectorAll('li').length,
+      eventos: sec.querySelectorAll('ul').length,
+      topo: Math.round(b.top),
+      base: Math.round(b.bottom),
+      janela: window.innerHeight,
+      popup_base: popup ? Math.round(popup.bottom) : null,
+      transborda_a_janela: b.bottom > window.innerHeight,
+    }
+  })
+}
+
+/**
+ * A faixa de eventos cobre quanto da tela? (A2.V6, D-236)
+ *
+ * Três eventos empilhados num telefone é o caso que ninguém olhou. `pointer-events-none` significa
+ * que o jogador não consegue tirá-la do caminho — então a altura dela é o número que importa.
+ */
+async function medirFaixa(page) {
+  return page.evaluate(() => {
+    const f = document.querySelector('[data-eventos]')
+    if (!f) return { erro: 'faixa não está no DOM' }
+
+    const b = f.getBoundingClientRect()
+
+    /*
+     * ⚠️ E o × precisa ser ALCANÇÁVEL, não só existir.
+     *
+     * Um botão de fechar coberto por outro controle é pior do que nenhum: o jogador vê a saída e
+     * clica no zoom. `elementFromPoint` no centro dele responde quem de fato recebe o toque — é a
+     * única medida que alcança oclusão, e a lição do D-217.
+     */
+    const x = f.querySelector('[data-eventos-fechar]')
+    const xb = x?.getBoundingClientRect()
+    const noCentro = xb
+      ? document.elementFromPoint((xb.left + xb.right) / 2, (xb.top + xb.bottom) / 2)
+      : null
+
+    return {
+      eventos: f.querySelectorAll('[data-evento]').length,
+      topo: Math.round(b.top),
+      base: Math.round(b.bottom),
+      altura: Math.round(b.height),
+      janela: window.innerHeight,
+      // Quanto da altura útil da tela a faixa ocupa. É o número que decide se virou parede.
+      por_cento_da_tela: Math.round((b.height / window.innerHeight) * 100),
+      fechar_recebe_o_toque: noCentro ? noCentro.closest('[data-eventos-fechar]') !== null : null,
+      fechar_coberto_por: noCentro && !noCentro.closest('[data-eventos-fechar]')
+        ? (noCentro.getAttribute('aria-label') ?? noCentro.className ?? noCentro.tagName)
+        : null,
+    }
+  })
 }
 
 /**

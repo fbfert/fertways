@@ -13075,3 +13075,75 @@ fecha. **Não medi**: exige a pilha do e2e e uma foto (`E2E_SO_FOTOS=1`), que é
 o D-215 e a única coisa que alcança oclusão. Próxima fatia da A2.V6.
 
 1293 testes verdes.
+
+---
+
+## D-236 — A faixa de eventos era 45% do telefone, e o × que eu pus estava debaixo do zoom
+
+**Data:** 2026-08-08 · **Status:** corrigido
+
+O D-235 deixou isto por escrito como o que **não** tinha sido medido: três eventos vivos, um `<p>`
+por evento, e a suspeita de que no telefone virasse parede. O usuário pediu a foto. Ela achou dois
+defeitos, e o segundo é meu, criado ao consertar o primeiro.
+
+### O que a foto mostrou
+
+Em 390×844, com **quatro** eventos (os três da produção mais a "Tempestade de poeira" que o mundo do
+e2e já tinha — e quatro é mais honesto que três, porque é o caso que vem depois):
+
+| | |
+|---|---|
+| altura da faixa | **376 px de 844** |
+| da tela | **45%** |
+| dispensável? | **não** — `pointer-events-none` desde o D-217 |
+
+A colmeia inteira ficava soterrada, e o jogador não tinha como tirar o aviso do caminho.
+
+⚠️ **A causa não era o número de eventos: era a prosa.** Cada evento imprimia a `mensagem_publica`
+inteira do operador. Com um evento é uma linha; com quatro é um texto corrido de doze.
+
+### As três regras que saíram da foto
+
+1. **A prosa é opcional; o mecanismo não.** O `(…)` é derivado do bps e não envelhece; a `mensagem` é
+   escrita à mão e é enfeite. Fechada, a faixa mostra nome + mecanismo. Aberta (`ver o que dizem`),
+   mostra tudo. Ninguém perde informação — ela deixa de ser imposta.
+2. **Um evento continua aberto por padrão.** Encolher o caso que já estava certo para resolver o que
+   estava errado seria trocar um defeito por outro.
+3. **Dá para fechar.** O `pointer-events-none` do D-217 existia para a faixa não roubar o clique de
+   um slot, e a razão continua boa: ele fica no **contêiner**, e só a caixa ganha `pointer-events-auto`.
+
+### ⚠️ E o × que eu acabara de pôr era inalcançável
+
+Medido com `elementFromPoint` no centro do botão: **quem recebia o toque era o "Centralizar"**, um
+dos controles de cena do canto superior direito. O jogador veria a saída e mexeria no zoom.
+
+O desktop reservava a coluna do HUD (`md:pr-72`) e **ninguém nunca reservou nada no mobile**.
+Enquanto a faixa não tinha botão, isso só encostava texto nos controles; com o botão virou defeito.
+`pr-14` no mobile resolve.
+
+⚠️ **E o e2e dizia que estava tudo bem.** `element.click()` despacha no elemento e **não faz
+hit-testing** — ele fechava a faixa alegremente enquanto um dedo humano não conseguiria. É o D-63
+outra vez, com outra fantasia, e a razão de a medida ter virado `elementFromPoint` em vez de "o
+clique funcionou". O `medirFaixa()` do `foto.mjs` passa a devolver `fechar_recebe_o_toque`.
+
+### O resultado, medido
+
+| | antes | depois |
+|---|---|---|
+| faixa fechada, mobile | 376 px (45%) | **240 px (28%)** |
+| faixa aberta, mobile | — | 480 px (57%), e é opt-in |
+| × recebe o toque | — | **sim** |
+| depois do × | — | fora do DOM |
+
+E o resumo do D-235, fotografado pela primeira vez: a seção **"O Governo enviou"** aparece acima de
+**"Produziu"**, com os três itens, `transborda_a_janela: false`. A separação que o D-235 defendeu no
+texto está de pé na tela.
+
+### O que mudou no instrumento
+
+O `foto.mjs` fotografava a colônia, o mapa, a Capital e o Mercado, e **dispensava o resumo como
+estorvo**. Agora fotografa o resumo antes de fechá-lo, e a colônia também no telefone — que era onde
+os três defeitos desta sessão moravam. O `e2e.sh` semeia os quatro eventos e uma cesta entregue: um
+estado que ninguém consegue fotografar é um estado que ninguém confere.
+
+1293 testes verdes.

@@ -21,6 +21,9 @@ import type { EventoDoMundo } from '../api/client'
  */
 export function EventosDoMundo() {
   const [eventos, setEventos] = useState<EventoDoMundo[]>([])
+  /** Ver a prosa dos operadores. Fechada por padrão quando há mais de um evento — ver o D-236. */
+  const [aberta, setAberta] = useState(false)
+  const [fechada, setFechada] = useState(false)
 
   useEffect(() => {
     let vivo = true
@@ -34,7 +37,7 @@ export function EventosDoMundo() {
     }
   }, [])
 
-  if (eventos.length === 0) return null
+  if (eventos.length === 0 || fechada) return null
 
   /*
    * ⚠️ O que o evento faz, em português — e nunca "produção ou consumo" (D-232).
@@ -58,7 +61,8 @@ export function EventosDoMundo() {
      * O detalhe do que veio na cesta é do "Desde sua última visita", que tem espaço para a lista.
      * Aqui cabe o fato, e o fato é que o Governo mandou alguma coisa.
      */
-    const presente = e.cesta ? 'um presente do Governo, já entregue' : null
+    // Curto de propósito: com quatro eventos, cada palavra a mais é uma linha a mais no telefone.
+    const presente = e.cesta ? 'presente já entregue' : null
 
     if (e.modificador == null) return presente
 
@@ -112,32 +116,110 @@ export function EventosDoMundo() {
    * - `pointer-events-none`: na colônia ela flutua sobre a colmeia, e um aviso que rouba clique de
    *   um slot seria pior do que um aviso invisível;
    * - `md:pr-72` reserva a coluna do HUD (`right-5 w-64`), que começa no mesmo `top-24`.
+   *
+   * ⚠️ **E `pr-14` no MOBILE, que faltava** (D-236). O desktop reservava a coluna do HUD e ninguém
+   * reservou nada para os controles de cena do telefone (zoom e "Centralizar", no canto superior
+   * direito). Enquanto a faixa não tinha botão, isso só encostava texto neles. Com o × do D-236
+   * virou defeito de verdade: medido com `elementFromPoint`, **quem recebia o toque no centro do ×
+   * era o "Centralizar"** — o jogador via a saída e mexia no zoom.
+   *
+   * ⚠️ E o e2e dizia que estava tudo bem: `element.click()` despacha no elemento e **não faz
+   * hit-testing**, então ele fechava a faixa alegremente enquanto um dedo humano não conseguiria.
+   * É o D-63 de novo, com outra fantasia — e a razão de a medida ser `elementFromPoint`, e não
+   * "o clique funcionou".
    */
+  /*
+   * ⚠️ **Com mais de um evento a faixa vira parede, e fotografado é pior do que o número dizia**
+   * (A2.V6, D-236).
+   *
+   * Medido em 390×844 com os quatro eventos que a produção tem: `altura 376 de 844` — **45% da
+   * tela**, do topo até abaixo da metade, com a colmeia soterrada. E a faixa é `pointer-events-none`
+   * desde o D-217, então o jogador **não consegue tirá-la do caminho**. É a terceira oclusão desta
+   * mesma tela (D-215, D-217), e as duas primeiras também passaram por todos os testes.
+   *
+   * A causa não é o número de eventos: é que cada um imprimia a **prosa inteira** do operador. Com
+   * um evento isso é uma linha; com quatro é um texto corrido de doze.
+   *
+   * As três regras que saíram da foto:
+   *
+   * 1. **A prosa é opcional; o mecanismo não.** O `(…)` é derivado do bps e não pode envelhecer; a
+   *    `mensagem` é escrita à mão e é enfeite. Fechada, a faixa mostra nome + mecanismo, uma linha
+   *    por evento. Aberta, mostra tudo. Ninguém perde informação — ela deixa de ser imposta.
+   * 2. **Um evento continua aberto por padrão.** Era o caso que já funcionava, e encolher o que
+   *    estava certo para resolver o que estava errado seria trocar um defeito por outro.
+   * 3. **Dá para fechar.** O `pointer-events-none` do D-217 existia para a faixa não roubar o
+   *    clique de um slot da colmeia, e essa razão continua boa — por isso ela fica no **contêiner**,
+   *    e só a caixa recebe `pointer-events-auto`. O aviso para de ser uma parede que não se remove
+   *    sem deixar de flutuar sobre a colônia.
+   */
+  const varios = eventos.length > 1
+  const detalhado = !varios || aberta
+
   return (
     <div
-      className="pointer-events-none absolute inset-x-0 top-20 z-20 flex justify-center px-4 md:top-24 md:pr-72"
+      className="pointer-events-none absolute inset-x-0 top-20 z-20 flex justify-center py-0 pl-4 pr-14 md:top-24 md:pl-4 md:pr-72"
       data-eventos-faixa
     >
       <div
-        className="border-rust/30 bg-sand max-w-4xl border-l-4 px-3 py-2 shadow-sm"
+        className="border-rust/30 bg-sand pointer-events-auto max-w-4xl border-l-4 px-3 py-2 shadow-sm"
         data-eventos
       >
-        {eventos.map((e, i) => (
-          <p key={i} className="text-ink text-sm" data-evento={e.parcial ? 'parcial' : 'anunciado'}>
-          {e.parcial ? (
-            <>
-              <strong>Algo está afetando a produção no planeta.</strong>{' '}
-              <span className="text-ink-soft">A Central de Notícias ainda não explicou o quê.</span>
-            </>
-          ) : (
-            <>
-              <strong>{e.nome}</strong>
-              {e.mensagem ? ` — ${e.mensagem}` : ''}{' '}
-              {oQueFaz(e) ? <span className="text-ink-soft">({oQueFaz(e)})</span> : null}
-              </>
-            )}
-          </p>
-        ))}
+        <div className="flex items-start gap-3">
+          <div className="min-w-0 flex-1">
+            {eventos.map((e, i) => (
+              <p
+                key={i}
+                className="text-ink text-sm"
+                data-evento={e.parcial ? 'parcial' : 'anunciado'}
+              >
+                {e.parcial ? (
+                  <>
+                    <strong>Algo está afetando a produção no planeta.</strong>
+                    {detalhado ? (
+                      <span className="text-ink-soft">
+                        {' '}
+                        A Central de Notícias ainda não explicou o quê.
+                      </span>
+                    ) : null}
+                  </>
+                ) : (
+                  <>
+                    <strong>{e.nome}</strong>
+                    {detalhado && e.mensagem ? ` — ${e.mensagem}` : ''}{' '}
+                    {oQueFaz(e) ? <span className="text-ink-soft">({oQueFaz(e)})</span> : null}
+                  </>
+                )}
+              </p>
+            ))}
+
+            {varios ? (
+              <button
+                type="button"
+                className="text-rust mt-1 text-xs underline"
+                onClick={() => setAberta((v) => !v)}
+                data-eventos-detalhes
+              >
+                {aberta ? 'menos' : `ver o que dizem (${eventos.length})`}
+              </button>
+            ) : null}
+          </div>
+
+          {/*
+           * Dispensar é da SESSÃO, e não persistido de propósito. Um evento de mundo é temporário e
+           * muda a economia; lembrar "não me mostre" entre visitas faria o jogador voltar amanhã
+           * para uma produção diferente e nenhuma explicação — que é o defeito exato que esta faixa
+           * existe para não ter.
+           */}
+          <button
+            type="button"
+            className="text-ink-soft hover:text-ink shrink-0 text-lg leading-none"
+            aria-label="Dispensar os avisos de evento"
+            onClick={() => setFechada(true)}
+            data-eventos-fechar
+          >
+            ×
+          </button>
+        </div>
       </div>
     </div>
   )
