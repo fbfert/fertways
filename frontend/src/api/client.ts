@@ -1169,6 +1169,19 @@ export type ResumoDeRetorno = {
   fert_ganho_micro: number
   fert_gasto_micro: number
   obras_concluidas: { tipo: string; nivel: number; em: string }[]
+  /**
+   * A2.V6 (D-235): as cestas de evento que chegaram na janela, agrupadas por evento.
+   *
+   * ⚠️ Separado de `producao` de propósito — a colônia não produziu isto, o Governo emitiu. Somar
+   * os dois faria uma colônia parada parecer a mais produtiva do planeta.
+   *
+   * `recurso` nulo é Fert$, e a `quantidade` vem em micro — a convenção do ledger.
+   */
+  presentes: {
+    evento: string
+    nome: string
+    itens: { recurso: string | null; quantidade: number }[]
+  }[]
   /** A janela existiu, mas nada aconteceu nela. É resultado legítimo, não erro. */
   vazio: boolean
 }

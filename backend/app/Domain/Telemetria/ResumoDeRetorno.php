@@ -3,11 +3,13 @@
 namespace App\Domain\Telemetria;
 
 use App\Models\Colony;
+use App\Models\GameEvent;
 use App\Models\Ledger;
 use App\Models\User;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 /**
  * "Desde sua última visita" (A2.0.3; janela definida no GDD ALPHA 2 §5.1).
@@ -124,6 +126,7 @@ class ResumoDeRetorno
         $producao = $this->producao($colonia, $desde, $agora);
         $fert = $this->fert($colonia, $desde, $agora);
         $obras = $this->obras($colonia, $desde, $agora);
+        $presentes = $this->presentes($colonia, $desde, $agora);
 
         return [
             'mostrar' => true,
@@ -134,12 +137,14 @@ class ResumoDeRetorno
             'fert_ganho_micro' => $fert['ganho'],
             'fert_gasto_micro' => $fert['gasto'],
             'obras_concluidas' => $obras,
+            'presentes' => $presentes,
             /*
              * "Nada aconteceu" é um resultado legítimo e precisa ser dizível: quem passou dois dias
              * fora com a colônia sem energia PRECISA ver que não produziu nada. Um resumo que só
              * aparece quando há boa notícia esconde exatamente o que mais importa.
              */
-            'vazio' => $producao === [] && $obras === [] && $fert['ganho'] === 0 && $fert['gasto'] === 0,
+            'vazio' => $producao === [] && $obras === [] && $presentes === []
+                && $fert['ganho'] === 0 && $fert['gasto'] === 0,
         ];
     }
 
@@ -171,8 +176,79 @@ class ResumoDeRetorno
             'fert_ganho_micro' => 0,
             'fert_gasto_micro' => 0,
             'obras_concluidas' => [],
+            'presentes' => [],
             'vazio' => true,
         ];
+    }
+
+    /**
+     * O que o Governo ENTREGOU na janela — a cesta de um evento de mundo (A2.V6, D-235).
+     *
+     * ## ⚠️ Seção própria, e nunca somada à produção
+     *
+     * A tentação é jogar `presente_evento` dentro de `producao()` e pronto: o recurso entrou, o
+     * jogador vê o número subir. Seria mentira sobre a única coisa que este resumo existe para
+     * ensinar — **quanto a colônia produz**. Uma colônia parada que recebe 20.000 de energia
+     * apareceria como a mais produtiva do planeta, e o jogador tiraria a conclusão errada sobre a
+     * própria fábrica na tela feita para lhe dar essa conta.
+     *
+     * É a mesma escolha que o `DirecaoDoLedger` faz ao manter o `ajuste_admin` fora da produção, e
+     * pelo mesmo motivo: misturar esconde justamente o que a linha tem de especial.
+     *
+     * ## O que faltava, e por quanto tempo
+     *
+     * O docblock do D-232 justificou a escrita no ledger dizendo que sem ela *"o «Desde sua última
+     * visita» veria 20.000 de energia surgir e não teria o que dizer"*. O ledger foi escrito e o
+     * leitor nunca existiu: medido em produção um dia depois, uma colônia que recebeu **27.400
+     * unidades em 26 recursos** via `produção: (vazio)` e um ganho solitário de 400 Fert$ — este,
+     * por acaso da conta genérica de Fert$, que não filtra por tipo.
+     *
+     * Dado servido sem consumidor, pela nona vez nesta Alpha. A diferença é que desta vez o
+     * consumidor estava escrito no comentário que justificava o dado.
+     *
+     * ## Agrupa por EVENTO, e não por recurso
+     *
+     * "Você recebeu 1.300 ligas" não diz de onde veio. `ref` guarda `evento:<slug>`, e o nome do
+     * evento é o que transforma um número inexplicável numa notícia: *"Cesta de Presente — segunda
+     * remessa"*. Fert$ entra na mesma lista, em micro, marcado por `resource_type` nulo — a
+     * convenção do ledger.
+     *
+     * @return list<array{evento: string, nome: string, itens: list<array{recurso: ?string, quantidade: int}>}>
+     */
+    private function presentes(Colony $colonia, Carbon $desde, Carbon $ate): array
+    {
+        $linhas = Ledger::query()
+            ->where('colony_id', $colonia->id)
+            ->where('type', 'presente_evento')
+            ->whereBetween('created_at', [$desde, $ate])
+            ->orderByDesc('amount')
+            ->get(['resource_type', 'amount', 'ref']);
+
+        if ($linhas->isEmpty()) {
+            return [];
+        }
+
+        /*
+         * O nome vem do `game_events`, e o slug é o que sobra quando ele não vem. Um evento pode ter
+         * sido apagado; o presente é histórico e não pode sumir do resumo por causa disso — o ledger
+         * é append-only justamente para que o passado sobreviva ao que aconteceu depois dele.
+         */
+        $slugs = $linhas->map(fn ($l) => Str::after((string) $l->ref, 'evento:'))->unique();
+        $nomes = GameEvent::whereIn('slug', $slugs)->pluck('nome', 'slug');
+
+        return $linhas
+            ->groupBy(fn ($l) => Str::after((string) $l->ref, 'evento:'))
+            ->map(fn ($doEvento, $slug) => [
+                'evento' => $slug,
+                'nome' => $nomes[$slug] ?? $slug,
+                'itens' => $doEvento
+                    ->map(fn ($l) => [
+                        'recurso' => $l->resource_type,
+                        'quantidade' => (int) $l->amount,
+                    ])
+                    ->values()->all(),
+            ])
+            ->values()->all();
     }
 
     /** O que a colônia produziu na janela, por recurso, do maior para o menor. */

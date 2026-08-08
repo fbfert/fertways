@@ -13001,3 +13001,77 @@ produzem Ligas Metálicas. Para elas a liga só entra por presente ou comércio,
 pede 1.200. Uma terceira cesta seria a terceira dose do mesmo remédio; o que ataca a causa é o custo
 da Siderúrgica ou a receita da liga, que são balanceamento e não evento — e ficam como decisão em
 aberto.
+
+---
+
+## D-235 — A2.V6 ganhou sujeito, e o presente era invisível na tela feita para explicá-lo
+
+**Data:** 2026-08-08 · **Status:** entregue
+
+Pergunta do usuário: *"o que do GDD podemos construir agora?"*
+
+### A fase que estava parada por falta de dado
+
+O D-227 fechou a A2.V6 anteontem com uma medida: *"a fase é 'Combate e eventos', e as duas metades
+estão vazias: 0 combates desde sempre, e **0 eventos** em `game_events`. Não há o que desenhar."*
+
+Isso deixou de valer ontem. Combate continua em **0**; eventos são **3**, com **841 entregas** e uma
+faixa na tela de todo jogador. **A metade "eventos" da A2.V6 ganhou sujeito**, e foi o D-232/D-234
+que o criou.
+
+### E o sujeito trouxe um defeito de um dia
+
+Medido em produção, *Colônia de Buscalouca*, janela de 20 h em que ela recebeu **27.400 unidades em
+26 recursos mais 400 Fert$**. O que o "Desde sua última visita" lhe mostrava:
+
+```
+produção:  (vazio)
+Fert$:     ganho 400,68
+```
+
+Os 20.000 de energia, as 2.600 ligas, o metal — **nada**. O Fert$ aparecia por acidente: a conta de
+Fert$ é genérica e não filtra por tipo, então ela pegou o presente sem querer.
+
+⚠️ **E o docblock que eu escrevi ontem no D-232 justificava a escrita no ledger com exatamente esta
+tela:** *"sem lançamento, o «Desde sua última visita» veria 20.000 de energia surgir e não teria o
+que dizer"*. Escrevi o ledger e nunca liguei o leitor. É o padrão "dado servido sem consumidor" que
+esta Alpha achou oito vezes (D-227 conta as vezes) — a diferença é que na nona o consumidor estava
+nomeado no comentário que justificava o dado.
+
+### Seção própria, e nunca somada à produção
+
+A saída óbvia era jogar `presente_evento` dentro de `producao()`. Seria mentira sobre a única conta
+que aquela tela existe para dar: **quanto a colônia produz**. Uma colônia parada que recebeu 20.000
+de energia apareceria como a mais produtiva do planeta, na tela feita para lhe dizer o contrário.
+
+É a mesma escolha que o `DirecaoDoLedger` faz ao manter o `ajuste_admin` fora da produção, e pelo
+mesmo motivo: misturar esconde o que a linha tem de especial. O presente vira `presentes`, uma lista
+à parte, e vem **primeiro** — 20.000 de energia caindo do céu domina qualquer produção do período, e
+enterrá-lo abaixo de uma lista de recursos faria o jogador rolar a tela atrás da própria notícia.
+
+Agrupado **por evento, não por recurso**: "você recebeu 1.300 ligas" não diz de onde veio, e o `ref`
+guarda `evento:<slug>`. O nome é o que transforma um número inexplicável numa notícia.
+
+⚠️ Evento apagado não some do resumo — cai no slug. O ledger é append-only para que o passado
+sobreviva ao que veio depois dele, e um presente que desaparecesse porque alguém limpou a tabela de
+eventos anularia a razão de ele estar lá.
+
+### E a faixa não dizia uma palavra sobre o presente
+
+`cesta_de_presente` carrega as duas coisas: entregou a cesta **e** abriu o portão do território. A
+faixa mostrava só o portão, porque a cesta só era mencionada quando **não** havia modificador — e o
+campo `cesta` que o D-232 pôs no payload não tinha consumidor nesse caso. A maior coisa que já
+aconteceu a estes jogadores ficava sem uma linha.
+
+Agora o presente entra antes e se junta ao modificador: *"um presente do Governo, já entregue; ocupar
+zona neutra pede 5% do XP de sempre"*. O detalhe fica no resumo, que tem espaço para a lista; na
+faixa cabe o fato.
+
+### O que fica em aberto, e é visual de verdade
+
+Há **três eventos vivos** e a faixa empilha um `<p>` por evento. No telefone, três frases longas
+podem virar uma parede de texto sobre a colmeia — e a faixa é `pointer-events-none`, então nem se
+fecha. **Não medi**: exige a pilha do e2e e uma foto (`E2E_SO_FOTOS=1`), que é a regra da casa desde
+o D-215 e a única coisa que alcança oclusão. Próxima fatia da A2.V6.
+
+1293 testes verdes.

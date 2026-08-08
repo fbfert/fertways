@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Domain\Colony\CreateColony;
 use App\Models\Colony;
+use App\Models\GameEvent;
 use App\Models\Ledger;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -343,5 +344,138 @@ class ResumoDeRetornoTest extends TestCase
     public function test_resumo_exige_autenticacao(): void
     {
         $this->getJson('/resumo')->assertStatus(401);
+    }
+
+    // ────────────────────────────────────────────── a cesta de evento (A2.V6, D-235)
+
+    /** @param array<string,int> $cesta recurso => quantidade; a chave `null` vira Fert$ em micro */
+    private function presente(Colony $c, string $slug, string $nome, array $cesta, string $quando): void
+    {
+        GameEvent::firstOrCreate(['slug' => $slug], [
+            'nome' => $nome,
+            'comeca_em' => now()->subDay(), 'termina_em' => now()->addDay(),
+            'status' => 'ativo', 'modificador' => null, 'efeito_bps' => null,
+            'recompensas' => $cesta,
+        ]);
+
+        foreach ($cesta as $recurso => $qtd) {
+            Ledger::create([
+                'colony_id' => $c->id, 'type' => 'presente_evento', 'amount' => $qtd,
+                'resource_type' => $recurso === '__fert__' ? null : $recurso,
+                'ref' => "evento:{$slug}", 'created_at' => $quando,
+            ]);
+        }
+    }
+
+    /**
+     * ⚠️ O defeito que este teste guarda: a cesta chegou, o ledger registrou, e a tela feita para
+     * explicar o que mudou **não dizia nada**.
+     *
+     * Medido em produção um dia depois do D-232: uma colônia que recebeu 27.400 unidades em 26
+     * recursos via `produção: (vazio)`.
+     */
+    public function test_a_cesta_de_evento_aparece_no_resumo_com_o_nome_do_evento(): void
+    {
+        [$u, $c] = $this->colonoComColonia();
+        $u->forceFill(['resumo_visto_em' => now()->subHours(5)])->save();
+
+        $this->presente($c, 'cesta_de_presente', 'Cesta de Presente', [
+            'energia' => 20_000, 'ligas_metalicas' => 1_300, '__fert__' => 400_000_000,
+        ], now()->subHours(2)->toDateTimeString());
+
+        $r = $this->actingAs($u)->getJson('/resumo')->assertOk()->json();
+
+        $this->assertTrue($r['mostrar']);
+        $this->assertFalse($r['vazio']);
+        $this->assertCount(1, $r['presentes']);
+        $this->assertSame('Cesta de Presente', $r['presentes'][0]['nome']);
+
+        $itens = collect($r['presentes'][0]['itens']);
+        $this->assertSame(20_000, $itens->firstWhere('recurso', 'energia')['quantidade']);
+        $this->assertSame(1_300, $itens->firstWhere('recurso', 'ligas_metalicas')['quantidade']);
+        // Fert$ viaja com `recurso` nulo e em micro — a convenção do ledger.
+        $this->assertSame(400_000_000, $itens->firstWhere('recurso', null)['quantidade']);
+    }
+
+    /**
+     * ⚠️ **A cesta NUNCA entra na produção.** É a regra inteira desta fatia.
+     *
+     * Somar as duas faria uma colônia parada que recebeu 20.000 de energia aparecer como a mais
+     * produtiva do planeta — na única tela que existe para lhe dizer quanto ela produz.
+     */
+    public function test_a_cesta_nao_conta_como_producao(): void
+    {
+        [$u, $c] = $this->colonoComColonia();
+        $u->forceFill(['resumo_visto_em' => now()->subHours(5)])->save();
+
+        $this->lancar($c, 'producao', 40, 'agua', now()->subHours(3)->toDateTimeString());
+        $this->presente($c, 'cesta', 'Cesta', ['energia' => 20_000], now()->subHours(2)->toDateTimeString());
+
+        $r = $this->actingAs($u)->getJson('/resumo')->assertOk()->json();
+
+        $this->assertSame(
+            [['recurso' => 'agua', 'quantidade' => 40]],
+            $r['producao'],
+            'a produção é só o que a colônia produziu — a energia do presente fica fora',
+        );
+        $this->assertCount(1, $r['presentes']);
+    }
+
+    public function test_duas_cestas_saem_agrupadas_por_evento(): void
+    {
+        [$u, $c] = $this->colonoComColonia();
+        $u->forceFill(['resumo_visto_em' => now()->subHours(5)])->save();
+
+        $this->presente($c, 'primeira', 'Primeira remessa', ['energia' => 20_000], now()->subHours(4)->toDateTimeString());
+        $this->presente($c, 'segunda', 'Segunda remessa', ['ligas_metalicas' => 1_300], now()->subHours(2)->toDateTimeString());
+
+        $r = $this->actingAs($u)->getJson('/resumo')->assertOk()->json();
+
+        $this->assertCount(2, $r['presentes']);
+        $this->assertEqualsCanonicalizing(
+            ['Primeira remessa', 'Segunda remessa'],
+            collect($r['presentes'])->pluck('nome')->all(),
+        );
+    }
+
+    /**
+     * O ledger é append-only para que o passado sobreviva ao que veio depois. Se o evento for
+     * apagado, o presente continua tendo acontecido — e o resumo cai no slug em vez de sumir.
+     */
+    public function test_presente_de_evento_apagado_ainda_aparece_pelo_slug(): void
+    {
+        [$u, $c] = $this->colonoComColonia();
+        $u->forceFill(['resumo_visto_em' => now()->subHours(5)])->save();
+
+        $this->presente($c, 'sumido', 'Sumido', ['energia' => 100], now()->subHours(2)->toDateTimeString());
+        GameEvent::where('slug', 'sumido')->delete();
+
+        $r = $this->actingAs($u)->getJson('/resumo')->assertOk()->json();
+
+        $this->assertCount(1, $r['presentes']);
+        $this->assertSame('sumido', $r['presentes'][0]['nome']);
+    }
+
+    public function test_janela_com_presente_e_mais_nada_nao_e_vazia(): void
+    {
+        [$u, $c] = $this->colonoComColonia();
+        $u->forceFill(['resumo_visto_em' => now()->subHours(5)])->save();
+
+        $this->presente($c, 'so_presente', 'Só presente', ['energia' => 100], now()->subHours(2)->toDateTimeString());
+
+        $r = $this->actingAs($u)->getJson('/resumo')->assertOk()->json();
+
+        $this->assertFalse($r['vazio'], 'receber um presente é acontecimento');
+    }
+
+    public function test_sem_presente_a_lista_vem_vazia_e_nao_nula(): void
+    {
+        [$u, $c] = $this->colonoComColonia();
+        $u->forceFill(['resumo_visto_em' => now()->subHours(5)])->save();
+        $this->lancar($c, 'producao', 40, 'agua', now()->subHours(3)->toDateTimeString());
+
+        $r = $this->actingAs($u)->getJson('/resumo')->assertOk()->json();
+
+        $this->assertSame([], $r['presentes']);
     }
 }

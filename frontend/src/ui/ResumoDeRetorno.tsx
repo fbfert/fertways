@@ -112,6 +112,49 @@ export function ResumoDeRetorno({
           </p>
         ) : (
           <>
+            {/*
+             * ⚠️ O presente vem PRIMEIRO, e em seção própria (A2.V6, D-235).
+             *
+             * Primeiro porque é a maior coisa que aconteceu na janela em que aconteceu: 20.000 de
+             * energia caindo do céu domina qualquer produção do período, e enterrá-lo abaixo de uma
+             * lista de recursos faria o jogador rolar a tela atrás da própria notícia.
+             *
+             * Em seção própria porque somá-lo à produção mentiria sobre a única conta que esta tela
+             * existe para dar. Uma colônia parada que recebeu a cesta apareceria como a mais
+             * produtiva do planeta.
+             */}
+            {dados.presentes.length > 0 && (
+              <section data-resumo-presentes>
+                <h3 className="text-rust eyebrow mb-2">O Governo enviou</h3>
+                <div className="space-y-3">
+                  {dados.presentes.map((p) => (
+                    <div key={p.evento}>
+                      <p className="text-ink mb-1 text-sm font-black">{p.nome}</p>
+                      <ul className="space-y-1">
+                        {p.itens.map((i, n) => (
+                          <li
+                            key={`${p.evento}-${i.recurso ?? 'fert'}-${n}`}
+                            className="flex items-center gap-2 text-sm"
+                          >
+                            {/* `recurso` nulo é Fert$ em micro — a convenção do ledger. */}
+                            {i.recurso ? <IconeRecurso codigo={i.recurso} /> : null}
+                            <span className="text-ink-soft flex-1">
+                              {i.recurso ? nomeRecurso(i.recurso) : 'Fert$'}
+                            </span>
+                            <span className="text-ink font-black">
+                              {i.recurso
+                                ? i.quantidade.toLocaleString('pt-BR')
+                                : fert(i.quantidade, 2)}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
+
             {dados.producao.length > 0 && (
               <section>
                 <h3 className="text-rust eyebrow mb-2">Produziu</h3>

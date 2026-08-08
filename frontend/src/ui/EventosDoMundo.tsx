@@ -48,26 +48,46 @@ export function EventosDoMundo() {
    * A cesta vem primeiro: quando um evento entrega alguma coisa, é isso que o jogador quer ler.
    */
   const oQueFaz = (e: EventoDoMundo): string | null => {
-    if (e.modificador == null) return e.cesta ? 'um presente do Governo, já entregue' : null
+    /*
+     * ⚠️ A cesta entra ANTES do modificador, e some junto com ele (A2.V6, D-235).
+     *
+     * `cesta_de_presente` carrega as duas coisas: entregou 27.400 unidades a cada colônia E abriu o
+     * portão do território. A faixa dizia só o portão — a maior coisa que já aconteceu ao jogador
+     * ficava sem uma palavra, porque a cesta só era mencionada quando NÃO havia modificador.
+     *
+     * O detalhe do que veio na cesta é do "Desde sua última visita", que tem espaço para a lista.
+     * Aqui cabe o fato, e o fato é que o Governo mandou alguma coisa.
+     */
+    const presente = e.cesta ? 'um presente do Governo, já entregue' : null
+
+    if (e.modificador == null) return presente
+
+    const junta = (s: string) => (presente ? `${presente}; ${s}` : s)
 
     const pct = `${(e.efeito ?? 0) > 0 ? '+' : ''}${e.efeito}%`
 
     switch (e.modificador) {
       case 'producao':
       case 'consumo':
-        return `${e.modificador === 'producao' ? 'produção' : 'consumo'} ${pct}${
-          e.recurso ? ` em ${e.recurso}` : ' em tudo'
-        }`
+        return junta(
+          `${e.modificador === 'producao' ? 'produção' : 'consumo'} ${pct}${
+            e.recurso ? ` em ${e.recurso}` : ' em tudo'
+          }`,
+        )
       case 'guerra_declaracao':
-        return (e.efeito ?? 0) <= -100 ? 'trégua imposta: ninguém declara guerra' : `guerra ${pct}`
+        return junta(
+          (e.efeito ?? 0) <= -100 ? 'trégua imposta: ninguém declara guerra' : `guerra ${pct}`,
+        )
       case 'guerra_custo':
-        return `declarar e mobilizar ${pct}`
+        return junta(`declarar e mobilizar ${pct}`)
       case 'ocupacao_marco':
-        return `ocupar zona neutra pede ${100 + (e.efeito ?? 0)}% do XP de sempre`
+        return junta(`ocupar zona neutra pede ${100 + (e.efeito ?? 0)}% do XP de sempre`)
       case 'ocupacao_populacao':
-        return (e.efeito ?? 0) <= -100
-          ? 'ocupar zona neutra não exige colonos livres'
-          : `colonos para ocupar ${pct}`
+        return junta(
+          (e.efeito ?? 0) <= -100
+            ? 'ocupar zona neutra não exige colonos livres'
+            : `colonos para ocupar ${pct}`,
+        )
     }
   }
 
