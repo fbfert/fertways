@@ -117,6 +117,19 @@ class DirecaoDoLedger
         // A2.10: espólio de guerra move recurso de verdade entre colônias.
         'saque_sofrido',
         'saque_recebido',
+
+        /*
+         * A cesta de um evento de mundo (D-232). CONTA, e não é caso de `ajuste_admin`.
+         *
+         * Os dois criam valor sem origem econômica, mas por motivos opostos: o `ajuste_admin`
+         * conserta um estado que estava errado — é meta-jogo, e misturá-lo esconderia justamente o
+         * que ele tem de especial. A cesta é o Governo **emitindo de propósito**, exatamente como o
+         * subsídio do §24.7, a recompensa de missão do §06 e o salário do conciliador, que já estão
+         * todos aqui. É um fato do jogo, o jogador o sente, e a produção da semana em que ele
+         * acontece **deve** mostrar o salto — um retrato que o escondesse faria a telemetria mentir
+         * sobre por que o mundo cresceu.
+         */
+        'presente_evento',
     ];
 
     public function contaNoFluxo(string $tipo): bool

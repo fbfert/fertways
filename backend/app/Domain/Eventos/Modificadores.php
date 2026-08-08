@@ -48,8 +48,33 @@ class Modificadores
     /** Quanto custa declarar e mobilizar, em bps sobre o custo normal. */
     public const GUERRA_CUSTO = 'guerra_custo';
 
+    /**
+     * O XP que o portão de território exige, em bps sobre o normal (D-232).
+     *
+     * `-9500` faz o marco 20 (Desbravador, 6.000 XP) cobrar 300 XP enquanto durar. **Não dá XP a
+     * ninguém**: baixa a régua, e é por isso que ele não escreve no ledger nem mexe no `colonies.xp`
+     * — passado o evento, todo mundo tem exatamente o XP que tinha, e o portão volta ao lugar.
+     *
+     * ⚠️ Vale **só para ocupar zona neutra**, e não para os outros portões do §05 (o Drone nível 2
+     * está no marco 10 e continua lá). Um modificador que abrisse todos de uma vez seria mais fácil
+     * de escrever e impossível de dosar.
+     */
+    public const OCUPACAO_MARCO = 'ocupacao_marco';
+
+    /**
+     * Quantos colonos livres ocupar uma zona exige, em bps sobre o normal (D-232).
+     *
+     * `-10000` isenta: a zona pode ser ocupada sem gente sobrando. Ela **nasce com a equipe assim
+     * mesmo** — a colônia fica devendo operadores ao que tem de pé, que é a situação que o D-178
+     * já tolera e o D-225 já sabe desenhar na tela. Degrada, não confisca (§6.6).
+     */
+    public const OCUPACAO_POPULACAO = 'ocupacao_populacao';
+
     /** A lista canônica. A coluna deixou de ser `enum` para a verdade morar num lugar só. */
-    public const TODOS = [self::PRODUCAO, self::CONSUMO, self::GUERRA_DECLARACAO, self::GUERRA_CUSTO];
+    public const TODOS = [
+        self::PRODUCAO, self::CONSUMO, self::GUERRA_DECLARACAO, self::GUERRA_CUSTO,
+        self::OCUPACAO_MARCO, self::OCUPACAO_POPULACAO,
+    ];
 
     /**
      * ⚠️ Os modificadores que se medem **por instante**, e nunca por média.
@@ -60,8 +85,15 @@ class Modificadores
      * significa coisa alguma.
      *
      * `para()` recusa estes; quem pergunta por eles usa `em()`.
+     *
+     * Os dois portões de ocupação entram aqui pela mesma razão (D-232): *"quanto XP o portão pede
+     * AGORA?"* é pergunta de instante. Ocupar acontece num clique — não há intervalo sobre o qual
+     * ponderar, e uma média diria que o portão está meio aberto, que não é um estado que exista.
      */
-    public const PONTUAIS = [self::GUERRA_DECLARACAO, self::GUERRA_CUSTO];
+    public const PONTUAIS = [
+        self::GUERRA_DECLARACAO, self::GUERRA_CUSTO,
+        self::OCUPACAO_MARCO, self::OCUPACAO_POPULACAO,
+    ];
 
     /**
      * O multiplicador em pontos-base para o intervalo — 10.000 é "sem efeito".

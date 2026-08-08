@@ -2,9 +2,11 @@
 
 namespace App\Domain\Logistics;
 
+use App\Domain\Eventos\Modificadores;
 use App\Domain\Marco\Curva;
 use App\Domain\Populacao\Parametros;
 use App\Domain\Zona\Operadores;
+use App\Exceptions\DomainRuleException;
 use App\Models\Colony;
 use App\Models\NeutralZone;
 use Illuminate\Support\Facades\DB;
@@ -45,7 +47,70 @@ class RequisitosDeOcupacao
     public function __construct(
         private Operadores $operadores,
         private Parametros $parametros,
+        private Modificadores $modificadores,
     ) {
+    }
+
+    /**
+     * O XP que o portão de território pede **agora** — o do §05, dobrado pelo evento que estiver
+     * valendo (D-232).
+     *
+     * Sem evento nenhum, `em()` devolve 10.000 e a conta é a de sempre: `Curva::xpDoMarco(20)`.
+     * Com a Cesta de Presente ativa (−9.500), são 5% disso.
+     *
+     * ⚠️ A régua abaixa; o XP de ninguém sobe. `Curva::marco()` continua dizendo a verdade sobre
+     * cada colônia, e o título que o jogador ostenta não muda porque um evento passou.
+     */
+    public function xpExigido(): int
+    {
+        $bps = $this->modificadores->em(null, Modificadores::OCUPACAO_MARCO, now());
+
+        return intdiv(Curva::xpDoMarco(self::MARCO) * $bps, 10_000);
+    }
+
+    /**
+     * Quantos colonos livres ocupar pede **agora**. Com a população desligada, zero; com a isenção
+     * do evento (−10.000), zero também.
+     */
+    public function operadoresExigidos(): int
+    {
+        if (! $this->parametros->ativo()) {
+            return 0;
+        }
+
+        $bps = $this->modificadores->em(null, Modificadores::OCUPACAO_POPULACAO, now());
+
+        return intdiv($this->parametros->operadoresDeZona(1) * $bps, 10_000);
+    }
+
+    /**
+     * O portão do §05, com o evento contado — e a mensagem dizendo qual régua está valendo.
+     *
+     * ⚠️ Não usa `ExigirMarco` de propósito: aquele gate é genérico (o Drone nível 2 também passa
+     * por ele) e o modificador é **só de ocupação**. Chamá-lo daqui com um número já reduzido faria
+     * a exceção dele anunciar um marco que não existe na curva.
+     */
+    public function exigirMarco(Colony $colonia): void
+    {
+        $exigido = $this->xpExigido();
+
+        if ((int) $colonia->xp >= $exigido) {
+            return;
+        }
+
+        $cheio = Curva::xpDoMarco(self::MARCO);
+        $titulo = Curva::titulo(self::MARCO);
+        $falta = $exigido - (int) $colonia->xp;
+
+        throw new DomainRuleException(
+            'marco_insuficiente',
+            $exigido < $cheio
+                ? "Ocupar uma zona neutra está custando {$exigido} XP durante o evento (o normal são "
+                    ."{$cheio}) — você tem {$colonia->xp}. Faltam {$falta} XP."
+                : "Ocupar uma zona neutra exige o marco ".self::MARCO." ({$titulo}) — você está no "
+                    .Curva::marco((int) $colonia->xp).". Faltam {$falta} XP: construa, comercie, "
+                    .'cumpra Acordos.',
+        );
     }
 
     /**
@@ -82,7 +147,8 @@ class RequisitosDeOcupacao
      * conseguiria Fert$, clicaria de novo, e só então descobriria que faltam colonos.
      *
      * @return array{
-     *     marco: int, fert: int, recursos: array<string,int>, operadores: int,
+     *     marco: int, xp_exigido: int, xp_normal: int,
+     *     fert: int, recursos: array<string,int>, operadores: int,
      *     zonas_ocupadas: int, teto_de_zonas: int,
      *     falta: list<array{tipo: string, o_que: string, tem: int, precisa: int}>,
      *     pode: bool
@@ -93,15 +159,25 @@ class RequisitosDeOcupacao
         $custo = $this->custoDeRecursos();
         $estoque = $colonia->resources()->pluck('amount', 'resource_type');
         $possuidas = NeutralZone::where('owner_colony_id', $colonia->id)->count();
-        $exigidos = $this->parametros->ativo() ? $this->parametros->operadoresDeZona(1) : 0;
+        $exigidos = $this->operadoresExigidos();
 
         $falta = [];
 
-        $marco = Curva::marco((int) $colonia->xp);
-        if ($marco < self::MARCO) {
+        /*
+         * ⚠️ Compara XP com XP, e não marco com marco (D-232).
+         *
+         * Enquanto o portão era fixo, `Curva::marco($xp) < 20` e `$xp < xpDoMarco(20)` eram a mesma
+         * pergunta. Com o modificador deixam de ser: a régua desce para 300 XP, que não é o piso de
+         * marco nenhum, e a versão por marco continuaria barrando quem o portão já deixou passar.
+         */
+        $xpExigido = $this->xpExigido();
+        if ((int) $colonia->xp < $xpExigido) {
             $falta[] = [
-                'tipo' => 'marco', 'o_que' => 'Marco '.self::MARCO.' (Desbravador)',
-                'tem' => (int) $colonia->xp, 'precisa' => Curva::xpDoMarco(self::MARCO),
+                'tipo' => 'marco',
+                'o_que' => $xpExigido < Curva::xpDoMarco(self::MARCO)
+                    ? 'XP (portão reduzido pelo evento)'
+                    : 'Marco '.self::MARCO.' (Desbravador)',
+                'tem' => (int) $colonia->xp, 'precisa' => $xpExigido,
             ];
         }
 
@@ -142,6 +218,12 @@ class RequisitosDeOcupacao
 
         return [
             'marco' => self::MARCO,
+            /*
+             * A régua de hoje, ao lado da de sempre: a tela precisa das duas para conseguir dizer
+             * "está mais barato durante o evento" em vez de só mostrar um número menor sem explicar.
+             */
+            'xp_exigido' => $xpExigido,
+            'xp_normal' => Curva::xpDoMarco(self::MARCO),
             'fert' => NeutralZone::POSTO_FERT,
             'recursos' => $custo,
             'operadores' => $exigidos,

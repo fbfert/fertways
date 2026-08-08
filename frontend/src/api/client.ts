@@ -601,10 +601,24 @@ export type EventoDoMundo = {
   parcial: boolean
   nome?: string
   mensagem?: string | null
-  modificador?: 'producao' | 'consumo'
-  /** Em porcentagem, com sinal. */
-  efeito?: number
+  /**
+   * ⚠️ São seis, não dois (D-232). A lista tinha ficado em `'producao' | 'consumo'` desde a A2.8, e
+   * a faixa do jogador escrevia "consumo" para qualquer coisa que não fosse produção — um portão de
+   * território teria aparecido na tela como "consumo −95% em tudo".
+   */
+  modificador?:
+    | 'producao'
+    | 'consumo'
+    | 'guerra_declaracao'
+    | 'guerra_custo'
+    | 'ocupacao_marco'
+    | 'ocupacao_populacao'
+    | null
+  /** Em porcentagem, com sinal. **Nulo** num evento que só entrega cesta: ele não mexe em taxa. */
+  efeito?: number | null
   recurso?: string | null
+  /** D-232: este evento ENTREGA alguma coisa às colônias, e não só altera uma taxa. */
+  cesta?: boolean
   termina_em: string
 }
 

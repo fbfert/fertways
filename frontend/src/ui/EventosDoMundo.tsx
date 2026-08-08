@@ -37,6 +37,41 @@ export function EventosDoMundo() {
   if (eventos.length === 0) return null
 
   /*
+   * ⚠️ O que o evento faz, em português — e nunca "produção ou consumo" (D-232).
+   *
+   * A faixa nasceu com dois modificadores e escrevia `modificador === 'producao' ? 'produção' :
+   * 'consumo'`. São seis desde então, e o ternário transformava trégua, custo de guerra e os dois
+   * portões de território em "consumo". Um evento que abre o território ao mundo inteiro teria
+   * chegado ao jogador como "consumo −95% em tudo" — pior do que não avisar, porque parece
+   * informação.
+   *
+   * A cesta vem primeiro: quando um evento entrega alguma coisa, é isso que o jogador quer ler.
+   */
+  const oQueFaz = (e: EventoDoMundo): string | null => {
+    if (e.modificador == null) return e.cesta ? 'um presente do Governo, já entregue' : null
+
+    const pct = `${(e.efeito ?? 0) > 0 ? '+' : ''}${e.efeito}%`
+
+    switch (e.modificador) {
+      case 'producao':
+      case 'consumo':
+        return `${e.modificador === 'producao' ? 'produção' : 'consumo'} ${pct}${
+          e.recurso ? ` em ${e.recurso}` : ' em tudo'
+        }`
+      case 'guerra_declaracao':
+        return (e.efeito ?? 0) <= -100 ? 'trégua imposta: ninguém declara guerra' : `guerra ${pct}`
+      case 'guerra_custo':
+        return `declarar e mobilizar ${pct}`
+      case 'ocupacao_marco':
+        return `ocupar zona neutra pede ${100 + (e.efeito ?? 0)}% do XP de sempre`
+      case 'ocupacao_populacao':
+        return (e.efeito ?? 0) <= -100
+          ? 'ocupar zona neutra não exige colonos livres'
+          : `colonos para ocupar ${pct}`
+    }
+  }
+
+  /*
    * ⚠️ A faixa é CHROME, e não conteúdo — e não era (achado ao fotografar a colônia, D-215).
    *
    * Ela nascia em fluxo, como primeiro elemento do documento. Só que as duas barras de navegação
@@ -78,11 +113,7 @@ export function EventosDoMundo() {
             <>
               <strong>{e.nome}</strong>
               {e.mensagem ? ` — ${e.mensagem}` : ''}{' '}
-              <span className="text-ink-soft">
-                ({e.modificador === 'producao' ? 'produção' : 'consumo'}{' '}
-                {(e.efeito ?? 0) > 0 ? '+' : ''}
-                {e.efeito}%{e.recurso ? ` em ${e.recurso}` : ' em tudo'})
-              </span>
+              {oQueFaz(e) ? <span className="text-ink-soft">({oQueFaz(e)})</span> : null}
               </>
             )}
           </p>

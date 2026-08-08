@@ -7,10 +7,15 @@ use App\Domain\Admin\RealocarColonia;
 use App\Domain\Admin\Suspender;
 use App\Domain\Building\Funcoes;
 use App\Domain\Chat\ContaSistema;
+use App\Domain\Eventos\EntregarCestas;
+use App\Domain\Eventos\Modificadores;
 use App\Domain\Logistics\MapaFertways;
+use App\Domain\Logistics\RequisitosDeOcupacao;
+use App\Domain\Marco\Curva;
 use App\Domain\Media\Biblioteca;
 use App\Domain\Media\Vinculaveis;
 use App\Domain\Ministry\PunicaoSpecs;
+use App\Domain\Populacao\Parametros;
 use App\Domain\Transport\Conservacao;
 use App\Domain\Transport\Ministerio;
 use App\Domain\Treasury\Tesouro;
@@ -23,6 +28,7 @@ use App\Models\Combat;
 use App\Models\Federation;
 use App\Models\FederationHolding;
 use App\Models\FoundingCell;
+use App\Models\GameEvent;
 use App\Models\FederationLedger;
 use App\Models\ImageBinding;
 use App\Models\MediaAsset;
@@ -1060,6 +1066,69 @@ class PainelController extends Controller
         return view('admin.admins', [
             'admins' => Admin::orderBy('id')->get(),
             'papeis' => Admin::PAPEIS,
+        ]);
+    }
+
+    /**
+     * O Motor de Eventos com uma tela (D-232).
+     *
+     * ## O que ela precisa mostrar, e por quê
+     *
+     * O `artisan fertways:evento` obriga o operador a ver a conta antes de ativar — "6.000 XP passam
+     * a 300, e 27 das 29 colônias destravam". Uma tela que só listasse linhas de tabela perderia
+     * justamente isso e seria um retrocesso disfarçado de conforto. Por isso cada evento vivo traz o
+     * **efeito medido no mundo de hoje**, e não só o bps que está gravado.
+     *
+     * ## ⚠️ Rascunho e ativo separados, e não uma coluna `status`
+     *
+     * Rascunho não vale nada no mundo. Ver os dois misturados numa lista ordenada por data é o jeito
+     * mais fácil de ativar o que se queria ensaiar — e a §Segurança da A2.8 põe o preview antes da
+     * ativação exatamente para que essa confusão não aconteça.
+     */
+    public function eventos(RequisitosDeOcupacao $requisitos): View
+    {
+        $agora = now();
+
+        $eventos = GameEvent::with('colony')
+            ->withCount('entregas')
+            ->orderByDesc('comeca_em')
+            ->get();
+
+        return view('admin.eventos', [
+            'rascunhos' => $eventos->where('status', 'rascunho')->values(),
+            /*
+             * "Vivos" é `vigenteEm()`, não `status = ativo`: um evento ativo cuja janela ainda não
+             * abriu não está mexendo em nada, e mostrá-lo como vigente faria o operador procurar no
+             * mundo um efeito que ainda não existe.
+             */
+            'vivos' => $eventos->filter(fn (GameEvent $e) => $e->vigenteEm($agora))->values(),
+            'encerrados' => $eventos
+                ->filter(fn (GameEvent $e) => $e->status !== 'rascunho' && ! $e->vigenteEm($agora))
+                ->values(),
+
+            'modificadores' => Modificadores::TODOS,
+            'pontuais' => Modificadores::PONTUAIS,
+            'recursos' => ResourceType::orderBy('nome')->get(),
+            'colonias' => Colony::orderBy('name')->get(['id', 'name']),
+            'FERT' => EntregarCestas::FERT,
+
+            /*
+             * O retrato contra o qual o operador dosa um evento de ocupação. Sem ele, "−95%" é um
+             * número no vácuo — foi a medida do D-223, e ela não devia precisar de um tinker.
+             */
+            'ocupacao' => [
+                'xp_normal' => Curva::xpDoMarco(RequisitosDeOcupacao::MARCO),
+                'xp_exigido' => $requisitos->xpExigido(),
+                'operadores_normal' => app(Parametros::class)->ativo()
+                    ? app(Parametros::class)->operadoresDeZona(1)
+                    : 0,
+                'operadores_exigidos' => $requisitos->operadoresExigidos(),
+                'colonias' => Colony::count(),
+                'com_xp' => Colony::where('xp', '>=', $requisitos->xpExigido())->count(),
+                'podem' => Colony::orderBy('id')->get()
+                    ->filter(fn (Colony $c) => $requisitos->para($c)['pode'])->count(),
+                'zonas_livres' => NeutralZone::whereNull('owner_colony_id')->count(),
+            ],
         ]);
     }
 

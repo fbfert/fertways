@@ -106,6 +106,16 @@ class Ledger extends Model
         'custo_pesquisa',
         // A2.7: recursos gastos para subir o nível de um veículo. Fração do custo de compra.
         'upgrade_veiculo',
+        /*
+         * A cesta de um evento de mundo (D-232). É EMISSÃO — nada foi arrecadado, nenhum saldo de
+         * ninguém baixou —, e por isso ela está aqui e não passa pelo Tesouro: o caixa do governo
+         * reparte o que entrou, e presente não entrou de lugar nenhum.
+         *
+         * ⚠️ Não confunda com o MODIFICADOR de evento, que nunca escreve aqui: aquele muda a taxa e
+         * quem credita é o tick. Este é o fato econômico de a colônia receber alguma coisa, e sem a
+         * linha o "Desde sua última visita" veria o estoque saltar sem ter o que dizer.
+         */
+        'presente_evento',
     ];
 
     public function colony(): BelongsTo

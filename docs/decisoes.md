@@ -12739,3 +12739,120 @@ nada em silêncio uma vez.
 
 O v39, o v38, o v36 e o v35 ficam **intocados**. Cada versão é um gerador novo, nunca uma edição
 destrutiva da anterior — é isso que permite ler o que o jogo era em cada corte.
+
+---
+
+## D-232 — A Cesta de Presente, e os dois portões que o marco escondia
+
+**Data:** 2026-08-07 · **Status:** decidido (arbitragem do usuário)
+
+O usuário pediu duas coisas: distribuir uma **Cesta de Presente** a todo mundo por 30 dias, com
+Fert$ suficiente para ocupar uma zona neutra mais 100, muita energia e um tanto de cada recurso; e
+uma **aba de eventos** no `/central/admin`. O objetivo declarado era destravar o crescimento.
+
+### A medida veio antes, e mudou o que foi construído
+
+`RequisitosDeOcupacao::para()` rodado contra as 29 colônias da produção, colônia por colônia:
+
+| trava | colônias travadas |
+|---|---|
+| Marco 20 (6.000 XP) | **27** de 29 |
+| recursos / Fert$ | **28** de 29 |
+| **colonos livres (2 por zona)** | **21** de 29 |
+
+**1 zona ocupada de 77.** E os dois melhores jogadores não estavam presos pelo marco: *Maior
+Colonia* (marco 21) está em **0 colonos livres**, e *Energizer do Gamer* (marco 20) em **−10**.
+
+⚠️ **A cesta e o corte do marco, sozinhos, não destravariam 21 das 29.** `conferirPopulacao()` barra
+antes de olhar recurso nenhum, e nada do que foi pedido tocava nisso. O usuário arbitrou: **isentar
+colonos durante o evento**. Sem essa terceira peça, o evento teria sido entregue conforme o pedido e
+falhado no objetivo — o pior resultado possível, porque pareceria funcionar.
+
+### O motor não sabia presentear, e a razão para isso continua boa
+
+A migration da A2.8 é categórica: *"o evento NUNCA escreve no ledger"*. A razão é de arquitetura — o
+ledger registra o que **aconteceu**, e mudar uma taxa não é um acontecimento; quem credita é o tick.
+Um evento que lançasse produção do nada faria a telemetria do D-163 mentir sobre a origem da receita.
+
+Isso resolve a tempestade. Não resolve presente. **A regra passa a ter duas metades, e elas não se
+contradizem:**
+
+- **modificador** — muda a taxa, e **nunca** escreve no ledger;
+- **cesta** — entrega uma vez, e **sempre** escreve, como `presente_evento`.
+
+Emissão sem contrapartida já existe e tem forma declarada: o salário do conciliador (§26.7), a
+recompensa de missão (§06), o subsídio do §24.7. Todas escrevem no ledger com tipo próprio. Sem
+lançamento, o "Desde sua última visita" veria 20.000 de energia surgir e não teria o que dizer.
+
+`presente_evento` entra em `DirecaoDoLedger::CONTA`, e **não** em `NAO_CONTA` ao lado do
+`ajuste_admin`. Os dois criam valor sem origem econômica, por motivos opostos: o ajuste conserta um
+estado errado (meta-jogo), a cesta é o Governo emitindo de propósito. A semana em que ela acontece
+**deve** mostrar o salto.
+
+### Por que não pelo Tesouro
+
+O Tesouro sabe distribuir desde o D-113, e é o caminho certo para repartir o que foi **arrecadado**.
+Uma cesta não foi arrecadada. E a medida decidia sozinha: o Tesouro tem **5.322** de metal bruto,
+**1.649** de ligas e **2.361** de energia; 29 colônias pedem ~29.580, ~34.800 e muito mais. Passar
+por ele exigiria creditar o caixa do nada primeiro, deixando um saldo de governo inflado depois que
+o evento acabasse. O usuário escolheu a emissão direta.
+
+### Os dois portões novos, e por que são pontuais
+
+`ocupacao_marco` e `ocupacao_populacao`, ambos em `Modificadores::PONTUAIS`. *"Quanto XP o portão
+pede AGORA?"* é pergunta de instante: ocupar acontece num clique, não há intervalo sobre o qual
+ponderar, e uma média diria que o portão está meio aberto — que não é um estado que exista. Mesma
+razão dos dois modificadores de guerra do A2.10.
+
+⚠️ **A régua desce; o XP de ninguém sobe.** É o que garante que o mundo volte ao normal quando a
+janela fechar. Um presente de XP seria irreversível, e o título do §05 passaria a mentir para sempre.
+`Curva::marco()` continua dizendo a verdade sobre cada colônia durante o evento inteiro.
+
+E o portão de ocupação sai do `ExigirMarco` genérico: aquele gate serve o Drone nível 2 também, e um
+modificador que abrisse todos de uma vez seria mais fácil de escrever e impossível de dosar. Quem
+calcula agora é `RequisitosDeOcupacao` — **o mesmo objeto que a tela lê**, que é a lição do D-224.
+
+⚠️ E a comparação dentro de `para()` teve de mudar de `Curva::marco($xp) < 20` para `$xp <
+xpExigido()`. Enquanto o portão era fixo as duas eram a mesma pergunta; com a régua em 300 XP deixam
+de ser — 300 não é o piso de marco nenhum, e a versão por marco continuaria barrando quem o portão
+já deixou passar.
+
+### A idempotência é do banco, não da conferência
+
+`game_event_entregas` com `unique(game_event_id, colony_id)`. A varredura é por **colônia sem linha
+de entrega**, e não por "colônias que existiam quando o evento começou" — é o que faz quem funda no
+dia 12 de uma janela de 30 receber também, decisão do usuário.
+
+A ordem dentro da transação é deliberada: **marca primeiro, credita depois**. Se o INSERT colidir, a
+transação inteira volta e nada foi creditado. O contrário daria recursos a quem já recebeu, e o
+ledger é append-only — não haveria como desfazer.
+
+### A aba, e o argumento que ela teve de enfrentar
+
+O `fertways:evento` argumenta que criar evento **não** devia ser rota HTTP: um evento secreto
+deixaria rastro no log de acesso do servidor web. O usuário pediu a aba mesmo assim, e o argumento
+sobrevive quase inteiro — **o Apache registra método e URL, não corpo**. Um POST com o slug no corpo
+não vaza; o que vazaria é um GET com `?slug=` na query. Por isso **a listagem não filtra por slug, e
+nunca deve passar a filtrar**.
+
+A aba é do **Dono** (a linha do D-61: "quem altera o estado do jogo de forma difícil de desfazer").
+Criar **nunca ativa** — é a §Segurança da A2.8 traduzida para a web, com o segundo clique no lugar do
+`--ativar` que falta. E um evento **já entregue não se reescreve**: as colônias servidas não recebem
+de novo (chave única) e as seguintes receberiam a cesta nova, deixando metade do mundo com um
+presente e metade com outro.
+
+### O defeito que a aba achou na tela do jogador
+
+`EventosDoMundo.tsx` escrevia `modificador === 'producao' ? 'produção' : 'consumo'`. São **seis**
+modificadores desde a A2.10, e o ternário transformava trégua, custo de guerra e os dois portões em
+"consumo". A Cesta teria chegado ao jogador como **"consumo −95% em tudo"** — pior do que não avisar,
+porque parece informação. O tipo do cliente também estava em `'producao' | 'consumo'`, e o
+TypeScript não pegou porque o servidor mandava `string`.
+
+### O que o evento NÃO resolve, e a aba diz isso
+
+Baixar o portão do XP não dá recurso a ninguém, e isentar colonos não constrói habitação. A aba
+mostra as duas contas lado a lado — quantas colônias têm XP suficiente e quantas **conseguem ocupar
+de fato** —, porque a diferença entre os dois números é a parte que o operador precisa ver.
+
+1283 testes verdes (22 novos, em `CestaDePresenteTest` e `AdminEventosTest`).

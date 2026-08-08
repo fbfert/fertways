@@ -2,7 +2,9 @@
 
 namespace App\Console\Commands;
 
+use App\Domain\Eventos\EntregarCestas;
 use App\Domain\Eventos\Modificadores;
+use App\Domain\Logistics\RequisitosDeOcupacao;
 use App\Models\Colony;
 use App\Models\GameEvent;
 use App\Models\ResourceType;
@@ -48,6 +50,9 @@ class Evento extends Command
         {--consumo= : efeito no consumo em bps}
         {--guerra-declaracao= : o portão da guerra (A2.10) — -10000 impõe trégua}
         {--guerra-custo= : quanto muda o custo de declarar e mobilizar, em bps}
+        {--ocupacao-marco= : o XP que ocupar zona neutra pede, em bps (-9500 = 5% do normal)}
+        {--ocupacao-populacao= : os colonos livres que ocupar pede, em bps (-10000 isenta)}
+        {--cesta= : o presente, "recurso:qtd,recurso:qtd" — use __fert__ para Fert$ (em Fert$, não micro)}
         {--recurso= : limita a um recurso (padrão: todos)}
         {--colonia= : limita a uma colônia, por id — o dry-run em escala de um}
         {--horas=24 : duração}
@@ -93,6 +98,8 @@ class Evento extends Command
             'consumo' => Modificadores::CONSUMO,
             'guerra-declaracao' => Modificadores::GUERRA_DECLARACAO,
             'guerra-custo' => Modificadores::GUERRA_CUSTO,
+            'ocupacao-marco' => Modificadores::OCUPACAO_MARCO,
+            'ocupacao-populacao' => Modificadores::OCUPACAO_POPULACAO,
         ];
 
         $escolhidos = [];
@@ -105,8 +112,19 @@ class Evento extends Command
             }
         }
 
-        if ($escolhidos === []) {
-            $this->error('Diga um modificador: --producao, --consumo, --guerra-declaracao ou --guerra-custo.');
+        try {
+            $cesta = $this->cesta();
+        } catch (\InvalidArgumentException $e) {
+            $this->error($e->getMessage());
+
+            return self::FAILURE;
+        }
+
+        if ($escolhidos === [] && $cesta === []) {
+            $this->error(
+                'Diga um modificador (--producao, --consumo, --guerra-declaracao, --guerra-custo, '
+                .'--ocupacao-marco, --ocupacao-populacao) ou uma --cesta.',
+            );
 
             return self::FAILURE;
         }
@@ -117,8 +135,23 @@ class Evento extends Command
             return self::FAILURE;
         }
 
-        $modificador = array_key_first($escolhidos);
-        $efeito = $escolhidos[$modificador];
+        // Nenhum modificador é legítimo desde o D-232: um evento que só entrega cesta não tem taxa
+        // para mexer, e escrever `producao 0` para satisfazer um NOT NULL seria gravar uma mentira.
+        $modificador = $escolhidos === [] ? null : array_key_first($escolhidos);
+        $efeito = $modificador === null ? null : $escolhidos[$modificador];
+
+        /*
+         * ⚠️ Reescrever um evento que já entregou é recusado — a mesma guarda do painel. Depois da
+         * primeira cesta, `updateOrCreate` deixa de ser "iterar sobre o rascunho" e passa a ser
+         * "metade do mundo com um presente, metade com outro".
+         */
+        $jaEntregues = GameEvent::where('slug', $slug)->first()?->entregas()->count() ?? 0;
+
+        if ($jaEntregues > 0) {
+            $this->error("«{$slug}» já entregou a cesta a {$jaEntregues} colônia(s) e não se reescreve. Use outro slug.");
+
+            return self::FAILURE;
+        }
 
         $recurso = $this->option('recurso');
 
@@ -155,6 +188,7 @@ class Evento extends Command
             'colony_id' => $colonia?->id,
             'modificador' => $modificador,
             'efeito_bps' => $efeito,
+            'recompensas' => $cesta ?: null,
             'resource_type' => $recurso ?: null,
             'segredo' => (bool) $this->option('segredo'),
             'status' => $this->option('ativar') ? 'ativo' : 'rascunho',
@@ -170,32 +204,103 @@ class Evento extends Command
             $this->line('(A linha é gravada como RASCUNHO, e rascunho não vale nada no mundo.)');
         }
 
-        GameEvent::updateOrCreate(['slug' => $slug], $dados);
+        $evento = GameEvent::updateOrCreate(['slug' => $slug], $dados);
 
         if ($this->option('ativar')) {
             $this->newLine();
-            $this->info('✔ Evento ATIVO. Ele muda a taxa; quem credita continua sendo o tick.');
-            $this->line('   Nada foi escrito no ledger, e nada será.');
+
+            if ($modificador !== null) {
+                $this->info('✔ Evento ATIVO. O modificador muda a taxa; quem credita continua sendo o tick.');
+                $this->line('   O modificador não escreve no ledger, e nunca escreverá.');
+            }
+
+            /*
+             * A cesta sai AGORA, e não no próximo passo do scheduler (D-232). Esperar cinco minutos
+             * entre `--ativar` e o mundo mudar é tempo suficiente para o operador concluir que não
+             * funcionou e rodar de novo — e a chave única salvaria do estrago, mas não da
+             * desconfiança. `vigenteEm` decide: ativado hoje para começar amanhã não entrega hoje.
+             */
+            if ($cesta !== [] && $evento->vigenteEm(now())) {
+                $n = app(EntregarCestas::class)->doEvento($evento);
+                $this->info("✔ Cesta entregue a {$n} colônia(s), com lançamento `presente_evento` no ledger.");
+            } elseif ($cesta !== []) {
+                $this->line('   A cesta sai quando a janela abrir — o entregador roda a cada 5 min.');
+            }
         }
 
         return self::SUCCESS;
     }
 
+    /**
+     * A cesta, de `"recurso:qtd,recurso:qtd"`.
+     *
+     * ⚠️ `__fert__` entra em **Fert$**, não em micro. É o que o operador digita; a conversão é a
+     * mesma do painel, e pedir micro na linha de comando seria convidar um erro de seis casas numa
+     * entrega irreversível.
+     *
+     * Recurso desconhecido **explode**, e não é filtrado em silêncio: aqui há um humano lendo, e um
+     * `metal-bruto` digitado com hífen tem de virar erro agora, não uma cesta 1.100 unidades menor
+     * descoberta depois da entrega.
+     *
+     * @return array<string,int>
+     */
+    private function cesta(): array
+    {
+        $texto = trim((string) $this->option('cesta'));
+
+        if ($texto === '') {
+            return [];
+        }
+
+        $codigos = ResourceType::pluck('code')->push(EntregarCestas::FERT)->all();
+        $cesta = [];
+
+        foreach (explode(',', $texto) as $par) {
+            $par = trim($par);
+
+            if ($par === '') {
+                continue;
+            }
+
+            if (! str_contains($par, ':')) {
+                throw new \InvalidArgumentException("Cesta mal formada em «{$par}» — use recurso:quantidade.");
+            }
+
+            [$recurso, $qtd] = array_map('trim', explode(':', $par, 2));
+
+            if (! in_array($recurso, $codigos, true)) {
+                throw new \InvalidArgumentException("Recurso desconhecido na cesta: {$recurso}");
+            }
+
+            if (! is_numeric($qtd) || (float) $qtd <= 0) {
+                throw new \InvalidArgumentException("Quantidade inválida para {$recurso}: {$qtd}");
+            }
+
+            $cesta[$recurso] = $recurso === EntregarCestas::FERT
+                ? (int) round(((float) $qtd) * Colony::MICRO_POR_FERT)
+                : (int) $qtd;
+        }
+
+        return $cesta;
+    }
+
     /** @param array<string,mixed> $d */
     private function preview(array $d, ?Colony $colonia): void
     {
-        $pct = $d['efeito_bps'] / 100;
         $horas = $d['comeca_em']->diffInHours($d['termina_em']);
 
         $this->info("Evento «{$d['nome']}» ({$d['slug']})");
         $pontual = in_array($d['modificador'], Modificadores::PONTUAIS, true);
 
-        $this->line(sprintf(
-            '  %s de %+.1f%%%s, por %d h a partir de %s',
-            $d['modificador'], $pct,
-            $pontual ? '' : ' em '.($d['resource_type'] ?? 'TODOS os recursos'),
-            $horas, $d['comeca_em']->format('d/m H:i'),
-        ));
+        $this->line($d['modificador'] === null
+            ? sprintf('  sem modificador — só a cesta, por %d h a partir de %s',
+                $horas, $d['comeca_em']->format('d/m H:i'))
+            : sprintf(
+                '  %s de %+.1f%%%s, por %d h a partir de %s',
+                $d['modificador'], $d['efeito_bps'] / 100,
+                $pontual ? '' : ' em '.($d['resource_type'] ?? 'TODOS os recursos'),
+                $horas, $d['comeca_em']->format('d/m H:i'),
+            ));
         $this->line('  escopo: '.($colonia ? "colônia {$colonia->id} ({$colonia->name})" : 'MUNDO'));
         $this->line('  visibilidade: '.$d['visibilidade'].($d['segredo'] ? ' · SEGREDO' : ''));
 
@@ -208,7 +313,9 @@ class Evento extends Command
          * de 200/h passa a 160/h" não é. Para os pontuais a frase é outra, porque taxa não é a
          * pergunta — o portão da guerra ou está aberto ou não está.
          */
-        if ($d['modificador'] === Modificadores::GUERRA_DECLARACAO) {
+        if ($d['modificador'] === null) {
+            // Sem taxa não há frase de taxa. A cesta abaixo é a conta inteira deste evento.
+        } elseif ($d['modificador'] === Modificadores::GUERRA_DECLARACAO) {
             $this->line($d['efeito_bps'] <= -10_000
                 ? '  ⚠️ TRÉGUA: ninguém declara guerra enquanto durar.'
                 : '  ⚠️ Só −10000 fecha o portão. Qualquer outro valor NÃO impede declaração nenhuma.');
@@ -217,6 +324,33 @@ class Evento extends Command
                 '  declarar e mobilizar passa a custar %d%% do normal',
                 max(0, 10_000 + $d['efeito_bps']) / 100,
             ));
+        } elseif ($d['modificador'] === Modificadores::OCUPACAO_MARCO) {
+            /*
+             * A mesma exigência de sempre: a conta que o operador precisa ver antes de apertar o
+             * botão. "−95%" é abstrato; "6.000 XP passam a 300, e 27 das 29 colônias deixam de estar
+             * travadas pelo marco" não é.
+             */
+            $cheio = \App\Domain\Marco\Curva::xpDoMarco(RequisitosDeOcupacao::MARCO);
+            $reduzido = intdiv($cheio * max(0, 10_000 + $d['efeito_bps']), 10_000);
+
+            $this->line("  ocupar zona neutra passa a pedir {$reduzido} XP (o normal são {$cheio})");
+            $this->line(sprintf(
+                '  %d de %d colônia(s) passam a ter XP suficiente',
+                Colony::where('xp', '>=', $reduzido)->count(),
+                Colony::count(),
+            ));
+            $this->line('  ⚠️ Baixa a RÉGUA. Ninguém ganha XP, e o título de ninguém muda.');
+        } elseif ($d['modificador'] === Modificadores::OCUPACAO_POPULACAO) {
+            $base = app(\App\Domain\Populacao\Parametros::class);
+            $exigidos = $base->ativo() ? $base->operadoresDeZona(1) : 0;
+            $agora = intdiv($exigidos * max(0, 10_000 + $d['efeito_bps']), 10_000);
+
+            $this->line("  ocupar zona neutra passa a pedir {$agora} colono(s) livre(s) (o normal são {$exigidos})");
+
+            if ($agora <= 0) {
+                $this->warn('  ⚠️ Isento: a zona nasce com equipe assim mesmo, e a colônia fica DEVENDO');
+                $this->line('     operadores ao que já tem de pé. Degrada (§6.6); nada é confiscado.');
+            }
         } else {
             $this->line(sprintf(
                 '  uma taxa de 200/h passaria a %d/h enquanto durar',
@@ -226,6 +360,30 @@ class Evento extends Command
             if ($d['efeito_bps'] <= -10_000) {
                 $this->warn('  ⚠️ Isto ZERA a taxa: o piso do motor é −100%.');
             }
+        }
+
+        /*
+         * A cesta, item por item e com o TOTAL — porque é o total que assusta na hora certa. Uma
+         * linha de 20.000 de energia lida sozinha parece modesta; "× 29 colônias = 580.000 emitidos"
+         * é a informação que faz o operador conferir o número antes de digitar `--ativar`.
+         */
+        if (($d['recompensas'] ?? []) !== []) {
+            $this->newLine();
+            $this->line('  CESTA, por colônia (emissão — escreve no ledger, ao contrário do modificador):');
+
+            foreach ($d['recompensas'] as $recurso => $qtd) {
+                $this->line($recurso === EntregarCestas::FERT
+                    ? sprintf('    %-26s %s Fert$  (× %d = %s)', 'Fert$',
+                        number_format($qtd / Colony::MICRO_POR_FERT, 2),
+                        $atingidas,
+                        number_format($atingidas * $qtd / Colony::MICRO_POR_FERT, 2))
+                    : sprintf('    %-26s %s  (× %d = %s)', $recurso,
+                        number_format($qtd), $atingidas, number_format($atingidas * $qtd)));
+            }
+
+            $this->newLine();
+            $this->warn('  ⚠️ A cesta é IRREVERSÍVEL: o ledger é append-only e cancelar não recolhe.');
+            $this->line('     Ela sai uma vez por colônia, e alcança quem fundar durante a janela.');
         }
     }
 
@@ -264,14 +422,21 @@ class Evento extends Command
             return self::SUCCESS;
         }
 
-        $this->line(sprintf('%-24s %-10s %-9s %-8s %s', 'slug', 'status', 'efeito', 'recurso', 'janela'));
+        $this->line(sprintf(
+            '%-24s %-10s %-20s %-9s %-8s %s',
+            'slug', 'status', 'modificador', 'efeito', 'recurso', 'janela',
+        ));
 
         foreach ($eventos as $e) {
             $this->line(sprintf(
-                '%-24s %-10s %+-8.1f%% %-8s %s → %s%s',
-                $e->slug, $e->status, $e->efeito_bps / 100,
+                '%-24s %-10s %-20s %-9s %-8s %s → %s%s%s',
+                $e->slug, $e->status,
+                // Desde o D-232 um evento pode só entregar cesta, sem modificador nenhum.
+                $e->modificador ?? '—',
+                $e->efeito_bps === null ? '—' : sprintf('%+.1f%%', $e->efeito_bps / 100),
                 $e->resource_type ?? 'todos',
                 $e->comeca_em->format('d/m H:i'), $e->termina_em->format('d/m H:i'),
+                $e->temCesta() ? ' · cesta ('.$e->entregas()->count().' entregues)' : '',
                 $e->cancelado_em ? ' (cancelado '.$e->cancelado_em->format('d/m H:i').')' : '',
             ));
         }

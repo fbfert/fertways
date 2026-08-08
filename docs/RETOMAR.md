@@ -5,7 +5,7 @@
 > e então **faça ao usuário as perguntas da seção "Perguntas em aberto"** antes de escolher
 > o que fazer. Atualize este arquivo ao fim de cada sessão.
 
-**Última atualização:** 2026-08-05 · **Branch:** `main`
+**Última atualização:** 2026-08-07 · **Branch:** `main`
 
 > **Se o usuário disser "retome" e houver uma seção "EM ANDAMENTO AGORA" abaixo**, ela já tem
 > autorização permanente para seguir sem novas perguntas ("siga por todas as fases... quero que
@@ -33,6 +33,33 @@
 
 ---
 
+## Sessão de 2026-08-07 — a Cesta de Presente e a aba de eventos (D-232)
+
+O usuário pediu um evento de presente de 30 dias e uma aba de eventos no painel. **A medida veio
+antes e mudou a entrega:** das 29 colônias, 27 estão travadas pelo marco, 28 por recurso e **21 por
+colonos livres** — e nem a cesta nem o corte do marco tocavam nesse terceiro portão. Há **1 zona
+ocupada de 77**. O usuário arbitrou incluir a isenção de colonos.
+
+O que entrou:
+
+- **O motor passou a saber presentear.** `game_events.recompensas` (a coluna existia e nunca fora
+  usada) + `game_event_entregas` com `unique(evento, colônia)`. A cesta **escreve** no ledger
+  (`presente_evento`), ao contrário do modificador, que nunca escreve. Entrega uma vez por colônia e
+  alcança quem fundar durante a janela — `fertways:eventos-entregar`, a cada 5 min no scheduler.
+- **Dois modificadores novos**, ambos pontuais: `ocupacao_marco` e `ocupacao_populacao`. A régua
+  desce; **o XP de ninguém sobe**, e por isso o mundo volta ao normal quando a janela fechar.
+- **`modificador` virou nulo**: um evento que só entrega cesta não tem taxa para mexer.
+- **A aba `/central/admin/eventos`**, do Dono. Criar nunca ativa; evento já entregue não se reescreve.
+- **`--cesta` no `fertways:evento`**, com preview do total emitido antes do `--ativar`.
+- **Um defeito na tela do jogador:** `EventosDoMundo.tsx` escrevia "consumo" para qualquer
+  modificador que não fosse produção. A Cesta teria aparecido como "consumo −95% em tudo".
+
+1286 testes verdes.
+
+⚠️ **`docs/decisoes.md` não tem entrada para o D-231** — aquele commit só mexeu no GDD v40 e no
+gerador. Lacuna anterior a esta sessão, registrada aqui para não virar mistério.
+
+---
 ## Sessão de 2026-08-05 — auditoria de estado, e o que ela achou
 
 Sessão de conferência, sem código de jogo novo. O que foi medido:

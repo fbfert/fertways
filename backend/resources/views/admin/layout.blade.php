@@ -150,7 +150,13 @@
                 'admin.feedback' => 'Bugs/Melhorias',
             ];
 
+            /*
+             * Eventos é do Dono (D-232), pela mesma linha do D-61: "quem altera o estado do jogo de
+             * forma difícil de desfazer". Uma cesta entregue não volta — o ledger é append-only — e
+             * um modificador escancara portões do §05 para o mundo inteiro de uma vez.
+             */
             if (auth('admin')->user()->ehDono()) {
+                $abas['admin.eventos'] = 'Eventos';
                 $abas['admin.admins'] = 'Admins';
             }
         @endphp

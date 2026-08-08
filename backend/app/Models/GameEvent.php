@@ -4,12 +4,17 @@ namespace App\Models;
 
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
  * Um evento de mundo (A2.8) — a linha de tabela que substitui um `if` no tick.
  *
- * ⚠️ **Nunca escreve no ledger.** Ele altera a taxa; quem credita continua sendo o tick. Ver o
- * docblock da migration `motor_de_eventos`.
+ * ⚠️ **O MODIFICADOR nunca escreve no ledger.** Ele altera a taxa; quem credita continua sendo o
+ * tick. Ver o docblock da migration `motor_de_eventos`.
+ *
+ * ⚠️ **A RECOMPENSA sempre escreve** (D-232). São coisas diferentes: mudar a taxa não é um fato
+ * econômico, entregar 20.000 de energia é — e sem lançamento o jogador veria o estoque saltar sem
+ * explicação. Ver o docblock da migration `cesta_de_presente_e_portoes_de_ocupacao`.
  */
 class GameEvent extends Model
 {
@@ -32,6 +37,17 @@ class GameEvent extends Model
         'segredo' => 'boolean',
         'versao' => 'integer',
     ];
+
+    public function entregas(): HasMany
+    {
+        return $this->hasMany(GameEventEntrega::class);
+    }
+
+    /** Este evento entrega alguma coisa, ou só mexe numa taxa? */
+    public function temCesta(): bool
+    {
+        return collect($this->recompensas ?? [])->filter(fn ($q) => (int) $q > 0)->isNotEmpty();
+    }
 
     /** Está valendo agora? `cancelado` continua valendo para trás, nunca para a frente. */
     public function vigenteEm(CarbonInterface $quando): bool

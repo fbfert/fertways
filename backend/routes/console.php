@@ -37,3 +37,18 @@ Schedule::command('fertways:telemetria-limpar --aplicar')
     ->dailyAt('03:00')
     ->withoutOverlapping()
     ->runInBackground();
+
+/**
+ * As cestas dos eventos vigentes (D-232).
+ *
+ * A cada cinco minutos, e não a cada minuto: entregar é raro, a varredura é uma consulta a mais, e
+ * o servidor tem 4 GB. Cinco minutos é a espera máxima de uma colônia recém-fundada pela cesta de
+ * um evento em curso — invisível para quem acabou de escolher um nome de colônia.
+ *
+ * `withoutOverlapping` porque uma entrega em massa (29 colônias × 27 recursos) pode passar dos 60 s
+ * num servidor ocupado. A chave única já impediria a entrega dupla; isto impede o trabalho dobrado.
+ */
+Schedule::command('fertways:eventos-entregar')
+    ->everyFiveMinutes()
+    ->withoutOverlapping(10)
+    ->runInBackground();

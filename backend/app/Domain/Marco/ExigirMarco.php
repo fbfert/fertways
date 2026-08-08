@@ -12,10 +12,15 @@ use App\Models\Colony;
  * D-75 continua com ela (nenhum código revoga posse); só ocupar OUTRA exige o marco. É por isso
  * que esta classe só é chamada nos atos de adquirir, e nunca em leitura ou manutenção do que existe.
  *
- * Os dois gates vivos hoje (§05, com a precedência do §05 sobre o §03 na mesma parte):
+ * Os gates vivos hoje (§05, com a precedência do §05 sobre o §03 na mesma parte):
  *
  *   marco 10 (Pioneiro)     fabricar Drone nível 2+  ("drone nível 2" — o nível 1 nunca teve gate)
- *   marco 20 (Desbravador)  ocupar zona neutra
+ *   marco variável          comprar item da Endurance (cada item traz o seu `marco_minimo`)
+ *
+ * ⚠️ **Ocupar zona neutra saiu daqui no D-232.** Continua sendo o marco 20 (Desbravador) e continua
+ * sendo o §05 — mas a régua dele é dobrável por evento (`Modificadores::OCUPACAO_MARCO`), e quem a
+ * calcula é o `RequisitosDeOcupacao`, que é o mesmo objeto que a TELA lê. Passar um marco já
+ * reduzido por aqui faria esta classe anunciar um título que não existe na curva.
  *
  * ⚠️ **O Mercado Central NÃO tem gate, e isso contraria o §05 de propósito** (que o põe no marco 5).
  * O §03 promete ao recém-chegado "a compra do primeiro lote de Ligas Metálicas no Mercado Central

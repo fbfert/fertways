@@ -57,9 +57,16 @@ class EventosController extends Controller
                     'nome' => $e->nome,
                     'mensagem' => $e->mensagem_publica,
                     'modificador' => $e->modificador,
-                    // Em porcentagem, com sinal: é como o jogador sente.
-                    'efeito' => $e->efeito_bps / 100,
+                    // Em porcentagem, com sinal: é como o jogador sente. Nulo num evento que só
+                    // entrega cesta (D-232) — ele não mexe em taxa nenhuma, e "0%" seria mentira.
+                    'efeito' => $e->efeito_bps === null ? null : $e->efeito_bps / 100,
                     'recurso' => $e->resource_type,
+                    /*
+                     * D-232: que este evento ENTREGA alguma coisa. Sem isto, a Cesta de Presente
+                     * apareceria na tela como um evento sem efeito nenhum — o jogador leria o nome,
+                     * não veria número, e concluiria que está quebrado.
+                     */
+                    'cesta' => $e->temCesta(),
                     'termina_em' => $e->termina_em->toIso8601String(),
                 ])->values(),
         ]);

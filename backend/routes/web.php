@@ -148,6 +148,22 @@ Route::prefix('admin')->group(function () {
          * da divisão de papéis uma sugestão.
          */
         Route::middleware('dono')->group(function () {
+            /*
+             * ── Motor de Eventos (D-232) ──
+             *
+             * ⚠️ O `fertways:evento` argumenta que criar evento **não** devia ser rota HTTP: um
+             * evento secreto deixaria rastro no log de acesso do servidor web. O usuário pediu a aba
+             * mesmo assim, e o argumento sobrevive quase inteiro — **o Apache registra o método e a
+             * URL, não o corpo**. Um POST com o slug no corpo não vaza; o que vazaria é um GET com
+             * `?slug=` na query, e por isso a listagem não filtra por slug e nunca deve passar a
+             * filtrar. O `artisan` continua sendo o caminho canônico para o que é secreto de verdade.
+             */
+            Route::get('/eventos', [PainelController::class, 'eventos'])->name('admin.eventos');
+            Route::post('/eventos', [AcoesController::class, 'eventoCriar'])->name('admin.evento.criar');
+            Route::post('/eventos/{evento}/ativar', [AcoesController::class, 'eventoAtivar'])->name('admin.evento.ativar');
+            Route::post('/eventos/{evento}/cancelar', [AcoesController::class, 'eventoCancelar'])->name('admin.evento.cancelar');
+            Route::post('/eventos/{evento}/entregar', [AcoesController::class, 'eventoEntregar'])->name('admin.evento.entregar');
+
             Route::get('/admins', [PainelController::class, 'admins'])->name('admin.admins');
             Route::post('/admins', [AcoesController::class, 'adminCriar'])->name('admin.admin.criar');
             Route::post('/admins/{admin}', [AcoesController::class, 'adminEditar'])->name('admin.admin.editar');

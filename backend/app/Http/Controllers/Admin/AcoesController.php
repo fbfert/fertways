@@ -13,6 +13,8 @@ use App\Domain\Admin\Suspender;
 use App\Domain\Chat\ContaSistema;
 use App\Domain\Chat\EnviarMensagem;
 use App\Domain\Endurance\EfeitosDaEndurance;
+use App\Domain\Eventos\EntregarCestas;
+use App\Domain\Eventos\Modificadores;
 use App\Domain\Federacao\DissolverFederacao;
 use App\Domain\Finance\DeclararIntervencao;
 use App\Domain\Frete\Garagem;
@@ -33,6 +35,7 @@ use App\Domain\Transport\Placas;
 use App\Domain\Treasury\Tesouro;
 use App\Exceptions\DomainRuleException;
 use App\Http\Controllers\Controller;
+use Carbon\Carbon;
 use App\Models\Admin;
 use App\Models\Building;
 use App\Models\ChatSetting;
@@ -43,6 +46,7 @@ use App\Models\Federation;
 use App\Models\FederationSetting;
 use App\Models\Feedback;
 use App\Models\FilaSetting;
+use App\Models\GameEvent;
 use App\Models\ImageBinding;
 use App\Models\KitInicialSetting;
 use App\Models\MediaAsset;
@@ -1974,6 +1978,183 @@ class AcoesController extends Controller
      * registrá-lo — o código não compila sem nomear o que faz. É a mesma ideia do `ledger`, que
      * obriga todo recurso a ter origem.
      */
+    /**
+     * Cria (ou reescreve) um evento de mundo pelo painel (D-232).
+     *
+     * ## ⚠️ Nasce SEMPRE como rascunho, e o painel não tem um "criar e ativar"
+     *
+     * É a §Segurança da A2.8 traduzida para a web: *"preview antes de ativar"*. No `artisan` isso é
+     * o `--ativar` que falta; aqui é um segundo clique, numa tela que já mostra quantas colônias o
+     * evento atinge. Um formulário que ativasse ao salvar destruiria a única guarda que existe entre
+     * um dedo errado e o mundo inteiro.
+     *
+     * ## Um evento, UM modificador — e agora também «nenhum»
+     *
+     * A regra do comando continua (cancelar metade de um evento duplo é impossível). O que mudou no
+     * D-232 é que **nenhum** passou a ser opção legítima: um evento que só entrega cesta não tem
+     * taxa para mexer.
+     */
+    public function eventoCriar(Request $request): RedirectResponse
+    {
+        $dados = $request->validate([
+            'slug' => ['required', 'string', 'max:60', 'regex:/^[a-z0-9_-]+$/'],
+            'nome' => ['required', 'string', 'max:120'],
+            'mensagem_publica' => ['nullable', 'string', 'max:500'],
+            'notas_internas' => ['nullable', 'string', 'max:1000'],
+            'modificador' => ['nullable', Rule::in(Modificadores::TODOS)],
+            'efeito_bps' => ['nullable', 'integer', 'between:-10000,100000'],
+            'resource_type' => ['nullable', 'exists:resource_types,code'],
+            'colony_id' => ['nullable', 'integer', 'exists:colonies,id'],
+            'comeca_em' => ['nullable', 'date'],
+            'dias' => ['required', 'integer', 'min:1', 'max:365'],
+            'visibilidade' => ['required', Rule::in(['anunciado', 'parcial', 'secreto'])],
+            'segredo' => ['nullable', 'boolean'],
+            'cesta' => ['nullable', 'array'],
+            'cesta.*' => ['nullable', 'numeric', 'min:0'],
+        ]);
+
+        // `?? null` em tudo o que é opcional: um campo AUSENTE do formulário não aparece em
+        // `validated()`, e só o nulo explícito aparece. As duas formas chegam aqui.
+        $modificador = ($dados['modificador'] ?? null) ?: null;
+
+        if ($modificador !== null && ($dados['efeito_bps'] ?? null) === null) {
+            throw ValidationException::withMessages([
+                'efeito_bps' => 'Um modificador sem efeito não faz nada — diga o bps, ou tire o modificador.',
+            ]);
+        }
+
+        // `parseSubsidio` já filtra pelo catálogo e converte Fert$ para micro: a mesma conta do
+        // subsídio (D-113), para que as duas telas não divirjam sobre o que "400 Fert$" significa.
+        $cesta = $this->parseSubsidio($dados['cesta'] ?? []);
+
+        if ($modificador === null && $cesta === []) {
+            throw ValidationException::withMessages([
+                'slug' => 'Um evento que não mexe em taxa nenhuma e não entrega nada não é um evento.',
+            ]);
+        }
+
+        /*
+         * ⚠️ Reescrever um evento JÁ ENTREGUE é recusado.
+         *
+         * `updateOrCreate` pelo slug é o que o `artisan` faz, e é certo enquanto o evento é
+         * rascunho — iterar sobre o mesmo slug é o fluxo normal. Depois que a primeira cesta saiu,
+         * deixa de ser: as colônias que já receberam não recebem de novo (chave única), e as
+         * seguintes receberiam a cesta NOVA. Metade do mundo com um presente, metade com outro, e
+         * nenhuma tela capaz de explicar a diferença.
+         */
+        $existente = GameEvent::where('slug', $dados['slug'])->first();
+
+        if ($existente && $existente->entregas()->exists()) {
+            throw ValidationException::withMessages([
+                'slug' => "O evento «{$dados['slug']}» já entregou a cesta a "
+                    .$existente->entregas()->count().' colônia(s) e não pode mais ser reescrito. '
+                    .'Use outro slug.',
+            ]);
+        }
+
+        $comeca = ($dados['comeca_em'] ?? null) ? Carbon::parse($dados['comeca_em']) : now();
+        $colonia = $dados['colony_id'] ?? null;
+
+        return $this->tentar('evento.criar', function () use ($dados, $modificador, $cesta, $comeca, $colonia) {
+            GameEvent::updateOrCreate(['slug' => $dados['slug']], [
+                'nome' => $dados['nome'],
+                'mensagem_publica' => $dados['mensagem_publica'] ?? null,
+                'notas_internas' => $dados['notas_internas'] ?? null,
+                'comeca_em' => $comeca,
+                'termina_em' => $comeca->copy()->addDays((int) $dados['dias']),
+                'visibilidade' => $dados['visibilidade'],
+                'escopo' => $colonia ? 'colonia' : 'mundo',
+                'colony_id' => $colonia,
+                'modificador' => $modificador,
+                'efeito_bps' => $modificador === null ? null : (int) $dados['efeito_bps'],
+                'resource_type' => ($dados['resource_type'] ?? null) ?: null,
+                'recompensas' => $cesta ?: null,
+                'segredo' => (bool) ($dados['segredo'] ?? false),
+                // Sempre rascunho — ver o docblock. Ativar é o segundo clique.
+                'status' => 'rascunho',
+                'cancelado_em' => null,
+                // Auditoria (§Segurança): no `artisan` é o usuário do sistema; aqui é o admin
+                // logado, que é a informação mais útil das duas.
+                'criado_por' => $this->eu()->name,
+            ]);
+
+            return "Evento «{$dados['nome']}» gravado como RASCUNHO — rascunho não vale nada no mundo. "
+                .'Confira o preview e ative.';
+        }, "evento:{$dados['slug']}");
+    }
+
+    /** Rascunho → ativo. É aqui que o evento passa a valer no mundo. */
+    public function eventoAtivar(GameEvent $evento, EntregarCestas $entregador): RedirectResponse
+    {
+        if ($evento->status !== 'rascunho') {
+            return $this->erro("O evento «{$evento->nome}» não é rascunho — está {$evento->status}.");
+        }
+
+        return $this->tentar('evento.ativar', function () use ($evento, $entregador) {
+            $evento->update(['status' => 'ativo']);
+
+            /*
+             * A cesta sai já, e não no próximo passo do scheduler. Cinco minutos de espera entre
+             * ativar e o mundo mudar é tempo suficiente para o operador concluir que não funcionou
+             * e clicar de novo — e a chave única salvaria do estrago, mas não da desconfiança.
+             *
+             * `vigenteEm` decide: um evento ativado hoje para começar amanhã não entrega hoje.
+             */
+            $n = $evento->vigenteEm(now()) ? $entregador->doEvento($evento->fresh()) : 0;
+
+            return "Evento «{$evento->nome}» ATIVO."
+                .($n > 0 ? " Cesta entregue a {$n} colônia(s)." : '')
+                .($evento->modificador ? ' O modificador vale a partir de agora.' : '');
+        }, "evento:{$evento->slug}");
+    }
+
+    /**
+     * Encerra o futuro e preserva o passado — a mesma regra do `artisan` (A2.8, §Segurança).
+     *
+     * ⚠️ Cancelar **não recolhe cesta entregue**. O ledger é append-only e o que a colônia recebeu é
+     * dela; o que cancelar faz é fechar a torneira para quem ainda não recebeu, e desligar o
+     * modificador daqui para a frente.
+     */
+    public function eventoCancelar(GameEvent $evento): RedirectResponse
+    {
+        if ($evento->cancelado_em !== null) {
+            return $this->erro('Já estava cancelado em '.$evento->cancelado_em->format('d/m H:i').'.');
+        }
+
+        return $this->tentar('evento.cancelar', function () use ($evento) {
+            $evento->update(['status' => 'cancelado', 'cancelado_em' => now()]);
+
+            return "Evento «{$evento->nome}» cancelado agora. O passado NÃO foi apagado: o efeito que "
+                .'já valeu continua calculável, e a cesta já entregue é de quem recebeu.';
+        }, "evento:{$evento->slug}");
+    }
+
+    /**
+     * Força uma passagem do entregador sobre este evento.
+     *
+     * O scheduler já faz isto a cada cinco minutos; o botão existe para o operador que acabou de
+     * fundar uma colônia de teste e não quer esperar — e para o dia em que o cron estiver parado,
+     * quando a alternativa seria descobrir isso pelo silêncio.
+     */
+    public function eventoEntregar(GameEvent $evento, EntregarCestas $entregador): RedirectResponse
+    {
+        if (! $evento->temCesta()) {
+            return $this->erro("O evento «{$evento->nome}» não tem cesta nenhuma para entregar.");
+        }
+
+        if (! $evento->vigenteEm(now())) {
+            return $this->erro("O evento «{$evento->nome}» não está vigente — fora da janela, cancelado ou rascunho.");
+        }
+
+        return $this->tentar('evento.entregar', function () use ($evento, $entregador) {
+            $n = $entregador->doEvento($evento);
+
+            return $n > 0
+                ? "Cesta de «{$evento->nome}» entregue a {$n} colônia(s)."
+                : "Ninguém novo a servir: as {$evento->entregas()->count()} colônias elegíveis já receberam.";
+        }, "evento:{$evento->slug}");
+    }
+
     private function tentar(string $acao, callable $fn, ?string $alvo = null): RedirectResponse
     {
         try {

@@ -4,7 +4,6 @@ namespace App\Domain\Logistics;
 
 use App\Domain\Federacao\Aliancas;
 use App\Domain\Marco\ConcederXp;
-use App\Domain\Marco\ExigirMarco;
 use App\Domain\Missoes\Progresso;
 use App\Domain\Populacao\Parametros;
 use App\Domain\Zona\Operadores;
@@ -40,8 +39,13 @@ class OcuparZonaNeutra
          * O gate do §05, vivo desde o D-75: zonas neutras são do marco 20 (Desbravador). Fica FORA
          * da transação de propósito — barrar não precisa de lock. E é AQUISIÇÃO: quem já tem zona
          * continua com ela (posse preservada); só ocupar OUTRA passa por aqui.
+         *
+         * ⚠️ Desde o D-232 quem pergunta é o `RequisitosDeOcupacao`, e não mais o `ExigirMarco`
+         * genérico: um evento pode baixar ESTA régua sem tocar nos outros portões do §05. A tela do
+         * mapa lê o mesmo objeto — a divergência entre o que a tela anuncia e o que o comando cobra
+         * já custou o D-224 uma vez.
          */
-        app(ExigirMarco::class)->exigir($colony, 20, 'Ocupar uma zona neutra');
+        app(RequisitosDeOcupacao::class)->exigirMarco($colony);
 
         return DB::transaction(function () use ($colony, $zona) {
             // Trava a zona e a colônia: duas requisições não podem tomar a mesma zona nem gastar
@@ -172,18 +176,19 @@ class OcuparZonaNeutra
      * não uma cidade. O impedimento existe para que expandir território custe **gente**, e não só
      * recurso — sem isso, população seria um número no canto da tela.
      *
-     * Com a população desligada, não impede nada.
+     * Com a população desligada, não impede nada — e um evento de isenção (D-232) tem o mesmo
+     * efeito enquanto durar: `operadoresExigidos()` devolve zero e nenhum `$livres` fica abaixo.
      */
     private function conferirPopulacao(Colony $colony): void
     {
         $operadores = app(Operadores::class);
-        $parametros = app(Parametros::class);
 
-        if (! $parametros->ativo()) {
+        $exigidos = app(RequisitosDeOcupacao::class)->operadoresExigidos();
+
+        if ($exigidos <= 0) {
             return;
         }
 
-        $exigidos = $parametros->operadoresDeZona(1);
         $livres = $operadores->disponivel($colony);
 
         if ($livres < $exigidos) {
