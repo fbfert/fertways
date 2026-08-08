@@ -12856,3 +12856,44 @@ mostra as duas contas lado a lado — quantas colônias têm XP suficiente e qua
 de fato** —, porque a diferença entre os dois números é a parte que o operador precisa ver.
 
 1283 testes verdes (22 novos, em `CestaDePresenteTest` e `AdminEventosTest`).
+
+### O que aconteceu quando foi ao ar (2026-08-07)
+
+Publicado em `15d0c98`. Migration `[80] Ran` na produção, esquema conferido à mão no MariaDB —
+`modificador varchar(40) NULL`, `efeito_bps int NULL`, `game_event_entregas` com o `unique` composto.
+O scheduler lista `fertways:eventos-entregar` a cada 5 min.
+
+Dois eventos, janela de 30 dias (07/08 22h06 → 06/09 22h06 no relógio de São Paulo; o app grava em
+UTC, e o log soma 3 h):
+
+| slug | modificador | efeito |
+|---|---|---|
+| `cesta_de_presente` | `ocupacao_marco` | −9.500 bps + a cesta |
+| `cesta_de_presente_colonos` | `ocupacao_populacao` | −10.000 bps |
+
+**São dois de propósito**, e não um. A regra do motor é um evento, um modificador — e ela existe
+para que cancelar metade seja possível. Conflar 95% de XP e isenção de colonos atrás de um número só
+economizaria uma linha e tiraria a alavanca que o operador vai querer primeiro.
+
+A entrega: **29 de 29 colônias, uma vez cada** — 783 lançamentos de `presente_evento` (27 linhas ×
+29) e 29 linhas em `game_event_entregas`. Conferido numa das mais pobres, *Colônia de Buscalouca*:
+Fert$ 117 → 517, ligas 15 → 1.315, metal bruto 94 → 1.194, componentes 101 → 603, energia ~0 →
+19.980.
+
+O portão: **6.000 XP → 300**, e **2 colonos livres → 0**. Antes do evento, **0 das 29** colônias
+conseguiam ocupar (todas tinham algo em `falta`); agora, **29 de 29**.
+
+⚠️ **E nenhuma ocupou ainda.** Continuam 77 zonas, 1 ocupada, 76 livres — as mesmas de antes, e zero
+`ZoneEvent` de ocupação nas 6 h seguintes. *Poder* ocupar não é *ocupar*: a decisão é do jogador, e o
+que este evento mediu até agora é só que o caminho está aberto. Se a semana passar sem nenhuma
+ocupação, o gargalo não era nenhum dos três portões — e essa é uma informação que só a espera dá.
+
+(Duas afirmações minhas foram corrigidas aqui: eu li "76 livres" contra "77 total" e concluí que uma
+zona havia sido ocupada durante a conferência; e disse "contra 1 antes" usando o número de zonas
+ocupadas onde cabia o de colônias aptas, que era zero.)
+
+⚠️ **O que o evento não faz, e vence junto com ele.** Isentar colonos não constrói habitação. As 21
+colônias que estavam em 0 ou negativo continuam devendo operadores ao que têm de pé, e em 06/09 elas
+estarão devendo o mesmo — com uma zona a mais para operar. O portão da população foi *contornado*,
+não resolvido; resolvê-lo é mexer no teto habitacional, que é decisão de balanceamento, não de
+evento.

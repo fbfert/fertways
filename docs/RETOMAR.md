@@ -54,7 +54,22 @@ O que entrou:
 - **Um defeito na tela do jogador:** `EventosDoMundo.tsx` escrevia "consumo" para qualquer
   modificador que não fosse produção. A Cesta teria aparecido como "consumo −95% em tudo".
 
-1286 testes verdes.
+1286 testes verdes. **No ar** em `15d0c98` — migration `[80] Ran`, esquema conferido à mão no
+MariaDB, `fertways:eventos-entregar` no scheduler a cada 5 min.
+
+**A Cesta foi distribuída em 07/08:** 29 de 29 colônias, 783 lançamentos `presente_evento`. Dois
+eventos vivos até **06/09 22h06 (São Paulo)** — `cesta_de_presente` (marco: 6.000 XP → 300, mais a
+cesta) e `cesta_de_presente_colonos` (colonos: 2 → 0). São dois porque a regra do motor é um evento,
+um modificador, e é o que permite cancelar um sem o outro.
+
+⚠️ **A conferir nesta janela, e é a pergunta que o evento existe para responder:** antes, 0 das 29
+colônias conseguiam ocupar; agora, 29 de 29. **E nenhuma ocupou** — continuam 77 zonas, 1 ocupada,
+76 livres. Se a semana passar assim, o gargalo não era nenhum dos três portões, e a próxima medida
+tem de procurar em outro lugar (intenção? a tela não oferece? o custo de manutenção assusta?).
+
+⚠️ **E o que vence junto com o evento:** as 21 colônias em 0 ou negativo de colonos livres continuam
+devendo operadores. Em 06/09 estarão devendo o mesmo, com uma zona a mais. O portão da população foi
+contornado, não resolvido — resolvê-lo é o teto habitacional, que é balanceamento e não evento.
 
 ⚠️ **`docs/decisoes.md` não tem entrada para o D-231** — aquele commit só mexeu no GDD v40 e no
 gerador. Lacuna anterior a esta sessão, registrada aqui para não virar mistério.
