@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
@@ -41,6 +42,19 @@ class GameEvent extends Model
     public function entregas(): HasMany
     {
         return $this->hasMany(GameEventEntrega::class);
+    }
+
+    /**
+     * A colônia do evento de escopo `colonia` — o ensaio em escala de um. Nula no escopo `mundo`.
+     *
+     * ⚠️ Faltava, e a aba do painel caiu com 500 em produção por causa disso (D-233). O
+     * `with('colony')` estava lá desde o D-232 e **o teste não pegou**: o Laravel só resolve o eager
+     * loading quando a consulta devolve linhas, e o teste abria a aba com a tabela vazia. Uma página
+     * que passa vazia e quebra cheia é o pior tipo de verde.
+     */
+    public function colony(): BelongsTo
+    {
+        return $this->belongsTo(Colony::class);
     }
 
     /** Este evento entrega alguma coisa, ou só mexe numa taxa? */

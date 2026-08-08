@@ -82,6 +82,93 @@ class AdminEventosTest extends TestCase
         $this->actingAs($this->dono(), 'admin')->get('/admin/eventos')->assertOk();
     }
 
+    /**
+     * ⚠️ **A aba CHEIA, que é o caso que quebrou em produção (D-233).**
+     *
+     * `test_a_aba_e_do_dono` abria a tabela vazia e passava; a aba caía com 500 assim que existisse
+     * um evento, porque o `with('colony')` apontava para uma relação que o `GameEvent` não tinha —
+     * e o Laravel **só resolve eager loading quando a consulta devolve linhas**.
+     *
+     * Por isso este teste põe **um de cada forma** antes de abrir: vigente e rascunho, com
+     * modificador e sem, de mundo e de colônia, com cesta e sem, cancelado. Uma página de listagem
+     * testada só vazia não está testada.
+     */
+    public function test_a_aba_abre_com_um_evento_de_cada_forma(): void
+    {
+        $c = $this->colonia();
+
+        // A população nasce desligada (D-178) e a produção a tem LIGADA. Sem isto o portão dos
+        // colonos leria "0 em vez de 0" e a asserção provaria nada.
+        \DB::table('population_settings')->where('id', 1)->update(['ativo' => true]);
+        app(\App\Domain\Populacao\Parametros::class)->recarregar();
+
+        $base = [
+            'comeca_em' => now()->subHour(), 'termina_em' => now()->addDays(30),
+            'status' => 'ativo', 'modificador' => null, 'efeito_bps' => null,
+        ];
+
+        GameEvent::create(array_merge($base, [
+            'slug' => 'so_cesta', 'nome' => 'Só cesta',
+            'recompensas' => ['energia' => 20_000, EntregarCestas::FERT => 400_000_000],
+        ]));
+        // O que derrubou a produção: escopo de colônia, que é o único que toca a relação.
+        GameEvent::create(array_merge($base, [
+            'slug' => 'de_colonia', 'nome' => 'De colônia',
+            'escopo' => 'colonia', 'colony_id' => $c->id,
+            'modificador' => Modificadores::PRODUCAO, 'efeito_bps' => -2_000,
+            'resource_type' => 'agua',
+        ]));
+        GameEvent::create(array_merge($base, [
+            'slug' => 'marco', 'nome' => 'Marco',
+            'modificador' => Modificadores::OCUPACAO_MARCO, 'efeito_bps' => -9_500,
+        ]));
+        GameEvent::create(array_merge($base, [
+            'slug' => 'colonos', 'nome' => 'Colonos',
+            'modificador' => Modificadores::OCUPACAO_POPULACAO, 'efeito_bps' => -10_000,
+        ]));
+        GameEvent::create(array_merge($base, [
+            'slug' => 'tregua', 'nome' => 'Trégua',
+            'modificador' => Modificadores::GUERRA_DECLARACAO, 'efeito_bps' => -10_000,
+            'visibilidade' => 'parcial',
+        ]));
+        GameEvent::create(array_merge($base, [
+            'slug' => 'custo_guerra', 'nome' => 'Custo de guerra',
+            'modificador' => Modificadores::GUERRA_CUSTO, 'efeito_bps' => -5_000,
+            'segredo' => true,
+        ]));
+        GameEvent::create(array_merge($base, [
+            'slug' => 'rascunho', 'nome' => 'Rascunho', 'status' => 'rascunho',
+            'recompensas' => ['metal_bruto' => 100],
+        ]));
+        GameEvent::create(array_merge($base, [
+            'slug' => 'cancelado', 'nome' => 'Cancelado',
+            'status' => 'cancelado', 'cancelado_em' => now()->subMinute(),
+            'modificador' => Modificadores::CONSUMO, 'efeito_bps' => 300,
+        ]));
+        // Encerrado: fora da janela, para cair na terceira lista.
+        GameEvent::create([
+            'slug' => 'antigo', 'nome' => 'Antigo',
+            'comeca_em' => now()->subDays(60), 'termina_em' => now()->subDays(30),
+            'status' => 'ativo', 'modificador' => Modificadores::PRODUCAO, 'efeito_bps' => 500,
+        ]);
+
+        $this->actingAs($this->dono(), 'admin')
+            ->get('/admin/eventos')
+            ->assertOk()
+            ->assertSee('Só cesta')
+            ->assertSee('De colônia')
+            ->assertSee($c->name)
+            ->assertSee('Rascunho')
+            ->assertSee('Antigo')
+            // Cada modificador tem de sair com o que SIGNIFICA, e não com o bps cru.
+            ->assertSee('300 XP em vez de 6.000')
+            ->assertSee('0 colono(s) em vez de 2')
+            ->assertSee('TRÉGUA — ninguém declara')
+            ->assertSee('só entrega cesta')
+            // O evento de colônia tem de nomear a colônia — é o `with('colony')` que faltava.
+            ->assertSee('colônia '.$c->name);
+    }
+
     public function test_o_operador_nao_cria_evento_nem_batendo_direto_na_rota(): void
     {
         $this->actingAs($this->operador(), 'admin')

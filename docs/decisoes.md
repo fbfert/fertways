@@ -12897,3 +12897,54 @@ colônias que estavam em 0 ou negativo continuam devendo operadores ao que têm 
 estarão devendo o mesmo — com uma zona a mais para operar. O portão da população foi *contornado*,
 não resolvido; resolvê-lo é mexer no teto habitacional, que é decisão de balanceamento, não de
 evento.
+
+---
+
+## D-233 — A aba caiu com 500, e o teste que a aprovou a abria vazia
+
+**Data:** 2026-08-08 · **Status:** corrigido
+
+O usuário abriu `/central/admin/eventos` e recebeu 500. No log:
+
+```
+Call to undefined relationship [colony] on model [App\Models\GameEvent]
+```
+
+`PainelController::eventos()` fazia `GameEvent::with('colony')`, e o `GameEvent` **nunca teve essa
+relação** — só a coluna `colony_id`. O erro é do D-232, publicado ontem.
+
+### ⚠️ Por que o teste passou
+
+`AdminEventosTest::test_a_aba_e_do_dono` faz `get('/admin/eventos')->assertOk()`, e passava. O
+Laravel só chama `eagerLoadRelations()` **quando a consulta devolve linhas** — com a tabela vazia, o
+`with()` de uma relação inexistente nunca é resolvido e nada quebra.
+
+A aba passava vazia e caía cheia. É a mesma família do falso-verde do D-63: um teste que afirma o
+caminho mais raro (nenhum evento) e nunca o normal.
+
+**A regra que fica: página de listagem se testa COM linhas.** O teste novo põe **um evento de cada
+forma** antes de abrir — vigente e rascunho, com modificador e sem, de mundo e de colônia, com cesta
+e sem, cancelado, encerrado, secreto — e afirma o que cada modificador *significa* na tela, não só
+que a página respondeu 200.
+
+### E o teste novo achou dois defeitos meus
+
+**1. `$base + [...]` no fixture, que é o operador errado.** A união de arrays do PHP mantém o valor
+da **esquerda** em chave duplicada: `$base` trazia `'modificador' => null`, e todos os oito eventos
+nasceram sem modificador nenhum. O teste teria passado "verde" exercitando um único caminho, o que é
+pior do que não existir. `array_merge` — o da direita vence — é o certo aqui.
+
+(A produção não foi afetada: os dois eventos vivos foram criados pelo `artisan`, e o
+`xpExigido()` de 300 já estava conferido em campo.)
+
+**2. `"só entrega cesta"` era incondicional.** A leitura de um evento sem modificador anunciava uma
+cesta sem conferir se ela existe. A validação impede criar esse evento hoje, mas o banco não impede
+nada — e a tela passa a dizer "não faz nada", que é a verdade quando é o caso.
+
+### O que NÃO é deste defeito
+
+Dois `Deadlock found` em `resources ... for update` no log de hoje. **Anteriores a esta mudança** —
+há 4 no `laravel.log.gz` arquivado em 05/08. Ficam registrados aqui para não serem confundidos com o
+500 da aba; investigá-los é trabalho à parte.
+
+1287 testes verdes.

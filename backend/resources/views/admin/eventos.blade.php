@@ -18,7 +18,12 @@
     ];
 
     $leitura = function ($e) use ($ocupacao) {
-        if ($e->modificador === null) { return "só entrega cesta"; }
+        // ⚠️ "só entrega cesta" tinha de ser condicional à cesta EXISTIR (D-233). Sem a guarda, um
+        // evento sem modificador e sem recompensa — que a validação impede hoje, mas o banco não —
+        // se anunciaria como um presente que não existe.
+        if ($e->modificador === null) {
+            return $e->temCesta() ? "só entrega cesta" : "não faz nada";
+        }
         $mult = max(0, 10000 + (int) $e->efeito_bps);
         return match ($e->modificador) {
             "ocupacao_marco" => intdiv($ocupacao["xp_normal"] * $mult, 10000) . " XP em vez de "
