@@ -62,6 +62,16 @@ eventos vivos até **06/09 22h06 (São Paulo)** — `cesta_de_presente` (marco: 
 cesta) e `cesta_de_presente_colonos` (colonos: 2 → 0). São dois porque a regra do motor é um evento,
 um modificador, e é o que permite cancelar um sem o outro.
 
+**Segunda cesta em 08/08 (D-234):** `cesta_de_presente_2`, 1.300 ligas + 5.000 energia às 29. A
+primeira virou prédio em 13 h — 5.925 ligas em 60 obras, zero produzidas —, e as 20 travadas
+estavam presas **só por ligas**. Primeiro evento sem modificador nenhum, e a prova de que o
+`modificador` nulo do D-232 valia a pena. Tesouro conferido intocado: emitir não é distribuir.
+
+⚠️ **A causa continua de pé: 19 das 29 colônias não têm Indústria Siderúrgica**, logo não produzem
+Ligas Metálicas, e o Posto de Comando pede 1.200. Uma terceira cesta é a terceira dose do mesmo
+remédio. O que ataca a causa é o custo da Siderúrgica ou a receita da liga — balanceamento, não
+evento. **Decisão em aberto: pergunte ao usuário.**
+
 ⚠️ **A conferir nesta janela, e é a pergunta que o evento existe para responder:** antes, 0 das 29
 colônias conseguiam ocupar; agora, 29 de 29. **E nenhuma ocupou** — continuam 77 zonas, 1 ocupada,
 76 livres. Se a semana passar assim, o gargalo não era nenhum dos três portões, e a próxima medida

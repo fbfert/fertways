@@ -12948,3 +12948,56 @@ há 4 no `laravel.log.gz` arquivado em 05/08. Ficam registrados aqui para não s
 500 da aba; investigá-los é trabalho à parte.
 
 1287 testes verdes.
+
+---
+
+## D-234 — A segunda cesta, e a confirmação de que emitir não é gastar o Tesouro
+
+**Data:** 2026-08-08 · **Status:** entregue
+
+O usuário pediu uma segunda cesta só de Ligas Metálicas, mais 5.000 de energia para todos, com uma
+condição declarada: *"essa energia não vai sair do fundo do governo, vamos 'inventar' ela"*.
+
+**A condição já era o comportamento, e não só para a energia — para a cesta inteira.** O D-232
+decidiu isso e a razão está lá: o Tesouro reparte o que **arrecadou** (o tributo do §2.1), e presente
+não foi arrecadado. `EntregarCestas` credita a colônia direto e escreve `presente_evento` no ledger;
+não há uma linha sequer que toque `TreasuryHolding`.
+
+Conferido em campo antes de executar, e é o tipo de coisa que não se afirma de memória:
+
+| | antes | depois |
+|---|---|---|
+| Tesouro, ligas | 1.471 | **1.471** |
+| Tesouro, energia | 2.658 | **2.658** |
+| `treasury_ledger` tipo `distribuicao` no dia | 0 | **0** |
+
+### Por que 1.300 de ligas
+
+Medido, não arbitrado. Das 29 colônias, **20 estavam travadas por Ligas Metálicas e por mais nada** —
+déficit mínimo 530, mediana 1.122, **máximo 1.189**. 1.300 cobre o pior caso com folga e é o mesmo
+número da primeira cesta, o que mantém as duas comparáveis quando alguém for medir o efeito.
+
+### O primeiro evento sem modificador nenhum
+
+`cesta_de_presente_2` não mexe em taxa alguma — os dois portões já estão abertos pelos eventos
+irmãos, e abrir de novo não abriria mais. É o primeiro uso real do `modificador` nulo que o D-232
+criou, e a prova de que valeu não gravar `producao 0` para satisfazer um `NOT NULL`.
+
+A janela é de **705 h**, e não de 30 dias: termina junto com as duas primeiras (06/09 22h06 em São
+Paulo). A entrega é única, no ato; a janela só governa a faixa do jogador e quem fundar no meio — e
+três faixas sumindo em dias diferentes seria confusão sem ganho.
+
+### O resultado, e o que ele ainda não responde
+
+29 de 29 podem ocupar de novo. 841 lançamentos `presente_evento` no total (783 + 29 × 2).
+
+⚠️ **A primeira cesta virou prédio em 13 horas** — 5.925 ligas em 60 obras, e **zero produzidas**. É
+o motivo desta segunda, e é também o aviso: nada impede que a segunda vá pelo mesmo caminho. Os
+jogadores estão escolhendo construir, não ocupar, e isso é uma resposta legítima — só não é a que o
+evento foi criado para provocar.
+
+⚠️ **A causa continua de pé: 19 das 29 colônias não têm Indústria Siderúrgica**, e portanto não
+produzem Ligas Metálicas. Para elas a liga só entra por presente ou comércio, e o Posto de Comando
+pede 1.200. Uma terceira cesta seria a terceira dose do mesmo remédio; o que ataca a causa é o custo
+da Siderúrgica ou a receita da liga, que são balanceamento e não evento — e ficam como decisão em
+aberto.
