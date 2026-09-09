@@ -184,6 +184,13 @@ export type ColoniaVizinha = {
   y: number
   distance: number
   building_levels_sum: number
+  /**
+   * A2.V4 (D-242): esta colônia é da MINHA federação.
+   *
+   * Só o booleano — nem id nem nome da federação alheia. A régua desta rota é a do D-37: ela existe
+   * para escolher destino, não para espionar. Quem não é membro recebe `false` para todo mundo.
+   */
+  aliada: boolean
 }
 
 /**

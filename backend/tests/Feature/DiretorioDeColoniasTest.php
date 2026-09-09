@@ -9,6 +9,7 @@ use Database\Seeders\BuildingSpecSeeder;
 use Database\Seeders\ComponentRecipeSeeder;
 use Database\Seeders\ResourceTypeSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -151,7 +152,11 @@ class DiretorioDeColoniasTest extends TestCase
         $this->assertSame(
             // 'user_id' entrou no D-81: chave do card "quem é esse colono" — não vaza nada, é só
             // o identificador que já estava público via 'nickname' e 'name'.
-            ['building_levels_sum', 'distance', 'id', 'name', 'nickname', 'user_id', 'x', 'y'],
+            //
+            // 'aliada' entrou no D-242, e é BOOLEANO de propósito: diz "é da minha federação", não
+            // de qual federação o vizinho é. Quem está fora recebe `false` para todo mundo. Esta
+            // lista é o portão — um campo novo aqui é uma decisão de privacidade, não um detalhe.
+            ['aliada', 'building_levels_sum', 'distance', 'id', 'name', 'nickname', 'user_id', 'x', 'y'],
             collect(array_keys($vizinho))->sort()->values()->all(),
         );
     }
@@ -228,5 +233,63 @@ class DiretorioDeColoniasTest extends TestCase
             ->assertJsonPath('me.id', $eu->id)
             ->assertJsonPath('me.x', 10)
             ->assertJsonPath('me.y', 10);
+    }
+
+    // ─────────────────────────────────── a Federação no mapa (A2.V4, D-242)
+
+    private function federar(Colony $colony, int $federationId, string $cargo = 'membro'): void
+    {
+        $colony->forceFill(['federation_id' => $federationId, 'federation_role' => $cargo])->save();
+    }
+
+    /**
+     * ⚠️ O defeito que este teste guarda: o roadmap da A2.V4 manda o mapa mostrar Federação, e o
+     * payload não trazia campo nenhum — pintar aliado exigia backend antes de desenho. Havia dado
+     * desde julho: duas colônias humanas na mesma federação, sem enxergar uma à outra no planeta.
+     */
+    public function test_a_colonia_da_minha_federacao_vem_marcada_como_aliada(): void
+    {
+        $eu = $this->colonia('eu', 10, 10);
+        $amiga = $this->colonia('amiga', 12, 12);
+        $estranha = $this->colonia('estranha', 14, 14);
+
+        $fed = DB::table('federations')->insertGetId([
+            'name' => 'Clube', 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $this->federar($eu, $fed, 'lider');
+        $this->federar($amiga, $fed);
+
+        $r = $this->actingAs($eu->user)->getJson('/colonies')->assertOk()->json('colonies');
+        $por = collect($r)->keyBy('id');
+
+        $this->assertTrue($por[$amiga->id]['aliada']);
+        $this->assertFalse($por[$estranha->id]['aliada']);
+    }
+
+    /**
+     * ⚠️ **A régua de privacidade do D-37: só o booleano, e nunca de quem.**
+     *
+     * Quem não é membro recebe `false` para todo mundo — inclusive para duas colônias que estão
+     * aliadas entre si. Publicar o id transformaria o mapa num censo de quem se aliou a quem, que é
+     * outra decisão e não foi tomada. Este teste é o que impede o campo de crescer sem querer.
+     */
+    public function test_quem_nao_tem_federacao_nao_ve_alianca_alheia(): void
+    {
+        $eu = $this->colonia('sozinho', 10, 10);
+        $a = $this->colonia('a', 12, 12);
+        $b = $this->colonia('b', 13, 13);
+
+        $fed = DB::table('federations')->insertGetId([
+            'name' => 'Outra', 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $this->federar($a, $fed, 'lider');
+        $this->federar($b, $fed);
+
+        $r = $this->actingAs($eu->user)->getJson('/colonies')->assertOk()->json('colonies');
+
+        foreach ($r as $c) {
+            $this->assertFalse($c['aliada'], "a colônia {$c['name']} não devia aparecer como aliada");
+            $this->assertArrayNotHasKey('federation_id', $c, 'o mapa não é um censo de alianças');
+        }
     }
 }

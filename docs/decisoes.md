@@ -13520,3 +13520,86 @@ a quem comercia — hoje, os bots. Para os 7 humanos travados no marco, a fonte 
 sendo obra e missão, e as duas dependem de alguém entrar no jogo.
 
 1310 testes verdes, migration exercitada nos dois sentidos em MariaDB.
+
+---
+
+## D-242 — A Federação chega ao mapa, e é o único item da A2.V4 que não dependia de haver jogo
+
+**Data:** 2026-09-09 · **Status:** entregue
+
+A A2.V4 (Mapa e zonas) parou no D-223 com a medida de que **não havia o que desenhar**: 2 zonas
+ocupadas de 77, 0 cercos, 0 veículos em rota, 0 combates. Quatro dos oito itens da fase — ameaças,
+zonas, trajetos e estados territoriais — seguem sem dado nenhum.
+
+**Federação era o quinto, e a razão dele ser diferente:** o dado existe desde julho e o que faltava
+era backend. O *Clube da Polenta* tem duas colônias humanas — `Maior Colonia` (líder) e `Agua Preta
+muito Longe` (membro) — e **nenhuma das duas enxergava a outra no planeta**, porque `ColoniaVizinha`
+chegava à tela sem um campo de federação.
+
+### Só o booleano, e nunca de quem
+
+Vai `aliada: bool`, e não o id nem o nome da federação alheia. A régua desta rota é a do D-37: ela
+existe para **escolher destino, não para espionar**. "É da minha federação" não conta nada a quem
+está de fora — quem não é membro recebe `false` para todo mundo, inclusive para duas colônias
+aliadas entre si — e a quem está dentro não conta nada de novo, porque a tela de Federação já lista
+os próprios membros. Publicar o id transformaria o mapa num **censo de quem se aliou a quem**, que é
+outra decisão e não foi tomada.
+
+⚠️ **O teste que fixa a lista exata de campos do vizinho reprovou**, e foi assim que se soube que o
+campo novo era uma decisão de privacidade e não um detalhe. Ele foi atualizado com a razão escrita —
+é o portão, e um campo a mais ali passa por ele de propósito.
+
+### Anel, e não cor de preenchimento
+
+O preenchimento do círculo já carrega a **seleção**; um segundo significado no mesmo canal faria
+"selecionada" e "aliada" disputarem o mesmo pixel. O aliado ganha **anel `ember`**, o `<title>` diz
+*"sua federação"* por extenso (cor nunca é o único sinal — regra da A2.V1), e a lista lateral leva o
+losango `◈` antes do nome: um sinal que só existe no desenho obriga a caçar o ponto certo entre
+trinta para saber de quem se trata.
+
+⚠️ E entrou **linha na legenda** — o mesmo defeito que o docblock da `Legenda` já registrava para a
+zona livre: sinal novo no mapa sem entrada na legenda é meia entrega.
+
+Medido na foto, e conferindo as **duas pontas** — um teste que só afirma a presença passaria com
+tudo pintado de aliado: `{"colonias":4,"aliadas":1,"aliada_tem_anel":true,"nao_aliada_sem_anel":true,
+"aliada_dita_por_extenso":true}`. O mundo do e2e ganhou uma terceira colônia, na mesma federação da
+do e2e: as duas que existiam lideram federações **diferentes**, que é o caso "não aliada".
+
+---
+
+## D-243 — A missão chegava a quem abria a tela, não a quem jogava
+
+**Data:** 2026-09-09 · **Status:** entregue
+
+A outra metade da torneira do D-241. `Atribuir` é preguiçoso por desenho — só sorteia em
+`GET /missoes` — e a intenção é boa: não fazer trabalho para quem não está lá. **Mas o gatilho é uma
+tela, e não o jogo.**
+
+Medido: **nenhuma atribuição desde a semana 32**, cinco semanas, e só **6 das 30** colônias com
+missão ativa. Os colonos simulados jogam sem parar e nunca abrem aquela página. O §06 chama as
+missões de fonte de XP e de Fert$ — e uma fonte que depende de o jogador visitar uma página
+específica não é fonte do jogo, é fonte da interface. Com 33 diárias no pool valendo 3.100 XP, é a
+única fonte sustentada que o jogo tem.
+
+### A regra não muda; muda como se sabe que ele está lá
+
+`fertways:missoes-diarias`, às **07h05** — cinco minutos depois de o dia de missão virar, porque a
+régua do §06 é a das 07h e ter duas réguas de "hoje" seria ter duas respostas para a mesma pergunta.
+Ele entrega a quem **agiu**: colônia com lançamento em `xp_entries` na janela (7 dias por padrão).
+Quem parou há semanas continua sem receber nada.
+
+⚠️ **`xp_entries`, e não o ledger.** O ledger recebe produção a cada tick, inclusive de colônia
+abandonada — a fábrica não para quando o dono some. Ele diria "todo mundo ativo". O XP nasce de
+**ato**, que é o que esta janela precisa medir.
+
+⚠️ **E isto só funciona porque a missão se conclui sozinha.** `Progresso` paga na hora, sem botão de
+resgate (D-78): basta a missão existir, e o ato que o colono já faria a completa e credita. Se
+houvesse resgate, entregar missão a quem não olha seria só encher uma tabela.
+
+A narrativa e a tutoria vão junto — são encadeadas e sem janela (D-140, A2.1), então quem nunca abre
+a tela travava na escada, e a tutoria é justamente o que ensina o jogo a quem chegou.
+
+`garantir()` é idempotente por janela, então o comando convive com o `GET /missoes` sem coordenação
+nenhuma: rodar duas vezes no mesmo dia não dá seis missões, e há teste para isso.
+
+1315 testes verdes.

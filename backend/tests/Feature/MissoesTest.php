@@ -40,6 +40,66 @@ class MissoesTest extends TestCase
         return $user->fresh();
     }
 
+    // ------------------------------------ a entrega para quem joga (D-243)
+
+    /**
+     * ⚠️ O defeito que este teste guarda: **as missões chegavam a quem abria a tela, não a quem
+     * jogava.**
+     *
+     * `Atribuir` só sorteia em `GET /missoes`. Medido em produção: nenhuma atribuição por cinco
+     * semanas, e 6 de 30 colônias com missão ativa. Quem joga sem passar por aquela página — os
+     * colonos simulados, por exemplo — nunca recebia nada, e o §06 chama isso de fonte de XP.
+     */
+    public function test_o_comando_entrega_a_diaria_a_quem_agiu(): void
+    {
+        $c = $this->colono()->colony;
+        MissionAssignment::where('colony_id', $c->id)->delete();
+
+        // O ato: um lançamento de XP na janela. É o sinal de que alguém está jogando esta colônia.
+        app(\App\Domain\Marco\ConcederXp::class)->handle($c->id, 'obra_concluida', 'agiu');
+
+        $this->artisan('fertways:missoes-diarias')->assertSuccessful();
+
+        $this->assertSame(
+            \App\Domain\Missoes\Atribuir::DIARIAS_POR_DIA,
+            MissionAssignment::where('colony_id', $c->id)->where('categoria', 'diaria')->count(),
+        );
+    }
+
+    /**
+     * ⚠️ **E a regra que não muda: não se trabalha para quem não está lá.**
+     *
+     * O que mudou é como se sabe que ele está — "agiu", e não "abriu a tela". Uma colônia parada há
+     * semanas continua sem receber nada, e é isso que impede o comando de virar uma varredura de
+     * tabela inteira todo dia.
+     */
+    public function test_a_colonia_parada_nao_recebe_nada(): void
+    {
+        $c = $this->colono()->colony;
+        MissionAssignment::where('colony_id', $c->id)->delete();
+        \App\Models\XpEntry::where('colony_id', $c->id)->delete();
+
+        $this->artisan('fertways:missoes-diarias', ['--dias' => 1])->assertSuccessful();
+
+        $this->assertSame(0, MissionAssignment::where('colony_id', $c->id)->count());
+    }
+
+    /** Rodar duas vezes no mesmo dia não dá seis missões: `garantir()` é idempotente por janela. */
+    public function test_rodar_duas_vezes_no_mesmo_dia_nao_dobra_a_mao(): void
+    {
+        $c = $this->colono()->colony;
+        MissionAssignment::where('colony_id', $c->id)->delete();
+        app(\App\Domain\Marco\ConcederXp::class)->handle($c->id, 'obra_concluida', 'agiu');
+
+        $this->artisan('fertways:missoes-diarias')->assertSuccessful();
+        $this->artisan('fertways:missoes-diarias')->assertSuccessful();
+
+        $this->assertSame(
+            \App\Domain\Missoes\Atribuir::DIARIAS_POR_DIA,
+            MissionAssignment::where('colony_id', $c->id)->where('categoria', 'diaria')->count(),
+        );
+    }
+
     // ---------------------------------------------------------------- o catálogo
 
     public function test_o_pool_publicado_existe(): void

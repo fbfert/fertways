@@ -52,3 +52,21 @@ Schedule::command('fertways:eventos-entregar')
     ->everyFiveMinutes()
     ->withoutOverlapping(10)
     ->runInBackground();
+
+/**
+ * As missões do dia, para quem está jogando (D-243).
+ *
+ * Às **07h05**, cinco minutos depois de o dia de missão virar (`Janela::diaAtual()` corta às 07h).
+ * Não à meia-noite: ter duas réguas de "hoje" seria ter duas respostas para a mesma pergunta, e a
+ * régua do §06 é a das 07h.
+ *
+ * ⚠️ O relógio é o **do app**, e o app roda em UTC — a mesma base de `Janela`. É de propósito que
+ * as duas concordem; o dia de missão do jogo não é o dia do fuso de São Paulo, e nunca foi.
+ *
+ * Uma vez por dia porque a janela é diária: rodar de hora em hora não sortearia nada a mais
+ * (`garantir()` é idempotente por janela) e varreria a tabela 24 vezes à toa.
+ */
+Schedule::command('fertways:missoes-diarias')
+    ->dailyAt('07:05')
+    ->withoutOverlapping(10)
+    ->runInBackground();

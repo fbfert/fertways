@@ -203,6 +203,49 @@ Quartel não publicava. Vale como método: **todo limiar herdado precisa ser med
 
 1310 testes verdes, migration exercitada nos dois sentidos em MariaDB.
 
+### A previsão do D-239, conferida — e **corrigida em ~30%**
+
+O acumulador de crescimento está andando (resto 405 → 420 em 3,5 min), então o mecanismo funciona.
+Mas o ritmo medido é **~253 milésimos/h**, e não os 315 que os 0,7% nominais dariam — cerca de **80%
+do nominal**. Recalculando com o medido:
+
+| colônia | precisa | previa o D-239 | **medido** |
+|---|---|---|---|
+| Maior Colonia | +5 colonos | ~15 h | **~20 h** |
+| Energizer do Gamer | +12 colonos | ~51 h | **~79 h (3,3 dias)** |
+
+⚠️ Os 80% ficam como **medida, não como explicação** — não investiguei a causa. Se alguém for atrás,
+o candidato óbvio é o `crescimento_min_suprimento_bps` (8000) e o que o `Ciclo` faz com ele.
+
+### A Federação no mapa (D-242) — **no ar** em 09/09
+
+O único item da A2.V4 que não dependia de haver jogo: o dado existe desde julho (o *Clube da
+Polenta*, com duas colônias humanas) e o que faltava era backend. Agora `ColoniaVizinha` leva
+`aliada` — **só o booleano**, nunca de quem: a régua do D-37 é escolher destino, não espionar, e
+publicar o id faria do mapa um censo de alianças. ⚠️ O teste que fixa a lista exata de campos do
+vizinho **reprovou**, e é assim que se sabe que campo novo ali é decisão de privacidade.
+
+Anel `ember` (não cor de preenchimento — o preenchimento já é a seleção), `◈` na lista lateral,
+`<title>` por extenso, e linha na legenda. A foto confere as duas pontas: aliada com anel, não-aliada
+sem.
+
+**O que a A2.V4 ainda não pode fazer:** ameaças, zonas, trajetos e estados territoriais seguem sem
+dado. Eles dependem da primeira ocupação — ver a previsão acima.
+
+### As missões passam a chegar a quem joga (D-243) — **no ar** em 09/09
+
+A outra metade da torneira do D-241. `Atribuir` só sorteia em `GET /missoes`, e o gatilho era **uma
+tela, não o jogo**: nenhuma atribuição por cinco semanas, 6 de 30 colônias com missão ativa.
+
+`fertways:missoes-diarias` às **07h05** (o dia de missão vira às 07h) entrega a quem **agiu** —
+colônia com lançamento em `xp_entries` nos últimos 7 dias. ⚠️ `xp_entries` e **não** o ledger: o
+ledger recebe produção de colônia abandonada também, e diria "todo mundo ativo".
+
+⚠️ Só funciona porque a missão **se conclui sozinha** (D-78, sem botão de resgate). Com resgate,
+entregar missão a quem não olha seria encher tabela.
+
+1315 testes verdes.
+
 **D-238:** o usuário arbitrou que os bots rodarem contra a produção é deliberado; o
 `ROADMAP_ALPHA2.md` é que estava velho e foi corrigido, com a consequência escrita junto — a
 telemetria separa humano de *sistema*, **não** de bot, e a única marca é o domínio

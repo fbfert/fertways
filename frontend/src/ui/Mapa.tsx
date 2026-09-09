@@ -567,7 +567,15 @@ export function Mapa({
                             : 'text-ink-soft hover:bg-sand'
                         }`}
                       >
-                        <span className="truncate">{c.name}</span>
+                        {/*
+                         * O aliado também na LISTA, e não só no planeta (D-242): a lista é como se
+                         * acha uma colônia pelo nome, e um sinal que só existe no desenho obriga a
+                         * caçar o ponto certo entre trinta para saber de quem se trata.
+                         */}
+                        <span className="truncate">
+                          {c.aliada ? <span className="text-ember font-black">◈ </span> : null}
+                          {c.name}
+                        </span>
                         <span className="ml-2 shrink-0 tabular-nums">{c.distance}</span>
                       </button>
                     </li>
@@ -724,6 +732,8 @@ function Desenho({
         {dir.colonies.map((c) => (
           <circle
             key={c.id}
+            data-colonia={c.id}
+            data-aliada={c.aliada ? '1' : undefined}
             cx={proj.px(c.x)}
             cy={proj.py(c.y)}
             r={tam(selecao?.tipo === 'colonia' && selecao.c.id === c.id ? 11 : 7, 0.3)}
@@ -732,11 +742,26 @@ function Desenho({
                 ? 'var(--color-rust-bright)'
                 : 'var(--color-ink-soft)'
             }
+            /*
+             * ⚠️ **O anel do aliado** (A2.V4, D-242) — a Federação chega ao mapa.
+             *
+             * O roadmap manda a fase mostrar Federação e o payload não trazia campo nenhum. Existe
+             * dado desde julho: duas colônias humanas na mesma federação, e nenhuma enxergava a
+             * outra no planeta.
+             *
+             * É **anel, e não cor de preenchimento**: o preenchimento já carrega a seleção, e um
+             * segundo significado no mesmo canal faria "selecionada" e "aliada" disputarem o mesmo
+             * pixel. E é a regra do design system desde a A2.V1 — cor nunca é o único sinal —, por
+             * isso o `<title>` também diz, que é o que o leitor de tela lê e o e2e afirma.
+             */
+            stroke={c.aliada ? 'var(--color-ember)' : undefined}
+            strokeWidth={c.aliada ? 2.5 * k : undefined}
             className="cursor-pointer"
             onClick={() => aoSelecionar(() => aoEscolher({ tipo: 'colonia', c }))}
           >
             <title>
               {c.name} ({c.nickname}) — {c.distance} slots
+              {c.aliada ? ' — sua federação' : ''}
             </title>
           </circle>
         ))}
@@ -1291,6 +1316,16 @@ function Legenda() {
       </li>
       <li>
         <span className="bg-ink-soft mr-2 inline-block h-3 w-3 rounded-full align-middle" /> Vizinhas
+      </li>
+      {/*
+       * O aliado (D-242) vem logo abaixo de "Vizinhas" porque é uma vizinha — com um anel. Um sinal
+       * novo no mapa sem linha na legenda é o defeito que este docblock já descreve: quem procurava
+       * a zona livre não achava o quadrado dela aqui. O swatch repete a FORMA de verdade: mesmo
+       * círculo `ink-soft`, com o anel `ember` por fora.
+       */}
+      <li>
+        <span className="bg-ink-soft border-ember mr-2 inline-block h-3 w-3 rounded-full border-2 align-middle" />{' '}
+        Da sua federação
       </li>
       <li>
         <span className="bg-ink-soft mr-2 inline-block h-3 w-3 align-middle" /> Zona neutra livre —

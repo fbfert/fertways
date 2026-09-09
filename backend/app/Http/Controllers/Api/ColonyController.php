@@ -208,6 +208,24 @@ class ColonyController extends Controller
                  * diz o que ele é. Quando o Marco existir de verdade, será um campo à parte.
                  */
                 'building_levels_sum' => (int) $c->buildings_sum_level,
+
+                /*
+                 * ⚠️ **Aliada, e nada além disso** (A2.V4, D-242).
+                 *
+                 * O roadmap da A2.V4 manda o mapa mostrar Federação, e `ColoniaVizinha` chegava à
+                 * tela sem um campo sequer — pintar aliado exigia backend antes de desenho. Existe
+                 * dado: o *Clube da Polenta* tem duas colônias humanas, e nenhuma das duas enxerga
+                 * a outra no planeta.
+                 *
+                 * Vai só o **booleano**, e não o id nem o nome da federação alheia. A régua desta
+                 * rota é a do D-37: ela existe para escolher destino, não para espionar. "É da
+                 * minha federação" não conta nada a quem está de fora — quem não é membro recebe
+                 * `false` para todo mundo — e a quem está dentro não conta nada de novo: a tela de
+                 * Federação já lista os próprios membros. Publicar o id transformaria o mapa num
+                 * censo de quem se aliou a quem, que é outra decisão e não foi tomada.
+                 */
+                'aliada' => $minha->federation_id !== null
+                    && $c->federation_id === $minha->federation_id,
             ])
             // Vizinho primeiro: é a ordem em que o jogador decide para onde despachar (§25.6, a
             // posição no mapa importa). `id` desempata para a lista não dançar entre chamadas.

@@ -270,6 +270,24 @@ foreach ([[$c, "Pacto do Norte", "PN", $u], [$cv, "Liga do Sul", "LS", $v]] as [
 }
 
 /*
+ * A2.V4 (D-242): uma ALIADA de verdade, para o anel do mapa ter o que pintar.
+ *
+ * As duas colônias acima lideram federações DIFERENTES — é o caso que o e2e da guerra precisa, e é
+ * o caso "não aliada". Sem uma terceira na mesma federação da colônia do e2e, o mapa fotografaria
+ * só o estado em que o campo novo não aparece, que é o mesmo que não fotografar.
+ */
+$ua = App\Models\User::create([
+    "name" => "Aliada", "nickname" => "aliada", "email" => "aliada@fertways.test",
+    "password" => Illuminate\Support\Facades\Hash::make("segredo-forte-123"),
+    "email_verified_at" => now(), "tutorial_completed_at" => now(),
+]);
+$ca = app(App\Domain\Colony\CreateColony::class)->handle($ua, "Colônia aliada", 3, 3);
+$ca->forceFill([
+    "federation_id" => $c->federation_id,
+    "federation_role" => App\Models\Federation::MEMBRO,
+])->save();
+
+/*
  * A2.10: as duas federações em guerra, e um Quartel na colônia do e2e.
  *
  * ⚠️ Depois do bloco das federações, e não antes: a guerra precisa das duas existindo. Escrevi-o

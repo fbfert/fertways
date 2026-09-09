@@ -185,6 +185,7 @@ try {
   await page.screenshot({ path: '/tmp/foto-mapa.png' })
   console.log('mapa → /tmp/foto-mapa.png')
   console.log('  régua x:', JSON.stringify(await medirRegua(page)))
+  console.log('  aliadas no mapa:', JSON.stringify(await medirAliadas(page)))
 
   /*
    * O painel de uma zona LIVRE (A2.V4, D-224): o custo real e o que falta. É texto vindo do
@@ -316,6 +317,35 @@ async function medirResumo(page) {
             .length
         : 0,
       terminados_visiveis: fim ? fim.getBoundingClientRect().bottom <= window.innerHeight : null,
+    }
+  })
+}
+
+/**
+ * O mapa distingue aliada de vizinha qualquer? (A2.V4, D-242)
+ *
+ * ⚠️ Confere as DUAS pontas: que a aliada tem anel e que a não-aliada não tem. Um teste que só
+ * afirma a presença passaria com tudo pintado de aliado, que é o mesmo que não pintar nada. E o
+ * `<title>` entra na conta porque cor não pode ser o único sinal — é a regra da A2.V1.
+ */
+async function medirAliadas(page) {
+  return page.evaluate(() => {
+    const pontos = [...document.querySelectorAll('[data-colonia]')]
+    if (pontos.length === 0) return { erro: 'nenhuma colônia no mapa' }
+
+    const aliadas = pontos.filter((p) => p.dataset.aliada === '1')
+
+    return {
+      colonias: pontos.length,
+      aliadas: aliadas.length,
+      nao_aliadas: pontos.length - aliadas.length,
+      aliada_tem_anel: aliadas.every((p) => Boolean(p.getAttribute('stroke'))),
+      nao_aliada_sem_anel: pontos
+        .filter((p) => p.dataset.aliada !== '1')
+        .every((p) => !p.getAttribute('stroke')),
+      aliada_dita_por_extenso: aliadas.every((p) =>
+        (p.querySelector('title')?.textContent ?? '').includes('sua federação'),
+      ),
     }
   })
 }
