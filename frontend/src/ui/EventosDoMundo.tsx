@@ -50,6 +50,30 @@ export function EventosDoMundo() {
    *
    * A cesta vem primeiro: quando um evento entrega alguma coisa, é isso que o jogador quer ler.
    */
+  /*
+   * ⚠️ **Quando a janela fecha** (A2.V6). O `termina_em` chegava aqui desde a A2.8 e nunca foi lido.
+   *
+   * A consequência apareceu na Cesta de Presente: ela abriu os três portões do território por 30
+   * dias, e a única forma de o jogador saber o prazo era o operador ter escrito *"segue aberto até
+   * 06/09"* dentro da `mensagem_publica` — uma data à mão, que no dia seguinte ao fim vira mentira.
+   *
+   * Por isso o prazo entra ao lado do mecanismo, e não da prosa: pela regra do D-236, o que é
+   * derivado não pode envelhecer e fica sempre visível; a prosa é opt-in. E ele vale também para o
+   * evento **parcial**, que esconde o que faz mas não precisa esconder até quando — tensão com
+   * horizonte é mistério, tensão sem horizonte é só incômodo.
+   */
+  const prazo = (iso: string): string | null => {
+    const horas = (Date.parse(iso) - Date.now()) / 3_600_000
+
+    // Já venceu: o servidor filtra por data, então isto só acontece com a aba aberta há dias.
+    if (!Number.isFinite(horas) || horas <= 0) return null
+
+    if (horas < 1) return 'termina na próxima hora'
+    if (horas < 24) return `termina em ${Math.ceil(horas)} h`
+
+    return horas < 48 ? 'termina amanhã' : `termina em ${Math.round(horas / 24)} dias`
+  }
+
   const oQueFaz = (e: EventoDoMundo): string | null => {
     /*
      * ⚠️ A cesta entra ANTES do modificador, e some junto com ele (A2.V6, D-235).
@@ -152,6 +176,10 @@ export function EventosDoMundo() {
    *    e só a caixa recebe `pointer-events-auto`. O aviso para de ser uma parede que não se remove
    *    sem deixar de flutuar sobre a colônia.
    */
+  /** O que é derivado, numa nota só: o mecanismo e o prazo. Nunca some, nunca envelhece. */
+  const nota = (e: EventoDoMundo): string | null =>
+    [oQueFaz(e), prazo(e.termina_em)].filter(Boolean).join(' · ') || null
+
   const varios = eventos.length > 1
   const detalhado = !varios || aberta
 
@@ -180,13 +208,16 @@ export function EventosDoMundo() {
                         {' '}
                         A Central de Notícias ainda não explicou o quê.
                       </span>
+                    ) : null}{' '}
+                    {prazo(e.termina_em) ? (
+                      <span className="text-ink-soft">({prazo(e.termina_em)})</span>
                     ) : null}
                   </>
                 ) : (
                   <>
                     <strong>{e.nome}</strong>
                     {detalhado && e.mensagem ? ` — ${e.mensagem}` : ''}{' '}
-                    {oQueFaz(e) ? <span className="text-ink-soft">({oQueFaz(e)})</span> : null}
+                    {nota(e) ? <span className="text-ink-soft">({nota(e)})</span> : null}
                   </>
                 )}
               </p>

@@ -478,4 +478,111 @@ class ResumoDeRetornoTest extends TestCase
 
         $this->assertSame([], $r['presentes']);
     }
+
+    // ────────────────────────────── o evento que terminou na ausência (A2.V6)
+
+    /** @param array<string,mixed> $extra */
+    private function eventoDeMundo(string $slug, string $nome, string $comeca, string $termina, array $extra = []): GameEvent
+    {
+        return GameEvent::create([
+            'slug' => $slug,
+            'nome' => $nome,
+            'comeca_em' => $comeca,
+            'termina_em' => $termina,
+            'status' => 'ativo',
+            'visibilidade' => 'anunciado',
+            'escopo' => 'mundo',
+            ...$extra,
+        ]);
+    }
+
+    /**
+     * ⚠️ O defeito que este teste guarda: um evento que termina **some do jogo inteiro**.
+     *
+     * A rota `/eventos` filtra por data, e é o certo para a faixa. Mas quem entrou no dia seguinte
+     * ao fim das três Cestas não tinha por onde saber que existiram, nem por que ocupar uma zona
+     * voltou a custar o XP de sempre.
+     */
+    public function test_o_evento_que_terminou_na_ausencia_aparece_no_resumo(): void
+    {
+        [$u] = $this->colonoComColonia();
+        $u->forceFill(['resumo_visto_em' => now()->subHours(5)])->save();
+
+        $this->eventoDeMundo(
+            'cesta', 'Cesta de Presente',
+            now()->subDays(3)->toDateTimeString(), now()->subHours(2)->toDateTimeString(),
+        );
+
+        $r = $this->actingAs($u)->getJson('/resumo')->assertOk()->json();
+
+        $this->assertCount(1, $r['eventos_terminados']);
+        $this->assertSame('Cesta de Presente', $r['eventos_terminados'][0]['nome']);
+        $this->assertFalse($r['eventos_terminados'][0]['cancelado']);
+        // Um evento que acabou é acontecimento: a janela não é vazia só porque não se produziu nada.
+        $this->assertFalse($r['vazio']);
+    }
+
+    /** O que ainda vale está na faixa, e dizer que acabou seria mentira. */
+    public function test_o_evento_ainda_vigente_nao_aparece_como_terminado(): void
+    {
+        [$u] = $this->colonoComColonia();
+        $u->forceFill(['resumo_visto_em' => now()->subHours(5)])->save();
+
+        $this->eventoDeMundo(
+            'vigente', 'Ainda valendo',
+            now()->subDay()->toDateTimeString(), now()->addDays(2)->toDateTimeString(),
+        );
+
+        $r = $this->actingAs($u)->getJson('/resumo')->assertOk()->json();
+
+        $this->assertSame([], $r['eventos_terminados']);
+    }
+
+    /**
+     * ⚠️ O fim do evento não é licença para revelar o que ele foi: sai a notícia, não o segredo.
+     * O `secreto` não chega nem a isso — `visivelAoJogador()` o barra, como na faixa.
+     */
+    public function test_o_parcial_termina_sem_dizer_o_que_era_e_o_secreto_nao_termina(): void
+    {
+        [$u] = $this->colonoComColonia();
+        $u->forceFill(['resumo_visto_em' => now()->subHours(5)])->save();
+
+        $this->eventoDeMundo(
+            'misterio', 'Anomalia',
+            now()->subDays(2)->toDateTimeString(), now()->subHours(2)->toDateTimeString(),
+            ['visibilidade' => 'parcial'],
+        );
+        $this->eventoDeMundo(
+            'sigilo', 'Nunca visto',
+            now()->subDays(2)->toDateTimeString(), now()->subHours(2)->toDateTimeString(),
+            ['visibilidade' => 'secreto', 'segredo' => true],
+        );
+
+        $r = $this->actingAs($u)->getJson('/resumo')->assertOk()->json();
+
+        $this->assertCount(1, $r['eventos_terminados']);
+        $this->assertTrue($r['eventos_terminados'][0]['parcial']);
+        $this->assertNull($r['eventos_terminados'][0]['nome']);
+    }
+
+    /**
+     * ⚠️ O fim é o que vier primeiro. O cancelamento *é* o fim para quem viveu sob o evento — contar
+     * a data em que ele *teria* acabado seria contar a janela errada.
+     */
+    public function test_o_cancelamento_conta_como_fim_na_data_em_que_aconteceu(): void
+    {
+        [$u] = $this->colonoComColonia();
+        $u->forceFill(['resumo_visto_em' => now()->subHours(5)])->save();
+
+        $this->eventoDeMundo(
+            'cortado', 'Cortado no meio',
+            now()->subDays(2)->toDateTimeString(), now()->addDays(10)->toDateTimeString(),
+            ['status' => 'cancelado', 'cancelado_em' => now()->subHours(2)->toDateTimeString()],
+        );
+
+        $r = $this->actingAs($u)->getJson('/resumo')->assertOk()->json();
+
+        $this->assertCount(1, $r['eventos_terminados']);
+        $this->assertTrue($r['eventos_terminados'][0]['cancelado']);
+    }
 }

@@ -674,11 +674,14 @@ Portanto: **A2.V1 antes ou junto com A2.0**; V2 a V6 seguem coladas em cada fase
 
 # FASE A2.11 — Bots de simulação (FORA DO ESCOPO)
 
-Os bots são um **programa externo**, em servidor e banco próprios (`staging.tars.art.br`), e se comportam como jogadores externos. Nenhuma fase da Alpha 2 os constrói. Ver GDD ALPHA 2 §14.
+Os bots são um **programa externo** e se comportam como jogadores externos. Nenhuma fase da Alpha 2 os constrói. Ver GDD ALPHA 2 §14.
 
-O que permanece no escopo deste repositório:
+⚠️ **Eles rodam contra a PRODUÇÃO, e isto é deliberado** (decisão do usuário, 2026-09-09). Esta seção dizia que viviam em servidor e banco próprios (`staging.tars.art.br`); nunca foi verdade na prática, e a frase enganou uma medição — o D-227 publicou "1.448 ordens executadas, o Mercado é o sistema mais exercitado do jogo" e teve de se corrigir no dia seguinte: **1.440 eram de bot, e os humanos tinham executado zero.**
 
-- a telemetria distingue **humano** e **sistema/admin** — a distinção humano/bot é dada pelo ambiente;
+O que segue valendo neste repositório:
+
+- a telemetria distingue **humano** e **sistema/admin**, e isso **não separa humano de bot**: o bot entra pela mesma porta que um jogador e é contado como humano em toda métrica de uso;
+- a única marca que os separa é o **domínio do e-mail** (`*@bots.fertways.local`). Toda medida de "quanto o jogo é jogado" precisa filtrá-lo antes de virar conclusão — 21 das 30 colônias e 23 dos 35 usuários da produção são deles;
 - o jogo não pode depender de bots para funcionar nem para ser validado.
 
 Integração futura, não é backlog: leitura da base do staging pelo Fertways para apoiar balanceamento.

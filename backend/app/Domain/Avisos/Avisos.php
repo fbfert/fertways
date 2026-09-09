@@ -7,6 +7,7 @@ use App\Domain\Populacao\Ciclo;
 use App\Domain\Populacao\Parametros;
 use App\Models\Colony;
 use App\Models\Combat;
+use App\Models\GameEvent;
 use App\Models\NeutralZone;
 use App\Models\ResourceType;
 use Illuminate\Support\Facades\DB;
@@ -52,6 +53,14 @@ class Avisos
 
     public const OPORTUNIDADE = 'oportunidade';
 
+    /**
+     * Quanto antes do fim da janela o evento entra na faixa.
+     *
+     * Dois dias, e não um, porque o §1.1 promete um jogo que **não exige login constante**: um aviso
+     * de 24 h só alcança quem já entra todo dia, que é exatamente quem menos precisa dele.
+     */
+    public const ULTIMA_CHAMADA_HORAS = 48;
+
     public function __construct(
         private readonly TetoDoEstoque $teto,
         private readonly Parametros $parametrosDePopulacao,
@@ -67,6 +76,7 @@ class Avisos
             ...$this->militares($colonia),
             ...$this->producao($colonia),
             ...$this->territorio($colonia),
+            ...$this->eventos($colonia),
             ...$this->oportunidades($colonia),
         ];
 
@@ -218,6 +228,78 @@ class Avisos
                 : "{$atrasadas} zonas com manutenção atrasada",
             'detalhe' => 'A defesa da zona degrada enquanto a conta não é paga.',
         ]];
+    }
+
+    /**
+     * A janela de um evento de mundo que está prestes a fechar (A2.V6).
+     *
+     * ## ⚠️ O defeito que ele corrige, medido
+     *
+     * A Cesta de Presente (D-232/D-234) abriu os três portões do território por 30 dias e **nada no
+     * jogo disse quando eles fechariam**. O `termina_em` era servido ao cliente desde a A2.8 e não
+     * tinha consumidor nenhum; o operador contornou escrevendo *"segue aberto até 06/09"* à mão na
+     * `mensagem_publica` — uma data em prosa, que envelhece e mente no dia seguinte ao fim.
+     *
+     * A janela abriu, correu 30 dias e fechou. Nenhum humano ocupou uma zona.
+     *
+     * ## Só o que favorece, e só o que foi anunciado
+     *
+     * `favoreceOJogador()` guarda o primeiro corte: uma seca que acaba amanhã não pede ação. O
+     * segundo é a visibilidade — o evento **parcial** esconde de propósito o que faz, e um aviso
+     * dizendo que ele acaba em 12 h entregaria pela porta dos fundos que há algo bom ali.
+     *
+     * @return list<array<string,string>>
+     */
+    private function eventos(Colony $colonia): array
+    {
+        $agora = now();
+
+        $vencendo = GameEvent::query()
+            ->where('status', 'ativo')
+            ->where('visibilidade', 'anunciado')
+            ->where('comeca_em', '<=', $agora)
+            ->whereBetween('termina_em', [$agora, $agora->copy()->addHours(self::ULTIMA_CHAMADA_HORAS)])
+            ->where(fn ($q) => $q->where('escopo', 'mundo')
+                ->orWhere(fn ($q2) => $q2->where('escopo', 'colonia')->where('colony_id', $colonia->id)))
+            ->orderBy('termina_em')
+            ->get()
+            ->filter(fn (GameEvent $e) => $e->vigenteEm($agora)
+                && $e->visivelAoJogador()
+                && $e->favoreceOJogador());
+
+        if ($vencendo->isEmpty()) {
+            return [];
+        }
+
+        $primeiro = $vencendo->first();
+        $horas = (int) ceil($agora->diffInMinutes($primeiro->termina_em) / 60);
+
+        return [[
+            'codigo' => 'evento_terminando',
+            'severidade' => self::OPORTUNIDADE,
+            /*
+             * O nome do evento, e não "um evento": o jogador precisa saber QUAL janela fecha para
+             * saber o que correr a fazer. É a mesma correção que o estoque cheio levou em 2026-08-05.
+             */
+            'titulo' => $vencendo->count() === 1
+                ? $primeiro->nome.' termina '.$this->emQuanto($horas)
+                : $vencendo->count().' eventos terminam em breve, o primeiro '.$this->emQuanto($horas),
+            'detalhe' => 'O que a janela permite hoje deixa de valer quando ela fechar.',
+        ]];
+    }
+
+    /** "em 6 h", "amanhã", "em 2 dias" — o prazo como quem fala, e nunca um carimbo. */
+    private function emQuanto(int $horas): string
+    {
+        if ($horas <= 1) {
+            return 'na próxima hora';
+        }
+
+        if ($horas < 24) {
+            return "em {$horas} h";
+        }
+
+        return $horas < 48 ? 'amanhã' : 'em '.(int) round($horas / 24).' dias';
     }
 
     /**

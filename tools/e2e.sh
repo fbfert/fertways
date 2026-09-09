@@ -546,11 +546,41 @@ App\Models\GameEvent::updateOrCreate(["slug" => "cesta_de_presente_colonos"], $j
   "mensagem_publica" => "Durante a Cesta, ocupar uma zona neutra não exige colonos livres. A zona nasce com equipe; amplie a habitação para não ficar devendo operadores.",
   "modificador" => "ocupacao_populacao", "efeito_bps" => -10000,
 ]);
-App\Models\GameEvent::updateOrCreate(["slug" => "cesta_de_presente_2"], $janela + [
+/*
+ * ⚠️ A segunda remessa fecha em 30 h, e não em 30 dias: é o caso de ÚLTIMA CHAMADA (D-237).
+ *
+ * Sem uma janela curta no mundo semeado, nem o `termina amanhã` da faixa nem o aviso
+ * `evento_terminando` apareceriam em foto nenhuma — e os dois só existem para o dia em que a porta
+ * está fechando. A "Tempestade de poeira" também vence em 24 h e **não** gera aviso, de propósito:
+ * uma seca que acaba não pede ação. As duas juntas fotografam a regra e a exceção.
+ */
+App\Models\GameEvent::updateOrCreate(["slug" => "cesta_de_presente_2"], ["comeca_em" => now()->subHour(), "termina_em" => now()->addHours(30), "status" => "ativo"] + [
   "nome" => "Cesta de Presente — segunda remessa",
   "mensagem_publica" => "Os armazéns do Governo abrem de novo: Ligas Metálicas para erguer o Posto de Comando, e energia para movê-lo. O portão do território segue aberto até 06/09.",
   "modificador" => null, "efeito_bps" => null,
   "recompensas" => ["ligas_metalicas" => 1300, "energia" => 5000],
+]);
+
+/*
+ * E DOIS que já acabaram (A2.V6, D-237).
+ *
+ * Um evento que termina some da faixa — corretamente, ela fala do que vale agora — e passa a existir
+ * só no "Desde sua última visita". Sem um evento morto no mundo semeado, a seção que conta isso
+ * sairia da foto vazia, que é o mesmo que não fotografar.
+ *
+ * O `parcial` está aqui porque ele tem uma segunda regra a olhar: acabou, e a tela não pode dizer o
+ * que ele era. Os dois terminam DENTRO da janela do resumo (5 h), senão não aparecem.
+ */
+App\Models\GameEvent::updateOrCreate(["slug" => "chuva_de_meteoros"], [
+  "nome" => "Chuva de meteoros",
+  "mensagem_publica" => "Detritos em órbita baixa: a extração de superfície rende mais enquanto durar.",
+  "comeca_em" => now()->subDays(2), "termina_em" => now()->subHours(2), "status" => "ativo",
+  "modificador" => "producao", "efeito_bps" => 2500,
+]);
+App\Models\GameEvent::updateOrCreate(["slug" => "anomalia_encerrada"], [
+  "nome" => "Anomalia de Kraken",
+  "comeca_em" => now()->subDays(2), "termina_em" => now()->subHours(3), "status" => "ativo",
+  "visibilidade" => "parcial", "modificador" => "producao", "efeito_bps" => -1500,
 ]);
 
 /*
@@ -568,7 +598,7 @@ foreach ([["energia", 20000], ["ligas_metalicas", 1300], [null, 400000000]] as [
 }
 $c->user->forceFill(["resumo_visto_em" => now()->subHours(5)])->save();
 
-echo "biomassa no teto, Captação subindo de nível, Refinaria sem energia, ocupação bloqueada, 3 eventos vivos e uma cesta entregue\n";
+echo "biomassa no teto, Captação subindo de nível, Refinaria sem energia, ocupação bloqueada, 3 eventos vivos, 2 encerrados e uma cesta entregue\n";
 ' 2>&1 | tail -2)
 
   E2E_URL="http://127.0.0.1:$PORTA_WEB" node e2e/foto.mjs || true

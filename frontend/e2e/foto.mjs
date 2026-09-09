@@ -267,6 +267,13 @@ async function medirResumo(page) {
     const b = sec.getBoundingClientRect()
     const popup = document.querySelector('[data-resumo]')?.getBoundingClientRect()
 
+    /*
+     * A2.V6 (D-237): o evento que ACABOU só existe aqui. Some da faixa no instante em que a janela
+     * fecha, e esta é a única superfície que diz que ele existiu — então ou está na foto, ou o
+     * jogador não fica sabendo de nada.
+     */
+    const fim = document.querySelector('[data-resumo-eventos-terminados]')
+
     return {
       itens: sec.querySelectorAll('li').length,
       eventos: sec.querySelectorAll('ul').length,
@@ -275,6 +282,13 @@ async function medirResumo(page) {
       janela: window.innerHeight,
       popup_base: popup ? Math.round(popup.bottom) : null,
       transborda_a_janela: b.bottom > window.innerHeight,
+      terminados: fim ? fim.querySelectorAll('li').length : 0,
+      // O parcial acabou sem revelar o que era. Se este texto sumir, o segredo vazou.
+      terminados_sem_nome: fim
+        ? [...fim.querySelectorAll('li')].filter((li) => li.textContent.includes('Algo que afetava'))
+            .length
+        : 0,
+      terminados_visiveis: fim ? fim.getBoundingClientRect().bottom <= window.innerHeight : null,
     }
   })
 }
@@ -305,8 +319,18 @@ async function medirFaixa(page) {
       ? document.elementFromPoint((xb.left + xb.right) / 2, (xb.top + xb.bottom) / 2)
       : null
 
+    /*
+     * A2.V6 (D-237): cada evento diz QUANDO acaba. O `termina_em` era servido desde a A2.8 e não
+     * tinha leitor — o operador escrevia a data à mão na prosa, e prosa com data dentro envelhece.
+     * Contar aqui é o que impede a linha derivada de sumir junto com a prosa num ajuste futuro.
+     */
+    const comPrazo = [...f.querySelectorAll('[data-evento]')].filter((p) =>
+      p.textContent.includes('termina'),
+    ).length
+
     return {
       eventos: f.querySelectorAll('[data-evento]').length,
+      com_prazo: comPrazo,
       topo: Math.round(b.top),
       base: Math.round(b.bottom),
       altura: Math.round(b.height),

@@ -155,6 +155,35 @@ export function ResumoDeRetorno({
               </section>
             )}
 
+            {/*
+             * ⚠️ **O evento que terminou** (A2.V6) — o outro lado do D-235.
+             *
+             * A faixa de eventos só mostra o que vale agora, e é o certo para ela. A consequência é
+             * que, no instante em que a janela fecha, o evento **some do jogo inteiro**: quem entrou
+             * no dia seguinte ao fim das três Cestas não tinha por onde saber que existiram, nem por
+             * que ocupar uma zona voltou a custar o XP de sempre.
+             *
+             * Fica logo abaixo do presente porque é a mesma notícia contada até o fim: o Governo
+             * mandou isto, sob estas condições, e as condições acabaram.
+             */}
+            {dados.eventos_terminados.length > 0 && (
+              <section data-resumo-eventos-terminados>
+                <h3 className="text-rust eyebrow mb-2">Terminou enquanto você esteve fora</h3>
+                <ul className="space-y-1">
+                  {dados.eventos_terminados.map((e, i) => (
+                    <li key={`${e.nome ?? 'parcial'}-${i}`} className="text-ink-soft text-sm">
+                      {/* O parcial continua parcial depois de morto: acabou, e não o que era. */}
+                      <span className="text-ink font-bold">
+                        {e.nome ?? 'Algo que afetava a produção do planeta'}
+                      </span>{' '}
+                      {e.cancelado ? 'foi cancelado' : 'chegou ao fim'} — as condições voltaram ao
+                      normal.
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
+
             {dados.producao.length > 0 && (
               <section>
                 <h3 className="text-rust eyebrow mb-2">Produziu</h3>

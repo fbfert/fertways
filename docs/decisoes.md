@@ -13147,3 +13147,109 @@ os três defeitos desta sessão moravam. O `e2e.sh` semeia os quatro eventos e u
 estado que ninguém consegue fotografar é um estado que ninguém confere.
 
 1293 testes verdes.
+
+---
+
+## D-237 — A janela abriu, correu 30 dias e fechou sem que o jogo dissesse quando fechava
+
+**Data:** 2026-09-09 · **Status:** entregue
+
+Retomada depois de um mês parado. A primeira coisa foi medir o que a sessão anterior deixou como
+pergunta em aberto — *"a Cesta abriu os três portões do território; alguém vai ocupar?"* — e a
+resposta mudou o que havia para fazer.
+
+### O que a janela produziu, medido em produção
+
+| | antes da Cesta (07/08) | medido em 08/09 |
+|---|---|---|
+| zonas ocupadas | 1 de 77 | **2 de 77** |
+| combates desde sempre | 0 | **0** |
+| entregas de presente | 0 | 60, em 3 eventos |
+
+A única zona nova foi ocupada em **10/08, dois dias após a abertura** — e por um **bot**
+(`energizer@bots.fertways.local`). **Nenhum humano ocupou nada.**
+
+⚠️ **E a causa está numa coluna que ninguém tinha olhado:** o último login humano é de **17/07**.
+Fora as contas de teste, ninguém entra no jogo há sete semanas. Os três portões do D-223 a D-225
+foram abertos para uma sala vazia. **Isto não é achado desta fatia, é o contexto dela** — nenhuma
+tela conserta a ausência de jogador, e o usuário decidiu, sabendo disso, fechar a A2.V6 primeiro.
+
+### A fatia: o evento tinha prazo e o jogo nunca o disse
+
+`termina_em` chegava ao cliente desde a A2.8 e **não tinha um consumidor sequer** (`client.ts:622`).
+A prova de que fazia falta está escrita à mão dentro do próprio evento: a `mensagem_publica` da
+segunda cesta diz *"O portão do território segue aberto até 06/09"*. O operador digitou a data
+porque a tela não a derivava — e prosa com data dentro envelhece: no dia 07 aquela frase passou a
+mentir, e no dia 08 sumiu junto com o evento.
+
+**Dado servido sem consumidor pela décima vez nesta Alpha.** A diferença, aqui, é que o contorno
+humano (escrever a data na prosa) escondeu a falta por 30 dias.
+
+### E o fim não deixava rastro nenhum
+
+`/eventos` filtra por data — o certo para uma faixa que fala do que vale agora. A consequência é que
+no instante em que a janela fecha o evento **some do jogo inteiro**. Quem entrar hoje não tem por
+onde saber que três Cestas existiram, nem por que ocupar uma zona voltou a custar o XP de sempre.
+
+É o outro lado exato do D-235: lá o presente chegava e a tela não dizia; aqui a condição em que ele
+chegou acaba e a tela também não diz. **A economia não pode mudar em silêncio — nem ao abrir, nem
+ao fechar.**
+
+### As três superfícies, e por que cada uma
+
+1. **A faixa passa a mostrar o prazo** (`termina em 3 dias` / `amanhã` / `em 6 h`), ao lado do
+   mecanismo e **não da prosa**: pela regra do D-236, o que é derivado não envelhece e fica sempre
+   visível; a prosa é opt-in. Vale também para o evento **parcial** — tensão com horizonte é
+   mistério, tensão sem horizonte é só incômodo.
+2. **Um aviso de última chamada** (`evento_terminando`, `oportunidade`), a 48 h do fim. Dois dias e
+   não um porque o §1.1 promete um jogo que não exige login constante: um aviso de 24 h só alcança
+   quem já entra todo dia.
+3. **O "Desde sua última visita" conta o que terminou**, em seção própria, logo abaixo do presente
+   — a mesma notícia contada até o fim.
+
+### As duas regras que decidiram o desenho
+
+⚠️ **Só avisa o que se pode aproveitar.** `GameEvent::favoreceOJogador()` corta a seca que acaba
+amanhã: é boa notícia e não pede ação nenhuma, e um aviso que não se pode atender ensina a ignorar a
+faixa inteira — a razão que cortou "população no teto" no D-211. A leitura vem do **sinal**, como
+desde o D-164: nas barreiras (`ocupacao_marco`, `ocupacao_populacao`, `guerra_custo`, `consumo`) o
+bps negativo abaixa o que o jogo cobra; na torneira (`producao`) o positivo aumenta o que ele dá. A
+trégua imposta fica de fora: ela impede um ato, e o fim dela não devolve nada que se possa correr a
+pegar.
+
+⚠️ **O parcial continua parcial depois de morto.** O fim do evento não é licença para revelar o que
+ele foi: no resumo sai a notícia de que acabou, sem nome; e ele **não** gera aviso de última chamada,
+porque o aviso nomeia o evento e entregaria pela porta dos fundos que havia algo bom ali. O
+`secreto` não chega a nenhuma das duas — `visivelAoJogador()` o barra, como na faixa.
+
+⚠️ **O fim é o que vier primeiro.** `cancelado_em` encerra antes de `termina_em`, e o cancelamento
+*é* o fim para quem viveu sob o evento. Um evento cortado no meio que só aparecesse no resumo na
+data em que *teria* acabado contaria a janela errada.
+
+### O que ficou por medir
+
+A faixa cresceu de novo — mais uma nota por evento. O D-236 mediu 240 px de 844 com quatro eventos
+fechados; o prazo acrescenta poucas palavras a cada linha, e a regra da casa desde o D-215 é que
+**oclusão só se vê fotografando**. A produção tem zero eventos vivos hoje, então quem responde é o
+mundo semeado do e2e.
+
+---
+
+## D-238 — Os bots rodam contra a produção, e o roadmap dizia o contrário
+
+**Data:** 2026-09-09 · **Status:** decidido pelo usuário
+
+O `ROADMAP_ALPHA2.md` afirmava na A2.11 que os colonos simulados vivem em *"servidor e banco
+próprios (`staging.tars.art.br`)"*. Eles rodam contra a **produção**, e sempre rodaram. O usuário
+arbitrou: **é deliberado; o documento é que está velho.**
+
+O documento foi corrigido, e com a consequência escrita junto — porque ela já enganou uma medição:
+
+- a telemetria distingue **humano** de **sistema/admin**, e isso **não separa humano de bot**. O bot
+  entra pela mesma porta que um jogador e é contado como humano em toda métrica de uso;
+- a única marca é o **domínio do e-mail** (`*@bots.fertways.local`): **21 das 30 colônias** e **23
+  dos 35 usuários** da produção são deles;
+- foi exatamente isto que derrubou o D-226: *"1.448 ordens executadas, o Mercado é o sistema mais
+  exercitado do jogo"* virou, um dia depois, **1.440 de bot e zero de humano**.
+
+**Toda medida de "quanto o jogo é jogado" filtra o domínio antes de virar conclusão.**

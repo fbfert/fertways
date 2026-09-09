@@ -127,6 +127,7 @@ class ResumoDeRetorno
         $fert = $this->fert($colonia, $desde, $agora);
         $obras = $this->obras($colonia, $desde, $agora);
         $presentes = $this->presentes($colonia, $desde, $agora);
+        $terminados = $this->eventosTerminados($colonia, $desde, $agora);
 
         return [
             'mostrar' => true,
@@ -138,12 +139,13 @@ class ResumoDeRetorno
             'fert_gasto_micro' => $fert['gasto'],
             'obras_concluidas' => $obras,
             'presentes' => $presentes,
+            'eventos_terminados' => $terminados,
             /*
              * "Nada aconteceu" é um resultado legítimo e precisa ser dizível: quem passou dois dias
              * fora com a colônia sem energia PRECISA ver que não produziu nada. Um resumo que só
              * aparece quando há boa notícia esconde exatamente o que mais importa.
              */
-            'vazio' => $producao === [] && $obras === [] && $presentes === []
+            'vazio' => $producao === [] && $obras === [] && $presentes === [] && $terminados === []
                 && $fert['ganho'] === 0 && $fert['gasto'] === 0,
         ];
     }
@@ -177,8 +179,61 @@ class ResumoDeRetorno
             'fert_gasto_micro' => 0,
             'obras_concluidas' => [],
             'presentes' => [],
+            'eventos_terminados' => [],
             'vazio' => true,
         ];
+    }
+
+    /**
+     * Os eventos de mundo que ACABARAM enquanto o jogador esteve fora (A2.V6).
+     *
+     * ## ⚠️ Um evento que termina não deixava rastro nenhum
+     *
+     * A rota `/eventos` filtra por data — corretamente, porque a faixa é sobre o que vale agora. A
+     * consequência é que, no instante em que a janela fecha, o evento **desaparece do jogo inteiro**:
+     * quem entrou no dia seguinte ao fim das três Cestas não tinha por onde saber que existiram, nem
+     * por que ocupar uma zona voltou a custar o XP de sempre.
+     *
+     * Este é o outro lado do D-235. Lá, o presente chegava e a tela não dizia; aqui, a condição em
+     * que ele chegou some e a tela também não diz. As duas metades da mesma promessa: **a economia
+     * não muda em silêncio.**
+     *
+     * ## O fim é o que vier primeiro
+     *
+     * `cancelado_em` encerra o evento antes de `termina_em` — e o cancelamento *é* o fim para quem
+     * viveu sob ele. Um evento cortado no meio que só aparecesse no resumo na data em que teria
+     * acabado contaria a janela errada.
+     *
+     * ## O parcial continua parcial depois de morto
+     *
+     * A visibilidade `parcial` esconde nome e número de propósito, e o fim do evento não é licença
+     * para revelar o que ele foi: sai a notícia de que acabou, não o segredo. `secreto` não chega
+     * aqui — `visivelAoJogador()` o barra, como na faixa.
+     *
+     * @return list<array{parcial: bool, nome: ?string, cancelado: bool}>
+     */
+    private function eventosTerminados(Colony $colonia, Carbon $desde, Carbon $ate): array
+    {
+        return GameEvent::query()
+            ->where('status', '!=', 'rascunho')
+            ->where('comeca_em', '<=', $ate)
+            ->where(fn ($q) => $q->where('escopo', 'mundo')
+                ->orWhere(fn ($q2) => $q2->where('escopo', 'colonia')->where('colony_id', $colonia->id)))
+            ->orderBy('termina_em')
+            ->get()
+            ->filter(function (GameEvent $e) use ($desde, $ate) {
+                $fim = $e->cancelado_em ?? $e->termina_em;
+
+                return $e->visivelAoJogador()
+                    && $fim->greaterThan($desde)
+                    && $fim->lessThanOrEqualTo($ate);
+            })
+            ->map(fn (GameEvent $e) => [
+                'parcial' => $e->visibilidade === 'parcial',
+                'nome' => $e->visibilidade === 'parcial' ? null : $e->nome,
+                'cancelado' => $e->cancelado_em !== null,
+            ])
+            ->values()->all();
     }
 
     /**

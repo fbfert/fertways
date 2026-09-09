@@ -6,6 +6,7 @@ use App\Domain\Avisos\Avisos;
 use App\Domain\Colony\CreateColony;
 use App\Models\Colony;
 use App\Models\Combat;
+use App\Models\GameEvent;
 use App\Models\NeutralZone;
 use App\Models\User;
 use Database\Seeders\BuildingOperatorRequirementSeeder;
@@ -206,5 +207,88 @@ class AvisosTest extends TestCase
         $this->actingAs($user)->getJson('/avisos')
             ->assertOk()
             ->assertJsonStructure(['avisos' => [['codigo', 'severidade', 'titulo', 'detalhe']]]);
+    }
+
+    // ────────────────────────────────────── a janela que fecha (A2.V6)
+
+    /** @param array<string,mixed> $extra */
+    private function evento(string $slug, string $nome, string $termina, array $extra = []): GameEvent
+    {
+        return GameEvent::create([
+            'slug' => $slug,
+            'nome' => $nome,
+            'comeca_em' => now()->subDay(),
+            'termina_em' => $termina,
+            'status' => 'ativo',
+            'visibilidade' => 'anunciado',
+            'escopo' => 'mundo',
+            ...$extra,
+        ]);
+    }
+
+    /**
+     * ⚠️ O defeito que este teste guarda, medido em produção.
+     *
+     * A Cesta de Presente abriu os três portões do território por 30 dias e **nada no jogo disse
+     * quando fechariam** — o `termina_em` era servido e não tinha leitor. O operador contornou
+     * escrevendo a data à mão na mensagem pública, que no dia seguinte ao fim vira mentira.
+     */
+    public function test_o_aviso_diz_qual_evento_fecha_e_quando(): void
+    {
+        $user = $this->colono();
+        $this->evento('cesta', 'Cesta de Presente', now()->addHours(6), [
+            'recompensas' => ['energia' => 20_000],
+        ]);
+
+        $aviso = collect(app(Avisos::class)->paraColonia(
+            Colony::with(['buildings', 'resources'])->findOrFail($user->colony->id),
+        ))->firstWhere('codigo', 'evento_terminando');
+
+        $this->assertNotNull($aviso);
+        $this->assertSame(Avisos::OPORTUNIDADE, $aviso['severidade']);
+        // O NOME, e não "um evento": sem ele o jogador não sabe o que correr a fazer.
+        $this->assertStringContainsString('Cesta de Presente', $aviso['titulo']);
+        $this->assertStringContainsString('6 h', $aviso['titulo']);
+    }
+
+    /**
+     * ⚠️ A regra que decidiu este aviso: **só o que se pode aproveitar**.
+     *
+     * Uma seca que acaba amanhã é boa notícia e não pede ação nenhuma. Um aviso que não se pode
+     * atender ensina a ignorar a faixa inteira — a mesma razão que cortou "população no teto".
+     */
+    public function test_o_evento_que_so_atrapalha_nao_vira_aviso(): void
+    {
+        $user = $this->colono();
+        $this->evento('seca', 'Seca prolongada', now()->addHours(6), [
+            'modificador' => 'producao', 'efeito_bps' => -5_000, 'resource_type' => 'agua',
+        ]);
+
+        $this->assertNotContains('evento_terminando', $this->codigos($user->colony));
+    }
+
+    /** Uma janela que ainda tem semanas não é última chamada — seria moldura por 28 dias. */
+    public function test_a_janela_larga_nao_avisa(): void
+    {
+        $user = $this->colono();
+        $this->evento('cesta', 'Cesta de Presente', now()->addDays(10), [
+            'recompensas' => ['energia' => 20_000],
+        ]);
+
+        $this->assertNotContains('evento_terminando', $this->codigos($user->colony));
+    }
+
+    /**
+     * ⚠️ O evento `parcial` esconde de propósito o que faz. Um aviso dizendo que ele acaba em 12 h
+     * entregaria pela porta dos fundos que há algo bom ali — e o aviso nomeia o evento.
+     */
+    public function test_o_evento_parcial_nao_vaza_pelo_aviso(): void
+    {
+        $user = $this->colono();
+        $this->evento('misterio', 'Anomalia', now()->addHours(6), [
+            'visibilidade' => 'parcial', 'recompensas' => ['energia' => 20_000],
+        ]);
+
+        $this->assertNotContains('evento_terminando', $this->codigos($user->colony));
     }
 }

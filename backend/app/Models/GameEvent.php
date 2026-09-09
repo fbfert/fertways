@@ -63,6 +63,41 @@ class GameEvent extends Model
         return collect($this->recompensas ?? [])->filter(fn ($q) => (int) $q > 0)->isNotEmpty();
     }
 
+    /**
+     * Este evento é um GANHO para o jogador — e por isso o fim da janela dele é uma porta a fechar.
+     *
+     * ⚠️ Existe para o aviso de última chamada (A2.V6) não virar ruído. "O evento X termina em 12 h"
+     * só é acionável quando há algo a aproveitar: uma seca que acaba amanhã é boa notícia e não pede
+     * ação nenhuma, e um aviso que não se pode atender ensina a ignorar a faixa inteira — a mesma
+     * razão que cortou "população no teto" no D-211.
+     *
+     * A leitura vem do SINAL, como em toda parte desde o D-164: nos modificadores de barreira o bps
+     * negativo abaixa o que o jogo cobra; nos de torneira o positivo aumenta o que o jogo dá.
+     */
+    public function favoreceOJogador(): bool
+    {
+        if ($this->temCesta()) {
+            return true;
+        }
+
+        if ($this->modificador === null || $this->efeito_bps === null) {
+            return false;
+        }
+
+        return match ($this->modificador) {
+            // Barreiras: o que o jogo exige para deixar fazer alguma coisa.
+            'ocupacao_marco', 'ocupacao_populacao', 'guerra_custo', 'consumo' => $this->efeito_bps < 0,
+            // Torneira: o que o jogo entrega por hora.
+            'producao' => $this->efeito_bps > 0,
+            /*
+             * A trégua imposta não é ganho de ninguém em particular — ela impede um ato, e o fim
+             * dela não devolve nada que o jogador possa correr para pegar.
+             */
+            'guerra_declaracao' => false,
+            default => false,
+        };
+    }
+
     /** Está valendo agora? `cancelado` continua valendo para trás, nunca para a frente. */
     public function vigenteEm(CarbonInterface $quando): bool
     {

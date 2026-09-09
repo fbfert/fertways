@@ -619,6 +619,10 @@ export type EventoDoMundo = {
   recurso?: string | null
   /** D-232: este evento ENTREGA alguma coisa às colônias, e não só altera uma taxa. */
   cesta?: boolean
+  /**
+   * Quando a janela fecha. Servido desde a A2.8 e **sem consumidor nenhum até a A2.V6** — o prazo
+   * do evento era invisível, e o operador o escrevia à mão dentro da `mensagem`, onde envelhece.
+   */
   termina_em: string
 }
 
@@ -1182,6 +1186,15 @@ export type ResumoDeRetorno = {
     nome: string
     itens: { recurso: string | null; quantidade: number }[]
   }[]
+  /**
+   * A2.V6: os eventos que ACABARAM enquanto o jogador esteve fora.
+   *
+   * A faixa só mostra o que vale agora, então um evento que termina some do jogo inteiro. Esta é a
+   * única superfície que diz que ele existiu — e por que as condições voltaram ao normal.
+   *
+   * `parcial` continua parcial depois de morto: vem sem nome, e a tela diz só que algo acabou.
+   */
+  eventos_terminados: { parcial: boolean; nome: string | null; cancelado: boolean }[]
   /** A janela existiu, mas nada aconteceu nela. É resultado legítimo, não erro. */
   vazio: boolean
 }

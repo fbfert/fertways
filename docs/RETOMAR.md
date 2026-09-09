@@ -5,7 +5,7 @@
 > e então **faça ao usuário as perguntas da seção "Perguntas em aberto"** antes de escolher
 > o que fazer. Atualize este arquivo ao fim de cada sessão.
 
-**Última atualização:** 2026-08-07 · **Branch:** `main`
+**Última atualização:** 2026-09-09 · **Branch:** `main`
 
 > **Se o usuário disser "retome" e houver uma seção "EM ANDAMENTO AGORA" abaixo**, ela já tem
 > autorização permanente para seguir sem novas perguntas ("siga por todas as fases... quero que
@@ -18,13 +18,16 @@
 > Era verdade em 2026-07-31 e deixou de ser no dia seguinte; ninguém a atualizou até 2026-08-05.
 > Se você está lendo uma frase daqui que soa categórica, confira antes de agir sobre ela.
 >
-> **O Alpha 2 está quase inteiro no ar** (2026-08-05). As fases **A2.0 a A2.10 e a A2.12 estão
-> entregues** — telemetria, onboarding, população, pesquisa, especializações, Federação como
-> infraestrutura, zonas neutras com automação, upgrades de veículo, Motor de Eventos, Endurance,
-> guerra federativa e o hardening. Falta a **revisão visual A2.V**, que corre em paralelo: a V1
-> (design system) e a V2 (HUD e navegação) fecharam; **V3 (Colônia), V4 (Mapa e zonas), V5 (Capital
-> e Endurance) e V6 (Combate e eventos) são o que resta do Alpha 2**. A A2.11 (bots) está fora do
-> escopo por decisão.
+> **O Alpha 2 está quase inteiro no ar.** As fases **A2.0 a A2.10 e a A2.12 estão entregues** —
+> telemetria, onboarding, população, pesquisa, especializações, Federação como infraestrutura, zonas
+> neutras com automação, upgrades de veículo, Motor de Eventos, Endurance, guerra federativa e o
+> hardening. Falta a **revisão visual A2.V**: V1 (design system), V2 (HUD e navegação) e **V3
+> (Colônia)** fecharam; a **V4 (Mapa e zonas)** andou até onde havia dado e **parou por falta de
+> jogo** (não há cerco, trajeto nem estado territorial para desenhar); a **V5 (Capital e Endurance)**
+> entregou a Capital e **não tocou a Endurance**, que é sistema construído e não jogado; a **V6
+> (Combate e eventos)** tem só metade viva — **combate segue em 0 desde sempre**, e a metade
+> "eventos" está entregue (D-235, D-236, D-237). A A2.11 (bots) está fora do escopo por decisão —
+> mas eles rodam **contra a produção**, e o roadmap foi corrigido no D-238.
 >
 > O pacote inteiro vive em **`docs/alpha2/`** — o GDD da etapa, o roadmap das 13 fases, o
 > balanceamento e o manual com os prompts de execução. **Leia o roadmap antes de propor qualquer
@@ -83,6 +86,55 @@ contornado, não resolvido — resolvê-lo é o teto habitacional, que é balanc
 
 ⚠️ **`docs/decisoes.md` não tem entrada para o D-231** — aquele commit só mexeu no GDD v40 e no
 gerador. Lacuna anterior a esta sessão, registrada aqui para não virar mistério.
+
+---
+
+## Sessão de 2026-09-09 — a resposta da Cesta, e o prazo que o jogo nunca disse (D-237/D-238)
+
+Retomada depois de um mês parado. A primeira coisa foi medir a pergunta que a sessão anterior deixou
+aberta — *"a Cesta abriu os três portões; alguém vai ocupar?"*. **A janela venceu em 07/09.**
+
+| | antes da Cesta (07/08) | medido em 08/09 |
+|---|---|---|
+| zonas ocupadas | 1 de 77 | **2 de 77** |
+| combates desde sempre | 0 | **0** |
+| entregas de presente | 0 | 60, em 3 eventos |
+
+⚠️ **A única zona nova foi ocupada em 10/08, dois dias depois da abertura — e por um BOT**
+(`energizer@bots.fertways.local`). Nenhum humano ocupou nada em 30 dias com os três portões abertos.
+
+⚠️ **E a causa está numa coluna que ninguém tinha olhado: o último login humano é de 17/07.** Fora
+`publico@fertways.test` e `teste@teste.com`, ninguém entra no jogo há sete semanas. Os portões do
+D-223 a D-225 foram abertos para uma sala vazia. **Nenhuma tela conserta a ausência de jogador** — e
+foi sabendo disso que o usuário escolheu fechar a A2.V6 primeiro, em vez de investigar o abandono.
+
+**O que entrou (D-237):** o evento tinha prazo e o jogo nunca o disse. `termina_em` era servido ao
+cliente desde a A2.8 e **não tinha um consumidor sequer**; a prova de que fazia falta é que o
+operador escreveu *"o portão segue aberto até 06/09"* à mão dentro da `mensagem_publica` — data em
+prosa, que envelhece. E, ao fechar, o evento **sumia do jogo inteiro**: quem entrou no dia 08 não
+tinha por onde saber que três Cestas existiram. Três superfícies, uma história:
+
+- a **faixa** mostra o prazo ao lado do mecanismo (`termina em 24 h` / `amanhã` / `em 30 dias`), e
+  não da prosa — o derivado não envelhece, e pela regra do D-236 é ele que fica sempre visível;
+- um **aviso de última chamada** (`evento_terminando`) a 48 h do fim, só para o que o jogador pode
+  aproveitar — `GameEvent::favoreceOJogador()` corta a seca que acaba amanhã, que é boa notícia e não
+  pede ação;
+- o **"Desde sua última visita"** conta o que terminou, em seção própria, logo abaixo do presente.
+
+O `parcial` continua parcial depois de morto (sai a notícia, não o segredo) e não gera aviso, porque
+o aviso nomeia o evento. **1301 testes verdes**, `npm run build` limpo, e as fotos confirmam:
+faixa fechada no telefone em **240 px de 844 (28%) — igual ao D-236**, com prazo nos quatro eventos;
+o × ainda recebe o toque; o resumo mostra os dois eventos encerrados sem transbordar. A foto pegou a
+regra **e** a exceção na mesma tela: a "Tempestade de poeira" vence em 24 h e **não** vira aviso.
+
+**D-238:** o usuário arbitrou que os bots rodarem contra a produção é deliberado; o
+`ROADMAP_ALPHA2.md` é que estava velho e foi corrigido, com a consequência escrita junto — a
+telemetria separa humano de *sistema*, **não** de bot, e a única marca é o domínio
+`*@bots.fertways.local` (21 das 30 colônias, 23 dos 35 usuários). Foi isso que derrubou o D-226.
+
+**Sobre os três eventos vencidos:** eles seguem com `status = 'ativo'` no banco e **não valem mais
+nada** — `vigenteEm()` e o `EventosController` filtram por data. O usuário decidiu deixá-los vencer
+assim; nada foi escrito em produção nesta sessão.
 
 ---
 ## Sessão de 2026-08-05 — auditoria de estado, e o que ela achou
@@ -1630,6 +1682,24 @@ Domínio em `app/Domain/Drone/`; a missão vive nas colunas de viagem do própri
 ida→vigia→volta), sem tabela nova além de `drone_sightings` (as fotos).
 
 ## Perguntas em aberto — faça estas ao usuário ao retomar
+
+> ### ⚠️ A pergunta de 2026-09-09, e ela é maior do que qualquer fatia visual
+>
+> **Ninguém joga.** Último login humano: **17/07**. As 9 colônias humanas estão paradas há sete
+> semanas; as outras 21 são bots. A Cesta abriu os três portões do território por 30 dias e a única
+> ocupação foi de um bot. Toda medida de "uso" deste jogo mede bots — foi o que derrubou o D-226.
+>
+> O usuário decidiu em 09/09 **fechar a A2.V6 antes de investigar isso**, e a metade "eventos" está
+> fechada (D-237). O que resta na mesa, e ele já sabe de tudo:
+>
+> - **investigar o abandono** — medir o que os 9 fizeram nas últimas sessões, onde a curva os travou,
+>   quanto tempo houve entre entrar e ter o que fazer. Medida antes de código, como no D-210;
+> - **balanceamento da Siderúrgica/ligas** — 19 das 30 colônias (e 7 das 9 humanas) não produzem Liga
+>   Metálica, e o Posto de Comando pede 1.200. É a causa que as três cestas só contornaram;
+> - **o que sobra da A2.V** — a **metade "combate" da A2.V6** (0 combates desde sempre: não há o que
+>   desenhar), a **A2.V4** (mapa: sem cerco, trajeto ou estado territorial para mostrar) e a
+>   **Endurance da A2.V5** (1 item no catálogo, 0 transferências). **As três estão bloqueadas pela
+>   mesma coisa: ninguém joga.** Fechar o Alpha 2 "de verdade" passa por ter jogador, não por CSS.
 
 0. **A guerra está INTEIRA — não pergunte mais sobre ela.** O D-66 fechou as oito lacunas do §27 e
    pôs o motor de combate no ar; o **D-70** deu ao defensor as duas mãos que faltavam (**reforçar**
