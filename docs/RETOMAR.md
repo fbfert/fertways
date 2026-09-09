@@ -127,6 +127,9 @@ faixa fechada no telefone em **240 px de 844 (28%) — igual ao D-236**, com pra
 o × ainda recebe o toque; o resumo mostra os dois eventos encerrados sem transbordar. A foto pegou a
 regra **e** a exceção na mesma tela: a "Tempestade de poeira" vence em 24 h e **não** vira aviso.
 
+**No ar** em 09/09: deploy e `main` no mesmo commit, bundle `index-DxsiVr0N.js`, fumaça 200/401.
+Sem migration e sem seeder nesta fatia — nada de banco a conferir à mão.
+
 **D-238:** o usuário arbitrou que os bots rodarem contra a produção é deliberado; o
 `ROADMAP_ALPHA2.md` é que estava velho e foi corrigido, com a consequência escrita junto — a
 telemetria separa humano de *sistema*, **não** de bot, e a única marca é o domínio
