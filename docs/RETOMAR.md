@@ -130,6 +130,33 @@ regra **e** a exceção na mesma tela: a "Tempestade de poeira" vence em 24 h e 
 **No ar** em 09/09: deploy e `main` no mesmo commit, bundle `index-DxsiVr0N.js`, fumaça 200/401.
 Sem migration e sem seeder nesta fatia — nada de banco a conferir à mão.
 
+### O teto habitacional (D-239) — **no ar** em 09/09
+
+O usuário pediu a frente do balanceamento da Siderúrgica/ligas. **A medição a mudou:** as 9 colônias
+humanas têm de 2.713 a 23.085 ligas e ocupar pede 1.200 — **nenhuma está travada por material**. O
+portão é **colonos livres** (4 de 9, inclusive os dois líderes, que não têm mais nada faltando) e
+marco (7 de 9). ⚠️ **A frase deste arquivo que mandava mexer no custo da Siderúrgica está vencida
+desde a segunda cesta; não aja sobre ela.**
+
+A métrica-chave do §7.3 nunca tinha sido medida **no campo**: mediana **134%**, 23 das 30 colônias
+acima de 100%, onde a rodada 5 da A2.S previa 52%. A causa é estrutural — **a demanda de operadores
+cresce com a soma dos níveis da colônia, e a oferta com o nível de um prédio só**.
+
+Antes de tocar em número, o instrumento: o simulador tinha `--predios` como **mapa por tipo** (tipo
+repetido sobrescrevia em silêncio — o campo tem três Minas Locais) e **não tinha `--capacidade-fator`**.
+Corrigidos, ele reproduziu o campo pela primeira vez: 102% contra 109% medidos.
+
+**Arbitrado (rodada 8, em `BALANCEAMENTO.md` §7.1.2): `capacidade_fator_milesimos` 1650 → 2000.** O
+fator e não a base — a base conserta o campo e esvazia o começo. E 1,65× não era escolha: é a curva
+de **custo** do jogo (D-01), copiada para habitação. Medido depois de publicar: mediana **80%**,
+acima de 100% **11 de 30**, teto comportando os 2 colonos em **18 de 30**.
+
+⚠️ **Previsão falsificável, a conferir:** o teto subiu na hora, a população cresce depois. A 70 bps/h,
+**Maior Colonia** tem 2 colonos livres em ~15 h e **Energizer do Gamer** em ~51 h, sem ninguém entrar
+no jogo. Se em três dias isso não tiver acontecido, quem está errado é o modelo de crescimento.
+
+1302 testes verdes, migration exercitada nos dois sentidos em MariaDB.
+
 **D-238:** o usuário arbitrou que os bots rodarem contra a produção é deliberado; o
 `ROADMAP_ALPHA2.md` é que estava velho e foi corrigido, com a consequência escrita junto — a
 telemetria separa humano de *sistema*, **não** de bot, e a única marca é o domínio
@@ -1697,8 +1724,10 @@ ida→vigia→volta), sem tabela nova além de `drone_sightings` (as fotos).
 >
 > - **investigar o abandono** — medir o que os 9 fizeram nas últimas sessões, onde a curva os travou,
 >   quanto tempo houve entre entrar e ter o que fazer. Medida antes de código, como no D-210;
-> - **balanceamento da Siderúrgica/ligas** — 19 das 30 colônias (e 7 das 9 humanas) não produzem Liga
->   Metálica, e o Posto de Comando pede 1.200. É a causa que as três cestas só contornaram;
+> - ~~**balanceamento da Siderúrgica/ligas**~~ — **feito, e a medição mudou a frente (D-239).**
+>   Nenhuma colônia humana está travada por material: elas têm de 2.713 a 23.085 ligas e ocupar pede
+>   1.200. O portão era o **teto habitacional**, e ele subiu (fator 1,65× → 2,00×). ⚠️ Não reabra o
+>   custo da Siderúrgica sem medir antes: a frase que o pedia envelheceu em um dia;
 > - **o que sobra da A2.V** — a **metade "combate" da A2.V6** (0 combates desde sempre: não há o que
 >   desenhar), a **A2.V4** (mapa: sem cerco, trajeto ou estado territorial para mostrar) e a
 >   **Endurance da A2.V5** (1 item no catálogo, 0 transferências). **As três estão bloqueadas pela

@@ -13258,7 +13258,7 @@ O documento foi corrigido, e com a consequência escrita junto — porque ela j�
 
 ## D-239 — A oferta cresce por um prédio, a demanda cresce por todos
 
-**Data:** 2026-09-09 · **Status:** decidido e testado · **⚠️ não publicado** (ver o fim)
+**Data:** 2026-09-09 · **Status:** entregue e no ar
 
 O usuário pediu a frente do **balanceamento da Siderúrgica/ligas**. A medição a mudou antes da
 primeira linha de código, e o registro do porquê vale mais do que a fatia.
@@ -13335,14 +13335,24 @@ arbitragem seguinte sem deixar rastro.
 O teste guarda a **razão, não o número** (`test_a_habitacao_nao_usa_a_curva_de_custo_do_jogo`): o
 fator pode ser rebalanceado, mas voltar à curva de custo reprova.
 
-### ⚠️ O que ficou por fazer, e não é escolha minha
+### No ar, e a projeção bateu com o campo
 
-**Nada disto está publicado, e a migration não chegou a rodar em MariaDB.** O ambiente bloqueou
-`artisan migrate`, `chown` e a edição por shell no meio da sessão. Em consequência:
+Migration exercitada nos dois sentidos em MariaDB antes de publicar — 1650 → 2000 → 1650 → 2000 —,
+porque o verde do `artisan test` é SQLite e não vale como evidência sobre banco (D-59). Publicada, a
+medição do campo deu **exatamente** o que a rodada 8 projetou:
 
-- o valor em `population_settings` **continua 1650** no dev e na produção — o efeito acima é
-  projeção, não campo;
-- o arquivo da migration nasceu **`root:root`** e precisa de `chown fertways:fertways` antes de
-  qualquer coisa (é a armadilha de sempre: eu edito como root e apodreço o dono);
-- publicar exige rodar a migration nos dois sentidos em MariaDB primeiro — o verde do `artisan test`
-  é SQLite e não vale como evidência sobre banco (D-59).
+| | antes | depois, medido |
+|---|---|---|
+| mediana da §7.3 | 134% | **80%** |
+| acima de 100% | 23/30 | **11/30** |
+| teto comporta os 2 colonos de uma ocupação | 5/30 | **18/30** |
+
+⚠️ **O teto sobe na hora; a população cresce depois.** `disponivel` conta colonos que existem, não
+vagas — então ninguém desbloqueia neste minuto. A 70 bps/h, e sem que ninguém precise entrar no jogo:
+
+- **Maior Colonia** (45 colonos, exige 48, teto 44 → 80): 2 livres em **~15 h**;
+- **Energizer do Gamer** (28, exige 38, teto 27 → 40): 2 livres em **~51 h**.
+
+**É a previsão que esta decisão faz, e ela é falsificável:** se em três dias os dois não tiverem
+colonos livres, o modelo de crescimento é que está errado, não o teto. E vale lembrar o que o D-237
+mediu — **nenhum humano entra desde 17/07**. Isto abre um portão; não traz ninguém para atravessá-lo.
