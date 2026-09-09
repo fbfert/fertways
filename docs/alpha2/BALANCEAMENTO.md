@@ -508,6 +508,79 @@ sem insumo. **Treze Refinarias Químicas foram erguidas e custeadas sem jamais c
 
 É para cá que o esforço de balanceamento da população deve ir, e não para o consumo per capita.
 
+## 7.1.2 Medição de campo — 2026-09-09 (a métrica-chave, medida no campo pela primeira vez)
+
+O §7.3 diz que a métrica-chave da fase é o **percentual de população comprometida**. Ela vinha sendo
+medida **só no simulador** desde a rodada 5. Medida nas 30 colônias de produção, com o mecanismo
+`ativo` há cinco semanas:
+
+| medida | valor |
+|---|---|
+| mediana | **134%** |
+| média | 166% |
+| máximo | 370% |
+| acima de 100% — *"nem opera o que construiu"* | **23 de 30** |
+| na faixa 40–70% — *"decisão estratégica"* | **4 de 30** |
+
+A configuração de referência escolhida na rodada 5 previa **52%**. O campo deu 134%, e a diferença
+não é calibragem:
+
+> ⚠️ **A demanda de operadores cresce com a SOMA dos níveis da colônia; a oferta cresce com o nível
+> de UM prédio só.** A colônia mais avançada do campo tem **70 níveis** construídos e uma Estrutura
+> de Sobrevivência **nível 4** — 46 operadores exigidos contra 44 de teto. A colônia da rodada 5
+> tinha **17 níveis**. Enquanto a demanda for linear na soma dos níveis e a oferta exponencial no
+> nível de um prédio, existe um tamanho a partir do qual toda colônia entra em déficit. Nenhuma
+> calibragem da base muda isso — quem muda a inclinação é o **fator**.
+
+**Consequência de jogo, e é a que importa:** só **5 das 30** colônias conseguiam pagar os 2 colonos
+livres que ocupar uma zona neutra exige. É o terceiro dos três portões do território (D-223 a D-225),
+o único que nenhuma cesta resolveu, e a razão pela qual ele nunca abriu de verdade.
+
+### Rodada 8 da trilha A2.S — 2026-09-09 (o fator, contra três perfis reais)
+
+⚠️ **Duas correções no instrumento vieram antes da rodada, e as duas explicam a rodada 5.**
+
+- `--predios` era um **mapa por tipo**, e um tipo repetido sobrescrevia o anterior em silêncio. A
+  colônia do campo tem **três Minas Locais** (4, 3 e 2) e **duas Siderúrgicas**: o simulador media
+  uma colônia que não existe. Agora é lista.
+- **não havia `--capacidade-fator`**. Só a base era varrível — e a base governa o nível 1, enquanto
+  quem está travado no campo está no 3 e no 4, onde quem manda é a razão da curva.
+
+Três perfis, 40 dias, produção de campo (água 80, oxigênio 100, biomassa 60, energia 150):
+
+| configuração | nova (estr. 1) | intermediária (estr. 3) | campo (estr. 4, 70 níveis) |
+|---|---|---|---|
+| 10 · 1,65× (vigente) | 50% | 59% | **105%** |
+| 20 · 1,65× | **25%** | 30% | 52% |
+| 10 · 2,00× | **50%** | 40% | **58%** |
+| 15 · 1,85× | 33% | 31% | 49% |
+
+**Arbitrado: `capacidade_fator_milesimos` 1650 → 2000.** A base fica nos 10.
+
+Subir a base resolve o campo e **esvazia o começo** — 25% é o que a rodada 5 rotulou de *"população
+quase irrelevante"*, e é onde o jogo ensina o mecanismo. O fator **não toca o nível 1**: a
+recém-fundada fica exatamente onde estava, e a pressão passa a chegar **com o crescimento**, em vez
+de estar invertida como está hoje.
+
+⚠️ **E 1,65× não era escolha, era cópia**: é a curva de **custo** do jogo (D-01, aditivo v3.4 §4).
+Habitação não é preço. 2,00× é legível pelo que é — **cada nível da Estrutura dobra a habitação**.
+
+Efeito projetado sobre as 30 colônias do campo:
+
+| | vigente | com 2,00× |
+|---|---|---|
+| mediana da §7.3 | 134% | **80%** |
+| acima de 100% | 23/30 | **11/30** |
+| na faixa 40–70% | 4/30 | **14/30** |
+| conseguem pagar os 2 colonos de uma ocupação | 5/30 | **18/30** |
+
+O teto só sobe: a restrição do §7.1 (a população do grandfathering precisa **caber** no teto)
+continua satisfeita por construção, e nada é tirado de ninguém.
+
+⚠️ O que esta rodada **não** decidiu: o `capacidade_base`, o consumo per capita e o crescimento
+ficam onde estão. E o máximo de 370% **não some** — ele é de colônia com Estrutura nível 1 e muitos
+prédios, que o fator, por desenho, não alcança.
+
 ## 7.2 Objetivo
 
 A população deve:

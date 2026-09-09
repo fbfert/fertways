@@ -82,6 +82,31 @@ class PopulacaoTest extends TestCase
         $this->assertSame((int) floor($base * $fator / 1000), $p->capacidade(2));
     }
 
+    /**
+     * ⚠️ **A habitação sobe mais rápido que a curva de CUSTO, e é o que este teste guarda** (D-239).
+     *
+     * O fator nasceu 1,65× — que não era escolha, era cópia: é a curva de custo do jogo (D-01,
+     * aditivo v3.4 §4). Habitação não é preço. Com ela, o teto subia no ritmo em que tudo encarece
+     * enquanto a demanda de operadores subia no ritmo em que se **constrói**, que é a soma dos
+     * níveis da colônia inteira. Medido no campo em 2026-09-09: mediana de **134%** de população
+     * comprometida (§7.3), com **23 das 30 colônias acima de 100%** — a faixa que a própria rodada 5
+     * da A2.S rotulou de *"nem opera o que construiu"* e recusou.
+     *
+     * O número exato é arbitragem e pode mudar; a **razão** é que não pode voltar a 1,65×. Se
+     * alguém reduzir o fator até a curva de custo de novo, reprova aqui.
+     */
+    public function test_a_habitacao_nao_usa_a_curva_de_custo_do_jogo(): void
+    {
+        $fator = (int) app(Parametros::class)->todos()->capacidade_fator_milesimos;
+
+        $this->assertGreaterThan(
+            1650,
+            $fator,
+            'a oferta de habitação precisa ser mais íngreme que a curva de custo: a demanda de '
+            .'operadores cresce com a soma dos níveis, e a oferta com o nível de um prédio só',
+        );
+    }
+
     // ────────────────────────────────────────────── os cinco estados
 
     /**

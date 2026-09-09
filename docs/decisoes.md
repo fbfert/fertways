@@ -13253,3 +13253,96 @@ O documento foi corrigido, e com a consequência escrita junto — porque ela j�
   exercitado do jogo"* virou, um dia depois, **1.440 de bot e zero de humano**.
 
 **Toda medida de "quanto o jogo é jogado" filtra o domínio antes de virar conclusão.**
+
+---
+
+## D-239 — A oferta cresce por um prédio, a demanda cresce por todos
+
+**Data:** 2026-09-09 · **Status:** decidido e testado · **⚠️ não publicado** (ver o fim)
+
+O usuário pediu a frente do **balanceamento da Siderúrgica/ligas**. A medição a mudou antes da
+primeira linha de código, e o registro do porquê vale mais do que a fatia.
+
+### ⚠️ Primeiro: a premissa do RETOMAR estava vencida
+
+Ele dizia que *"19 das 29 colônias não têm Indústria Siderúrgica, logo não produzem Ligas Metálicas,
+e o Posto de Comando pede 1.200"*, e que atacar a causa seria mexer no custo da Siderúrgica ou na
+receita da liga. **Era verdade em 07/08 e deixou de ser com a segunda cesta (D-234).** Medido hoje,
+as 9 colônias humanas têm entre **2.713 e 23.085 ligas** — todas pagam os 1.200 com folga.
+
+Rodando o próprio `RequisitosDeOcupacao` contra as 9:
+
+| portão | trava quantas |
+|---|---|
+| Marco 20 (6.000 XP) | **7 de 9** |
+| colonos livres (2) | **4 de 9** — inclusive os **dois líderes**, que não têm mais nada faltando |
+| material (ligas, metal bruto, componentes, Fert$) | **0 de 9** |
+
+O portão material **já estava aberto**. Mexer no custo da Siderúrgica teria sido trabalho perfeito
+sobre o problema errado — e a página que o pediu era a mesma que avisa, no topo, que uma frase
+categórica dali precisa ser conferida antes de virar ação.
+
+### A causa verdadeira, e ela é estrutural
+
+A métrica-chave do §7.3 — percentual de população comprometida — nunca tinha sido medida **no
+campo**. Medida nas 30 colônias: mediana **134%**, **23 acima de 100%**, e só **4** na faixa 40–70%
+que a rodada 5 da A2.S escolheu como *"decisão estratégica"*. A rodada 5 previa **52%**.
+
+⚠️ **A demanda de operadores cresce com a SOMA dos níveis da colônia; a oferta cresce com o nível de
+UM prédio só.** A colônia mais avançada tem 70 níveis construídos e uma Estrutura de Sobrevivência
+nível 4: 46 operadores exigidos contra 44 de teto. A da rodada 5 tinha 17 níveis. Enquanto uma curva
+for linear na soma dos níveis e a outra exponencial no nível de um prédio, **existe um tamanho a
+partir do qual toda colônia entra em déficit** — e o jogo inteiro já passou dele.
+
+### O instrumento estava errado, e é por isso que a rodada 5 não viu
+
+Duas correções no simulador, antes de qualquer número (rodada 8, em `BALANCEAMENTO.md` §7.1.2):
+
+- **`--predios` era um mapa por tipo**, e tipo repetido sobrescrevia o anterior **em silêncio**. A
+  colônia do campo tem três Minas Locais e duas Siderúrgicas; o simulador media uma colônia que não
+  existe. Virou lista.
+- **não havia `--capacidade-fator`.** Só a base era varrível, e a base governa o nível 1 — enquanto
+  quem está travado no campo está no nível 3 e no 4, onde quem manda é a razão da curva.
+
+Com as duas, o simulador **reproduziu o campo**: 102% contra os 109% medidos na mesma colônia. É a
+primeira vez que a trilha A2.S é conferida contra a produção.
+
+### A arbitragem: `capacidade_fator_milesimos` 1650 → 2000
+
+| configuração | nova | intermediária | campo |
+|---|---|---|---|
+| 10 · 1,65× (vigente) | 50% | 59% | **105%** |
+| 20 · 1,65× | **25%** | 30% | 52% |
+| **10 · 2,00×** | **50%** | 40% | **58%** |
+
+Subir a **base** conserta o campo e **esvazia o começo**: 25% é o que a própria rodada 5 chamou de
+*"população quase irrelevante"*, e é onde o jogo ensina o mecanismo. O **fator** não toca o nível 1 —
+a recém-fundada fica onde estava — e alivia só quem cresceu. A pressão passa a chegar **com o
+crescimento**, em vez de estar invertida.
+
+⚠️ **E 1,65× não era escolha, era cópia:** é a curva de **custo** do jogo (D-01, aditivo v3.4 §4).
+Habitação não é preço. 2,00× é legível pelo que é — cada nível da Estrutura **dobra** a habitação.
+
+Projetado sobre as 30 colônias: mediana **134% → 80%**, acima de 100% **23 → 11**, na faixa certa
+**4 → 14**, e as que conseguem pagar os 2 colonos de uma ocupação **5 → 18**. O teto só sobe, então a
+restrição do §7.1 (a população do grandfathering precisa caber no teto) segue satisfeita por
+construção e ninguém perde nada.
+
+A migration é **só dado, sem DDL** — a coluna e o default de 1650 são de julho e migration que rodou
+não se reescreve. O `down()` só volta se ninguém tiver mexido depois: rollback cego apagaria a
+arbitragem seguinte sem deixar rastro.
+
+O teste guarda a **razão, não o número** (`test_a_habitacao_nao_usa_a_curva_de_custo_do_jogo`): o
+fator pode ser rebalanceado, mas voltar à curva de custo reprova.
+
+### ⚠️ O que ficou por fazer, e não é escolha minha
+
+**Nada disto está publicado, e a migration não chegou a rodar em MariaDB.** O ambiente bloqueou
+`artisan migrate`, `chown` e a edição por shell no meio da sessão. Em consequência:
+
+- o valor em `population_settings` **continua 1650** no dev e na produção — o efeito acima é
+  projeção, não campo;
+- o arquivo da migration nasceu **`root:root`** e precisa de `chown fertways:fertways` antes de
+  qualquer coisa (é a armadilha de sempre: eu edito como root e apodreço o dono);
+- publicar exige rodar a migration nos dois sentidos em MariaDB primeiro — o verde do `artisan test`
+  é SQLite e não vale como evidência sobre banco (D-59).

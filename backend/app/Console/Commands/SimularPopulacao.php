@@ -47,6 +47,7 @@ class SimularPopulacao extends Command
         {--consumo= : sobrepõe o consumo por colono/hora, em milésimos: agua:100,oxigenio:120,biomassa:80,energia:60}
         {--crescimento= : sobrepõe o crescimento por hora, em bps (50 = 0,5%/h)}
         {--capacidade-base= : sobrepõe a capacidade da Estrutura de Sobrevivência no nível 1}
+        {--capacidade-fator= : sobrepõe o fator da curva de habitação, em milésimos (1650 = 1,65× por nível)}
         {--operadores= : operadores exigidos por NÍVEL de construção produtora (torna mensurável o §7.3)}
         {--predios= : a colônia simulada, ex.: fazenda:3,captacao_de_agua:3,gerador_de_atmosfera:3,reator_de_energia:3}';
 
@@ -115,6 +116,17 @@ class SimularPopulacao extends Command
 
         if ($this->option('capacidade-base') !== null) {
             $mudanca['capacidade_base'] = (int) $this->option('capacidade-base');
+        }
+
+        /*
+         * ⚠️ O FATOR faltava, e é ele que decide o teto de quem já jogou (D-239).
+         *
+         * A `capacidade_base` governa o nível 1; quem está em campo está no 3 e no 4, e ali quem
+         * manda é a razão da curva. Varrer só a base responde sobre a colônia recém-fundada — que
+         * não é a colônia que o campo mostrou travada.
+         */
+        if ($this->option('capacidade-fator') !== null) {
+            $mudanca['capacidade_fator_milesimos'] = (int) $this->option('capacidade-fator');
         }
 
         if ($mudanca !== []) {
@@ -265,16 +277,24 @@ class SimularPopulacao extends Command
             'created_at' => now(), 'updated_at' => now(),
         ]);
 
-        $predios = ['estrutura_de_sobrevivencia' => (int) $this->option('nivel-habitacao')];
+        /*
+         * ⚠️ LISTA, e não mapa por tipo (D-239).
+         *
+         * Era um mapa `tipo => nível`, e um tipo repetido sobrescrevia o anterior em silêncio. A
+         * colônia mais avançada do campo tem **três Minas Locais** (níveis 4, 3 e 2) e **duas
+         * Siderúrgicas**: no mapa elas viravam uma só, e o simulador media uma colônia que não
+         * existe. É metade da razão de a rodada 5 ter previsto 52% onde o campo deu 134%.
+         */
+        $predios = [['estrutura_de_sobrevivencia', (int) $this->option('nivel-habitacao')]];
 
         foreach (array_filter(explode(',', (string) ($this->option('predios') ?? ''))) as $par) {
             [$t, $n] = array_pad(explode(':', $par, 2), 2, 1);
-            $predios[trim((string) $t)] = max(1, (int) $n);
+            $predios[] = [trim((string) $t), max(1, (int) $n)];
         }
 
         $slot = 0;
 
-        foreach ($predios as $tipo => $nivel) {
+        foreach ($predios as [$tipo, $nivel]) {
             DB::table('buildings')->insert([
                 'colony_id' => $colonyId, 'type' => $tipo, 'level' => $nivel, 'slot' => $slot++,
                 'created_at' => now(), 'updated_at' => now(),
