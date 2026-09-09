@@ -13356,3 +13356,67 @@ vagas — então ninguém desbloqueia neste minuto. A 70 bps/h, e sem que ningu�
 **É a previsão que esta decisão faz, e ela é falsificável:** se em três dias os dois não tiverem
 colonos livres, o modelo de crescimento é que está errado, não o teto. E vale lembrar o que o D-237
 mediu — **nenhum humano entra desde 17/07**. Isto abre um portão; não traz ninguém para atravessá-lo.
+
+---
+
+## D-240 — A fábrica do Quartel não dizia o preço, e o Drone logo abaixo dela sempre disse
+
+**Data:** 2026-09-09 · **Status:** entregue
+
+A metade "preparação" da A2.V6 — a única das três frentes visuais que sobraram com estado real para
+olhar. A medição primeiro, como sempre:
+
+| | |
+|---|---|
+| combates desde sempre | **0** |
+| unidades no mundo | 40, **todas Robô Minerador**, e todas de guarnição de zona (`colony_id` nulo) |
+| unidades militares de humanos | **0** |
+| Quartéis humanos | 2 de 9 |
+
+⚠️ **E o freio não é o que o D-66 previu.** O RETOMAR diz que *"o freio do exército é o Nióbio"*.
+Medido: as 30 colônias têm Nióbio (1.765 no total, 588 nas humanas) e a Sentinela custa **3**. O
+Infiltrador e o Predador não custam nenhum. Ninguém está travado por Nióbio — as duas cestas o
+distribuíram junto com o resto.
+
+### O defeito: silêncio no lugar do preço
+
+A seção **Fabricar** oferecia tipo, nível, quantidade e um botão. **Nenhum custo, em lugar nenhum.**
+O jogador escolhia, clicava, e descobria o preço **sendo recusado** — um recurso por vez, na ordem
+em que `FabricarUnidade` confere:
+
+    Faltam recursos: componentes_eletronicos exige 830, você tem 12.
+
+Quinze linhas abaixo, na mesma tela, o **Drone imprime a conta dele** desde o D-74 (`drone_custos`).
+A fábrica de unidades era a única parte do Quartel que não dizia quanto custa.
+
+É o D-224 outra vez, com um agravante: lá havia uma frase escrita à mão que mentia; aqui não havia
+frase. E silêncio não envelhece nem chama atenção — ele só faz o jogador desistir.
+
+### Do catálogo, e não de constante
+
+`unidade_custos` sai de `building_specs`, que é de onde `FabricarUnidade` **cobra**. Uma cópia na
+tela viraria mentira no dia em que o operador mexesse no custo pelo painel — foi assim que o painel
+de ocupação passou meses anunciando 800 Metal Bruto onde o servidor cobrava 1.020. Um teste fixa
+isso: `test_o_custo_publicado_e_o_que_a_fabricacao_debita` fabrica de verdade e confere o débito
+recurso a recurso contra o que a rota anunciou.
+
+O `estoque` dos recursos envolvidos vai junto, para a tela dizer **"12 / 830"** em vez de só "830". A
+multiplicação pela quantidade é do cliente, porque a quantidade é escolha da tela e o servidor não
+tem como precomputar todas; o que não se reimplementa é o **custo unitário**.
+
+E o botão passa a obedecer ao que a tela mostra: desabilitado quando falta, com o que falta
+**nomeado** — "Falta Componentes, Nióbio" e não "recursos insuficientes", que manda o colono caçar
+qual.
+
+### ⚠️ A foto achou o resto, como sempre
+
+Medido em 1400×900 com uma leva cara de propósito (10 × Sentinela nível 2): o bloco de custo nasceu
+com a frase do que falta **no rodapé**, e o rodapé caía **abaixo da dobra**. O botão aparecia morto e
+o motivo não — que é o defeito do D-224 mais uma vez, agora por posição em vez de por ausência.
+Ninguém rola atrás da explicação de algo que parece quebrado. A frase subiu para o topo do bloco,
+logo abaixo do botão.
+
+O `foto.mjs` passa a fotografar o Quartel e a devolver `medirCustoDaUnidade()`: quantas linhas de
+custo há, se diz o que falta, e se o botão está desabilitado quando falta.
+
+1305 testes verdes.

@@ -157,6 +157,25 @@ no jogo. Se em três dias isso não tiver acontecido, quem está errado é o mod
 
 1302 testes verdes, migration exercitada nos dois sentidos em MariaDB.
 
+### A fábrica do Quartel (D-240) — **no ar** em 09/09
+
+A frente 3 (o que sobra da A2.V), pela única metade com estado real: a **preparação** da A2.V6.
+Medido antes de desenhar — 0 combates desde sempre, 40 unidades no mundo e **todas Robô Minerador de
+guarnição**, **zero unidades militares humanas**, 2 Quartéis humanos de 9.
+
+⚠️ **E o freio não é o Nióbio.** Este arquivo diz que *"o freio do exército é o Nióbio"*: as 30
+colônias têm 1.765 de Nióbio, a Sentinela custa **3**, e Infiltrador e Predador não custam nenhum.
+As cestas o distribuíram junto com o resto. **Não repita essa frase sem medir.**
+
+O defeito era a fábrica **não publicar custo nenhum**: o jogador escolhia, clicava, e descobria o
+preço sendo recusado, um recurso por vez — enquanto o Drone, quinze linhas abaixo na mesma tela,
+sempre imprimiu a conta dele. Agora `unidade_custos` sai do mesmo catálogo que a fabricação cobra, o
+estoque vai junto ("12 / 830"), o botão obedece, e o que falta vai **nomeado**.
+
+A foto achou o resto: a frase do que falta nascera no rodapé do bloco e caía **abaixo da dobra** — o
+botão morto à vista, o motivo não. Subiu para logo abaixo do botão. O `foto.mjs` passa a fotografar
+o Quartel e a medir `medirCustoDaUnidade()`. 1305 testes verdes.
+
 **D-238:** o usuário arbitrou que os bots rodarem contra a produção é deliberado; o
 `ROADMAP_ALPHA2.md` é que estava velho e foi corrigido, com a consequência escrita junto — a
 telemetria separa humano de *sistema*, **não** de bot, e a única marca é o domínio

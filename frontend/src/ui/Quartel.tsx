@@ -39,11 +39,13 @@ const PARA_QUE: Record<Unidade['type'], string> = {
 
 const TIPOS: Unidade['type'][] = ['sentinela', 'robo_minerador', 'infiltrador', 'predador']
 
-/** Os três recursos do custo do Drone (§4.3), com nome de gente. */
+/** Os recursos que aparecem em custo de Drone e de unidade (§4.3), com nome de gente. */
 const NOME_CUSTO: Record<string, string> = {
   componentes_eletronicos: 'Componentes',
   compostos_quimicos: 'Compostos',
   metal_bruto: 'Metal Bruto',
+  ligas_metalicas: 'Ligas Metálicas',
+  niobio_alienigena: 'Nióbio',
 }
 
 /**
@@ -182,6 +184,23 @@ export function Quartel() {
   if (!dados) return moldura(<p className="text-ink-soft text-sm">Carregando…</p>)
 
   const semQuartel = dados.quartel_nivel < 1
+
+  /*
+   * O custo da leva inteira, e o que falta para ela (A2.V6, D-240).
+   *
+   * `null` quando o catálogo não tem aquele tipo/nível — a mesma situação que faz o servidor
+   * responder `sem_custo`. Melhor não imprimir preço nenhum do que imprimir um zero que o servidor
+   * recusaria.
+   */
+  const custoUnitario = dados.unidade_custos?.[tipo]?.[nivel] ?? null
+  const custoDaLeva = custoUnitario
+    ? Object.fromEntries(Object.entries(custoUnitario).map(([r, q]) => [r, q * quantas]))
+    : null
+  const falta = custoDaLeva
+    ? Object.entries(custoDaLeva)
+        .filter(([r, precisa]) => (dados.estoque[r] ?? 0) < precisa)
+        .map(([r]) => r)
+    : []
 
   /*
    * As Sentinelas no pátio, **as mais inteiras primeiro** (D-70).
@@ -366,7 +385,7 @@ export function Quartel() {
 
           <button
             className="botao"
-            disabled={ocupado || semQuartel}
+            disabled={ocupado || semQuartel || falta.length > 0}
             data-fabricar
             onClick={() =>
               void agir(async () => {
@@ -378,6 +397,66 @@ export function Quartel() {
             Fabricar
           </button>
         </div>
+
+        {/*
+         * ⚠️ **O preço, que esta fábrica nunca disse** (A2.V6, D-240).
+         *
+         * O jogador escolhia tipo, nível e quantidade, clicava, e descobria o custo **sendo
+         * recusado** — um recurso por vez, na ordem em que o servidor confere. É o defeito que o
+         * D-224 corrigiu no painel de ocupação, com uma diferença: lá havia uma frase errada, aqui
+         * não havia frase nenhuma. E o Drone, quinze linhas abaixo nesta mesma tela, sempre imprimiu
+         * a conta dele.
+         *
+         * O custo unitário vem do servidor, do mesmo catálogo que a fabricação cobra; a
+         * multiplicação pela quantidade é daqui, porque a quantidade é escolha desta tela e o
+         * servidor não tem como precomputar todas. O que não se reimplementa é o **preço**.
+         */}
+        {custoDaLeva !== null && (
+          <div className="border-ink-soft/20 mt-3 border-t pt-3" data-custo-unidade>
+            <p className="text-ink-soft text-xs">
+              {quantas} × {NOMES[tipo]} nível {nivel} custa:
+            </p>
+
+            {/*
+             * ⚠️ A razão vem ANTES da lista, e foi a foto que mandou (D-240).
+             *
+             * Ela nasceu no rodapé do bloco, e medido em 1400×900 o rodapé caía **abaixo da dobra**:
+             * o botão aparecia morto e o motivo não. Um botão desabilitado cuja razão não se vê é o
+             * defeito do D-224 outra vez, só que sem frase nenhuma — e ninguém rola atrás da
+             * explicação de algo que parece quebrado.
+             */}
+            {falta.length > 0 && (
+              <p className="text-rust mt-1 text-xs font-bold" data-custo-falta>
+                Falta {falta.map((f) => NOME_CUSTO[f] ?? f).join(', ')}.
+                {falta.includes('niobio_alienigena')
+                  ? ' O Nióbio se compra do governo, acima — nada no jogo o produz.'
+                  : ''}
+              </p>
+            )}
+
+            <ul className="mt-1 space-y-1">
+              {Object.entries(custoDaLeva).map(([recurso, precisa]) => {
+                const tem = dados.estoque[recurso] ?? 0
+                const curto = tem < precisa
+
+                return (
+                  <li key={recurso} className="flex items-center gap-2 text-sm">
+                    <span className="text-ink-soft flex-1">
+                      {NOME_CUSTO[recurso] ?? recurso}
+                    </span>
+                    {/*
+                     * O que falta vai NOMEADO e com os dois números. "Recursos insuficientes" manda
+                     * o colono caçar qual — a mesma correção que a faixa de avisos levou em 08/05.
+                     */}
+                    <span className={curto ? 'text-rust font-black' : 'text-ink font-bold'}>
+                      {tem.toLocaleString('pt-BR')} / {precisa.toLocaleString('pt-BR')}
+                    </span>
+                  </li>
+                )
+              })}
+            </ul>
+          </div>
+        )}
       </section>
 
       {/* ── o hangar dos Drones (§21.4: o Quartel armazena e recarrega; a fábrica é a Oficina, D-74) */}

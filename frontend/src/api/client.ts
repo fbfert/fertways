@@ -462,6 +462,14 @@ export type EstadoDaGuerra = {
   drones: Drone[]
   oficina_nivel: number
   drone_custos: Record<number, Record<string, number>>
+  /**
+   * A2.V6 (D-240): o que cada unidade custa, por tipo e nível, lido do mesmo catálogo que a
+   * fabricação cobra. A fábrica era a única parte desta tela que não dizia o preço — o Drone, logo
+   * abaixo dela, sempre disse.
+   */
+  unidade_custos: Record<Unidade['type'], Record<number, Record<string, number>>>
+  /** O estoque dos recursos que aparecem nesses custos, para a tela poder dizer "tem 40 de 50". */
+  estoque: Record<string, number>
   /** Nada no jogo produz Nióbio, e a Sentinela custa 3. O governo vende (D-66). */
   niobio: { em_estoque: number; preco_fert: number }
   bonus_defensivos: {

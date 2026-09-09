@@ -235,4 +235,65 @@ class QuartelENiobioTest extends TestCase
 
         $this->assertSame(2, Unit::where('colony_id', $colony->id)->where('type', 'sentinela')->count());
     }
+
+    // ────────────────────────────── o preço que a fábrica não dizia (A2.V6, D-240)
+
+    /**
+     * ⚠️ O defeito que este teste guarda: a fábrica do Quartel **não publicava custo nenhum**.
+     *
+     * O jogador escolhia tipo, nível e quantidade, clicava, e descobria o preço sendo recusado — um
+     * recurso por vez, na ordem em que `FabricarUnidade` confere. O Drone, na mesma tela, sempre
+     * publicou `drone_custos`. É o D-224 outra vez, e com um agravante: lá havia uma frase errada,
+     * aqui não havia frase.
+     */
+    public function test_a_tela_do_quartel_publica_o_custo_de_cada_unidade(): void
+    {
+        $colony = $this->colonoComQuartel();
+
+        $r = $this->actingAs($colony->user)->getJson('/war')->assertOk()->json();
+
+        foreach (FabricarUnidade::TIPOS as $tipo) {
+            $this->assertArrayHasKey($tipo, $r['unidade_custos'], "faltou o custo de {$tipo}");
+            $this->assertNotEmpty($r['unidade_custos'][$tipo]['1'] ?? $r['unidade_custos'][$tipo][1]);
+        }
+    }
+
+    /**
+     * ⚠️ **O custo publicado é o mesmo que a fabricação COBRA.**
+     *
+     * É a regra inteira desta fatia, e a razão de ele sair do catálogo em vez de uma constante na
+     * tela: o custo é editável pelo operador, e uma cópia envelheceria sozinha — foi assim que o
+     * painel de ocupação passou meses anunciando 800 Metal Bruto onde o servidor cobrava 1.020.
+     */
+    public function test_o_custo_publicado_e_o_que_a_fabricacao_debita(): void
+    {
+        $colony = $this->colonoComQuartel();
+        $colony->resources()->where('resource_type', 'niobio_alienigena')->update(['amount' => 100]);
+
+        $custo = $this->actingAs($colony->user)->getJson('/war')->json('unidade_custos.sentinela.1');
+        $antes = $colony->resources()->pluck('amount', 'resource_type');
+
+        app(FabricarUnidade::class)->handle($colony->fresh(), 'sentinela', 1, 3);
+
+        $depois = $colony->fresh()->resources()->pluck('amount', 'resource_type');
+
+        foreach ($custo as $recurso => $qtd) {
+            $this->assertSame(
+                (int) $antes[$recurso] - $qtd * 3,
+                (int) $depois[$recurso],
+                "o anunciado e o cobrado divergem em {$recurso}",
+            );
+        }
+    }
+
+    /** O estoque vem junto: sem ele a tela não consegue dizer "tem 40 de 50", só "custa 50". */
+    public function test_o_estoque_dos_recursos_do_custo_vem_junto(): void
+    {
+        $colony = $this->colonoComQuartel();
+
+        $r = $this->actingAs($colony->user)->getJson('/war')->assertOk()->json();
+
+        $this->assertSame(10_000, $r['estoque']['ligas_metalicas'] ?? null);
+        $this->assertArrayHasKey('niobio_alienigena', $r['estoque']);
+    }
 }

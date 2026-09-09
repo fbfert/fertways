@@ -249,6 +249,33 @@ try {
   } else {
     console.log('⚠️ não achei a aba de ofertas globais')
   }
+
+  /*
+   * O QUARTEL — a metade "preparação" da A2.V6, e a tela onde a fábrica não dizia o preço (D-240).
+   *
+   * Fotografada com a leva propositalmente CARA (Sentinela nível 2, dez unidades) para o bloco de
+   * custo sair no estado que importa: o que falta, nomeado, e o botão recusando. Uma leva que cabe
+   * no bolso fotografaria a metade fácil.
+   */
+  await page.goto(`${BASE}/quartel`, { waitUntil: 'domcontentloaded' })
+  await assentar()
+  await new Promise((r) => setTimeout(r, 2000))
+  await page.evaluate(() => {
+    const nivel = document.querySelector('[data-nivel]')
+    const qtd = document.querySelector('[data-quantidade]')
+    const set = (el, v) => {
+      const proto = Object.getPrototypeOf(el)
+      Object.getOwnPropertyDescriptor(proto, 'value').set.call(el, v)
+      el.dispatchEvent(new Event('change', { bubbles: true }))
+      el.dispatchEvent(new Event('input', { bubbles: true }))
+    }
+    if (nivel) set(nivel, '2')
+    if (qtd) set(qtd, '10')
+  })
+  await new Promise((r) => setTimeout(r, 800))
+  await page.screenshot({ path: '/tmp/foto-quartel.png' })
+  console.log('quartel → /tmp/foto-quartel.png')
+  console.log('  custo da leva:', JSON.stringify(await medirCustoDaUnidade(page)))
 } finally {
   await fecharNavegador(navegador)
 }
@@ -289,6 +316,30 @@ async function medirResumo(page) {
             .length
         : 0,
       terminados_visiveis: fim ? fim.getBoundingClientRect().bottom <= window.innerHeight : null,
+    }
+  })
+}
+
+/**
+ * A fábrica do Quartel diz o preço, e o botão obedece a ele? (A2.V6, D-240)
+ *
+ * Não afirma nada sobre beleza. Diz quantas linhas de custo há, se alguma está em falta, e se o
+ * botão "Fabricar" está desabilitado quando falta — que é a única forma de o jogador não descobrir
+ * o preço sendo recusado, um recurso por vez.
+ */
+async function medirCustoDaUnidade(page) {
+  return page.evaluate(() => {
+    const bloco = document.querySelector('[data-custo-unidade]')
+    if (!bloco) return { erro: 'a fábrica não publica custo nenhum' }
+
+    const botao = document.querySelector('[data-fabricar]')
+
+    return {
+      linhas_de_custo: bloco.querySelectorAll('li').length,
+      diz_o_que_falta: Boolean(bloco.querySelector('[data-custo-falta]')),
+      falta: bloco.querySelector('[data-custo-falta]')?.textContent?.trim().slice(0, 80) ?? null,
+      fabricar_desabilitado: botao ? botao.disabled : null,
+      transborda_a_janela: bloco.getBoundingClientRect().bottom > window.innerHeight,
     }
   })
 }

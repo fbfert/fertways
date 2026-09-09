@@ -23,6 +23,7 @@ use App\Models\Unit;
 use App\Models\WarSetting;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 
 /**
@@ -75,12 +76,49 @@ class WarController extends Controller
                 'bateria_horas' => DroneSpecs::BATERIA_HORAS[$d->level] ?? 24,
             ]);
 
+        /*
+         * ⚠️ O que a unidade CUSTA — e a fábrica nunca disse (A2.V6, D-240).
+         *
+         * O Drone, na mesma tela e logo abaixo, publica `drone_custos` e imprime a conta. A fábrica
+         * de unidades não publicava nada: o jogador escolhia tipo, nível e quantidade, clicava, e o
+         * servidor recusava — um recurso por vez, na ordem em que `FabricarUnidade` confere. É o
+         * defeito do D-224 na tela ao lado, e a diferença é que aqui nem havia frase errada: havia
+         * silêncio.
+         *
+         * Sai do **catálogo** (`building_specs`), que é de onde `FabricarUnidade` cobra. Constante
+         * copiada aqui viraria mentira no dia em que o operador mexesse no custo pelo painel — foi
+         * exatamente assim que o custo de ocupação passou meses anunciando 800 Metal Bruto.
+         */
+        $custosDeUnidade = DB::table('building_specs')
+            ->whereIn('building_type', FabricarUnidade::TIPOS)
+            ->orderBy('level')
+            ->get(['building_type', 'level', 'cost_json'])
+            ->groupBy('building_type')
+            ->map(fn ($linhas) => $linhas->mapWithKeys(fn ($l) => [
+                (int) $l->level => json_decode($l->cost_json ?? '{}', true) ?: [],
+            ]));
+
+        /*
+         * O estoque dos recursos que aparecem nesses custos — só eles. A tela precisa dizer "tem 40
+         * de 50", e a quantidade quem escolhe é o jogador: a multiplicação é do cliente porque o
+         * servidor não tem como precomputar para toda quantidade possível. O que ele não delega é o
+         * **custo unitário**, que é a parte que envelhece.
+         */
+        $recursosDoCusto = $custosDeUnidade
+            ->flatMap(fn ($porNivel) => $porNivel->flatMap(fn ($custo) => array_keys($custo)))
+            ->unique()->values();
+
         return response()->json([
             'quartel_nivel' => $quartel,
             'unidades' => $unidades,
             'drones' => $drones,
             'oficina_nivel' => $colony->buildings()->where('type', 'oficina')->value('level') ?? 0,
             'drone_custos' => DroneSpecs::CUSTO,
+            'unidade_custos' => $custosDeUnidade,
+            'estoque' => $colony->resources()
+                ->whereIn('resource_type', $recursosDoCusto)
+                ->pluck('amount', 'resource_type')
+                ->map(fn ($q) => (int) $q),
             'niobio' => [
                 // Sem Nióbio não há Sentinela, e nada no jogo o produz (D-66). O governo vende.
                 'em_estoque' => $colony->resources()->where('resource_type', 'niobio_alienigena')->value('amount') ?? 0,
