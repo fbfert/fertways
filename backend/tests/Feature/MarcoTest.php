@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Domain\Colony\CreateColony;
 use App\Domain\Marco\ConcederXp;
 use App\Domain\Marco\Curva;
+use App\Domain\Missoes\Janela;
 use App\Domain\Trade\AcordoSpecs;
 use App\Domain\Trade\Reputacao;
 use App\Models\Admin;
@@ -49,6 +50,102 @@ class MarcoTest extends TestCase
     private function darXp(Colony $colony, int $xp): void
     {
         $colony->forceFill(['xp' => $xp])->save();
+    }
+
+    // ------------------------------------------- o teto diário do Mercado (D-241)
+
+    /** Quantos lançamentos de XP esta colônia tem por um ato. */
+    private function lancamentos(Colony $colony, string $acao): int
+    {
+        return XpEntry::where('colony_id', $colony->id)->where('acao', $acao)->count();
+    }
+
+    /**
+     * ⚠️ **O defeito que este teste guarda: uma execução miúda passou a render XP.**
+     *
+     * O XP do Mercado ficava atrás do piso anti-farm da reputação (5 Fert$, D-43/D-117). Medido nas
+     * 13.551 execuções da produção, **100,0% ficavam abaixo dele** — a execução média vale 0,05
+     * Fert$, e a regra "comerciar rende XP" disparou **três vezes em 1.507 ordens**. O piso estava
+     * cem vezes acima do comércio que existe.
+     */
+    public function test_a_execucao_miuda_rende_xp(): void
+    {
+        $c = $this->colono()->colony;
+        // A colônia nasce com XP: `CreateColony` concede as 5 essenciais (D-75). Mede-se a DIFERENÇA.
+        $antes = (int) $c->xp;
+
+        app(ConcederXp::class)->handle($c->id, 'mercado_executado', 'exec:1:1');
+
+        $this->assertSame(
+            (int) MilestoneSetting::singleton()->xp_mercado_executado,
+            (int) $c->fresh()->xp - $antes,
+            'o valor da troca não decide mais se ela conta',
+        );
+    }
+
+    /**
+     * ⚠️ **E o anti-farm continua de pé, por outro instrumento.**
+     *
+     * O piso nunca deteve o ataque que o justificava: num mercado **o preço é das partes**, e dois
+     * cúmplices anunciam uma unidade por 100 Fert$ para passar dele. O teto não depende de valor —
+     * farmar rende no máximo o teto, faça-se uma troca ou mil.
+     */
+    public function test_o_mercado_para_de_render_no_teto_do_dia(): void
+    {
+        $c = $this->colono()->colony;
+        $teto = (int) MilestoneSetting::singleton()->xp_mercado_teto_diario;
+        $porVez = (int) MilestoneSetting::singleton()->xp_mercado_executado;
+        $antes = (int) $c->xp;
+
+        foreach (range(1, $teto + 5) as $n) {
+            app(ConcederXp::class)->handle($c->id, 'mercado_executado', "exec:{$n}:1");
+        }
+
+        $this->assertSame($teto, $this->lancamentos($c, 'mercado_executado'));
+        $this->assertSame($teto * $porVez, (int) $c->fresh()->xp - $antes);
+    }
+
+    /** O teto é do dia de missão (07h→07h): amanhã a colônia comercia e sobe de novo. */
+    public function test_o_teto_do_mercado_vira_com_o_dia_de_missao(): void
+    {
+        $c = $this->colono()->colony;
+        $teto = (int) MilestoneSetting::singleton()->xp_mercado_teto_diario;
+
+        foreach (range(1, $teto) as $n) {
+            app(ConcederXp::class)->handle($c->id, 'mercado_executado', "hoje:{$n}");
+        }
+
+        $this->travelTo(Janela::proximoDia()->addMinute());
+        app(ConcederXp::class)->handle($c->id, 'mercado_executado', 'amanha:1');
+
+        $this->assertSame($teto + 1, $this->lancamentos($c, 'mercado_executado'));
+    }
+
+    /** ⚠️ Teto zero é "sem limite", e não "fonte desligada" — quem desliga é o XP por execução. */
+    public function test_teto_zero_nao_desliga_a_fonte(): void
+    {
+        $c = $this->colono()->colony;
+        MilestoneSetting::singleton()->update(['xp_mercado_teto_diario' => 0]);
+
+        foreach (range(1, 8) as $n) {
+            app(ConcederXp::class)->handle($c->id, 'mercado_executado', "sem_teto:{$n}");
+        }
+
+        $this->assertSame(8, $this->lancamentos($c, 'mercado_executado'));
+    }
+
+    /** As outras fontes não ganharam teto nenhum: uma obra concluída sempre conta. */
+    public function test_o_teto_nao_vaza_para_as_outras_fontes(): void
+    {
+        $c = $this->colono()->colony;
+
+        $antes = $this->lancamentos($c, 'obra_concluida');
+
+        foreach (range(1, 8) as $n) {
+            app(ConcederXp::class)->handle($c->id, 'obra_concluida', "obra:{$n}");
+        }
+
+        $this->assertSame($antes + 8, $this->lancamentos($c, 'obra_concluida'));
     }
 
     // ---------------------------------------------------------------- a curva (BASE×N²)

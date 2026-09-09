@@ -2,6 +2,7 @@
 
 namespace App\Domain\Marco;
 
+use App\Domain\Missoes\Janela;
 use App\Models\Colony;
 use App\Models\MilestoneSetting;
 use App\Models\XpEntry;
@@ -35,11 +36,65 @@ class ConcederXp
         'mercado_executado' => 'xp_mercado_executado',
     ];
 
+    /**
+     * Atos que rendem XP no máximo N vezes por DIA DE MISSÃO, e onde N é declarado (D-241).
+     *
+     * ⚠️ **Teto, e não piso de valor.** O Mercado usava o piso anti-farm da reputação (5 Fert$,
+     * D-43/D-117) e ele falhava nas duas pontas: medido em produção, **100,0% das 13.551 execuções**
+     * ficavam abaixo dele — a regra disparou 3 vezes em 1.507 ordens —, e mesmo assim ele não
+     * detinha a fraude, porque num mercado **o preço é das partes**: dois cúmplices anunciam uma
+     * unidade por 100 Fert$ e passam do piso quando quiserem.
+     *
+     * Um teto por dia não depende de valor, e por isso não se contorna com preço: farmar rende no
+     * máximo o teto, faça-se uma troca ou mil.
+     *
+     * @var array<string,string>
+     */
+    private const TETO_DIARIO = [
+        'mercado_executado' => 'xp_mercado_teto_diario',
+    ];
+
     public function handle(int $colonyId, string $acao, ?string $ref = null, int $vezes = 1): void
     {
-        $porVez = (int) MilestoneSetting::singleton()->{self::CAMPO[$acao]};
+        $config = MilestoneSetting::singleton();
+
+        if ($this->batidoOTetoDoDia($colonyId, $acao, $config)) {
+            return;
+        }
+
+        $porVez = (int) $config->{self::CAMPO[$acao]};
 
         $this->direto($colonyId, $acao, $porVez * max(1, $vezes), $ref);
+    }
+
+    /**
+     * A colônia já recebeu por este ato o que o dia permite?
+     *
+     * O dia é o **dia de missão** do §06 (07h→07h, `Janela`), e não a meia-noite: é a régua que o
+     * jogo já usa para dizer o que se pode fazer hoje, e ter duas seria ter duas respostas para a
+     * mesma pergunta.
+     *
+     * ⚠️ Zero desliga o TETO, não a fonte — a fonte se desliga zerando o XP do ato, que é a
+     * convenção do `direto()` desde o D-75.
+     */
+    private function batidoOTetoDoDia(int $colonyId, string $acao, MilestoneSetting $config): bool
+    {
+        $campo = self::TETO_DIARIO[$acao] ?? null;
+
+        if ($campo === null) {
+            return false;
+        }
+
+        $teto = (int) $config->{$campo};
+
+        if ($teto <= 0) {
+            return false;
+        }
+
+        return XpEntry::where('colony_id', $colonyId)
+            ->where('acao', $acao)
+            ->where('created_at', '>=', Janela::diaAtual())
+            ->count() >= $teto;
     }
 
     /**

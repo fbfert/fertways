@@ -20,6 +20,11 @@ class MilestoneSetting extends Model
         'xp_combate_vencido',
         'xp_acordo_executado',
         'xp_mercado_executado',
+        /*
+         * Quantas vezes por DIA DE MISSÃO (07h→07h) o Mercado paga XP a uma colônia (D-241). Zero
+         * desliga o TETO, não a fonte — quem desliga a fonte é `xp_mercado_executado = 0`.
+         */
+        'xp_mercado_teto_diario',
     ];
 
     protected $casts = [
@@ -28,6 +33,7 @@ class MilestoneSetting extends Model
         'xp_combate_vencido' => 'integer',
         'xp_acordo_executado' => 'integer',
         'xp_mercado_executado' => 'integer',
+        'xp_mercado_teto_diario' => 'integer',
     ];
 
     /** Relê depois de criar — a lição do `WarSetting` (D-70): o caminho da criação não traz os defaults. */

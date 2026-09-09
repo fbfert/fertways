@@ -813,6 +813,12 @@ class AcoesController extends Controller
             'xp_combate_vencido' => ['required', 'integer', 'min:0', 'max:100000'],
             'xp_acordo_executado' => ['required', 'integer', 'min:0', 'max:100000'],
             'xp_mercado_executado' => ['required', 'integer', 'min:0', 'max:100000'],
+            /*
+             * O teto diário do Mercado (D-241). ⚠️ Aqui zero significa o CONTRÁRIO das linhas acima:
+             * desliga o TETO, não a fonte. `sometimes` porque o formulário antigo não o mandava, e
+             * um painel que passa a exigir campo novo derruba quem tiver a aba aberta.
+             */
+            'xp_mercado_teto_diario' => ['sometimes', 'integer', 'min:0', 'max:1000'],
         ]);
 
         $config = MilestoneSetting::singleton();

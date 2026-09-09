@@ -176,6 +176,33 @@ A foto achou o resto: a frase do que falta nascera no rodapé do bloco e caía *
 botão morto à vista, o motivo não. Subiu para logo abaixo do botão. O `foto.mjs` passa a fotografar
 o Quartel e a medir `medirCustoDaUnidade()`. 1305 testes verdes.
 
+### A torneira de XP (D-241) — **no ar** em 09/09
+
+O último portão: o **marco**, que trava 7 das 9 humanas. Este arquivo já suspeitava (*"96% do XP vem
+de `obra_concluida`"*) e nunca tinha medido. Medido: **93,3%**, e o XP semanal do planeta em **900**.
+
+⚠️ **E os bots são o grupo de controle que torna isso conclusivo.** Eles não param de jogar, e o XP
+deles caiu **97,8% em quatro semanas** (40.100 → 900). **A fonte seca mesmo — não é ausência de
+jogador.** A 900 XP/semana entre 21 colônias, uma colônia nos 2.600 XP levaria ~**79 semanas** para
+chegar aos 6.000 do território.
+
+As duas fontes sustentadas estavam desligadas, por motivos diferentes:
+
+- **Missões** (33 diárias, 3.100 XP no bolo) são sorteadas **só quando alguém abre `/missoes`** — sem
+  scheduler, por desenho. O programa dos bots nunca abre aquela tela, e por isso **não há atribuição
+  nova desde a semana 32**. ⚠️ Não foi mexido: mudar isso é decidir que o jogo sorteia missão para
+  quem não pediu, e é decisão sua.
+- **Mercado** tinha defeito de verdade, e foi corrigido: **100,0% das 13.551 execuções** ficavam
+  abaixo do piso de 5 Fert$ que liberava XP (execução média: **0,05 Fert$**). Em 1.507 ordens, a
+  regra disparou 3 vezes. E o piso nunca deteve a fraude que o justificava — **num mercado o preço é
+  das partes**. Trocado por um **teto de 3 por dia de missão**, que não depende de valor.
+
+⚠️ **Terceira vez nesta sessão que um número copiado de outro sistema, nunca conferido contra o
+campo, desligou um mecanismo em silêncio** — depois do 1,65× da habitação e do custo que a fábrica do
+Quartel não publicava. Vale como método: **todo limiar herdado precisa ser medido contra o campo.**
+
+1310 testes verdes, migration exercitada nos dois sentidos em MariaDB.
+
 **D-238:** o usuário arbitrou que os bots rodarem contra a produção é deliberado; o
 `ROADMAP_ALPHA2.md` é que estava velho e foi corrigido, com a consequência escrita junto — a
 telemetria separa humano de *sistema*, **não** de bot, e a única marca é o domínio

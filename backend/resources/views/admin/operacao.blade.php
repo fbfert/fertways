@@ -118,12 +118,21 @@
                 <input type="number" min="0" max="100000" name="xp_mercado_executado"
                        value="{{ $marco->xp_mercado_executado }}" required>
             </div>
+            <div style="flex:0">
+                <label>Mercado: vezes por dia</label>
+                <input type="number" min="0" max="1000" name="xp_mercado_teto_diario"
+                       value="{{ $marco->xp_mercado_teto_diario }}" required>
+            </div>
             <div style="flex:0"><label>&nbsp;</label><button data-salvar-marco>Salvar</button></div>
         </form>
         <p class="mut pequeno">
-            Zerar um valor <b>desliga</b> aquela fonte. Acordo e Mercado só rendem acima do piso de
-            500 Fert$ (o anti-farm do D-43, herdado). O retroativo se recalcula com
-            <code>artisan fertways:marco --aplicar</code> — os valores acima também valem lá.
+            Zerar um valor <b>desliga</b> aquela fonte — menos o <b>teto</b> do Mercado, onde zero
+            quer dizer "sem limite". O Acordo rende acima do piso de 5 Fert$ (o anti-farm do D-43,
+            revisto no D-117). O <b>Mercado não tem mais piso de valor</b> (D-241): 100% das 13.551
+            execuções da produção ficavam abaixo dele, e o preço é das partes, então piso nenhum
+            detém dois cúmplices. Quem detém é o teto por dia, que vale por dia de missão (07h→07h).
+            ⚠️ O retroativo do <code>artisan fertways:marco --aplicar</code> usa o XP por execução e
+            <b>ignora o teto</b> — ele conta vendas de todo o histórico, não de um dia.
         </p>
     </div>
 

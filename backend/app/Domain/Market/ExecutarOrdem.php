@@ -196,28 +196,37 @@ class ExecutarOrdem
         }
 
         /*
-         * O Marco anda com o comércio (D-75) — e com o MESMO piso do D-43/D-117 que protege a
-         * reputação: execução abaixo de 5 Fert$ não rende XP, senão duas contas fariam volume de
-         * mentira a 1 unidade por vez (a taxa de 3% tornaria o farm caro, mas caro não é
-         * impossível). O Governo não é colônia: sem XP nem missão para o lado dele, só para quem
-         * comprou.
+         * O Marco anda com o comércio (D-75). O Governo não é colônia: sem XP nem missão para o
+         * lado dele, só para quem comprou.
+         *
+         * ⚠️ **O piso de valor saiu daqui, e o anti-farm virou teto** (D-241).
+         *
+         * Isto era `if ($valor >= AcordoSpecs::PISO_REPUTACAO_MICRO)` — os 5 Fert$ que o D-43 criou
+         * para a reputação. Medido nas 13.551 execuções da produção: **100,0% ficavam abaixo dele**,
+         * a execução média vale **0,05 Fert$**, e a regra "comerciar rende XP" disparou **três vezes
+         * em 1.507 ordens**. O piso estava cem vezes acima do comércio que existe.
+         *
+         * E ele nunca deteve o que justificava sua existência: num mercado **o preço é das partes**,
+         * então dois cúmplices anunciam uma unidade por 100 Fert$ e passam do piso à vontade. Quem
+         * detém isso é o teto diário, que não depende de valor — ver `ConcederXp::TETO_DIARIO`.
+         *
+         * A reputação **continua com o piso**: lá ele é do D-43 e mede outra coisa (um índice de
+         * confiança entre duas contas, não o ritmo de um jogador). Não mexa num pelo outro.
          */
-        if ($valor >= \App\Domain\Trade\AcordoSpecs::PISO_REPUTACAO_MICRO) {
-            $xp = app(\App\Domain\Marco\ConcederXp::class);
-            $missoes = app(\App\Domain\Missoes\Progresso::class);
+        $xp = app(\App\Domain\Marco\ConcederXp::class);
+        $missoes = app(\App\Domain\Missoes\Progresso::class);
 
-            if ($vendedorId !== null) {
-                $xp->handle($vendedorId, 'mercado_executado', $chave);
-                $missoes->registrar($vendedorId, 'mercado_executado');
-            }
+        if ($vendedorId !== null) {
+            $xp->handle($vendedorId, 'mercado_executado', $chave);
+            $missoes->registrar($vendedorId, 'mercado_executado');
+        }
 
-            $xp->handle($compradorId, 'mercado_executado', $chave);
-            $missoes->registrar($compradorId, 'mercado_executado');
+        $xp->handle($compradorId, 'mercado_executado', $chave);
+        $missoes->registrar($compradorId, 'mercado_executado');
 
-            // Pedido do usuário: uma missão específica para comprar do Governo, não de outro colono.
-            if ($vendedorId === null) {
-                $missoes->registrar($compradorId, 'compra_governo_mercado');
-            }
+        // Pedido do usuário: uma missão específica para comprar do Governo, não de outro colono.
+        if ($vendedorId === null) {
+            $missoes->registrar($compradorId, 'compra_governo_mercado');
         }
 
         if ($taxa > 0 && $vendedorId !== null) {

@@ -13420,3 +13420,103 @@ O `foto.mjs` passa a fotografar o Quartel e a devolver `medirCustoDaUnidade()`: 
 custo há, se diz o que falta, e se o botão está desabilitado quando falta.
 
 1305 testes verdes.
+
+---
+
+## D-241 — A torneira de XP fecha, e os bots provaram que não é ausência de jogador
+
+**Data:** 2026-09-09 · **Status:** entregue
+
+O último dos três portões do território é o **marco**: 7 das 9 colônias humanas travadas nele, com
+500 a 2.600 XP contra os 6.000 que o §05 pede. O RETOMAR já nomeava a suspeita e nunca a mediu —
+*"96% do XP vem de `obra_concluida`, que é fonte de largada; a quadrática do marco sobe e a fonte que
+a alimenta desce"*.
+
+### A medida, e o experimento que a torna conclusiva
+
+XP por fonte, mundo inteiro (185.350 XP):
+
+| fonte | XP | % |
+|---|---|---|
+| `obra_concluida` | 172.900 | **93,3%** |
+| `missao_concluida` | 11.200 | 6,0% |
+| `zona_ocupada` | 1.000 | 0,5% |
+| `mercado_executado` | 250 | **0,1%** |
+
+O XP semanal do planeta caiu de 68.200 para **900**. Só que isso, sozinho, não prova nada: **ninguém
+humano entra desde 17/07**, e uma queda pode ser só ausência.
+
+⚠️ **Os bots são o grupo de controle, e eles não pararam.** Separando as duas populações:
+
+| semana | bots (21 colônias, jogando) | humanos (9, ausentes) |
+|---|---|---|
+| 32 | 40.100 | 500 |
+| 33 | 24.100 | — |
+| 34 | 11.000 | — |
+| 35 | 2.600 | 200 |
+| 36 | **900** | — |
+
+**97,8% de queda em quatro semanas com os jogadores jogando.** A fonte seca mesmo. E a conta que sai
+disso é o tamanho do problema: a 900 XP/semana divididos por 21 colônias, uma colônia parada nos
+2.600 XP levaria **cerca de 79 semanas** para alcançar o portão do território.
+
+### As duas fontes sustentadas existem, e as duas estão desligadas
+
+**Missões** (33 diárias, 3.100 XP no bolo; 8 semanais, 8.700) são o sustentado por desenho — e são
+**preguiçosas**: `Atribuir` só sorteia quando alguém abre `/missoes` (`MissoesController::index`).
+Não há scheduler, e isso não é defeito: é o desenho que não faz trabalho para quem não está lá. A
+consequência é que **o programa dos bots nunca abre aquela tela**, e por isso nenhuma atribuição foi
+criada desde a semana 32 — 5 semanas, e só 6 de 30 colônias com missão ativa. ⚠️ Fica registrado, e
+**não foi mexido**: mudar isso é decidir que o jogo sorteia missão para quem não pediu.
+
+**Mercado**, esse tinha defeito de verdade.
+
+### O piso de valor barrava o comércio inteiro e não barrava a fraude
+
+`ExecutarOrdem` só concedia XP acima de **5 Fert$** — o piso anti-farm que o D-43 criou para a
+reputação e o D-117 baixou de 500 para 5. Medido nas 13.551 execuções da produção:
+
+| | |
+|---|---|
+| abaixo do piso | **13.545 — 100,0%** |
+| execução média | **0,05 Fert$** |
+| mediana | 0,00 Fert$ |
+| maior de todos os tempos | 45 Fert$ |
+
+O piso está **cem vezes acima da execução média**. Em 1.507 ordens executadas, "comerciar rende XP"
+disparou **três vezes** — e as três em julho e agosto, aos pares comprador/vendedor.
+
+⚠️ **E ele nunca deteve o ataque que o justificava.** O piso protege contra *"uma unidade de minério
+mil vezes"*. Mas num mercado **o preço é das partes**: dois cúmplices anunciam uma unidade por 100
+Fert$ e passam do piso quando quiserem, pagando só os 3% de tributo. Ele barra o comércio pequeno —
+que é todo o comércio que existe — e não barra a fraude, que é grande por escolha.
+
+**É a terceira vez nesta sessão que um número copiado de outro sistema, nunca conferido contra o
+campo, desliga um mecanismo inteiro em silêncio** — depois do 1,65× da habitação (D-239) e do custo
+que a fábrica do Quartel não publicava (D-240).
+
+### O teto é o instrumento certo
+
+Quantas vezes **por dia** o Mercado paga XP a uma colônia não depende de valor, e por isso não se
+contorna com preço: farmar rende no máximo o teto, faça-se uma troca ou mil. Três por dia é o número
+das missões diárias (`Atribuir::DIARIAS_POR_DIA`) — o ritmo que o §06 já deu ao dia —, e o dia é o
+**dia de missão** (07h→07h, `Janela`), porque ter duas réguas de "hoje" seria ter duas respostas para
+a mesma pergunta.
+
+O teto mora no painel (`milestone_settings.xp_mercado_teto_diario`), como todo número que o GDD manda
+existir e não publica. ⚠️ Ali **zero significa o contrário** das outras linhas: desliga o teto, não a
+fonte — quem desliga a fonte é `xp_mercado_executado = 0`.
+
+⚠️ **A reputação continua com o piso.** Lá ele é do D-43 e mede outra coisa: um índice de confiança
+entre duas contas, não o ritmo de um jogador. Não mexa num pelo outro.
+
+⚠️ **`fertways:marco --aplicar` ignora o teto** — ele conta vendas do histórico inteiro, não de um
+dia, e multiplica pelo XP por execução. O painel passa a dizer isso; o comando não foi mexido.
+
+### O que isto NÃO resolve
+
+Os humanos executaram **zero** ordens no Mercado (D-227). Esta correção devolve uma fonte sustentada
+a quem comercia — hoje, os bots. Para os 7 humanos travados no marco, a fonte que existe continua
+sendo obra e missão, e as duas dependem de alguém entrar no jogo.
+
+1310 testes verdes, migration exercitada nos dois sentidos em MariaDB.
