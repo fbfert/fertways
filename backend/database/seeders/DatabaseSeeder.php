@@ -37,6 +37,13 @@ class DatabaseSeeder extends Seeder
             TransportSettingSeeder::class,
             // O catálogo de missões do §06 (D-78) — o baralho das diárias e a tutoria.
             MissionTemplateSeeder::class,
+            /*
+             * O catálogo da Endurance (§11, D-244). O D-135 construiu a Loja dinâmica e ninguém a
+             * encheu: um item, em uma das oito seções, com raridade, instância de único, efeito e
+             * leilão esperando conteúdo. Depende de nada — os alvos dos efeitos são `building_type`
+             * e tipo de veículo, conferidos por teste, não FK.
+             */
+            EnduranceItemSeeder::class,
         ]);
     }
 }

@@ -246,6 +246,31 @@ entregar missão a quem não olha seria encher tabela.
 
 1315 testes verdes.
 
+### O catálogo da Endurance (D-244) — **no ar** em 09/09
+
+⚠️ **O D-132 ao D-140 já estavam construídos desde 2026-07-20** — o usuário pediu para construí-los e
+eles são código que já roda. O que sobrou daquele bloco é isto: o **D-135 construiu a Loja dinâmica e
+ninguém a encheu**. Medido: **1 item**, em 1 das 8 seções, com 6 tipos de efeito ligados ao motor,
+teto por tipo, raridade, instância de único e leilão — tudo pronto e ocioso. O D-226 concluiu certo
+pela metade ("polir a tela seria polir uma porta que ninguém abre"): **atrás da porta não havia nada**.
+
+19 itens novos, as 8 seções, cada uma com o efeito que ela tinha quando a nave voava. Nenhum número
+inventado: a escala é **fração do teto de cada tipo** (comum 20%, raro 40%, único 60%), e 40% do teto
+de `PRODUCAO_BONUS` são exatamente os 2000 bps da Broca que o operador criou à mão em julho.
+
+⚠️ **Um teste que eu tinha acabado de escrever me corrigiu**: em bps absoluto, o único do Comando
+nascia exatamente no teto do `DESCONTO_TRIBUTO` (3000) e apagava o comum e o raro do mesmo tipo. Em
+fração isso não acontece por construção.
+
+⚠️ **Seeder é passo à mão** — `deploy.sh` não os roda. Rodado em produção nesta sessão; o catálogo lá
+tem **20** (os 19 mais a Broca, que não foi tocada). Dev tem 19: os bancos são separados (D-46).
+
+**A pendência do D-134 continua aberta** — "as 4 camadas da Loja de Peças não se diferenciam o
+bastante". É o único item daquele bloco que nunca foi fechado, e agora que há catálogo ela pode ser
+olhada com dado na mesa.
+
+1320 testes verdes.
+
 **D-238:** o usuário arbitrou que os bots rodarem contra a produção é deliberado; o
 `ROADMAP_ALPHA2.md` é que estava velho e foi corrigido, com a consequência escrita junto — a
 telemetria separa humano de *sistema*, **não** de bot, e a única marca é o domínio

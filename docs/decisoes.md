@@ -13603,3 +13603,77 @@ a tela travava na escada, e a tutoria é justamente o que ensina o jogo a quem c
 nenhuma: rodar duas vezes no mesmo dia não dá seis missões, e há teste para isso.
 
 1315 testes verdes.
+
+---
+
+## D-244 — A Endurance tinha o sistema inteiro e a sala vazia
+
+**Data:** 2026-09-09 · **Status:** entregue
+
+O usuário pediu para construir do D-132 ao D-140. ⚠️ **Eles já estão construídos desde 2026-07-20** —
+o mapa dos Destroços, o CRUD no painel, a Loja refeita com catálogo dinâmico, os leilões de item, o
+manual de benefícios, os quatro capítulos narrativos. Reconstruí-los seria reescrever código que
+roda. O que sobrou daquele bloco é outra coisa, e é esta.
+
+### O D-135 construiu a Loja dinâmica e ninguém a encheu
+
+Medido em 2026-09-09: **1 item no catálogo**, em 1 das 8 seções do casco. Tudo o que existe em volta
+dele estava pronto e ocioso — 8 seções, **6 tipos de efeito ligados ao motor do jogo**, teto agregado
+por tipo, as três raridades, a linha de instância do único com descobridor e histórico, os leilões.
+
+O D-226 mediu a consequência e tirou a conclusão certa pela metade: *"a Endurance é a segunda A2.V4 —
+sistema construído e praticamente não jogado; polir a tela dela seria polir uma porta que ninguém
+abre"*. Estava certo. Faltava a outra metade da frase: **atrás da porta não havia nada**.
+
+### Nenhum número inventado: a régua é o teto de cada tipo
+
+O GDD nomeia as raridades (§11.1) e não publica catálogo, então valeria a régua do D-60 — número que
+o documento manda existir e não publica é do painel. Mas aqui já havia **uma âncora**: a *Broca de
+Extração Aprimorada*, criada à mão pelo operador em 23/07 — `raro`, 42 unidades, 50 Fert$, marco 5,
+`producao_bonus +2000 bps`.
+
+| | efeito | quantidade | preço | marco |
+|---|---|---|---|---|
+| comum | **20% do teto do tipo** | 3× | 20 F$ | 1 |
+| **raro (a âncora)** | **40% do teto** | **42** | **50 F$** | **5** |
+| único | **60% do teto** | **1** | 500 F$ | 10 |
+
+⚠️ **A escala é fração do teto, e quem me corrigiu foi um teste que eu tinha acabado de escrever.**
+
+A primeira versão escalava em bps absoluto a partir dos 2000 da Broca (1000 / 2000 / 3000). Reproduz
+a âncora e quebra fora dela: `DESCONTO_TRIBUTO` tem teto de **3000**, então a peça única do Comando
+nascia **exatamente no teto** — sozinha, ela zerava o valor de todo selo e toda cifra do mesmo tipo.
+A peça lendária apagaria o catálogo em vez de coroá-lo.
+
+Em fração isso não acontece por construção, e a âncora sobrevive: o teto de `PRODUCAO_BONUS` é 5000,
+e 40% dele são **exatamente os 2000 bps** que o operador escolheu à mão. O que era caso particular do
+Drone (teto 10.000, escala dobrada) deixou de ser exceção e virou a mesma conta.
+
+O topo em 60% é decisão: acima disso o único torna o resto decorativo, abaixo ele não se distingue do
+raro.
+
+### Uma seção, um efeito — e o único em três seções, não em oito
+
+Cada seção do casco entrega o que ela era quando a nave voava: o **Comando** negocia (tributo), o
+**Núcleo de Propulsão** anda (velocidade), a **Matriz de Comunicação** enxerga longe (raio do Drone),
+a **Baía Criogênica** dura (bateria), a **Seção de Acoplagem** carrega (capacidade), e o **Silo**, o
+**Anel Habitacional** e o **Módulo Médico** produzem (Fazenda, Captação de Água, Refinaria Química).
+É o que faz o mapa da Endurance ser um mapa, e não uma lista.
+
+⚠️ O único mora em **três** seções. Único em toda seção é a armadilha que o próprio §11.1 nomeia:
+*"evitar que 'único' se transforme apenas em mais uma categoria de drop repetível"*.
+
+### O teste que importa não é a lista
+
+O catálogo vai crescer, e o painel existe para isso. O que os testes guardam é o desenho: que as 8
+seções tenham o que vender, que o único supere o raro **e** fique abaixo do teto, que ele seja uma
+unidade — e que **todo alvo de efeito exista de verdade**. Este último é o mais importante: um alvo
+escrito errado não falha em lugar nenhum, o item é vendido, o colono paga, e o bônus simplesmente
+nunca incide. É a família "dado servido sem consumidor" que esta Alpha achou nove vezes, e aqui seria
+pior, porque o jogador pagou por ela.
+
+⚠️ **A Broca do operador não foi tocada** — `item_key` própria, `updateOrCreate`. E os bancos de dev e
+produção são separados desde o D-46: o dev fica com 19 itens, a produção com **20**.
+
+⚠️ **`deploy.sh` NÃO roda seeder.** Este é passo à mão, e o esquecimento é silencioso — já aconteceu
+com o Tesouro (D-57), as zonas (D-52) e os parâmetros de transporte (D-60).
