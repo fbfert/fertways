@@ -32,6 +32,21 @@ use App\Models\Colony;
  */
 class ExigirMarco
 {
+    /**
+     * Os gates FIXOS do §05, em texto de jogador — a lista do docblock, agora legível por código.
+     *
+     * ⚠️ **Ocupar zona neutra não está aqui**, e não é esquecimento: a régua dela é dobrável por
+     * evento e quem a calcula é o `RequisitosDeOcupacao`. O `Desbloqueios` a busca de lá, para a
+     * tela dizer o portão de HOJE e não o de sempre.
+     *
+     * ⚠️ A Endurance também não: o marco dela é **por item**, e sai do catálogo.
+     *
+     * @var array<int,string>
+     */
+    public const GATES = [
+        10 => 'Fabricar Drone nível 2 ou superior',
+    ];
+
     public function exigir(Colony $colony, int $marcoMinimo, string $oQue): void
     {
         $atual = Curva::marco((int) $colony->xp);

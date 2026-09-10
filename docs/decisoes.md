@@ -13799,3 +13799,53 @@ No mapa, o `◈` da peça única vem com a palavra no `title` — cor e símbolo
 entrar numa loja; ele só volta a ser oito portas.
 
 1324 testes verdes.
+
+---
+
+## D-247 — O Marco cobrava e nunca disse como se sobe nem para quê
+
+**Data:** 2026-09-09 · **Status:** entregue
+
+O cabeçalho mostra `Marco 36 · Construtor · 20.000 / 20.535 XP` desde o D-75, e era **tudo**. Nada no
+jogo dizia que existe XP por comerciar, nem que ocupar território pede o marco 20: o jogador
+descobria o portão ao esbarrar nele, e a fonte, nunca.
+
+Isso deixou de ser detalhe com a medida do D-241 — **7 das 9 colônias humanas travadas no marco**,
+com o planeta inteiro fazendo 900 XP por semana. Parte da seca é de informação: não adianta pagar XP
+por comércio se ninguém sabe que ele paga.
+
+### O chip vira a porta
+
+O lugar óbvio para a resposta é o número que anuncia a trava. O chip do Marco passa a abrir um painel
+com duas listas: **o que ainda está fechado** e **de onde vem XP**.
+
+O que abre vem primeiro, de propósito: o jogador não quer saber o que é XP — quer saber o que ganha,
+e é isso que transforma um número no cabeçalho em motivo para jogar.
+
+### Nenhuma frase escrita à mão
+
+É a lição do D-224 e do D-240, e aqui ela tem três pernas:
+
+- as **fontes** saem de `milestone_settings`, o painel do operador. Fonte zerada **não aparece** —
+  zero desliga a fonte, e anunciar "0 XP por combate" parece defeito, não regra;
+- os **portões fixos** saem de `ExigirMarco::GATES`, ao lado do código que os cobra;
+- o **território** sai do `RequisitosDeOcupacao` — ⚠️ a régua dele é dobrável por evento (D-232), e
+  uma cópia aqui anunciaria o marco 20 durante uma Cesta que já o baixou. Há teste para isso;
+- a **Endurance** sai do catálogo: cada item traz o seu `marco_minimo`, e só entra o que está à
+  venda. A lista acompanha o operador criando peça nova sem ninguém lembrar deste arquivo.
+
+⚠️ **O teto diário do Mercado vai junto na frase** ("até 3 vezes por dia"). Sem ele o jogador lê "+50
+por execução" e conclui que basta negociar mil vezes — o D-241 acabou de tornar isso falso.
+
+⚠️ **A missão vem sem número**, com nota: cada template paga o que o catálogo dela diz (D-78). É o
+único caso em que `xp = 0` não quer dizer "desligada", e imprimir zero ali diria o contrário da
+verdade.
+
+### O que a foto disse
+
+Aberto na colônia do e2e (marco 36): 6 fontes, **0 desbloqueios** — e é correto, ela já passou por
+todos. O painel diz *"Nada — tudo o que o Marco governa já está aberto"* em vez de mostrar uma seção
+vazia, cabe em 306 px de 900, e não transborda. O caso com portões à frente fica coberto pelos testes:
+o mundo semeado não tem colônia atrasada, e forçar uma quebraria as demais fotos.
+
+1328 testes verdes.

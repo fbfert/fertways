@@ -292,6 +292,20 @@ try {
   // A loja ABERTA, que é onde o catálogo do D-244/D-245 aparece — o mapa só mostra a porta.
   await page.screenshot({ path: '/tmp/foto-endurance-loja.png' })
   console.log('loja da endurance → /tmp/foto-endurance-loja.png')
+
+  /*
+   * O PAINEL DO MARCO (D-247) — o chip do cabeçalho passou a abrir o que ele nunca disse: o que o
+   * próximo marco abre e de onde vem XP. Fotografado porque é texto vindo do servidor, e texto é
+   * justamente o que nenhum teste de clique confere.
+   */
+  await page.goto(`${BASE}/`, { waitUntil: 'domcontentloaded' })
+  await assentar()
+  await new Promise((r) => setTimeout(r, 2000))
+  await page.evaluate(() => document.querySelector('[data-abrir-marco]')?.click())
+  await new Promise((r) => setTimeout(r, 1200))
+  await page.screenshot({ path: '/tmp/foto-marco.png' })
+  console.log('painel do marco → /tmp/foto-marco.png')
+  console.log('  marco:', JSON.stringify(await medirPainelDoMarco(page)))
 } finally {
   await fecharNavegador(navegador)
 }
@@ -332,6 +346,29 @@ async function medirResumo(page) {
             .length
         : 0,
       terminados_visiveis: fim ? fim.getBoundingClientRect().bottom <= window.innerHeight : null,
+    }
+  })
+}
+
+/**
+ * O painel do Marco diz o que ele abre e de onde vem XP? (D-247)
+ *
+ * Conta as duas listas e confere que o popup **cabe na janela** — ele nasce com duas seções e a
+ * lista de desbloqueios cresce quando o operador cria peça nova na Endurance.
+ */
+async function medirPainelDoMarco(page) {
+  return page.evaluate(() => {
+    const p = document.querySelector('[data-painel-marco]')
+    if (!p) return { erro: 'o painel do marco não abriu' }
+
+    const b = p.getBoundingClientRect()
+
+    return {
+      desbloqueios: p.querySelectorAll('[data-marco-desbloqueios] li').length,
+      fontes: p.querySelectorAll('[data-marco-fontes] li').length,
+      altura: Math.round(b.height),
+      janela: window.innerHeight,
+      transborda_a_janela: b.bottom > window.innerHeight,
     }
   })
 }

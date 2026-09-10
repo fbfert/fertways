@@ -55,6 +55,15 @@ export type Marco = {
   xp: number
   /** null no 100: a Lenda é o teto, e não se promete um 101. */
   xp_do_proximo: number | null
+  /**
+   * D-247: de onde vem XP, com o valor que o operador declarou. Fonte desligada não vem.
+   *
+   * `xp: 0` só acontece na missão, que não tem valor único — cada catálogo paga o seu, e a `nota`
+   * diz isso. Nas demais, zero significaria "desligada", e desligada não chega aqui.
+   */
+  fontes_de_xp: { acao: string; rotulo: string; xp: number; nota: string | null }[]
+  /** D-247: o que ainda está fechado, do mais perto ao mais longe. Vazio no fim da curva. */
+  proximos_desbloqueios: { marco: number; xp: number; o_que: string }[]
 }
 
 /** Um aviso da faixa (A2.V2, D-211). A ordem da lista é a ordem de agir. */

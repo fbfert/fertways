@@ -1,6 +1,8 @@
+import { useState } from 'react'
 import { useLocation } from 'react-router-dom'
 import type { Colonia } from '../api/client'
 import { Marca } from './Marca'
+import { PainelDoMarco } from './PainelDoMarco'
 
 /**
  * O header desktop (`md:flex`) — reforma de navegação global (pedido do usuário): antes só
@@ -41,6 +43,13 @@ export function Header({
   aoSair: () => void
 }) {
   const { pathname } = useLocation()
+
+  /*
+   * O painel do Marco (D-247). Estado LOCAL do cabeçalho, e não mais um `aoAbrir*` passado de fora:
+   * ele não navega para lugar nenhum nem muda nada do jogo — é leitura do que o próprio chip já
+   * mostra. Subi-lo ao App faria oito componentes saberem de um popup que só o cabeçalho abre.
+   */
+  const [marcoAberto, setMarcoAberto] = useState(false)
 
   // O destaque segue a rota (pedido do usuário) — antes era sempre o Mapa. Ministério e Mercado só
   // se alcançam PELA Capital (D-59, item 6), então contam como "Capital" para o destaque.
@@ -118,7 +127,21 @@ export function Header({
 
       {colonia && (
         <div className="pointer-events-auto flex items-stretch gap-3">
-          <div className="painel bg-sand-light px-5 py-3 text-right" data-marco={colonia.marco.numero}>
+          {/*
+           * ⚠️ O chip do Marco vira BOTÃO (D-247).
+           *
+           * Ele mostrava número, título e XP desde o D-75 e não levava a lugar nenhum — o jogador
+           * não tinha como saber de onde vem XP nem o que o próximo marco abre. Com 7 das 9
+           * colônias humanas travadas no marco (D-241), o lugar óbvio para essa resposta é o próprio
+           * número que anuncia a trava.
+           */}
+          <button
+            onClick={() => setMarcoAberto(true)}
+            className="painel bg-sand-light hover:border-rust/40 px-5 py-3 text-right"
+            data-marco={colonia.marco.numero}
+            data-abrir-marco
+            aria-label={`Marco ${colonia.marco.numero} — ver o que ele abre e de onde vem XP`}
+          >
             <div className="text-rust eyebrow">Marco {colonia.marco.numero}</div>
             <div className="text-ink text-sm font-bold">{colonia.marco.titulo}</div>
             <div className="text-ink-soft text-xs tabular-nums">
@@ -126,7 +149,11 @@ export function Header({
                 ? `${colonia.marco.xp.toLocaleString('pt-BR')} / ${colonia.marco.xp_do_proximo.toLocaleString('pt-BR')} XP`
                 : `${colonia.marco.xp.toLocaleString('pt-BR')} XP · máximo`}
             </div>
-          </div>
+          </button>
+
+          {marcoAberto && (
+            <PainelDoMarco marco={colonia.marco} aoFechar={() => setMarcoAberto(false)} />
+          )}
 
           <div className="painel bg-sand-light px-5 py-3 text-right">
             <div className="text-rust eyebrow">{colonia.name}</div>

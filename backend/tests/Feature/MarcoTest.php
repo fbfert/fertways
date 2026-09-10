@@ -10,6 +10,7 @@ use App\Domain\Trade\AcordoSpecs;
 use App\Domain\Trade\Reputacao;
 use App\Models\Admin;
 use App\Models\Colony;
+use App\Models\GameEvent;
 use App\Models\MilestoneSetting;
 use App\Models\User;
 use App\Models\XpEntry;
@@ -50,6 +51,104 @@ class MarcoTest extends TestCase
     private function darXp(Colony $colony, int $xp): void
     {
         $colony->forceFill(['xp' => $xp])->save();
+    }
+
+    // ----------------------------- o que o Marco abre e de onde vem XP (D-247)
+
+    /**
+     * ⚠️ O defeito que este teste guarda: o Marco **cobrava e não dizia como se sobe nem para quê**.
+     *
+     * O cabeçalho mostrava número, título e XP desde o D-75 e nada mais. Deixou de ser detalhe
+     * quando o D-241 mediu 7 das 9 colônias humanas travadas no marco, com o planeta fazendo 900 XP
+     * por semana: parte da seca é de informação.
+     */
+    public function test_o_payload_diz_de_onde_vem_xp(): void
+    {
+        $user = $this->colono();
+
+        $fontes = collect(
+            $this->actingAs($user)->getJson('/colony')->assertOk()->json('marco.fontes_de_xp')
+        );
+
+        $this->assertNotEmpty($fontes);
+        $this->assertContains('obra_concluida', $fontes->pluck('acao')->all());
+
+        // Os valores são os do operador, não uma cópia na tela.
+        $this->assertSame(
+            (int) MilestoneSetting::singleton()->xp_obra_por_nivel,
+            $fontes->firstWhere('acao', 'obra_concluida')['xp'],
+        );
+
+        // O teto diário do Mercado vai junto: sem ele o jogador conclui que basta negociar mil vezes.
+        $this->assertStringContainsString(
+            (string) MilestoneSetting::singleton()->xp_mercado_teto_diario,
+            (string) $fontes->firstWhere('acao', 'mercado_executado')['nota'],
+        );
+    }
+
+    /** ⚠️ Fonte desligada não aparece: anunciar "0 XP por combate" parece defeito, não regra. */
+    public function test_a_fonte_desligada_nao_aparece(): void
+    {
+        $user = $this->colono();
+        MilestoneSetting::singleton()->update(['xp_combate_vencido' => 0]);
+
+        $acoes = collect(
+            $this->actingAs($user)->getJson('/colony')->assertOk()->json('marco.fontes_de_xp')
+        )->pluck('acao');
+
+        $this->assertNotContains('combate_vencido', $acoes->all());
+    }
+
+    /** O que ainda está fechado, do mais perto ao mais longe — e nada do que já abriu. */
+    public function test_o_payload_lista_o_que_o_marco_ainda_nao_abriu(): void
+    {
+        $user = $this->colono();
+
+        $lista = collect(
+            $this->actingAs($user)->getJson('/colony')->assertOk()->json('marco.proximos_desbloqueios')
+        );
+
+        $this->assertNotEmpty($lista);
+        $marcoAtual = Curva::marco((int) $user->colony->xp);
+
+        foreach ($lista as $d) {
+            $this->assertGreaterThan($marcoAtual, $d['marco'], "{$d['o_que']} já está aberto e aparece como fechado");
+            $this->assertSame(Curva::xpDoMarco($d['marco']), $d['xp']);
+        }
+
+        $this->assertSame($lista->pluck('marco')->sort()->values()->all(), $lista->pluck('marco')->all());
+        $this->assertContains('Ocupar zona neutra', $lista->pluck('o_que')->all());
+    }
+
+    /**
+     * ⚠️ **O portão do território é o de HOJE.** A régua dele é dobrável por evento (D-232), e a
+     * lista sai do `RequisitosDeOcupacao` justamente para dizer o que vale agora — uma cópia aqui
+     * anunciaria o marco 20 durante uma Cesta que já o baixou para 1.
+     */
+    public function test_o_portao_do_territorio_acompanha_o_evento(): void
+    {
+        $user = $this->colono();
+        /*
+         * XP baixo de propósito: com os 500 da fundação, a régua reduzida do evento cai ABAIXO do
+         * marco desta colônia e o portão some da lista — que é o certo (ela já passa), mas esconde o
+         * que este teste quer ver. Aqui os dois lados precisam continuar do lado de fora.
+         */
+        $this->darXp($user->colony, 100);
+
+        $antes = collect($this->actingAs($user)->getJson('/colony')->json('marco.proximos_desbloqueios'))
+            ->firstWhere('o_que', 'Ocupar zona neutra');
+
+        GameEvent::create([
+            'slug' => 'cesta', 'nome' => 'Cesta',
+            'comeca_em' => now()->subHour(), 'termina_em' => now()->addDay(),
+            'status' => 'ativo', 'visibilidade' => 'anunciado', 'escopo' => 'mundo',
+            'modificador' => 'ocupacao_marco', 'efeito_bps' => -9_500,
+        ]);
+
+        $depois = collect($this->actingAs($user)->getJson('/colony')->json('marco.proximos_desbloqueios'))
+            ->firstWhere('o_que', 'Ocupar zona neutra');
+
+        $this->assertLessThan($antes['marco'], $depois['marco'], 'o evento abaixou a régua e a tela não viu');
     }
 
     // ------------------------------------------- o teto diário do Mercado (D-241)

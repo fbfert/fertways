@@ -296,11 +296,11 @@ class ColonyController extends Controller
         ]);
     }
 
-    /** @return array{numero: int, titulo: string, xp: int, xp_do_proximo: int|null} */
     private function marco(Colony $colony): array
     {
         $xp = (int) $colony->xp;
         $numero = Curva::marco($xp);
+        $desbloqueios = app(\App\Domain\Marco\Desbloqueios::class);
 
         return [
             'numero' => $numero,
@@ -308,6 +308,13 @@ class ColonyController extends Controller
             'xp' => $xp,
             // No 100 não há próximo: a Lenda é o teto, e a tela não deve prometer um 101.
             'xp_do_proximo' => $numero >= 100 ? null : Curva::xpDoMarco($numero + 1),
+            /*
+             * D-247: o Marco cobrava e não dizia **como se sobe nem para quê**. Isso deixou de ser
+             * detalhe quando o D-241 mediu 7 das 9 colônias humanas travadas nele, com o planeta
+             * inteiro fazendo 900 XP por semana — parte da seca é de informação.
+             */
+            'fontes_de_xp' => $desbloqueios->fontes(),
+            'proximos_desbloqueios' => $desbloqueios->proximos($colony),
         ];
     }
 }

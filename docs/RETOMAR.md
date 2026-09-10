@@ -310,6 +310,22 @@ pega:
 
 1324 testes verdes.
 
+### O painel do Marco (D-247) — **no ar** em 09/09
+
+O cabeçalho mostrava `Marco 36 · Construtor · 20.000 / 20.535 XP` desde o D-75 e **nada mais**: o
+jogo nunca disse de onde vem XP nem o que o próximo marco abre. Com 7 das 9 colônias humanas travadas
+no marco (D-241), parte da seca é de informação.
+
+O chip virou botão e abre duas listas: **o que ainda está fechado** (portões fixos + território +
+peças da Endurance por marco) e **de onde vem XP** (as fontes do painel do operador). Nenhuma frase
+à mão: as fontes saem de `milestone_settings`, os portões de onde são cobrados, e o do território do
+`RequisitosDeOcupacao` — que é o único que sabe quando um evento abaixou a régua.
+
+⚠️ O teto diário do Mercado vai na frase ("até 3 vezes por dia"): sem ele o jogador lê "+50 por
+execução" e conclui que basta negociar mil vezes.
+
+1328 testes verdes.
+
 **D-238:** o usuário arbitrou que os bots rodarem contra a produção é deliberado; o
 `ROADMAP_ALPHA2.md` é que estava velho e foi corrigido, com a consequência escrita junto — a
 telemetria separa humano de *sistema*, **não** de bot, e a única marca é o domínio
