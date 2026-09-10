@@ -13750,3 +13750,52 @@ o vizinho tem bps maior.
 ⚠️ **`valor_bps` não é comparável entre tipos.** É a mesma armadilha nas duas vezes, e agora está
 escrita nos dois lugares. O efeito próprio passou a ser identificado pelo que o **comum** da seção
 carrega — ele tem um só, por construção.
+
+---
+
+## D-246 — A Endurance ganha ordem de leitura: a escada da raridade e o que cada destroço guarda
+
+**Data:** 2026-09-09 · **Status:** entregue
+
+O D-226 decidiu não polir a tela da Endurance porque não havia o que mostrar. Com o catálogo cheio
+(D-244/D-245), fotografei antes de decidir — a regra da casa desde o D-215. A tela **sabia** exibir
+efeitos compostos: o raro e o único imprimem as duas linhas sem transbordar. Mas a foto achou duas
+coisas que a medida não pega.
+
+### A loja saía embaralhada
+
+`ÚNICO, COMUM, COMUM, RARO, ÚNICO`. A consulta ordenava por `preco_micro`, e um único barato do
+mundo semeado custava menos que um comum. Numa loja cuja graça é a **escada de raridade**, isso
+simplesmente não se lê.
+
+⚠️ E é literalmente o terceiro item do D-134: *"repensar se 'camada' devia ser eixo de PREÇO ou de
+RARIDADE — hoje confunde os dois"*. Fechei aquela pendência ontem tratando as outras duas direções e
+**deixei esta em pé sem perceber**, porque só a foto a torna visível.
+
+Agora ordena por raridade e depois por preço. `CASE` e não `FIELD()`: o `FIELD` é do MySQL e a suíte
+roda em SQLite — a divergência que quebrou a produção no D-59 começa exatamente assim. A escada vem
+de `EnduranceItem::TIPOS`, então uma raridade nova entra sozinha.
+
+### O mapa eram oito portas iguais
+
+As 8 seções do casco, com a arte de cada uma e **nada sobre o que há dentro**. Enquanto o catálogo
+tinha um item isso não custava nada; cheio, achar a peça única exige **abrir as oito e voltar**. O
+§11.2 quer que a Endurance ganhe importância ao longo da vida do servidor, e um mapa que não
+distingue os próprios destroços não deixa nada ganhar importância.
+
+`GET /endurance/secoes-mapa` devolve, por seção, quantas peças **à venda**, se há única, e o mais
+barato disponível. Peça esgotada não é peça que se possa ir buscar — some da conta, e o preço vira
+nulo para a tela dizer *"esgotado"* em vez de *"0 F$"*.
+
+⚠️ **Não filtra por marco, de propósito.** Saber que existe uma peça única no Comando é o que faz o
+jogador querer chegar ao marco 10; esconder o inalcançável tira do jogo justamente a vontade. O
+requisito continua sendo cobrado na compra e exibido item a item.
+
+⚠️ E a rota vai **antes** de `secoes/{secao}` no arquivo: `secoes-mapa` como sufixo bateria no
+parâmetro e viraria uma seção chamada "mapa".
+
+No mapa, o `◈` da peça única vem com a palavra no `title` — cor e símbolo nunca são o único sinal
+(A2.V1). A carga falha em silêncio: o mapa é navegação, e um erro de rede não pode impedir alguém de
+entrar numa loja; ele só volta a ser oito portas.
+
+1324 testes verdes.

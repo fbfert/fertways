@@ -292,6 +292,24 @@ Está escrita nos dois lugares.
 
 1321 testes verdes.
 
+### A Endurance ganha ordem de leitura (D-246) — **no ar** em 09/09
+
+Com o catálogo cheio, fotografei a tela antes de decidir polir. Ela **sabia** exibir efeitos
+compostos — o raro e o único imprimem as duas linhas sem transbordar. A foto achou o que a medida não
+pega:
+
+- **a loja saía embaralhada** (`ÚNICO, COMUM, COMUM, RARO, ÚNICO`): ordenava por preço, e um único
+  barato vinha antes de um comum. ⚠️ É literalmente o terceiro item do D-134 — *"camada devia ser
+  eixo de PREÇO ou de RARIDADE; hoje confunde os dois"* —, que eu tinha deixado em pé ao fechar
+  aquela pendência no dia anterior. Só a foto o torna visível. Agora: raridade, depois preço, com
+  `CASE` e não `FIELD()` (o `FIELD` é do MySQL e a suíte é SQLite — é como o D-59 começou);
+- **o mapa eram oito portas iguais**: achar a peça única exigia abrir as oito. `GET
+  /endurance/secoes-mapa` diz por seção quantas peças **à venda**, se há única e o mais barato.
+  Esgotado some da conta e a tela diz "esgotado", não "0 F$". Não filtra por marco de propósito:
+  saber que existe uma peça única é o que faz querer chegar ao marco 10.
+
+1324 testes verdes.
+
 **D-238:** o usuário arbitrou que os bots rodarem contra a produção é deliberado; o
 `ROADMAP_ALPHA2.md` é que estava velho e foi corrigido, com a consequência escrita junto — a
 telemetria separa humano de *sistema*, **não** de bot, e a única marca é o domínio

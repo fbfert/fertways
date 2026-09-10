@@ -134,6 +134,20 @@ export type EfeitoDoItemDaEndurance = {
 }
 
 /** Um item do catálogo dinâmico da Loja de Peças da Endurance (§05, D-135) — uma seção do casco. */
+/**
+ * Um destroço no mapa da Endurance (D-246) — o que ele guarda, antes de a loja abrir.
+ *
+ * `pecas` conta o que está **à venda**, não o catálogo: peça esgotada não é peça que se possa ir
+ * buscar. `a_partir_de` é nulo quando não sobrou nada, e a tela diz "esgotado" em vez de "0 F$".
+ */
+export type DestrocoNoMapa = {
+  chave: string
+  nome: string
+  pecas: number
+  tem_unico: boolean
+  a_partir_de: number | null
+}
+
 export type ItemDaEndurance = {
   item_key: string
   nome: string
@@ -1619,6 +1633,9 @@ export const api = {
       teto_veiculo_pct: number
       teto_drone_pct: number
     }>('/endurance/efeitos'),
+
+  /** D-246: o que cada destroço guarda, para o mapa não ser oito portas iguais. */
+  enduranceMapa: () => req<{ secoes: DestrocoNoMapa[] }>('/endurance/secoes-mapa'),
 
   enduranceSecao: (secao: string) =>
     req<{

@@ -261,6 +261,11 @@ Route::middleware('auth:sanctum')->group(function () {
     // A Loja de Peças da Endurance (§05, D-135) — catálogo dinâmico, uma loja por seção do casco.
     Route::get('/endurance/efeitos', [EnduranceController::class, 'meusEfeitos']);
     Route::get('/endurance/meus-itens-vendaveis', [EnduranceController::class, 'meusItensVendaveis']);
+    /*
+     * D-246: o que cada destroço guarda, para o mapa não ser oito portas iguais. Antes de `{secao}`
+     * de propósito — `secoes/mapa` bateria na rota de baixo e viraria uma seção chamada "mapa".
+     */
+    Route::get('/endurance/secoes-mapa', [EnduranceController::class, 'mapa']);
     Route::get('/endurance/secoes/{secao}', [EnduranceController::class, 'secao']);
     Route::post('/endurance/itens/{item}/comprar', [EnduranceController::class, 'comprar']);
 

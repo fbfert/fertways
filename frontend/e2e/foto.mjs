@@ -277,6 +277,21 @@ try {
   await page.screenshot({ path: '/tmp/foto-quartel.png' })
   console.log('quartel → /tmp/foto-quartel.png')
   console.log('  custo da leva:', JSON.stringify(await medirCustoDaUnidade(page)))
+
+  /*
+   * A LOJA DA ENDURANCE — a tela foi escrita quando o catálogo tinha 1 item (D-135), e o D-244/D-245
+   * a encheram com 20, em 8 seções, e com efeitos COMPOSTOS. O D-226 decidiu não a polir porque não
+   * havia o que mostrar; agora há, e a pergunta é se ela sabe mostrar.
+   */
+  await page.goto(`${BASE}/capital/endurance`, { waitUntil: 'domcontentloaded' })
+  await assentar()
+  await new Promise((r) => setTimeout(r, 2500))
+  await page.screenshot({ path: '/tmp/foto-endurance.png' })
+  console.log('endurance → /tmp/foto-endurance.png')
+  console.log('  loja:', JSON.stringify(await medirLojaDaEndurance(page)))
+  // A loja ABERTA, que é onde o catálogo do D-244/D-245 aparece — o mapa só mostra a porta.
+  await page.screenshot({ path: '/tmp/foto-endurance-loja.png' })
+  console.log('loja da endurance → /tmp/foto-endurance-loja.png')
 } finally {
   await fecharNavegador(navegador)
 }
@@ -319,6 +334,42 @@ async function medirResumo(page) {
       terminados_visiveis: fim ? fim.getBoundingClientRect().bottom <= window.innerHeight : null,
     }
   })
+}
+
+/**
+ * A Loja da Endurance sabe mostrar o catálogo que ela passou a ter? (D-244/D-245)
+ *
+ * A tela foi escrita com **um** item no mundo. Hoje são 20, em 8 seções, e do raro para cima cada
+ * peça carrega **dois** efeitos. Isto conta quantos destroços o mapa oferece, e — dentro de um deles
+ * — quantos itens e quantas linhas de efeito a loja imprime, mais se alguma transborda a janela.
+ */
+async function medirLojaDaEndurance(page) {
+  const destrocos = await page.evaluate(() => {
+    const alvos = [...document.querySelectorAll('[data-destroco]')]
+    alvos[0]?.click()
+
+    return alvos.length
+  })
+
+  await new Promise((r) => setTimeout(r, 1500))
+
+  return page.evaluate((destrocos) => {
+    const loja = document.querySelector('[data-tela="loja-da-endurance"]')
+    if (!loja) return { destrocos, erro: 'a loja não abriu' }
+
+    const itens = [...loja.querySelectorAll('[data-item]')]
+
+    return {
+      destrocos,
+      secao: loja.getAttribute('data-secao-loja'),
+      itens: itens.length,
+      // Do raro para cima a peça tem dois efeitos (D-245): se a tela imprimir um só, ela mente.
+      linhas_de_efeito: loja.querySelectorAll('li').length,
+      com_dois_efeitos: itens.filter((i) => i.querySelectorAll('li').length >= 2).length,
+      unicos: loja.querySelectorAll('[data-unico]').length,
+      transborda_a_janela: itens.some((i) => i.getBoundingClientRect().right > window.innerWidth),
+    }
+  }, destrocos)
 }
 
 /**

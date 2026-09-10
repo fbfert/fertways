@@ -164,6 +164,79 @@ class EnduranceCatalogoTest extends TestCase
         }
     }
 
+    // ─────────────────────────────── a ordem e o mapa (D-246)
+
+    private function colono(): \App\Models\User
+    {
+        $user = \App\Models\User::factory()->create();
+        app(\App\Domain\Colony\CreateColony::class)->handle($user, 'Base', 22, 22);
+
+        return $user->fresh();
+    }
+
+    /**
+     * ⚠️ **Raridade primeiro, preço depois.**
+     *
+     * Ordenar só por preço confunde os dois eixos — é literalmente o que o D-134 apontou em julho.
+     * Fotografada com o catálogo cheio, a loja saía `ÚNICO, COMUM, COMUM, RARO, ÚNICO`, porque um
+     * único barato do mundo de teste custava menos que um comum. Numa loja cuja graça é a escada de
+     * raridade, isso não se lê.
+     */
+    public function test_a_loja_sai_na_escada_da_raridade_e_nao_do_preco(): void
+    {
+        $user = $this->colono();
+
+        // Um único BARATO: com a ordem por preço ele encabeçaria a lista, na frente dos comuns.
+        EnduranceItem::where('secao', 'comando')->where('tipo', EnduranceItem::UNICO)
+            ->update(['preco_micro' => 1]);
+
+        $tipos = collect(
+            $this->actingAs($user)->getJson('/endurance/secoes/comando')->assertOk()->json('itens')
+        )->pluck('tipo')->all();
+
+        $escada = array_values(array_intersect(EnduranceItem::TIPOS, $tipos));
+        $vistos = array_values(array_unique($tipos));
+
+        $this->assertSame($escada, $vistos, 'a loja não sai na ordem comum → raro → único');
+    }
+
+    /**
+     * ⚠️ O mapa dizia o mesmo sobre os oito destroços: **nada**. Achar a peça única exigia abrir os
+     * oito e voltar.
+     */
+    public function test_o_mapa_diz_o_que_cada_destroco_guarda(): void
+    {
+        $user = $this->colono();
+
+        $secoes = collect(
+            $this->actingAs($user)->getJson('/endurance/secoes-mapa')->assertOk()->json('secoes')
+        )->keyBy('chave');
+
+        $this->assertCount(count(EnduranceItem::SECOES), $secoes);
+        $this->assertTrue($secoes['comando']['tem_unico'], 'o Comando tem peça única e o mapa não diz');
+        $this->assertFalse($secoes['silo_suprimentos']['tem_unico']);
+        $this->assertSame(
+            EnduranceItem::where('secao', 'comando')->count(),
+            $secoes['comando']['pecas'],
+        );
+    }
+
+    /** Peça esgotada não é peça que se possa ir buscar: some da conta, e o preço vira nulo. */
+    public function test_o_mapa_nao_conta_o_que_esta_esgotado(): void
+    {
+        $user = $this->colono();
+
+        EnduranceItem::where('secao', 'silo_suprimentos')
+            ->update(['quantidade_vendida' => DB::raw('quantidade_total')]);
+
+        $silo = collect(
+            $this->actingAs($user)->getJson('/endurance/secoes-mapa')->assertOk()->json('secoes')
+        )->firstWhere('chave', 'silo_suprimentos');
+
+        $this->assertSame(0, $silo['pecas']);
+        $this->assertNull($silo['a_partir_de'], 'sem nada à venda o preço é nulo, e a tela diz esgotado');
+    }
+
     /** Re-semear não dobra bônus nem duplica item: a `item_key` é o contrato. */
     public function test_semear_duas_vezes_nao_duplica_nem_dobra(): void
     {

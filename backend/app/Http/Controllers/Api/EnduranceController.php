@@ -20,13 +20,81 @@ use Illuminate\Http\Request;
  */
 class EnduranceController extends Controller
 {
+    /**
+     * O que cada destroço guarda — o mapa da Endurance, antes de abrir qualquer loja (D-246).
+     *
+     * ## ⚠️ Oito portas iguais
+     *
+     * O mapa desenha as 8 seções do casco com a arte de cada uma e **nada sobre o que há dentro**.
+     * Enquanto o catálogo tinha um item isso não custava nada; com ele cheio (D-244/D-245), achar
+     * onde está a peça única exige **abrir as oito** e voltar. O §11.2 quer que a Endurance ganhe
+     * importância ao longo da vida do servidor, e um mapa que não distingue seus próprios destroços
+     * não deixa nada ganhar importância.
+     *
+     * ## Conta o que está à venda, e não o catálogo inteiro
+     *
+     * Peça esgotada não é peça que se possa ir buscar. O `a_partir_de` é o mais barato **disponível**
+     * pela mesma razão: um preço que a tela mostra e a loja não pratica é a família de defeito do
+     * D-224, e desta vez com o número do lado de fora da porta.
+     *
+     * ⚠️ **Não filtra por marco.** Saber que existe uma peça única no Comando é o que faz o jogador
+     * querer chegar ao marco 10 — esconder o inalcançável tira do jogo justamente a vontade. O
+     * requisito continua sendo cobrado na compra, e a loja o exibe item a item.
+     */
+    public function mapa(Request $request): JsonResponse
+    {
+        $this->colonia($request);
+
+        $porSecao = EnduranceItem::query()
+            ->whereColumn('quantidade_vendida', '<', 'quantidade_total')
+            ->get(['secao', 'tipo', 'preco_micro'])
+            ->groupBy('secao');
+
+        return response()->json([
+            'secoes' => collect(EnduranceItem::SECOES)
+                ->map(function (string $nome, string $chave) use ($porSecao) {
+                    $itens = $porSecao->get($chave, collect());
+
+                    return [
+                        'chave' => $chave,
+                        'nome' => $nome,
+                        'pecas' => $itens->count(),
+                        'tem_unico' => $itens->contains('tipo', EnduranceItem::UNICO),
+                        // Nulo quando a seção não tem nada à venda: a tela diz "esgotado", não "0 F$".
+                        'a_partir_de' => $itens->isEmpty() ? null : (int) $itens->min('preco_micro'),
+                    ];
+                })
+                ->values(),
+        ]);
+    }
+
     /** Os itens de UMA seção — a loja que abre quando o jogador clica naquele destroço no mapa. */
     public function secao(Request $request, string $secao): JsonResponse
     {
         $colony = $this->colonia($request);
         $marco = Curva::marco((int) $colony->xp);
 
-        $itens = EnduranceItem::where('secao', $secao)->with('efeitos')->orderBy('preco_micro')->get();
+        /*
+         * ⚠️ **Raridade primeiro, preço depois** (D-246).
+         *
+         * Ordenar só por preço confunde os dois eixos — que é literalmente o que o D-134 apontou em
+         * julho: *"repensar se 'camada' devia ser eixo de PREÇO ou de RARIDADE — hoje confunde os
+         * dois"*. Fotografada com o catálogo cheio, a loja do Comando saía na ordem
+         * `ÚNICO, COMUM, COMUM, RARO, ÚNICO`, porque um único barato do mundo de teste custava menos
+         * que um comum. Numa loja cuja graça é a escada de raridade, isso não se lê.
+         *
+         * `CASE` e não `FIELD()`: o `FIELD` é do MySQL e a suíte roda em SQLite — a divergência que
+         * quebrou a produção no D-59 começa exatamente assim. A ordem vem de `EnduranceItem::TIPOS`,
+         * então uma raridade nova entra na escada sem ninguém precisar lembrar deste `orderByRaw`.
+         */
+        $escada = collect(EnduranceItem::TIPOS)
+            ->map(fn ($t, $i) => "WHEN '{$t}' THEN {$i}")
+            ->implode(' ');
+
+        $itens = EnduranceItem::where('secao', $secao)->with('efeitos')
+            ->orderByRaw("CASE tipo {$escada} ELSE 99 END")
+            ->orderBy('preco_micro')
+            ->get();
 
         $minhas = ColonyEnduranceItem::where('colony_id', $colony->id)
             ->pluck('quantidade', 'endurance_item_id');

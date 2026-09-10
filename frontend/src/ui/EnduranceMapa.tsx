@@ -1,4 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { api } from '../api/client'
+import type { DestrocoNoMapa } from '../api/client'
 import { carregarArte } from '../game/arte'
 import type { Arte } from '../game/arte'
 import { ControlesDeZoom } from '../game/ControlesDeZoom'
@@ -33,7 +35,27 @@ export function EnduranceMapa({
   aoAbrirLoja: (secao: string, nome: string) => void
 }) {
   const [arte, setArte] = useState<Arte>({})
+  /*
+   * O que cada destroço guarda (D-246). Falha em silêncio de propósito: o mapa é navegação, e um
+   * erro de carga não pode impedir o jogador de entrar numa loja — ele só volta a ser oito portas.
+   */
+  const [conteudo, setConteudo] = useState<Record<string, DestrocoNoMapa>>({})
   const [tamanho, setTamanho] = useState({ largura: 0, altura: 0 })
+
+  useEffect(() => {
+    let vivo = true
+    api
+      .enduranceMapa()
+      .then((r) => {
+        if (!vivo) return
+        setConteudo(Object.fromEntries(r.secoes.map((s) => [s.chave, s])))
+      })
+      .catch(() => {})
+
+    return () => {
+      vivo = false
+    }
+  }, [])
   const container = useRef<HTMLDivElement>(null)
   const { vista, alvo, ampliar, centralizar, arrastando, gestos } = useVista()
 
@@ -117,6 +139,41 @@ export function EnduranceMapa({
               <span className="bg-sand-light/90 text-ink pointer-events-none px-1 text-[0.65rem] font-bold whitespace-nowrap">
                 {s.nome}
               </span>
+
+              {/*
+               * ⚠️ **O que o destroço guarda** (D-246).
+               *
+               * O mapa desenhava oito portas iguais. Enquanto o catálogo tinha um item isso não
+               * custava nada; cheio (D-244/D-245), achar a peça única exigia **abrir as oito** e
+               * voltar — e o §11.2 quer que a Endurance ganhe importância, o que um mapa que não
+               * distingue os próprios destroços não deixa acontecer.
+               *
+               * O `◈` da peça única vem acompanhado da palavra no `title`: cor e símbolo nunca são
+               * o único sinal (regra da A2.V1). Seção sem nada à venda diz **esgotado**, e não "0
+               * peças" — é a diferença entre uma porta vazia e uma porta que já foi esvaziada.
+               */}
+              {conteudo[s.chave] ? (
+                <span
+                  className="bg-sand-light/90 text-ink-soft pointer-events-none px-1 text-[0.6rem] whitespace-nowrap"
+                  data-destroco-conteudo={s.chave}
+                  title={
+                    conteudo[s.chave].tem_unico
+                      ? `${conteudo[s.chave].pecas} peças à venda, uma delas única`
+                      : `${conteudo[s.chave].pecas} peças à venda`
+                  }
+                >
+                  {conteudo[s.chave].pecas === 0 ? (
+                    'esgotado'
+                  ) : (
+                    <>
+                      {conteudo[s.chave].pecas} peça{conteudo[s.chave].pecas > 1 ? 's' : ''}
+                      {conteudo[s.chave].tem_unico ? (
+                        <span className="text-ember font-black"> ◈</span>
+                      ) : null}
+                    </>
+                  )}
+                </span>
+              ) : null}
             </button>
           )
         })}
