@@ -86,13 +86,24 @@ class EnduranceCatalogoTest extends TestCase
     public function test_o_unico_supera_o_raro_e_fica_abaixo_do_teto(): void
     {
         foreach (EnduranceItem::where('tipo', EnduranceItem::UNICO)->get() as $unico) {
-            $bps = fn (EnduranceItem $i) => (int) DB::table('endurance_item_effects')
-                ->where('endurance_item_id', $i->id)->value('valor_bps');
-
-            $tipoEfeito = DB::table('endurance_item_effects')
-                ->where('endurance_item_id', $unico->id)->value('tipo_efeito');
-
             $raro = EnduranceItem::where('secao', $unico->secao)->where('tipo', EnduranceItem::RARO)->firstOrFail();
+            $comum = EnduranceItem::where('secao', $unico->secao)->where('tipo', EnduranceItem::COMUM)->firstOrFail();
+
+            /*
+             * ⚠️ O efeito PRÓPRIO da seção é o que o COMUM tem — ele carrega um só, por construção.
+             *
+             * A primeira versão deste teste pegava "o efeito de maior bps do item", e ela mentia: o
+             * Comando tem `desconto_tributo` (teto 3000) como efeito próprio e `drone_raio` (teto
+             * 10.000) como vizinho de casco, então o vizinho tem bps MAIOR. **bps não é comparável
+             * entre tipos** — é a mesma armadilha que derrubou a escala absoluta no seeder.
+             */
+            $tipoEfeito = DB::table('endurance_item_effects')
+                ->where('endurance_item_id', $comum->id)->value('tipo_efeito');
+
+            $bps = fn (EnduranceItem $i) => (int) DB::table('endurance_item_effects')
+                ->where('endurance_item_id', $i->id)
+                ->where('tipo_efeito', $tipoEfeito)
+                ->value('valor_bps');
 
             $this->assertGreaterThan($bps($raro), $bps($unico), "{$unico->nome} não supera o raro da própria seção");
             $this->assertLessThan(
@@ -120,6 +131,36 @@ class EnduranceCatalogoTest extends TestCase
 
         foreach ($unicos as $u) {
             $this->assertSame(1, (int) $u->quantidade_total, "{$u->nome} não é único: há mais de um");
+        }
+    }
+
+    /**
+     * ⚠️ **O raro não pode ser "o comum, maior"** — é a queixa que o D-134 registrou em julho, e ela
+     * tinha reaparecido neste catálogo sem que ninguém percebesse.
+     *
+     * *"Qual a diferença entre comprar um item comum ou de reputação?"* — a resposta honesta era
+     * **pouca**: a mesma mecânica em magnitudes crescentes. Colecionar viraria comprar a mesma coisa
+     * mais cara. Do raro para cima, a peça carrega também o efeito da seção **vizinha de casco**.
+     */
+    public function test_o_raro_faz_algo_que_o_comum_nao_faz(): void
+    {
+        $tipos = fn (EnduranceItem $i) => DB::table('endurance_item_effects')
+            ->where('endurance_item_id', $i->id)->pluck('tipo_efeito')->sort()->values()->all();
+
+        foreach (EnduranceItem::where('tipo', EnduranceItem::RARO)->get() as $raro) {
+            $comum = EnduranceItem::where('secao', $raro->secao)
+                ->where('tipo', EnduranceItem::COMUM)->first();
+
+            // A Broca do operador não tem comum na seção dela: ela é dele, e não desta régua.
+            if ($comum === null) {
+                continue;
+            }
+
+            $this->assertNotSame(
+                $tipos($comum),
+                $tipos($raro),
+                "{$raro->nome} é só o comum da mesma seção com número maior",
+            );
         }
     }
 

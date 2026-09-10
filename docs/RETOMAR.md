@@ -265,11 +265,32 @@ fração isso não acontece por construção.
 ⚠️ **Seeder é passo à mão** — `deploy.sh` não os roda. Rodado em produção nesta sessão; o catálogo lá
 tem **20** (os 19 mais a Broca, que não foi tocada). Dev tem 19: os bancos são separados (D-46).
 
-**A pendência do D-134 continua aberta** — "as 4 camadas da Loja de Peças não se diferenciam o
-bastante". É o único item daquele bloco que nunca foi fechado, e agora que há catálogo ela pode ser
-olhada com dado na mesa.
-
 1320 testes verdes.
+
+### O D-134 fechou (D-245) — **no ar** em 09/09
+
+A pendência estava aberta desde julho. Conferida antes de trabalhar nela, como o D-71 ensinou:
+
+- as **4 camadas** de que ela reclamava **não existem desde o D-135**, que é a resposta a ela, do
+  mesmo dia;
+- a direção "exigir piso de reputação, não só marco" é **inconstruível hoje**: `confianca_comercial`
+  é **500 para os 35 usuários** e nunca se moveu para ninguém — o índice só anda em Acordo acima de 5
+  Fert$, e 100% do comércio fica abaixo disso (D-241). O portão nasceria inerte ou inalcançável.
+  ⚠️ Fica **bloqueado com razão**, não pendente para sempre: reabre quando o comércio passar do piso.
+
+⚠️ **Mas o núcleo da queixa tinha reaparecido no catálogo que eu escrevera no dia anterior**: comum e
+raro de uma seção com o mesmo efeito, no mesmo alvo, só maior — "colecionar é comprar a mesma coisa
+mais cara", que é literalmente o que o usuário recusou em julho.
+
+A regra que resolve é do casco: **do raro para cima, a peça carrega o efeito da própria seção mais o
+da seção a que ela era acoplada na nave** (Comando↔Matriz, Propulsão↔Acoplagem, Criogenia↔Médico,
+Silo↔Anel). Usa os efeitos empilhados que o D-135 construiu e ninguém nunca usou.
+
+⚠️ **`valor_bps` não é comparável entre tipos** — a armadilha derrubou a escala do seeder e, depois,
+o meu próprio teste (o `drone_raio` vizinho do Comando tem bps maior que o `desconto_tributo` dele).
+Está escrita nos dois lugares.
+
+1321 testes verdes.
 
 **D-238:** o usuário arbitrou que os bots rodarem contra a produção é deliberado; o
 `ROADMAP_ALPHA2.md` é que estava velho e foi corrigido, com a consequência escrita junto — a

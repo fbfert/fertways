@@ -6355,7 +6355,13 @@ Blade puro, sem build.
 
 ## D-134 — Pendência: as 4 camadas da Loja de Peças da Endurance não se diferenciam o bastante.
 
-**Data:** 2026-07-20 · **Status:** pendente de revisão — não é reversão, é sinalização
+**Data:** 2026-07-20 · **Status:** ~~pendente de revisão~~ · **FECHADO em 2026-09-09 pelo D-245**
+
+> ⚠️ **Não aja sobre este item.** Duas das três direções abaixo morreram com o D-135, que refez a
+> Loja no mesmo dia e apagou as 4 camadas. A terceira (piso de reputação) foi medida em 09/09 e é
+> **inconstruível hoje**: `confianca_comercial` é 500 para os 35 usuários e nunca se moveu. E o
+> núcleo da queixa — "camada é a mesma coisa, maior" — foi resolvido no D-245, com o vizinho de
+> casco. Leia o D-245 antes de qualquer coisa aqui.
 
 O usuário revisou o D-132/D-133 e não gostou: perguntou "qual a diferença entre comprar um item
 comum ou de reputações?", e a resposta honesta é **pouca**. Hoje as 4 camadas (comum, reputação I,
@@ -13677,3 +13683,70 @@ produção são separados desde o D-46: o dev fica com 19 itens, a produção co
 
 ⚠️ **`deploy.sh` NÃO roda seeder.** Este é passo à mão, e o esquecimento é silencioso — já aconteceu
 com o Tesouro (D-57), as zonas (D-52) e os parâmetros de transporte (D-60).
+
+---
+
+## D-245 — O D-134 fechou, e a queixa dele tinha reaparecido no catálogo que eu acabara de escrever
+
+**Data:** 2026-09-09 · **Status:** entregue · **fecha o D-134**
+
+O D-134 estava aberto desde 2026-07-20 com status *"pendente de revisão"*. Antes de trabalhar sobre
+ele, a conferência que o D-71 ensinou a fazer: **a pendência ainda é verdade?**
+
+### Duas das três direções morreram sozinhas; a terceira nasceria inerte
+
+O D-134 reclamava das **4 camadas** da Loja antiga (comum, reputação I, reputação II, única): *"a
+MESMA mecânica em 4 magnitudes crescentes"*. ⚠️ **O D-135 é a resposta a ele, do mesmo dia** — refez a
+Loja do zero, e as 4 camadas não existem desde então. As direções "camada como eixo de preço ou de
+raridade" e "efeitos diferentes por camada" pertencem a um sistema que foi substituído.
+
+A terceira direção — *"ligar 'reputação' à mecânica de verdade: exigir um piso num dos quatro índices
+do §26.2, não só o Marco"* — **não é construível hoje**, e a medida é curta:
+
+| | |
+|---|---|
+| `confianca_comercial` dos 35 usuários | **500 para todos, sem exceção** |
+| valores distintos no mundo | **1** |
+| acordos de troca já fechados | **3** (1 executado, 2 cancelados) |
+
+O índice nunca se moveu para ninguém. Ele só anda em Acordo acima de 5 Fert$, e o D-241 já mediu que
+**100% do comércio do jogo fica abaixo desse piso**. Um portão de reputação nasceria **inerte** (piso
+≤ 500, todo mundo passa) ou **inalcançável** (piso > 500, ninguém jamais passa). Construir portão
+morto é o oposto do que o D-79 fez conscientemente com o Cemitério: lá a inércia era declarada e
+temporária; aqui seria acidental e permanente.
+
+**Registrado como bloqueado com razão, e não como pendente para sempre.** Reabre no dia em que o
+comércio passar do piso — e a decisão que muda isso é do D-241, não desta.
+
+### ⚠️ Mas o núcleo da queixa tinha reaparecido — no catálogo de ontem
+
+*"Qual a diferença entre comprar um item comum ou de reputação?"* Aplicada ao catálogo do D-244, a
+pergunta continuava sem resposta boa: comum e raro de uma seção tinham **o mesmo efeito, no mesmo
+alvo, só maior**. Colecionar seria comprar a mesma coisa mais cara — exatamente o que o usuário
+recusou em julho, ressuscitado por mim vinte e quatro horas antes.
+
+A direção que o próprio D-134 apontou — *"efeitos DIFERENTES por camada, não só maiores"* — é a que
+eu não tinha seguido.
+
+### O vizinho de casco
+
+**Do raro para cima, a peça carrega o efeito da própria seção mais o da seção a que ela era acoplada
+na nave.** O Comando ficava colado à Matriz de Comunicação; o Núcleo de Propulsão à Seção de
+Acoplagem; a Baía Criogênica ao Módulo Médico; o Silo ao Anel Habitacional. Uma peça arrancada da
+fronteira entre dois módulos traz um pedaço dos dois.
+
+Não inventa mecânica nenhuma — são os mesmos 6 tipos ligados ao motor — e usa uma capacidade que o
+**D-135 construiu e ninguém nunca usou**: efeitos empilhados por item. O vizinho entra sempre na
+fração do **comum** (20% do teto dele), então o raro é estritamente melhor sem virar dois itens
+colados.
+
+### E o teste que eu escrevi para isso me corrigiu duas vezes
+
+Primeiro no seeder (D-244): a escala absoluta punha o único do Comando no teto. Agora no próprio
+teste: eu identificava "o efeito próprio da seção" como **o de maior bps do item**, e isso mente — o
+Comando tem `desconto_tributo` (teto 3000) como próprio e `drone_raio` (teto 10.000) como vizinho, e
+o vizinho tem bps maior.
+
+⚠️ **`valor_bps` não é comparável entre tipos.** É a mesma armadilha nas duas vezes, e agora está
+escrita nos dois lugares. O efeito próprio passou a ser identificado pelo que o **comum** da seção
+carrega — ele tem um só, por construção.
