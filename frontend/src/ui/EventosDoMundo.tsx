@@ -116,6 +116,27 @@ export function EventosDoMundo() {
             ? 'ocupar zona neutra não exige colonos livres'
             : `colonos para ocupar ${pct}`,
         )
+      /*
+       * D-248. Os de prazo dizem QUANDO valem — "obras que começarem" —, porque o jogador que já
+       * tem uma obra correndo vai procurar o desconto nela e não vai achar: o prazo prometido não
+       * se mexe (`Modificadores::PONTUAIS`).
+       */
+      case 'taxa':
+        return junta(
+          (e.efeito ?? 0) <= -100
+            ? `tributo isento${e.recurso ? ` em ${e.recurso}` : ''}`
+            : `tributo ${pct}${e.recurso ? ` em ${e.recurso}` : ''}`,
+        )
+      case 'logistica':
+        return junta(`viagens que partirem agora: duração ${pct}`)
+      case 'construcao':
+        return junta(`obras que começarem agora: duração ${pct}`)
+      case 'pesquisa':
+        return junta(`pesquisas que começarem agora: duração ${pct}`)
+      case 'populacao':
+        return junta(`crescimento da população ${pct}`)
+      case 'territorio':
+        return junta(`manutenção das zonas ${pct}`)
     }
   }
 

@@ -75,7 +75,7 @@ class RealocarColonia
                 .'Mudar para longe pode torná-los impossíveis de cumprir — e o calote conta contra quem não entregar.';
         }
 
-        $zonas = $colony->id ? \App\Models\NeutralZone::where('owner_colony_id', $colony->id)->count() : 0;
+        $zonas = $colony->id ? NeutralZone::where('owner_colony_id', $colony->id)->count() : 0;
 
         if ($zonas > 0) {
             $avisos[] = "{$zonas} zona(s) neutra(s) ocupada(s) NÃO se movem: a colônia só passará a estar "
@@ -157,7 +157,7 @@ class RealocarColonia
                 'distance_slots' => $distancia,
                 'departs_at' => $agora,
                 'arrives_at' => $agora->copy()->addSeconds(
-                    $this->conservacao->segundosDoTrecho($veiculo, $distancia),
+                    $this->conservacao->duracaoAgendada($veiculo, $distancia, $agora),
                 ),
             ])->save();
         }

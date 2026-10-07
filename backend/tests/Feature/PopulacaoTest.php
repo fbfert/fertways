@@ -458,4 +458,26 @@ class PopulacaoTest extends TestCase
         $this->assertSame($coloniasAntes, Colony::count(), 'nenhuma colônia sobreviveu à simulação');
         $this->assertSame($usuariosAntes, User::count(), 'nenhum usuário sobreviveu à simulação');
     }
+
+    /**
+     * D-248: o evento de população mexe só na taxa de crescimento — o dobro do bps, o dobro do
+     * ganho. O consumo do mesmo intervalo não muda: o evento não pode dobrar a fome junto.
+     */
+    public function test_o_evento_de_populacao_multiplica_so_o_crescimento(): void
+    {
+        $fartura = ['agua' => 999999, 'oxigenio' => 999999, 'biomassa' => 999999, 'energia' => 999999];
+
+        // A mesma colônia nas duas contas: `avancar()` devolve o resultado e não grava nada.
+        $c = $this->colonia(5, 100);
+        $normal = app(Ciclo::class)->avancar($c, $fartura, 10.0);
+        $dobro = app(Ciclo::class)->avancar($c, $fartura, 10.0, 20_000);
+
+        $this->assertGreaterThan(100, $normal['populacao_nova'], 'o caso base cresce');
+        $this->assertSame(
+            2 * ($normal['populacao_nova'] - 100),
+            $dobro['populacao_nova'] - 100,
+            '+100% de crescimento é o dobro do ganho',
+        );
+        $this->assertSame($normal['consumo'], $dobro['consumo'], 'e a mesma fome');
+    }
 }

@@ -5,7 +5,7 @@
 > e então **faça ao usuário as perguntas da seção "Perguntas em aberto"** antes de escolher
 > o que fazer. Atualize este arquivo ao fim de cada sessão.
 
-**Última atualização:** 2026-09-09 · **Branch:** `main`
+**Última atualização:** 2026-10-07 · **Branch:** `main`
 
 > **Se o usuário disser "retome" e houver uma seção "EM ANDAMENTO AGORA" abaixo**, ela já tem
 > autorização permanente para seguir sem novas perguntas ("siga por todas as fases... quero que
@@ -33,6 +33,32 @@
 > balanceamento e o manual com os prompts de execução. **Leia o roadmap antes de propor qualquer
 > trabalho novo**: a ordem entre as fases não é arbitrária. O canônico desta etapa é o **GDD v39**;
 > o v35 só serve onde o v39 tem lacuna.
+
+---
+
+## EM ANDAMENTO AGORA (desde 2026-10-07) — terminar o que falta do GDD
+
+**Autorização do usuário, em 07/10:** *"Vamos continuar e terminar tudo que falta no GDD até o
+final."* Vale como o "siga por todas as fases" do topo: não pergunte de novo, continue da fatia
+aberta. Cada fatia segue o ciclo de sempre (testes, MariaDB nos dois sentidos se houver migration,
+commit, push, `deploy.sh`) e risca a linha aqui.
+
+O que falta foi medido contra o código em 07/10, não lembrado:
+
+1. [x] **(D-248)** **Os seis modificadores do §12.1 / A2.8 "seguintes"** — taxa (tributo da entrega), logística
+   (duração do trecho), construção (duração da obra), pesquisa (duração), população (crescimento) e
+   território (manutenção territorial). O valor de cada evento é do operador; nenhum número de jogo
+   é inventado.
+2. [ ] **Eventos da Endurance** (§11.2: seções, lotes e peças liberados por evento).
+3. [ ] **Escavação/desmontagem da Endurance** (§11; hoje o único nasce na compra).
+4. [ ] **Missões especiais / narrativas ligadas a evento** (`game_events.missoes` existe e não tem leitor).
+5. [ ] **Telemetria de retorno de quem foi saqueado ausente** (recomendada desde o D-202).
+6. [ ] **Observatório** (A2.3, ficou fora da primeira entrega).
+7. [ ] **O "Depois" do A2.8**: eventos de combate e de Federação, encadeados, condições compostas.
+8. [ ] **GDD v41** cobrindo D-230 em diante, e a cópia em `frontend/public/gdd.html`.
+
+Fora desta lista, e por quê: a **A2.V4/V5/V6 restante** não tem dado para desenhar (ver abaixo) e a
+**A2.11** (bots) é programa externo (§17 do GDD_ALPHA2).
 
 ---
 
@@ -1879,6 +1905,21 @@ sozinho, deixando a última foto). Raio 6×1,5 por nível (6/9/13/20/30); 8 slot
 energia da colônia; NÃO entra no mercado de usados (sem âncora — seria a lavagem do D-73 de volta).
 Domínio em `app/Domain/Drone/`; a missão vive nas colunas de viagem do próprio veículo (`leg`
 ida→vigia→volta), sem tabela nova além de `drone_sightings` (as fotos).
+
+## Medida de 2026-10-07 — a previsão do D-239, e o mundo um mês depois (só leitura, produção)
+
+Nada mudou no jogo desde 09/09: **2 de 77 zonas, 0 combates, 0 conta humana nova**. Todo uso de token
+humano depois de **19/07** (`by_nvs1`) é de conta de teste (`teste@`, `teste3@`).
+
+A previsão do D-239 acertou pela metade:
+
+- **Maior Colonia** — pop 80/80, **32 livres, nenhum portão fechado: PODE OCUPAR.** Ninguém ocupou
+  porque ninguém entra. É a primeira colônia humana com os três portões abertos sem evento.
+- **Energizer do Gamer** — pop **40/40, 0 livres**. Não é o ritmo de crescimento: a população bateu
+  no **teto** habitacional. O D-239 previa 2 livres em ~79 h; o teto que ele mesmo subiu não comporta.
+  Remédio é subir a Estrutura de Sobrevivência — ato do jogador.
+- As outras 7 humanas seguem travadas no **marco** (500 a 2.600 de 6.000 XP), com os mesmos números
+  de setembro: a torneira do D-241/D-243 só pinga para quem age, e ninguém age.
 
 ## Perguntas em aberto — faça estas ao usuário ao retomar
 

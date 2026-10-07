@@ -3,10 +3,12 @@
 namespace App\Domain\Transport;
 
 use App\Domain\Endurance\EfeitosDaEndurance;
+use App\Domain\Eventos\Modificadores;
 use App\Domain\Logistics\VeiculoSpecs;
 use App\Models\Colony;
 use App\Models\TransportSetting;
 use App\Models\Vehicle;
+use Carbon\CarbonInterface;
 
 /**
  * O estado de conservação de um veículo, e o que ele faz (D-60, fatia 2 — GDD §16.4).
@@ -39,7 +41,10 @@ class Conservacao
     /** 100% em bps. A unidade de fração do projeto inteiro (as alíquotas do §8.3 são bps). */
     public const CHEIO = 10_000;
 
-    public function __construct(private EfeitosDaEndurance $efeitosDaEndurance) {}
+    public function __construct(
+        private EfeitosDaEndurance $efeitosDaEndurance,
+        private Modificadores $eventos,
+    ) {}
 
     public function config(): TransportSetting
     {
@@ -159,6 +164,25 @@ class Conservacao
         }
 
         return (int) ceil($comDesgaste * self::CHEIO / (self::CHEIO + $bonus));
+    }
+
+    /**
+     * A duração que o trecho vai TER, contando o evento de logística que vale quando ele parte (D-248).
+     *
+     * ⚠️ São duas perguntas, e por isso dois métodos. `segundosDoTrecho()` é a duração **da spec**
+     * — e é com ela que a viagem gasta o veículo (`ConcluirTrechos::duracaoDoTrecho`). Um evento
+     * que encurta a estrada não deixa o caminhão menos gasto: a distância percorrida é a mesma.
+     * Este aqui é o relógio que o jogador vê em `arrives_at`, e só ele leva o evento.
+     *
+     * O instante é o da PARTIDA do trecho: a viagem que saiu durante a janela chega com o desconto
+     * mesmo que a janela feche no caminho, e a que saiu depois não leva nada (`PONTUAIS`).
+     */
+    public function duracaoAgendada(Vehicle $veiculo, int $distanciaSlots, CarbonInterface $partida): int
+    {
+        return $this->eventos->aplicarEm(
+            $this->colonia($veiculo), Modificadores::LOGISTICA,
+            $this->segundosDoTrecho($veiculo, $distanciaSlots), $partida,
+        );
     }
 
     /**

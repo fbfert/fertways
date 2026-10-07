@@ -13849,3 +13849,68 @@ vazia, cabe em 306 px de 900, e não transborda. O caso com portões à frente f
 o mundo semeado não tem colônia atrasada, e forçar uma quebraria as demais fotos.
 
 1328 testes verdes.
+
+---
+
+## D-248 — Os seis modificadores que o roadmap da A2.8 prometia
+
+**Data:** 2026-10-07 · **Status:** entregue
+
+O usuário pediu, em 07/10, para *"terminar tudo que falta no GDD até o final"*. A primeira linha da
+lista é a mais antiga: o §12.1 do `GDD_ALPHA2` e o roadmap da A2.8 publicam desde julho uma fila de
+**modificadores seguintes** — taxa, logística, construção, pesquisa, população, território — e o
+motor abriu com produção e consumo e ganhou depois quatro que ninguém tinha listado (dois de guerra,
+dois de ocupação). Os seis da fila nunca chegaram.
+
+### Nenhum número de jogo
+
+É o que torna esta fatia segura de fazer sem arbitragem: cada modificador é **um multiplicador sobre
+uma grandeza que o jogo já calcula**, e o tamanho do efeito é o `efeito_bps` que o operador escreve
+em cada evento. A regra de sinal é a da casa (D-164): nas barreiras o negativo favorece o jogador;
+na torneira, o positivo.
+
+| modificador | o que move | quando se mede | aceita recurso |
+|---|---|---|---|
+| `taxa` | a alíquota do tributo — entrega física, venda no Mercado, leilão | na chegada / na execução | **sim** |
+| `logistica` | o relógio do trecho de viagem | na partida do trecho | não |
+| `construcao` | a duração da obra — colônia, zona e subida de nível da zona | quando a obra começa | não |
+| `pesquisa` | a duração da pesquisa | quando a pesquisa começa | não |
+| `populacao` | a taxa de crescimento | **por média**, como a produção | não |
+| `territorio` | o custo da manutenção territorial | na cobrança diária | não |
+
+### Por que cinco são pontuais
+
+Um prazo nasce num instante e fica gravado em `finishes_at`. A obra que começou durante o evento leva
+o desconto até o fim, e a que começou depois não leva nada. A alternativa — recalcular prazos quando
+a janela abre ou fecha — moveria uma data que o jogo já prometeu ao jogador, para cima ou para baixo.
+Só a **população** é taxa que corre no tempo, e por isso é a única que passa por `para()`.
+
+### As três escolhas que não são óbvias
+
+- **Logística encurta o relógio e não o desgaste.** `Conservacao::segundosDoTrecho()` continua sendo
+  a duração da spec, e é com ela que a viagem gasta o veículo; o método novo `duracaoAgendada()` é o
+  que vai para `arrives_at`. A estrada mais rápida não deixa o caminhão menos rodado.
+- **Taxa mexe na alíquota DE BASE**, antes de qualquer desconto: aliado, Endurance e pesquisa
+  descontam do que o Governo cobraria naquele dia. Um teste fixa a ordem (300 → 150 → 75).
+- **Arredonda-se com `ceil`**: −33% sobre 10 s dá 7 s, nunca 6. O desconto é o que o operador
+  escreveu, não um a mais por arredondamento.
+
+### Um defeito que já existia, corrigido de passagem
+
+Um evento pontual com `resource_type` **nunca casava**: `vigentes()` só olha a linha de recurso
+quando alguém pergunta por um, e os pontuais não perguntavam. O evento seria ativado, anunciado ao
+jogador e inerte, sem erro nenhum. Agora `ACEITAM_RECURSO` diz quais aceitam (produção, consumo,
+taxa), e o painel e o `artisan` recusam o resto.
+
+E a −100% de território o custo zera — e um zero de recurso que a colônia nem tem em estoque faria
+`tentarDebitar()` decrementar uma linha inexistente. Os zeros saem antes do débito.
+
+### O que o jogador vê
+
+A faixa de eventos ganha uma frase por modificador, e as de prazo dizem **"obras que começarem
+agora"** — quem já tem obra correndo vai procurar o desconto nela e não vai achar. O catálogo de
+construção e a lista de upgrades anunciam o prazo **com** o evento: anunciar 10 h e entregar 5 é o
+defeito do D-224 de novo.
+
+1344 testes verdes. Sem migration: a coluna é `string(40)` desde o D-194, cuja migration já dizia que
+o `enum` obrigaria uma a cada modificador novo — *"e a A2.8 já promete seis"*.

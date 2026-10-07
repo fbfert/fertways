@@ -15,6 +15,13 @@
         "guerra_custo" => "Custo de guerra",
         "ocupacao_marco" => "Portão de território (XP)",
         "ocupacao_populacao" => "Portão de território (colonos)",
+        // D-248: os seis "seguintes" do roadmap da A2.8.
+        "taxa" => "Taxa (tributo)",
+        "logistica" => "Logística (duração das viagens)",
+        "construcao" => "Construção (duração das obras)",
+        "pesquisa" => "Pesquisa (duração)",
+        "populacao" => "População (crescimento)",
+        "territorio" => "Território (manutenção das zonas)",
     ];
 
     $leitura = function ($e) use ($ocupacao) {
@@ -33,6 +40,11 @@
             "guerra_declaracao" => (int) $e->efeito_bps <= -10000
                 ? "TRÉGUA — ninguém declara" : "não fecha o portão (só −100% fecha)",
             "guerra_custo" => "declarar custa " . ($mult / 100) . "% do normal",
+            "taxa" => "o tributo passa a " . ($mult / 100) . "% da alíquota",
+            "logistica", "construcao", "pesquisa" => "um prazo de 10 h que comece na janela leva "
+                . rtrim(rtrim(number_format(10 * $mult / 10000, 2, ",", ""), "0"), ",") . " h",
+            "populacao" => "o crescimento passa a " . ($mult / 100) . "% do normal",
+            "territorio" => "a manutenção diária passa a " . ($mult / 100) . "% do normal",
             default => "uma taxa de 200/h vira " . intdiv(200 * $mult, 10000) . "/h",
         };
     };
@@ -254,7 +266,10 @@
                 bps: <code>-2000</code> = −20%, <code>-9500</code> = −95%, <code>500</code> = +5%.
                 O sinal é a direção. Para o <b>portão da guerra</b> só <code>-10000</code> fecha;
                 para o <b>portão de colonos</b>, <code>-10000</code> isenta.
-                O recurso e o efeito só valem para <code>producao</code> e <code>consumo</code>.
+                O recurso só vale para <code>producao</code>, <code>consumo</code> e <code>taxa</code> —
+                nos outros o evento é recusado, porque não faria nada.
+                Nos de <b>prazo</b> (logística, construção, pesquisa) vale o que estiver valendo
+                quando o prazo <b>começa</b>: o que já corre não se mexe.
             </p>
 
             <div class="linha-form" style="margin-top:12px">

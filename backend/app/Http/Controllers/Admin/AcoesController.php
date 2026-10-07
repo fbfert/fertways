@@ -35,7 +35,6 @@ use App\Domain\Transport\Placas;
 use App\Domain\Treasury\Tesouro;
 use App\Exceptions\DomainRuleException;
 use App\Http\Controllers\Controller;
-use Carbon\Carbon;
 use App\Models\Admin;
 use App\Models\Building;
 use App\Models\ChatSetting;
@@ -61,6 +60,7 @@ use App\Models\TransportSetting;
 use App\Models\User;
 use App\Models\Vehicle;
 use App\Models\WarSetting;
+use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -2022,6 +2022,14 @@ class AcoesController extends Controller
         // `?? null` em tudo o que é opcional: um campo AUSENTE do formulário não aparece em
         // `validated()`, e só o nulo explícito aparece. As duas formas chegam aqui.
         $modificador = ($dados['modificador'] ?? null) ?: null;
+
+        // D-248: recurso num modificador que não é por recurso faria um evento que nunca casa com
+        // consulta nenhuma — ativado, anunciado e inerte. Ver `Modificadores::ACEITAM_RECURSO`.
+        if (($dados['resource_type'] ?? null) && ! in_array($modificador, Modificadores::ACEITAM_RECURSO, true)) {
+            throw ValidationException::withMessages([
+                'resource_type' => 'Só produção, consumo e taxa são por recurso. Tire o recurso, ou o evento não fará nada.',
+            ]);
+        }
 
         if ($modificador !== null && ($dados['efeito_bps'] ?? null) === null) {
             throw ValidationException::withMessages([

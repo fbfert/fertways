@@ -2,6 +2,8 @@
 
 namespace App\Domain\Building;
 
+use App\Domain\Eventos\Modificadores;
+use App\Domain\Telemetria\RegistrarEvento;
 use App\Exceptions\DomainRuleException;
 use App\Models\Building;
 use App\Models\BuildQueue;
@@ -27,7 +29,10 @@ use Illuminate\Support\Facades\DB;
  */
 class EnqueueUpgrade
 {
-    public function __construct(private readonly BuildingSpecs $specs) {}
+    public function __construct(
+        private readonly BuildingSpecs $specs,
+        private readonly Modificadores $eventos,
+    ) {}
 
     public function handle(Colony $colony, Building $building): BuildQueue
     {
@@ -51,7 +56,7 @@ class EnqueueUpgrade
             if ($naFila->count() >= $vagas) {
                 throw new DomainRuleException(
                     'fila_cheia',
-                    "A fila comporta {$vagas} " . ($vagas === 1 ? 'item' : 'itens') . ' no momento.',
+                    "A fila comporta {$vagas} ".($vagas === 1 ? 'item' : 'itens').' no momento.',
                 );
             }
 
@@ -90,7 +95,11 @@ class EnqueueUpgrade
                 'enqueued_at' => $agora,
                 // Só o primeiro item começa a construir; os demais esperam o tick promovê-los.
                 'starts_at' => $emConstrucao ? null : $agora,
-                'finishes_at' => $emConstrucao ? null : $agora->copy()->addSeconds($spec['tempo_segundos']),
+                // D-248: o evento de construção vale no instante em que a obra COMEÇA. O item que
+                // espera na fila leva o que valer quando o tick o promover (`ColonyTick`).
+                'finishes_at' => $emConstrucao ? null : $agora->copy()->addSeconds(
+                    $this->eventos->aplicarEm($colony, Modificadores::CONSTRUCAO, (int) $spec['tempo_segundos'], $agora),
+                ),
                 'status' => $emConstrucao ? 'queued' : 'building',
             ]);
 
@@ -122,7 +131,7 @@ class EnqueueUpgrade
                  * registro do que NÃO aconteceu. É a métrica mais valiosa da fase: é onde o jogo
                  * trava sem avisar ninguém, e alimenta os "gargalos de cadeia" da A2.0.2.
                  */
-                app(\App\Domain\Telemetria\RegistrarEvento::class)->handle(
+                app(RegistrarEvento::class)->handle(
                     'falta_de_insumo', $colony->user, $colony,
                     ['recurso' => $recurso, 'exige' => $qtd, 'tem' => $tem, 'onde' => 'obra'],
                     // ADIAR: o `throw` logo abaixo reverte a transação e levaria o evento junto.

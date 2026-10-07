@@ -5,6 +5,7 @@ namespace App\Domain\Logistics;
 use App\Domain\Capital\AvisoDoPatio;
 use App\Domain\Drone\DroneSpecs;
 use App\Domain\Endurance\EfeitosDaEndurance;
+use App\Domain\Eventos\Modificadores;
 use App\Domain\Federacao\Aliancas;
 use App\Domain\Market\Deposito;
 use App\Domain\Pesquisa\EfeitosDaPesquisa;
@@ -47,7 +48,26 @@ class ConcluirTrechos
         private MercadoDeUsados $usados,
         private AvisoDoPatio $avisoDoPatio,
         private EfeitosDaEndurance $descontoDeEndurance,
+        private Modificadores $eventos,
     ) {}
+
+    /**
+     * A alíquota do recurso, com o evento de TAXA que vale no instante da chegada (D-248).
+     *
+     * O evento mexe na alíquota **de base**, antes de qualquer desconto: aliado, Endurance e
+     * pesquisa descontam do que o Governo cobraria naquele dia, e não do que cobraria num dia
+     * normal. É também por isso que as três portas de entrega (colono, Mercado e fundo da
+     * Federação) passam por aqui, e nenhuma lê `tax_bps` cru.
+     *
+     * O instante é `arrives_at`, e não `now()`: um tick atrasado não pode tirar do jogador a
+     * isenção de uma carga que chegou dentro da janela.
+     */
+    private function aliquotaDoDia(Colony $origem, Vehicle $v, ResourceType $tipo): int
+    {
+        return $this->eventos->aplicarEm(
+            $origem, Modificadores::TAXA, (int) $tipo->tax_bps, $v->arrives_at ?? now(), $tipo->code,
+        );
+    }
 
     /**
      * Quanto durou o trecho que está terminando, em segundos.
@@ -350,7 +370,7 @@ class ConcluirTrechos
             // Pela Conservacao: a ida acabou de cobrar o seu desgaste, então a volta já é um pouco
             // mais lenta que a ida foi. É o §16.4 a morder dentro da própria viagem.
             'arrives_at' => $v->arrives_at->copy()->addSeconds(
-                $this->conservacao->segundosDoTrecho($v, $volta),
+                $this->conservacao->duracaoAgendada($v, $volta, $v->arrives_at),
             ),
         ])->save();
     }
@@ -441,7 +461,8 @@ class ConcluirTrechos
          * Quem cabe é o **líquido**, e é o **bruto** que decide o tributo: por isso o cálculo é
          * inverso, em `Deposito::brutoQueCabe()`.
          */
-        $bruto = Deposito::brutoQueCabe($qtd, (int) $tipo->tax_bps, Deposito::livre($origem->id, $recurso));
+        $aliquota = $this->aliquotaDoDia($origem, $v, $tipo);
+        $bruto = Deposito::brutoQueCabe($qtd, $aliquota, Deposito::livre($origem->id, $recurso));
         $excedente = $qtd - $bruto;
 
         if ($bruto === 0) {
@@ -449,10 +470,10 @@ class ConcluirTrechos
         }
 
         $chave = $this->chave('deposito', $v, $recurso);
-        $tributo = intdiv($bruto * $tipo->tax_bps, 10_000);
+        $tributo = intdiv($bruto * $aliquota, 10_000);
         $liquido = $bruto - $tributo;
 
-        if (! $this->tributar($chave, $origem, $recurso, $bruto, $tipo->tax_bps, $tributo)) {
+        if (! $this->tributar($chave, $origem, $recurso, $bruto, $aliquota, $tributo)) {
             return 0;
         }
 
@@ -499,10 +520,11 @@ class ConcluirTrechos
         }
 
         $chave = $this->chave('federacao', $v, $recurso);
-        $tributo = intdiv($qtd * $tipo->tax_bps, 10_000);
+        $aliquota = $this->aliquotaDoDia($origem, $v, $tipo);
+        $tributo = intdiv($qtd * $aliquota, 10_000);
         $liquido = $qtd - $tributo;
 
-        if (! $this->tributar($chave, $origem, $recurso, $qtd, $tipo->tax_bps, $tributo)) {
+        if (! $this->tributar($chave, $origem, $recurso, $qtd, $aliquota, $tributo)) {
             return;
         }
 
@@ -545,7 +567,7 @@ class ConcluirTrechos
         }
 
         $chave = $this->chave($prefixo, $v, $recurso);
-        $bps = $this->aliquota($origem, $destino, $tipo->tax_bps);
+        $bps = $this->aliquota($origem, $destino, $this->aliquotaDoDia($origem, $v, $tipo));
 
         // Truncamento: o tributo é retido em unidades inteiras do próprio recurso (D-12), e
         // arredondar para cima cobraria mais do que a alíquota em cargas pequenas.

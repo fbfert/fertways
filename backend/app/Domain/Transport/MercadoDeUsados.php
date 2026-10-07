@@ -2,8 +2,9 @@
 
 namespace App\Domain\Transport;
 
+use App\Domain\Drone\DroneSpecs;
 use App\Domain\Logistics\MapaFertways;
-use App\Domain\Logistics\VeiculoSpecs;
+use App\Domain\Missoes\Progresso;
 use App\Exceptions\DomainRuleException;
 use App\Models\Colony;
 use App\Models\Ledger;
@@ -65,7 +66,7 @@ class MercadoDeUsados
          * contas, agora por Drone em vez de Furgão. Fica fora do mercado até ganhar uma âncora —
          * decisão registrada no D-74, não esquecimento.
          */
-        if ($veiculo->type === \App\Domain\Drone\DroneSpecs::TIPO) {
+        if ($veiculo->type === DroneSpecs::TIPO) {
             throw new DomainRuleException(
                 'drone_sem_ancora_de_revenda',
                 'O Drone ainda não tem teto de revenda — e vendê-lo sem teto reabriria a brecha que o D-73 fechou.',
@@ -170,7 +171,7 @@ class MercadoDeUsados
                 'created_at' => now(),
             ]);
 
-            app(\App\Domain\Missoes\Progresso::class)->registrar($comprador->id, 'compra_veiculo_usado');
+            app(Progresso::class)->registrar($comprador->id, 'compra_veiculo_usado');
 
             return $this->entregar($anuncio, $veiculo, $comprador);
         });
@@ -202,7 +203,7 @@ class MercadoDeUsados
             'destination_id' => $comprador->id,
             'distance_slots' => $distancia,
             'departs_at' => $agora,
-            'arrives_at' => $agora->copy()->addSeconds($this->conservacao->segundosDoTrecho($veiculo, $distancia)),
+            'arrives_at' => $agora->copy()->addSeconds($this->conservacao->duracaoAgendada($veiculo, $distancia, $agora)),
             'cargo_json' => null,
         ])->save();
 
@@ -241,7 +242,7 @@ class MercadoDeUsados
                 'created_at' => now(),
             ]);
 
-            app(\App\Domain\Missoes\Progresso::class)->registrar($vendedor->id, 'venda_veiculo_usado');
+            app(Progresso::class)->registrar($vendedor->id, 'venda_veiculo_usado');
         }
 
         $anuncio->update(['escrow_micro' => 0, 'status' => 'concluido']);

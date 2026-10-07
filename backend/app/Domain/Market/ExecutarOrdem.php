@@ -3,6 +3,9 @@
 namespace App\Domain\Market;
 
 use App\Domain\Endurance\EfeitosDaEndurance;
+use App\Domain\Eventos\Modificadores;
+use App\Domain\Marco\ConcederXp;
+use App\Domain\Missoes\Progresso;
 use App\Domain\Trade\AcessoAoMercado;
 use App\Domain\Treasury\Tesouro;
 use App\Exceptions\DomainRuleException;
@@ -26,7 +29,11 @@ use Illuminate\Support\Facades\DB;
  */
 class ExecutarOrdem
 {
-    public function __construct(private Tesouro $tesouro, private EfeitosDaEndurance $efeitosDaEndurance) {}
+    public function __construct(
+        private Tesouro $tesouro,
+        private EfeitosDaEndurance $efeitosDaEndurance,
+        private Modificadores $eventos,
+    ) {}
 
     public function handle(Colony $tomador, int $ordemId, int $qtd): MarketOrder
     {
@@ -155,6 +162,16 @@ class ExecutarOrdem
 
         $bps = (int) ResourceType::find($recurso)->tax_bps;
 
+        /*
+         * D-248: o evento de TAXA vale também aqui — "alteração de taxas" (§12.1) é sobre o tributo
+         * do Governo, e a venda no Mercado é um fato tributável como a entrega. Escopo do vendedor,
+         * que é quem paga; o Governo vendendo não é colônia e só vê os eventos de mundo.
+         */
+        $bps = $this->eventos->aplicarEm(
+            $vendedorId !== null ? Colony::find($vendedorId) : null,
+            Modificadores::TAXA, $bps, now(), $recurso,
+        );
+
         // D-132/D-135: o desconto de peças da Endurance é do vendedor. O Governo (`$vendedorId`
         // nulo, D-87) não é colônia — nada a descontar.
         if ($vendedorId !== null) {
@@ -213,8 +230,8 @@ class ExecutarOrdem
          * A reputação **continua com o piso**: lá ele é do D-43 e mede outra coisa (um índice de
          * confiança entre duas contas, não o ritmo de um jogador). Não mexa num pelo outro.
          */
-        $xp = app(\App\Domain\Marco\ConcederXp::class);
-        $missoes = app(\App\Domain\Missoes\Progresso::class);
+        $xp = app(ConcederXp::class);
+        $missoes = app(Progresso::class);
 
         if ($vendedorId !== null) {
             $xp->handle($vendedorId, 'mercado_executado', $chave);

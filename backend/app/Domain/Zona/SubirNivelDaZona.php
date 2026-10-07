@@ -2,6 +2,7 @@
 
 namespace App\Domain\Zona;
 
+use App\Domain\Eventos\Modificadores;
 use App\Exceptions\DomainRuleException;
 use App\Models\Colony;
 use App\Models\Ledger;
@@ -26,6 +27,8 @@ use Illuminate\Support\Facades\DB;
  */
 class SubirNivelDaZona
 {
+    public function __construct(private readonly Modificadores $eventos) {}
+
     public function handle(Colony $colony, NeutralZone $zona): NeutralZone
     {
         return DB::transaction(function () use ($colony, $zona) {
@@ -63,7 +66,10 @@ class SubirNivelDaZona
 
             $zona->update([
                 'level_target' => $alvo,
-                'level_upgrade_finishes_at' => now()->addHours(NeutralZone::horasDeUpgrade($alvo)),
+                // D-248: subir a zona de nível é obra, e o evento de construção vale aqui também.
+                'level_upgrade_finishes_at' => now()->addSeconds($this->eventos->aplicarEm(
+                    $colony, Modificadores::CONSTRUCAO, NeutralZone::horasDeUpgrade($alvo) * 3600, now(),
+                )),
             ]);
 
             return $zona->fresh();

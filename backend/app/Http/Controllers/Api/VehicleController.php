@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Domain\Logistics\DespacharVeiculo;
 use App\Domain\Logistics\MapaFertways;
 use App\Domain\Logistics\VeiculoSpecs;
+use App\Domain\Transport\Conservacao;
 use App\Exceptions\DomainRuleException;
 use App\Http\Controllers\Controller;
 use App\Models\Colony;
@@ -34,7 +35,7 @@ class VehicleController extends Controller
                 // monta a carga contra este número desde o D-65, agora que ela pode somar vários
                 // recursos: oferecer a nominal seria deixar o colono montar uma carga que o
                 // servidor recusa.
-                'capacity_efetiva' => app(\App\Domain\Transport\Conservacao::class)->capacidadeEfetiva($v),
+                'capacity_efetiva' => app(Conservacao::class)->capacidadeEfetiva($v),
                 // Onde ele está parado (D-65): em casa, ou no Pátio da Capital.
                 'local' => $v->local,
                 'parked_at' => $v->parked_at,
@@ -73,8 +74,9 @@ class VehicleController extends Controller
         // A cotação tem de mentir tão pouco quanto o despacho: desde o D-60 o veículo desgastado é
         // mais lento e carrega menos (§16.4), e um orçamento pela spec crua prometeria ao colono um
         // tempo e uma carga que o veículo dele já não entrega.
-        $conservacao = app(\App\Domain\Transport\Conservacao::class);
-        $trecho = $conservacao->segundosDoTrecho($veiculo, $distancia);
+        $conservacao = app(Conservacao::class);
+        // D-248: a cotação mostra o relógio de quem partisse agora, com o evento de logística.
+        $trecho = $conservacao->duracaoAgendada($veiculo, $distancia, now());
 
         return response()->json([
             'distance_slots' => $distancia,

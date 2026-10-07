@@ -9,6 +9,7 @@ use App\Domain\Building\EnqueueUpgrade;
 use App\Domain\Building\EstadoDaConstrucao;
 use App\Domain\Building\Funcoes;
 use App\Domain\Colony\Slots;
+use App\Domain\Eventos\Modificadores;
 use App\Domain\Production\ColonyTick;
 use App\Exceptions\DomainRuleException;
 use App\Http\Controllers\Controller;
@@ -63,7 +64,7 @@ class BuildingController extends Controller
 
         $dados = $request->validate([
             'type' => ['required', 'string'],
-            'slot' => ['required', 'integer', 'min:0', 'max:' . (Slots::TOTAL - 1)],
+            'slot' => ['required', 'integer', 'min:0', 'max:'.(Slots::TOTAL - 1)],
         ]);
 
         $item = $construir->handle($colony, $dados['type'], $dados['slot']);
@@ -133,7 +134,12 @@ class BuildingController extends Controller
         $erguidas = $colony->buildings->groupBy('type');
         $ocupados = $colony->buildings->pluck('slot')->filter(fn ($s) => $s !== null)->values();
 
-        $itens = collect(Building::PROGRESSAO)->map(function (string $tipo) use ($specs, $erguidas) {
+        // D-248: o prazo anunciado é o que a obra levaria se começasse AGORA — com o evento de
+        // construção. Anunciar 10 h e entregar em 5 é o mesmo defeito do custo escrito à mão (D-224).
+        $eventos = app(Modificadores::class);
+        $agora = now();
+
+        $itens = collect(Building::PROGRESSAO)->map(function (string $tipo) use ($specs, $erguidas, $eventos, $colony, $agora) {
             $spec = $specs->para($tipo, 1);
             $quantas = $erguidas->get($tipo)?->count() ?? 0;
             $repetivel = in_array($tipo, Building::REPETIVEIS, true);
@@ -142,7 +148,7 @@ class BuildingController extends Controller
                 'type' => $tipo,
                 'funcao' => Funcoes::de($tipo),
                 'cost' => $spec['custo'],
-                'build_time_seconds' => $spec['tempo_segundos'],
+                'build_time_seconds' => $eventos->aplicarEm($colony, Modificadores::CONSTRUCAO, (int) $spec['tempo_segundos'], $agora),
                 'max_level' => $specs->nivelMaximo($tipo),
                 'repetivel' => $repetivel,
                 'quantas' => $quantas,
@@ -346,7 +352,10 @@ class BuildingController extends Controller
                     // §24.7: "o custo aparece normalmente na interface, mas junto com a mensagem
                     // 'Esta construção será custeada pelo Governo Central até o nível 3'".
                     'cost' => $spec['custo'],
-                    'build_time_seconds' => $spec['tempo_segundos'],
+                    // D-248: com o evento de construção, como no catálogo.
+                    'build_time_seconds' => app(Modificadores::class)->aplicarEm(
+                        $colony, Modificadores::CONSTRUCAO, (int) $spec['tempo_segundos'], now(),
+                    ),
                     'subsidized' => $b->ehEssencial() && $alvo <= 3 && $user->tutoriaConcluida(),
                 ];
             })->values(),

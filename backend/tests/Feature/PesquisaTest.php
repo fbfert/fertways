@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Domain\Endurance\EfeitosDaEndurance;
+use App\Domain\Eventos\Modificadores;
 use App\Domain\Pesquisa\ConcluirPesquisa;
 use App\Domain\Pesquisa\Efeitos;
 use App\Domain\Pesquisa\EfeitosDaPesquisa;
@@ -10,10 +11,14 @@ use App\Domain\Pesquisa\Pesquisar;
 use App\Domain\Pesquisa\Vagas;
 use App\Exceptions\DomainRuleException;
 use App\Models\Colony;
+use App\Models\GameEvent;
 use App\Models\Ledger;
 use App\Models\Technology;
 use App\Models\User;
+use Database\Seeders\ResourceTypeSeeder;
+use Database\Seeders\TechnologySeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Tests\TestCase;
@@ -32,8 +37,8 @@ class PesquisaTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->seed(\Database\Seeders\ResourceTypeSeeder::class);
-        $this->seed(\Database\Seeders\TechnologySeeder::class);
+        $this->seed(ResourceTypeSeeder::class);
+        $this->seed(TechnologySeeder::class);
     }
 
     private int $proximo = 0;
@@ -355,5 +360,28 @@ class PesquisaTest extends TestCase
                 );
             }
         }
+    }
+
+    /** D-248: o evento de pesquisa encurta o prazo da pesquisa que COMEÇA na janela. */
+    public function test_o_evento_de_pesquisa_encurta_o_prazo_que_comeca_na_janela(): void
+    {
+        $this->ligar();
+        $c = $this->farta();
+        $tec = $this->tec('tec_energia_1');
+
+        GameEvent::create([
+            'slug' => 'pesquisa-rapida', 'nome' => 'Pesquisa rápida', 'status' => 'ativo',
+            'comeca_em' => now()->subHour(), 'termina_em' => now()->addDay(),
+            'modificador' => Modificadores::PESQUISA, 'efeito_bps' => -5_000,
+        ]);
+
+        Carbon::setTestNow(now()->startOfSecond());
+        app(Pesquisar::class)->handle($c, $tec);
+
+        $linha = DB::table('colony_technologies')->where('colony_id', $c->id)->first();
+        $prazo = Carbon::parse($linha->starts_at)->diffInSeconds(Carbon::parse($linha->finishes_at));
+        Carbon::setTestNow();
+
+        $this->assertSame((int) ceil($tec->duracao_segundos / 2), (int) $prazo);
     }
 }

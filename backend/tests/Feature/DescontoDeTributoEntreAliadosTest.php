@@ -3,14 +3,20 @@
 namespace Tests\Feature;
 
 use App\Domain\Colony\CreateColony;
+use App\Domain\Eventos\Modificadores;
 use App\Domain\Logistics\ConcluirTrechos;
 use App\Domain\Logistics\DespacharVeiculo;
+use App\Domain\Transport\Conservacao;
 use App\Models\Colony;
 use App\Models\Federation;
 use App\Models\FederationSetting;
+use App\Models\GameEvent;
 use App\Models\MarketAccount;
 use App\Models\User;
 use App\Models\Vehicle;
+use Database\Seeders\BuildingSpecSeeder;
+use Database\Seeders\ComponentRecipeSeeder;
+use Database\Seeders\ResourceTypeSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -33,9 +39,9 @@ class DescontoDeTributoEntreAliadosTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->seed(\Database\Seeders\ResourceTypeSeeder::class);
-        $this->seed(\Database\Seeders\ComponentRecipeSeeder::class);
-        $this->seed(\Database\Seeders\BuildingSpecSeeder::class);
+        $this->seed(ResourceTypeSeeder::class);
+        $this->seed(ComponentRecipeSeeder::class);
+        $this->seed(BuildingSpecSeeder::class);
     }
 
     private function colonia(string $email, string $nick, int $x, int $y, ?Federation $fed = null): Colony
@@ -141,5 +147,91 @@ class DescontoDeTributoEntreAliadosTest extends TestCase
 
         // 100% de desconto: tributo zero, o líquido chega inteiro.
         $this->assertSame(1_000, (int) $b->resources()->where('resource_type', 'metal_bruto')->value('amount'));
+    }
+
+    // ────────────────────────────────────────────── D-248: o evento de taxa e o de logística
+
+    private function eventoAtivo(string $modificador, int $bps, ?string $recurso = null): void
+    {
+        GameEvent::create([
+            'slug' => $modificador.$bps.($recurso ?? ''), 'nome' => 'Ev', 'status' => 'ativo',
+            'comeca_em' => now()->subHour(), 'termina_em' => now()->addDay(),
+            'modificador' => $modificador, 'efeito_bps' => $bps, 'resource_type' => $recurso,
+        ]);
+    }
+
+    public function test_o_evento_de_taxa_isenta_a_entrega_do_recurso_dele(): void
+    {
+        $a = $this->colonia('a@t.test', 'alfa', 10, 10);
+        $b = $this->colonia('b@t.test', 'beta', 40, 10);
+        $this->abastecer($a, ['metal_bruto' => 1_000, 'energia' => 100]);
+        $this->eventoAtivo(Modificadores::TAXA, -10_000, 'metal_bruto');
+
+        app(DespacharVeiculo::class)->handle($a, $this->furgao($a), 'colonia', $b->id, ['metal_bruto' => 1_000]);
+
+        Carbon::setTestNow(now()->addMinutes(8));
+        app(ConcluirTrechos::class)->handle();
+        Carbon::setTestNow();
+
+        $this->assertSame(1_000, (int) $b->resources()->where('resource_type', 'metal_bruto')->value('amount'));
+        $this->assertSame(0, (int) DB::table('tax_events')->where('colony_id', $a->id)->value('tax_bps'));
+    }
+
+    public function test_o_evento_de_taxa_de_um_recurso_nao_toca_outro(): void
+    {
+        $a = $this->colonia('a@t.test', 'alfa', 10, 10);
+        $b = $this->colonia('b@t.test', 'beta', 40, 10);
+        $this->abastecer($a, ['metal_bruto' => 1_000, 'energia' => 100]);
+        $this->eventoAtivo(Modificadores::TAXA, -10_000, 'biomassa');
+
+        app(DespacharVeiculo::class)->handle($a, $this->furgao($a), 'colonia', $b->id, ['metal_bruto' => 1_000]);
+
+        Carbon::setTestNow(now()->addMinutes(8));
+        app(ConcluirTrechos::class)->handle();
+        Carbon::setTestNow();
+
+        $this->assertSame(970, (int) $b->resources()->where('resource_type', 'metal_bruto')->value('amount'));
+    }
+
+    /** O evento mexe na alíquota DE BASE, e o desconto de aliado vem por cima: 300 → 150 → 75. */
+    public function test_o_evento_de_taxa_vem_antes_do_desconto_de_aliado(): void
+    {
+        $fed = Federation::create(['name' => 'Aliança']);
+        $a = $this->colonia('a@t.test', 'alfa', 10, 10, $fed);
+        $b = $this->colonia('b@t.test', 'beta', 40, 10, $fed);
+        $this->abastecer($a, ['metal_bruto' => 1_000, 'energia' => 100]);
+        $this->eventoAtivo(Modificadores::TAXA, -5_000);
+
+        app(DespacharVeiculo::class)->handle($a, $this->furgao($a), 'colonia', $b->id, ['metal_bruto' => 1_000]);
+
+        Carbon::setTestNow(now()->addMinutes(8));
+        app(ConcluirTrechos::class)->handle();
+        Carbon::setTestNow();
+
+        $this->assertSame(75, (int) DB::table('tax_events')->where('colony_id', $a->id)->value('tax_bps'));
+    }
+
+    /**
+     * O evento de logística encurta o RELÓGIO do trecho e não o desgaste: a distância percorrida
+     * é a mesma, e o caminhão volta tão gasto quanto voltaria sem o evento.
+     */
+    public function test_o_evento_de_logistica_encurta_o_trecho_e_nao_o_desgaste(): void
+    {
+        $a = $this->colonia('a@t.test', 'alfa', 10, 10);
+        $b = $this->colonia('b@t.test', 'beta', 40, 10);
+        $this->abastecer($a, ['metal_bruto' => 100, 'energia' => 100]);
+
+        $f = $this->furgao($a);
+        $spec = app(Conservacao::class)->segundosDoTrecho($f, 30);
+
+        $this->eventoAtivo(Modificadores::LOGISTICA, -5_000);
+
+        Carbon::setTestNow(now()->startOfSecond());
+        $v = app(DespacharVeiculo::class)->handle($a, $f, 'colonia', $b->id, ['metal_bruto' => 100]);
+        $prazo = (int) $v->departs_at->diffInSeconds($v->arrives_at);
+        Carbon::setTestNow();
+
+        $this->assertSame((int) ceil($spec / 2), $prazo, 'metade do relógio');
+        $this->assertSame($spec, app(Conservacao::class)->segundosDoTrecho($f->fresh(), 30), 'a spec, que gasta o veículo, não muda');
     }
 }

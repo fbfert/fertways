@@ -4,10 +4,12 @@ namespace App\Domain\Logistics;
 
 use App\Domain\Admin\Suspender;
 use App\Domain\Market\Deposito;
+use App\Domain\Missoes\Progresso;
 use App\Domain\Production\Siderurgica;
+use App\Domain\Telemetria\RegistrarEvento;
 use App\Domain\Trade\AcessoAoMercado;
-use App\Exceptions\DomainRuleException;
 use App\Domain\Transport\Conservacao;
+use App\Exceptions\DomainRuleException;
 use App\Models\Colony;
 use App\Models\Ledger;
 use App\Models\MarketAccount;
@@ -668,7 +670,7 @@ class DespacharVeiculo
     {
         // Toda viagem nasce aqui — é o ponto único que as missões de logística escutam (D-78).
         if ($veiculo->colony_id) {
-            app(\App\Domain\Missoes\Progresso::class)->registrar($veiculo->colony_id, 'despacho');
+            app(Progresso::class)->registrar($veiculo->colony_id, 'despacho');
         }
 
         $veiculo->forceFill([
@@ -686,7 +688,7 @@ class DespacharVeiculo
             // Pela Conservacao, não pelo VeiculoSpecs cru: o veículo desgastado é mais lento
             // (§16.4, D-60). A carroça de 30% não pode chegar junto com a nova.
             'arrives_at' => $agora->copy()->addSeconds(
-                $this->conservacao->segundosDoTrecho($veiculo, $distancia),
+                $this->conservacao->duracaoAgendada($veiculo, $distancia, $agora),
             ),
             // `[]` viraria um array JS truísta na tela sem nada dentro (D-91: só a volta vazia do
             // Pátio chega aqui com carga vazia — as outras já barram em `validarCarga`).
@@ -784,7 +786,7 @@ class DespacharVeiculo
              * inteira parando. Misturá-las num tipo só esconderia justamente essa diferença, que é
              * a que o painel (A2.0.2) precisa mostrar.
              */
-            app(\App\Domain\Telemetria\RegistrarEvento::class)->handle(
+            app(RegistrarEvento::class)->handle(
                 $recurso === 'energia' ? 'falta_de_energia' : 'falta_de_insumo',
                 $colonia->user, $colonia,
                 ['recurso' => $recurso, 'onde' => 'viagem'],

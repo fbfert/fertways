@@ -70,11 +70,57 @@ class Modificadores
      */
     public const OCUPACAO_POPULACAO = 'ocupacao_populacao';
 
+    /*
+     * ── Os seis "seguintes" do roadmap da A2.8 (§12.1 do GDD_ALPHA2), D-248 ─────────────────────
+     *
+     * Nenhum deles traz número de jogo: o valor é o `efeito_bps` que o operador escreve em cada
+     * evento, sobre uma grandeza que o jogo já calcula. O sinal segue a regra da casa (D-164):
+     * nas BARREIRAS (tempo, custo, alíquota) o negativo favorece o jogador; na TORNEIRA
+     * (crescimento) é o positivo.
+     */
+
+    /**
+     * A alíquota do tributo na entrega física, em bps sobre a alíquota do recurso (§25.8).
+     *
+     * Aceita `resource_type`: o tributo é por recurso, e "isenção de Biomassa por uma semana" é o
+     * evento que o operador vai querer. Medido no instante da CHEGADA — é ali que o §25.2 cobra.
+     */
+    public const TAXA = 'taxa';
+
+    /** A duração do trecho de viagem, em bps — medida no despacho, quando o relógio do trecho nasce. */
+    public const LOGISTICA = 'logistica';
+
+    /** A duração da obra (colônia e zona), em bps — medida quando a obra COMEÇA a contar. */
+    public const CONSTRUCAO = 'construcao';
+
+    /** A duração da pesquisa, em bps — medida quando a pesquisa começa. */
+    public const PESQUISA = 'pesquisa';
+
+    /**
+     * A taxa de crescimento da população, em bps. É TAXA de verdade (corre no tempo), e por isso a
+     * única das seis que se mede por média, como a produção.
+     */
+    public const POPULACAO = 'populacao';
+
+    /** O custo da manutenção territorial (§27.12), em bps — medido no instante da cobrança diária. */
+    public const TERRITORIO = 'territorio';
+
     /** A lista canônica. A coluna deixou de ser `enum` para a verdade morar num lugar só. */
     public const TODOS = [
         self::PRODUCAO, self::CONSUMO, self::GUERRA_DECLARACAO, self::GUERRA_CUSTO,
         self::OCUPACAO_MARCO, self::OCUPACAO_POPULACAO,
+        self::TAXA, self::LOGISTICA, self::CONSTRUCAO, self::PESQUISA, self::POPULACAO, self::TERRITORIO,
     ];
+
+    /**
+     * ⚠️ Os únicos que aceitam `resource_type` (D-248).
+     *
+     * Num modificador que não é por recurso, um evento com recurso **nunca casa** com a consulta —
+     * `vigentes()` só olha a linha de recurso quando alguém pergunta por um — e o evento seria
+     * ativado, anunciado e não faria nada, sem erro nenhum. O painel e o `artisan` recusam a
+     * combinação em vez de deixá-la morrer em silêncio.
+     */
+    public const ACEITAM_RECURSO = [self::PRODUCAO, self::CONSUMO, self::TAXA];
 
     /**
      * ⚠️ Os modificadores que se medem **por instante**, e nunca por média.
@@ -93,6 +139,14 @@ class Modificadores
     public const PONTUAIS = [
         self::GUERRA_DECLARACAO, self::GUERRA_CUSTO,
         self::OCUPACAO_MARCO, self::OCUPACAO_POPULACAO,
+        /*
+         * D-248: os quatro de DURAÇÃO e CUSTO são pontuais pelo mesmo motivo. O prazo de uma obra
+         * nasce num instante e fica gravado em `finishes_at`; uma obra iniciada durante o evento
+         * leva o desconto até o fim, e uma iniciada depois não leva nada. Não há intervalo a
+         * ponderar — e recalcular `finishes_at` quando o evento acaba moveria um prazo que o jogo
+         * já prometeu ao jogador.
+         */
+        self::TAXA, self::LOGISTICA, self::CONSTRUCAO, self::PESQUISA, self::TERRITORIO,
     ];
 
     /**
@@ -152,17 +206,44 @@ class Modificadores
      * ⚠️ Um evento **cancelado** deixa de valer no instante do cancelamento, e `vigenteEm()` já
      * cuida disso: o rollback lógico da A2.8 continua valendo aqui sem código novo.
      */
-    public function em(?Colony $colonia, string $modificador, CarbonInterface $quando): int
+    public function em(?Colony $colonia, string $modificador, CarbonInterface $quando, ?string $recurso = null): int
     {
         $soma = 0;
 
-        foreach ($this->vigentes($colonia, $modificador, $quando, $quando->copy()->addSecond()) as $evento) {
+        foreach ($this->vigentes($colonia, $modificador, $quando, $quando->copy()->addSecond(), $recurso) as $evento) {
             if ($evento->vigenteEm($quando)) {
                 $soma += (int) $evento->efeito_bps;
             }
         }
 
         return max(0, 10_000 + $soma);
+    }
+
+    /**
+     * Aplica um modificador pontual a uma grandeza — duração, custo, alíquota.
+     *
+     * `ceil` para durações e custos: um evento de −33% sobre 10 s dá 7 s, nunca 6. Arredondar a
+     * favor do jogador transformaria uma sequência de eventos pequenos num desconto maior do que o
+     * operador escreveu. O piso do motor é zero: −100% faz a obra instantânea, nunca negativa.
+     */
+    public function aplicar(int $valor, int $bps): int
+    {
+        if ($bps === 10_000 || $valor <= 0) {
+            return $valor;
+        }
+
+        return (int) ceil($valor * $bps / 10_000);
+    }
+
+    /** `aplicar(em(...))` numa chamada: a grandeza como ela vale para esta colônia, neste instante. */
+    public function aplicarEm(
+        ?Colony $colonia,
+        string $modificador,
+        int $valor,
+        CarbonInterface $quando,
+        ?string $recurso = null,
+    ): int {
+        return $this->aplicar($valor, $this->em($colonia, $modificador, $quando, $recurso));
     }
 
     /** Atalho legível: há trégua agora? */

@@ -3,6 +3,7 @@
 namespace App\Domain\Leilao;
 
 use App\Domain\Endurance\Instancias;
+use App\Domain\Eventos\Modificadores;
 use App\Domain\Marco\ConcederXp;
 use App\Domain\Missoes\Progresso;
 use App\Domain\Trade\AcordoSpecs;
@@ -27,7 +28,7 @@ use Illuminate\Support\Facades\DB;
  */
 class FecharLeiloes
 {
-    public function __construct(private Tesouro $tesouro) {}
+    public function __construct(private Tesouro $tesouro, private Modificadores $eventos) {}
 
     /** @return array{arrematados: int, sem_lance: int} */
     public function handle(): array
@@ -75,6 +76,14 @@ class FecharLeiloes
         // campo (o preço já é arbitragem do admin, não vale duplicar arbitragem com uma alíquota
         // também inventada). Tributo zero, registrado como fato — não omitido.
         $bps = $l->ehItem() ? 0 : (int) ResourceType::find($l->resource_type)->tax_bps;
+
+        // D-248: o evento de TAXA, pelo mesmo motivo da venda no Mercado. Item da Endurance segue
+        // em zero — não há alíquota para o evento mexer.
+        if ($bps > 0) {
+            $bps = $this->eventos->aplicarEm(
+                Colony::find($l->colony_id), Modificadores::TAXA, $bps, now(), $l->resource_type,
+            );
+        }
         $taxa = intdiv($valor * $bps, 10_000);
         $liquido = $valor - $taxa;
         $ref = "leilao:{$l->id}:fechamento";

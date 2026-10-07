@@ -37,7 +37,7 @@ class Ciclo
      * @return array{consumo: array<string,float>, populacao_nova: int, razao_suprimento_bps: int,
      *               eficiencia_bps: int, cresceu: bool, faltou: list<string>}
      */
-    public function avancar(Colony $colonia, array $estoque, float $horas): array
+    public function avancar(Colony $colonia, array $estoque, float $horas, int $crescimentoBps = 10_000): array
     {
         $total = (int) $colonia->populacao;
         $capacidade = $this->populacao->capacidade($colonia);
@@ -115,7 +115,12 @@ class Ciclo
         $restoMilli = (int) ($colonia->populacao_resto_milli ?? 0);
 
         if ($cresce) {
-            $taxa = (int) $p->crescimento_bps_hora / 10000;
+            /*
+             * D-248: `$crescimentoBps` é o evento de população (10.000 = sem efeito). Só a taxa de
+             * crescimento se move: consumo e escassez seguem a régua deles, e um evento que
+             * dobrasse o crescimento não pode também dobrar a fome.
+             */
+            $taxa = (int) $p->crescimento_bps_hora * $crescimentoBps / 10000 / 10000;
             $ganhoMilli = $restoMilli + (int) round($total * $taxa * $horas * 1000);
 
             $nova = $total + intdiv($ganhoMilli, 1000);

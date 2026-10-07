@@ -3,6 +3,7 @@
 namespace App\Domain\Pesquisa;
 
 use App\Domain\Endurance\EfeitosDaEndurance;
+use App\Domain\Eventos\Modificadores;
 use App\Exceptions\DomainRuleException;
 use App\Models\Colony;
 use App\Models\Ledger;
@@ -17,7 +18,11 @@ use Illuminate\Support\Facades\DB;
  */
 class Pesquisar
 {
-    public function __construct(private Vagas $vagas, private EfeitosDaPesquisa $efeitos) {}
+    public function __construct(
+        private Vagas $vagas,
+        private EfeitosDaPesquisa $efeitos,
+        private Modificadores $eventos,
+    ) {}
 
     public function handle(Colony $colonia, Technology $tecnologia): void
     {
@@ -108,6 +113,10 @@ class Pesquisar
              */
             $desconto = $this->efeitos->descontoDeDuracao($colonia);
             $duracao = EfeitosDaEndurance::aplicarDesconto($tecnologia->duracao_segundos, $desconto);
+
+            // D-248: o evento de pesquisa, pela mesma regra — vale o que vale no início, e o
+            // prazo prometido não se mexe depois. Vem por cima do desconto da trilha.
+            $duracao = $this->eventos->aplicarEm($colonia, Modificadores::PESQUISA, (int) $duracao, $agora);
 
             DB::table('colony_technologies')->updateOrInsert(
                 ['colony_id' => $colonia->id, 'technology_id' => $tecnologia->id],

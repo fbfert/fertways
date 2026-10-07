@@ -2,6 +2,7 @@
 
 namespace App\Domain\Zona;
 
+use App\Domain\Eventos\Modificadores;
 use App\Domain\Telemetria\RegistrarEvento;
 use App\Models\Colony;
 use App\Models\Ledger;
@@ -58,7 +59,7 @@ class CobrarManutencaoTerritorial
 
     private function processar(int $id, Carbon $agora): ?string
     {
-        return DB::transaction(function () use ($id) {
+        return DB::transaction(function () use ($id, $agora) {
             $zona = NeutralZone::whereKey($id)->lockForUpdate()->first();
 
             if (! $zona || $zona->owner_colony_id === null) {
@@ -78,6 +79,19 @@ class CobrarManutencaoTerritorial
             }
 
             $custo = $zona->custoDeManutencao();
+
+            /*
+             * D-248: o evento de território mexe no custo do DIA, medido no instante da cobrança.
+             * Recurso a recurso e com `ceil`: −50% sobre 3 de Ligas cobra 2, nunca 1 — o desconto
+             * é o que o operador escreveu, e não um a mais por arredondamento.
+             */
+            $eventos = app(Modificadores::class);
+            // `array_filter`: a −100% o custo zera, e um zero de recurso que a colônia nem tem em
+            // estoque faria `tentarDebitar()` decrementar uma linha que não existe.
+            $custo = array_filter(array_map(
+                fn ($qtd) => $eventos->aplicarEm($colony, Modificadores::TERRITORIO, (int) $qtd, $agora),
+                $custo,
+            ));
 
             /*
              * ⚠️ O custo NÃO cai com a equipe desfalcada, e isso é decisão de desenho (A2.6).

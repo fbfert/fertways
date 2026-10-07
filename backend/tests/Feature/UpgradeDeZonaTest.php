@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Domain\Colony\CreateColony;
+use App\Domain\Eventos\Modificadores;
 use App\Domain\Guerra\Forcas;
 use App\Domain\Logistics\OcuparZonaNeutra;
 use App\Domain\Zona\CobrarManutencaoTerritorial;
@@ -10,10 +11,14 @@ use App\Domain\Zona\ConcluirUpgradeDaZona;
 use App\Domain\Zona\SubirNivelDaZona;
 use App\Exceptions\DomainRuleException;
 use App\Models\Colony;
+use App\Models\GameEvent;
 use App\Models\Ledger;
 use App\Models\NeutralZone;
 use App\Models\Unit;
 use App\Models\User;
+use Database\Seeders\BuildingSpecSeeder;
+use Database\Seeders\ComponentRecipeSeeder;
+use Database\Seeders\ResourceTypeSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Concerns\ErgueEstruturasDaZona;
 use Tests\TestCase;
@@ -23,15 +28,15 @@ use Tests\TestCase;
  */
 class UpgradeDeZonaTest extends TestCase
 {
-    use RefreshDatabase;
     use ErgueEstruturasDaZona;
+    use RefreshDatabase;
 
     protected function setUp(): void
     {
         parent::setUp();
-        $this->seed(\Database\Seeders\ResourceTypeSeeder::class);
-        $this->seed(\Database\Seeders\ComponentRecipeSeeder::class);
-        $this->seed(\Database\Seeders\BuildingSpecSeeder::class);
+        $this->seed(ResourceTypeSeeder::class);
+        $this->seed(ComponentRecipeSeeder::class);
+        $this->seed(BuildingSpecSeeder::class);
     }
 
     private function colonoAbastecido(): Colony
@@ -242,5 +247,47 @@ class UpgradeDeZonaTest extends TestCase
         // 5% a menos na base, antes do bônus de construção (que aqui é zero — sem muralha/torre/bastião).
         $this->assertSame(intdiv($cheia * 9500, 10_000), $comAtraso);
         $this->assertLessThan($cheia, $comAtraso);
+    }
+
+    /**
+     * D-248: o evento de território mexe no custo do dia. A −100% a cobrança acontece, o vencimento
+     * anda, e nada sai do estoque — a zona fica em dia sem pagar.
+     */
+    public function test_o_evento_de_territorio_isenta_a_manutencao_da_janela(): void
+    {
+        $colony = $this->colonoAbastecido();
+        $zona = $this->zonaOcupada($colony);
+        $zona->update(['maintenance_next_due_at' => now()->subMinute()]);
+
+        GameEvent::create([
+            'slug' => 'anistia', 'nome' => 'Anistia territorial', 'status' => 'ativo',
+            'comeca_em' => now()->subHour(), 'termina_em' => now()->addDay(),
+            'modificador' => Modificadores::TERRITORIO, 'efeito_bps' => -10_000,
+        ]);
+
+        $antes = $colony->fresh()->resources()->where('resource_type', 'biomassa')->value('amount');
+
+        $this->assertSame(1, app(CobrarManutencaoTerritorial::class)->handle()['cobradas']);
+        $this->assertSame($antes, $colony->fresh()->resources()->where('resource_type', 'biomassa')->value('amount'));
+        $this->assertTrue($zona->fresh()->maintenance_next_due_at->greaterThan(now()->addHours(23)));
+    }
+
+    /** E a −50% cobra metade, com `ceil`: 50 de Biomassa viram 25. */
+    public function test_o_evento_de_territorio_pela_metade(): void
+    {
+        $colony = $this->colonoAbastecido();
+        $zona = $this->zonaOcupada($colony);
+        $zona->update(['maintenance_next_due_at' => now()->subMinute()]);
+
+        GameEvent::create([
+            'slug' => 'meia', 'nome' => 'Meia manutenção', 'status' => 'ativo',
+            'comeca_em' => now()->subHour(), 'termina_em' => now()->addDay(),
+            'modificador' => Modificadores::TERRITORIO, 'efeito_bps' => -5_000,
+        ]);
+
+        $antes = $colony->fresh()->resources()->where('resource_type', 'biomassa')->value('amount');
+        app(CobrarManutencaoTerritorial::class)->handle();
+
+        $this->assertSame($antes - 25, $colony->fresh()->resources()->where('resource_type', 'biomassa')->value('amount'));
     }
 }

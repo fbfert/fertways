@@ -2,14 +2,19 @@
 
 namespace Tests\Feature;
 
+use App\Domain\Colony\CreateColony;
 use App\Domain\Eventos\EntregarCestas;
 use App\Domain\Eventos\Modificadores;
 use App\Domain\Logistics\RequisitosDeOcupacao;
+use App\Domain\Populacao\Parametros;
 use App\Models\Admin;
 use App\Models\Colony;
 use App\Models\GameEvent;
 use App\Models\GameEventEntrega;
 use App\Models\User;
+use Database\Seeders\BuildingSpecSeeder;
+use Database\Seeders\ComponentRecipeSeeder;
+use Database\Seeders\ResourceTypeSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 use Tests\TestCase;
@@ -33,9 +38,9 @@ class AdminEventosTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->seed(\Database\Seeders\ResourceTypeSeeder::class);
-        $this->seed(\Database\Seeders\ComponentRecipeSeeder::class);
-        $this->seed(\Database\Seeders\BuildingSpecSeeder::class);
+        $this->seed(ResourceTypeSeeder::class);
+        $this->seed(ComponentRecipeSeeder::class);
+        $this->seed(BuildingSpecSeeder::class);
     }
 
     private function dono(): Admin
@@ -56,7 +61,7 @@ class AdminEventosTest extends TestCase
 
     private function colonia(int $x = 40): Colony
     {
-        return app(\App\Domain\Colony\CreateColony::class)
+        return app(CreateColony::class)
             ->handle(User::factory()->create(), 'C'.$x, $x, 40);
     }
 
@@ -100,7 +105,7 @@ class AdminEventosTest extends TestCase
         // A população nasce desligada (D-178) e a produção a tem LIGADA. Sem isto o portão dos
         // colonos leria "0 em vez de 0" e a asserção provaria nada.
         \DB::table('population_settings')->where('id', 1)->update(['ativo' => true]);
-        app(\App\Domain\Populacao\Parametros::class)->recarregar();
+        app(Parametros::class)->recarregar();
 
         $base = [
             'comeca_em' => now()->subHour(), 'termina_em' => now()->addDays(30),
@@ -311,5 +316,17 @@ class AdminEventosTest extends TestCase
             'acao' => 'evento.criar',
             'alvo' => 'evento:cesta_de_presente',
         ]);
+    }
+
+    /** D-248: o painel recusa recurso num modificador que não é por recurso — nasceria inerte. */
+    public function test_o_painel_recusa_recurso_num_modificador_de_prazo(): void
+    {
+        $this->actingAs($this->dono(), 'admin')
+            ->post('/admin/eventos', $this->formulario([
+                'modificador' => 'construcao', 'efeito_bps' => -5000, 'resource_type' => 'agua',
+            ]))
+            ->assertSessionHasErrors('resource_type');
+
+        $this->assertSame(0, GameEvent::count());
     }
 }

@@ -2,6 +2,8 @@
 
 namespace Tests\Feature;
 
+use App\Domain\Building\BuildingSpecs;
+use App\Domain\Building\EnqueueUpgrade;
 use App\Domain\Colony\CreateColony;
 use App\Domain\Eventos\Modificadores;
 use App\Domain\Production\ColonyTick;
@@ -422,5 +424,92 @@ class MotorDeEventosTest extends TestCase
         $this->assertFalse($this->evento(['segredo' => true])->visivelAoJogador());
         $this->assertFalse($this->evento(['visibilidade' => 'secreto'])->visivelAoJogador());
         $this->assertTrue($this->evento()->visivelAoJogador());
+    }
+
+    // ────────────────────────────────────────────── D-248: os seis "seguintes"
+
+    public function test_os_seis_seguintes_existem_e_so_a_populacao_e_taxa_de_tempo(): void
+    {
+        foreach (['taxa', 'logistica', 'construcao', 'pesquisa', 'populacao', 'territorio'] as $m) {
+            $this->assertContains($m, Modificadores::TODOS);
+        }
+
+        foreach (['taxa', 'logistica', 'construcao', 'pesquisa', 'territorio'] as $m) {
+            $this->assertContains($m, Modificadores::PONTUAIS, "{$m} se mede no instante");
+        }
+
+        $this->assertNotContains('populacao', Modificadores::PONTUAIS, 'crescimento corre no tempo');
+    }
+
+    /** `ceil`: −33% sobre 10 s dá 7 s, nunca 6 — o desconto é o que o operador escreveu. */
+    public function test_aplicar_arredonda_contra_o_jogador_e_tem_piso_zero(): void
+    {
+        $m = app(Modificadores::class);
+
+        $this->assertSame(7, $m->aplicar(10, 6_700));
+        $this->assertSame(0, $m->aplicar(10, 0));
+        $this->assertSame(10, $m->aplicar(10, 10_000));
+    }
+
+    public function test_o_evento_pontual_por_recurso_so_vale_para_o_recurso_dele(): void
+    {
+        $this->evento(['modificador' => Modificadores::TAXA, 'efeito_bps' => -5_000, 'resource_type' => 'agua']);
+
+        $m = app(Modificadores::class);
+        $this->assertSame(5_000, $m->em(null, Modificadores::TAXA, now(), 'agua'));
+        $this->assertSame(10_000, $m->em(null, Modificadores::TAXA, now(), 'biomassa'));
+    }
+
+    /**
+     * O prazo nasce no início da obra e não se mexe depois — nem quando o evento acaba, nem quando
+     * outro começa. Uma obra iniciada na janela leva o desconto inteiro.
+     */
+    public function test_o_evento_de_construcao_encurta_a_obra_que_comeca_na_janela(): void
+    {
+        $c = $this->colonia();
+        $c->resources()->update(['amount' => 999_999]);
+        $mina = $c->buildings()->where('type', 'mina_local')->firstOrFail();
+        $mina->update(['level' => 1]);   // a do `colonia()` está no 5, que é o teto da mina
+        $tempo = (int) app(BuildingSpecs::class)->para('mina_local', $mina->level + 1)['tempo_segundos'];
+
+        $this->evento([
+            'escopo' => 'colonia', 'colony_id' => $c->id,
+            'modificador' => Modificadores::CONSTRUCAO, 'efeito_bps' => -5_000,
+        ]);
+
+        Carbon::setTestNow(now()->startOfSecond());
+        $item = app(EnqueueUpgrade::class)->handle($c->fresh(), $mina);
+        Carbon::setTestNow();
+
+        $this->assertSame((int) ceil($tempo / 2), (int) $item->starts_at->diffInSeconds($item->finishes_at));
+    }
+
+    public function test_os_seguintes_dizem_se_favorecem_o_jogador_pelo_sinal(): void
+    {
+        foreach (['taxa', 'logistica', 'construcao', 'pesquisa', 'territorio'] as $m) {
+            $this->assertTrue((new GameEvent(['modificador' => $m, 'efeito_bps' => -2_000]))->favoreceOJogador(), $m);
+            $this->assertFalse((new GameEvent(['modificador' => $m, 'efeito_bps' => 2_000]))->favoreceOJogador(), $m);
+        }
+
+        $this->assertTrue((new GameEvent(['modificador' => 'populacao', 'efeito_bps' => 2_000]))->favoreceOJogador());
+    }
+
+    /** Recurso num modificador que não é por recurso faria um evento inerte: o comando recusa. */
+    public function test_o_comando_recusa_recurso_num_modificador_que_nao_e_por_recurso(): void
+    {
+        $this->artisan('fertways:evento', ['slug' => 'obra', '--construcao' => -5000, '--recurso' => 'agua'])
+            ->assertFailed();
+
+        $this->assertFalse(GameEvent::where('slug', 'obra')->exists());
+    }
+
+    public function test_o_comando_cria_um_evento_de_taxa_por_recurso(): void
+    {
+        $this->artisan('fertways:evento', ['slug' => 'isencao', '--taxa' => -10000, '--recurso' => 'agua'])
+            ->assertSuccessful();
+
+        $e = GameEvent::where('slug', 'isencao')->firstOrFail();
+        $this->assertSame('taxa', $e->modificador);
+        $this->assertSame('agua', $e->resource_type);
     }
 }

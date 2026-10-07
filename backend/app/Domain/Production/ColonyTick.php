@@ -220,7 +220,12 @@ class ColonyTick
         $colony->load(['buildings', 'resources']);
         $estoque = $colony->resources->pluck('amount', 'resource_type')->all();
 
-        $r = $this->cicloDePopulacao->avancar($colony, $estoque, $horas);
+        // D-248: o evento de população mexe na TAXA de crescimento, e por média ponderada — é taxa
+        // que corre no tempo, como a produção (ver `Modificadores::para`).
+        $r = $this->cicloDePopulacao->avancar(
+            $colony, $estoque, $horas,
+            $this->eventos->para($colony, Modificadores::POPULACAO, $de, $ate),
+        );
 
         foreach ($r['consumo'] as $recurso => $quanto) {
             $inteiro = (int) floor($quanto);
@@ -294,7 +299,10 @@ class ColonyTick
             $proximo->update([
                 'status' => 'building',
                 'starts_at' => $em,
-                'finishes_at' => $em->copy()->addSeconds($spec->build_time_seconds),
+                // D-248: a obra que sai da fila começa AGORA, e é agora que o evento se mede.
+                'finishes_at' => $em->copy()->addSeconds($this->eventos->aplicarEm(
+                    $colony, Modificadores::CONSTRUCAO, (int) $spec->build_time_seconds, $em,
+                )),
             ]);
             $proximo->building->update([
                 'upgrade_started_at' => $proximo->starts_at,

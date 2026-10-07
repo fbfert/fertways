@@ -3,6 +3,7 @@
 namespace App\Domain\Zona;
 
 use App\Domain\Building\BuildingSpecs;
+use App\Domain\Eventos\Modificadores;
 use App\Exceptions\DomainRuleException;
 use App\Models\Colony;
 use App\Models\FilaSetting;
@@ -26,12 +27,15 @@ use Illuminate\Support\Facades\DB;
  */
 class ConstruirNaZona
 {
-    public function __construct(private readonly BuildingSpecs $specs) {}
+    public function __construct(
+        private readonly BuildingSpecs $specs,
+        private readonly Modificadores $eventos,
+    ) {}
 
     /**
      * @param  int  $slot  o buraco da colmeia (`ZonaSlots`) onde erguer, ou o slot já ocupado pela
-     *                      estrutura que se quer evoluir. Escolhido pelo colono — mesma UX do
-     *                      `ConstruirEmSlot` da colônia (D-59).
+     *                     estrutura que se quer evoluir. Escolhido pelo colono — mesma UX do
+     *                     `ConstruirEmSlot` da colônia (D-59).
      */
     public function handle(Colony $colony, NeutralZone $zona, string $estrutura, int $slot): void
     {
@@ -142,7 +146,10 @@ class ConstruirNaZona
                 'structure' => $estrutura,
                 'slot' => $slot,
                 'target_level' => $alvo,
-                'finishes_at' => now()->addSeconds($spec['tempo_segundos']),
+                // D-248: a obra da zona é obra — o evento de construção vale aqui também.
+                'finishes_at' => now()->addSeconds($this->eventos->aplicarEm(
+                    Colony::find($zona->owner_colony_id), Modificadores::CONSTRUCAO, (int) $spec['tempo_segundos'], now(),
+                )),
             ]);
         });
     }

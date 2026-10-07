@@ -5,8 +5,11 @@ namespace App\Console\Commands;
 use App\Domain\Eventos\EntregarCestas;
 use App\Domain\Eventos\Modificadores;
 use App\Domain\Logistics\RequisitosDeOcupacao;
+use App\Domain\Marco\Curva;
+use App\Domain\Populacao\Parametros;
 use App\Models\Colony;
 use App\Models\GameEvent;
+use App\Models\NeutralZone;
 use App\Models\ResourceType;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
@@ -52,6 +55,12 @@ class Evento extends Command
         {--guerra-custo= : quanto muda o custo de declarar e mobilizar, em bps}
         {--ocupacao-marco= : o XP que ocupar zona neutra pede, em bps (-9500 = 5% do normal)}
         {--ocupacao-populacao= : os colonos livres que ocupar pede, em bps (-10000 isenta)}
+        {--taxa= : a alíquota do tributo, em bps (-5000 = metade; aceita --recurso)}
+        {--logistica= : a duração dos trechos de viagem que partirem na janela, em bps}
+        {--construcao= : a duração das obras que começarem na janela, em bps}
+        {--pesquisa= : a duração das pesquisas que começarem na janela, em bps}
+        {--populacao= : a taxa de crescimento da população, em bps (+10000 = o dobro)}
+        {--territorio= : o custo da manutenção territorial cobrada na janela, em bps}
         {--cesta= : o presente, "recurso:qtd,recurso:qtd" — use __fert__ para Fert$ (em Fert$, não micro)}
         {--recurso= : limita a um recurso (padrão: todos)}
         {--colonia= : limita a uma colônia, por id — o dry-run em escala de um}
@@ -100,6 +109,12 @@ class Evento extends Command
             'guerra-custo' => Modificadores::GUERRA_CUSTO,
             'ocupacao-marco' => Modificadores::OCUPACAO_MARCO,
             'ocupacao-populacao' => Modificadores::OCUPACAO_POPULACAO,
+            'taxa' => Modificadores::TAXA,
+            'logistica' => Modificadores::LOGISTICA,
+            'construcao' => Modificadores::CONSTRUCAO,
+            'pesquisa' => Modificadores::PESQUISA,
+            'populacao' => Modificadores::POPULACAO,
+            'territorio' => Modificadores::TERRITORIO,
         ];
 
         $escolhidos = [];
@@ -122,8 +137,7 @@ class Evento extends Command
 
         if ($escolhidos === [] && $cesta === []) {
             $this->error(
-                'Diga um modificador (--producao, --consumo, --guerra-declaracao, --guerra-custo, '
-                .'--ocupacao-marco, --ocupacao-populacao) ou uma --cesta.',
+                'Diga um modificador (--'.implode(', --', array_keys($opcoes)).') ou uma --cesta.',
             );
 
             return self::FAILURE;
@@ -157,6 +171,13 @@ class Evento extends Command
 
         if ($recurso !== null && $recurso !== '' && ! ResourceType::whereKey($recurso)->exists()) {
             $this->error("Recurso desconhecido: {$recurso}");
+
+            return self::FAILURE;
+        }
+
+        // D-248: a mesma guarda do painel — recurso fora de produção/consumo/taxa nunca casa.
+        if ($recurso !== null && $recurso !== '' && ! in_array($modificador, Modificadores::ACEITAM_RECURSO, true)) {
+            $this->error('Só --producao, --consumo e --taxa são por recurso. Sem isso o evento não faria nada.');
 
             return self::FAILURE;
         }
@@ -290,7 +311,8 @@ class Evento extends Command
         $horas = $d['comeca_em']->diffInHours($d['termina_em']);
 
         $this->info("Evento «{$d['nome']}» ({$d['slug']})");
-        $pontual = in_array($d['modificador'], Modificadores::PONTUAIS, true);
+        $pontual = in_array($d['modificador'], Modificadores::PONTUAIS, true)
+            && ! in_array($d['modificador'], Modificadores::ACEITAM_RECURSO, true);
 
         $this->line($d['modificador'] === null
             ? sprintf('  sem modificador — só a cesta, por %d h a partir de %s',
@@ -330,7 +352,7 @@ class Evento extends Command
              * botão. "−95%" é abstrato; "6.000 XP passam a 300, e 27 das 29 colônias deixam de estar
              * travadas pelo marco" não é.
              */
-            $cheio = \App\Domain\Marco\Curva::xpDoMarco(RequisitosDeOcupacao::MARCO);
+            $cheio = Curva::xpDoMarco(RequisitosDeOcupacao::MARCO);
             $reduzido = intdiv($cheio * max(0, 10_000 + $d['efeito_bps']), 10_000);
 
             $this->line("  ocupar zona neutra passa a pedir {$reduzido} XP (o normal são {$cheio})");
@@ -341,7 +363,7 @@ class Evento extends Command
             ));
             $this->line('  ⚠️ Baixa a RÉGUA. Ninguém ganha XP, e o título de ninguém muda.');
         } elseif ($d['modificador'] === Modificadores::OCUPACAO_POPULACAO) {
-            $base = app(\App\Domain\Populacao\Parametros::class);
+            $base = app(Parametros::class);
             $exigidos = $base->ativo() ? $base->operadoresDeZona(1) : 0;
             $agora = intdiv($exigidos * max(0, 10_000 + $d['efeito_bps']), 10_000);
 
@@ -351,6 +373,30 @@ class Evento extends Command
                 $this->warn('  ⚠️ Isento: a zona nasce com equipe assim mesmo, e a colônia fica DEVENDO');
                 $this->line('     operadores ao que já tem de pé. Degrada (§6.6); nada é confiscado.');
             }
+        } elseif (in_array($d['modificador'], [Modificadores::LOGISTICA, Modificadores::CONSTRUCAO, Modificadores::PESQUISA], true)) {
+            $mult = max(0, 10_000 + $d['efeito_bps']);
+            $this->line(sprintf(
+                '  um prazo de 10 h que COMEÇAR na janela passa a %s h; o que já corre não se mexe',
+                rtrim(rtrim(number_format(10 * $mult / 10_000, 2, '.', ''), '0'), '.'),
+            ));
+        } elseif ($d['modificador'] === Modificadores::TAXA) {
+            $tipo = ResourceType::find($d['resource_type'] ?? 'biomassa') ?? ResourceType::first();
+            $this->line(sprintf(
+                '  a alíquota de %s passa de %.2f%% a %.2f%%; vale na CHEGADA da carga e na venda',
+                $tipo->code, $tipo->tax_bps / 100,
+                app(Modificadores::class)->aplicar((int) $tipo->tax_bps, max(0, 10_000 + $d['efeito_bps'])) / 100,
+            ));
+        } elseif ($d['modificador'] === Modificadores::TERRITORIO) {
+            $this->line(sprintf(
+                '  a manutenção diária das zonas passa a %d%% do normal; %d zona(s) ocupada(s) hoje',
+                max(0, 10_000 + $d['efeito_bps']) / 100,
+                NeutralZone::whereNotNull('owner_colony_id')->count(),
+            ));
+        } elseif ($d['modificador'] === Modificadores::POPULACAO) {
+            $this->line(sprintf(
+                '  o crescimento passa a %d%% do normal; consumo e escassez não mudam',
+                max(0, 10_000 + $d['efeito_bps']) / 100,
+            ));
         } else {
             $this->line(sprintf(
                 '  uma taxa de 200/h passaria a %d/h enquanto durar',

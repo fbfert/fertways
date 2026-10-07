@@ -2,7 +2,10 @@
 
 namespace App\Domain\Frete;
 
+use App\Domain\Eventos\Modificadores;
 use App\Domain\Logistics\MapaFertways;
+use App\Domain\Logistics\VeiculoSpecs;
+use App\Domain\Missoes\Progresso;
 use App\Domain\Trade\AcessoAoMercado;
 use App\Domain\Treasury\Tesouro;
 use App\Exceptions\DomainRuleException;
@@ -137,7 +140,7 @@ class FretePublico
             $agora = now();
             $distancia = (int) $orcamento['distancia_slots'];
 
-            app(\App\Domain\Missoes\Progresso::class)->registrar($colony->id, 'frete_publico');
+            app(Progresso::class)->registrar($colony->id, 'frete_publico');
 
             $caminhao->forceFill([
                 'status' => 'em_rota',
@@ -148,9 +151,13 @@ class FretePublico
                 'distance_slots' => $distancia,
                 'return_distance_slots' => $distancia,
                 'departs_at' => $agora,
-                'arrives_at' => $agora->copy()->addSeconds(
-                    \App\Domain\Logistics\VeiculoSpecs::segundosDoTrecho('caminhao_de_carga', $distancia),
-                ),
+                // D-248: o caminhão do Governo pega a mesma estrada — o evento de logística da
+                // colônia servida vale para ele como para o veículo dela.
+                'arrives_at' => $agora->copy()->addSeconds(app(Modificadores::class)->aplicarEm(
+                    $colony, Modificadores::LOGISTICA,
+                    VeiculoSpecs::segundosDoTrecho('caminhao_de_carga', $distancia),
+                    $agora,
+                )),
                 'cargo_json' => $carga,
             ])->save();
 

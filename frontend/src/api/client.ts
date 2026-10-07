@@ -651,6 +651,13 @@ export type EventoDoMundo = {
     | 'guerra_custo'
     | 'ocupacao_marco'
     | 'ocupacao_populacao'
+    // D-248: os seis "seguintes" da A2.8.
+    | 'taxa'
+    | 'logistica'
+    | 'construcao'
+    | 'pesquisa'
+    | 'populacao'
+    | 'territorio'
     | null
   /** Em porcentagem, com sinal. **Nulo** num evento que só entrega cesta: ele não mexe em taxa. */
   efeito?: number | null

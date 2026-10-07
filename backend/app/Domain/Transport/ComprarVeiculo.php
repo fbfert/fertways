@@ -3,6 +3,7 @@
 namespace App\Domain\Transport;
 
 use App\Domain\Logistics\MapaFertways;
+use App\Domain\Missoes\Progresso;
 use App\Domain\Treasury\Tesouro;
 use App\Exceptions\DomainRuleException;
 use App\Models\Colony;
@@ -89,7 +90,7 @@ class ComprarVeiculo
                 'created_at' => now(),
             ]);
 
-            app(\App\Domain\Missoes\Progresso::class)->registrar($colony->id, 'compra_veiculo_novo');
+            app(Progresso::class)->registrar($colony->id, 'compra_veiculo_novo');
 
             return $this->entregar($colony, $veiculo);
         });
@@ -120,7 +121,7 @@ class ComprarVeiculo
             'destination_id' => $colony->id,
             'distance_slots' => $distancia,
             'departs_at' => $agora,
-            'arrives_at' => $agora->copy()->addSeconds($this->conservacao->segundosDoTrecho($veiculo, $distancia)),
+            'arrives_at' => $agora->copy()->addSeconds($this->conservacao->duracaoAgendada($veiculo, $distancia, $agora)),
             'cargo_json' => null,
             'ready_at' => null,
         ])->save();
