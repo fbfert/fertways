@@ -106,6 +106,8 @@ class DirecaoDoLedger
         'compra_veiculo',
         'compra_peca_endurance',
         'compra_item_endurance',
+        // D-249: escavar paga como comprar — sai da colônia de verdade.
+        'escavacao_endurance',
         'frete_publico',
         // A2.3: destrói recurso de verdade — vira conhecimento, que não é estoque.
         'custo_pesquisa',

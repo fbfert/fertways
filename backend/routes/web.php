@@ -76,6 +76,7 @@ Route::prefix('admin')->group(function () {
         // A Loja de Peças da Endurance (D-135): catálogo dinâmico, uma aba por seção do casco.
         Route::get('/endurance', [PainelController::class, 'endurance'])->name('admin.endurance');
         Route::post('/endurance', [AcoesController::class, 'enduranceItemCriar'])->name('admin.endurance.item.criar');
+        Route::post('/endurance/escavacao', [AcoesController::class, 'enduranceEscavacao'])->name('admin.endurance.escavacao');
         Route::post('/endurance/{item}/editar', [AcoesController::class, 'enduranceItemEditar'])->name('admin.endurance.item.editar');
         Route::post('/endurance/{item}/apagar', [AcoesController::class, 'enduranceItemApagar'])->name('admin.endurance.item.apagar');
 

@@ -158,6 +158,18 @@ try {
   await page.waitForNetworkIdle({ idleTime: 800 })
   checar(await esperarTexto(page, /Você tem 1/), 'o item comprado muda de estado na hora')
 
+  console.log('\nA escavação da seção (D-249) — a peça que só se acha cavando')
+  checar(!!(await page.$('[data-escavacao="comando"]')), 'o bloco de escavação aparece com ela ligada')
+  checar(
+    !(await esperarTexto(page, /Placa de Casco/, 1500)),
+    'a peça de escavação NÃO aparece na loja — ela não se compra',
+  )
+  await clicar(page, '[data-escavar="comando"]')
+  checar(
+    await esperarTexto(page, /Sua equipe está escavando/),
+    'a equipe sai, e a tela diz quando volta — sem dizer o que vai achar',
+  )
+
   console.log('\nO atalho "Mercado Central" da Endurance navega direto, sem voltar à praça')
   await (await acharPorTexto(page, 'button', /Mercado Central/)).click()
   checar(await esperarTexto(page, /Mercado Central/), 'o Mercado Central abre pelo atalho')

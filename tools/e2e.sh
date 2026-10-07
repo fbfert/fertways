@@ -181,6 +181,20 @@ $unico = App\Models\EnduranceItem::create([
 app(App\Domain\Endurance\Instancias::class)->descobrir($c, $unico);
 
 /*
+ * D-249: a escavação LIGADA, com uma peça para achar no Comando. Ela nasce desligada e sem
+ * parâmetros em todo banco novo — e um bloco que só aparece ligado não seria fotografado nunca.
+ */
+App\Models\EnduranceEscavacaoSetting::singleton()->update([
+    "ativo" => true, "duracao_minutos" => 30, "custo" => ["energia" => 10],
+]);
+App\Models\EnduranceItem::create([
+    "item_key" => "placa_de_casco", "secao" => "comando", "origem" => App\Models\EnduranceItem::ESCAVACAO,
+    "nome" => "Placa de Casco", "tipo" => App\Models\EnduranceItem::RARO,
+    "quantidade_total" => 3, "preco_micro" => 1000000,
+    "descricao" => "Só se acha cavando.",
+]);
+
+/*
  * A2.8: um evento de mundo ATIVO, para a faixa ter o que mostrar.
  *
  * ⚠️ Sem isto o motor ficaria sem cobertura de ponta a ponta — e um motor que muda a economia sem

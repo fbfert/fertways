@@ -7,33 +7,55 @@ use App\Domain\Admin\RealocarColonia;
 use App\Domain\Admin\Suspender;
 use App\Domain\Building\Funcoes;
 use App\Domain\Chat\ContaSistema;
+use App\Domain\Colony\KitInicial;
+use App\Domain\Drone\DroneSpecs;
+use App\Domain\Endurance\EfeitosDaEndurance;
 use App\Domain\Eventos\EntregarCestas;
 use App\Domain\Eventos\Modificadores;
+use App\Domain\Frete\Garagem;
 use App\Domain\Logistics\MapaFertways;
 use App\Domain\Logistics\RequisitosDeOcupacao;
 use App\Domain\Marco\Curva;
+use App\Domain\Market\OfertarComoGoverno;
 use App\Domain\Media\Biblioteca;
+use App\Domain\Media\NomesDeExibicao;
 use App\Domain\Media\Vinculaveis;
 use App\Domain\Ministry\PunicaoSpecs;
+use App\Domain\Missoes\Acoes;
 use App\Domain\Populacao\Parametros;
+use App\Domain\Telemetria\Indicadores;
 use App\Domain\Transport\Conservacao;
 use App\Domain\Transport\Ministerio;
 use App\Domain\Treasury\Tesouro;
+use App\Domain\Zona\Estruturas;
 use App\Http\Controllers\Controller;
 use App\Models\Admin;
 use App\Models\AuditEntry;
+use App\Models\Building;
 use App\Models\BuildQueue;
+use App\Models\ChatMessage;
+use App\Models\ChatSetting;
 use App\Models\Colony;
+use App\Models\ColonyEnduranceItem;
 use App\Models\Combat;
+use App\Models\EnduranceEscavacaoSetting;
+use App\Models\EnduranceItem;
 use App\Models\Federation;
 use App\Models\FederationHolding;
+use App\Models\FederationLedger;
+use App\Models\FederationSetting;
+use App\Models\Feedback;
+use App\Models\FilaSetting;
 use App\Models\FoundingCell;
 use App\Models\GameEvent;
-use App\Models\FederationLedger;
 use App\Models\ImageBinding;
-use App\Models\MediaAsset;
+use App\Models\KitInicialSetting;
 use App\Models\Ledger;
 use App\Models\MarketOrder;
+use App\Models\MediaAsset;
+use App\Models\MilestoneSetting;
+use App\Models\MissionAssignment;
+use App\Models\MissionTemplate;
 use App\Models\NeutralZone;
 use App\Models\News;
 use App\Models\PriceIntervention;
@@ -49,6 +71,7 @@ use App\Models\Vehicle;
 use App\Models\VehicleListing;
 use App\Models\WarSetting;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 
@@ -262,7 +285,7 @@ class PainelController extends Controller
         $dias = max(1, min(365, $dias));
 
         return view('admin.metricas', [
-            'dados' => app(\App\Domain\Telemetria\Indicadores::class)->tudo($dias),
+            'dados' => app(Indicadores::class)->tudo($dias),
         ]);
     }
 
@@ -271,7 +294,7 @@ class PainelController extends Controller
         $abas = ['financas', 'tesouro', 'subsidios', 'mercado', 'ofertas_globais', 'extrato_governo', 'extrato_colonos'];
         $aba = in_array($request->query('aba'), $abas, true) ? $request->query('aba') : 'financas';
 
-        $ofertasDoGoverno = app(\App\Domain\Market\OfertarComoGoverno::class)->ofertas();
+        $ofertasDoGoverno = app(OfertarComoGoverno::class)->ofertas();
 
         $dados = [
             'aba' => $aba,
@@ -422,7 +445,7 @@ class PainelController extends Controller
         $estado = (string) $request->query('estado', '');
         $tipo = (string) $request->query('tipo', '');
 
-        $feedback = \App\Models\Feedback::query()
+        $feedback = Feedback::query()
             ->when($q !== '', fn ($w) => $w->where(fn ($s) => $s
                 ->where('assunto', 'like', "%{$q}%")
                 ->orWhere('mensagem', 'like', "%{$q}%")
@@ -441,7 +464,7 @@ class PainelController extends Controller
         return view('admin.feedback', [
             'feedback' => $feedback,
             'filtros' => compact('q', 'estado', 'tipo'),
-            'tipos' => \App\Models\Feedback::TIPOS,
+            'tipos' => Feedback::TIPOS,
         ]);
     }
 
@@ -534,8 +557,8 @@ class PainelController extends Controller
 
             // Os olhos do planeta (D-74): os Drones não são `units` — são veículos — e sem esta
             // lista a guerra de informação seria invisível para o operador.
-            'drones' => \App\Models\Vehicle::with('colony:id,name')
-                ->where('type', \App\Domain\Drone\DroneSpecs::TIPO)
+            'drones' => Vehicle::with('colony:id,name')
+                ->where('type', DroneSpecs::TIPO)
                 ->orderBy('id')
                 ->get(),
             'fotos' => (int) DB::table('drone_sightings')->count(),
@@ -554,7 +577,7 @@ class PainelController extends Controller
             ->orderBy('name')
             ->get();
 
-        $dados = ['federacoes' => $federacoes, 'federacao' => null, 'config' => \App\Models\FederationSetting::singleton()];
+        $dados = ['federacoes' => $federacoes, 'federacao' => null, 'config' => FederationSetting::singleton()];
 
         $federacao = $request->query('ver') ? Federation::find($request->query('ver')) : null;
 
@@ -627,8 +650,8 @@ class PainelController extends Controller
 
         // A Garagem do frete público (D-76): a frota real do serviço do §07.
         if ($aba === 'garagem') {
-            $dados['garagem'] = \App\Domain\Frete\Garagem::frota()->orderBy('id')->get();
-            $dados['garagemLivres'] = \App\Domain\Frete\Garagem::livres()->count();
+            $dados['garagem'] = Garagem::frota()->orderBy('id')->get();
+            $dados['garagemLivres'] = Garagem::livres()->count();
         }
 
         /*
@@ -701,14 +724,14 @@ class PainelController extends Controller
             // Com a colônia de cada uma, para o operador ver de onde ela sai antes de escolher o destino.
             'colonias' => Colony::with('user:id,nickname')->orderBy('id')->get(),
             // Os valores de XP por ato (D-75) — e o marco de cada colônia sai da lista acima.
-            'marco' => \App\Models\MilestoneSetting::singleton(),
+            'marco' => MilestoneSetting::singleton(),
             'kitRecursos' => $kitRecursos,
-            'kitSettings' => \App\Models\KitInicialSetting::singleton(),
+            'kitSettings' => KitInicialSetting::singleton(),
             // As chaves batem com `Vehicle::CAPACIDADE` — hoje só duas, mas o formulário não
             // hardcoda os tipos, para não ficar obsoleto se um terceiro veículo aparecer.
-            'kitVeiculos' => \App\Models\Vehicle::CAPACIDADE,
-            'kitMuroNiobio' => \App\Domain\Colony\KitInicial::MURO_NIOBIO_REABRE_EM,
-            'kitMuroQuartzo' => \App\Domain\Colony\KitInicial::MURO_QUARTZO_REABRE_EM,
+            'kitVeiculos' => Vehicle::CAPACIDADE,
+            'kitMuroNiobio' => KitInicial::MURO_NIOBIO_REABRE_EM,
+            'kitMuroQuartzo' => KitInicial::MURO_QUARTZO_REABRE_EM,
         ]);
     }
 
@@ -721,7 +744,7 @@ class PainelController extends Controller
         $abas = ['tempo', 'custo', 'silo', 'fila', 'manutencao'];
         $aba = in_array($request->query('aba'), $abas, true) ? $request->query('aba') : 'tempo';
 
-        $dados = ['aba' => $aba, 'naoConstroi' => \App\Models\Building::NASCE_NO_NIVEL_UM];
+        $dados = ['aba' => $aba, 'naoConstroi' => Building::NASCE_NO_NIVEL_UM];
 
         if ($aba === 'tempo' || $aba === 'custo') {
             $dados['grupos'] = $this->construcoesAgrupadas();
@@ -730,15 +753,15 @@ class PainelController extends Controller
                 ->orderBy('resource_type')->orderBy('level')
                 ->get()
                 ->groupBy('resource_type');
-            $dados['recursos'] = \App\Models\ResourceType::orderBy('tax_class')->orderBy('nome')->get();
+            $dados['recursos'] = ResourceType::orderBy('tax_class')->orderBy('nome')->get();
             $dados['niveisSilo'] = range(1, 10);
         } elseif ($aba === 'manutencao') {
             $dados['gruposManutencao'] = $this->manutencaoAgrupada();
             // Raros ficam de fora — decisão do usuário (D-112): só primário e industrial.
-            $dados['recursosManutencao'] = \App\Models\ResourceType::where('tax_class', '!=', 'raro')
+            $dados['recursosManutencao'] = ResourceType::where('tax_class', '!=', 'raro')
                 ->orderBy('tax_class')->orderBy('nome')->get();
         } else {
-            $dados['fila'] = \App\Models\FilaSetting::singleton();
+            $dados['fila'] = FilaSetting::singleton();
         }
 
         return view('admin.construcoes', $dados);
@@ -755,27 +778,38 @@ class PainelController extends Controller
         // A aba MANUAL não é uma seção do casco — é a inicial (nem query, nem valor
         // desconhecido caem numa seção "aleatória": caem no manual, que é o ponto de partida).
         $secao = $request->query('secao');
-        if ($secao !== 'manual' && ! array_key_exists($secao, \App\Models\EnduranceItem::SECOES)) {
+        if ($secao !== 'manual' && ! array_key_exists($secao, EnduranceItem::SECOES)) {
             $secao = 'manual';
         }
 
+        /*
+         * D-249: a escavação e os lotes de evento. Nas duas abas, porque a escavação é do casco
+         * inteiro e o seletor de evento aparece em todo formulário de peça.
+         */
+        $comum = [
+            'escavacao' => EnduranceEscavacaoSetting::singleton(),
+            'eventos' => GameEvent::whereIn('status', ['rascunho', 'ativo'])
+                ->where('termina_em', '>', now())->orderBy('comeca_em')->get(['id', 'slug', 'nome', 'status']),
+            'recursos' => ResourceType::orderBy('code')->pluck('code'),
+        ];
+
         if ($secao === 'manual') {
-            return view('admin.endurance', [
+            return view('admin.endurance', $comum + [
                 'secao' => 'manual',
-                'secoes' => \App\Models\EnduranceItem::SECOES,
+                'secoes' => EnduranceItem::SECOES,
                 'itens' => collect(),
                 'possePorItem' => collect(),
                 'imagemDaSecao' => null,
-                'tiposEfeito' => \App\Domain\Endurance\EfeitosDaEndurance::TIPOS,
+                'tiposEfeito' => EfeitosDaEndurance::TIPOS,
             ]);
         }
 
-        $itens = \App\Models\EnduranceItem::where('secao', $secao)
-            ->with('efeitos')
+        $itens = EnduranceItem::where('secao', $secao)
+            ->with(['efeitos', 'evento'])
             ->orderBy('nome')
             ->get();
 
-        $possePorItem = \App\Models\ColonyEnduranceItem::whereIn('endurance_item_id', $itens->pluck('id'))
+        $possePorItem = ColonyEnduranceItem::whereIn('endurance_item_id', $itens->pluck('id'))
             ->selectRaw('endurance_item_id, COUNT(*) as colonias, SUM(quantidade) as unidades')
             ->groupBy('endurance_item_id')
             ->get()
@@ -783,13 +817,13 @@ class PainelController extends Controller
 
         $img = ImageBinding::where('entity_key', 'endurance:secao:'.$secao)->with('asset')->first();
 
-        return view('admin.endurance', [
+        return view('admin.endurance', $comum + [
             'secao' => $secao,
-            'secoes' => \App\Models\EnduranceItem::SECOES,
+            'secoes' => EnduranceItem::SECOES,
             'itens' => $itens,
             'possePorItem' => $possePorItem,
             'imagemDaSecao' => $img?->asset,
-            'tiposEfeito' => \App\Domain\Endurance\EfeitosDaEndurance::TIPOS,
+            'tiposEfeito' => EfeitosDaEndurance::TIPOS,
         ]);
     }
 
@@ -844,9 +878,9 @@ class PainelController extends Controller
     private function definicaoDeGrupos(): array
     {
         return [
-            'As cinco essenciais' => \App\Models\Building::ESSENCIAIS,
-            'Progressão da colônia' => \App\Models\Building::PROGRESSAO,
-            'Zona neutra' => \App\Domain\Zona\Estruturas::TODAS,
+            'As cinco essenciais' => Building::ESSENCIAIS,
+            'Progressão da colônia' => Building::PROGRESSAO,
+            'Zona neutra' => Estruturas::TODAS,
             'Veículos e unidades' => [
                 'furgao_de_comercio', 'caminhao_de_carga', 'nave_de_transporte_planetaria',
                 'drone_de_exploracao', 'sentinela', 'robo_minerador', 'infiltrador', 'predador',
@@ -867,7 +901,7 @@ class PainelController extends Controller
 
         $paraAba = fn (string $tipo) => [
             'tipo' => $tipo,
-            'nome' => \App\Domain\Media\NomesDeExibicao::de($tipo),
+            'nome' => NomesDeExibicao::de($tipo),
             'recursos' => ($config->get($tipo) ?? collect())->pluck('qtd_hora', 'resource_type')->all(),
         ];
 
@@ -907,7 +941,7 @@ class PainelController extends Controller
     {
         return [
             'tipo' => $tipo,
-            'nome' => \App\Domain\Media\NomesDeExibicao::de($tipo),
+            'nome' => NomesDeExibicao::de($tipo),
             'niveis' => $niveis->map(function ($n) use ($tipo, $overrides) {
                 $override = $overrides->get("{$tipo}:{$n->level}");
 
@@ -934,10 +968,10 @@ class PainelController extends Controller
 
         $dados = [
             'aba' => $aba,
-            'acoes' => \App\Domain\Missoes\Acoes::TODAS,
-            'nomeCategoria' => \App\Models\MissionTemplate::CATEGORIAS,
+            'acoes' => Acoes::TODAS,
+            'nomeCategoria' => MissionTemplate::CATEGORIAS,
             // D-140: o seletor de pré-requisito da narrativa — só ela encadeia capítulos.
-            'capitulosNarrativos' => \App\Models\MissionTemplate::where('categoria', 'narrativa')
+            'capitulosNarrativos' => MissionTemplate::where('categoria', 'narrativa')
                 ->orderBy('id')->get(['id', 'titulo', 'chave']),
         ];
 
@@ -948,21 +982,21 @@ class PainelController extends Controller
          * funcionando (concluída na maioria) ou era ignorado/expirava sem ninguém tocar.
          */
         if ($aba === 'catalogo') {
-            $porMolde = \App\Models\MissionAssignment::selectRaw('template_id, status, count(*) as total')
+            $porMolde = MissionAssignment::selectRaw('template_id, status, count(*) as total')
                 ->groupBy('template_id', 'status')
                 ->get()
                 ->groupBy('template_id');
 
-            $ativasVigentes = \App\Models\MissionAssignment::ativa()
+            $ativasVigentes = MissionAssignment::ativa()
                 ->selectRaw('template_id, count(*) as total')
                 ->groupBy('template_id')
                 ->pluck('total', 'template_id');
 
-            $ultimaSorteada = \App\Models\MissionAssignment::selectRaw('template_id, max(created_at) as ultima')
+            $ultimaSorteada = MissionAssignment::selectRaw('template_id, max(created_at) as ultima')
                 ->groupBy('template_id')
                 ->pluck('ultima', 'template_id');
 
-            $dados['catalogo'] = \App\Models\MissionTemplate::withCount('assignments')
+            $dados['catalogo'] = MissionTemplate::withCount('assignments')
                 ->orderBy('categoria')->orderBy('chave')->get()
                 ->map(function ($t) use ($porMolde, $ativasVigentes, $ultimaSorteada) {
                     $porStatus = ($porMolde[$t->id] ?? collect())->pluck('total', 'status');
@@ -983,12 +1017,12 @@ class PainelController extends Controller
 
         // O baralho, com sub-abas por categoria (D-96) — a lista crescia sem parar numa página só.
         if ($aba === 'baralho') {
-            $categorias = array_keys(\App\Models\MissionTemplate::CATEGORIAS);
+            $categorias = array_keys(MissionTemplate::CATEGORIAS);
             $cat = (string) $request->query('cat', '');
             $cat = in_array($cat, $categorias, true) ? $cat : $categorias[0];
 
             $dados['catAtual'] = $cat;
-            $dados['missoes'] = \App\Models\MissionTemplate::withCount('assignments')
+            $dados['missoes'] = MissionTemplate::withCount('assignments')
                 ->where('categoria', $cat)
                 ->orderBy('chave')->get();
         }
@@ -997,7 +1031,7 @@ class PainelController extends Controller
     }
 
     /** A aba Chat (§10; D-77): o rádio do planeta pelos olhos do moderador. */
-    public function chat(\Illuminate\Http\Request $request): View
+    public function chat(Request $request): View
     {
         $privadaA = (int) $request->query('privada_a');
         $privadaB = (int) $request->query('privada_b');
@@ -1008,7 +1042,7 @@ class PainelController extends Controller
          * página sem os parâmetros não mostra privada nenhuma.
          */
         $privada = ($privadaA && $privadaB)
-            ? \App\Models\ChatMessage::where('channel', 'privada')
+            ? ChatMessage::where('channel', 'privada')
                 ->where(fn ($q) => $q
                     ->where(fn ($a) => $a->where('user_id', $privadaA)->where('recipient_user_id', $privadaB))
                     ->orWhere(fn ($b) => $b->where('user_id', $privadaB)->where('recipient_user_id', $privadaA)))
@@ -1016,14 +1050,14 @@ class PainelController extends Controller
             : collect();
 
         return view('admin.chat', [
-            'config' => \App\Models\ChatSetting::singleton(),
-            'mensagens' => \App\Models\ChatMessage::where('channel', '!=', 'privada')
+            'config' => ChatSetting::singleton(),
+            'mensagens' => ChatMessage::where('channel', '!=', 'privada')
                 ->with('user:id,nickname')->orderByDesc('id')->limit(100)->get(),
-            'reincidencia' => \Illuminate\Support\Facades\DB::table('chat_filter_hits')
+            'reincidencia' => DB::table('chat_filter_hits')
                 ->join('users', 'users.id', '=', 'chat_filter_hits.user_id')
                 ->selectRaw('users.nickname, count(*) as barradas, max(chat_filter_hits.created_at) as ultima')
                 ->groupBy('users.nickname')->orderByDesc('barradas')->limit(20)->get(),
-            'silenciados' => \App\Models\Punishment::where('kind', \App\Domain\Ministry\PunicaoSpecs::SILENCIO)
+            'silenciados' => Punishment::where('kind', PunicaoSpecs::SILENCIO)
                 ->vigente()->with('user:id,nickname')->get(),
             'privada' => $privada,
         ]);
@@ -1149,7 +1183,7 @@ class PainelController extends Controller
             'veiculos_ociosos' => Vehicle::where('status', 'ocioso')->count(),
             'zonas_ocupadas' => NeutralZone::whereNotNull('owner_colony_id')->count(),
             // Bugs/Melhorias (D-95): o card de "tem coisa nova" na Visão Geral.
-            'feedback_nao_lido' => \App\Models\Feedback::whereNull('lida_at')->count(),
+            'feedback_nao_lido' => Feedback::whereNull('lida_at')->count(),
         ];
     }
 
@@ -1157,7 +1191,7 @@ class PainelController extends Controller
      * Recursos sem oferta ativa do Governo no Mercado Central (D-87) — inclusive os que nunca
      * foram anunciados, não só os que zeraram: é a lista do que falta preencher, não só repor.
      */
-    private function recursosSemOfertaDoGoverno(): \Illuminate\Support\Collection
+    private function recursosSemOfertaDoGoverno(): Collection
     {
         $comOferta = DB::table('market_orders')
             ->whereNull('colony_id')

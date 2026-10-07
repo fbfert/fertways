@@ -40,6 +40,7 @@ use App\Models\Building;
 use App\Models\ChatSetting;
 use App\Models\Colony;
 use App\Models\ColonyEnduranceItem;
+use App\Models\EnduranceEscavacaoSetting;
 use App\Models\EnduranceItem;
 use App\Models\Federation;
 use App\Models\FederationSetting;
@@ -1221,7 +1222,13 @@ class AcoesController extends Controller
             'vendavel_em_leilao' => ['nullable', 'boolean'],
             'descricao' => ['nullable', 'string', 'max:2000'],
             'efeitos' => ['nullable', 'string'],
+            // D-249: de onde a peça vem, e se ela só existe durante um evento.
+            'origem' => ['nullable', Rule::in(EnduranceItem::ORIGENS)],
+            'game_event_id' => ['nullable', 'integer', 'exists:game_events,id'],
         ]);
+
+        $dados['origem'] = ($dados['origem'] ?? null) ?: EnduranceItem::LOJA;
+        $dados['game_event_id'] = ($dados['game_event_id'] ?? null) ?: null;
 
         if ($dados['tipo'] === EnduranceItem::UNICO) {
             $dados['quantidade_total'] = 1;
@@ -1284,6 +1291,71 @@ class AcoesController extends Controller
         unset($dados['preco'], $dados['marco'], $dados['efeitos']);
 
         return [$dados, $efeitos];
+    }
+
+    /**
+     * Os parâmetros da escavação da Endurance (D-249).
+     *
+     * ⚠️ Ligar sem duração é recusado: a escavação terminaria no mesmo minuto em que começou. O custo
+     * pode ficar vazio — escavar de graça é escolha legítima do operador, e não uma omissão —, mas o
+     * aviso diz isso por extenso, para ninguém ligar de graça sem querer.
+     *
+     * O custo se escreve como a cesta do `artisan` de eventos: `recurso:quantidade`, uma por linha,
+     * e `fert:quantidade` em Fert$ (não micro).
+     */
+    public function enduranceEscavacao(Request $request): RedirectResponse
+    {
+        $dados = $request->validate([
+            'ativo' => ['nullable', 'boolean'],
+            'duracao_minutos' => ['nullable', 'integer', 'min:1', 'max:100000'],
+            'custo' => ['nullable', 'string', 'max:2000'],
+        ]);
+
+        return $this->tentar('endurance.escavacao', function () use ($dados) {
+            $codigos = ResourceType::pluck('code')->all();
+            $custo = [];
+
+            foreach (preg_split('/\R/', trim($dados['custo'] ?? '')) as $linha) {
+                $linha = trim($linha);
+
+                if ($linha === '') {
+                    continue;
+                }
+
+                [$recurso, $qtd] = array_pad(array_map('trim', explode(':', $linha, 2)), 2, null);
+
+                if (! is_numeric($qtd) || (float) $qtd <= 0) {
+                    throw new DomainRuleException('endurance.escavacao.custo', "Quantidade inválida em «{$linha}».");
+                }
+
+                if ($recurso === 'fert') {
+                    $custo[EntregarCestas::FERT] = (int) round(((float) $qtd) * Colony::MICRO_POR_FERT);
+                } elseif (in_array($recurso, $codigos, true)) {
+                    $custo[$recurso] = (int) $qtd;
+                } else {
+                    throw new DomainRuleException('endurance.escavacao.recurso', "Recurso desconhecido: «{$recurso}».");
+                }
+            }
+
+            $ativo = (bool) ($dados['ativo'] ?? false);
+            $duracao = ($dados['duracao_minutos'] ?? null) ?: null;
+
+            if ($ativo && $duracao === null) {
+                throw new DomainRuleException(
+                    'endurance.escavacao.sem_duracao',
+                    'Diga a duração antes de ligar — sem ela a escavação terminaria no mesmo minuto em que começa.',
+                );
+            }
+
+            EnduranceEscavacaoSetting::singleton()->update([
+                'ativo' => $ativo,
+                'duracao_minutos' => $duracao,
+                'custo' => $custo ?: null,
+            ]);
+
+            return 'Escavação '.($ativo ? 'LIGADA' : 'desligada').($duracao ? ", {$duracao} min" : '')
+                .($custo === [] && $ativo ? ' — ⚠️ sem custo: escavar é de graça.' : '.');
+        });
     }
 
     /**

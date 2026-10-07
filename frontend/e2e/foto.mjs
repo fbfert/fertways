@@ -404,6 +404,8 @@ async function medirLojaDaEndurance(page) {
       linhas_de_efeito: loja.querySelectorAll('li').length,
       com_dois_efeitos: itens.filter((i) => i.querySelectorAll('li').length >= 2).length,
       unicos: loja.querySelectorAll('[data-unico]').length,
+      // D-249: o bloco de escavação, acima da loja (a escavação está ligada no mundo do e2e).
+      escavacao: !!document.querySelector('[data-escavacao]'),
       transborda_a_janela: itens.some((i) => i.getBoundingClientRect().right > window.innerWidth),
     }
   }, destrocos)

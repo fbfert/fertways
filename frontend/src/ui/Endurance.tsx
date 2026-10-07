@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api, ApiError } from '../api/client'
 import { EnduranceMapa } from './EnduranceMapa'
+import { EscavacaoDaEndurance } from './EscavacaoDaEndurance'
 import { LojaDaEndurance } from './LojaDaEndurance'
 
 /**
@@ -47,6 +48,12 @@ export function Endurance() {
   async function comprar(itemKey: string) {
     await api.comprarItemDaEndurance(itemKey)
     if (secaoAberta) await carregar(secaoAberta.chave)
+  }
+
+  async function escavar() {
+    if (!secaoAberta) return
+    await api.escavarNaEndurance(secaoAberta.chave)
+    await carregar(secaoAberta.chave)
   }
 
   return (
@@ -105,6 +112,14 @@ export function Endurance() {
                 dados={dados}
                 aoComprar={comprar}
                 aoFechar={() => setSecaoAberta(null)}
+                escavacao={
+                  <EscavacaoDaEndurance
+                    secao={secaoAberta.chave}
+                    nomeDaSecao={secaoAberta.nome}
+                    escavacao={dados.escavacao}
+                    aoEscavar={escavar}
+                  />
+                }
               />
             )}
             {secaoAberta && !dados && !erro && <p className="text-ink-soft text-sm">Carregando…</p>}

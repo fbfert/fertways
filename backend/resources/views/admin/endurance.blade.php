@@ -21,6 +21,44 @@
 
 @section("content")
 
+    {{-- ─────────────────────────────────────────────── Escavação (D-249) ── --}}
+    @php
+        $custoTexto = collect($escavacao->custo ?? [])->map(
+            fn ($q, $r) => $r === '__fert__' ? 'fert:' . rtrim(rtrim(number_format($q / 1000000, 6, '.', ''), '0'), '.') : "{$r}:{$q}"
+        )->implode("\n");
+    @endphp
+    <div class="cartao" data-escavacao-config>
+        <h2 class="secao" style="margin-top:0">Escavação da Endurance (§11)</h2>
+        <p class="mut pequeno">
+            A colônia manda uma equipe a uma seção e volta com <b>uma peça de origem «escavação»</b>
+            daquela seção. <b>A sorte é o estoque</b>: cada unidade enterrada é um bilhete — um comum
+            com 40 unidades tem 40 bilhetes, o único tem 1. Não há tabela de chances para escrever.
+            Uma escavação por colônia de cada vez; peça acima do marco da colônia não entra no sorteio.
+        </p>
+        <p class="mut pequeno">
+            Estado: <b>{{ $escavacao->ligada() ? 'LIGADA' : 'desligada' }}</b>.
+            Custo e duração são seus — nenhum documento os publica, e a escavação não liga sem duração.
+        </p>
+        <form method="POST" action="{{ route('admin.endurance.escavacao') }}">
+            @csrf
+            <div class="linha-form">
+                <div style="flex:0">
+                    <label>Duração (minutos)</label>
+                    <input type="number" name="duracao_minutos" min="1" max="100000"
+                           value="{{ $escavacao->duracao_minutos }}" style="width:110px">
+                </div>
+                <div>
+                    <label>Custo — <code>recurso:quantidade</code> por linha; <code>fert:quantidade</code> em Fert$</label>
+                    <textarea name="custo" rows="2" style="width:100%" placeholder="fert:50&#10;energia:200">{{ $custoTexto }}</textarea>
+                </div>
+                <div style="flex:0;align-self:flex-end">
+                    <label><input type="checkbox" name="ativo" value="1" @checked($escavacao->ativo)> Ligada</label>
+                </div>
+            </div>
+            <div style="margin-top:8px"><button data-salvar-escavacao>Salvar escavação</button></div>
+        </form>
+    </div>
+
     <p class="mut pequeno">
         A Loja de Peças da Endurance (§05, D-135): catálogo DINÂMICO — crie, edite e apague itens à
         vontade, cada um com efeitos empilháveis de verdade (produção, veículo, drone, tributo). O
@@ -76,6 +114,12 @@
                     <td class="pequeno">
                         <b>{{ $item->nome }}</b>
                         <div class="mut" style="font-size:.58rem">{{ $item->item_key }}</div>
+                        @if ($item->origem === 'escavacao')
+                            <div style="font-size:.58rem">só se acha escavando</div>
+                        @endif
+                        @if ($item->evento)
+                            <div style="font-size:.58rem">⏳ lote do evento «{{ $item->evento->nome }}»</div>
+                        @endif
                     </td>
                     <td class="pequeno">{{ ucfirst($item->tipo) }}</td>
                     <td class="num">{{ $item->quantidade_vendida }}/{{ $item->quantidade_total }}</td>
@@ -157,6 +201,27 @@
                                         Vendável no Mercado Central em Leilões</label>
                                 </div>
                             </div>
+                            <div class="linha-form" style="margin-top:8px">
+                                <div style="flex:0">
+                                    <label>Origem (D-249)</label>
+                                    <select name="origem">
+                                        <option value="loja" @selected($item->origem !== 'escavacao')>loja — se compra</option>
+                                        <option value="escavacao" @selected($item->origem === 'escavacao')>escavação — só se acha</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label>Lote de evento — só existe enquanto o evento valer</label>
+                                    <select name="game_event_id">
+                                        <option value="">— sempre —</option>
+                                        @if ($item->evento && ! $eventos->contains('id', $item->evento->id))
+                                            <option value="{{ $item->evento->id }}" selected>{{ $item->evento->nome }} (encerrado)</option>
+                                        @endif
+                                        @foreach ($eventos as $ev)
+                                            <option value="{{ $ev->id }}" @selected($item->game_event_id === $ev->id)>{{ $ev->nome }} ({{ $ev->status }})</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                            </div>
                             <div style="margin-top:8px">
                                 <label class="pequeno mut">Descrição do item</label>
                                 <input type="text" name="descricao" value="{{ $item->descricao }}" maxlength="2000" style="width:100%">
@@ -219,6 +284,24 @@
                 </div>
                 <div style="flex:0;align-self:flex-end">
                     <label><input type="checkbox" name="vendavel_em_leilao" value="1"> Vendável no Mercado Central em Leilões</label>
+                </div>
+            </div>
+            <div class="linha-form" style="margin-top:8px">
+                <div style="flex:0">
+                    <label>Origem (D-249)</label>
+                    <select name="origem">
+                        <option value="loja">loja — se compra</option>
+                        <option value="escavacao">escavação — só se acha</option>
+                    </select>
+                </div>
+                <div>
+                    <label>Lote de evento — só existe enquanto o evento valer</label>
+                    <select name="game_event_id">
+                        <option value="">— sempre —</option>
+                        @foreach ($eventos as $ev)
+                            <option value="{{ $ev->id }}">{{ $ev->nome }} ({{ $ev->status }})</option>
+                        @endforeach
+                    </select>
                 </div>
             </div>
             <div style="margin-top:8px">

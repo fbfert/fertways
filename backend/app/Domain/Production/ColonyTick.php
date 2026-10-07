@@ -4,6 +4,7 @@ namespace App\Domain\Production;
 
 use App\Domain\Colony\TetoDoEstoque;
 use App\Domain\Colony\TetoDoTanque;
+use App\Domain\Endurance\ConcluirEscavacoes;
 use App\Domain\Endurance\EfeitosDaEndurance;
 use App\Domain\Eventos\Modificadores;
 use App\Domain\Marco\ConcederXp;
@@ -75,6 +76,7 @@ class ColonyTick
         private Modificadores $eventos,
         private EfeitosDaPesquisa $efeitosDaPesquisa,
         private ConcluirPesquisa $concluirPesquisa,
+        private ConcluirEscavacoes $concluirEscavacoes,
         private EfeitosDaEndurance $efeitosDaEndurance,
         private Parametros $parametrosDePopulacao,
         private Ciclo $cicloDePopulacao,
@@ -149,6 +151,10 @@ class ColonyTick
              * partir do minuto seguinte — e o jogador veria a barra encher sem nada mudar.
              */
             $this->concluirPesquisa->handle($colony);
+
+            // D-249: a equipe da Endurance volta antes da produção, pela mesma razão da pesquisa —
+            // a peça com bônus achada neste minuto vale neste minuto.
+            $this->concluirEscavacoes->handle($colony, $agora);
 
             $this->eficienciaDaPopulacao = $this->medirEficiencia($colony);
 

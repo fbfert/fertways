@@ -4,11 +4,15 @@ namespace App\Http\Controllers\Api;
 
 use App\Domain\Endurance\ComprarItem;
 use App\Domain\Endurance\EfeitosDaEndurance;
+use App\Domain\Endurance\Escavar;
+use App\Domain\Eventos\EntregarCestas;
 use App\Domain\Marco\Curva;
 use App\Exceptions\DomainRuleException;
 use App\Http\Controllers\Controller;
 use App\Models\Colony;
 use App\Models\ColonyEnduranceItem;
+use App\Models\EnduranceEscavacao;
+use App\Models\EnduranceEscavacaoSetting;
 use App\Models\EnduranceItem;
 use App\Models\EnduranceItemInstance;
 use Illuminate\Http\JsonResponse;
@@ -45,14 +49,18 @@ class EnduranceController extends Controller
     {
         $this->colonia($request);
 
-        $porSecao = EnduranceItem::query()
+        // D-249: o mapa conta a LOJA (o que se compra) e, à parte, quanto ainda está enterrado.
+        $disponiveis = EnduranceItem::query()
             ->whereColumn('quantidade_vendida', '<', 'quantidade_total')
-            ->get(['secao', 'tipo', 'preco_micro'])
-            ->groupBy('secao');
+            ->liberadas(now())
+            ->get(['secao', 'tipo', 'preco_micro', 'origem', 'quantidade_total', 'quantidade_vendida']);
+
+        $porSecao = $disponiveis->where('origem', EnduranceItem::LOJA)->groupBy('secao');
+        $enterrado = $disponiveis->where('origem', EnduranceItem::ESCAVACAO)->groupBy('secao');
 
         return response()->json([
             'secoes' => collect(EnduranceItem::SECOES)
-                ->map(function (string $nome, string $chave) use ($porSecao) {
+                ->map(function (string $nome, string $chave) use ($porSecao, $enterrado) {
                     $itens = $porSecao->get($chave, collect());
 
                     return [
@@ -62,6 +70,11 @@ class EnduranceController extends Controller
                         'tem_unico' => $itens->contains('tipo', EnduranceItem::UNICO),
                         // Nulo quando a seção não tem nada à venda: a tela diz "esgotado", não "0 F$".
                         'a_partir_de' => $itens->isEmpty() ? null : (int) $itens->min('preco_micro'),
+                        /*
+                         * D-249: quantas peças ainda há para ACHAR. Conta tipos de peça, não
+                         * unidades — o número de bilhetes é o sorteio, e não é do jogador.
+                         */
+                        'a_escavar' => $enterrado->get($chave, collect())->count(),
                     ];
                 })
                 ->values(),
@@ -91,7 +104,11 @@ class EnduranceController extends Controller
             ->map(fn ($t, $i) => "WHEN '{$t}' THEN {$i}")
             ->implode(' ');
 
+        // D-249: a loja mostra o que é da loja e está liberado agora. A peça de escavação aparece
+        // no bloco da escavação, e a de lote de evento fora da janela não existe.
         $itens = EnduranceItem::where('secao', $secao)->with('efeitos')
+            ->where('origem', EnduranceItem::LOJA)
+            ->liberadas(now())
             ->orderByRaw("CASE tipo {$escada} ELSE 99 END")
             ->orderBy('preco_micro')
             ->get();
@@ -160,7 +177,64 @@ class EnduranceController extends Controller
             'secao' => $secao,
             'meu_marco' => $marco,
             'itens' => $catalogo,
+            'escavacao' => $this->escavacao($colony, $secao),
         ]);
+    }
+
+    /**
+     * O bloco da escavação desta seção (D-249).
+     *
+     * ⚠️ O que a equipe vai achar NÃO aparece enquanto ela escava — a peça já está reservada, mas
+     * revelá-la tiraria do retorno a única coisa que ele tem. O que aparece é o que já foi achado
+     * aqui (`achadas`), com o único e o seu selo: é a vitrine do que a seção ainda pode dar.
+     *
+     * @return array<string,mixed>
+     */
+    private function escavacao(Colony $colony, string $secao): array
+    {
+        $config = EnduranceEscavacaoSetting::singleton();
+
+        $minha = EnduranceEscavacao::where('colony_id', $colony->id)
+            ->where('status', EnduranceEscavacao::ESCAVANDO)
+            ->first();
+
+        $ultima = EnduranceEscavacao::where('colony_id', $colony->id)
+            ->where('secao', $secao)
+            ->where('status', EnduranceEscavacao::CONCLUIDA)
+            ->latest('concluida_em')->with('item')->first();
+
+        $enterradas = $config->ligada() ? app(Escavar::class)->achados($colony, $secao) : collect();
+        $custo = $config->custo ?? [];
+
+        return [
+            'ligada' => $config->ligada(),
+            'duracao_minutos' => $config->duracao_minutos,
+            'custo_fert' => (int) ($custo[EntregarCestas::FERT] ?? 0) / Colony::MICRO_POR_FERT,
+            'custo' => array_map('intval', array_diff_key($custo, [EntregarCestas::FERT => 0])),
+            // Tipos de peça que ESTA colônia ainda pode achar aqui (o marco filtra).
+            'a_achar' => $enterradas->count(),
+            'tem_unico' => $enterradas->contains('tipo', EnduranceItem::UNICO),
+            'em_andamento' => $minha === null ? null : [
+                'secao' => $minha->secao,
+                'secao_nome' => EnduranceItem::SECOES[$minha->secao] ?? $minha->secao,
+                'termina_em' => $minha->finishes_at->toIso8601String(),
+            ],
+            'ultima_achada' => $ultima?->item === null ? null : [
+                'nome' => $ultima->item->nome,
+                'tipo' => $ultima->item->tipo,
+                'em' => $ultima->concluida_em?->toIso8601String(),
+            ],
+        ];
+    }
+
+    public function escavar(Request $request, string $secao, Escavar $escavar): JsonResponse
+    {
+        $e = $escavar->handle($this->colonia($request), $secao);
+
+        return response()->json([
+            'secao' => $e->secao,
+            'termina_em' => $e->finishes_at->toIso8601String(),
+        ], 201);
     }
 
     /** Os efeitos ATIVOS da colônia hoje — para a tela mostrar "seu bônus atual" por tipo. */

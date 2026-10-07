@@ -116,6 +116,12 @@ class Ledger extends Model
          * linha o "Desde sua última visita" veria o estoque saltar sem ter o que dizer.
          */
         'presente_evento',
+        /*
+         * D-249: o custo de escavar uma seção da Endurance — Fert$ (vai ao Tesouro, como a compra
+         * da loja) e recursos (destruídos, como na pesquisa). A peça achada não lança nada: a posse
+         * da Endurance nunca foi ledger, só a compra dela.
+         */
+        'escavacao_endurance',
     ];
 
     public function colony(): BelongsTo

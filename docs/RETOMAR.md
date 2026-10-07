@@ -49,13 +49,17 @@ O que falta foi medido contra o código em 07/10, não lembrado:
    (duração do trecho), construção (duração da obra), pesquisa (duração), população (crescimento) e
    território (manutenção territorial). O valor de cada evento é do operador; nenhum número de jogo
    é inventado.
-2. [ ] **Eventos da Endurance** (§11.2: seções, lotes e peças liberados por evento).
-3. [ ] **Escavação/desmontagem da Endurance** (§11; hoje o único nasce na compra).
+2. [x] **(D-249)** **Eventos da Endurance** (§11.2: seções, lotes e peças liberados por evento).
+3. [x] **(D-249)** **Escavação/desmontagem da Endurance** (§11; hoje o único nasce na compra).
 4. [ ] **Missões especiais / narrativas ligadas a evento** (`game_events.missoes` existe e não tem leitor).
 5. [ ] **Telemetria de retorno de quem foi saqueado ausente** (recomendada desde o D-202).
 6. [ ] **Observatório** (A2.3, ficou fora da primeira entrega).
 7. [ ] **O "Depois" do A2.8**: eventos de combate e de Federação, encadeados, condições compostas.
 8. [ ] **GDD v41** cobrindo D-230 em diante, e a cópia em `frontend/public/gdd.html`.
+
+⚠️ **A escavação está DESLIGADA em produção** (D-249): custo e duração são do operador e nascem
+vazios. Liga-se em `/central/admin/endurance`, no cartão do topo — e só há o que achar depois de
+marcar peças com origem «escavação».
 
 Fora desta lista, e por quê: a **A2.V4/V5/V6 restante** não tem dado para desenhar (ver abaixo) e a
 **A2.11** (bots) é programa externo (§17 do GDD_ALPHA2).

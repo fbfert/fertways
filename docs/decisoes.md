@@ -13914,3 +13914,73 @@ defeito do D-224 de novo.
 
 1344 testes verdes. Sem migration: a coluna é `string(40)` desde o D-194, cuja migration já dizia que
 o `enum` obrigaria uma a cada modificador novo — *"e a A2.8 já promete seis"*.
+
+---
+
+## D-249 — A escavação da Endurance, e os lotes que um evento libera
+
+**Data:** 2026-10-07 · **Status:** entregue
+
+Os itens 2 e 3 da lista do "terminar o GDD". O D-187 tinha registrado por que eles esperavam: o
+motor só sabia produção e consumo, *"e forçar Endurance nele agora seria inventar um modificador que
+ninguém desenhou"*; e *"o único nasce na compra"*, porque escavar não existia. Os dois continuavam
+verdade.
+
+### O que o GDD pede, lido de novo
+
+O §11 dá à Endurance o papel de *"área de escavação/desmontagem controlada"* e *"origem de peças e
+artefatos"*. O §11.2: *"novas seções, missões, lotes, peças ou descobertas podem ser liberados por
+eventos"*. Nenhum dos dois pede modificador. O evento da Endurance não muda taxa nenhuma — ele **abre
+uma porta**. Foi isso que destravou a fatia: o D-187 tinha razão em não inventar um modificador, e
+não era preciso.
+
+### Os lotes de evento
+
+`endurance_items.game_event_id`: a peça amarrada a um evento só existe no mundo — na loja **e** no
+sorteio da escavação — enquanto o evento valer. A regra de "valer" é a de `GameEvent::vigenteEm()`
+(rascunho não vale; cancelado vale até `cancelado_em`), repetida em SQL no escopo `liberadas()`. Um
+teste confere que as duas leituras concordam nos cinco casos.
+
+### A escavação
+
+`endurance_items.origem`: `loja` (o que existe desde o D-135) ou `escavacao` — a peça que só se acha.
+
+**A sorte não tem número próprio: o peso é o estoque.** Cada unidade enterrada é um bilhete; um comum
+com 40 unidades tem 40, o único tem 1. A escassez que o operador já escreve em `quantidade_total`
+**é** a probabilidade, e por isso não houve tabela de chances a inventar. Conforme a seção é cavada,
+o que sobra fica mais raro, que é o que uma escavação faz.
+
+As escolhas, e por quê:
+
+- **A peça é sorteada e reservada no início**, sob `lockForUpdate`. Sortear no fim deixaria duas
+  escavações disputarem o mesmo único, e a perdedora voltaria vazia depois de pagar. Assim toda
+  escavação aceita acha alguma coisa, e a seção vazia é recusada **antes** de cobrar.
+- **A colônia só vê o que achou na volta.** A tela mostra quantas peças ainda há e se uma é única;
+  nunca o que a equipe vai trazer.
+- **O único ganha o descobridor na volta**, pelo `Instancias::descobrir()` de sempre — a biografia
+  começa quando a peça sai do chão.
+- **Peça acima do marco não entra no sorteio**: achar o que a loja recusaria vender seria contornar
+  o portão do marco pela porta dos fundos.
+- **Uma escavação por colônia de cada vez.** Regra de estrutura, não de balanceamento.
+- **Conclui no `ColonyTick`, depois da pesquisa e antes da produção**, e no instante do tick — um
+  teste pegou a primeira versão usando o relógio do servidor, que num tick de recuperação traria a
+  equipe um ciclo atrasada.
+
+### Os números que faltam são do operador
+
+Custo e duração não estão publicados em lugar nenhum. `endurance_escavacao_settings` nasce com a
+chave-mestra desligada e os dois campos **vazios**, e o painel recusa ligar sem duração. O custo
+pode ficar vazio — escavar de graça é escolha legítima —, mas a mensagem diz isso por extenso.
+**Em produção a escavação continua desligada** até o operador dizer os números.
+
+### De passagem
+
+- `endurance_interacao` estava declarado na telemetria desde a A2.0 e **nunca tinha tido emissor**.
+  A escavação é a primeira interação com a Endurance que não é compra, e passa a emiti-lo.
+- **O e2e estava vermelho desde o D-242**: aquela fatia semeou uma quinta colônia (a aliada) e não
+  atualizou a conta de círculos do mapa em `telas.e2e.mjs`. Corrigida; as 10 suítes verdes.
+- **A foto achou dois defeitos que a suíte aprovava**: o "⛏" do mapa virava um quadrado vazio (a
+  fonte do jogo não tem o símbolo — trocado por "1 a escavar"), e o bloco da escavação nascia acima
+  do cabeçalho da seção, lendo como coisa da tela inteira. Desceu para dentro da seção.
+
+1360 testes verdes, 10 suítes e2e verdes, migration exercitada nos dois sentidos no MariaDB.

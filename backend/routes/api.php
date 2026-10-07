@@ -268,6 +268,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/endurance/secoes-mapa', [EnduranceController::class, 'mapa']);
     Route::get('/endurance/secoes/{secao}', [EnduranceController::class, 'secao']);
     Route::post('/endurance/itens/{item}/comprar', [EnduranceController::class, 'comprar']);
+    Route::post('/endurance/secoes/{secao}/escavar', [EnduranceController::class, 'escavar']);
 
     // Capital — instituições do governo (§02). Só leitura: os atos do governo (intervenção de preço,
     // publicar comunicado) são artisan, não rota, porque o Governo é "operado pela equipe" (D-44).

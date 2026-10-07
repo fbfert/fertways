@@ -2,7 +2,10 @@
 
 namespace App\Models;
 
+use Carbon\CarbonInterface;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
@@ -32,7 +35,16 @@ class EnduranceItem extends Model
         'silo_suprimentos' => 'Silo de Suprimentos',
     ];
 
+    /** D-249: a peça que se compra na loja da seção. É o que existe desde o D-135. */
+    public const LOJA = 'loja';
+
+    /** D-249: a peça que só se acha escavando — o §11 chama a Endurance de "origem de peças". */
+    public const ESCAVACAO = 'escavacao';
+
+    public const ORIGENS = [self::LOJA, self::ESCAVACAO];
+
     protected $fillable = [
+        'origem', 'game_event_id',
         'item_key', 'secao', 'nome', 'tipo', 'quantidade_total', 'quantidade_vendida',
         'preco_micro', 'marco_minimo', 'vendavel_em_leilao', 'descricao', 'admin_id',
     ];
@@ -44,6 +56,43 @@ class EnduranceItem extends Model
         'marco_minimo' => 'integer',
         'vendavel_em_leilao' => 'boolean',
     ];
+
+    public function evento(): BelongsTo
+    {
+        return $this->belongsTo(GameEvent::class, 'game_event_id');
+    }
+
+    /**
+     * A peça existe no mundo AGORA? (D-249)
+     *
+     * Peça sem evento existe sempre. Peça de lote de evento só existe enquanto o evento valer —
+     * `vigenteEm()` já sabe de rascunho e de cancelamento, e é ele que decide.
+     */
+    public function liberadaEm(CarbonInterface $quando): bool
+    {
+        if ($this->game_event_id === null) {
+            return true;
+        }
+
+        return $this->evento !== null && $this->evento->vigenteEm($quando);
+    }
+
+    /**
+     * A mesma pergunta, em SQL: as peças sem evento, mais as de evento que vale agora.
+     *
+     * ⚠️ Repete a regra de `GameEvent::vigenteEm()` — rascunho não vale; cancelado vale até
+     * `cancelado_em`. Um teste fixa que as duas leituras concordam.
+     */
+    public function scopeLiberadas(Builder $q, CarbonInterface $quando): Builder
+    {
+        return $q->where(fn ($q) => $q->whereNull('game_event_id')->orWhereHas(
+            'evento',
+            fn ($e) => $e->whereIn('status', ['ativo', 'cancelado'])
+                ->where('comeca_em', '<=', $quando)
+                ->where('termina_em', '>=', $quando)
+                ->where(fn ($c) => $c->whereNull('cancelado_em')->orWhere('cancelado_em', '>', $quando)),
+        ));
+    }
 
     public function efeitos(): HasMany
     {

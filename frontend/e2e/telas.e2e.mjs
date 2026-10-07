@@ -203,9 +203,10 @@ try {
   checar(!!svg, 'o SVG do mapa renderiza')
   // Escopado ao `data-mapa`: `svg circle` casaria com outros SVGs do HUD.
   const circulos = await page.$$eval('svg[data-mapa] circle', (n) => n.length)
-  // O seeder cria quatro colônias — e2e, vizinha, ré e autora. O diretório omite a própria, e o
-  // mapa desenha as três vizinhas mais você. A Capital é losango, não círculo.
-  checar(circulos === 4, `desenha as três vizinhas e você (achou ${circulos} círculos)`)
+  // O seeder cria cinco colônias — e2e, vizinha, ré, autora e, desde o D-242, a aliada. O diretório
+  // omite a própria, e o mapa desenha as quatro vizinhas mais você. A Capital é losango, não círculo.
+  // ⚠️ O D-242 semeou a aliada e não atualizou esta conta: o e2e ficou vermelho de 09/09 a 07/10.
+  checar(circulos === 5, `desenha as quatro vizinhas e você (achou ${circulos} círculos)`)
 
   console.log('\nA vista abre em 15×15 na altura, centrada em você (D-64/D-156)')
   /*

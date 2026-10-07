@@ -31,6 +31,19 @@ class ComprarItem
             throw new DomainRuleException('item_desconhecido', "Item inexistente: {$itemKey}");
         }
 
+        /*
+         * D-249: a loja vende o que é da loja, e o que está liberado. Peça de escavação só se acha;
+         * peça de lote de evento só existe enquanto o evento valer — fora da janela, para quem
+         * chama a rota direto, ela não existe.
+         */
+        if (($item->origem ?? EnduranceItem::LOJA) !== EnduranceItem::LOJA) {
+            throw new DomainRuleException('item_nao_vendido', "«{$item->nome}» não se compra: só se acha escavando.");
+        }
+
+        if (! $item->liberadaEm(now())) {
+            throw new DomainRuleException('item_fora_da_janela', "«{$item->nome}» não está disponível agora.");
+        }
+
         if ($item->marco_minimo !== null) {
             app(ExigirMarco::class)->exigir($colony, $item->marco_minimo, "O item \"{$item->nome}\"");
         }

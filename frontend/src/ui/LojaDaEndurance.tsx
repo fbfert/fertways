@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import type { ReactNode } from 'react'
 import { carregarArte } from '../game/arte'
 import type { Arte } from '../game/arte'
 import type { EfeitoDoItemDaEndurance, ItemDaEndurance } from '../api/client'
@@ -41,12 +42,19 @@ export function LojaDaEndurance({
   dados,
   aoComprar,
   aoFechar,
+  escavacao,
 }: {
   secao: string
   nomeDaSecao: string
   dados: { meu_marco: number; itens: ItemDaEndurance[] }
   aoComprar: (itemKey: string) => Promise<void>
   aoFechar: () => void
+  /**
+   * D-249: o bloco da escavação, logo abaixo do cabeçalho da seção. Ele nascia ACIMA do cabeçalho,
+   * e a foto mostrou o que isso fazia: a escavação do Comando lia como coisa da tela inteira, e não
+   * do destroço que estava aberto.
+   */
+  escavacao?: ReactNode
 }) {
   const [arte, setArte] = useState<Arte>({})
   const [comprando, setComprando] = useState<string | null>(null)
@@ -84,6 +92,8 @@ export function LojaDaEndurance({
           ‹ Voltar ao mapa
         </button>
       </div>
+
+      {escavacao}
 
       {erro && <p className="text-rust text-sm font-bold">{erro}</p>}
 

@@ -157,19 +157,33 @@ export function EnduranceMapa({
                   className="bg-sand-light/90 text-ink-soft pointer-events-none px-1 text-[0.6rem] whitespace-nowrap"
                   data-destroco-conteudo={s.chave}
                   title={
-                    conteudo[s.chave].tem_unico
+                    (conteudo[s.chave].tem_unico
                       ? `${conteudo[s.chave].pecas} peças à venda, uma delas única`
-                      : `${conteudo[s.chave].pecas} peças à venda`
+                      : `${conteudo[s.chave].pecas} peças à venda`) +
+                    (conteudo[s.chave].a_escavar > 0
+                      ? `; ${conteudo[s.chave].a_escavar} tipo(s) de peça para achar escavando`
+                      : '')
                   }
                 >
-                  {conteudo[s.chave].pecas === 0 ? (
+                  {conteudo[s.chave].pecas === 0 && !conteudo[s.chave].a_escavar ? (
                     'esgotado'
                   ) : (
                     <>
-                      {conteudo[s.chave].pecas} peça{conteudo[s.chave].pecas > 1 ? 's' : ''}
+                      {conteudo[s.chave].pecas > 0 &&
+                        `${conteudo[s.chave].pecas} peça${conteudo[s.chave].pecas > 1 ? 's' : ''}`}
                       {conteudo[s.chave].tem_unico ? (
                         <span className="text-ember font-black"> ◈</span>
                       ) : null}
+                      {/*
+                       * D-249: o que ainda se acha escavando. Em PALAVRA, e não com "⛏": a foto
+                       * mostrou o símbolo virando um quadrado vazio — a fonte do jogo não o tem.
+                       */}
+                      {conteudo[s.chave].a_escavar > 0 && (
+                        <span data-destroco-escavar={s.chave}>
+                          {conteudo[s.chave].pecas > 0 ? ' · ' : ''}
+                          {conteudo[s.chave].a_escavar} a escavar
+                        </span>
+                      )}
                     </>
                   )}
                 </span>

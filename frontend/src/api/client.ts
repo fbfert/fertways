@@ -155,6 +155,20 @@ export type DestrocoNoMapa = {
   pecas: number
   tem_unico: boolean
   a_partir_de: number | null
+  /** D-249: quantos tipos de peça ainda se acham escavando aqui (zero com a escavação fechada). */
+  a_escavar: number
+}
+
+/** A escavação de uma seção da Endurance (D-249). A peça que a equipe vai achar nunca vem aqui. */
+export type EscavacaoDaSecao = {
+  ligada: boolean
+  duracao_minutos: number | null
+  custo_fert: number
+  custo: Record<string, number>
+  a_achar: number
+  tem_unico: boolean
+  em_andamento: { secao: string; secao_nome: string; termina_em: string } | null
+  ultima_achada: { nome: string; tipo: 'comum' | 'raro' | 'unico'; em: string | null } | null
 }
 
 export type ItemDaEndurance = {
@@ -1658,7 +1672,11 @@ export const api = {
       secao: string
       meu_marco: number
       itens: ItemDaEndurance[]
+      escavacao: EscavacaoDaSecao
     }>(`/endurance/secoes/${secao}`),
+
+  escavarNaEndurance: (secao: string) =>
+    req<{ secao: string; termina_em: string }>(`/endurance/secoes/${secao}/escavar`, { method: 'POST' }),
 
   comprarItemDaEndurance: (itemKey: string) =>
     req<{ item_key: string; quantidade: number }>(`/endurance/itens/${itemKey}/comprar`, { method: 'POST' }),
