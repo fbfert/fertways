@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Carbon\CarbonInterface;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -22,7 +23,7 @@ class GameEvent extends Model
     protected $fillable = [
         'slug', 'nome', 'descricao', 'mensagem_publica', 'notas_internas',
         'comeca_em', 'termina_em', 'status', 'cancelado_em',
-        'visibilidade', 'escopo', 'colony_id', 'gatilho',
+        'visibilidade', 'escopo', 'colony_id', 'federation_id', 'gatilho', 'sucede_event_id', 'condicoes',
         'modificador', 'efeito_bps', 'resource_type',
         'recompensas', 'missoes', 'segredo', 'versao', 'criado_por',
     ];
@@ -35,6 +36,7 @@ class GameEvent extends Model
         'efeito_bps' => 'integer',
         'recompensas' => 'array',
         'missoes' => 'array',
+        'condicoes' => 'array',
         'segredo' => 'boolean',
         'versao' => 'integer',
     ];
@@ -55,6 +57,45 @@ class GameEvent extends Model
     public function colony(): BelongsTo
     {
         return $this->belongsTo(Colony::class);
+    }
+
+    /** D-253: a federação do evento de escopo `federacao`. */
+    public function federation(): BelongsTo
+    {
+        return $this->belongsTo(Federation::class);
+    }
+
+    /** D-253: o evento que este rascunho sucede — ele se ativa quando aquele terminar. */
+    public function predecessor(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'sucede_event_id');
+    }
+
+    /**
+     * Os eventos que ALCANÇAM esta colônia — o escopo, num lugar só (D-253).
+     *
+     * ⚠️ Esta regra estava copiada em seis lugares (motor, faixa, avisos, resumo, missões, cesta), e
+     * o escopo `federacao` teria de entrar em cada cópia. É assim que uma delas fica para trás e um
+     * evento passa a valer no motor e a não aparecer na faixa. Agora as seis perguntam aqui.
+     *
+     * `$colonia` nulo pergunta só pelos eventos de mundo — é o que o motor faz para o Governo.
+     */
+    public function scopeAlcanca(Builder $q, ?Colony $colonia): Builder
+    {
+        return $q->where(function (Builder $q) use ($colonia) {
+            $q->where('escopo', 'mundo');
+
+            if ($colonia === null) {
+                return;
+            }
+
+            $q->orWhere(fn (Builder $c) => $c->where('escopo', 'colonia')->where('colony_id', $colonia->id));
+
+            if ($colonia->federation_id !== null) {
+                $q->orWhere(fn (Builder $f) => $f->where('escopo', 'federacao')
+                    ->where('federation_id', $colonia->federation_id));
+            }
+        });
     }
 
     /** Este evento entrega alguma coisa, ou só mexe numa taxa? */
@@ -103,6 +144,8 @@ class GameEvent extends Model
              * dela não devolve nada que o jogador possa correr para pegar.
              */
             'guerra_declaracao' => false,
+            // D-253: o campo de batalha não favorece "o jogador" — favorece um dos dois lados.
+            'combate_defesa' => false,
             default => false,
         };
     }
@@ -110,7 +153,9 @@ class GameEvent extends Model
     /** Está valendo agora? `cancelado` continua valendo para trás, nunca para a frente. */
     public function vigenteEm(CarbonInterface $quando): bool
     {
-        if ($this->status === 'rascunho') {
+        // D-253: só `ativo` e `cancelado` valem. Era `status === 'rascunho'`, e o estado novo
+        // (`armado`, que ainda não se ativou) teria passado por evento valendo.
+        if (! in_array($this->status, ['ativo', 'cancelado'], true)) {
             return false;
         }
 

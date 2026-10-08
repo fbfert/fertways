@@ -142,6 +142,11 @@ export function EventosDoMundo() {
         return junta(`crescimento da população ${pct}`)
       case 'territorio':
         return junta(`manutenção das zonas ${pct}`)
+      // D-253: diz QUEM o campo favorece — "defesa −30%" sozinho não diz se é bom ou ruim para você.
+      case 'combate_defesa':
+        return junta(
+          `defesa nos combates ${pct} (${(e.efeito ?? 0) >= 0 ? 'favorece quem defende' : 'favorece quem ataca'})`,
+        )
     }
   }
 

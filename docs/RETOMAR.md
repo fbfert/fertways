@@ -54,7 +54,7 @@ O que falta foi medido contra o código em 07/10, não lembrado:
 4. [x] **(D-250)** **Missões especiais / narrativas ligadas a evento** (`game_events.missoes` existe e não tem leitor).
 5. [x] **(D-251)** **Telemetria de retorno de quem foi saqueado ausente** (recomendada desde o D-202).
 6. [x] **(D-252)** **Observatório** — ⚠️ custo/tempo/vagas ancorados no Laboratório: arbitragem minha, a revisar (A2.3, ficou fora da primeira entrega).
-7. [ ] **O "Depois" do A2.8**: eventos de combate e de Federação, encadeados, condições compostas.
+7. [x] **(D-253, commit sem deploy)** **O "Depois" do A2.8**: eventos de combate e de Federação, encadeados, condições compostas.
 8. [ ] **GDD v41** cobrindo D-230 em diante, e a cópia em `frontend/public/gdd.html`.
 
 ⚠️ **A escavação está DESLIGADA em produção** (D-249): custo e duração são do operador e nascem

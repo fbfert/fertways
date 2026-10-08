@@ -13,6 +13,7 @@ use App\Domain\Admin\Suspender;
 use App\Domain\Chat\ContaSistema;
 use App\Domain\Chat\EnviarMensagem;
 use App\Domain\Endurance\EfeitosDaEndurance;
+use App\Domain\Eventos\CondicoesDoMundo;
 use App\Domain\Eventos\EntregarCestas;
 use App\Domain\Eventos\Modificadores;
 use App\Domain\Federacao\DissolverFederacao;
@@ -2090,12 +2091,55 @@ class AcoesController extends Controller
             'segredo' => ['nullable', 'boolean'],
             'cesta' => ['nullable', 'array'],
             'cesta.*' => ['nullable', 'numeric', 'min:0'],
+            // D-253: escopo de federação, e os dois gatilhos que se ativam sozinhos.
+            'federation_id' => ['nullable', 'integer', 'exists:federations,id'],
+            'sucede_event_id' => ['nullable', 'integer', 'exists:game_events,id'],
+            'condicao_modo' => ['nullable', Rule::in(['todas', 'qualquer'])],
+            'condicao_metrica' => ['nullable', 'array'],
+            'condicao_op' => ['nullable', 'array'],
+            'condicao_valor' => ['nullable', 'array'],
             // D-250: as missões especiais do evento — só moldes `eventuais`.
             'missoes' => ['nullable', 'array'],
             'missoes.*' => ['integer', Rule::exists('mission_templates', 'id')->where('categoria', 'eventuais')],
         ]);
 
         $missoes = array_values(array_unique(array_map('intval', $dados['missoes'] ?? [])));
+
+        /*
+         * D-253: as condições chegam como três listas paralelas (uma linha do formulário por regra).
+         * Linha sem métrica é linha em branco, e some; o resto passa pelo mesmo normalizador do
+         * `artisan`, para as duas portas recusarem as mesmas coisas.
+         */
+        $regras = [];
+        foreach (($dados['condicao_metrica'] ?? []) as $i => $metrica) {
+            if (($metrica ?? '') === '') {
+                continue;
+            }
+            $regras[] = ['metrica' => $metrica, 'op' => $dados['condicao_op'][$i] ?? '', 'valor' => $dados['condicao_valor'][$i] ?? ''];
+        }
+
+        $condicoes = null;
+        if ($regras !== []) {
+            try {
+                $condicoes = CondicoesDoMundo::normalizar($dados['condicao_modo'] ?? 'todas', $regras);
+            } catch (\InvalidArgumentException $e) {
+                throw ValidationException::withMessages(['condicao_metrica' => $e->getMessage()]);
+            }
+        }
+
+        $sucede = ($dados['sucede_event_id'] ?? null) ?: null;
+
+        if ($sucede && $condicoes) {
+            throw ValidationException::withMessages([
+                'sucede_event_id' => 'Um evento se ativa por corrente OU por condição. Escolha um.',
+            ]);
+        }
+
+        if (($dados['federation_id'] ?? null) && ($dados['colony_id'] ?? null)) {
+            throw ValidationException::withMessages([
+                'federation_id' => 'Escolha uma colônia OU uma federação, não as duas.',
+            ]);
+        }
 
         // `?? null` em tudo o que é opcional: um campo AUSENTE do formulário não aparece em
         // `validated()`, e só o nulo explícito aparece. As duas formas chegam aqui.
@@ -2147,7 +2191,9 @@ class AcoesController extends Controller
         $comeca = ($dados['comeca_em'] ?? null) ? Carbon::parse($dados['comeca_em']) : now();
         $colonia = $dados['colony_id'] ?? null;
 
-        return $this->tentar('evento.criar', function () use ($dados, $modificador, $cesta, $comeca, $colonia, $missoes) {
+        $federacao = ($dados['federation_id'] ?? null) ?: null;
+
+        return $this->tentar('evento.criar', function () use ($dados, $modificador, $cesta, $comeca, $colonia, $missoes, $federacao, $sucede, $condicoes) {
             GameEvent::updateOrCreate(['slug' => $dados['slug']], [
                 'nome' => $dados['nome'],
                 'mensagem_publica' => $dados['mensagem_publica'] ?? null,
@@ -2155,8 +2201,12 @@ class AcoesController extends Controller
                 'comeca_em' => $comeca,
                 'termina_em' => $comeca->copy()->addDays((int) $dados['dias']),
                 'visibilidade' => $dados['visibilidade'],
-                'escopo' => $colonia ? 'colonia' : 'mundo',
+                'escopo' => $colonia ? 'colonia' : ($federacao ? 'federacao' : 'mundo'),
                 'colony_id' => $colonia,
+                'federation_id' => $federacao,
+                'gatilho' => $condicoes ? 'condicao' : 'janela',
+                'sucede_event_id' => $sucede,
+                'condicoes' => $condicoes,
                 'modificador' => $modificador,
                 'efeito_bps' => $modificador === null ? null : (int) $dados['efeito_bps'],
                 'resource_type' => ($dados['resource_type'] ?? null) ?: null,
@@ -2198,6 +2248,32 @@ class AcoesController extends Controller
             return "Evento «{$evento->nome}» ATIVO."
                 .($n > 0 ? " Cesta entregue a {$n} colônia(s)." : '')
                 .($evento->modificador ? ' O modificador vale a partir de agora.' : '');
+        }, "evento:{$evento->slug}");
+    }
+
+    /**
+     * Arma um rascunho: ele vai ao ar sozinho, pela corrente ou pela condição (D-253).
+     *
+     * O segundo clique de propósito — a mesma guarda do "ativar". Recusa o que não teria o que o
+     * ativasse: armado sem corrente e sem condição ficaria parado para sempre, parecendo agendado.
+     */
+    public function eventoArmar(GameEvent $evento): RedirectResponse
+    {
+        if ($evento->status !== 'rascunho') {
+            return $this->erro("O evento «{$evento->nome}» não é rascunho — está {$evento->status}.");
+        }
+
+        if ($evento->sucede_event_id === null && $evento->gatilho !== 'condicao') {
+            return $this->erro("«{$evento->nome}» não sucede evento nenhum nem tem condição — use Ativar.");
+        }
+
+        return $this->tentar('evento.armar', function () use ($evento) {
+            $evento->update(['status' => 'armado']);
+
+            return "Evento «{$evento->nome}» ARMADO — "
+                .($evento->sucede_event_id
+                    ? 'vai ao ar quando «'.$evento->predecessor?->nome.'» terminar.'
+                    : 'vai ao ar na primeira passada em que as condições valerem.');
         }, "evento:{$evento->slug}");
     }
 

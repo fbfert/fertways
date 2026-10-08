@@ -3,6 +3,7 @@
 namespace App\Domain\GuerraFederativa;
 
 use App\Domain\Colony\Silo;
+use App\Domain\Eventos\Modificadores;
 use App\Domain\Guerra\Forcas;
 use App\Domain\Telemetria\RegistrarEvento;
 use App\Models\Colony;
@@ -86,6 +87,9 @@ class ResolverCercoDeColonia
 
             $fo = $this->forcas->ofensiva($combate);
             $fd = $defensores->sum(fn (Unit $u) => $u->defesa());
+
+            // D-253: o evento de combate, pela colônia cercada — a mesma regra de `Forcas::defensiva`.
+            $fd = intdiv($fd * app(Modificadores::class)->em($alvo, Modificadores::COMBATE_DEFESA, now()), 10_000);
 
             /*
              * §27.7: o defensor que não estava à mesa quando a marcha começou dá bônus ao atacante.

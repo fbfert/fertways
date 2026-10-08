@@ -36,11 +36,7 @@ class EventosController extends Controller
             ->whereIn('status', ['ativo', 'cancelado'])
             ->where('comeca_em', '<=', $agora)
             ->where('termina_em', '>=', $agora)
-            ->where(fn ($q) => $q->where('escopo', 'mundo')->when(
-                $colonia !== null,
-                fn ($q) => $q->orWhere(fn ($q2) => $q2->where('escopo', 'colonia')
-                    ->where('colony_id', $colonia->id)),
-            ))
+            ->alcanca($colonia)
             ->orderBy('comeca_em')
             ->get()
             ->filter(fn (GameEvent $e) => $e->vigenteEm($agora) && $e->visivelAoJogador());

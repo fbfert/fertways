@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Domain\Eventos\AtivarEventos;
 use App\Domain\Eventos\EntregarCestas;
 use App\Domain\Missoes\Atribuir;
 use App\Models\Colony;
@@ -32,10 +33,19 @@ class EntregarCestasDeEventos extends Command
 {
     protected $signature = 'fertways:eventos-entregar';
 
-    protected $description = 'Entrega as cestas e as missões dos eventos vigentes a quem ainda não recebeu';
+    protected $description = 'Ativa os eventos armados que chegaram a hora, e entrega cestas e missões dos vigentes';
 
-    public function handle(EntregarCestas $entregador, Atribuir $atribuir): int
+    public function handle(EntregarCestas $entregador, Atribuir $atribuir, AtivarEventos $ativador): int
     {
+        /*
+         * D-253: primeiro os que se ativam sozinhos (encadeados e por condição). Antes das cestas e
+         * das missões de propósito: um evento armado com cesta que se ativa nesta passada entrega
+         * nesta passada, e não cinco minutos depois.
+         */
+        foreach ($ativador->handle() as $slug) {
+            $this->info("«{$slug}» ativado sozinho (corrente ou condição).");
+        }
+
         /*
          * D-250: as missões dos eventos também saem daqui, de cinco em cinco minutos — um evento que
          * começa às 14h não pode esperar o comando diário das 07h05 para chegar a quem joga.

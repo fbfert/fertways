@@ -260,8 +260,7 @@ class Atribuir
             ->where('comeca_em', '<=', $agora)
             ->where('termina_em', '>', $agora)
             ->whereNull('cancelado_em')
-            ->where(fn ($q) => $q->where('escopo', 'mundo')
-                ->orWhere(fn ($c) => $c->where('escopo', 'colonia')->where('colony_id', $colony->id)))
+            ->alcanca($colony)
             ->get();
 
         $novas = 0;

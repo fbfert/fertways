@@ -215,10 +215,10 @@ class ResumoDeRetorno
     private function eventosTerminados(Colony $colonia, Carbon $desde, Carbon $ate): array
     {
         return GameEvent::query()
-            ->where('status', '!=', 'rascunho')
+            // D-253: `whereIn`, e não "diferente de rascunho" — um evento armado não valeu nada.
+            ->whereIn('status', ['ativo', 'cancelado'])
             ->where('comeca_em', '<=', $ate)
-            ->where(fn ($q) => $q->where('escopo', 'mundo')
-                ->orWhere(fn ($q2) => $q2->where('escopo', 'colonia')->where('colony_id', $colonia->id)))
+            ->alcanca($colonia)
             ->orderBy('termina_em')
             ->get()
             ->filter(function (GameEvent $e) use ($desde, $ate) {

@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Domain\Eventos\CondicoesDoMundo;
 use App\Domain\Eventos\EntregarCestas;
 use App\Domain\Eventos\Modificadores;
 use App\Domain\Logistics\RequisitosDeOcupacao;
@@ -9,6 +10,7 @@ use App\Domain\Marco\Curva;
 use App\Domain\Missoes\Atribuir;
 use App\Domain\Populacao\Parametros;
 use App\Models\Colony;
+use App\Models\Federation;
 use App\Models\GameEvent;
 use App\Models\MissionTemplate;
 use App\Models\NeutralZone;
@@ -67,6 +69,12 @@ class Evento extends Command
         {--cesta= : o presente, "recurso:qtd,recurso:qtd" — use __fert__ para Fert$ (em Fert$, não micro)}
         {--recurso= : limita a um recurso (padrão: todos)}
         {--colonia= : limita a uma colônia, por id — o dry-run em escala de um}
+        {--federacao= : limita às colônias de uma federação, por id (D-253)}
+        {--combate-defesa= : a força defensiva dos combates, em bps (+ favorece quem defende) (D-253)}
+        {--sucede= : slug do evento que este SUCEDE — ativa-se quando aquele terminar (exige --armar)}
+        {--condicao= : regras "metrica>=valor;metrica<valor" — ativa-se quando valerem (exige --armar)}
+        {--modo=todas : todas|qualquer — como as regras da --condicao se combinam}
+        {--armar : grava ARMADO: vai ao ar sozinho pela corrente ou pela condição}
         {--horas=24 : duração}
         {--comeca-em= : início (padrão: agora)}
         {--visibilidade=anunciado : anunciado|parcial|secreto}
@@ -118,6 +126,7 @@ class Evento extends Command
             'pesquisa' => Modificadores::PESQUISA,
             'populacao' => Modificadores::POPULACAO,
             'territorio' => Modificadores::TERRITORIO,
+            'combate-defesa' => Modificadores::COMBATE_DEFESA,
         ];
 
         $escolhidos = [];
@@ -215,6 +224,75 @@ class Evento extends Command
             }
         }
 
+        /*
+         * D-253: escopo de federação, e os dois gatilhos que se ativam sozinhos.
+         */
+        $federacao = null;
+
+        if (($fid = $this->option('federacao')) !== null && $fid !== '') {
+            $federacao = Federation::find((int) $fid);
+
+            if (! $federacao || $colonia) {
+                $this->error($colonia ? 'Escolha --colonia OU --federacao, não os dois.' : "Federação {$fid} não existe.");
+
+                return self::FAILURE;
+            }
+        }
+
+        $sucede = null;
+
+        if (($s = $this->option('sucede')) !== null && $s !== '') {
+            $sucede = GameEvent::where('slug', $s)->first();
+
+            if (! $sucede || $sucede->slug === $slug) {
+                $this->error("«{$s}» não existe, ou é este mesmo evento.");
+
+                return self::FAILURE;
+            }
+        }
+
+        $condicoes = null;
+
+        if (($txt = $this->option('condicao')) !== null && $txt !== '') {
+            try {
+                $regras = array_map(function ($r) {
+                    if (! preg_match('/^\s*([a-z0-9_]+)\s*(>=|<=|>|<|=)\s*(\d+)\s*$/', $r, $m)) {
+                        throw new \InvalidArgumentException("Regra mal formada: «{$r}» (use metrica>=valor).");
+                    }
+
+                    return ['metrica' => $m[1], 'op' => $m[2], 'valor' => (int) $m[3]];
+                }, array_filter(explode(';', $txt)));
+
+                $condicoes = CondicoesDoMundo::normalizar((string) $this->option('modo'), $regras);
+            } catch (\InvalidArgumentException $e) {
+                $this->error($e->getMessage());
+
+                return self::FAILURE;
+            }
+        }
+
+        if ($sucede && $condicoes) {
+            $this->error('Um evento se ativa por corrente OU por condição. Escolha um.');
+
+            return self::FAILURE;
+        }
+
+        if ($this->option('armar') && ! $sucede && ! $condicoes) {
+            $this->error('--armar sem --sucede nem --condicao: não haveria o que o ativasse. Use --ativar.');
+
+            return self::FAILURE;
+        }
+
+        if (($sucede || $condicoes) && ! $this->option('armar')) {
+            $this->warn('Gravado como RASCUNHO: a corrente e a condição só valem com --armar.');
+        }
+
+        if ($this->option('armar') && $this->option('ativar')) {
+            $this->error('--armar e --ativar juntos não fazem sentido: armado é o que AINDA não foi ao ar.');
+
+            return self::FAILURE;
+        }
+
         $comeca = ($v = $this->option('comeca-em')) ? Carbon::parse($v) : now();
         $termina = $comeca->copy()->addHours(max(1, (int) $this->option('horas')));
 
@@ -226,22 +304,35 @@ class Evento extends Command
             'comeca_em' => $comeca,
             'termina_em' => $termina,
             'visibilidade' => (string) $this->option('visibilidade'),
-            'escopo' => $colonia ? 'colonia' : 'mundo',
+            'escopo' => $colonia ? 'colonia' : ($federacao ? 'federacao' : 'mundo'),
             'colony_id' => $colonia?->id,
+            'federation_id' => $federacao?->id,
+            'gatilho' => $condicoes ? 'condicao' : 'janela',
+            'sucede_event_id' => $sucede?->id,
+            'condicoes' => $condicoes,
             'modificador' => $modificador,
             'efeito_bps' => $efeito,
             'recompensas' => $cesta ?: null,
             'missoes' => $missoes ?: null,
             'resource_type' => $recurso ?: null,
             'segredo' => (bool) $this->option('segredo'),
-            'status' => $this->option('ativar') ? 'ativo' : 'rascunho',
+            'status' => match (true) {
+                (bool) $this->option('ativar') => 'ativo',
+                (bool) $this->option('armar') => 'armado',
+                default => 'rascunho',
+            },
             // Auditoria (§Segurança): quem rodou o comando, pelo usuário do sistema.
             'criado_por' => get_current_user(),
         ];
 
         $this->preview($dados, $colonia);
 
-        if (! $this->option('ativar')) {
+        if ($this->option('armar')) {
+            $this->newLine();
+            $this->info($sucede
+                ? "✔ ARMADO: vai ao ar quando «{$sucede->slug}» terminar, com a mesma duração."
+                : '✔ ARMADO: vai ao ar na primeira passada (5 min) em que as condições valerem.');
+        } elseif (! $this->option('ativar')) {
             $this->newLine();
             $this->warn('Nada foi ativado. Rode de novo com --ativar.');
             $this->line('(A linha é gravada como RASCUNHO, e rascunho não vale nada no mundo.)');
@@ -345,10 +436,28 @@ class Evento extends Command
                 $pontual ? '' : ' em '.($d['resource_type'] ?? 'TODOS os recursos'),
                 $horas, $d['comeca_em']->format('d/m H:i'),
             ));
-        $this->line('  escopo: '.($colonia ? "colônia {$colonia->id} ({$colonia->name})" : 'MUNDO'));
+        $this->line('  escopo: '.match (true) {
+            $colonia !== null => "colônia {$colonia->id} ({$colonia->name})",
+            ($d['federation_id'] ?? null) !== null => 'FEDERAÇÃO '.$d['federation_id'],
+            default => 'MUNDO',
+        });
+
+        if (($d['condicoes'] ?? null) !== null) {
+            $medidas = app(CondicoesDoMundo::class)->medir();
+            $this->line('  gatilho: condição ('.$d['condicoes']['modo'].' as regras):');
+
+            foreach ($d['condicoes']['regras'] as $r) {
+                // A conta que o operador precisa ver: a regra, e quanto o mundo mede HOJE.
+                $this->line(sprintf('    %s %s %d   (hoje: %d)', $r['metrica'], $r['op'], $r['valor'], $medidas[$r['metrica']]));
+            }
+        }
         $this->line('  visibilidade: '.$d['visibilidade'].($d['segredo'] ? ' · SEGREDO' : ''));
 
-        $atingidas = $colonia ? 1 : Colony::count();
+        $atingidas = match (true) {
+            $colonia !== null => 1,
+            ($d['federation_id'] ?? null) !== null => Colony::where('federation_id', $d['federation_id'])->count(),
+            default => Colony::count(),
+        };
         $this->newLine();
         $this->line("  atinge {$atingidas} colônia(s)");
 
@@ -411,6 +520,12 @@ class Evento extends Command
                 '  a alíquota de %s passa de %.2f%% a %.2f%%; vale na CHEGADA da carga e na venda',
                 $tipo->code, $tipo->tax_bps / 100,
                 app(Modificadores::class)->aplicar((int) $tipo->tax_bps, max(0, 10_000 + $d['efeito_bps'])) / 100,
+            ));
+        } elseif ($d['modificador'] === Modificadores::COMBATE_DEFESA) {
+            $this->line(sprintf(
+                '  a defesa nos combates passa a %d%% do normal (%s)',
+                max(0, 10_000 + $d['efeito_bps']) / 100,
+                $d['efeito_bps'] >= 0 ? 'favorece quem defende' : 'favorece quem ataca',
             ));
         } elseif ($d['modificador'] === Modificadores::TERRITORIO) {
             $this->line(sprintf(

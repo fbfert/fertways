@@ -105,11 +105,21 @@ class Modificadores
     /** O custo da manutenção territorial (§27.12), em bps — medido no instante da cobrança diária. */
     public const TERRITORIO = 'territorio';
 
+    /**
+     * A força DEFENSIVA de um combate, em bps (D-253 — o "combate" do "Depois" da A2.8).
+     *
+     * Um só modificador, e nos dois sentidos: positivo favorece quem defende (uma tempestade que
+     * cobre as muralhas), negativo favorece quem ataca (um apagão que derruba os sensores). Medido no
+     * instante da rodada, pela colônia que DEFENDE — é a defesa dela que o evento mexe.
+     */
+    public const COMBATE_DEFESA = 'combate_defesa';
+
     /** A lista canônica. A coluna deixou de ser `enum` para a verdade morar num lugar só. */
     public const TODOS = [
         self::PRODUCAO, self::CONSUMO, self::GUERRA_DECLARACAO, self::GUERRA_CUSTO,
         self::OCUPACAO_MARCO, self::OCUPACAO_POPULACAO,
         self::TAXA, self::LOGISTICA, self::CONSTRUCAO, self::PESQUISA, self::POPULACAO, self::TERRITORIO,
+        self::COMBATE_DEFESA,
     ];
 
     /**
@@ -147,6 +157,8 @@ class Modificadores
          * já prometeu ao jogador.
          */
         self::TAXA, self::LOGISTICA, self::CONSTRUCAO, self::PESQUISA, self::TERRITORIO,
+        // Uma rodada de combate acontece num instante; "meio favorecida" não é um estado.
+        self::COMBATE_DEFESA,
     ];
 
     /**
@@ -274,11 +286,7 @@ class Modificadores
                 $recurso !== null,
                 fn ($q) => $q->orWhere('resource_type', $recurso),
             ))
-            ->where(fn ($q) => $q->where('escopo', 'mundo')->when(
-                $colonia !== null,
-                fn ($q) => $q->orWhere(fn ($q2) => $q2->where('escopo', 'colonia')
-                    ->where('colony_id', $colonia->id)),
-            ))
+            ->alcanca($colonia)
             ->get();
     }
 

@@ -10,6 +10,7 @@ use App\Domain\Chat\ContaSistema;
 use App\Domain\Colony\KitInicial;
 use App\Domain\Drone\DroneSpecs;
 use App\Domain\Endurance\EfeitosDaEndurance;
+use App\Domain\Eventos\CondicoesDoMundo;
 use App\Domain\Eventos\EntregarCestas;
 use App\Domain\Eventos\Modificadores;
 use App\Domain\Frete\Garagem;
@@ -1123,13 +1124,15 @@ class PainelController extends Controller
     {
         $agora = now();
 
-        $eventos = GameEvent::with('colony')
+        $eventos = GameEvent::with(['colony', 'federation', 'predecessor'])
             ->withCount('entregas')
             ->orderByDesc('comeca_em')
             ->get();
 
         return view('admin.eventos', [
             'rascunhos' => $eventos->where('status', 'rascunho')->values(),
+            // D-253: os armados — esperando a corrente ou a condição para se ativarem sozinhos.
+            'armados' => $eventos->where('status', 'armado')->values(),
             /*
              * "Vivos" é `vigenteEm()`, não `status = ativo`: um evento ativo cuja janela ainda não
              * abriu não está mexendo em nada, e mostrá-lo como vigente faria o operador procurar no
@@ -1137,11 +1140,17 @@ class PainelController extends Controller
              */
             'vivos' => $eventos->filter(fn (GameEvent $e) => $e->vigenteEm($agora))->values(),
             'encerrados' => $eventos
-                ->filter(fn (GameEvent $e) => $e->status !== 'rascunho' && ! $e->vigenteEm($agora))
+                ->filter(fn (GameEvent $e) => in_array($e->status, ['ativo', 'cancelado'], true) && ! $e->vigenteEm($agora))
                 ->values(),
 
             'modificadores' => Modificadores::TODOS,
             'pontuais' => Modificadores::PONTUAIS,
+            // D-253: escopo de federação, corrente e condição.
+            'federacoes' => Federation::orderBy('name')->get(['id', 'name']),
+            'sucediveis' => $eventos->filter(fn (GameEvent $e) => in_array($e->status, ['ativo', 'armado', 'rascunho'], true)
+                && $e->termina_em->isFuture())->values(),
+            'metricas' => CondicoesDoMundo::METRICAS,
+            'medidas' => app(CondicoesDoMundo::class)->medir(),
             // D-250: os moldes que um evento pode trazer — só `eventuais` (o sorteio nunca os olha).
             'moldesEventuais' => MissionTemplate::where('categoria', 'eventuais')
                 ->where('ativa', true)->orderBy('titulo')->get(['id', 'chave', 'titulo', 'meta', 'acao']),

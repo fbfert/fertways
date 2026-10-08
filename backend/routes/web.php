@@ -162,6 +162,7 @@ Route::prefix('admin')->group(function () {
             Route::get('/eventos', [PainelController::class, 'eventos'])->name('admin.eventos');
             Route::post('/eventos', [AcoesController::class, 'eventoCriar'])->name('admin.evento.criar');
             Route::post('/eventos/{evento}/ativar', [AcoesController::class, 'eventoAtivar'])->name('admin.evento.ativar');
+            Route::post('/eventos/{evento}/armar', [AcoesController::class, 'eventoArmar'])->name('admin.evento.armar');
             Route::post('/eventos/{evento}/cancelar', [AcoesController::class, 'eventoCancelar'])->name('admin.evento.cancelar');
             Route::post('/eventos/{evento}/entregar', [AcoesController::class, 'eventoEntregar'])->name('admin.evento.entregar');
 

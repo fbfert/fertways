@@ -2,6 +2,8 @@
 
 namespace App\Domain\Guerra;
 
+use App\Domain\Eventos\Modificadores;
+use App\Models\Colony;
 use App\Models\Combat;
 use App\Models\NeutralZone;
 use App\Models\Unit;
@@ -71,7 +73,14 @@ class Forcas
             $bonus += Combat::OFFLINE_BPS;
         }
 
-        return intdiv($base * $bonus, self::CHEIO);
+        // D-253: o evento de combate mexe na defesa INTEIRA, depois de muralha e ausência — é o
+        // campo de batalha que muda, e não um bônus a mais na pilha. Pela colônia dona da zona.
+        $evento = app(Modificadores::class)->em(
+            $zona->owner_colony_id !== null ? Colony::find($zona->owner_colony_id) : null,
+            Modificadores::COMBATE_DEFESA, now(),
+        );
+
+        return intdiv(intdiv($base * $bonus, self::CHEIO) * $evento, self::CHEIO);
     }
 
     /**

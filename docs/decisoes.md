@@ -14129,3 +14129,26 @@ de "inerte se anuncia inerte" é feita na Antena, que é inerte.
 A tela de Pesquisa diz quantas vagas vêm do Observatório — sem isso ele somaria e ninguém saberia por quê.
 
 1378 testes verdes, 10 suítes e2e verdes, migration exercitada nos dois sentidos no MariaDB.
+
+---
+
+## D-253 — O "Depois" da A2.8: combate, Federação, corrente e condição
+
+**Data:** 2026-10-07 · **Status:** entregue (commit; deploy pendente)
+
+O item 7 da lista. Nenhum número de jogo: o valor de cada evento é do operador.
+
+- **Combate:** `combate_defesa`, pontual, multiplica a força defensiva no instante da rodada, pela
+  colônia que defende (zona e cerco de colônia). Positivo favorece quem defende; negativo, quem ataca.
+- **Federação:** escopo `federacao` + `federation_id`. A regra de escopo estava copiada em seis lugares
+  (motor, faixa, avisos, resumo, missões, cesta); agora todos perguntam a `GameEvent::alcanca()`.
+- **Encadeados:** `sucede_event_id`. O elo seguinte vai ao ar quando o anterior TERMINA, começando no
+  fim dele e com a duração escrita. Cancelar o anterior quebra a corrente.
+- **Condições compostas:** `gatilho = condicao` + `condicoes` (`todas`/`qualquer`, um nível) sobre um
+  catálogo fechado de métricas do mundo (`CondicoesDoMundo`).
+- **Estado `armado`:** só o armado se ativa sozinho; rascunho continua nunca se ativando (D-232).
+  `vigenteEm()` e dois leitores que tratavam "não-rascunho" como vivo foram corrigidos.
+- `evento_global`, declarado desde a A2.0 sem emissor, passa a registrar cada ativação automática.
+
+Migration: `escopo` e `status` deixam de ser `enum`; exercitada nos dois sentidos no MariaDB.
+1395 testes verdes, 10 suítes e2e verdes.

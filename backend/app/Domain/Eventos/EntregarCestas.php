@@ -104,6 +104,8 @@ class EntregarCestas
          */
         $destinos = Colony::query()
             ->when($evento->escopo === 'colonia', fn ($q) => $q->whereKey($evento->colony_id))
+            // D-253: o de federação entrega a quem é dela no momento da entrega.
+            ->when($evento->escopo === 'federacao', fn ($q) => $q->where('federation_id', $evento->federation_id))
             ->whereNotIn('id', $jaReceberam)
             ->orderBy('id')
             ->get();

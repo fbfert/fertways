@@ -674,6 +674,8 @@ export type EventoDoMundo = {
     | 'pesquisa'
     | 'populacao'
     | 'territorio'
+    // D-253: o "combate" do "Depois" da A2.8.
+    | 'combate_defesa'
     | null
   /** Em porcentagem, com sinal. **Nulo** num evento que só entrega cesta: ele não mexe em taxa. */
   efeito?: number | null

@@ -22,6 +22,8 @@
         "pesquisa" => "Pesquisa (duração)",
         "populacao" => "População (crescimento)",
         "territorio" => "Território (manutenção das zonas)",
+        // D-253: o "combate" do "Depois" da A2.8.
+        "combate_defesa" => "Combate (força defensiva)",
     ];
 
     $leitura = function ($e) use ($ocupacao) {
@@ -50,6 +52,7 @@
                 . rtrim(rtrim(number_format(10 * $mult / 10000, 2, ",", ""), "0"), ",") . " h",
             "populacao" => "o crescimento passa a " . ($mult / 100) . "% do normal",
             "territorio" => "a manutenção diária passa a " . ($mult / 100) . "% do normal",
+            "combate_defesa" => "a defesa vale " . ($mult / 100) . "% — " . ((int) $e->efeito_bps >= 0 ? "favorece quem defende" : "favorece quem ataca"),
             default => "uma taxa de 200/h vira " . intdiv(200 * $mult, 10000) . "/h",
         };
     };
@@ -136,7 +139,7 @@
                     {{ $e->modificador ? $rotulo[$e->modificador] ?? $e->modificador : "Sem modificador" }}
                     — <b>{{ $leitura($e) }}</b>
                     @if ($e->resource_type) · só {{ $e->resource_type }} @endif
-                    · {{ $e->escopo === "colonia" ? "colônia " . ($e->colony?->name ?? $e->colony_id) : "MUNDO" }}
+                    · {{ $e->escopo === "colonia" ? "colônia " . ($e->colony?->name ?? $e->colony_id) : ($e->escopo === "federacao" ? "federação " . ($e->federation?->name ?? $e->federation_id) : "MUNDO") }}
                     · até {{ $quando($e->termina_em) }}
                 </div>
                 @if ($e->temCesta())
@@ -185,7 +188,7 @@
                 <div class="mut pequeno" style="margin-top:3px">
                     {{ $e->modificador ? $rotulo[$e->modificador] ?? $e->modificador : "Sem modificador" }}
                     — <b>{{ $leitura($e) }}</b>
-                    · {{ $e->escopo === "colonia" ? "colônia " . ($e->colony?->name ?? $e->colony_id) : "MUNDO" }}
+                    · {{ $e->escopo === "colonia" ? "colônia " . ($e->colony?->name ?? $e->colony_id) : ($e->escopo === "federacao" ? "federação " . ($e->federation?->name ?? $e->federation_id) : "MUNDO") }}
                     · {{ $quando($e->comeca_em) }} → {{ $quando($e->termina_em) }}
                 </div>
                 @if ($e->temCesta())
@@ -196,13 +199,48 @@
                         @endforeach
                     </div>
                 @endif
-                <form method="POST" action="{{ route('admin.evento.ativar', $e) }}" style="margin-top:6px"
+                <form method="POST" action="{{ route('admin.evento.ativar', $e) }}" style="margin-top:6px;display:inline"
                       onsubmit="return confirm('Ativar «{{ $e->nome }}»? Passa a valer no mundo{{ $e->temCesta() ? ', e a cesta sai agora' : '' }}.')">
                     @csrf<button class="pequeno">Ativar</button>
                 </form>
+                @if ($e->sucede_event_id || $e->gatilho === "condicao")
+                    {{-- D-253: o segundo clique que deixa o evento ir ao ar sozinho. --}}
+                    <form method="POST" action="{{ route('admin.evento.armar', $e) }}" style="margin-top:6px;display:inline"
+                          onsubmit="return confirm('Armar «{{ $e->nome }}»? Ele vai ao ar SOZINHO quando {{ $e->sucede_event_id ? 'o anterior terminar' : 'as condições valerem' }}.')">
+                        @csrf<button class="pequeno">Armar</button>
+                    </form>
+                    <span class="mut pequeno">
+                        {{ $e->sucede_event_id ? "sucede «" . ($e->predecessor?->nome ?? "?") . "»" : "condição: " . collect($e->condicoes["regras"] ?? [])->map(fn ($r) => "{$r['metrica']} {$r['op']} {$r['valor']}")->implode($e->condicoes["modo"] === "qualquer" ? " OU " : " E ") }}
+                    </span>
+                @endif
             </div>
         @empty
             <p class="mut pequeno">Nenhum rascunho.</p>
+        @endforelse
+    </div>
+
+    {{-- ── Armados (D-253) ── --}}
+    <h2 class="secao">Armados ({{ $armados->count() }})</h2>
+    <div class="cartao" data-eventos-armados>
+        <p class="mut pequeno">
+            Vão ao ar <b>sozinhos</b>, na passada de 5 em 5 minutos: o encadeado quando o anterior
+            <b>terminar</b> (cancelar o anterior quebra a corrente), o por condição quando as regras
+            valerem. A duração é a que foi escrita; a janela recomeça no instante da ativação.
+        </p>
+        @forelse ($armados as $e)
+            <div class="pequeno" style="padding:5px 0;border-bottom:1px solid rgba(180,69,11,.08)">
+                <b>{{ $e->nome }}</b> <span class="mut">({{ $e->slug }})</span> ·
+                {{ $e->sucede_event_id
+                    ? "quando «" . ($e->predecessor?->nome ?? "?") . "» terminar"
+                    : "quando " . collect($e->condicoes["regras"] ?? [])->map(fn ($r) => ($metricas[$r['metrica']] ?? $r['metrica']) . " {$r['op']} {$r['valor']} (hoje " . ($medidas[$r['metrica']] ?? "?") . ")")->implode($e->condicoes["modo"] === "qualquer" ? " OU " : " E ") }}
+                · {{ $leitura($e) }}
+                <form method="POST" action="{{ route('admin.evento.cancelar', $e) }}" style="display:inline"
+                      onsubmit="return confirm('Cancelar «{{ $e->nome }}»? Ele não irá mais ao ar.')">
+                    @csrf<button class="pequeno">Cancelar</button>
+                </form>
+            </div>
+        @empty
+            <p class="mut pequeno">Nenhum evento armado.</p>
         @endforelse
     </div>
 
@@ -289,6 +327,13 @@
                         @foreach ($colonias as $c)<option value="{{ $c->id }}">{{ $c->name }}</option>@endforeach
                     </select>
                 </div>
+                <div style="flex:0">
+                    <label>Só uma federação (D-253)</label>
+                    <select name="federation_id">
+                        <option value="">—</option>
+                        @foreach ($federacoes as $f)<option value="{{ $f->id }}">{{ $f->name }}</option>@endforeach
+                    </select>
+                </div>
                 <div style="flex:0;align-self:flex-end;padding-bottom:6px">
                     <label style="white-space:nowrap">
                         <input type="checkbox" name="segredo" value="1"> segredo (nem o nome aparece)
@@ -323,6 +368,39 @@
                     @endforeach
                 </table>
             </div>
+
+            {{-- D-253: os dois gatilhos que levam o evento ao ar sozinho — exigem ARMAR depois. --}}
+            <h3 class="pequeno" style="margin:14px 0 4px">Ir ao ar sozinho (opcional — exige «Armar» depois)</h3>
+            <div class="linha-form">
+                <div>
+                    <label>Sucede o evento… (vai ao ar quando ele TERMINAR)</label>
+                    <select name="sucede_event_id">
+                        <option value="">—</option>
+                        @foreach ($sucediveis as $ev)<option value="{{ $ev->id }}">{{ $ev->nome }} ({{ $ev->status }})</option>@endforeach
+                    </select>
+                </div>
+                <div style="flex:0">
+                    <label>…ou quando valerem</label>
+                    <select name="condicao_modo">
+                        <option value="todas">todas as regras (E)</option>
+                        <option value="qualquer">qualquer regra (OU)</option>
+                    </select>
+                </div>
+            </div>
+            @for ($i = 0; $i < 3; $i++)
+                <div class="linha-form" style="margin-top:4px">
+                    <div>
+                        <select name="condicao_metrica[]">
+                            <option value="">— regra {{ $i + 1 }} —</option>
+                            @foreach ($metricas as $k => $nome)<option value="{{ $k }}">{{ $nome }} (hoje {{ $medidas[$k] }})</option>@endforeach
+                        </select>
+                    </div>
+                    <div style="flex:0">
+                        <select name="condicao_op[]">@foreach (["&gt;=", "&lt;=", "&gt;", "&lt;", "="] as $op)<option value="{!! html_entity_decode($op) !!}">{!! $op !!}</option>@endforeach</select>
+                    </div>
+                    <div style="flex:0"><input type="number" name="condicao_valor[]" min="0" style="width:100px"></div>
+                </div>
+            @endfor
 
             {{-- D-250: as missões especiais que o evento traz. --}}
             <h3 class="pequeno" style="margin:14px 0 4px">Missões especiais (opcional)</h3>
