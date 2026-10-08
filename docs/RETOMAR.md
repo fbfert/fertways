@@ -57,6 +57,14 @@ O que falta foi medido contra o código em 07/10, não lembrado:
 7. [x] **(D-253, commit sem deploy)** **O "Depois" do A2.8**: eventos de combate e de Federação, encadeados, condições compostas.
 8. [ ] **GDD v41** cobrindo D-230 em diante, e a cópia em `frontend/public/gdd.html`.
 
+**PAUSA em 07/10, pedida pelo usuário.** Ponto exato de parada:
+- o **D-253 está commitado e no GitHub, mas NÃO publicado** — o usuário pediu só commit e push. A
+  migration dele troca `escopo` e `status` de `game_events` de enum para string (exercitada nos dois
+  sentidos no `fertwaysdev`). Próximo passo: `sudo ./tools/deploy.sh`, e conferir a migration DONE;
+- depois, o **item 8 (GDD v41)**, o último da lista;
+- e duas coisas que esperam o usuário: revisar a âncora do Observatório no Laboratório (D-252) e
+  ligar a escavação com os números dele (D-249).
+
 ⚠️ **A escavação está DESLIGADA em produção** (D-249): custo e duração são do operador e nascem
 vazios. Liga-se em `/central/admin/endurance`, no cartão do topo — e só há o que achar depois de
 marcar peças com origem «escavação».
