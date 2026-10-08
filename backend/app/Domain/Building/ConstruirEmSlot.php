@@ -42,6 +42,12 @@ class ConstruirEmSlot
             );
         }
 
+        // D-252: o Observatório amplia a pesquisa, e sem Laboratório não há pesquisa a ampliar.
+        if ($tipo === 'observatorio'
+            && ! $colony->buildings()->where('type', 'laboratorio')->where('level', '>=', 1)->exists()) {
+            throw new DomainRuleException('exige_laboratorio', 'O Observatório só se ergue com o Laboratório de pé.');
+        }
+
         Slots::exigirEscolhivel($slot);
 
         return DB::transaction(function () use ($colony, $tipo, $slot) {

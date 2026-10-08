@@ -14073,3 +14073,59 @@ jogador bastam. O painel de métricas ganha o cartão **"Quem foi saqueado ausen
 Hoje o número é vazio: **0 combates desde sempre**. O indicador está pronto para o primeiro.
 
 1376 testes verdes.
+
+---
+
+## D-252 — O Observatório entra no jogo, e quatro construções que a tela dizia inertes
+
+**Data:** 2026-10-07 · **Status:** entregue — ⚠️ **com uma arbitragem minha para o usuário revisar**
+
+O item 6 da lista. O `GDD_ALPHA2` §7.2 é categórico: *"O Observatório **entra no jogo**, mas não na
+primeira entrega de Pesquisa"*, e deixa o porquê da espera — *"decisão de slot, arte e especificação
+próprias"*. A A2.3 preparou o encaixe: `Vagas::fontes()` devolve um mapa, *"o Observatório entraria
+aqui, com uma linha"*, e um teste guardava a forma.
+
+### As três pendências que o §7.2 nomeia
+
+- **Slot:** ocupa um slot da colmeia, como qualquer construção de progressão. Único, como o
+  Laboratório. **É esse o custo de verdade dele** — o slot é o recurso escasso que o §7.2 cita.
+- **Especificação:** ⚠️ **é aqui que está a arbitragem.** Nenhum documento publica custo, tempo,
+  energia ou quantas vagas ele dá. Em vez de inventar, ancorei tudo no parente mais próximo:
+  - custo, tempo e energia por nível **= os do Laboratório**, nível a nível;
+  - vagas **na mesma razão do Laboratório** (`vagas_por_niveis_de_laboratorio`, o parâmetro do
+    painel), **sem a base** — a base é de quem abre a árvore;
+  - o **teto** (`vagas_teto`) vale para a soma: duas fontes não furam o teto, que é o que o D-168
+    defendia ("vaga infinita mata o ponto da fase");
+  - só se ergue **com o Laboratório de pé** — sem pesquisa não há o que ampliar.
+  Os números de custo e tempo se ajustam no painel de Construções, sem deploy. **Se o usuário
+  quiser outra âncora, é uma linha de JSON e uma migration.**
+- **Arte:** não há. O jogo desenha o hexágono vazio, como faz com toda construção sem imagem — vai
+  para a lista de encomendas ao artista, junto das ~10 entidades que já esperam.
+
+**Migration, e não seeder**, para os dados de produção: o `deploy.sh` não roda seeder, e re-rodar o
+`BuildingSpecSeeder` reescreveria a especificação de todos os prédios. A migration insere só as cinco
+linhas do Observatório, lidas do mesmo JSON — uma fonte só para os números.
+
+### ⚠️ De passagem: a tela anunciava quatro construções como "efeito ainda não implementado"
+
+Fui escrever a função do Observatório em `Funcoes.php` e o Laboratório, logo acima, dizia *"o efeito
+não existe"*. A tela de construção imprime isso como **"efeito ainda não implementado"** debaixo do
+nome. Conferido um a um contra o código:
+
+| construção | a tela dizia | a verdade | desde |
+|---|---|---|---|
+| Estrutura de Sobrevivência | sem efeito | é o teto habitacional | A2.2 |
+| Laboratório | sem efeito | abre a árvore de pesquisa | A2.3 |
+| Torre de Defesa | "não há o que defender (§01)" | corta o saque do cerco de colônia | D-203 |
+| Tanque de Combustível | "guardar mais não faz diferença" | **sem ele a Destilaria não converte** | D-131 |
+
+O último é o pior: um jogador que lesse "efeito ainda não implementado" no Tanque não o ergueria, e
+a Destilaria dele ficaria parada sem explicação. Antena e Plataforma seguem inertes de verdade.
+
+E um teste (`SlotsDaColoniaTest`) **fixava a mentira** — afirmava que o Laboratório não faz nada. É o
+falso-verde de sempre com outro rosto: o teste guardava a frase, não a verdade. Agora a conferência
+de "inerte se anuncia inerte" é feita na Antena, que é inerte.
+
+A tela de Pesquisa diz quantas vagas vêm do Observatório — sem isso ele somaria e ninguém saberia por quê.
+
+1378 testes verdes, 10 suítes e2e verdes, migration exercitada nos dois sentidos no MariaDB.

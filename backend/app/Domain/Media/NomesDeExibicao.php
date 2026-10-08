@@ -44,6 +44,7 @@ class NomesDeExibicao
             'oficina' => 'Oficina',
             'refinaria_quimica' => 'Refinaria Química',
             'laboratorio' => 'Laboratório',
+            'observatorio' => 'Observatório',
             'antena_de_comunicacao' => 'Antena de Comunicação',
             'torre_de_defesa' => 'Torre de Defesa',
             'mercado_local' => 'Mercado Local',

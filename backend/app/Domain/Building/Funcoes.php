@@ -46,14 +46,15 @@ class Funcoes
             // §19.8 é o único limite que o GDD põe no tamanho de uma colônia — vale dizer ao
             // colono, porque desde o D-59 é ele que decide quantas cópias de Mina cabem.
             'nota' => 'É o teto real da colônia: cada construção erguida consome energia, e nada '
-                . 'a limita senão o que o Reator sustenta (§19.8).',
+                .'a limita senão o que o Reator sustenta (§19.8).',
         ],
         'estrutura_de_sobrevivencia' => [
             'frase' => 'Habitação dos colonos. Cresce em módulos.',
             'fonte' => '§17.1',
-            'efeito' => 'nenhum',
-            'nota' => 'O GDD não diz quantos colonos ela abriga, nem o que a população faz. '
-                . 'Hoje ela só consome energia — o efeito ainda não existe no jogo.',
+            // Corrigido no D-252: dizia "o efeito ainda não existe no jogo" — falso desde a A2.2.
+            'efeito' => 'abriga',
+            'nota' => 'É o teto habitacional da colônia (A2.2): cada nível abriga mais colonos, e a '
+                .'população só cresce até ele. Os números moram no painel da População.',
         ],
         'fazenda' => [
             'frase' => 'Plantio e colheita de biomassa.',
@@ -66,7 +67,7 @@ class Funcoes
             'fonte' => '§17.1',
             'efeito' => 'produz',
             'nota' => 'Produz água, sim. O "armazenamento" da frase o GDD nunca quantifica: '
-                . 'não há teto de estoque no jogo.',
+                .'não há teto de estoque no jogo.',
         ],
 
         // ---------------------------------------------------------------- progressão
@@ -78,24 +79,24 @@ class Funcoes
             // que a frase do GDD sugere: a Oficina não passou a produzir Ligas, ela deixou de
             // constar entre as fontes possíveis.
             'nota' => 'Fabrica Componentes Eletrônicos pelas três receitas do §24.5 — escolha a '
-                . 'receita no painel. As Ligas Metálicas do §19.3 NÃO são produzidas AQUI: desde o '
-                . 'D-83, só a Indústria Siderúrgica as produz (D-82), que já converte Metal Bruto '
-                . 'numa proporção real. Duas fontes de "Metal Bruto vira Ligas" com regras '
-                . 'diferentes seria confuso, não redundante.',
+                .'receita no painel. As Ligas Metálicas do §19.3 NÃO são produzidas AQUI: desde o '
+                .'D-83, só a Indústria Siderúrgica as produz (D-82), que já converte Metal Bruto '
+                .'numa proporção real. Duas fontes de "Metal Bruto vira Ligas" com regras '
+                .'diferentes seria confuso, não redundante.',
         ],
         'refinaria_quimica' => [
             'frase' => 'Produz Compostos Químicos a partir de minerais e água.',
             'fonte' => '§17.2',
             'efeito' => 'converte',
             'nota' => 'Converte Metal Bruto, Água, Biomassa e Energia em Compostos Químicos (D-83) '
-                . '— 1 Metal Bruto + 10 Água + 5 Biomassa + 6 Energia por Composto. O GDD nunca '
-                . 'publica a receita, só a taxa (30/h no nível 1); nessa proporção ela pediria 300 '
-                . 'Água/h contra os 80/h que a Captação nível 1 produz, então a taxa em vigor é '
-                . 'outra e bem menor (2/h no nível 1) — calibrada para caber com folga.',
+                .'— 1 Metal Bruto + 10 Água + 5 Biomassa + 6 Energia por Composto. O GDD nunca '
+                .'publica a receita, só a taxa (30/h no nível 1); nessa proporção ela pediria 300 '
+                .'Água/h contra os 80/h que a Captação nível 1 produz, então a taxa em vigor é '
+                .'outra e bem menor (2/h no nível 1) — calibrada para caber com folga.',
         ],
         'mina_local' => [
             'frase' => 'A fonte individual de Metal Bruto no slot principal. Complementa a oferta '
-                . 'governamental e a extração territorial, sem substituir as zonas neutras.',
+                .'governamental e a extração territorial, sem substituir as zonas neutras.',
             'fonte' => '§04',
             'efeito' => 'produz',
             'nota' => 'Pode ser repetida em mais de um slot: duas Minas produzem o dobro (D-59).',
@@ -105,15 +106,15 @@ class Funcoes
             'fonte' => '—',
             'efeito' => 'converte',
             'nota' => 'Processa Metal Bruto em Ligas Metálicas e nos cinco minerais eletrônicos que, '
-                . 'na Temporada 1, só o governo extrai (§4.3) — arbitragem consciente, não lacuna. A '
-                . 'cada 1000 Metal Bruto: 350 Ligas, 35 Alumínio, 30 Cobre, 20 Estanho, 4 Ouro, 1 '
-                . 'Tungstênio. Só credita em lotes inteiros de 1000; o resto fica guardado para o '
-                . 'próximo tick. Taxa de processamento igual à Mina Local, nível a nível. Pode ser '
-                . 'repetida em mais de um slot (D-59): duas somam produção.',
+                .'na Temporada 1, só o governo extrai (§4.3) — arbitragem consciente, não lacuna. A '
+                .'cada 1000 Metal Bruto: 350 Ligas, 35 Alumínio, 30 Cobre, 20 Estanho, 4 Ouro, 1 '
+                .'Tungstênio. Só credita em lotes inteiros de 1000; o resto fica guardado para o '
+                .'próximo tick. Taxa de processamento igual à Mina Local, nível a nível. Pode ser '
+                .'repetida em mais de um slot (D-59): duas somam produção.',
         ],
         'destilaria' => [
             'frase' => 'Converte 2 Biomassas + 3 Energias em 1 Biocombustível. A conversão não tem '
-                . 'receita alternativa: a taxa é fixa.',
+                .'receita alternativa: a taxa é fixa.',
             'fonte' => '§04',
             'efeito' => 'converte',
             'nota' => 'Pode ser repetida em mais de um slot (D-59). Vai até o nível 10.',
@@ -126,23 +127,33 @@ class Funcoes
             // que o teto de frota "ainda não vale no jogo" — falso desde o D-60. `Domain\Transport\
             // Vagas` (teto = máximo(1, nível)) barra a compra de Caminhão antes do Fert$ sair.
             'nota' => 'É por aqui que se vê a Frota, e o nível dela LIMITA quantos Caminhões o '
-                . 'colono pode ter — máximo(1, nível), desde o D-60. Nenhum Caminhão é fabricado '
-                . 'aqui: quem fabrica é o Ministério dos Transportes (D-60); a Central só dá vaga.',
+                .'colono pode ter — máximo(1, nível), desde o D-60. Nenhum Caminhão é fabricado '
+                .'aqui: quem fabrica é o Ministério dos Transportes (D-60); a Central só dá vaga.',
         ],
         'mercado_local' => [
             'frase' => 'Comércio direto com vizinhos.',
             'fonte' => '§17.2',
             'efeito' => 'porta',
             'nota' => 'É por aqui que se abrem os Acordos de Troca com outros colonos — que é '
-                . 'exatamente o que a frase do GDD descreve. O Mercado Central, esse é '
-                . 'instituição da Capital (§2.1) e se alcança pelo mapa.',
+                .'exatamente o que a frase do GDD descreve. O Mercado Central, esse é '
+                .'instituição da Capital (§2.1) e se alcança pelo mapa.',
         ],
         'laboratorio' => [
             'frase' => 'Pesquisa tecnológica.',
             'fonte' => '§17.2',
-            'efeito' => 'nenhum',
-            'nota' => 'O GDD diz duas palavras e nunca publica árvore de pesquisa, tecnologias, '
-                . 'custo nem tempo. Hoje o Laboratório só consome energia — o efeito não existe.',
+            // Corrigido no D-252: dizia "o efeito não existe" — falso desde a A2.3, e a tela de
+            // construção anunciava o Laboratório como "efeito ainda não implementado".
+            'efeito' => 'vagas_de_pesquisa',
+            'nota' => 'Abre a árvore de pesquisa (A2.3) e dá as vagas de pesquisa simultânea; o '
+                .'nível também decide quais tecnologias estão ao alcance.',
+        ],
+        'observatorio' => [
+            'frase' => 'Amplia o paralelismo da pesquisa.',
+            'fonte' => 'GDD_ALPHA2 §7.2',
+            'efeito' => 'vagas_de_pesquisa',
+            'nota' => 'Cada nível soma vagas de pesquisa na mesma razão do Laboratório '
+                .'(vagas_por_niveis_de_laboratorio, no painel), e o teto de vagas vale para a soma. '
+                .'Custo, tempo e energia são os do Laboratório — nenhum documento publica os dele (D-252).',
         ],
         'antena_de_comunicacao' => [
             'frase' => 'Comunicação com a Capital, alertas, eventos.',
@@ -153,38 +164,39 @@ class Funcoes
         'torre_de_defesa' => [
             'frase' => 'Defesa básica do slot.',
             'fonte' => '§17.2',
-            'efeito' => 'nenhum',
-            // Esta não é lacuna: é contradição. Vale dizer, porque um colono que construir a Torre
-            // esperando proteger a colônia estará defendendo o que ninguém pode atacar.
-            'nota' => 'O GDD se contradiz: o slot principal é INVIOLÁVEL (§01), então não há o que '
-                . 'defender aqui. O bônus nunca é dado em número. Hoje só consome energia.',
+            // Corrigido no D-252: dizia que não havia o que defender (§01, slot inviolável). O D-203
+            // revogou isso na prática — o cerco de colônia saqueia o excedente, e a Torre corta.
+            'efeito' => 'defende',
+            'nota' => 'Corta uma fatia do saque num cerco de colônia (A2.10, D-203), com teto — os '
+                .'dois números moram no painel da Guerra.',
         ],
         'quartel' => [
             'frase' => 'Recruta e treina Robôs Mineradores, Infiltradores e Predadores. Necessário '
-                . 'para ocupar zonas neutras ou atacar.',
+                .'para ocupar zonas neutras ou atacar.',
             'fonte' => '§17.2',
             'efeito' => 'converte',
             // Corrigido em 2026-07-19 (D-122): dizia que "nenhuma unidade é recrutada aqui ainda" —
             // falso desde o D-66. `Domain\Guerra\FabricarUnidade` recruta Sentinela, Robô
             // Minerador, Infiltrador e Predador no Quartel, com custo de `building_specs`.
             'nota' => 'Recruta Sentinela, Robô Minerador, Infiltrador e Predador — consome recurso '
-                . 'e credita a unidade (§27.1), desde o D-66. Exige o Quartel nível 1 ou mais.',
+                .'e credita a unidade (§27.1), desde o D-66. Exige o Quartel nível 1 ou mais.',
         ],
         'plataforma_de_pouso' => [
             'frase' => 'Hangar onde as Naves de Transporte Planetária ficam estacionadas. Upgrades '
-                . 'aumentam capacidade de naves estacionadas e reduzem tempo de construção.',
+                .'aumentam capacidade de naves estacionadas e reduzem tempo de construção.',
             'fonte' => '§17.2',
             'efeito' => 'nenhum',
             'nota' => 'O GDD promete "mais naves" e "menos tempo" sem publicar um número sequer, e a '
-                . 'Nave de Transporte Planetária está fora do MVP. Hoje só consome energia.',
+                .'Nave de Transporte Planetária está fora do MVP. Hoje só consome energia.',
         ],
         'tanque_de_combustivel' => [
             'frase' => 'Armazena Gelo de Metano refinado. Disponível no slot principal e nas zonas '
-                . 'neutras.',
+                .'neutras.',
             'fonte' => '§21.9',
-            'efeito' => 'nenhum',
-            'nota' => 'O GDD publica a capacidade (200 no nível 1, até 1.012), mas o jogo ainda não '
-                . 'tem teto de estoque nenhum — guardar mais não faz diferença. Hoje só consome energia.',
+            // Corrigido no D-252: dizia "guardar mais não faz diferença" — falso desde o D-131.
+            'efeito' => 'armazena',
+            'nota' => 'Guarda o Biocombustível (200 no nível 1, até 1.012 — §21.9, D-131). Sem Tanque '
+                .'a Destilaria não converte: o teto TRAVA a produção.',
         ],
 
         // ---------------------------------------------------------------- fora do GDD (D-105)
@@ -193,11 +205,11 @@ class Funcoes
             'fonte' => '—',
             'efeito' => 'mostra',
             'nota' => 'É por aqui que se vê o que a colônia tem guardado: os recursos deixaram de '
-                . 'ficar sempre visíveis, e abrir o Depósito é o único jeito de consultá-los agora, '
-                . 'no desktop e no mobile. Não produz nem processa nada — é infraestrutura de acesso, '
-                . 'não uma construção econômica. Nasce no nível 1, custeada pelo Governo como as '
-                . 'cinco essenciais, e evolui como qualquer outra: o nível não muda o que ela mostra, '
-                . 'só é a mesma curva de custo/tempo de toda construção.',
+                .'ficar sempre visíveis, e abrir o Depósito é o único jeito de consultá-los agora, '
+                .'no desktop e no mobile. Não produz nem processa nada — é infraestrutura de acesso, '
+                .'não uma construção econômica. Nasce no nível 1, custeada pelo Governo como as '
+                .'cinco essenciais, e evolui como qualquer outra: o nível não muda o que ela mostra, '
+                .'só é a mesma curva de custo/tempo de toda construção.',
         ],
     ];
 

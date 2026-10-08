@@ -63,7 +63,12 @@ export function Pesquisa() {
 
       <p className="text-ink-soft mb-3 text-sm" data-vagas-pesquisa={d.vagas.livres}>
         Laboratório nível <strong>{d.laboratorio}</strong> · <strong>{d.vagas.livres}</strong> de{' '}
-        {d.vagas.total} vaga(s) livre(s).
+        {d.vagas.total} vaga(s) livre(s)
+        {/* D-252: de onde vem cada vaga — sem isto, o Observatório somaria e ninguém saberia por quê. */}
+        {(d.vagas.fontes.observatorio ?? 0) > 0 && (
+          <span data-vagas-observatorio> — {d.vagas.fontes.observatorio} do Observatório</span>
+        )}
+        .
       </p>
 
       {/*

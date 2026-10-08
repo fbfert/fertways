@@ -630,7 +630,8 @@ export function Detalhe({
         ⚠️ Sem esta porta, a pesquisa continuaria sendo modelo sem jogo: rota no ar e ninguém
         chegando nela. Foi o defeito do D-180, e aqui seria a fase inteira.
       */}
-      {spec.type === 'laboratorio' && !emObra && (
+      {/* D-252: o Observatório amplia a mesma árvore, e abre a mesma tela. */}
+      {(spec.type === 'laboratorio' || spec.type === 'observatorio') && !emObra && (
         <div className="border-rust/30 my-3 border-t pt-3">
           <Pesquisa />
         </div>

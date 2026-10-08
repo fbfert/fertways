@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Domain\Building\ConstruirEmSlot;
 use App\Domain\Endurance\EfeitosDaEndurance;
 use App\Domain\Eventos\Modificadores;
 use App\Domain\Pesquisa\ConcluirPesquisa;
@@ -15,6 +16,7 @@ use App\Models\GameEvent;
 use App\Models\Ledger;
 use App\Models\Technology;
 use App\Models\User;
+use Database\Seeders\BuildingSpecSeeder;
 use Database\Seeders\ResourceTypeSeeder;
 use Database\Seeders\TechnologySeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -153,12 +155,53 @@ class PesquisaTest extends TestCase
     /**
      * O mecanismo de vagas nasce como SOMA DE FONTES, e o roadmap pede isso por escrito.
      *
-     * Hoje há uma fonte; o Observatório entraria como outra, sem refazer o modelo. Este teste
-     * guarda a forma, não o número.
+     * O Observatório entrou como a segunda fonte (D-252) — com uma linha, como este teste guardava
+     * desde a A2.3. Ele guarda a forma, não o número.
      */
     public function test_as_vagas_saem_de_fontes_nomeadas(): void
     {
-        $this->assertSame(['laboratorio'], array_keys(app(Vagas::class)->fontes($this->colonia(3))));
+        $this->assertSame(['laboratorio', 'observatorio'], array_keys(app(Vagas::class)->fontes($this->colonia(3))));
+    }
+
+    /**
+     * D-252: o Observatório soma vagas na razão do Laboratório, sem a base — e o teto vale para a
+     * soma. Duas fontes não furam o teto.
+     */
+    public function test_o_observatorio_soma_vagas_e_o_teto_vale_para_a_soma(): void
+    {
+        DB::table('research_settings')->where('id', 1)->update([
+            'vagas_base' => 1, 'vagas_por_niveis_de_laboratorio' => 1, 'vagas_teto' => 4,
+        ]);
+        $c = $this->colonia(2);
+        $c->buildings()->create(['type' => 'observatorio', 'level' => 1]);
+        $c = $c->fresh(['buildings']);
+
+        $this->assertSame(['laboratorio' => 3, 'observatorio' => 1], app(Vagas::class)->fontes($c));
+        $this->assertSame(4, app(Vagas::class)->total($c));
+
+        $c->buildings()->where('type', 'observatorio')->update(['level' => 3]);
+        $this->assertSame(4, app(Vagas::class)->total($c->fresh(['buildings'])), 'o teto segura a soma');
+    }
+
+    /** Sem Laboratório, o Observatório não se ergue — não há pesquisa a ampliar. */
+    public function test_o_observatorio_exige_o_laboratorio(): void
+    {
+        $this->seed(BuildingSpecSeeder::class);
+        $sem = $this->colonia(0, ['ligas_metalicas' => 9999, 'compostos_quimicos' => 9999,
+            'componentes_eletronicos' => 9999, 'energia' => 9999, 'agua' => 9999, 'resina_organica' => 9999]);
+
+        try {
+            app(ConstruirEmSlot::class)->handle($sem, 'observatorio', 7);
+            $this->fail('devia exigir o Laboratório');
+        } catch (DomainRuleException $e) {
+            $this->assertSame('exige_laboratorio', $e->codigo);
+        }
+
+        $com = $this->colonia(1, ['ligas_metalicas' => 9999, 'compostos_quimicos' => 9999,
+            'componentes_eletronicos' => 9999, 'energia' => 9999, 'agua' => 9999, 'resina_organica' => 9999]);
+        $item = app(ConstruirEmSlot::class)->handle($com, 'observatorio', 7);
+
+        $this->assertSame('observatorio', $item->building->type);
     }
 
     // ────────────────────────────────────────────── o custo

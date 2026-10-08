@@ -55,6 +55,11 @@ class Building extends Model
         'tanque_de_combustivel',
         // Não está no GDD — construção nova, pedida pelo usuário (D-82).
         'industria_siderurgica',
+        /*
+         * D-252: o GDD_ALPHA2 §7.2 diz que ele "entra no jogo" como segunda fonte de vagas de
+         * pesquisa. Único, como o Laboratório, e só se ergue com o Laboratório de pé.
+         */
+        'observatorio',
     ];
 
     public const MVP = [...self::ESSENCIAIS, ...self::PROGRESSAO];

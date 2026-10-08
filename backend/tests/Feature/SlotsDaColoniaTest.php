@@ -10,6 +10,9 @@ use App\Models\BuildQueue;
 use App\Models\Colony;
 use App\Models\Ledger;
 use App\Models\User;
+use Database\Seeders\BuildingSpecSeeder;
+use Database\Seeders\ComponentRecipeSeeder;
+use Database\Seeders\ResourceTypeSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -27,9 +30,9 @@ class SlotsDaColoniaTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->seed(\Database\Seeders\ResourceTypeSeeder::class);
-        $this->seed(\Database\Seeders\ComponentRecipeSeeder::class);
-        $this->seed(\Database\Seeders\BuildingSpecSeeder::class);
+        $this->seed(ResourceTypeSeeder::class);
+        $this->seed(ComponentRecipeSeeder::class);
+        $this->seed(BuildingSpecSeeder::class);
     }
 
     private int $proximoSlot = 0;
@@ -272,7 +275,7 @@ class SlotsDaColoniaTest extends TestCase
 
         $this->assertNotNull($colony->fresh()->buildings->firstWhere('slot', $slot), 'e a Mina continua de pé');
 
-        $this->actingAs($user)->deleteJson("/buildings/{$mina->id}", ["confirmacao" => "DEMOLIR"])
+        $this->actingAs($user)->deleteJson("/buildings/{$mina->id}", ['confirmacao' => 'DEMOLIR'])
             ->assertOk()
             ->assertJsonPath('demolida', true);
 
@@ -290,7 +293,7 @@ class SlotsDaColoniaTest extends TestCase
         $reator = $user->colony->buildings->firstWhere('type', 'reator_de_energia');
 
         // Demolir o Reator deixaria a colônia sem energia, e o GDD não diz o que acontece então.
-        $this->actingAs($user)->deleteJson("/buildings/{$reator->id}", ["confirmacao" => "DEMOLIR"])
+        $this->actingAs($user)->deleteJson("/buildings/{$reator->id}", ['confirmacao' => 'DEMOLIR'])
             ->assertStatus(422)
             ->assertJsonPath('code', 'essencial_indemolivel');
 
@@ -303,7 +306,7 @@ class SlotsDaColoniaTest extends TestCase
         $user = $this->colono();
         $deposito = $user->colony->buildings->firstWhere('type', 'deposito_local');
 
-        $this->actingAs($user)->deleteJson("/buildings/{$deposito->id}", ["confirmacao" => "DEMOLIR"])
+        $this->actingAs($user)->deleteJson("/buildings/{$deposito->id}", ['confirmacao' => 'DEMOLIR'])
             ->assertStatus(422)
             ->assertJsonPath('code', 'essencial_indemolivel');
 
@@ -318,7 +321,7 @@ class SlotsDaColoniaTest extends TestCase
         $this->actingAs($user)->postJson('/buildings', ['type' => 'mina_local', 'slot' => 0])->assertCreated();
         $mina = $user->colony->fresh()->buildings->firstWhere('type', 'mina_local');
 
-        $this->actingAs($user)->deleteJson("/buildings/{$mina->id}", ["confirmacao" => "DEMOLIR"])
+        $this->actingAs($user)->deleteJson("/buildings/{$mina->id}", ['confirmacao' => 'DEMOLIR'])
             ->assertStatus(422)
             ->assertJsonPath('code', 'demolir_em_obra');
     }
@@ -347,9 +350,12 @@ class SlotsDaColoniaTest extends TestCase
         $this->assertSame('Pesquisa tecnológica.', $catalogo['laboratorio']['funcao']['frase']);
         $this->assertSame('§17.2', $catalogo['laboratorio']['funcao']['fonte']);
 
-        // E a verdade sobre o que ela faz HOJE, que é nada.
-        $this->assertStringContainsString('não existe', $catalogo['laboratorio']['funcao']['nota']);
-        $this->assertSame('nenhum', $catalogo['laboratorio']['funcao']['efeito']);
+        // E a verdade sobre o que ela faz HOJE. ⚠️ Este teste afirmava "nada" — e fixou a mentira por
+        // dois meses depois que a A2.3 deu pesquisa ao Laboratório (D-252). A construção inerte de
+        // verdade, que tem de se anunciar inerte, é a Antena.
+        $this->assertSame('vagas_de_pesquisa', $catalogo['laboratorio']['funcao']['efeito']);
+        $this->assertSame('nenhum', $catalogo['antena_de_comunicacao']['funcao']['efeito']);
+        $this->assertStringContainsString('só consome energia', $catalogo['antena_de_comunicacao']['funcao']['nota']);
 
         // A Mina produz de verdade, e pode repetir.
         $this->assertSame('produz', $catalogo['mina_local']['funcao']['efeito']);

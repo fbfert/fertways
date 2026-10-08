@@ -139,7 +139,9 @@ class BuildingController extends Controller
         $eventos = app(Modificadores::class);
         $agora = now();
 
-        $itens = collect(Building::PROGRESSAO)->map(function (string $tipo) use ($specs, $erguidas, $eventos, $colony, $agora) {
+        $temLaboratorio = $colony->buildings->contains(fn ($b) => $b->type === 'laboratorio' && $b->level >= 1);
+
+        $itens = collect(Building::PROGRESSAO)->map(function (string $tipo) use ($specs, $erguidas, $eventos, $colony, $agora, $temLaboratorio) {
             $spec = $specs->para($tipo, 1);
             $quantas = $erguidas->get($tipo)?->count() ?? 0;
             $repetivel = in_array($tipo, Building::REPETIVEIS, true);
@@ -154,7 +156,10 @@ class BuildingController extends Controller
                 'quantas' => $quantas,
                 // Uma construção única já erguida não pode ser erguida de novo; uma repetível,
                 // sempre pode — o limite dela é o slot vago e a energia (§19.8).
-                'disponivel' => $repetivel || $quantas === 0,
+                'disponivel' => ($repetivel || $quantas === 0)
+                    // D-252: o Observatório só aparece com o Laboratório de pé — a mesma regra
+                    // que o `ConstruirEmSlot` cobra, para a tela não oferecer o que ele recusa.
+                    && ($tipo !== 'observatorio' || $temLaboratorio),
             ];
         })->values();
 

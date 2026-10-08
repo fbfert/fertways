@@ -46,9 +46,16 @@ class Vagas
 
         $porNivel = max(1, (int) $p->vagas_por_niveis_de_laboratorio);
 
+        $nivelObs = (int) ($colonia->buildings->firstWhere('type', 'observatorio')?->level ?? 0);
+
         return [
             'laboratorio' => (int) $p->vagas_base + intdiv($nivelLab, $porNivel),
-            // O Observatório entraria aqui, com uma linha. Ver o docblock da classe.
+            /*
+             * D-252: o Observatório, com a linha que este método prometia desde a A2.3. Na MESMA
+             * razão do Laboratório e sem a base: a base é do Laboratório, que é quem abre a árvore.
+             * O teto (`vagas_teto`) vale para a soma, em `total()` — duas fontes não furam o teto.
+             */
+            'observatorio' => intdiv($nivelObs, $porNivel),
         ];
     }
 

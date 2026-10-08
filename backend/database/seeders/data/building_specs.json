@@ -601,6 +601,73 @@
         ]
     },
     {
+        "type": "observatorio",
+        "nome": "Observatório",
+        "max_level": 5,
+        "levels": [
+            {
+                "level": 1,
+                "build_time_seconds": 1260,
+                "cost": {
+                    "ligas_metalicas": 60,
+                    "compostos_quimicos": 40,
+                    "componentes_eletronicos": 20,
+                    "energia": 18,
+                    "agua": 12,
+                    "resina_organica": 2
+                }
+            },
+            {
+                "level": 2,
+                "build_time_seconds": 1920,
+                "cost": {
+                    "ligas_metalicas": 99,
+                    "compostos_quimicos": 66,
+                    "componentes_eletronicos": 33,
+                    "energia": 30,
+                    "agua": 20,
+                    "resina_organica": 3
+                }
+            },
+            {
+                "level": 3,
+                "build_time_seconds": 2820,
+                "cost": {
+                    "ligas_metalicas": 163,
+                    "compostos_quimicos": 109,
+                    "componentes_eletronicos": 54,
+                    "energia": 49,
+                    "agua": 33,
+                    "resina_organica": 5
+                }
+            },
+            {
+                "level": 4,
+                "build_time_seconds": 4260,
+                "cost": {
+                    "ligas_metalicas": 270,
+                    "compostos_quimicos": 180,
+                    "componentes_eletronicos": 90,
+                    "energia": 81,
+                    "agua": 54,
+                    "resina_organica": 9
+                }
+            },
+            {
+                "level": 5,
+                "build_time_seconds": 6360,
+                "cost": {
+                    "ligas_metalicas": 445,
+                    "compostos_quimicos": 296,
+                    "componentes_eletronicos": 148,
+                    "energia": 133,
+                    "agua": 89,
+                    "resina_organica": 15
+                }
+            }
+        ]
+    },
+    {
         "type": "antena_de_comunicacao",
         "nome": "Antena de Comunicação",
         "max_level": 5,
