@@ -43,7 +43,79 @@ class Indicadores
             'economia' => $this->economia($desde),
             'riqueza' => $this->riqueza(),
             'mundo' => $this->mundo(),
+            'saque_ausente' => $this->saqueAusente($desde),
             'lacunas' => $this->lacunas(),
+        ];
+    }
+
+    /**
+     * Quem foi saqueado AUSENTE volta ao jogo? (D-202, D-251)
+     *
+     * A decisão 12 da guerra federativa foi não proteger quem some, e o D-193 pediu a telemetria
+     * **junto** do saque para que, se ela estiver expulsando gente, isso apareça antes de virar
+     * êxodo. O saque já grava `defensor_offline`; o que faltava era a pergunta: o dono entrou de novo?
+     *
+     * Derivado, sem evento novo — a regra deste arquivo: o saque e o login já estão gravados, e uma
+     * terceira linha "voltou" seria uma segunda fonte para a mesma resposta.
+     *
+     * ## ⚠️ Três estados, e não dois
+     *
+     * Um saque de ontem sem login **ainda não é abandono** — o dono pode estar dormindo. Por isso
+     * `em_aberto` (menos de 7 dias, sem volta) fica separado de `nao_voltou` (7 dias passados sem
+     * login). Juntar os dois faria todo saque recente parecer perda.
+     *
+     * ## Só humanos
+     *
+     * A telemetria separa humano de sistema, e não de bot (D-238): o programa dos bots faz login o
+     * tempo todo, e contaria como "voltou" sem ter ido a lugar nenhum. A única marca é o domínio.
+     *
+     * @return array{saques: int, colonias: int, voltou: int, nao_voltou: int, em_aberto: int,
+     *               mediana_horas: float|null, bots_ignorados: int}
+     */
+    private function saqueAusente(Carbon $desde): array
+    {
+        $saques = TelemetryEvent::where('type', 'colonia_saqueada')
+            ->where('created_at', '>=', $desde)
+            ->orderBy('created_at')
+            ->get(['user_id', 'colony_id', 'payload', 'created_at'])
+            ->filter(fn ($e) => (bool) ($e->payload['defensor_offline'] ?? false));
+
+        $bots = DB::table('users')->where('email', 'like', '%@bots.fertways.local')->pluck('id')->flip();
+        $humanos = $saques->filter(fn ($e) => $e->user_id !== null && ! $bots->has($e->user_id));
+
+        $voltou = 0;
+        $naoVoltou = 0;
+        $emAberto = 0;
+        $horas = [];
+
+        foreach ($humanos as $s) {
+            $volta = TelemetryEvent::where('type', 'login')
+                ->where('user_id', $s->user_id)
+                ->where('created_at', '>', $s->created_at)
+                ->orderBy('created_at')
+                ->value('created_at');
+
+            if ($volta !== null && Carbon::parse($volta)->lte($s->created_at->copy()->addDays(7))) {
+                $voltou++;
+                $horas[] = $s->created_at->diffInMinutes(Carbon::parse($volta)) / 60;
+            } elseif ($s->created_at->lte(now()->subDays(7))) {
+                $naoVoltou++;
+            } else {
+                $emAberto++;
+            }
+        }
+
+        sort($horas);
+        $n = count($horas);
+
+        return [
+            'saques' => $humanos->count(),
+            'colonias' => $humanos->pluck('colony_id')->unique()->count(),
+            'voltou' => $voltou,
+            'nao_voltou' => $naoVoltou,
+            'em_aberto' => $emAberto,
+            'mediana_horas' => $n === 0 ? null : round($n % 2 ? $horas[intdiv($n, 2)] : ($horas[$n / 2 - 1] + $horas[$n / 2]) / 2, 1),
+            'bots_ignorados' => $saques->count() - $humanos->count(),
         ];
     }
 
@@ -248,6 +320,12 @@ class Indicadores
                 'onde' => 'Domain\Federacao'],
             ['indicador' => 'Ataques enviados e recebidos', 'evento' => 'ataque_enviado',
                 'onde' => 'Domain\Guerra'],
+            /*
+             * D-251: o retorno de quem foi saqueado ausente. O indicador existe; o que falta é ter
+             * havido saque — e enquanto não houver, a tela diz isso em vez de mostrar "0 de 0".
+             */
+            ['indicador' => 'Retorno de quem foi saqueado ausente', 'evento' => 'colonia_saqueada',
+                'onde' => 'Domain\GuerraFederativa\ResolverCercoDeColonia (nunca houve um saque)'],
         ];
 
         return array_values(array_map(

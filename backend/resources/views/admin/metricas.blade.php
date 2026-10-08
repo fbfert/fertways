@@ -167,4 +167,32 @@
         </table>
     </div>
 
+    {{-- ─────────────────────────────────────────── retorno pós-saque (D-251) --}}
+    @php $sa = $dados['saque_ausente']; @endphp
+    <h2 class="secao">Quem foi saqueado ausente voltou?</h2>
+    <div class="cartao" data-saque-ausente>
+        <p class="mut pequeno">
+            A guerra não protege quem some (decisão 12, D-193). Este é o número que diz se isso está
+            expulsando gente — derivado do saque (<code>defensor_offline</code>) e do login seguinte
+            do mesmo jogador. Só humanos: o programa dos bots entra o tempo todo e contaria como volta.
+        </p>
+        @if ($sa['saques'] === 0)
+            <p class="pequeno"><b>Nenhum saque de colônia humana ausente na janela.</b>
+                Não é "ninguém deixou de voltar" — é que não houve a quem perguntar.</p>
+        @else
+            <table>
+                <tbody>
+                    <tr><td>Saques com o dono ausente</td><td>{{ $num($sa['saques']) }} ({{ $num($sa['colonias']) }} colônia(s))</td></tr>
+                    <tr><td>Voltou em até 7 dias</td><td><strong>{{ $num($sa['voltou']) }}</strong>
+                        @if ($sa['mediana_horas'] !== null) · mediana de {{ $sa['mediana_horas'] }} h até voltar @endif</td></tr>
+                    <tr><td>Não voltou em 7 dias</td><td><strong>{{ $num($sa['nao_voltou']) }}</strong></td></tr>
+                    <tr><td>Em aberto (menos de 7 dias, ainda sem login)</td><td>{{ $num($sa['em_aberto']) }}</td></tr>
+                </tbody>
+            </table>
+        @endif
+        @if ($sa['bots_ignorados'] > 0)
+            <p class="mut pequeno">{{ $sa['bots_ignorados'] }} saque(s) de colônia de bot fora da conta.</p>
+        @endif
+    </div>
+
 @endsection

@@ -14042,3 +14042,34 @@ pega no lugar certo: no banco de dev, antes de publicar. O `down()` final desfaz
 sobe-desce-sobe passou limpo depois.
 
 1373 testes verdes, 10 suítes e2e verdes.
+
+---
+
+## D-251 — Quem foi saqueado ausente voltou?
+
+**Data:** 2026-10-07 · **Status:** entregue
+
+O item 5 da lista, pendente desde o D-202 (*"a telemetria de retorno de quem foi saqueado ausente,
+junto — não depois"*). O saque saiu no D-203 com `defensor_offline` gravado; a pergunta que esse
+campo existe para responder — **o dono voltou?** — nunca foi feita por ninguém.
+
+### Derivada, sem evento novo
+
+A regra do `Indicadores`: quando a resposta já está em duas linhas gravadas, uma terceira seria uma
+segunda fonte. O saque (`colonia_saqueada`, `defensor_offline = true`) e o login seguinte do mesmo
+jogador bastam. O painel de métricas ganha o cartão **"Quem foi saqueado ausente voltou?"**.
+
+### As três escolhas
+
+- **Três estados, não dois.** `voltou` (login em até 7 dias), `nao_voltou` (7 dias passados sem
+  login) e `em_aberto` (menos de 7 dias, ainda sem login). Um saque de ontem não é abandono; juntá-lo
+  ao "não voltou" faria todo saque recente parecer perda.
+- **Só humanos.** A telemetria separa humano de sistema, não de bot (D-238), e o programa dos bots
+  entra o tempo todo — contaria como volta sem ter ido embora. A marca é o domínio, como no D-238.
+- **Zero saques é lacuna, não zero.** Enquanto nenhuma colônia humana tiver sido saqueada ausente, a
+  tela diz *"não houve a quem perguntar"* e o indicador aparece na lista de lacunas — a regra do
+  arquivo: "zero e ninguém mediu são a mesma imagem e coisas opostas".
+
+Hoje o número é vazio: **0 combates desde sempre**. O indicador está pronto para o primeiro.
+
+1376 testes verdes.

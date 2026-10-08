@@ -7,6 +7,8 @@ use App\Domain\Telemetria\Indicadores;
 use App\Models\Admin;
 use App\Models\TelemetryEvent;
 use App\Models\User;
+use Database\Seeders\BuildingSpecSeeder;
+use Database\Seeders\ResourceTypeSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 use Tests\TestCase;
@@ -25,8 +27,8 @@ class MetricasTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->seed(\Database\Seeders\ResourceTypeSeeder::class);
-        $this->seed(\Database\Seeders\BuildingSpecSeeder::class);
+        $this->seed(ResourceTypeSeeder::class);
+        $this->seed(BuildingSpecSeeder::class);
     }
 
     private function colono(string $nick): User
@@ -217,5 +219,65 @@ class MetricasTest extends TestCase
             'name' => 'Equipe', 'email' => 'eq@t.test',
             'password' => Hash::make('segredo-forte-123'),
         ]);
+    }
+
+    // ──────────────────────────────────────────────── retorno pós-saque (D-251)
+
+    private function saque(User $u, string $quando, bool $ausente = true): void
+    {
+        TelemetryEvent::create([
+            'type' => 'colonia_saqueada', 'user_id' => $u->id, 'colony_id' => null, 'origin' => 'sistema',
+            'payload' => ['defensor_offline' => $ausente, 'levado' => 100], 'created_at' => $quando,
+        ]);
+    }
+
+    /** Voltou, não voltou e em aberto são três estados — um saque de ontem ainda não é abandono. */
+    public function test_retorno_pos_saque_separa_os_tres_estados(): void
+    {
+        $voltou = $this->colono('voltou');
+        $sumiu = $this->colono('sumiu');
+        $ontem = $this->colono('ontem');
+
+        $this->saque($voltou, now()->subDays(5)->toDateTimeString());
+        $this->evento('login', $voltou, now()->subDays(5)->addHours(6)->toDateTimeString());
+
+        $this->saque($sumiu, now()->subDays(10)->toDateTimeString());
+        $this->evento('login', $sumiu, now()->subDays(1)->toDateTimeString()); // voltou, mas tarde demais
+
+        $this->saque($ontem, now()->subDay()->toDateTimeString());
+
+        $sa = app(Indicadores::class)->tudo()['saque_ausente'];
+
+        $this->assertSame(3, $sa['saques']);
+        $this->assertSame(1, $sa['voltou']);
+        $this->assertSame(1, $sa['nao_voltou'], 'login nove dias depois não conta como volta');
+        $this->assertSame(1, $sa['em_aberto']);
+        $this->assertSame(6.0, $sa['mediana_horas']);
+    }
+
+    public function test_retorno_pos_saque_ignora_defensor_presente_e_bot(): void
+    {
+        $presente = $this->colono('presente');
+        $bot = User::create([
+            'name' => 'b', 'nickname' => 'bot1', 'email' => 'bot1@bots.fertways.local',
+            'password' => Hash::make('segredo-forte-123'),
+        ]);
+
+        $this->saque($presente, now()->subDays(2)->toDateTimeString(), ausente: false);
+        $this->saque($bot, now()->subDays(2)->toDateTimeString());
+
+        $sa = app(Indicadores::class)->tudo()['saque_ausente'];
+
+        $this->assertSame(0, $sa['saques']);
+        $this->assertSame(1, $sa['bots_ignorados']);
+    }
+
+    /** Sem saque nenhum, o indicador é lacuna nomeada, e não "0 de 0". */
+    public function test_sem_saque_o_retorno_e_lacuna(): void
+    {
+        $this->assertContains(
+            'colonia_saqueada',
+            array_column(app(Indicadores::class)->lacunas(), 'falta'),
+        );
     }
 }
