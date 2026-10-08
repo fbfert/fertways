@@ -12,7 +12,7 @@ class MissionAssignment extends Model
     public $timestamps = false;
 
     protected $fillable = [
-        'colony_id', 'federation_id', 'template_id', 'categoria', 'acao', 'progresso', 'meta',
+        'colony_id', 'federation_id', 'game_event_id', 'template_id', 'categoria', 'acao', 'progresso', 'meta',
         'status', 'expires_at', 'concluded_at', 'created_at',
     ];
 
@@ -23,6 +23,12 @@ class MissionAssignment extends Model
         'concluded_at' => 'datetime',
         'created_at' => 'datetime',
     ];
+
+    /** D-250: o evento que trouxe esta missão — só nas `eventuais`. */
+    public function evento(): BelongsTo
+    {
+        return $this->belongsTo(GameEvent::class, 'game_event_id');
+    }
 
     public function template(): BelongsTo
     {

@@ -51,7 +51,7 @@ O que falta foi medido contra o código em 07/10, não lembrado:
    é inventado.
 2. [x] **(D-249)** **Eventos da Endurance** (§11.2: seções, lotes e peças liberados por evento).
 3. [x] **(D-249)** **Escavação/desmontagem da Endurance** (§11; hoje o único nasce na compra).
-4. [ ] **Missões especiais / narrativas ligadas a evento** (`game_events.missoes` existe e não tem leitor).
+4. [x] **(D-250)** **Missões especiais / narrativas ligadas a evento** (`game_events.missoes` existe e não tem leitor).
 5. [ ] **Telemetria de retorno de quem foi saqueado ausente** (recomendada desde o D-202).
 6. [ ] **Observatório** (A2.3, ficou fora da primeira entrega).
 7. [ ] **O "Depois" do A2.8**: eventos de combate e de Federação, encadeados, condições compostas.

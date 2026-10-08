@@ -4,8 +4,10 @@ namespace App\Domain\Missoes;
 
 use App\Models\Colony;
 use App\Models\Federation;
+use App\Models\GameEvent;
 use App\Models\MissionAssignment;
 use App\Models\MissionTemplate;
+use Carbon\CarbonInterface;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
@@ -85,7 +87,7 @@ class Atribuir
     }
 
     /** Sorteia do pool, sem repetir template que já passou pela colônia nesta janela. */
-    public function sortear(Colony $colony, string $categoria, int $quantas, \Carbon\CarbonInterface $expira): int
+    public function sortear(Colony $colony, string $categoria, int $quantas, CarbonInterface $expira): int
     {
         $inicioDaJanela = $categoria === 'diaria' ? Janela::diaAtual() : Janela::semanaAtual();
 
@@ -231,6 +233,77 @@ class Atribuir
      * da colônia.
      */
     /** Compatibilidade: a narrativa é só um caso da sequência encadeada. */
+    /**
+     * As missões dos eventos que valem agora (A2.8 §12.2; D-250).
+     *
+     * Cada evento vigente que lista moldes em `game_events.missoes` entrega cada um deles, uma vez,
+     * a esta colônia — com prazo no fim do evento. A categoria é `eventuais`, que existe desde o D-1xx
+     * para *"evento, sazonal, sem sorteio automático"*: o sorteio diário e o semanal nunca a olham.
+     *
+     * ## Idempotente sem coordenação
+     *
+     * Três portas chamam isto (a tela, o comando diário e o de cinco em cinco minutos). O
+     * `insertOrIgnore` contra o índice único `(colônia, evento, molde)` é o que deixa as três
+     * conviverem: quem chegar depois colide e não duplica.
+     *
+     * ⚠️ Só molde `eventuais` e ativo. Um evento que listasse uma diária faria a mesma missão
+     * chegar duas vezes, por dois caminhos, com dois prazos.
+     *
+     * @return int quantas missões novas nasceram
+     */
+    public function garantirEventos(Colony $colony): int
+    {
+        $agora = now();
+
+        $eventos = GameEvent::where('status', 'ativo')
+            ->whereNotNull('missoes')
+            ->where('comeca_em', '<=', $agora)
+            ->where('termina_em', '>', $agora)
+            ->whereNull('cancelado_em')
+            ->where(fn ($q) => $q->where('escopo', 'mundo')
+                ->orWhere(fn ($c) => $c->where('escopo', 'colonia')->where('colony_id', $colony->id)))
+            ->get();
+
+        $novas = 0;
+
+        foreach ($eventos as $evento) {
+            $moldes = MissionTemplate::whereIn('id', $evento->missoes ?? [])
+                ->where('categoria', 'eventuais')
+                ->where('ativa', true)
+                ->get();
+
+            foreach ($moldes as $t) {
+                $novas += DB::table('mission_assignments')->insertOrIgnore([
+                    'colony_id' => $colony->id,
+                    'game_event_id' => $evento->id,
+                    'template_id' => $t->id,
+                    'categoria' => 'eventuais',
+                    'acao' => $t->acao,
+                    'progresso' => 0,
+                    'meta' => $t->meta,
+                    'status' => 'ativa',
+                    'expires_at' => $evento->termina_em,
+                    'created_at' => $agora,
+                ]);
+            }
+        }
+
+        return $novas;
+    }
+
+    /**
+     * O evento foi cancelado: as missões dele ainda abertas vencem AGORA (D-250).
+     *
+     * O que já foi concluído fica concluído — a recompensa saiu, e o ledger é append-only. É a
+     * mesma regra do motor: cancelar encerra o futuro e preserva o passado.
+     */
+    public function encerrarDoEvento(GameEvent $evento): int
+    {
+        return MissionAssignment::where('game_event_id', $evento->id)
+            ->where('status', 'ativa')
+            ->update(['expires_at' => $evento->cancelado_em ?? now()]);
+    }
+
     public function garantirNarrativa(Colony $colony): void
     {
         $this->garantirEncadeada($colony, 'narrativa');

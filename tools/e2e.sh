@@ -586,7 +586,16 @@ App\Models\GameEvent::updateOrCreate(["slug" => "cesta_de_presente_colonos"], $j
  * está fechando. A "Tempestade de poeira" também vence em 24 h e **não** gera aviso, de propósito:
  * uma seca que acaba não pede ação. As duas juntas fotografam a regra e a exceção.
  */
-App\Models\GameEvent::updateOrCreate(["slug" => "cesta_de_presente_2"], ["comeca_em" => now()->subHour(), "termina_em" => now()->addHours(30), "status" => "ativo"] + [
+/*
+ * D-250: a segunda remessa também traz uma MISSÃO ESPECIAL — um molde «eventuais», que o sorteio
+ * nunca olha. É o caso que a tela de Missões e a faixa precisam saber mostrar.
+ */
+$moldeDoEvento = App\Models\MissionTemplate::create([
+  "chave" => "caca_as_pecas", "categoria" => "eventuais", "titulo" => "Caça às peças",
+  "descricao" => "Compre uma peça da Endurance enquanto a remessa durar.",
+  "acao" => "comprar_item_endurance", "meta" => 1, "recompensa_xp" => 100, "ativa" => true,
+]);
+App\Models\GameEvent::updateOrCreate(["slug" => "cesta_de_presente_2"], ["comeca_em" => now()->subHour(), "termina_em" => now()->addHours(30), "status" => "ativo", "missoes" => [$moldeDoEvento->id]] + [
   "nome" => "Cesta de Presente — segunda remessa",
   "mensagem_publica" => "Os armazéns do Governo abrem de novo: Ligas Metálicas para erguer o Posto de Comando, e energia para movê-lo. O portão do território segue aberto até 06/09.",
   "modificador" => null, "efeito_bps" => null,

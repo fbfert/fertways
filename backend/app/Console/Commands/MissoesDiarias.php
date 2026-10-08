@@ -82,6 +82,9 @@ class MissoesDiarias extends Command
             $atribuir->garantirNarrativa($colonia);
             $atribuir->tutoria($colonia);
 
+            // D-250: as missões dos eventos que valem hoje, pela mesma razão — quem não abre a tela.
+            $atribuir->garantirEventos($colonia);
+
             if ($colonia->federation_id !== null && $colonia->federation !== null) {
                 $atribuir->garantirFederacao($colonia->federation, $colonia);
             }

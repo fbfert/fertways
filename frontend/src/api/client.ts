@@ -624,8 +624,10 @@ export type Extrato = {
 /** Uma missão na sua mão (§06; D-78). Concluir paga na hora — não há botão de resgate. */
 export type Missao = {
   id: number
-  categoria: 'tutoria' | 'diaria' | 'semanal' | 'federacao' | 'narrativa'
+  categoria: 'tutoria' | 'diaria' | 'semanal' | 'federacao' | 'narrativa' | 'eventuais'
   titulo: string
+  /** D-250: o evento que trouxe a missão (nulo fora das `eventuais`, e em evento secreto). */
+  evento?: string | null
   descricao: string
   progresso: number
   meta: number
@@ -678,6 +680,8 @@ export type EventoDoMundo = {
   recurso?: string | null
   /** D-232: este evento ENTREGA alguma coisa às colônias, e não só altera uma taxa. */
   cesta?: boolean
+  /** D-250: quantas missões especiais o evento traz. */
+  missoes?: number
   /**
    * Quando a janela fecha. Servido desde a A2.8 e **sem consumidor nenhum até a A2.V6** — o prazo
    * do evento era invisível, e o operador o escrevia à mão dentro da `mensagem`, onde envelhece.

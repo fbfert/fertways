@@ -49,6 +49,21 @@ class MissoesController extends Controller
                 ->get()
         );
 
+        /*
+         * D-250: as missões dos eventos. Aparecem as abertas e as concluídas enquanto o evento valer
+         * — a concluída some quando a janela fecha, como a diária some quando o dia vira.
+         */
+        $atribuir->garantirEventos($colony);
+        $missoes = $missoes->concat(
+            MissionAssignment::with(['template', 'evento'])
+                ->where('colony_id', $colony->id)
+                ->where('categoria', 'eventuais')
+                ->whereIn('status', ['ativa', 'concluida'])
+                ->where('expires_at', '>', now())
+                ->orderBy('id')
+                ->get()
+        );
+
         return response()->json([
             'missoes' => $missoes->map($this->linha(...)),
             'rejeicoes_restantes' => $this->rejeicoesRestantes($colony->id),
@@ -102,6 +117,8 @@ class MissoesController extends Controller
             'meta' => $m->meta,
             'status' => $m->status,
             'expira_em' => $m->expires_at?->toIso8601String(),
+            // D-250: o evento que trouxe a missão — só o nome público, e só se ele não for segredo.
+            'evento' => $m->game_event_id !== null && $m->evento?->visivelAoJogador() ? $m->evento->nome : null,
             'recompensa' => [
                 'fert' => $m->template->recompensa_fert_micro / 1_000_000,
                 'xp' => $m->template->recompensa_xp,

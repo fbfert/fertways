@@ -67,6 +67,8 @@ class EventosController extends Controller
                      * não veria número, e concluiria que está quebrado.
                      */
                     'cesta' => $e->temCesta(),
+                    // D-250: quantas missões especiais o evento traz — o detalhe está em Missões.
+                    'missoes' => count($e->missoes ?? []),
                     'termina_em' => $e->termina_em->toIso8601String(),
                 ])->values(),
         ]);

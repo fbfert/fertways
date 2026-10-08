@@ -3,6 +3,9 @@
 namespace App\Console\Commands;
 
 use App\Domain\Eventos\EntregarCestas;
+use App\Domain\Missoes\Atribuir;
+use App\Models\Colony;
+use App\Models\XpEntry;
 use Illuminate\Console\Command;
 
 /**
@@ -29,10 +32,28 @@ class EntregarCestasDeEventos extends Command
 {
     protected $signature = 'fertways:eventos-entregar';
 
-    protected $description = 'Entrega as cestas dos eventos vigentes a quem ainda não recebeu';
+    protected $description = 'Entrega as cestas e as missões dos eventos vigentes a quem ainda não recebeu';
 
-    public function handle(EntregarCestas $entregador): int
+    public function handle(EntregarCestas $entregador, Atribuir $atribuir): int
     {
+        /*
+         * D-250: as missões dos eventos também saem daqui, de cinco em cinco minutos — um evento que
+         * começa às 14h não pode esperar o comando diário das 07h05 para chegar a quem joga.
+         *
+         * Só a quem AGIU nos últimos 7 dias (`xp_entries`), a régua do D-243: missão a quem não olha
+         * enche tabela. Quem voltar depois recebe pela tela (`GET /missoes`).
+         */
+        $ativas = XpEntry::where('created_at', '>=', now()->subDays(7))->distinct()->pluck('colony_id');
+        $missoes = 0;
+
+        foreach (Colony::whereIn('id', $ativas)->get() as $colonia) {
+            $missoes += $atribuir->garantirEventos($colonia);
+        }
+
+        if ($missoes > 0) {
+            $this->info("Missões de evento entregues: {$missoes}.");
+        }
+
         $feito = $entregador->todos();
 
         if ($feito === []) {

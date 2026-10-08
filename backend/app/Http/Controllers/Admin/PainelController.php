@@ -1142,6 +1142,9 @@ class PainelController extends Controller
 
             'modificadores' => Modificadores::TODOS,
             'pontuais' => Modificadores::PONTUAIS,
+            // D-250: os moldes que um evento pode trazer — só `eventuais` (o sorteio nunca os olha).
+            'moldesEventuais' => MissionTemplate::where('categoria', 'eventuais')
+                ->where('ativa', true)->orderBy('titulo')->get(['id', 'chave', 'titulo', 'meta', 'acao']),
             'recursos' => ResourceType::orderBy('nome')->get(),
             'colonias' => Colony::orderBy('name')->get(['id', 'name']),
             'FERT' => EntregarCestas::FERT,

@@ -29,6 +29,7 @@ use App\Domain\Ministry\DecidirCaso;
 use App\Domain\Ministry\GerirConciliador;
 use App\Domain\Ministry\PunicaoSpecs;
 use App\Domain\Missoes\Acoes;
+use App\Domain\Missoes\Atribuir;
 use App\Domain\News\PublicarNoticia;
 use App\Domain\Transport\Ministerio;
 use App\Domain\Transport\Placas;
@@ -2089,7 +2090,12 @@ class AcoesController extends Controller
             'segredo' => ['nullable', 'boolean'],
             'cesta' => ['nullable', 'array'],
             'cesta.*' => ['nullable', 'numeric', 'min:0'],
+            // D-250: as missões especiais do evento — só moldes `eventuais`.
+            'missoes' => ['nullable', 'array'],
+            'missoes.*' => ['integer', Rule::exists('mission_templates', 'id')->where('categoria', 'eventuais')],
         ]);
+
+        $missoes = array_values(array_unique(array_map('intval', $dados['missoes'] ?? [])));
 
         // `?? null` em tudo o que é opcional: um campo AUSENTE do formulário não aparece em
         // `validated()`, e só o nulo explícito aparece. As duas formas chegam aqui.
@@ -2113,9 +2119,9 @@ class AcoesController extends Controller
         // subsídio (D-113), para que as duas telas não divirjam sobre o que "400 Fert$" significa.
         $cesta = $this->parseSubsidio($dados['cesta'] ?? []);
 
-        if ($modificador === null && $cesta === []) {
+        if ($modificador === null && $cesta === [] && $missoes === []) {
             throw ValidationException::withMessages([
-                'slug' => 'Um evento que não mexe em taxa nenhuma e não entrega nada não é um evento.',
+                'slug' => 'Um evento que não mexe em taxa nenhuma, não entrega nada e não traz missão não é um evento.',
             ]);
         }
 
@@ -2141,7 +2147,7 @@ class AcoesController extends Controller
         $comeca = ($dados['comeca_em'] ?? null) ? Carbon::parse($dados['comeca_em']) : now();
         $colonia = $dados['colony_id'] ?? null;
 
-        return $this->tentar('evento.criar', function () use ($dados, $modificador, $cesta, $comeca, $colonia) {
+        return $this->tentar('evento.criar', function () use ($dados, $modificador, $cesta, $comeca, $colonia, $missoes) {
             GameEvent::updateOrCreate(['slug' => $dados['slug']], [
                 'nome' => $dados['nome'],
                 'mensagem_publica' => $dados['mensagem_publica'] ?? null,
@@ -2155,6 +2161,7 @@ class AcoesController extends Controller
                 'efeito_bps' => $modificador === null ? null : (int) $dados['efeito_bps'],
                 'resource_type' => ($dados['resource_type'] ?? null) ?: null,
                 'recompensas' => $cesta ?: null,
+                'missoes' => $missoes ?: null,
                 'segredo' => (bool) ($dados['segredo'] ?? false),
                 // Sempre rascunho — ver o docblock. Ativar é o segundo clique.
                 'status' => 'rascunho',
@@ -2209,9 +2216,12 @@ class AcoesController extends Controller
 
         return $this->tentar('evento.cancelar', function () use ($evento) {
             $evento->update(['status' => 'cancelado', 'cancelado_em' => now()]);
+            // D-250: as missões do evento ainda abertas vencem junto; as concluídas ficam.
+            $vencidas = app(Atribuir::class)->encerrarDoEvento($evento);
 
             return "Evento «{$evento->nome}» cancelado agora. O passado NÃO foi apagado: o efeito que "
-                .'já valeu continua calculável, e a cesta já entregue é de quem recebeu.';
+                .'já valeu continua calculável, e a cesta já entregue é de quem recebeu.'
+                .($vencidas > 0 ? " {$vencidas} missão(ões) ainda aberta(s) venceram junto." : '');
         }, "evento:{$evento->slug}");
     }
 

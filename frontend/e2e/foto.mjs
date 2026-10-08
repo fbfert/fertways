@@ -306,6 +306,18 @@ try {
   await page.screenshot({ path: '/tmp/foto-marco.png' })
   console.log('painel do marco → /tmp/foto-marco.png')
   console.log('  marco:', JSON.stringify(await medirPainelDoMarco(page)))
+
+  /*
+   * AS MISSÕES DO EVENTO (D-250) — a categoria «eventuais» ganhou leitor, e a carta diz de que
+   * evento a missão veio. Texto do servidor: só a foto confere que ele cabe.
+   */
+  await page.goto(`${BASE}/`, { waitUntil: 'domcontentloaded' })
+  await assentar()
+  await new Promise((r) => setTimeout(r, 1500))
+  await page.evaluate(() => document.querySelector('[data-abrir-missoes]')?.click())
+  await new Promise((r) => setTimeout(r, 1500))
+  await page.screenshot({ path: '/tmp/foto-missoes.png' })
+  console.log('missões → /tmp/foto-missoes.png')
 } finally {
   await fecharNavegador(navegador)
 }

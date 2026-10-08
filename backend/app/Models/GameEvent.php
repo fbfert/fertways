@@ -63,6 +63,12 @@ class GameEvent extends Model
         return collect($this->recompensas ?? [])->filter(fn ($q) => (int) $q > 0)->isNotEmpty();
     }
 
+    /** D-250: este evento traz missões especiais? */
+    public function temMissoes(): bool
+    {
+        return collect($this->missoes ?? [])->isNotEmpty();
+    }
+
     /**
      * Este evento é um GANHO para o jogador — e por isso o fim da janela dele é uma porta a fechar.
      *
@@ -76,7 +82,8 @@ class GameEvent extends Model
      */
     public function favoreceOJogador(): bool
     {
-        if ($this->temCesta()) {
+        // D-250: missão com prazo é porta a fechar — o aviso de última chamada vale para ela.
+        if ($this->temCesta() || $this->temMissoes()) {
             return true;
         }
 

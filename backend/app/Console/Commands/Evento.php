@@ -6,9 +6,11 @@ use App\Domain\Eventos\EntregarCestas;
 use App\Domain\Eventos\Modificadores;
 use App\Domain\Logistics\RequisitosDeOcupacao;
 use App\Domain\Marco\Curva;
+use App\Domain\Missoes\Atribuir;
 use App\Domain\Populacao\Parametros;
 use App\Models\Colony;
 use App\Models\GameEvent;
+use App\Models\MissionTemplate;
 use App\Models\NeutralZone;
 use App\Models\ResourceType;
 use Carbon\Carbon;
@@ -61,6 +63,7 @@ class Evento extends Command
         {--pesquisa= : a duração das pesquisas que começarem na janela, em bps}
         {--populacao= : a taxa de crescimento da população, em bps (+10000 = o dobro)}
         {--territorio= : o custo da manutenção territorial cobrada na janela, em bps}
+        {--missoes= : missões especiais — chaves de moldes «eventuais», separadas por vírgula (D-250)}
         {--cesta= : o presente, "recurso:qtd,recurso:qtd" — use __fert__ para Fert$ (em Fert$, não micro)}
         {--recurso= : limita a um recurso (padrão: todos)}
         {--colonia= : limita a uma colônia, por id — o dry-run em escala de um}
@@ -135,9 +138,27 @@ class Evento extends Command
             return self::FAILURE;
         }
 
-        if ($escolhidos === [] && $cesta === []) {
+        /*
+         * D-250: as missões do evento, pela chave do molde. Só `eventuais` — uma diária listada aqui
+         * chegaria por dois caminhos, com dois prazos.
+         */
+        $missoes = [];
+
+        foreach (array_filter(array_map('trim', explode(',', (string) $this->option('missoes')))) as $chave) {
+            $molde = MissionTemplate::where('chave', $chave)->first();
+
+            if (! $molde || $molde->categoria !== 'eventuais') {
+                $this->error("Molde «{$chave}» não existe ou não é da categoria Eventuais.");
+
+                return self::FAILURE;
+            }
+
+            $missoes[] = $molde->id;
+        }
+
+        if ($escolhidos === [] && $cesta === [] && $missoes === []) {
             $this->error(
-                'Diga um modificador (--'.implode(', --', array_keys($opcoes)).') ou uma --cesta.',
+                'Diga um modificador (--'.implode(', --', array_keys($opcoes)).'), uma --cesta ou --missoes.',
             );
 
             return self::FAILURE;
@@ -210,6 +231,7 @@ class Evento extends Command
             'modificador' => $modificador,
             'efeito_bps' => $efeito,
             'recompensas' => $cesta ?: null,
+            'missoes' => $missoes ?: null,
             'resource_type' => $recurso ?: null,
             'segredo' => (bool) $this->option('segredo'),
             'status' => $this->option('ativar') ? 'ativo' : 'rascunho',
@@ -315,7 +337,7 @@ class Evento extends Command
             && ! in_array($d['modificador'], Modificadores::ACEITAM_RECURSO, true);
 
         $this->line($d['modificador'] === null
-            ? sprintf('  sem modificador — só a cesta, por %d h a partir de %s',
+            ? sprintf('  sem modificador, por %d h a partir de %s',
                 $horas, $d['comeca_em']->format('d/m H:i'))
             : sprintf(
                 '  %s de %+.1f%%%s, por %d h a partir de %s',
@@ -335,6 +357,10 @@ class Evento extends Command
          * de 200/h passa a 160/h" não é. Para os pontuais a frase é outra, porque taxa não é a
          * pergunta — o portão da guerra ou está aberto ou não está.
          */
+        if (($d['missoes'] ?? null) !== null) {
+            $this->line('  traz '.count($d['missoes']).' missão(ões) especial(is), com prazo no fim do evento');
+        }
+
         if ($d['modificador'] === null) {
             // Sem taxa não há frase de taxa. A cesta abaixo é a conta inteira deste evento.
         } elseif ($d['modificador'] === Modificadores::GUERRA_DECLARACAO) {
@@ -450,8 +476,13 @@ class Evento extends Command
         }
 
         $evento->update(['status' => 'cancelado', 'cancelado_em' => now()]);
+        $vencidas = app(Atribuir::class)->encerrarDoEvento($evento);
 
         $this->info("Evento «{$evento->nome}» cancelado agora.");
+
+        if ($vencidas > 0) {
+            $this->line("  {$vencidas} missão(ões) do evento ainda abertas venceram junto (D-250).");
+        }
         $this->line('⚠️ O passado NÃO foi apagado: o efeito que já valeu continua calculável, e o');
         $this->line('   "Desde sua última visita" ainda consegue explicar por que a produção caiu.');
 

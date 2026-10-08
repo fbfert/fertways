@@ -86,7 +86,12 @@ export function EventosDoMundo() {
      * Aqui cabe o fato, e o fato é que o Governo mandou alguma coisa.
      */
     // Curto de propósito: com quatro eventos, cada palavra a mais é uma linha a mais no telefone.
-    const presente = e.cesta ? 'presente já entregue' : null
+    // D-250: as missões do evento entram no mesmo "fato" curto que a cesta — o detalhe é de Missões.
+    const partes = [
+      ...(e.cesta ? ['presente já entregue'] : []),
+      ...(e.missoes ? [`${e.missoes} missão${e.missoes > 1 ? 'ões' : ''} especial${e.missoes > 1 ? 'is' : ''}`] : []),
+    ]
+    const presente = partes.length > 0 ? partes.join('; ') : null
 
     if (e.modificador == null) return presente
 

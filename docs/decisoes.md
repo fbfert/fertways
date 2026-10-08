@@ -13984,3 +13984,61 @@ pode ficar vazio — escavar de graça é escolha legítima —, mas a mensagem 
   do cabeçalho da seção, lendo como coisa da tela inteira. Desceu para dentro da seção.
 
 1360 testes verdes, 10 suítes e2e verdes, migration exercitada nos dois sentidos no MariaDB.
+
+---
+
+## D-250 — As missões que um evento traz
+
+**Data:** 2026-10-07 · **Status:** entregue
+
+O item 4 da lista. O §12.2 do `GDD_ALPHA2` põe *"missões relacionadas"* na configuração de um evento,
+e o §12.1 lista *"missões especiais"*. Medido antes de escrever: as **missões narrativas da Endurance
+já existiam** (D-140, quatro capítulos encadeados) — o que faltava era a ponte entre evento e missão.
+E as duas pontas da ponte já estavam construídas e ociosas:
+
+- `game_events.missoes` — coluna JSON da migration do motor (A2.8), **sem um leitor sequer**;
+- a categoria de missão **`eventuais`** — criada no D-1xx *"para o que não tem ciclo — evento,
+  sazonal, lançamento — e não entra no sorteio automático"*, também sem quem a entregasse.
+
+### O que entrou
+
+`mission_assignments.game_event_id` e um índice único `(colônia, evento, molde)`. O evento lista os
+moldes `eventuais` que traz; enquanto ele vale, cada colônia recebe cada molde **uma vez**, com prazo
+no fim do evento. O mesmo molde pode voltar num evento futuro, porque o índice é por evento.
+
+**Três portas entregam, e nenhuma coordena com as outras** — o índice é que impede a duplicata:
+
+- a tela (`GET /missions`), para quem voltar depois;
+- o `fertways:eventos-entregar`, de cinco em cinco minutos, para quem **agiu nos últimos 7 dias** —
+  a régua do D-243 (`xp_entries`, e não o ledger). Um evento que começa às 14h não pode esperar o
+  comando das 07h05;
+- o `fertways:missoes-diarias`, pela mesma razão que já entregava a narrativa a quem não abre a tela.
+
+**Cancelar o evento vence as missões ainda abertas**, no instante do cancelamento; a concluída fica
+concluída — a recompensa já saiu, e o ledger é append-only. É a regra do motor inteiro: cancelar
+encerra o futuro e preserva o passado.
+
+**Só molde `eventuais`**, nos dois formulários (painel e `artisan --missoes`): uma diária listada
+num evento chegaria por dois caminhos, com dois prazos.
+
+### O que o jogador vê
+
+- Em Missões, a seção **"Do evento"**, logo depois da tutoria — tem prazo curto e some com o evento.
+  A carta diz de qual evento a missão veio, **exceto em evento secreto**: o nome não vaza pela missão.
+- A faixa diz *"1 missão especial"* no mesmo "fato" curto da cesta.
+- `favoreceOJogador()` passa a contar missão: o aviso de última chamada vale para ela.
+
+A foto achou o nome do evento colado ao título, espremendo os dois em duas linhas cada; desceu para
+uma linha própria. A faixa fechada no telefone, com a frase a mais, foi de 28% para 31% da tela —
+o × continua recebendo o toque.
+
+### ⚠️ A migration que o SQLite aprovou e o MariaDB recusou
+
+A primeira versão do `down()` dropava a coluna antes do índice composto. Verde no SQLite;
+**`1072 Key column doesn't exist`** no `fertwaysdev`, no meio da volta — com a FK já dropada e a
+coluna de pé, porque o DDL do MariaDB não é transacional. É a lição do D-59 pela terceira vez, e foi
+pega no lugar certo: no banco de dev, antes de publicar. O `down()` final desfaz na ordem certa
+(índice, FK, coluna) e confere cada passo, para a tentativa seguinte terminar o serviço; o ciclo
+sobe-desce-sobe passou limpo depois.
+
+1373 testes verdes, 10 suítes e2e verdes.

@@ -18,6 +18,8 @@ const NOME_CATEGORIA = {
   semanal: 'Semanal',
   federacao: 'Federação',
   narrativa: 'A Endurance',
+  // D-250: as missões especiais de um evento — o prazo é o fim do evento, e a carta diz qual.
+  eventuais: 'Do evento',
 } as const
 
 export function Missoes({ aoFechar }: { aoFechar: () => void }) {
@@ -49,7 +51,8 @@ export function Missoes({ aoFechar }: { aoFechar: () => void }) {
     }
   }
 
-  const grupos = (['tutoria', 'diaria', 'semanal', 'federacao', 'narrativa'] as const)
+  // `eventuais` logo depois da tutoria: tem prazo curto e some com o evento — é o mais urgente.
+  const grupos = (['tutoria', 'eventuais', 'diaria', 'semanal', 'federacao', 'narrativa'] as const)
     .map((c) => ({ categoria: c, itens: missoes.filter((m) => m.categoria === c) }))
     .filter((g) => g.itens.length > 0)
 
@@ -118,6 +121,15 @@ function Carta({
         <strong className={`text-sm ${feita ? 'text-ink-soft line-through' : 'text-ink'}`}>{m.titulo}</strong>
         <span className="text-rust shrink-0 text-xs font-bold">{premio}</span>
       </div>
+      {/*
+        D-250: de que evento a missão veio, em linha própria. A primeira versão o punha ao lado do
+        título, e a foto mostrou os dois se espremendo em duas linhas cada — "Caça às / peças".
+      */}
+      {m.evento && (
+        <p className="text-ember text-[0.65rem] font-bold" data-missao-evento>
+          {m.evento}
+        </p>
+      )}
       <p className="text-ink-soft/80 mt-0.5 text-xs">{m.descricao}</p>
 
       {/*

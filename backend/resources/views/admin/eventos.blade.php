@@ -29,7 +29,12 @@
         // evento sem modificador e sem recompensa — que a validação impede hoje, mas o banco não —
         // se anunciaria como um presente que não existe.
         if ($e->modificador === null) {
-            return $e->temCesta() ? "só entrega cesta" : "não faz nada";
+            return match (true) {
+                $e->temCesta() && $e->temMissoes() => "entrega cesta e traz " . count($e->missoes) . " missão(ões)",
+                $e->temCesta() => "só entrega cesta",
+                $e->temMissoes() => "só traz " . count($e->missoes) . " missão(ões) especial(is)",
+                default => "não faz nada",
+            };
         }
         $mult = max(0, 10000 + (int) $e->efeito_bps);
         return match ($e->modificador) {
@@ -318,6 +323,23 @@
                     @endforeach
                 </table>
             </div>
+
+            {{-- D-250: as missões especiais que o evento traz. --}}
+            <h3 class="pequeno" style="margin:14px 0 4px">Missões especiais (opcional)</h3>
+            <p class="mut pequeno">
+                Cada colônia recebe estas missões <b>uma vez</b>, com prazo no fim do evento — quem
+                jogou nos últimos 7 dias em até 5 minutos, os outros quando abrirem a tela. Só moldes
+                da categoria <b>Eventuais</b> (crie em <a href="{{ route('admin.missoes', ['aba' => 'criar']) }}">Missões</a>):
+                o sorteio diário nunca os olha. Cancelar o evento vence as que ainda estiverem abertas.
+            </p>
+            @forelse ($moldesEventuais as $m)
+                <label class="pequeno" style="display:block">
+                    <input type="checkbox" name="missoes[]" value="{{ $m->id }}">
+                    {{ $m->titulo }} <span class="mut">({{ $m->acao }} × {{ $m->meta }})</span>
+                </label>
+            @empty
+                <p class="mut pequeno">Nenhum molde «Eventuais» ativo ainda.</p>
+            @endforelse
 
             <div style="margin-top:12px">
                 <button>Gravar como rascunho</button>
