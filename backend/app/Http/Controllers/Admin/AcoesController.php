@@ -585,6 +585,8 @@ class AcoesController extends Controller
             'torre_defesa_reducao_bps_por_nivel' => ['nullable', 'integer', 'min:0', 'max:10000'],
             'torre_defesa_reducao_teto_bps' => ['nullable', 'integer', 'min:0', 'max:9500'],
             'rating_k' => ['nullable', 'integer', 'min:1', 'max:400'],
+            // Decisão 7 (D-260): colonos por unidade em campo. Zero desliga a regra.
+            'operadores_por_unidade' => ['nullable', 'integer', 'min:0', 'max:20'],
         ]);
 
         // O que não veio no formulário não muda — `nullable` deixa passar ausente E nulo.

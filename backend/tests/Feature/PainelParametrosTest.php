@@ -163,6 +163,8 @@ class PainelParametrosTest extends TestCase
             'neutralidade_carencia_horas' => 12, 'capitulacao_fert_micro' => 300_000_000,
             'torre_defesa_reducao_bps_por_nivel' => 800, 'torre_defesa_reducao_teto_bps' => 6000,
             'rating_k' => 24,
+            // D-260: a proporção da decisão 7.
+            'operadores_por_unidade' => 2,
         ];
 
         foreach (array_keys($campos) as $campo) {

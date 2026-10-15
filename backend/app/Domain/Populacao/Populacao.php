@@ -2,6 +2,7 @@
 
 namespace App\Domain\Populacao;
 
+use App\Exceptions\DomainRuleException;
 use App\Models\Colony;
 use Illuminate\Support\Facades\DB;
 
@@ -39,8 +40,9 @@ class Populacao
         $total = (int) $colonia->populacao;
         $construcoes = $this->alocadaEmConstrucoes($colonia);
         $zonas = $this->alocadaEmZonas($colonia);
+        $campanha = $this->alocadaEmCampanha($colonia);
 
-        $disponivel = $total - $construcoes - $zonas;
+        $disponivel = $total - $construcoes - $zonas - $campanha;
         $nivel = $this->nivelDaEstrutura($colonia);
 
         return [
@@ -48,6 +50,8 @@ class Populacao
             'capacidade' => $this->capacidade($colonia),
             'em_construcoes' => $construcoes,
             'em_zonas' => $zonas,
+            // D-260: a tropa em marcha ou em combate — a decisão 7 da guerra federativa.
+            'em_campanha' => $campanha,
             'disponivel' => $disponivel,
             /*
              * ⚠️ O déficit, dito como DÍVIDA e não como "menos dez livres" (A2.V4, D-225).
@@ -163,6 +167,62 @@ class Populacao
         return (int) DB::table('neutral_zones')
             ->where('owner_colony_id', $colonia->id)
             ->sum('operadores');
+    }
+
+    /**
+     * Os colonos que a tropa em campo tira da colônia (decisão 7 da guerra federativa, D-260).
+     *
+     * *"Atacar consome operadores da colônia (a tropa sai de algum lugar)."* Só a tropa em CAMPANHA
+     * — marchando ou em combate. A que está em casa não saiu de lugar nenhum, e a que guarnece uma
+     * zona é a automação que o §7.4 já conta pelos operadores da zona.
+     *
+     * Derivado, como as outras alocações: nada é guardado, e a tropa que volta devolve a gente sozinha.
+     */
+    public function alocadaEmCampanha(Colony $colonia): int
+    {
+        $porUnidade = (int) (DB::table('war_settings')->value('operadores_por_unidade') ?? 1);
+
+        if ($porUnidade <= 0) {
+            return 0;
+        }
+
+        return $porUnidade * DB::table('units')
+            ->where('colony_id', $colonia->id)
+            ->whereIn('status', ['marchando', 'em_combate'])
+            ->where('hp_bps', '>', 0)
+            ->count();
+    }
+
+    /**
+     * Recusa mandar tropa que a colônia não tem gente para tripular (D-260).
+     *
+     * Sem a mecânica de população no ar, nada é cobrado — o padrão de todo o modelo: nenhuma colônia
+     * paga por uma equipe que o jogo ainda não pede. Com ela, a tropa precisa de colonos LIVRES; quem
+     * quer atacar tira gente de algum lugar — de uma zona, que então degrada (§6.6). É o custo que o
+     * GDD_GUERRA_FEDERATIVA §6 chama de "a guerra deve custar economia, não só Nióbio".
+     */
+    public function exigirColonosParaTropa(Colony $colonia, int $unidades): void
+    {
+        if (! $this->parametros->ativo()) {
+            return;
+        }
+
+        $porUnidade = (int) (DB::table('war_settings')->value('operadores_por_unidade') ?? 1);
+        $precisa = $porUnidade * $unidades;
+
+        if ($precisa <= 0) {
+            return;
+        }
+
+        $livres = max(0, $this->estado($colonia)['disponivel']);
+
+        if ($livres < $precisa) {
+            throw new DomainRuleException(
+                'sem_colonos_para_a_tropa',
+                "Esta tropa precisa de {$precisa} colono(s) livre(s) para marchar, e a colônia tem {$livres}. "
+                .'Tire gente de uma zona ou espere a população crescer.',
+            );
+        }
     }
 
     /**

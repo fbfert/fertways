@@ -4,6 +4,7 @@ namespace App\Domain\Guerra;
 
 use App\Domain\GuerraFederativa\EmGuerra;
 use App\Domain\Logistics\MapaFertways;
+use App\Domain\Populacao\Populacao;
 use App\Exceptions\DomainRuleException;
 use App\Models\Colony;
 use App\Models\Combat;
@@ -51,6 +52,9 @@ class Atacar
             $this->conferirCooldown($colony, $zona);
 
             $unidades = $this->reservarUnidades($colony, $tipo, $unitIds);
+
+            // Decisão 7 da guerra federativa (D-260): a tropa sai do bolo de colonos da colônia.
+            app(Populacao::class)->exigirColonosParaTropa($colony, $unidades->count());
 
             $this->conferirAlvoDeEstrutura($zona, $tipo, $alvo);
 

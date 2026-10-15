@@ -14380,3 +14380,30 @@ serviço de quem estiver na oficina em vez de devolvê-lo no nível antigo — o
 Exercitada nos dois sentidos no SQLite; conferir no MariaDB.
 
 1424 testes verdes, `npm run build` limpo.
+
+---
+
+## D-260 — A tropa sai da população (decisão 7 da guerra federativa)
+
+**Data:** 2026-10-15 · **Status:** entregue (commit; sem deploy)
+
+O D-193 decidiu "a tropa consome operadores — **sim, do bolo da colônia**", e nenhum código ligava
+unidade a operador. O GDD_GUERRA_FEDERATIVA §6 dá o efeito: *"uma federação em guerra que esvazie as
+zonas de operadores vê a própria extração degradar — e isso é bom: a guerra deve custar economia, não
+só Nióbio."*
+
+- **Na conta:** `Populacao::alocadaEmCampanha()` — unidades da colônia `marchando` ou `em_combate`,
+  × `war_settings.operadores_por_unidade`. Entra no `estado()` (`em_campanha`), no disponível e no
+  `Operadores::disponivel()`. Derivada como as outras: a tropa que volta devolve a gente sozinha. A
+  guarnição de zona não conta (já é contada pelos operadores da zona), e o reforço sai da colônia
+  (`colony_id` nulo) — não conta por construção.
+- **No despacho:** ataque de zona, cerco de colônia e ruptura de cerco exigem colonos LIVRES para a
+  tropa (`sem_colonos_para_a_tropa`). Quem quer atacar tira gente de algum lugar — de uma zona, que
+  então degrada. Sem a mecânica de população no ar, nada é cobrado.
+- ⚠️ **A proporção é arbitragem minha:** o GDD perguntava "em que proporção" e a decisão não deu
+  número. **1 colono por unidade**, a mais simples que não inventa escala. Editável no painel da
+  Guerra; zero desliga.
+- O HUD mostra "na tropa em campo" quando houver.
+
+Migration `2026_10_15_400000_tropa_consome_operadores` (uma coluna). GDD v41 §13.5 nova, e a linha 7
+da tabela de decisões deixa de ser promessa. 1430 testes verdes, `npm run build` limpo.

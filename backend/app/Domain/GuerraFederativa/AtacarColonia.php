@@ -3,6 +3,7 @@
 namespace App\Domain\GuerraFederativa;
 
 use App\Domain\Guerra\Forcas;
+use App\Domain\Populacao\Populacao;
 use App\Exceptions\DomainRuleException;
 use App\Models\Colony;
 use App\Models\Combat;
@@ -55,6 +56,9 @@ class AtacarColonia
             $this->conferirCercoEmCurso($atacante, $alvo);
 
             $unidades = $this->reservar($atacante, $unitIds);
+
+            // Decisão 7 (D-260): a tropa sai do bolo de colonos da colônia.
+            app(Populacao::class)->exigirColonosParaTropa($atacante, $unidades->count());
 
             $agora = now();
             $chega = $agora->copy()->addSeconds($this->marcha($atacante, $alvo));

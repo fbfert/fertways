@@ -3,6 +3,7 @@
 namespace App\Domain\Guerra;
 
 use App\Domain\Logistics\MapaFertways;
+use App\Domain\Populacao\Populacao;
 use App\Exceptions\DomainRuleException;
 use App\Models\Colony;
 use App\Models\Combat;
@@ -104,6 +105,9 @@ class RomperCerco
                     'Só Sentinelas rompem um cerco (§28.10). Selecione as que estão no pátio.',
                 );
             }
+
+            // Decisão 7 da guerra federativa (D-260): a tropa sai do bolo de colonos da colônia.
+            app(Populacao::class)->exigirColonosParaTropa($colony, $unidades->count());
 
             $zona = NeutralZone::findOrFail($cerco->zone_id);
 

@@ -294,11 +294,17 @@
                     <input type="number" min="1" max="400" name="rating_k"
                            value="{{ $guerra->rating_k }}" required style="width:80px">
                 </div>
+                <div style="flex:0">
+                    <label>Colonos por unidade em campo</label>
+                    <input type="number" min="0" max="20" name="operadores_por_unidade"
+                           value="{{ $guerra->operadores_por_unidade }}" required style="width:80px">
+                </div>
                 <button type="submit" data-salvar-guerra>Salvar parâmetros</button>
             </div>
             <p class="mut pequeno">
                 O teto do corte não passa de 95%: com 100%, uma Torre alta zeraria o espólio e o cerco
-                de colônia se desligaria sozinho, sem ninguém notar. Os números da declaração saem do
+                de colônia se desligaria sozinho, sem ninguém notar. Os <b>colonos por unidade</b> são a
+                decisão 7 (D-260): a tropa que marcha sai do bolo da colônia, e zero desliga a regra. Os números da declaração saem do
                 <b>fundo da federação</b>, nunca do bolso de quem clica.
             </p>
         </form>

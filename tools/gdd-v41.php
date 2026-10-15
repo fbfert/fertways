@@ -434,6 +434,7 @@ foreach ([
     'torre_defesa_reducao_bps_por_nivel' => ['Torre de Defesa: corte do saque por nível', n($gfTorrePorNivelBps / 100, 0).'%'],
     'torre_defesa_reducao_teto_bps' => ['Torre de Defesa: teto do corte', n($gfTorreTetoBps / 100, 0).'%'],
     'rating_k' => ['K do Elo', n($gfRatingK)],
+    'operadores_por_unidade' => ['Colonos por unidade em campo (decisão 7)', n($guerraCfg->operadores_por_unidade)],
 ] as $campo => [$rotulo, $valor]) {
     $gfParametros[$campo] = [
         'rotulo' => $rotulo,
@@ -2250,7 +2251,7 @@ todos desde a fundação, e os da zona se abrem conforme ela sobe.</p>
   <tr><td class="num">4</td><td>Não há recusa</td><td>Quem é declarado <b>está</b> em guerra</td></tr>
   <tr><td class="num">5</td><td>Duração de 7 dias</td><td><?= n($gfDuracaoH) ?> h, do banco</td></tr>
   <tr><td class="num">6</td><td>Capital e Espaçoporto fora, sempre</td><td>Vale por construção: a Capital não é colônia, e o Espaçoporto não existe (§12)</td></tr>
-  <tr><td class="num">7</td><td>Tropa consome operadores da colônia</td><td><?= promessa('nenhum código liga unidade a operador (§13.2)') ?></td></tr>
+  <tr><td class="num">7</td><td>Tropa consome operadores da colônia</td><td><?= (int) $guerraCfg->operadores_por_unidade ?> colono(s) por unidade em campo, do bolo da colônia — §13.5 <span class="d">D-260</span></td></tr>
   <tr><td class="num">8</td><td>Declarar a uma aliada rompe a aliança</td><td>Abaixo</td></tr>
   <tr><td class="num">9</td><td>Capitulação: o vencedor escolhe zona ou Fert$</td><td>§8.14</td></tr>
   <tr><td class="num">10</td><td>Fórmula do ranking como desenho próprio</td><td>Elo, §8.15</td></tr>
@@ -2289,7 +2290,7 @@ todos desde a fundação, e os da zona se abrem conforme ela sobe.</p>
 <?php $gfTodosNoPainel = collect($gfParametros)->every(fn ($p) => $p['form'] && $p['valida'] && $p['grava']); ?>
 <?php if ($gfTodosNoPainel): ?>
 <div class="nota">
-  <b>Os nove moram em <code>war_settings</code> e mudam pelo painel da Guerra, sem deploy</b>
+  <b>Os dez moram em <code>war_settings</code> e mudam pelo painel da Guerra, sem deploy</b>
   <span class="d">D-206, D-258</span>. Até o D-258 não mudavam: o D-206 abriu a validação e o
   <code>fillable</code> de seis deles e esqueceu o formulário, e os três que vieram depois (o corte da
   Torre e o K do Elo) não estavam em lugar nenhum — só mudavam por SQL à mão. Os números em si são do
@@ -3184,6 +3185,29 @@ rating  += K × (resultado − esperado)        K = <?= $gfRatingK ?>, início <
   que nascesse com zero colonos <b>nunca sairia de zero</b> — ficaria para sempre sem poder ocupar
   zona, alocar operador ou erguer o que exige equipe. <span class="d">D-225</span>
 </p>
+
+<h3>13.5 A tropa sai da população <span class="d">D-193, D-260</span></h3>
+
+<p>
+  Decisão 7 da guerra federativa: <i>"a tropa consome operadores da colônia"</i> — e o
+  GDD_GUERRA_FEDERATIVA diz por quê: <i>"a guerra deve custar economia, não só Nióbio"</i>. Cada
+  unidade <b>em campo</b> — marchando ou em combate, num ataque de zona, num cerco de colônia ou numa
+  ruptura de cerco — conta como <b><?= (int) $guerraCfg->operadores_por_unidade ?> colono(s)</b>
+  alocado(s), ao lado das construções e das zonas. A que está em casa não saiu de lugar nenhum, e a
+  que guarnece uma zona já é contada pelos operadores da zona.
+</p>
+
+<ul>
+  <li><b>Marchar exige colonos livres</b>, como ocupar uma zona exige. Quem quer atacar tira gente de
+      algum lugar — de uma zona, que então degrada (§13.2). É esse o custo que a decisão quis.</li>
+  <li><b>A tropa que volta devolve a gente sozinha</b>: a conta é derivada, nada é guardado.</li>
+  <li>Sem a mecânica de população no ar, nada é cobrado — o padrão de todo este capítulo.</li>
+</ul>
+
+<p>
+  <?= arbitrado('a proporção — 1 colono por unidade. O usuário decidiu "sim, do bolo da colônia" e o GDD perguntava "em que proporção" sem número; zero desliga, no painel da Guerra') ?>
+</p>
+
 
 <h2 id="s14">14. Pesquisa</h2>
 

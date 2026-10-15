@@ -117,7 +117,9 @@ class Operadores
     {
         return (int) $colonia->populacao
             - $this->populacao->alocadaEmConstrucoes($colonia)
-            - $this->populacao->alocadaEmZonas($colonia);
+            - $this->populacao->alocadaEmZonas($colonia)
+            // D-260: quem está em campanha não está livre para ir a uma zona.
+            - $this->populacao->alocadaEmCampanha($colonia);
     }
 
     /**

@@ -108,6 +108,8 @@ export type Colonia = {
     capacidade: number
     em_construcoes: number
     em_zonas: number
+    /** D-260: a tropa em marcha ou em combate — a guerra tira gente da colônia (decisão 7). */
+    em_campanha: number
     /**
      * O número que decide alguma coisa: sem gente livre não se ocupa zona nem se cresce.
      *

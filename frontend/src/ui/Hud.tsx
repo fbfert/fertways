@@ -264,6 +264,13 @@ export function Populacao({ colonia }: { colonia: Colonia }) {
           <span className="text-ink-soft">nas zonas</span>
           <span className="tabular-nums">{p.em_zonas.toLocaleString('pt-BR')}</span>
         </div>
+        {/* D-260: só aparece com tropa em campo — sem guerra, é uma linha de zero que não diz nada. */}
+        {p.em_campanha > 0 && (
+          <div className="flex items-center justify-between" data-populacao-campanha>
+            <span className="text-ink-soft">na tropa em campo</span>
+            <span className="tabular-nums">{p.em_campanha.toLocaleString('pt-BR')}</span>
+          </div>
+        )}
         <div className="flex items-center justify-between">
           <span className="text-ink-soft">teto habitacional</span>
           <span className={`tabular-nums ${noTeto ? 'text-rust font-bold' : ''}`} data-populacao-teto>

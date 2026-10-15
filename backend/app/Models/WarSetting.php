@@ -50,6 +50,8 @@ class WarSetting extends Model
         // Guerra"; não moravam — nem no `fillable` (D-258).
         'torre_defesa_reducao_bps_por_nivel',
         'torre_defesa_reducao_teto_bps',
+        // Decisão 7 (D-260): quantos colonos cada unidade em campo tira da colônia.
+        'operadores_por_unidade',
     ];
 
     protected $casts = [
