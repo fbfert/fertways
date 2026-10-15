@@ -68,6 +68,23 @@ aberta. **Sem deploy** — commit e push, sim. Ordem:
 13. [x] **(D-261)** Decisão 11: detecção de contas vinculadas com revisão humana.
 14. [x] **(D-262)** Espaçoporto / Cargueiro Interplanetário / planetas NPC — só o que o GDD publica; o resto vira lacuna marcada.
 
+**A segunda leva fechou em 15/10 (D-257 a D-262), toda commitada e sem deploy.** O que sobra do GDD
+não é construível sem o usuário — cada item precisa de número ou de desenho que nenhum documento
+publica:
+
+- os **números de economia do Espaçoporto** (preço por planeta e recurso, aluguel, capacidade, frota)
+  — o mecanismo está pronto e fechado (D-262);
+- o **risco** interplanetário, o **imposto** sobre carga de planeta NPC, os **portões por planeta**;
+- o **salário do Atendente do Espaçoporto** (o último cargo cívico);
+- o **efeito da Antena de Comunicação e da Plataforma de Pouso** (o GDD promete sem número);
+- o **tempo de fabricação de unidades** (hoje instantâneo; "se ele quiser, é decisão dele");
+- **silício, lítio e tântalo** sem fonte além do governo — estrutural, talvez de propósito;
+- as **missões de reconhecimento** (v3.4 §2): o pipeline tem fases e durações publicadas, mas o que
+  ele revela (taxa, capacidade do planeta novo) não tem número — seria mais sistema sem jogo.
+
+⚠️ Antes do deploy deste lote: **sete migrations novas** (D-256 a D-262) exercitadas só no SQLite —
+conferir no `fertwaysdev` (MariaDB) nos dois sentidos, e regerar o GDD v41 lá.
+
 **Sessão de 15/10 — numa máquina Windows nova** (`C:\Users\Dell\Desktop\Fertways`), clone limpo,
 SQLite local; **sem acesso SSH ao servidor ainda** (chave `~/.ssh/fertways_deploy` gerada, não
 instalada no root). Ponto exato de parada:
