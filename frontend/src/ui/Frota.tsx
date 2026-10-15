@@ -10,6 +10,7 @@ const ESTADO: Record<Veiculo['status'], string> = {
   carregando: 'Carregando',
   em_rota: 'Em rota',
   descarregando: 'Descarregando',
+  em_upgrade: 'Em upgrade',
 }
 
 /**
@@ -113,6 +114,12 @@ export function Frota() {
                 {v.status === 'ocioso' ? (
                   <p className="text-ink-soft mt-2 text-sm">
                     No pátio. Capacidade de {v.capacity.toLocaleString('pt-BR')} unidades.
+                  </p>
+                ) : v.status === 'em_upgrade' ? (
+                  /* D-259: sem destino nem carga — está na oficina do Ministério. */
+                  <p className="text-ink-soft mt-2 text-sm">
+                    Na oficina do Ministério, subindo para o nível {v.level + 1}. Volta ao pátio
+                    sozinho quando o serviço acabar — veja o prazo na Central de Transportes.
                   </p>
                 ) : (
                   <dl className="text-ink-soft mt-2 space-y-1 text-sm">

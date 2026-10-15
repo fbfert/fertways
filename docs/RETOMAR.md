@@ -63,7 +63,7 @@ aberta. **Sem deploy** — commit e push, sim. Ordem:
 
 9. [x] **(D-257)** O `EnduranceItemSeeder` re-rodado zera `quantidade_vendida`; o `TechnologySeeder` fora do `DatabaseSeeder`.
 10. [x] **(D-258)** Parâmetros que se dizem "do painel" e não estão nele (estoque, upgrade de veículo, guerra, pesquisa).
-11. [ ] `upgrade_segundos_por_nivel`: o veículo fica indisponível durante o upgrade, como a migration promete.
+11. [x] **(D-259)** `upgrade_segundos_por_nivel`: o veículo fica indisponível durante o upgrade, como a migration promete.
 12. [ ] Decisão 7 da guerra federativa: a tropa consome operadores da colônia.
 13. [ ] Decisão 11: detecção de contas vinculadas com revisão humana.
 14. [ ] Espaçoporto / Cargueiro Interplanetário / planetas NPC — só o que o GDD publica; o resto vira lacuna marcada.

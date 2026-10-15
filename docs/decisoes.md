@@ -14356,3 +14356,27 @@ depender do mesmo cálculo que a tabela, que lê o formulário. (Ele lê o **fon
 campos da guerra estão escritos um a um, e não num laço.)
 
 1418 testes verdes.
+
+---
+
+## D-259 — O upgrade de veículo leva o tempo que a A2.7 prometeu
+
+**Data:** 2026-10-15 · **Status:** entregue (commit; sem deploy)
+
+`transport_settings.upgrade_segundos_por_nivel` nasceu na A2.7 com a promessa escrita na migration —
+*"o veículo fica indisponível enquanto sobe"* — e ninguém o lia: o upgrade era instantâneo.
+
+- O serviço dura `upgrade_segundos_por_nivel × (nível alvo − 1)`, a mesma forma do custo.
+  ⚠️ Arbitragem minha: a migration diz só "por nível alvo".
+- O custo sai na entrada. O veículo entra num estado novo, **`em_upgrade`**, até `ready_at` (a coluna
+  que a fábrica já usava para "fica pronto em"). Estado, e não coluna à parte, para que todo despacho
+  que exige `ocioso` o recuse sem saber que o upgrade existe.
+- O nível e a capacidade só mudam quando o tick conclui (`ConcluirUpgradesDeVeiculo`, junto da linha
+  de montagem do Ministério). Zero mantém o instantâneo — é decisão do operador, editável desde o D-258.
+- A tela diz o tempo antes ("fica N h na oficina") e o prazo durante; a Frota mostra o estado.
+
+Migration `2026_10_15_300000_upgrade_de_veiculo_leva_tempo`: só amplia o ENUM. O down conclui o
+serviço de quem estiver na oficina em vez de devolvê-lo no nível antigo — o custo já foi pago.
+Exercitada nos dois sentidos no SQLite; conferir no MariaDB.
+
+1424 testes verdes, `npm run build` limpo.

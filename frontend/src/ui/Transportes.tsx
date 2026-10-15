@@ -334,7 +334,14 @@ function LinhaDoRegistro({
       */}
       {!emRota && (
         <div className="border-ink/10 mt-3 border-t pt-2">
-          {u.no_maximo ? (
+          {u.em_servico_para ? (
+            /* D-259: o serviço leva tempo, e o veículo fica parado na oficina até acabar. */
+            <div className="text-ink-soft text-xs" data-em-upgrade={v.id}>
+              Na oficina, subindo para o nível <strong>{u.em_servico_para}</strong>
+              {u.pronto_em && <> — pronto em <strong>{dataHumana(u.pronto_em)}</strong></>}. Até lá
+              ele não carrega nada.
+            </div>
+          ) : u.no_maximo ? (
             <div className="text-ink-soft/60 text-xs">
               Nível {v.nivel}, o máximo. Este veículo não sobe mais.
             </div>
@@ -346,6 +353,10 @@ function LinhaDoRegistro({
                 onClick={() =>
                   agir(async () => {
                     const { veiculo } = await api.melhorarVeiculo(v.id)
+                    // D-259: com tempo de serviço, o nível só sobe quando a oficina devolve o veículo.
+                    if (veiculo.upgrade.em_servico_para) {
+                      return `${veiculo.placa} entrou na oficina para subir ao nível ${veiculo.upgrade.em_servico_para}${veiculo.upgrade.pronto_em ? ` — pronto em ${dataHumana(veiculo.upgrade.pronto_em)}` : ''}.`
+                    }
                     return `${veiculo.placa} subiu para o nível ${veiculo.nivel} — carrega ${veiculo.upgrade.capacidade_agora.toLocaleString('pt-BR')}, e a manutenção dele agora custa ${veiculo.upgrade.manutencao_agora.toFixed(0)}% do normal.`
                   })
                 }
@@ -360,6 +371,7 @@ function LinhaDoRegistro({
                 <strong>{u.capacidade_depois?.toLocaleString('pt-BR')}</strong>, e a manutenção
                 passa de <strong>{u.manutencao_agora.toFixed(0)}%</strong> para{' '}
                 <strong>{u.manutencao_depois?.toFixed(0)}%</strong> do normal.
+                {!!u.segundos && <> Fica {Math.ceil(u.segundos / 3600)} h na oficina.</>}
               </span>
 
               {u.custo && (

@@ -59,6 +59,13 @@ class Vehicle extends Model
         'cargo_json' => 'array',
     ];
 
+    /**
+     * No serviço de upgrade (D-259): indisponível até `ready_at`, quando o tick o devolve `ocioso`
+     * no nível novo. Um estado, e não uma coluna à parte, para que todo lugar que exige `ocioso`
+     * para despachar recuse sem precisar saber que o upgrade existe.
+     */
+    public const EM_UPGRADE = 'em_upgrade';
+
     /** Onde o veículo está quando está parado (D-65). Em rota, `local` é o lugar de onde ele saiu. */
     public const EM_CASA = 'colonia';
 

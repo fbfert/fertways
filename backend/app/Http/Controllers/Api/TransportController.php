@@ -134,12 +134,17 @@ class TransportController extends Controller
         $alvo = $atual + 1;
         $maximo = (int) $config->upgrade_nivel_maximo;
         $noMaximo = $alvo > $maximo;
+        $emServico = $v->status === Vehicle::EM_UPGRADE;
 
         return [
             'nivel_maximo' => $maximo,
             'no_maximo' => $noMaximo,
             // Só no pátio: um veículo em rota tem carga calculada com a capacidade atual.
             'pode' => ! $noMaximo && $v->status === 'ocioso',
+            // D-259: o serviço em curso — para qual nível, e quando fica pronto.
+            'em_servico_para' => $emServico ? $alvo : null,
+            'pronto_em' => $emServico ? $v->ready_at?->toIso8601String() : null,
+            'segundos' => $noMaximo ? null : $u->segundos($alvo, $config),
             'proximo_nivel' => $noMaximo ? null : $alvo,
             'custo' => $noMaximo ? null : $u->custo($v->type, $alvo, $config),
             'capacidade_agora' => $u->capacidade($v->type, $atual, $config),

@@ -61,6 +61,26 @@ class UpgradeVeiculo
 
             $this->debitar($colonia, $veiculo, $alvo, $config);
 
+            /*
+             * O serviço leva tempo (D-259) — `upgrade_segundos_por_nivel` × (nível alvo − 1), a mesma
+             * forma do custo: sem a multiplicação, o último nível sairia tão rápido quanto o primeiro.
+             * O custo sai AGORA; o nível e a capacidade só mudam quando o tick concluir o serviço
+             * (`ConcluirUpgradesDeVeiculo`). Enquanto isso o veículo é `em_upgrade`, e todo despacho
+             * que exige `ocioso` o recusa sem precisar saber disto.
+             *
+             * Zero mantém o upgrade instantâneo — foi o comportamento até aqui, e é decisão do operador.
+             */
+            $segundos = $this->segundos($alvo, $config);
+
+            if ($segundos > 0) {
+                $veiculo->update([
+                    'status' => Vehicle::EM_UPGRADE,
+                    'ready_at' => now()->addSeconds($segundos),
+                ]);
+
+                return $veiculo->fresh();
+            }
+
             $veiculo->update([
                 'level' => $alvo,
                 /*
@@ -74,6 +94,14 @@ class UpgradeVeiculo
 
             return $veiculo->fresh();
         });
+    }
+
+    /** Quanto dura o serviço para chegar a `$alvo`, em segundos (D-259). */
+    public function segundos(int $alvo, ?TransportSetting $config = null): int
+    {
+        $porNivel = (int) ($config ?? TransportSetting::singleton())->upgrade_segundos_por_nivel;
+
+        return $porNivel * max(0, $alvo - 1);
     }
 
     /**

@@ -3046,12 +3046,19 @@
   Neste banco, hoje: <b>0</b> veículo(s) acima do nível 1.
 </div>
 
-<div class="nota grave">
-  <b>⚠️ O tempo do serviço é um parâmetro que ninguém lê.</b>
-  <code>transport_settings.upgrade_segundos_por_nivel</code> vale
-  3.600 s, e a migration o descreve como o tempo em que o
-  veículo fica indisponível enquanto sobe — mas o <code>UpgradeVeiculo</code> não o consulta: <b>o
-  upgrade é instantâneo</b>. <span class="sel sel-lac">Ligar o tempo ou apagar o campo</span></div>
+<h4>O tempo do serviço <span class="d">D-259</span></h4>
+
+<p>
+  O upgrade leva <b>1,0 h por nível alvo</b>
+  (<code>upgrade_segundos_por_nivel</code> × (nível alvo − 1), a mesma forma do custo): subir ao
+  nível 2 leva 1,0 h, ao nível
+  5, 4,0 h.
+  O custo sai na entrada; o veículo vai para a oficina do Ministério (<code>em_upgrade</code>) e
+  <b>não carrega nada</b> até o tick devolvê-lo ao pátio, já no nível novo. É um estado, e não uma
+  coluna à parte, para que todo despacho que exige o veículo ocioso o recuse sem saber que o upgrade
+  existe. Zero torna o upgrade instantâneo, que foi o comportamento até o D-259.
+  <span class="sel sel-arb">Arbitrado · o tempo multiplicado pelo nível alvo, como o custo — a migration dizia só &quot;por nível alvo&quot;</span></p>
+
 
 
 <!-- ══════════════════════════════════════════════════════════════ 6 -->

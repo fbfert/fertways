@@ -1647,15 +1647,20 @@ ob_start();
   Neste banco, hoje: <b><?= n($veiculosAcimaDe1) ?></b> veículo(s) acima do nível 1.
 </div>
 
-<?php if ((int) $config->upgrade_segundos_por_nivel > 0): ?>
-<div class="nota grave">
-  <b>⚠️ O tempo do serviço é um parâmetro que ninguém lê.</b>
-  <code>transport_settings.upgrade_segundos_por_nivel</code> vale
-  <?= n($config->upgrade_segundos_por_nivel) ?> s, e a migration o descreve como o tempo em que o
-  veículo fica indisponível enquanto sobe — mas o <code>UpgradeVeiculo</code> não o consulta: <b>o
-  upgrade é instantâneo</b>. <?= lacuna('Ligar o tempo ou apagar o campo') ?>
-</div>
-<?php endif; ?>
+<h4>O tempo do serviço <span class="d">D-259</span></h4>
+
+<p>
+  O upgrade leva <b><?= n($config->upgrade_segundos_por_nivel / 3600, 1) ?> h por nível alvo</b>
+  (<code>upgrade_segundos_por_nivel</code> × (nível alvo − 1), a mesma forma do custo): subir ao
+  nível 2 leva <?= n($upgrade->segundos(2, $config) / 3600, 1) ?> h, ao nível
+  <?= max(2, $upgradeNivelMax) ?>, <?= n($upgrade->segundos(max(2, $upgradeNivelMax), $config) / 3600, 1) ?> h.
+  O custo sai na entrada; o veículo vai para a oficina do Ministério (<code>em_upgrade</code>) e
+  <b>não carrega nada</b> até o tick devolvê-lo ao pátio, já no nível novo. É um estado, e não uma
+  coluna à parte, para que todo despacho que exige o veículo ocioso o recuse sem saber que o upgrade
+  existe. Zero torna o upgrade instantâneo, que foi o comportamento até o D-259.
+  <?= arbitrado('o tempo multiplicado pelo nível alvo, como o custo — a migration dizia só "por nível alvo"') ?>
+</p>
+
 
 
 <!-- ══════════════════════════════════════════════════════════════ 6 -->

@@ -17,6 +17,7 @@ use App\Domain\Ministry\ExpirarPrazos;
 use App\Domain\Ministry\PagarConciliadores;
 use App\Domain\Production\ColonyTick;
 use App\Domain\Trade\ExpirarAcordos;
+use App\Domain\Transport\ConcluirUpgradesDeVeiculo;
 use App\Domain\Transport\FabricarVeiculos;
 use App\Domain\Zona\CobrarManutencaoTerritorial;
 use App\Domain\Zona\ConcluirObrasDaZona;
@@ -166,6 +167,10 @@ class TickColonies extends Command
          * isso não é falha do tick.
          */
         ['prontos' => $prontos, 'encomendados' => $encomendados] = $fabrica->handle();
+
+        // O serviço de upgrade que venceu devolve o veículo ao pátio, no nível novo (D-259). Junto
+        // da linha de montagem: é a mesma oficina do Ministério.
+        $prontos += app(ConcluirUpgradesDeVeiculo::class)->handle($agora);
 
         /*
          * A hora do Pátio da Capital (D-65). **Depois** das entregas, nunca antes: o veículo que

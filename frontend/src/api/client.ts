@@ -793,7 +793,8 @@ export type Veiculo = {
   plate: string | null
   nickname: string | null
   level: number
-  status: 'ocioso' | 'carregando' | 'em_rota' | 'descarregando'
+  /** `em_upgrade` (D-259): no serviço do Ministério, indisponível até voltar no nível novo. */
+  status: 'ocioso' | 'carregando' | 'em_rota' | 'descarregando' | 'em_upgrade'
   /** A capacidade de fábrica (§25.4). É a nominal: não é ela que o despacho cobra. */
   capacity: number
   /**
@@ -1108,6 +1109,11 @@ export type RegistroVeiculo = {
     /** Em porcentagem do custo de manutenção do nível 1: 100 é o normal, 120 é 20% mais caro. */
     manutencao_agora: number
     manutencao_depois: number | null
+    /** D-259: o serviço em curso — o nível para onde ele vai, e quando volta ao pátio. */
+    em_servico_para: number | null
+    pronto_em: string | null
+    /** Quanto o próximo upgrade leva; 0 é instantâneo. */
+    segundos: number | null
   }
 }
 

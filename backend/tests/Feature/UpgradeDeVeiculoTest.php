@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Domain\Logistics\VeiculoSpecs;
+use App\Domain\Transport\ConcluirUpgradesDeVeiculo;
 use App\Domain\Transport\Manutencao;
 use App\Domain\Transport\UpgradeVeiculo;
 use App\Exceptions\DomainRuleException;
@@ -32,6 +33,10 @@ class UpgradeDeVeiculoTest extends TestCase
     {
         parent::setUp();
         $this->seed(ResourceTypeSeeder::class);
+
+        // Os testes de nível, capacidade e custo olham o RESULTADO do upgrade; o tempo do serviço
+        // (D-259) tem a seção dele no fim do arquivo, que o liga de volta.
+        TransportSetting::singleton()->update(['upgrade_segundos_por_nivel' => 0]);
     }
 
     private int $proximo = 0;
@@ -273,5 +278,95 @@ class UpgradeDeVeiculoTest extends TestCase
         $this->assertFalse($u['pode']);
         $this->assertNull($u['proximo_nivel']);
         $this->assertNull($u['custo']);
+    }
+
+    // ─────────────────────────────────── o tempo do serviço (D-259)
+    //
+    // `upgrade_segundos_por_nivel` existia desde a A2.7 com a promessa escrita na migration — "o
+    // veículo fica indisponível enquanto sobe" — e ninguém o lia: o upgrade era instantâneo.
+
+    private function comTempo(int $segundos = 3600): void
+    {
+        TransportSetting::singleton()->update(['upgrade_segundos_por_nivel' => $segundos]);
+    }
+
+    public function test_com_tempo_o_veiculo_fica_em_servico_e_o_nivel_ainda_nao_sobe(): void
+    {
+        $this->comTempo();
+        $c = $this->colonia();
+        $v = $this->veiculo($c);
+
+        $depois = app(UpgradeVeiculo::class)->handle($c, $v);
+
+        $this->assertSame(Vehicle::EM_UPGRADE, $depois->status);
+        $this->assertSame(1, (int) $depois->level, 'o nível sobe quando o serviço acaba');
+        $this->assertSame(VeiculoSpecs::CAPACIDADE['furgao_de_comercio'], (int) $depois->capacity);
+        $this->assertTrue(Ledger::where('type', 'upgrade_veiculo')->exists(), 'o custo sai na entrada');
+    }
+
+    /** "Por nível alvo": a mesma forma do custo — subir ao 3 leva o dobro de subir ao 2. */
+    public function test_o_tempo_cresce_com_o_nivel_alvo(): void
+    {
+        $this->comTempo(3600);
+        $c = $this->colonia();
+
+        $ao2 = app(UpgradeVeiculo::class)->handle($c, $this->veiculo($c, 1));
+        $ao3 = app(UpgradeVeiculo::class)->handle($c, $this->veiculo($c, 2));
+
+        $this->assertEqualsWithDelta(3600, now()->diffInSeconds($ao2->ready_at), 2);
+        $this->assertEqualsWithDelta(7200, now()->diffInSeconds($ao3->ready_at), 2);
+    }
+
+    public function test_em_servico_o_veiculo_nao_sobe_de_novo_nem_sai_do_patio(): void
+    {
+        $this->comTempo();
+        $c = $this->colonia();
+        $v = app(UpgradeVeiculo::class)->handle($c, $this->veiculo($c));
+
+        $this->expectException(DomainRuleException::class);
+        app(UpgradeVeiculo::class)->handle($c, $v);
+    }
+
+    public function test_o_tick_conclui_o_servico(): void
+    {
+        $this->comTempo();
+        $c = $this->colonia();
+        $v = app(UpgradeVeiculo::class)->handle($c, $this->veiculo($c));
+
+        $this->assertSame(0, app(ConcluirUpgradesDeVeiculo::class)->handle(now()), 'antes do prazo, nada');
+
+        $this->assertSame(1, app(ConcluirUpgradesDeVeiculo::class)->handle($v->ready_at->copy()->addSecond()));
+
+        $v->refresh();
+        $this->assertSame('ocioso', $v->status);
+        $this->assertSame(2, (int) $v->level);
+        $this->assertSame(app(UpgradeVeiculo::class)->capacidade($v->type, 2), (int) $v->capacity);
+        $this->assertNull($v->ready_at);
+    }
+
+    /** O tick de verdade, e não só a classe: sem a linha no `TickColonies`, o veículo ficaria em serviço para sempre. */
+    public function test_o_fertways_tick_chama_a_conclusao(): void
+    {
+        $this->comTempo(60);
+        $c = $this->colonia();
+        $v = app(UpgradeVeiculo::class)->handle($c, $this->veiculo($c));
+
+        $this->travelTo($v->ready_at->copy()->addMinute());
+        $this->artisan('fertways:tick');
+
+        $this->assertSame(2, (int) $v->fresh()->level);
+    }
+
+    public function test_a_listagem_diz_que_esta_em_servico_e_quando_fica_pronto(): void
+    {
+        $this->comTempo();
+        $c = $this->colonia();
+        $v = app(UpgradeVeiculo::class)->handle($c, $this->veiculo($c));
+
+        $linha = collect($this->actingAs($c->user)->getJson('/transport')->json('veiculos'))->firstWhere('id', $v->id);
+
+        $this->assertFalse($linha['upgrade']['pode']);
+        $this->assertSame(2, $linha['upgrade']['em_servico_para']);
+        $this->assertNotNull($linha['upgrade']['pronto_em']);
     }
 }
