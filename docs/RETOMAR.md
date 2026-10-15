@@ -82,7 +82,7 @@ publica:
 - as **missões de reconhecimento** (v3.4 §2): o pipeline tem fases e durações publicadas, mas o que
   ele revela (taxa, capacidade do planeta novo) não tem número — seria mais sistema sem jogo.
 
-⚠️ Antes do deploy deste lote: **sete migrations novas** (D-256 a D-262) exercitadas só no SQLite —
+⚠️ Antes do deploy deste lote: **seis migrations novas** (D-256 a D-262) exercitadas só no SQLite —
 conferir no `fertwaysdev` (MariaDB) nos dois sentidos, e regerar o GDD v41 lá.
 
 **Sessão de 15/10 — numa máquina Windows nova** (`C:\Users\Dell\Desktop\Fertways`), clone limpo,
