@@ -50,6 +50,12 @@ class DatabaseSeeder extends Seeder
              * efeitos usam o vocabulário do `EfeitosDaEndurance`, sem FK para as tabelas acima.
              */
             TechnologySeeder::class,
+            /*
+             * A partida do Espaçoporto (D-263): o Cargueiro e os preços dos planetas, que saem do
+             * preço de referência — por isso depois do `ResourceTypeSeeder`. Em produção a migration
+             * do D-263 o chamou; aqui é a instalação nova que precisa dele.
+             */
+            EspacoportoPartidaSeeder::class,
         ]);
     }
 }

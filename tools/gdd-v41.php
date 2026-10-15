@@ -1678,6 +1678,23 @@ $espPlanetas = \App\Models\PlanetaNpc::with('precos')->orderBy('ordem')->get();
   Endurance: o mecanismo inteiro, com cada número do operador nascendo vazio — e vazio é fechado.
 </p>
 
+<div class="nota">
+  <b>A partida, aprovada pelo usuário</b> <span class="d">D-263</span>. Um planeta <b>paga 0,80×</b> o
+  preço de referência do catálogo pelo que importa (Auryn, o generalista, 0,70×) e <b>cobra 1,25×</b> pelo
+  que exporta. Como o maior preço de compra é sempre menor que o menor preço de venda, <b>nenhum ciclo
+  entre planetas cria dinheiro</b> — há teste guardando a propriedade, e não o número. E 0,80× fica
+  abaixo da mediana do livro entre jogadores (0,84×, D-229): o Espaçoporto é escoadouro do excedente
+  (a "areia no deserto" da §16.3) e fonte do escasso — Auryn vende silício, lítio e tântalo, os três
+  minerais que só o governo vendia. Cargueiro: 10.000 unidades por perna, 20 F$ por viagem, 2 na frota;
+  abrem Kalidor, Veyra e Auryn. O mapeamento de "exporta metais pesados" para recursos do jogo é
+  interpretação do §03, aprovada junto.
+  <br><br>
+  ⚠️ <b>A guarda que o painel não faz</b>: se o governo vender um recurso no Mercado Central abaixo do
+  que um planeta paga por ele, comprar do governo e revender ao planeta vira lucro. O preço de venda do
+  governo fica em ou acima de 0,80× a referência.
+  <?= arbitrado('multiplicadores, Cargueiro e mapeamento — proposta minha, aprovada pelo usuário em 15/10 (D-263)') ?>
+</div>
+
 <table>
   <tr><th>Planeta</th><th class="num">Viagem</th><th>Risco</th><th>Exporta</th><th>Importa</th><th>Neste banco</th></tr>
   <?php foreach ($espPlanetas as $pl): ?>
@@ -3806,14 +3823,14 @@ if ($semFrase !== []) {
   <tr><th>Assunto</th><th>O que falta</th><th>O que ele trava</th></tr>
   <tr>
     <td><b>Cargueiro Interplanetário / Espaçoporto</b></td>
-    <td>O mecanismo está construído e <b>fechado</b> (§5.8, D-262). Faltam os <b>números de economia</b> — preço de cada recurso em cada planeta, aluguel, capacidade e frota do Cargueiro —, e o desenho do <b>risco</b>, do <b>imposto</b> interplanetário e dos <b>portões por planeta</b></td>
-    <td>O comércio interplanetário inteiro. E o cargo de <b>Atendente do Espaçoporto</b> (§7.4, D-130), sem salário publicado</td>
+    <td>Aberto desde o D-263 em Kalidor, Veyra e Auryn (§5.8). Falta o desenho do <b>risco</b> (Drakmoor fica fechado por isso), do <b>imposto</b> interplanetário e do <b>portão por ciência</b> de Solène</td>
+    <td>Dois dos cinco planetas. E o cargo de <b>Atendente do Espaçoporto</b> (§7.4, D-130), sem salário publicado</td>
   </tr>
   <tr>
     <td><b>Os 8 minerais eletrônicos</b></td>
     <td>O §4.3 diz que <b>o jogador não os extrai</b>. A Indústria Siderúrgica dá <b>cinco</b> deles
-        (D-82); <b>silício, lítio e tântalo continuam sem fonte nenhuma</b> além da compra ao governo
-        — e as <b>três</b> receitas da Oficina exigem silício</td>
+        (D-82); <b>silício, lítio e tântalo</b> tinham só o governo — desde o D-263 Auryn os vende também,
+        a 1,25× a referência. As <b>três</b> receitas da Oficina exigem silício</td>
     <td>Toda a cadeia industrial passa por um <b>monopólio estatal</b>. O preço e a quantidade foram
         recalibrados (D-229), mas a dependência é estrutural, não de número</td>
   </tr>

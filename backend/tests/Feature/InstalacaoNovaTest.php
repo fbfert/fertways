@@ -25,7 +25,7 @@ class InstalacaoNovaTest extends TestCase
 
         foreach ([
             'resource_types', 'building_specs', 'building_operator_requirements', 'neutral_zones',
-            'mission_templates', 'endurance_items', 'technologies',
+            'mission_templates', 'endurance_items', 'technologies', 'planeta_npc_precos',
         ] as $tabela) {
             $this->assertGreaterThan(0, DB::table($tabela)->count(), "a instalação nova nasce sem {$tabela}");
         }

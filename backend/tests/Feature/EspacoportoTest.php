@@ -40,6 +40,16 @@ class EspacoportoTest extends TestCase
         $this->seed(ResourceTypeSeeder::class);
         $this->seed(ComponentRecipeSeeder::class);
         $this->seed(BuildingSpecSeeder::class);
+
+        /*
+         * Estes testes guardam o MECANISMO (D-262), e partem do Espaçoporto como o D-262 o deixou:
+         * fechado, sem número. A partida que o usuário aprovou (D-263) tem o teste dela, à parte.
+         */
+        DB::table('planeta_npc_precos')->delete();
+        DB::table('planetas_npc')->update(['aberto' => false]);
+        DB::table('espacoporto_settings')->where('id', 1)->update([
+            'ativo' => false, 'aluguel_micro' => null, 'capacidade_unidades' => null, 'cargueiros' => null,
+        ]);
     }
 
     private int $proximo = 0;

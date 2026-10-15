@@ -14473,3 +14473,33 @@ e as missões de reconhecimento.
 Migration `2026_10_15_600000_espacoporto_e_planetas_npc`, exercitada nos dois sentidos no SQLite.
 1446 testes verdes, `npm run build` limpo. O e2e da Capital continua valendo: fechado, a tela segue
 dizendo "Ninguém viaja daqui ainda".
+
+---
+
+## D-263 — O Espaçoporto abre, com os números de partida do usuário
+
+**Data:** 2026-10-15 · **Status:** entregue (commit; deploy pendente)
+
+O usuário escolheu abrir o Espaçoporto e aprovou a proposta, com Auryn aberto.
+
+- **Preços:** um planeta **paga 0,80×** o preço de referência pelo que importa (Auryn 0,70×) e **cobra
+  1,25×** pelo que exporta. O maior preço de compra é sempre menor que o menor preço de venda: nenhum
+  ciclo entre planetas cria dinheiro (`EspacoportoPartidaTest` guarda a propriedade, recurso a
+  recurso). 0,80× fica abaixo da mediana do livro entre jogadores (0,84×, D-229).
+- **Cargueiro:** 10.000 unidades por perna (⅓ do Caminhão), 20 F$ por viagem (1/15 do Caminhão), 2 na
+  frota. Teto de entrada de Fert$ no servidor ≈ 360 F$/dia, ajustável no painel.
+- **Abrem** Kalidor, Veyra ("rota inicial estável", v3.2) e Auryn — que vende silício, lítio e
+  tântalo, os três minerais que só o governo vendia (§12). **Fechados:** Solène (portão "por ciência"
+  sem critério) e Drakmoor (risco alto sem mecânica); os preços deles já estão escritos.
+- O mapeamento do texto do §03 para recursos do jogo é interpretação minha, aprovada junto.
+
+⚠️ **Achado ao escrever, e a razão de existir um seeder:** numa instalação nova as migrations rodam
+**antes** do `ResourceTypeSeeder`, e o preço sai do preço de referência. A partida mora em
+`EspacoportoPartidaSeeder` (no `DatabaseSeeder`); a migration `2026_10_16_100000` o chama quando o
+catálogo já existe, que é a produção. Uma fonte só para os números. Como na escavação, nada do que o
+operador já mudou no painel é desfeito.
+
+⚠️ **A guarda que o painel não faz:** se o governo vender um recurso abaixo do que um planeta paga,
+comprar do governo e revender ao planeta vira lucro. Conferir os preços de venda do governo no deploy.
+
+1451 testes verdes.
