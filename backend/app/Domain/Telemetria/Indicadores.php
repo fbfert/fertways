@@ -44,6 +44,8 @@ class Indicadores
             'riqueza' => $this->riqueza(),
             'mundo' => $this->mundo(),
             'saque_ausente' => $this->saqueAusente($desde),
+            // D-264: onde os jogadores param. Não depende da janela: é a vida inteira de cada um.
+            'retencao' => app(Retencao::class)->relatorio(),
             'lacunas' => $this->lacunas(),
         ];
     }

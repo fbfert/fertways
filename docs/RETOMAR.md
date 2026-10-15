@@ -68,6 +68,8 @@ aberta. **Sem deploy** — commit e push, sim. Ordem:
 13. [x] **(D-261)** Decisão 11: detecção de contas vinculadas com revisão humana.
 14. [x] **(D-262)** Espaçoporto / Cargueiro Interplanetário / planetas NPC — só o que o GDD publica; o resto vira lacuna marcada.
 
+**D-264 (15/10, commit sem deploy):** retenção e abandono no painel de métricas e no comando `fertways:retencao`. **Próximo passo: rodar `docs/PROMPT_MEDIR_ABANDONO.md` no servidor e trazer os números** — é medida, não deploy.
+
 **Depois do deploy de `fa1af6b` (15/10):** o usuário escolheu abrir o Espaçoporto e aprovou a proposta de números — **D-263, commit sem deploy**. Uma migration (`2026_10_16_100000_espacoporto_com_os_numeros_de_partida`), exercitada só no SQLite. O prompt de deploy em `docs/PROMPT_DEPLOY_VPS.md` foi reescrito para este lote; ele manda conferir os preços de venda do governo contra os 0,80× que os planetas pagam.
 
 **A segunda leva fechou em 15/10 (D-257 a D-262), e foi ao ar no mesmo dia em `fa1af6b`.** O que sobra do GDD

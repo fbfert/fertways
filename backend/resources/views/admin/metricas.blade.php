@@ -48,6 +48,73 @@
         </div>
     @endif
 
+    {{--
+        ── Retenção (D-264): onde os jogadores param ──
+        O §16 do GDD achou que o último login humano era de 17/07. Antes de qualquer sistema novo, a
+        pergunta é esta. Só humanos — bots e contas de sistema ficam de fora. A vida inteira de cada
+        jogador, e não a janela de dias acima.
+    --}}
+    @php
+        $r = $dados['retencao'];
+        $topo = max(1, $r['funil']['cadastrou']);
+        $degraus = [
+            'cadastrou' => 'Cadastrou', 'fundou' => 'Fundou a colônia', 'agiu' => 'Agiu (obra, missão, Mercado…)',
+            'voltou_d1' => 'Voltou no dia seguinte', 'ativo_d7' => 'Ainda jogava depois de 7 dias',
+            'ativo_d30' => 'Ainda jogava depois de 30 dias', 'ativo_agora' => 'Ativo nos últimos 7 dias',
+        ];
+        $paradas = [
+            'nunca_fundou' => 'Nunca fundou a colônia', 'nao_voltou_no_dia_seguinte' => 'Fundou e não voltou no dia seguinte',
+            'parou_na_primeira_semana' => 'Parou na primeira semana', 'parou_antes_de_30_dias' => 'Parou entre 7 e 30 dias',
+            'parou_depois_de_30_dias' => 'Parou depois de 30 dias',
+        ];
+    @endphp
+    <h2 class="secao">Onde os jogadores param</h2>
+    <div class="cartao" data-retencao>
+        <p class="mut pequeno">
+            Última atividade humana: <strong>{{ $r['ultima_atividade_humana'] ? \Illuminate\Support\Carbon::parse($r['ultima_atividade_humana'])->format('d/m/Y H:i') : '—' }}</strong>.
+            A "última atividade" é a mais recente entre o token, o login, o último ato de XP e o último
+            "Desde sua última visita" visto. Sumido há {{ \App\Domain\Telemetria\Retencao::DIAS_PARA_ABANDONO }}
+            dias ou mais conta como abandono.
+        </p>
+        <table>
+            <thead><tr><th>Degrau</th><th class="num">Jogadores</th><th class="num">do total</th></tr></thead>
+            <tbody>
+            @foreach ($degraus as $chave => $rotulo)
+                <tr><td>{{ $rotulo }}</td><td class="num"><strong>{{ $num($r['funil'][$chave]) }}</strong></td>
+                    <td class="num">{{ round(100 * $r['funil'][$chave] / $topo) }}%</td></tr>
+            @endforeach
+            </tbody>
+        </table>
+
+        <h3 style="margin-top:14px">Quem foi embora ({{ $num($r['abandonos']['total']) }})</h3>
+        <table>
+            <tbody>
+            @foreach ($paradas as $chave => $rotulo)
+                <tr><td>{{ $rotulo }}</td><td class="num">{{ $num($r['abandonos']['por_degrau'][$chave]) }}</td></tr>
+            @endforeach
+            <tr><td>Mediana de dias entre o cadastro e a última atividade</td><td class="num">{{ $r['abandonos']['mediana_dias_de_vida'] ?? '—' }}</td></tr>
+            </tbody>
+        </table>
+        @if ($r['abandonos']['ultimo_ato'])
+            <p class="mut pequeno" style="margin-top:8px">
+                O último ato de quem foi embora:
+                @foreach ($r['abandonos']['ultimo_ato'] as $acao => $n) <code>{{ $acao }}</code> {{ $n }}@if (! $loop->last) · @endif @endforeach.
+                Marco em que pararam:
+                @foreach ($r['abandonos']['por_marco'] as $marco => $n) {{ $marco }} ({{ $n }})@if (! $loop->last) · @endif @endforeach.
+            </p>
+        @endif
+
+        <h3 style="margin-top:14px">Por mês de cadastro</h3>
+        <table>
+            <thead><tr><th>Mês</th><th class="num">Cadastrou</th><th class="num">Fundou</th><th class="num">Ativo agora</th></tr></thead>
+            <tbody>
+            @foreach ($r['por_mes_de_cadastro'] as $mes => $m)
+                <tr><td>{{ $mes }}</td><td class="num">{{ $m['cadastrou'] }}</td><td class="num">{{ $m['fundou'] }}</td><td class="num">{{ $m['ativo_agora'] }}</td></tr>
+            @endforeach
+            </tbody>
+        </table>
+    </div>
+
     {{-- ─────────────────────────────────────────────────────────── sessão --}}
     <h2 class="secao">Sessão</h2>
     <div class="cartao">

@@ -14503,3 +14503,33 @@ operador já mudou no painel é desfeito.
 comprar do governo e revender ao planeta vira lucro. Conferir os preços de venda do governo no deploy.
 
 1451 testes verdes.
+
+---
+
+## D-264 — Onde os jogadores param: a medida antes do próximo sistema
+
+**Data:** 2026-10-15 · **Status:** entregue (commit; sem deploy — o comando já roda da árvore de trabalho)
+
+O §16 do GDD v40 achou que o último login humano era de 17/07, e que os portões do território foram
+abertos para uma sala vazia. O usuário escolheu investigar o abandono. O painel de métricas (A2.0.2)
+media sessão, economia e riqueza, e **não tinha retenção nenhuma** — a pergunta "onde eles param?"
+não tinha onde ser respondida.
+
+`App\Domain\Telemetria\Retencao`, derivado do que já está gravado, sem evento novo:
+
+- **Última atividade** de cada humano: a mais recente entre o último uso do token, o último `login` da
+  telemetria, o último ato de XP e o último "Desde sua última visita" visto. Nenhum dos quatro basta
+  sozinho (o token é recente, a telemetria começou na A2.0, quem só olha a colônia não gera XP).
+- **Funil**: cadastrou → fundou → agiu → voltou no dia seguinte → ativo após 7 dias → após 30 →
+  ativo nos últimos 7 dias.
+- **Abandono** (sumido há 14+ dias): em que degrau parou, o último ato, o marco, a mediana de dias de
+  vida; e as coortes por mês de cadastro.
+- Fora: bots (`@bots.fertways.local`, D-238) e as contas de sistema do rádio (`@fertways.sistema`) —
+  o teste pegou que as migrations criam três delas.
+
+No painel de métricas, logo depois das lacunas. E o comando `fertways:retencao` (só leitura; a primeira
+linha diz o banco), para medir a produção **antes** do deploy: `docs/PROMPT_MEDIR_ABANDONO.md` traz o
+código para a árvore de trabalho e o roda contra o `fertwaysbd` por variável de ambiente, sem editar
+`.env` e sem `config:cache`, mais três consultas de leitura que o relatório não responde sozinho.
+
+1456 testes verdes.
