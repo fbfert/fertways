@@ -135,7 +135,7 @@ export function Usados() {
           <p className={`mt-2 text-xs ${acimaDoTeto ? 'text-rust font-bold' : 'text-ink-soft/70'}`}>
             Teto de revenda: <strong>{teto} F$</strong> — a âncora do veículo (o preço de fábrica do
             Caminhão; a referência do governo para o Furgão) corrigida pelo desgaste. Cai a cada
-            manutenção (§16.4).
+            manutenção.
           </p>
         )}
         {escolhido && teto === null && (

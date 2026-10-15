@@ -317,7 +317,7 @@ function Confianca({ carteira }: { carteira: Carteira }) {
         {bloqueado ? (
           <span className="text-rust font-bold">
             Abaixo de {limiar}: o Mercado Central está fechado para você. Só cumprir acordos
-            reabre — Status Cívico alto não compensa (§26.9).
+            reabre — Status Cívico alto não compensa.
           </span>
         ) : (
           <>
@@ -380,7 +380,7 @@ function Cartao({
       {!acordo.moves_reputation && (
         <p className="text-ink-soft mt-2 text-xs">
           Vale {fert(acordo.value_micro, 2)} Fert$ somando os dois lados: abaixo do piso de 5 Fert$
-          (D-117), fica registrado mas não move a Confiança Comercial (§26.3).
+, fica registrado mas não move a Confiança Comercial.
         </p>
       )}
 

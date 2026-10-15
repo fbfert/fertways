@@ -263,10 +263,15 @@ class Funcoes
                 '/\s*\(A2\.[\d.]+\)/u',          // " (A2.10)": a fase interna, idem
                 '/\s*\(D-\d+(?:,\s*D-\d+)*\)/u', // " (D-59)"                  → ""
                 '/\s*\bD-\d+\b/u',               // o que sobrar
+                // D-268: a seção do GDD também não é do jogador, nem o painel do operador.
+                '/\s*—\s*§[\d.]+(?=\))/u',       // "(…, até 1.012 — §21.9)"  → "(…, até 1.012)"
+                '/\s*\(§[\d.]+\)/u',             // " (§19.8)"                 → ""
+                '/\s+d[oa] §[\d.]+/u',           // "receitas do §24.5"        → "receitas"
+                '/\s*—[^—.]*\bpainel da Guerra\b[^.]*/u', // "— os dois números moram no painel da Guerra"
                 '/\s+([.,:;])/u',                // espaço antes de pontuação
                 '/\s{2,}/u',
             ],
-            ['', '', '', '', '', '', '$1', ' '],
+            ['', '', '', '', '', '', '', '', '', '', '$1', ' '],
             $texto,
         );
 

@@ -160,7 +160,7 @@ function Carta({
           <button
             onClick={() => void aoRejeitar(m.id)}
             data-rejeitar={m.id}
-            title="Trocar por outra do pool (1 por dia, §06)"
+            title="Trocar por outra do pool (1 por dia)"
             className="text-ink-soft hover:text-rust text-xs underline"
           >
             trocar

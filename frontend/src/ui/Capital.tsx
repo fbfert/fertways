@@ -165,7 +165,7 @@ export function Capital({
 
             <p className="text-ink-soft/60 mt-3 shrink-0 text-xs">
               O <b>slot 6</b> não aparece no Governo Central porque ele <b>é</b> o Leste: o Mercado
-              Central e o Pátio Logístico são a mesma área (§2.1). Os slots 10–20 estão vagos.
+              Central e o Pátio Logístico são a mesma área. Os slots 10–20 estão vagos.
             </p>
           </>
         )}

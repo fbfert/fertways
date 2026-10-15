@@ -71,14 +71,14 @@ export function Financas() {
         ) : (
           <p className="text-ink-soft/70 mt-2 text-xs">
             Nenhuma. O Mercado negocia livre — o preço de referência é faixa de segurança, não
-            obrigação (§06).
+            obrigação.
           </p>
         )}
       </section>
 
       {/* Preços de referência. */}
       <section>
-        <div className="text-rust eyebrow">Preços de referência (§06)</div>
+        <div className="text-rust eyebrow">Preços de referência</div>
         <div className="mt-2 max-h-72 overflow-y-auto">
           <table className="w-full text-sm">
             <thead className="text-ink-soft eyebrow border-rust/20 border-b">
@@ -97,14 +97,14 @@ export function Financas() {
                   <td className="text-ink-soft py-1 text-right tabular-nums">{p.tax_bps / 100}%</td>
                   <td className="text-ink py-1 text-right tabular-nums">
                     {p.preco_base_micro !== null ? fert(p.preco_base_micro) : '—'}
-                    {p.derivado && <span className="text-rust" title="preço derivado (D-34)">*</span>}
+                    {p.derivado && <span className="text-rust" title="preço derivado">*</span>}
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
-        <p className="text-ink-soft/60 mt-1 text-xs">* preço derivado da fórmula, não publicado direto (D-34).</p>
+        <p className="text-ink-soft/60 mt-1 text-xs">* preço derivado da fórmula, não publicado direto.</p>
       </section>
     </div>
   )

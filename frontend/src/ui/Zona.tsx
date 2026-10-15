@@ -477,8 +477,8 @@ export function Zona() {
             <section data-secao="ausentes">
               <h3 className="font-bold">O que ainda não existe</h3>
               <p className="text-ink-soft mt-1 text-xs">
-                O §17.4 lista estas estruturas. O jogo não as tem — e dizer isso é melhor do que
-                fingir que elas não foram prometidas.
+                O plano do jogo prevê estas estruturas, e elas ainda não foram construídas — dizer isso é
+                melhor do que fingir que elas não foram prometidas.
               </p>
               <ul className="mt-2 space-y-2">
                 {Object.entries(z.ausentes).map(([k, a]) => (

@@ -41,7 +41,7 @@ export function ConcentracaoDaFederacao() {
 
   return (
     <section data-secao="concentracao" className="painel bg-sand mt-4 p-4">
-      <h3 className="eyebrow text-rust mb-2">Limite antimonopólio (§04)</h3>
+      <h3 className="eyebrow text-rust mb-2">Limite antimonopólio</h3>
 
       <div className="flex flex-wrap items-center gap-3">
         <div>

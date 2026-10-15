@@ -175,7 +175,7 @@ function MinhaReputacao({ pasta }: { pasta: Pasta }) {
       <section>
         <div className="text-rust eyebrow">Os quatro índices</div>
         <p className="text-ink-soft mt-1 text-xs">
-          Cada um é isolado: cumprir missões não recupera confiança perdida num calote (§26.9).
+          Cada um é isolado: cumprir missões não recupera confiança perdida num calote.
         </p>
 
         <div className="mt-3 space-y-3">
@@ -195,7 +195,7 @@ function MinhaReputacao({ pasta }: { pasta: Pasta }) {
         <p className="border-rust text-rust border p-3 text-sm font-bold">
           Persona Non Grata: sua Confiança Comercial está abaixo de {pasta.limiar_mercado}. O Mercado
           Central e os leilões estão fechados para você. Só cumprir Acordos de Troca reabre —
-          Status Cívico alto não compensa (§26.9).
+          Status Cívico alto não compensa.
         </p>
       )}
 
@@ -236,8 +236,7 @@ function MinhaReputacao({ pasta }: { pasta: Pasta }) {
             </p>
             <p className="text-ink-soft mt-1 text-xs">
               {fert(conciliador.salario_diario_micro, 0)} Fert$ por dia, independente do volume de
-              casos, e {fert(conciliador.bonus_micro, 0)} Fert$ por decisão que sobrevive à apelação
-              (§26.7).
+              casos, e {fert(conciliador.bonus_micro, 0)} Fert$ por decisão que sobrevive à apelação.
             </p>
             <p className="text-ink-soft mt-1 text-xs">
               Reversões: <span className="text-ink font-bold">{conciliador.reversoes}</span> de{' '}
@@ -408,7 +407,7 @@ function Denunciar({
         {evidencias.length === 0 ? (
           <p className="text-ink-soft mt-1 text-sm">
             Nenhum Acordo de Troca quebrado entre você e {alvo?.nickname}. Sem evidência, o
-            Ministério rejeita a denúncia na triagem — é o que o §26.8 manda.
+            Ministério rejeita a denúncia na triagem — é a regra.
           </p>
         ) : (
           <>
@@ -470,7 +469,7 @@ function Denunciar({
 
       <p className="text-ink-soft text-xs">
         A triagem é imediata. Caso grave sobe à equipe do jogo; caso simples cai com um conciliador
-        que não tenha negociado com nenhum de vocês nos últimos 30 dias (§26.8).
+        que não tenha negociado com nenhum de vocês nos últimos 30 dias.
       </p>
     </div>
   )
@@ -516,7 +515,7 @@ function Casos({
         <section>
           <div className="text-rust eyebrow">Decididos por você</div>
           <p className="text-ink-soft mt-1 text-xs">
-            O bônus de cada decisão cai quando a janela de apelação fecha sem reversão (§26.7).
+            O bônus de cada decisão cai quando a janela de apelação fecha sem reversão.
           </p>
           <div className="mt-2 space-y-3">
             {decididos.map((d) => (

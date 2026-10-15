@@ -435,9 +435,10 @@ export function Mapa({
               />
             </div>
 
-            {/* Ferramentas de zoom e foco — mesma posição/z-index que `ControlesDeZoom` já usa
-                na colônia: acima do header global (z-[25]). */}
-            <div className="absolute top-3 right-3 z-[26] flex flex-col gap-1">
+            {/* Ferramentas de zoom e foco, acima do header global (z-[25]) — e embaixo, logo acima da
+                régua do X (à direita no celular; à esquerda no computador, onde a direita é do
+                painel): no canto de cima elas cobriam o "sair" e o saldo (D-268). */}
+            <div className="absolute right-3 bottom-14 z-[26] md:right-auto md:left-16 flex flex-col gap-1">
               <BotaoMapa aoClicar={() => zoom(1.5)} rotulo="Aproximar" data-zoom-in>
                 +
               </BotaoMapa>
@@ -1109,7 +1110,7 @@ function PainelZona({
             {z.intel === 'foto' && z.intel_em &&
               `Foto de Drone — ${idadeDaFoto(z.intel_em)}. O de lá de agora pode ser outro.`}
             {z.intel === 'nenhuma' &&
-              'Interior desconhecido. Só um Drone de Exploração revela a guarnição e o depósito (§16.1).'}
+              'Interior desconhecido. Só um Drone de Exploração revela a guarnição e o depósito.'}
           </p>
           {drones.length > 0 && (
             <div className="mt-2 flex gap-2">

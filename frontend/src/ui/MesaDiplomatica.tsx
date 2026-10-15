@@ -71,7 +71,7 @@ export function MesaDiplomatica() {
         parecer só vantagem, e o preço apareceria como uma ocupação negada sem explicação.
       */}
       <p className="text-ink-soft/70 border-ink/10 mb-3 border-l-2 pl-2 text-xs">
-        ⚠️ O limite antimonopólio do §04 passa a contar as zonas de <strong>todas as aliadas
+        ⚠️ O limite antimonopólio passa a contar as zonas de <strong>todas as aliadas
         somadas</strong>. Aliar-se aproxima do teto de ocupação.
       </p>
 

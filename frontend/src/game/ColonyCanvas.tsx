@@ -100,7 +100,8 @@ export function ColonyCanvas({ specs, linhas, onSelecionar, onSlotVazio }: Props
       className="relative h-full w-full"
       style={{ cursor: arrastando ? 'grabbing' : 'grab', touchAction: 'none' }}
     >
-      <ControlesDeZoom vista={vista} ampliar={ampliar} centralizar={centralizar} />
+      {/* Embaixo à esquerda: em cima, o header flutuante (sair, saldo) fica no mesmo canto (D-268). */}
+      <ControlesDeZoom vista={vista} ampliar={ampliar} centralizar={centralizar} canto="bottom-24 left-3 md:bottom-6" />
 
       {centros.map(([x, y], slot) => {
         const spec = porSlot.get(slot)

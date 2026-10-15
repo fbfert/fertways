@@ -12,19 +12,23 @@ export function ControlesDeZoom({
   vista,
   ampliar,
   centralizar,
+  canto = 'top-3 right-3',
 }: {
   vista: Vista
   ampliar: (fator: number) => void
   centralizar: () => void
+  /** Onde ficam. O padrão serve a cena dentro de uma moldura (Capital, Endurance). */
+  canto?: string
 }) {
   const enquadrado = vista.escala === 1 && vista.dx === 0 && vista.dy === 0
 
-  // z-[26]: acima do header/barra de navegação (z-[25], global desde a reforma de navegação) —
-  // sem isto, os cartões do canto direito do header cobrem estes botões quando as duas coisas
-  // caem na mesma região da tela (a colônia, cujo canvas ocupa a tela inteira por baixo do
-  // header flutuante).
+  // z-[26]: acima do header/barra de navegação (z-[25], global desde a reforma de navegação).
+  // ⚠️ Mas o z-index só decide quem fica POR CIMA, não quem fica visível (D-268): na colônia, cujo
+  // canvas ocupa a tela inteira por baixo do header flutuante, o canto de cima à direita punha os
+  // botões sobre o "sair" (computador) e sobre o saldo (celular). Ali a colônia passa `canto` para
+  // baixo, longe do header.
   return (
-    <div className="absolute top-3 right-3 z-[26] flex flex-col gap-1">
+    <div className={`absolute ${canto} z-[26] flex flex-col gap-1`}>
       <button
         onClick={() => ampliar(1.25)}
         disabled={vista.escala >= ZOOM_MAX}

@@ -36,7 +36,7 @@ export function PaginaEstatisticas() {
       titulo="Números reais, lidos do banco ao vivo — nenhum é decorativo."
       intro={
         <p>
-          O mesmo ledger append-only que garante que nenhum Fert$ nasça sem origem (§3.3 do GDD) é
+          O mesmo ledger append-only que garante que nenhum Fert$ nasça sem origem é
           de onde estes números saem. Não é uma maquete: é o estado do planeta neste instante.
         </p>
       }

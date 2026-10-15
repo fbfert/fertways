@@ -89,18 +89,23 @@ export function EnduranceMapa({
       style={{ cursor: arrastando ? 'grabbing' : 'grab', touchAction: 'none' }}
       data-mapa-endurance
     >
-      <ControlesDeZoom vista={vista} ampliar={ampliar} centralizar={centralizar} />
+      {/* No canto de cima à esquerda: à direita, cobriam o Comando e a Matriz no celular (D-268). */}
+      <ControlesDeZoom vista={vista} ampliar={ampliar} centralizar={centralizar} canto="top-3 left-3" />
 
       {tamanho.largura > 0 &&
         SECOES.map((s) => {
+          // Numa caixa estreita (celular), as seções das pontas chegam para o meio e encolhem: com
+          // 110 px fixos e a posição das pontas, "Seção de Acoplagem" saía cortada pela borda (D-268).
+          const estreita = tamanho.largura < 480
+          const cx = estreita ? 0.5 + (s.cx - 0.5) * 0.8 : s.cx
           const [x, y] = transformar(
-            s.cx * tamanho.largura,
+            cx * tamanho.largura,
             s.cy * tamanho.altura,
             tamanho.largura,
             tamanho.altura,
             vista,
           )
-          const lado = 110 * vista.escala
+          const lado = (estreita ? Math.min(110, tamanho.largura * 0.24) : 110) * vista.escala
           const urls = arte[`endurance:secao:${s.chave}`]
 
           return (
@@ -127,12 +132,12 @@ export function EnduranceMapa({
                 <img
                   src={urls.pequena}
                   alt=""
-                  className="pointer-events-none drop-shadow-md transition-transform group-hover:scale-110"
+                  className="pointer-events-none shrink-0 drop-shadow-md transition-transform group-hover:scale-110"
                   style={{ width: lado, height: lado, objectFit: 'contain' }}
                 />
               ) : (
                 <div
-                  className="border-rust/40 bg-sand-light/70 pointer-events-none rounded-full border-2 border-dashed transition-transform group-hover:scale-110"
+                  className="border-rust/40 bg-sand-light/70 pointer-events-none shrink-0 rounded-full border-2 border-dashed transition-transform group-hover:scale-110"
                   style={{ width: lado * 0.7, height: lado * 0.7 }}
                 />
               )}

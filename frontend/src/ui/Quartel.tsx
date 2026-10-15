@@ -240,7 +240,7 @@ export function Quartel() {
           <h3 className="eyebrow text-perigo mb-2">Colônias inimigas</h3>
 
           <p className="text-ink-soft mb-3 text-xs">
-            Fora de guerra a colônia é <strong>inviolável</strong> (§01). Dentro dela, o saque leva
+            Fora de guerra a colônia é <strong>inviolável</strong>. Dentro dela, o saque leva
             só o <strong>excedente do Depósito</strong> — o protegido nunca é tocado.
           </p>
 
@@ -285,7 +285,7 @@ export function Quartel() {
       <header>
         <p className="text-ink-soft text-sm">
           {semQuartel
-            ? 'Você não tem Quartel. Erga um na colônia: é lá que as unidades são produzidas (§27.1).'
+            ? 'Você não tem Quartel. Erga um na colônia: é lá que as unidades são produzidas.'
             : `Nível ${dados.quartel_nivel} — produz unidades até o nível ${dados.quartel_nivel}.`}
         </p>
       </header>
@@ -301,7 +301,7 @@ export function Quartel() {
 
         <div className="mt-3 flex flex-wrap items-center gap-3">
           <span className="text-sm">
-            Em estoque: <strong data-niobio-estoque>{dados.niobio.em_estoque}</strong>
+            Em estoque: <strong data-niobio-estoque>{dados.niobio.em_estoque.toLocaleString('pt-BR')}</strong>
           </span>
           <span className="text-ink-soft text-sm">
             {dados.niobio.preco_fert.toFixed(3).replace('.', ',')} Fert$ a unidade
@@ -464,8 +464,8 @@ export function Quartel() {
         <h3 className="font-bold">Drones de Exploração</h3>
         <p className="text-ink-soft mt-1 text-xs">
           O único olho que atravessa a névoa: guarnição e depósito de zona alheia só se veem por
-          Drone (D-74). <strong>Fabrica-se na Oficina</strong> — o Quartel só o guarda e recarrega
-          (§21.4) — e a missão parte do <strong>mapa</strong>: clique numa zona de outro colono.
+          Drone. <strong>Fabrica-se na Oficina</strong> — o Quartel só o guarda e recarrega
+          — e a missão parte do <strong>mapa</strong>: clique numa zona de outro colono.
         </p>
 
         {dados.drones.length > 0 && (
@@ -528,7 +528,7 @@ export function Quartel() {
         </div>
 
         {dados.oficina_nivel < 1 && (
-          <p className="text-rust mt-2 text-xs">Sem Oficina não há Drone: é ela que o fabrica (D-74).</p>
+          <p className="text-rust mt-2 text-xs">Sem Oficina não há Drone: é ela que o fabrica.</p>
         )}
       </section>
 
@@ -638,7 +638,7 @@ export function Quartel() {
                       dica={
                         c.status === 'marchando'
                           ? 'Ainda dá tempo: despache Sentinelas antes de a marcha chegar. Elas só contam quando chegam — e a marcha militar é 1,3× mais lenta.'
-                          : 'A batalha já corre. Um reforço que chegue a tempo ainda muda o resultado (§27.5) — mas ele marcha, e a rodada é de 10 minutos.'
+                          : 'A batalha já corre. Um reforço que chegue a tempo ainda muda o resultado — mas ele marcha, e a rodada é de 10 minutos.'
                       }
                       disponiveis={emCasa}
                       ocupado={ocupado}

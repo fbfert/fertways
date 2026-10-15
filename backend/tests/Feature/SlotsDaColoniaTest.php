@@ -534,13 +534,17 @@ class SlotsDaColoniaTest extends TestCase
             $f = Funcoes::paraJogador($tipo);
             $this->assertDoesNotMatchRegularExpression('/\bD-\d+/', (string) $f['nota'], $tipo);
             $this->assertDoesNotMatchRegularExpression('/\(\s*\)|,\s*\)|\(\s*,/', (string) $f['nota'], "{$tipo}: sobra de parêntese");
+            // D-268: nem seção do GDD, nem o painel do operador — o jogador não lê nenhum dos dois.
+            foreach (['frase', 'resumo', 'nota'] as $campo) {
+                $this->assertDoesNotMatchRegularExpression('/§|painel da Guerra/u', (string) ($f[$campo] ?? ''), "{$tipo}.{$campo}");
+            }
         }
 
         $this->assertSame(
             'Pode ser repetida em mais de um slot: duas Minas produzem o dobro.',
             Funcoes::paraJogador('mina_local')['nota'],
         );
-        $this->assertStringContainsString('(200 no nível 1, até 1.012 — §21.9)', Funcoes::paraJogador('tanque_de_combustivel')['nota']);
+        $this->assertStringContainsString('(200 no nível 1, até 1.012)', Funcoes::paraJogador('tanque_de_combustivel')['nota']);
         $this->assertStringContainsString('(D-59)', Funcoes::de('mina_local')['nota'], 'o GDD continua citando');
 
         $catalogo = collect($this->actingAs($this->colono())->getJson('/buildings/catalogo')->json('buildings'));

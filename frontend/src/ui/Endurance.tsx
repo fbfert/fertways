@@ -68,28 +68,29 @@ export function Endurance() {
           </p>
         </header>
 
-        <div className="mt-4 flex flex-1 gap-4">
+        <div className="mt-4 flex flex-1 flex-col gap-4 md:flex-row">
           {/* Os atalhos: dentro da Capital, não há hoje como pular de uma área para outra sem
               voltar à praça — esta barra existe só aqui, enquanto isso não for um padrão do app
-              inteiro. */}
-          <nav className="flex shrink-0 flex-col gap-2" aria-label="Atalhos da Capital" data-atalhos-capital>
+              inteiro. No celular ela vira uma linha EM CIMA: ao lado, espremia os destroços até
+              cortar os nomes (D-268). */}
+          <nav className="flex shrink-0 flex-wrap gap-2 md:flex-col" aria-label="Atalhos da Capital" data-atalhos-capital>
             <button
               onClick={() => navegar('/capital')}
-              className="border-rust/25 bg-sand hover:bg-rust hover:text-sand-light text-ink-soft w-32 border px-2 py-2 text-left text-xs font-bold"
+              className="border-rust/25 bg-sand hover:bg-rust hover:text-sand-light text-ink-soft border px-2 py-2 md:w-32 text-left text-xs font-bold"
               data-atalho="governo-central"
             >
               ‹ Governo Central
             </button>
             <button
               onClick={() => navegar('/mercado/central')}
-              className="border-rust/25 bg-sand hover:bg-rust hover:text-sand-light text-ink-soft w-32 border px-2 py-2 text-left text-xs font-bold"
+              className="border-rust/25 bg-sand hover:bg-rust hover:text-sand-light text-ink-soft border px-2 py-2 md:w-32 text-left text-xs font-bold"
               data-atalho="mercado-central"
             >
               Mercado Central
             </button>
             <button
               onClick={() => navegar('/capital', { state: { abrirSub: 'espacoporto' } })}
-              className="border-rust/25 bg-sand hover:bg-rust hover:text-sand-light text-ink-soft w-32 border px-2 py-2 text-left text-xs font-bold"
+              className="border-rust/25 bg-sand hover:bg-rust hover:text-sand-light text-ink-soft border px-2 py-2 md:w-32 text-left text-xs font-bold"
               data-atalho="espacoporto"
             >
               Espaçoporto

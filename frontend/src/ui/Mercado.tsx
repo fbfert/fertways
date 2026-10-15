@@ -411,7 +411,7 @@ function PatioEDeposito({
 
         <div className="text-rust eyebrow mt-6">No Pátio ({noPatio.length})</div>
         <p className="text-ink-soft/80 mt-1 text-xs">
-          Veículo parado no Pátio paga 0,005 Fert$ por hora (§2.1). Sem Fert$, ele é rebocado para
+          Veículo parado no Pátio paga 0,005 Fert$ por hora. Sem Fert$, ele é rebocado para
           casa.
         </p>
         {noPatio.length === 0 ? (
@@ -442,7 +442,7 @@ function PatioEDeposito({
           <>
             <div className="text-rust eyebrow mt-6">Numa zona neutra ({naZona.length})</div>
             <p className="text-ink-soft/80 mt-1 text-xs">
-              Estacionado lá desde que você o reposicionou (D-109). Hoje só pode voltar para casa.
+              Estacionado lá desde que você o reposicionou. Hoje só pode voltar para casa.
             </p>
             <div className="mt-2 space-y-2">
               {naZona.map((v) => (

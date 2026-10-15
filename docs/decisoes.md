@@ -14614,3 +14614,29 @@ da primeira vez, e o que ele precisava do código.
   confirmação** antes de marcar a equipe em produção.
 
 1466 testes verdes.
+
+---
+
+## D-268 — As telas de quem já joga há tempo, olhadas no computador e no celular
+
+**Data:** 2026-10-15 · **Status:** entregue (commit; deploy pendente)
+
+Terceiro dos três itens depois do D-265. O D-266 jogou as primeiras horas; aqui a pilha local abriu
+uma colônia de veterano (marco 22, Quartel, Lab 3, Sentinelas, 15 dias) e fotografou Colônia,
+Capital, Endurance, Loja de Peças, Quartel, Espaçoporto, Mapa e Frota a 1400×900 e a 390×844. O
+roteiro também mede, em cada tela, se algum botão cobre outro.
+
+| achado | correção |
+|---|---|
+| Os botões de zoom da colônia e do mapa ficavam **por cima do "sair"** (computador) e do **saldo** (celular): o z-index os punha acima do header, no mesmo canto | colônia: canto de baixo à esquerda; mapa: embaixo, acima da régua do X (à esquerda no computador, onde a direita é do painel). `ControlesDeZoom` ganhou `canto` |
+| No celular, a Endurance punha os atalhos **ao lado** do campo de destroços: sobrava meia tela, e os nomes saíam cortados | atalhos viram uma linha em cima; numa caixa estreita as seções das pontas chegam para o meio e encolhem; zoom no canto de cima à esquerda; círculos não achatam mais |
+| 31 textos de tela citavam o diário ou o GDD: "Drone (D-74)", "não compensa (§26.9)", "Preços de referência (§06)", um `title="preço derivado (D-34)"` | tirados do texto visível — os comentários do código continuam citando. Teste novo lê os `.tsx` sem comentários e falha se aparecer `D-nn`, `§n` ou `A2.x` |
+| As notas das construções ainda serviam "§19.8", "do §24.5" e "os dois números moram no **painel da Guerra**" (o painel é do operador) | `Funcoes::paraJogador()` tira também a seção do GDD e a frase do painel; o GDD continua lendo `de()` intacto |
+| Nióbio "Em estoque: 50000" | 50.000 |
+| Pendência do D-266: nomes de três linhas ("Central de Transportes") saíam pela ponta do hexágono no celular | rótulo com 1,5·r de largura (o hexágono tem 1,73·r) e piso de 8 px: todos cabem em duas linhas |
+
+Fora, registrado: algumas notas de construção ainda falam como nota de projeto ("arbitragem
+consciente, não lacuna", "que é exatamente o que a frase do GDD descreve") — merecem `resumo` de
+jogador como os oito do D-266. Sem arte local, a revisão não julga as imagens, só layout e texto.
+
+1467 testes verdes, `npm run build` limpo.

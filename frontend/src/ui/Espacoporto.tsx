@@ -64,7 +64,7 @@ export function Espacoporto() {
           {!estado.portao.pode && (
             <p className="text-rust mt-2 text-sm" data-portao-cargueiro>
               O Cargueiro abre no marco {estado.portao.marco_exigido}, com {estado.portao.dias_exigidos} dias
-              de colônia (§05). Você está no marco {estado.portao.marco}, com {estado.portao.dias} dia(s).
+              de colônia. Você está no marco {estado.portao.marco}, com {estado.portao.dias} dia(s).
             </p>
           )}
         </section>

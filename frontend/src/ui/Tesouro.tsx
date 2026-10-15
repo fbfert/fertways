@@ -31,8 +31,8 @@ export function Tesouro() {
   return (
     <div className="mt-5 space-y-6">
       <p className="text-ink-soft text-sm">
-        A reserva do Ministério do Tesouro. Todo tributo do comércio (§8.3) entra aqui, e o governo
-        redistribui parte aos colonos (§2.1). Você vê o saldo; quem move é a administração.
+        A reserva do Ministério do Tesouro. Todo tributo do comércio entra aqui, e o governo
+        redistribui parte aos colonos. Você vê o saldo; quem move é a administração.
       </p>
 
       {/* Saldo: Fert$ das vendas + recursos retidos no transporte. */}

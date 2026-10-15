@@ -486,12 +486,14 @@ export class ColonyScene extends Phaser.Scene {
     const nome = this.add
       .text(0, temArte ? r * 0.52 : r * 0.12, rotulo(spec.type), {
         fontFamily: 'Archivo, Inter, sans-serif',
-        fontSize: `${Math.max(9, Math.round(r * 0.14))}px`,
+        fontSize: `${Math.max(8, Math.round(r * 0.14))}px`,
         color: temArte ? '#1e1c17' : erguida ? '#fdf0e2' : '#372f27',
         align: 'center',
         // Quebra só em espaço (D-266): o "avançado" partia a palavra no meio — "Fazend/a" — quando
         // o hexágono era pequeno. Palavra que não cabe passa um pouco da borda; partida, não se lê.
-        wordWrap: { width: r * 1.15, useAdvancedWrap: false },
+        // Largura 1,5·r (o hexágono tem 1,73·r) e piso de 8 px (D-268): com 1,15·r e 9 px, no celular
+        // "Central de Transportes" virava três linhas e a última saía pela ponta de baixo.
+        wordWrap: { width: r * 1.5, useAdvancedWrap: false },
       })
       .setOrigin(0.5, 0)
 

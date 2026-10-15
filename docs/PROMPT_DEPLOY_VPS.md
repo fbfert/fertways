@@ -1,4 +1,4 @@
-# Prompt de deploy na VPS — lote D-263 a D-267
+# Prompt de deploy na VPS — lote D-263 a D-268
 
 > Cole o bloco abaixo numa sessão do Claude Code **aberta no servidor**, em
 > `/home/fertways/apps/fertways`. O lote anterior (D-253 a D-262) já está no ar desde `fa1af6b`.
@@ -7,8 +7,9 @@
 ---
 
 ```text
-Vamos publicar em produção o lote D-263 a D-267: o Espaçoporto abre (D-263), a retenção no painel
-(D-264), as primeiras horas do novato (D-266) e a marca de conta da equipe (D-267).
+Vamos publicar em produção o lote D-263 a D-268: o Espaçoporto abre (D-263), a retenção no painel
+(D-264), as primeiras horas do novato (D-266), a marca de conta da equipe (D-267) e a revisão
+visual das telas de veterano (D-268, sem migration).
 Leia docs/deploy.md e docs/RETOMAR.md antes. Siga a ordem abaixo e pare para me perguntar se
 qualquer conferência falhar — não contorne.
 
@@ -30,7 +31,7 @@ CONTEXTO
 PASSO 1 — Código e suíte
 - cd /home/fertways/apps/fertways; git status limpo; git pull --ff-only origin main.
 - cd backend && sudo -u fertways /usr/bin/php84 /bin/composer install --no-interaction
-- sudo -u fertways /usr/bin/php84 artisan test   → esperado: 1466 verdes.
+- sudo -u fertways /usr/bin/php84 artisan test   → esperado: 1467 verdes.
 - Frontend: export PATH="/usr/local/lib/nodejs/node-v22.12.0-linux-x64/bin:$PATH";
   cd ../frontend && npm ci && npm run build   → limpo.
 
@@ -75,6 +76,6 @@ PASSO 7 — A marca da equipe (NÃO rode sem me perguntar)
   me mostre quantas contas foram marcadas.
 
 PASSO 8 — Fechar
-- Atualize docs/RETOMAR.md (lote D-263 a D-267 no ar, sha, backup, resultado dos passos 3, 6 e 7). Commit e push.
+- Atualize docs/RETOMAR.md (lote D-263 a D-268 no ar, sha, backup, resultado dos passos 3, 6 e 7). Commit e push.
 - Me entregue um resumo curto.
 ```
