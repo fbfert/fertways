@@ -68,7 +68,7 @@ aberta. **Sem deploy** — commit e push, sim. Ordem:
 13. [x] **(D-261)** Decisão 11: detecção de contas vinculadas com revisão humana.
 14. [x] **(D-262)** Espaçoporto / Cargueiro Interplanetário / planetas NPC — só o que o GDD publica; o resto vira lacuna marcada.
 
-**D-264 (15/10, commit sem deploy):** retenção e abandono no painel de métricas e no comando `fertways:retencao`. **Próximo passo: rodar `docs/PROMPT_MEDIR_ABANDONO.md` no servidor e trazer os números** — é medida, não deploy.
+**D-264/D-265 (15/10):** retenção no painel e no `fertways:retencao` — e a correção de leitura: **não houve abandono, o jogo nunca teve jogador de fora** (todas as contas humanas são do usuário; o resto é bot). **Não rode** o `PROMPT_MEDIR_ABANDONO.md`. A frente aberta agora, autorizada a seguir sem parar: (1) preparar a chegada dos primeiros jogadores — onboarding e primeiras horas; (2) um kit de teste com pessoas de verdade; (3) revisão visual e pendências pequenas do GDD.
 
 **Depois do deploy de `fa1af6b` (15/10):** o usuário escolheu abrir o Espaçoporto e aprovou a proposta de números — **D-263, commit sem deploy**. Uma migration (`2026_10_16_100000_espacoporto_com_os_numeros_de_partida`), exercitada só no SQLite. O prompt de deploy em `docs/PROMPT_DEPLOY_VPS.md` foi reescrito para este lote; ele manda conferir os preços de venda do governo contra os 0,80× que os planetas pagam.
 
@@ -2009,7 +2009,7 @@ A previsão do D-239 acertou pela metade:
 
 > ### ⚠️ A pergunta de 2026-09-09, e ela é maior do que qualquer fatia visual
 >
-> **Ninguém joga.** Último login humano: **17/07**. As 9 colônias humanas estão paradas há sete
+> **Ninguém joga.** Último login humano: **17/07**. *(Corrigido no D-265: não é abandono — as contas humanas são do próprio usuário; o jogo nunca teve jogador de fora.)* As 9 colônias humanas estão paradas há sete
 > semanas; as outras 21 são bots. A Cesta abriu os três portões do território por 30 dias e a única
 > ocupação foi de um bot. Toda medida de "uso" deste jogo mede bots — foi o que derrubou o D-226.
 >

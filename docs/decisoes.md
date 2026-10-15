@@ -14533,3 +14533,29 @@ código para a árvore de trabalho e o roda contra o `fertwaysbd` por variável 
 `.env` e sem `config:cache`, mais três consultas de leitura que o relatório não responde sozinho.
 
 1456 testes verdes.
+
+---
+
+## D-265 — Não houve abandono: o jogo nunca recebeu jogadores de fora
+
+**Data:** 2026-10-15 · **Status:** registro de leitura (sem código)
+
+Correção de uma premissa que atravessou o D-237, o D-238, a §16 do GDD v40/v41, o `RETOMAR.md` e o
+D-264. O "último login humano em 17/07" foi lido como **abandono** — jogadores que vieram e foram
+embora —, e a próxima frente chegou a ser "investigar o abandono".
+
+O usuário esclareceu em 15/10: **todos os usuários cadastrados no servidor são contas que ele mesmo
+criou, ou bots.** Não existe jogador de fora, e portanto não existe abandono para medir. A "sala
+vazia" é o estado de um jogo que ainda não abriu as portas.
+
+O que muda:
+
+- a pergunta deixa de ser *"por que as pessoas param?"* e passa a ser *"o jogo está pronto para os
+  primeiros jogadores, e como eles chegam?"*;
+- o D-264 (retenção no painel e `fertways:retencao`) **fica**, sem mais trabalho agora: é a ferramenta
+  certa para o dia em que houver jogador de fora. O `PROMPT_MEDIR_ABANDONO.md` não deve ser rodado;
+- toda medida de "uso" feita até aqui mede o usuário testando e os bots — nenhuma conclusão de
+  comportamento de jogador sai dela. As conclusões **de regra** (o XP que secou nos bots, a habitação,
+  os portões) continuam valendo: elas mediram o motor, não o público.
+
+A §16.5 e a §12 do GDD v41 ganharam a correção.
