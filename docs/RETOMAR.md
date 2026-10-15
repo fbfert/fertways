@@ -66,7 +66,7 @@ aberta. **Sem deploy** — commit e push, sim. Ordem:
 11. [x] **(D-259)** `upgrade_segundos_por_nivel`: o veículo fica indisponível durante o upgrade, como a migration promete.
 12. [x] **(D-260)** Decisão 7 da guerra federativa: a tropa consome operadores da colônia.
 13. [x] **(D-261)** Decisão 11: detecção de contas vinculadas com revisão humana.
-14. [ ] Espaçoporto / Cargueiro Interplanetário / planetas NPC — só o que o GDD publica; o resto vira lacuna marcada.
+14. [x] **(D-262)** Espaçoporto / Cargueiro Interplanetário / planetas NPC — só o que o GDD publica; o resto vira lacuna marcada.
 
 **Sessão de 15/10 — numa máquina Windows nova** (`C:\Users\Dell\Desktop\Fertways`), clone limpo,
 SQLite local; **sem acesso SSH ao servidor ainda** (chave `~/.ssh/fertways_deploy` gerada, não

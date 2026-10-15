@@ -704,7 +704,7 @@ ob_start();
   <tr><td><b>Norte</b></td><td>Governo Central — a grade dos 19 slots institucionais (1–5, 7–8, 9–20; o 9–20 aparece <b>visível e travado</b>, expansão futura)</td><td><?= entregue() ?></td></tr>
   <tr><td><b>Oeste</b></td><td>Os destroços da <b>Endurance</b> — mapa das 8 seções do casco, uma Loja de Peças dinâmica por seção, e as missões narrativas que contam a história da escavação. Ver <span class="d">§10</span></td><td><?= entregue() ?> <span class="d">D-132 a D-140</span></td></tr>
   <tr><td><b>Leste</b></td><td>O <b>slot 6 inteiro</b>: Mercado Central + Pátio Logístico, juntos. Clicar abre o Mercado</td><td><?= entregue() ?> <span class="d">D-65</span></td></tr>
-  <tr><td><b>Sul</b></td><td>O futuro <b>Espaçoporto</b> — mostra os 5 planetas do §23 com distância e risco, e diz que ninguém viaja ainda</td><td><?= promessa() ?></td></tr>
+  <tr><td><b>Sul</b></td><td>O <b>Espaçoporto</b> — os 5 planetas NPC e o aluguel do Cargueiro do Governo (§5.8). Construído e fechado até o operador escrever os números de economia</td><td><?= entregue('Construído, fechado') ?></td></tr>
   <tr><td><b>Centro</b></td><td>A praça — 1 slot de tamanho, decorativa</td><td><?= entregue() ?></td></tr>
 </table>
 
@@ -1452,7 +1452,7 @@ ob_start();
   </tr>
   <tr><td>Drone de Exploração</td><td class="num">não carrega</td><td class="num">8 slots/min</td><td class="num">bateria, não energia</td><td><?= entregue() ?> <span class="d">D-74</span></td></tr>
   <tr><td>Nave de Transporte Planetária</td><td class="num">4.000 un.</td><td class="num">10 slots/min</td><td class="num">Gelo de Metano</td><td><?= promessa('Fora do MVP') ?></td></tr>
-  <tr><td>Cargueiro Interplanetário</td><td class="num">—</td><td class="num">—</td><td class="num">—</td><td><?= promessa('Depende do Espaçoporto') ?></td></tr>
+  <tr><td>Cargueiro Interplanetário</td><td class="num">—</td><td class="num">—</td><td class="num">—</td><td>Frota do Governo, alugada por contrato de rota — não se fabrica (§5.8)</td></tr>
 </table>
 
 <p>
@@ -1662,6 +1662,71 @@ ob_start();
   <?= arbitrado('o tempo multiplicado pelo nível alvo, como o custo — a migration dizia só "por nível alvo"') ?>
 </p>
 
+
+
+<?php
+$espConfig = DB::table('espacoporto_settings')->find(1);
+$espMotivo = app(\App\Domain\Espacoporto\Espacoporto::class)->motivoFechado();
+$espPlanetas = \App\Models\PlanetaNpc::with('precos')->orderBy('ordem')->get();
+?>
+<h3>5.8 O Espaçoporto e o Cargueiro Interplanetário <span class="d">§03, §05, §16.2, §21.10; D-262</span></h3>
+
+<p>
+  <i>"O governo de Fertways detém o monopólio inicial do comércio interplanetário. Colonos alugam o uso
+  do cargueiro para viajar aos 5 planetas NPC — não constroem o próprio."</i> (§16.2.) O GDD publica o
+  mundo e <b>nenhum número de economia</b>, e por isso o Espaçoporto foi construído como a escavação da
+  Endurance: o mecanismo inteiro, com cada número do operador nascendo vazio — e vazio é fechado.
+</p>
+
+<table>
+  <tr><th>Planeta</th><th class="num">Viagem</th><th>Risco</th><th>Exporta</th><th>Importa</th><th>Neste banco</th></tr>
+  <?php foreach ($espPlanetas as $pl): ?>
+  <tr>
+    <td><b><?= e($pl->nome) ?></b></td>
+    <td class="num"><?= n($pl->distancia_minutos / 60, 1) ?> h</td>
+    <td><?= e($pl->risco) ?></td>
+    <td><?= e($pl->exporta) ?></td>
+    <td><?= e($pl->importa) ?></td>
+    <td><?= $pl->aberto ? 'aberto, '.$pl->precos->count().' preço(s)' : 'fechado' ?></td>
+  </tr>
+  <?php endforeach; ?>
+</table>
+
+<ul>
+  <li><b>O contrato de rota</b> tem duas pernas: o que o colono <b>leva para vender</b> (só o que o planeta
+      compra) e o que ele <b>encomenda</b> (só o que o planeta vende), cada uma até a capacidade do
+      Cargueiro. O <b>preço é travado na partida</b>; a viagem dura o tempo do planeta; na volta, o tick
+      paga a venda e entrega a encomenda. <i>"Não podem paralisar o ciclo básico do jogador"</i> (v3.2):
+      a colônia segue jogando enquanto o cargueiro voa.</li>
+  <li><b>O portão</b> é o do §05: marco <?= \App\Domain\Espacoporto\Espacoporto::MARCO_DO_CARGUEIRO ?> e
+      <?= \App\Domain\Espacoporto\Espacoporto::DIAS_DO_CARGUEIRO ?> dias de colônia.</li>
+  <li><b>O Governo é o operador exclusivo</b>: há tantos contratos simultâneos quantos cargueiros na frota.
+      O aluguel vai ao Tesouro. É a 5ª atribuição do Ministério dos Transportes — <i>"disponibilidade
+      para aluguel"</i> —, e mora na aba Espaçoporto do painel de Transportes.</li>
+  <li><b>O dinheiro atravessa a fronteira do mundo</b>: o que se paga ao planeta sai da economia, o que ele
+      paga entra. Um preço de venda alto demais é uma torneira de Fert$ que nenhum outro sistema tem — e é
+      por isso que nenhum preço foi escolhido por quem escreveu o código.</li>
+</ul>
+
+<table>
+  <tr><th>Número do operador</th><th>Neste banco</th></tr>
+  <tr><td>Disponível para aluguel</td><td><?= ($espConfig->ativo ?? false) ? 'sim' : 'não' ?></td></tr>
+  <tr><td>Aluguel por viagem</td><td><?= ($espConfig->aluguel_micro ?? null) !== null ? n($espConfig->aluguel_micro / Colony::MICRO_POR_FERT, 2).' F$' : lacuna('Não definido') ?></td></tr>
+  <tr><td>Capacidade por perna</td><td><?= ($espConfig->capacidade_unidades ?? null) ? n($espConfig->capacidade_unidades).' unidades' : lacuna('Não definida') ?></td></tr>
+  <tr><td>Cargueiros do Governo</td><td><?= ($espConfig->cargueiros ?? null) ? n($espConfig->cargueiros) : lacuna('Não definida') ?></td></tr>
+  <tr><td>Preços, planeta a planeta</td><td><?= $espPlanetas->sum(fn ($pl) => $pl->precos->count()) > 0 ? n($espPlanetas->sum(fn ($pl) => $pl->precos->count())).' preço(s)' : lacuna('Nenhum') ?></td></tr>
+</table>
+
+<div class="nota grave">
+  <b>⚠️ O que continua sem desenho</b>, e por isso não foi construído: o <b>risco</b> (o que "alto"
+  significa — perda de carga? —, e a escolta e o seguro, que a v3.2 chama de "mecânicas de temporada");
+  o <b>imposto</b> sobre a carga interplanetária (o §25 cobra entre donos do planeta, e não diz nada de um
+  planeta NPC); os <b>portões por planeta</b> (Auryn "por marco de servidor", Solène "por ciência",
+  Drakmoor "tardio" — sem critério, abrir é ato do operador); o <b>Atendente do Espaçoporto</b> (sem
+  salário publicado); e as <b>missões de reconhecimento</b> que descobrem planetas novos.
+  <?= arbitrado('a viagem inteira dura a distância do planeta; o preço travado na partida; o aluguel ao Tesouro — D-262') ?>
+  <?php if ($espMotivo): ?><br><br>Neste banco o Espaçoporto está <b>fechado</b>: <?= e($espMotivo) ?><?php endif; ?>
+</div>
 
 
 <!-- ══════════════════════════════════════════════════════════════ 6 -->
@@ -2250,7 +2315,7 @@ todos desde a fundação, e os da zona se abrem conforme ela sobe.</p>
   <tr><td class="num">3</td><td>Declarar custa Fert$ do fundo + Nióbio</td><td>Abaixo</td></tr>
   <tr><td class="num">4</td><td>Não há recusa</td><td>Quem é declarado <b>está</b> em guerra</td></tr>
   <tr><td class="num">5</td><td>Duração de 7 dias</td><td><?= n($gfDuracaoH) ?> h, do banco</td></tr>
-  <tr><td class="num">6</td><td>Capital e Espaçoporto fora, sempre</td><td>Vale por construção: a Capital não é colônia, e o Espaçoporto não existe (§12)</td></tr>
+  <tr><td class="num">6</td><td>Capital e Espaçoporto fora, sempre</td><td>Vale por construção: a Capital e o Espaçoporto não são colônia nem zona — não há o que atacar ali</td></tr>
   <tr><td class="num">7</td><td>Tropa consome operadores da colônia</td><td><?= (int) $guerraCfg->operadores_por_unidade ?> colono(s) por unidade em campo, do bolo da colônia — §13.5 <span class="d">D-260</span></td></tr>
   <tr><td class="num">8</td><td>Declarar a uma aliada rompe a aliança</td><td>Abaixo</td></tr>
   <tr><td class="num">9</td><td>Capitulação: o vencedor escolhe zona ou Fert$</td><td>§8.14</td></tr>
@@ -3741,8 +3806,8 @@ if ($semFrase !== []) {
   <tr><th>Assunto</th><th>O que falta</th><th>O que ele trava</th></tr>
   <tr>
     <td><b>Cargueiro Interplanetário / Espaçoporto</b></td>
-    <td>O <b>Espaçoporto</b> e os 5 planetas NPC — nenhuma rota, doca ou taxa existe</td>
-    <td>A 5ª atribuição do Ministério dos Transportes, e o cargo de <b>Atendente do Espaçoporto</b> (§7.4, D-130) — 100% dependente disto, fica de fora até o Espaçoporto existir</td>
+    <td>O mecanismo está construído e <b>fechado</b> (§5.8, D-262). Faltam os <b>números de economia</b> — preço de cada recurso em cada planeta, aluguel, capacidade e frota do Cargueiro —, e o desenho do <b>risco</b>, do <b>imposto</b> interplanetário e dos <b>portões por planeta</b></td>
+    <td>O comércio interplanetário inteiro. E o cargo de <b>Atendente do Espaçoporto</b> (§7.4, D-130), sem salário publicado</td>
   </tr>
   <tr>
     <td><b>Os 8 minerais eletrônicos</b></td>

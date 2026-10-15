@@ -8,6 +8,7 @@
         "fabrica" => "Fábrica",
         "garagem" => "Garagem do Governo",
         "frota" => "Frota do Planeta",
+        "espacoporto" => "Espaçoporto",
     ];
     $nomeVeiculo = fn ($tipo) => $tipo === "caminhao_de_carga" ? "Caminhão de Carga" : "Furgão de Comércio";
     $paraTextoCusto = fn (array $custo) => collect($custo)
@@ -342,6 +343,108 @@
             </p>
 
             <div style="margin-top:10px">{{ $veiculos->links() }}</div>
+        </div>
+    @endif
+
+    {{--
+        ── O Espaçoporto (D-262) — a 5ª atribuição do Ministério ──
+        O GDD publica os planetas e nenhum número de economia. Tudo o que está aqui nasce vazio, e
+        vazio é fechado.
+    --}}
+    @if ($aba === "espacoporto")
+        @php
+            $fertOuVazio = fn ($micro) => $micro === null ? '' : rtrim(rtrim(number_format($micro / 1000000, 6, '.', ''), '0'), '.');
+            $precosEmTexto = fn ($planeta) => $planeta->precos
+                ->map(fn ($p) => "{$p->resource_type}:{$fertOuVazio($p->compra_micro)}:{$fertOuVazio($p->venda_micro)}")
+                ->implode("\n");
+        @endphp
+
+        <h2 class="secao">O Cargueiro Interplanetário</h2>
+        <div class="cartao" data-espacoporto-config>
+            <p class="mut pequeno">
+                @if ($espacoportoMotivo)
+                    <b style="color:#8a2f08">Fechado.</b> {{ $espacoportoMotivo }}
+                @else
+                    <b style="color:#2f5e1e">Aberto ao aluguel.</b>
+                @endif
+                O Governo é o operador exclusivo (§16.2): cada cargueiro faz um contrato de cada vez.
+                Nenhum destes números é do GDD — o §21.10 diz só "custos embutidos nas taxas do
+                Espaçoporto". O aluguel vai ao Tesouro.
+            </p>
+            <form method="POST" action="{{ route('admin.espacoporto.config') }}" class="linha-form" style="margin-top:8px">
+                @csrf
+                <div style="flex:0">
+                    <label><input type="checkbox" name="ativo" value="1" @checked($espacoporto->ativo)> Disponível para aluguel</label>
+                </div>
+                <div style="flex:0">
+                    <label>Aluguel por viagem (Fert$)</label>
+                    <input type="number" step="0.000001" min="0" name="aluguel" value="{{ $fertOuVazio($espacoporto->aluguel_micro) }}" style="width:110px">
+                </div>
+                <div style="flex:0">
+                    <label>Capacidade por perna (unidades)</label>
+                    <input type="number" min="1" name="capacidade_unidades" value="{{ $espacoporto->capacidade_unidades }}" style="width:110px">
+                </div>
+                <div style="flex:0">
+                    <label>Cargueiros do Governo</label>
+                    <input type="number" min="1" max="100" name="cargueiros" value="{{ $espacoporto->cargueiros }}" style="width:80px">
+                </div>
+                <div style="flex:0"><label>&nbsp;</label><button data-salvar-espacoporto>Salvar</button></div>
+            </form>
+        </div>
+
+        <h2 class="secao">Os cinco planetas</h2>
+        <div class="cartao">
+            <p class="mut pequeno">
+                Nome, distância, risco e o que cada um exporta e importa são do GDD (§03). <b>Abrir é
+                ato seu</b>: os portões por planeta (Auryn "por marco de servidor", Solène "por ciência",
+                Drakmoor "tardio") não têm critério publicado. Os preços vão um por linha,
+                <code>recurso:compra:venda</code> em Fert$ por unidade — <b>compra</b> é o que o planeta
+                paga ao colono, <b>venda</b> é o que ele cobra; vazio é "não negocia". O risco de Drakmoor
+                não tem mecânica (escolta e seguro são "de temporada", v3.2).
+            </p>
+            @foreach ($planetas as $p)
+                <form method="POST" action="{{ route('admin.espacoporto.planeta', $p) }}" style="margin-top:12px;border-top:1px solid rgba(180,69,11,.14);padding-top:10px" data-planeta="{{ $p->chave }}">
+                    @csrf
+                    <div class="linha-form">
+                        <div style="flex:0;min-width:160px">
+                            <b>{{ $p->nome }}</b>
+                            <div class="mut pequeno">risco {{ $p->risco }} · exporta {{ $p->exporta }} · importa {{ $p->importa }}</div>
+                        </div>
+                        <div style="flex:0">
+                            <label><input type="checkbox" name="aberto" value="1" @checked($p->aberto)> Aberto</label>
+                        </div>
+                        <div style="flex:0">
+                            <label>Viagem (minutos)</label>
+                            <input type="number" min="1" name="distancia_minutos" value="{{ $p->distancia_minutos }}" required style="width:90px">
+                        </div>
+                        <div style="flex:0">
+                            <label>Preços</label>
+                            <textarea name="precos" rows="3" style="width:240px">{{ $precosEmTexto($p) }}</textarea>
+                        </div>
+                        <div style="flex:0"><label>&nbsp;</label><button>Salvar {{ $p->nome }}</button></div>
+                    </div>
+                </form>
+            @endforeach
+        </div>
+
+        <h2 class="secao">Cargueiros em viagem</h2>
+        <div class="cartao">
+            @if ($contratosEmViagem->isEmpty())
+                <p class="mut">Nenhum cargueiro no ar.</p>
+            @else
+                <table>
+                    <tr><th>Colônia</th><th>Planeta</th><th>Leva</th><th>Encomenda</th><th>Pousa</th></tr>
+                    @foreach ($contratosEmViagem as $k)
+                        <tr>
+                            <td>{{ $k->colony?->name }}</td>
+                            <td>{{ $k->planeta?->nome }}</td>
+                            <td>{{ collect($k->venda)->map(fn ($v, $r) => "{$v['qtd']} {$r}")->implode(', ') ?: '—' }}</td>
+                            <td>{{ collect($k->compra)->map(fn ($v, $r) => "{$v['qtd']} {$r}")->implode(', ') ?: '—' }}</td>
+                            <td>{{ $quando($k->chega_em) }}</td>
+                        </tr>
+                    @endforeach
+                </table>
+            @endif
         </div>
     @endif
 

@@ -14436,3 +14436,40 @@ O GDD fala de "transferência territorial por guerra" de forma geral; a lavagem 
 capitulação, e é ela que fecha.
 
 1435 testes verdes.
+
+---
+
+## D-262 — O Espaçoporto abre as portas, e fica fechado até o operador escrever os números
+
+**Data:** 2026-10-15 · **Status:** entregue (commit; sem deploy)
+
+O último item da segunda leva. O GDD (v35 §03, §05, §16.2, §21.10, v3.2 §11) publica o **mundo** — os
+cinco planetas com distância, risco, o que exportam e importam; o Governo como operador exclusivo do
+Cargueiro, alugado e nunca fabricado; o portão do marco 20 com 10 dias; a viagem como "contrato de
+rota" que não paralisa o ciclo básico — e **nenhum número de economia**. Construído no desenho da
+escavação (D-249): o mecanismo inteiro, e cada número do operador nascendo vazio. Vazio é fechado.
+
+- **`planetas_npc`** — os cinco do §03, entrando pela própria migration (o `deploy.sh` não roda
+  seeder), todos fechados. Distância em minutos, editável ("parametrizada por servidor", v3.2).
+- **`planeta_npc_precos`** — por planeta e recurso, o que o planeta **paga** e o que **cobra**. "Exporta
+  metais pesados" não é preço; nulo é "não negocia".
+- **`espacoporto_settings`** — a 5ª atribuição do Ministério ("disponibilidade para aluguel"), aluguel,
+  capacidade por perna, frota. Contratos simultâneos ≤ cargueiros: é o monopólio estatal.
+- **`contratos_de_rota`** — duas pernas (o que se leva para vender, o que se encomenda), **preço
+  travado na partida**, a viagem dura a distância do planeta, e o tick paga e entrega na volta. O
+  aluguel vai ao Tesouro; o que se paga ao planeta sai do mundo, e o que ele paga entra — e por isso
+  nenhum preço foi escolhido por mim.
+- Tela do jogador lê da API (antes era o §03 transcrito à mão no componente); aba Espaçoporto no
+  painel de Transportes; três tipos novos no ledger, declarados em `DirecaoDoLedger`.
+
+⚠️ **Arbitragens minhas**: a viagem inteira dura a distância publicada (o GDD dá um tempo por planeta,
+não ida e volta); o preço travado na partida; o aluguel ao Tesouro.
+
+⚠️ **Fora, por falta de desenho, e escrito como lacuna no GDD (§5.8)**: o risco (o que "alto" faz;
+escolta e seguro são "de temporada"), o imposto sobre carga interplanetária, os portões por planeta
+(Auryn, Solène, Drakmoor — sem critério; abrir é do operador), o Atendente do Espaçoporto (sem salário)
+e as missões de reconhecimento.
+
+Migration `2026_10_15_600000_espacoporto_e_planetas_npc`, exercitada nos dois sentidos no SQLite.
+1446 testes verdes, `npm run build` limpo. O e2e da Capital continua valendo: fechado, a tela segue
+dizendo "Ninguém viaja daqui ainda".

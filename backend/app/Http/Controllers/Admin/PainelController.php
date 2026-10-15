@@ -608,7 +608,7 @@ class PainelController extends Controller
 
     public function transportes(Request $request): View
     {
-        $abas = ['ministerio', 'fabrica', 'garagem', 'frota'];
+        $abas = ['ministerio', 'fabrica', 'garagem', 'frota', 'espacoporto'];
         $aba = in_array($request->query('aba'), $abas, true) ? $request->query('aba') : 'ministerio';
 
         $dados = [
@@ -699,6 +699,19 @@ class PainelController extends Controller
             $dados['dono'] = $dono;
             $dados['sort'] = $sort;
             $dados['dir'] = $dir;
+        }
+
+        /*
+         * A 5ª atribuição do Ministério (§16): "a frota de Cargueiros Interplanetários do governo —
+         * disponibilidade para aluguel" (D-262). Mora aqui porque o Cargueiro é frota do Ministério.
+         */
+        if ($aba === 'espacoporto') {
+            $espacoporto = app(\App\Domain\Espacoporto\Espacoporto::class);
+            $dados['espacoporto'] = $espacoporto->config();
+            $dados['espacoportoMotivo'] = $espacoporto->motivoFechado();
+            $dados['planetas'] = \App\Models\PlanetaNpc::with('precos')->orderBy('ordem')->get();
+            $dados['contratosEmViagem'] = \App\Models\ContratoDeRota::with(['planeta:id,nome', 'colony:id,name'])
+                ->where('status', \App\Models\ContratoDeRota::EM_VIAGEM)->orderBy('chega_em')->get();
         }
 
         return view('admin.transportes', $dados);

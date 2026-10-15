@@ -130,6 +130,9 @@ Route::prefix('admin')->group(function () {
         // A Fábrica (D-109): preço, estoque-alvo, tempo e custo por tipo de veículo — e a
         // encomenda avulsa, fora do ciclo do tick.
         Route::post('/transportes/fabrica', [AcoesController::class, 'fabricaConfig'])->name('admin.fabrica.config');
+        // O Espaçoporto (D-262): o Cargueiro do Governo e os cinco planetas — todo número é do operador.
+        Route::post('/transportes/espacoporto', [AcoesController::class, 'espacoportoConfig'])->name('admin.espacoporto.config');
+        Route::post('/transportes/espacoporto/planetas/{planeta}', [AcoesController::class, 'espacoportoPlaneta'])->name('admin.espacoporto.planeta');
         Route::post('/transportes/fabrica/encomendar', [AcoesController::class, 'fabricaEncomendar'])->name('admin.fabrica.encomendar');
         // A Garagem do frete público (D-76): encomendar mais um caminhão, conforme a demanda.
         Route::post('/garagem', [AcoesController::class, 'garagem'])->name('admin.garagem');

@@ -57,6 +57,7 @@ use App\Models\MilestoneSetting;
 use App\Models\MissionAssignment;
 use App\Models\MissionTemplate;
 use App\Models\News;
+use App\Models\PlanetaNpc;
 use App\Models\Punishment;
 use App\Models\Report;
 use App\Models\ResourceType;
@@ -614,6 +615,87 @@ class AcoesController extends Controller
                 .($mudou !== '' ? $mudou : 'Nada mudou.')
                 .' Valem no PRÓXIMO combate: os em curso já congelaram a força e o dano.';
         });
+    }
+
+    /**
+     * O Cargueiro do Governo (D-262): disponibilidade, aluguel, capacidade e frota. Nenhum é do GDD;
+     * todos nascem vazios, e vazio deixa o Espaçoporto fechado.
+     */
+    public function espacoportoConfig(Request $request): RedirectResponse
+    {
+        $dados = $request->validate([
+            'ativo' => ['nullable', 'boolean'],
+            'aluguel' => ['nullable', 'numeric', 'min:0', 'max:1000000'],
+            'capacidade_unidades' => ['nullable', 'integer', 'min:1', 'max:10000000'],
+            'cargueiros' => ['nullable', 'integer', 'min:1', 'max:100'],
+        ]);
+
+        $linha = [
+            'ativo' => (bool) ($dados['ativo'] ?? false),
+            'aluguel_micro' => isset($dados['aluguel']) && $dados['aluguel'] !== ''
+                ? (int) round((float) $dados['aluguel'] * Colony::MICRO_POR_FERT) : null,
+            'capacidade_unidades' => $dados['capacidade_unidades'] ?? null,
+            'cargueiros' => $dados['cargueiros'] ?? null,
+        ];
+
+        return $this->salvarLinha('espacoporto_settings', 'espacoporto.config', $linha,
+            'Cargueiro Interplanetário atualizado.', ' Contratos em viagem seguem com o preço com que saíram.');
+    }
+
+    /**
+     * Um planeta NPC (D-262): aberto ou não, a duração da viagem e os preços. Os preços vão um por
+     * linha, `recurso:compra:venda` em Fert$ por unidade; vazio é "não negocia".
+     */
+    public function espacoportoPlaneta(Request $request, PlanetaNpc $planeta): RedirectResponse
+    {
+        $dados = $request->validate([
+            'aberto' => ['nullable', 'boolean'],
+            'distancia_minutos' => ['required', 'integer', 'min:1', 'max:100000'],
+            'precos' => ['nullable', 'string', 'max:5000'],
+        ]);
+
+        $codigos = DB::table('resource_types')->pluck('code')->all();
+        $precos = [];
+
+        foreach (preg_split('/\R/', (string) ($dados['precos'] ?? '')) as $linha) {
+            $linha = trim($linha);
+            if ($linha === '') {
+                continue;
+            }
+
+            [$recurso, $compra, $venda] = array_pad(array_map('trim', explode(':', $linha)), 3, '');
+            $valido = fn ($v) => $v === '' || (is_numeric($v) && (float) $v >= 0);
+
+            if (! in_array($recurso, $codigos, true) || ! $valido($compra) || ! $valido($venda) || ($compra === '' && $venda === '')) {
+                throw ValidationException::withMessages([
+                    'precos' => "Linha inválida: «{$linha}». Use recurso:compra:venda, com ao menos um dos dois preços.",
+                ]);
+            }
+
+            $precos[$recurso] = [
+                'compra_micro' => $compra === '' ? null : (int) round((float) $compra * Colony::MICRO_POR_FERT),
+                'venda_micro' => $venda === '' ? null : (int) round((float) $venda * Colony::MICRO_POR_FERT),
+            ];
+        }
+
+        return $this->tentar('espacoporto.planeta', function () use ($planeta, $dados, $precos) {
+            DB::transaction(function () use ($planeta, $dados, $precos) {
+                $planeta->update([
+                    'aberto' => (bool) ($dados['aberto'] ?? false),
+                    'distancia_minutos' => (int) $dados['distancia_minutos'],
+                ]);
+
+                // A tabela de preços é reescrita inteira: o formulário é a lista, e o que saiu dela
+                // deixa de ser negociado. Contrato em viagem não muda — o preço dele foi travado.
+                $planeta->precos()->delete();
+                foreach ($precos as $recurso => $p) {
+                    $planeta->precos()->create(['resource_type' => $recurso] + $p);
+                }
+            });
+
+            return "{$planeta->nome}: ".($planeta->aberto ? 'aberto' : 'fechado')
+                .", {$planeta->distancia_minutos} min, ".count($precos).' recurso(s) com preço.';
+        }, "planeta:{$planeta->chave}");
     }
 
     /**

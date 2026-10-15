@@ -211,6 +211,10 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Ministério dos Transportes (§16), slot 8 da Capital. Fabricar caminhão é privativo dele
     // desde o D-60 — a Central de Transportes do colono virou só a vaga.
+    // O Espaçoporto e os planetas NPC (D-262): fechado até o operador escrever os números.
+    Route::get('/espacoporto', [\App\Http\Controllers\Api\EspacoportoController::class, 'index']);
+    Route::post('/espacoporto/contratos', [\App\Http\Controllers\Api\EspacoportoController::class, 'contratar']);
+
     Route::get('/transport', [TransportController::class, 'index']);
     Route::post('/transport/buy', [TransportController::class, 'comprar']);
 

@@ -1073,6 +1073,44 @@ export type Denuncia = {
  * `conservacao` e `desempenho` divergem abaixo do piso de 25%: uma carcaça a 5% ainda **anda** a
  * 25%, porque o D-60 decidiu que o veículo nunca trava.
  */
+/** O Espaçoporto (D-262). Todo número de economia é do operador, e nasce vazio. */
+export type PlanetaNpc = {
+  chave: string
+  nome: string
+  distancia_minutos: number
+  risco: 'nenhum' | 'baixo' | 'alto'
+  exporta: string
+  importa: string
+  aberto: boolean
+  /** O que o planeta PAGA por unidade que você leva (micro-Fert$). */
+  compra: Record<string, number>
+  /** O que o planeta COBRA por unidade que você traz (micro-Fert$). */
+  venda: Record<string, number>
+}
+
+export type ContratoDeRota = {
+  id: number
+  planeta: string | null
+  status: 'em_viagem' | 'concluido'
+  venda: Record<string, { qtd: number; preco_micro: number }>
+  compra: Record<string, { qtd: number; preco_micro: number }>
+  aluguel_micro: number
+  parte_em: string
+  chega_em: string
+}
+
+export type EstadoEspacoporto = {
+  ligado: boolean
+  motivo_fechado: string | null
+  aluguel_micro: number | null
+  capacidade_unidades: number | null
+  cargueiros: number | null
+  cargueiros_livres: number
+  portao: { pode: boolean; marco: number; marco_exigido: number; dias: number; dias_exigidos: number }
+  planetas: PlanetaNpc[]
+  contratos: ContratoDeRota[]
+}
+
 export type RegistroVeiculo = {
   id: number
   placa: string | null
@@ -1466,6 +1504,14 @@ export const api = {
    * frota do colono com as placas. Desde o D-60, é o único lugar do planeta que fabrica veículo —
    * e desde o D-109, fabrica os dois tipos (Caminhão de Carga e Furgão de Comércio).
    */
+  /** D-262: o Espaçoporto — fechado até o operador escrever os números de economia. */
+  espacoporto: () => req<EstadoEspacoporto>('/espacoporto'),
+  contratarRota: (planeta: string, venda: Record<string, number>, compra: Record<string, number>) =>
+    req<{ contrato: { id: number; chega_em: string } }>('/espacoporto/contratos', {
+      method: 'POST',
+      body: JSON.stringify({ planeta, venda, compra }),
+    }),
+
   transportes: () => req<Transportes>('/transport'),
   comprarVeiculo: (tipo: string) =>
     req<{ comprado: CaminhaoComprado }>('/transport/buy', {

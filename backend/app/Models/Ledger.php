@@ -122,6 +122,14 @@ class Ledger extends Model
          * da Endurance nunca foi ledger, só a compra dela.
          */
         'escavacao_endurance',
+        /*
+         * D-262: o Espaçoporto. O aluguel do Cargueiro (Fert$ ao Tesouro); a venda a um planeta NPC
+         * (o recurso sai na partida, o Fert$ entra na volta); a encomenda (o Fert$ sai na partida, o
+         * recurso entra na volta). As duas últimas atravessam a fronteira do mundo.
+         */
+        'espacoporto_aluguel',
+        'espacoporto_venda',
+        'espacoporto_compra',
     ];
 
     public function colony(): BelongsTo

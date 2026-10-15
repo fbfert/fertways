@@ -17,6 +17,7 @@ use App\Domain\Ministry\ExpirarPrazos;
 use App\Domain\Ministry\PagarConciliadores;
 use App\Domain\Production\ColonyTick;
 use App\Domain\Trade\ExpirarAcordos;
+use App\Domain\Espacoporto\ConcluirContratosDeRota;
 use App\Domain\Transport\ConcluirUpgradesDeVeiculo;
 use App\Domain\Transport\FabricarVeiculos;
 use App\Domain\Zona\CobrarManutencaoTerritorial;
@@ -171,6 +172,9 @@ class TickColonies extends Command
         // O serviço de upgrade que venceu devolve o veículo ao pátio, no nível novo (D-259). Junto
         // da linha de montagem: é a mesma oficina do Ministério.
         $prontos += app(ConcluirUpgradesDeVeiculo::class)->handle($agora);
+
+        // O Cargueiro que pousou entrega a venda e a encomenda (D-262).
+        $entregas += app(ConcluirContratosDeRota::class)->handle($agora);
 
         /*
          * A hora do Pátio da Capital (D-65). **Depois** das entregas, nunca antes: o veículo que

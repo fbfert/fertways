@@ -255,7 +255,7 @@
   <tr><td><b>Norte</b></td><td>Governo Central — a grade dos 19 slots institucionais (1–5, 7–8, 9–20; o 9–20 aparece <b>visível e travado</b>, expansão futura)</td><td><span class="sel sel-ok">Implementado</span></td></tr>
   <tr><td><b>Oeste</b></td><td>Os destroços da <b>Endurance</b> — mapa das 8 seções do casco, uma Loja de Peças dinâmica por seção, e as missões narrativas que contam a história da escavação. Ver <span class="d">§10</span></td><td><span class="sel sel-ok">Implementado</span> <span class="d">D-132 a D-140</span></td></tr>
   <tr><td><b>Leste</b></td><td>O <b>slot 6 inteiro</b>: Mercado Central + Pátio Logístico, juntos. Clicar abre o Mercado</td><td><span class="sel sel-ok">Implementado</span> <span class="d">D-65</span></td></tr>
-  <tr><td><b>Sul</b></td><td>O futuro <b>Espaçoporto</b> — mostra os 5 planetas do §23 com distância e risco, e diz que ninguém viaja ainda</td><td><span class="sel sel-prom">Promessa</span></td></tr>
+  <tr><td><b>Sul</b></td><td>O <b>Espaçoporto</b> — os 5 planetas NPC e o aluguel do Cargueiro do Governo (§5.8). Construído e fechado até o operador escrever os números de economia</td><td><span class="sel sel-ok">Construído, fechado</span></td></tr>
   <tr><td><b>Centro</b></td><td>A praça — 1 slot de tamanho, decorativa</td><td><span class="sel sel-ok">Implementado</span></td></tr>
 </table>
 
@@ -2792,7 +2792,7 @@
   </tr>
   <tr><td>Drone de Exploração</td><td class="num">não carrega</td><td class="num">8 slots/min</td><td class="num">bateria, não energia</td><td><span class="sel sel-ok">Implementado</span> <span class="d">D-74</span></td></tr>
   <tr><td>Nave de Transporte Planetária</td><td class="num">4.000 un.</td><td class="num">10 slots/min</td><td class="num">Gelo de Metano</td><td><span class="sel sel-prom">Fora do MVP</span></td></tr>
-  <tr><td>Cargueiro Interplanetário</td><td class="num">—</td><td class="num">—</td><td class="num">—</td><td><span class="sel sel-prom">Depende do Espaçoporto</span></td></tr>
+  <tr><td>Cargueiro Interplanetário</td><td class="num">—</td><td class="num">—</td><td class="num">—</td><td>Frota do Governo, alugada por contrato de rota — não se fabrica (§5.8)</td></tr>
 </table>
 
 <p>
@@ -3059,6 +3059,94 @@
   existe. Zero torna o upgrade instantâneo, que foi o comportamento até o D-259.
   <span class="sel sel-arb">Arbitrado · o tempo multiplicado pelo nível alvo, como o custo — a migration dizia só &quot;por nível alvo&quot;</span></p>
 
+
+
+<h3>5.8 O Espaçoporto e o Cargueiro Interplanetário <span class="d">§03, §05, §16.2, §21.10; D-262</span></h3>
+
+<p>
+  <i>"O governo de Fertways detém o monopólio inicial do comércio interplanetário. Colonos alugam o uso
+  do cargueiro para viajar aos 5 planetas NPC — não constroem o próprio."</i> (§16.2.) O GDD publica o
+  mundo e <b>nenhum número de economia</b>, e por isso o Espaçoporto foi construído como a escavação da
+  Endurance: o mecanismo inteiro, com cada número do operador nascendo vazio — e vazio é fechado.
+</p>
+
+<table>
+  <tr><th>Planeta</th><th class="num">Viagem</th><th>Risco</th><th>Exporta</th><th>Importa</th><th>Neste banco</th></tr>
+    <tr>
+    <td><b>Kalidor</b></td>
+    <td class="num">4,0 h</td>
+    <td>nenhum</td>
+    <td>Metais pesados, compostos químicos</td>
+    <td>Biomassa, água</td>
+    <td>fechado</td>
+  </tr>
+    <tr>
+    <td><b>Veyra</b></td>
+    <td class="num">6,5 h</td>
+    <td>nenhum</td>
+    <td>Sementes alienígenas, compostos orgânicos</td>
+    <td>Energia, componentes</td>
+    <td>fechado</td>
+  </tr>
+    <tr>
+    <td><b>Auryn</b></td>
+    <td class="num">12,0 h</td>
+    <td>baixo</td>
+    <td>Variedade enorme</td>
+    <td>Qualquer recurso</td>
+    <td>fechado</td>
+  </tr>
+    <tr>
+    <td><b>Solène</b></td>
+    <td class="num">18,0 h</td>
+    <td>nenhum</td>
+    <td>Tecnologia, dados de pesquisa</td>
+    <td>Recursos raros</td>
+    <td>fechado</td>
+  </tr>
+    <tr>
+    <td><b>Drakmoor</b></td>
+    <td class="num">31,0 h</td>
+    <td>alto</td>
+    <td>Minerais raros exclusivos</td>
+    <td>Biomassa, água, componentes</td>
+    <td>fechado</td>
+  </tr>
+  </table>
+
+<ul>
+  <li><b>O contrato de rota</b> tem duas pernas: o que o colono <b>leva para vender</b> (só o que o planeta
+      compra) e o que ele <b>encomenda</b> (só o que o planeta vende), cada uma até a capacidade do
+      Cargueiro. O <b>preço é travado na partida</b>; a viagem dura o tempo do planeta; na volta, o tick
+      paga a venda e entrega a encomenda. <i>"Não podem paralisar o ciclo básico do jogador"</i> (v3.2):
+      a colônia segue jogando enquanto o cargueiro voa.</li>
+  <li><b>O portão</b> é o do §05: marco 20 e
+      10 dias de colônia.</li>
+  <li><b>O Governo é o operador exclusivo</b>: há tantos contratos simultâneos quantos cargueiros na frota.
+      O aluguel vai ao Tesouro. É a 5ª atribuição do Ministério dos Transportes — <i>"disponibilidade
+      para aluguel"</i> —, e mora na aba Espaçoporto do painel de Transportes.</li>
+  <li><b>O dinheiro atravessa a fronteira do mundo</b>: o que se paga ao planeta sai da economia, o que ele
+      paga entra. Um preço de venda alto demais é uma torneira de Fert$ que nenhum outro sistema tem — e é
+      por isso que nenhum preço foi escolhido por quem escreveu o código.</li>
+</ul>
+
+<table>
+  <tr><th>Número do operador</th><th>Neste banco</th></tr>
+  <tr><td>Disponível para aluguel</td><td>não</td></tr>
+  <tr><td>Aluguel por viagem</td><td><span class="sel sel-lac">Não definido</span></td></tr>
+  <tr><td>Capacidade por perna</td><td><span class="sel sel-lac">Não definida</span></td></tr>
+  <tr><td>Cargueiros do Governo</td><td><span class="sel sel-lac">Não definida</span></td></tr>
+  <tr><td>Preços, planeta a planeta</td><td><span class="sel sel-lac">Nenhum</span></td></tr>
+</table>
+
+<div class="nota grave">
+  <b>⚠️ O que continua sem desenho</b>, e por isso não foi construído: o <b>risco</b> (o que "alto"
+  significa — perda de carga? —, e a escolta e o seguro, que a v3.2 chama de "mecânicas de temporada");
+  o <b>imposto</b> sobre a carga interplanetária (o §25 cobra entre donos do planeta, e não diz nada de um
+  planeta NPC); os <b>portões por planeta</b> (Auryn "por marco de servidor", Solène "por ciência",
+  Drakmoor "tardio" — sem critério, abrir é ato do operador); o <b>Atendente do Espaçoporto</b> (sem
+  salário publicado); e as <b>missões de reconhecimento</b> que descobrem planetas novos.
+  <span class="sel sel-arb">Arbitrado · a viagem inteira dura a distância do planeta; o preço travado na partida; o aluguel ao Tesouro — D-262</span>  <br><br>Neste banco o Espaçoporto está <b>fechado</b>: O Ministério dos Transportes não abriu o Cargueiro para aluguel.</div>
 
 
 <!-- ══════════════════════════════════════════════════════════════ 6 -->
@@ -3634,7 +3722,7 @@ todos desde a fundação, e os da zona se abrem conforme ela sobe.</p>
   <tr><td class="num">3</td><td>Declarar custa Fert$ do fundo + Nióbio</td><td>Abaixo</td></tr>
   <tr><td class="num">4</td><td>Não há recusa</td><td>Quem é declarado <b>está</b> em guerra</td></tr>
   <tr><td class="num">5</td><td>Duração de 7 dias</td><td>168 h, do banco</td></tr>
-  <tr><td class="num">6</td><td>Capital e Espaçoporto fora, sempre</td><td>Vale por construção: a Capital não é colônia, e o Espaçoporto não existe (§12)</td></tr>
+  <tr><td class="num">6</td><td>Capital e Espaçoporto fora, sempre</td><td>Vale por construção: a Capital e o Espaçoporto não são colônia nem zona — não há o que atacar ali</td></tr>
   <tr><td class="num">7</td><td>Tropa consome operadores da colônia</td><td>1 colono(s) por unidade em campo, do bolo da colônia — §13.5 <span class="d">D-260</span></td></tr>
   <tr><td class="num">8</td><td>Declarar a uma aliada rompe a aliança</td><td>Abaixo</td></tr>
   <tr><td class="num">9</td><td>Capitulação: o vencedor escolhe zona ou Fert$</td><td>§8.14</td></tr>
@@ -5384,8 +5472,8 @@ rating  += K × (resultado − esperado)        K = 32, início 1.000</pre>
   <tr><th>Assunto</th><th>O que falta</th><th>O que ele trava</th></tr>
   <tr>
     <td><b>Cargueiro Interplanetário / Espaçoporto</b></td>
-    <td>O <b>Espaçoporto</b> e os 5 planetas NPC — nenhuma rota, doca ou taxa existe</td>
-    <td>A 5ª atribuição do Ministério dos Transportes, e o cargo de <b>Atendente do Espaçoporto</b> (§7.4, D-130) — 100% dependente disto, fica de fora até o Espaçoporto existir</td>
+    <td>O mecanismo está construído e <b>fechado</b> (§5.8, D-262). Faltam os <b>números de economia</b> — preço de cada recurso em cada planeta, aluguel, capacidade e frota do Cargueiro —, e o desenho do <b>risco</b>, do <b>imposto</b> interplanetário e dos <b>portões por planeta</b></td>
+    <td>O comércio interplanetário inteiro. E o cargo de <b>Atendente do Espaçoporto</b> (§7.4, D-130), sem salário publicado</td>
   </tr>
   <tr>
     <td><b>Os 8 minerais eletrônicos</b></td>

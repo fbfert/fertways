@@ -108,6 +108,10 @@ class DirecaoDoLedger
         'compra_item_endurance',
         // D-249: escavar paga como comprar — sai da colônia de verdade.
         'escavacao_endurance',
+        // D-262: o comércio com os planetas NPC entra e sai do mundo de verdade; o aluguel, também.
+        'espacoporto_aluguel',
+        'espacoporto_venda',
+        'espacoporto_compra',
         'frete_publico',
         // A2.3: destrói recurso de verdade — vira conhecimento, que não é estoque.
         'custo_pesquisa',
