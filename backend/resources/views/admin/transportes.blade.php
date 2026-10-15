@@ -113,8 +113,39 @@
                     <input type="number" min="0" name="frete_por_slot_micro"
                            value="{{ $transporte->frete_por_slot_micro }}" required>
                 </div>
+                {{-- D-258: o upgrade de veículo (D-175), que só mudava por SQL. --}}
+                <div style="flex:0">
+                    <label>Upgrade: nível máximo</label>
+                    <input type="number" min="1" max="10" name="upgrade_nivel_maximo"
+                           value="{{ $transporte->upgrade_nivel_maximo }}" required style="width:80px">
+                </div>
+                <div style="flex:0">
+                    <label>Upgrade: capacidade (bps/nível)</label>
+                    <input type="number" min="0" max="10000" name="upgrade_capacidade_bps_por_nivel"
+                           value="{{ $transporte->upgrade_capacidade_bps_por_nivel }}" required>
+                </div>
+                <div style="flex:0">
+                    <label>Upgrade: manutenção (bps/nível)</label>
+                    <input type="number" min="0" max="10000" name="upgrade_manutencao_bps_por_nivel"
+                           value="{{ $transporte->upgrade_manutencao_bps_por_nivel }}" required>
+                </div>
+                <div style="flex:0">
+                    <label>Upgrade: custo (bps do preço de compra)</label>
+                    <input type="number" min="0" max="20000" name="upgrade_custo_bps_do_custo"
+                           value="{{ $transporte->upgrade_custo_bps_do_custo }}" required>
+                </div>
+                <div style="flex:0">
+                    <label>Upgrade: tempo (segundos/nível)</label>
+                    <input type="number" min="0" max="604800" name="upgrade_segundos_por_nivel"
+                           value="{{ $transporte->upgrade_segundos_por_nivel }}" required>
+                </div>
                 <div style="flex:0"><button>Salvar</button></div>
             </form>
+            <p class="mut pequeno">
+                O upgrade é <b>escolha, não aumento</b> (D-175): a manutenção tem de subir mais que a
+                capacidade por nível, e o formulário recusa o contrário. O custo é a fração do preço de
+                compra × (nível alvo − 1).
+            </p>
             <p class="mut pequeno">
                 Em bps (10.000 = 100%). Hoje: <b>{{ $transporte->desgaste_bps_por_hora / 100 }}%</b> de
                 desgaste por hora de uso ativo; piso de <b>{{ $transporte->piso_desempenho_bps / 100 }}%</b>

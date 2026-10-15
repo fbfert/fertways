@@ -733,6 +733,10 @@ class PainelController extends Controller
             'kitVeiculos' => Vehicle::CAPACIDADE,
             'kitMuroNiobio' => KitInicial::MURO_NIOBIO_REABRE_EM,
             'kitMuroQuartzo' => KitInicial::MURO_QUARTZO_REABRE_EM,
+            // D-258: as três tabelas de parâmetros que eram "do painel" e não tinham tela.
+            'populacao' => DB::table('population_settings')->find(1),
+            'estoque' => DB::table('estoque_settings')->find(1),
+            'pesquisa' => DB::table('research_settings')->find(1),
         ]);
     }
 

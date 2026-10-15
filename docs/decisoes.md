@@ -14323,3 +14323,36 @@ pequenos, cada um com teste que falhou antes:
   derrubava de vez em quando — o teste dele ficava vermelho sem defeito. Agora sorteia célula livre.
 
 1410 testes verdes.
+
+---
+
+## D-258 — Os parâmetros que eram "do painel" passam a estar no painel
+
+**Data:** 2026-10-15 · **Status:** entregue (commit; sem deploy)
+
+Toda migration que criou estas tabelas promete "mudar sem deploy", e o `Funcoes.php` e o GDD diziam
+"no painel". Não estavam: só mudavam por SQL à mão em produção.
+
+| tabela | o que entrou | onde |
+|---|---|---|
+| `population_settings` | os 10 números (teto, fator, consumo, crescimento, escassez, operadores por nível de zona) | aba Operação |
+| `estoque_settings` | base, fator e folga do piso pessoal | aba Operação |
+| `research_settings` | vaga base, razão por nível, teto | aba Operação |
+| `transport_settings` | os 5 do upgrade de veículo | aba Transportes |
+| `war_settings` | os 6 da guerra federativa que o D-206 abriu na validação e esqueceu no formulário, e os 3 que não estavam em lugar nenhum (corte e teto da Torre de Defesa, K do Elo) | aba Guerra |
+
+⚠️ **As chaves de liga/desliga da População e do teto de estoque ficam FORA do formulário**, e há
+teste guardando: ligar o teto sem gravar antes o piso pessoal (`fertways:estoque-grandfather`) faria as
+colônias pararem de produzir na hora (D-191). A tela mostra o estado e diz o que fazer.
+
+Guardas, não regras de jogo: fator de habitação e de estoque ≥ 1× (abaixo disso o teto encolheria a
+cada nível); teto de vagas ≥ base; **a manutenção do upgrade tem de superar a capacidade** (`gt:`) — é
+o que faz do upgrade uma escolha (D-175); o teto do corte da Torre ≤ 95%, senão uma Torre alta zeraria
+o espólio e desligaria o cerco de colônia sem ninguém notar. Tudo auditado com o antes e o depois.
+
+De passagem: o painel do Marco ainda publicava a curva aposentada ("50 × N²", D-223); agora lê
+`Curva::BASE`. E o GDD v41 deixou de dizer "não há tela no painel" — a nota da guerra passou a
+depender do mesmo cálculo que a tabela, que lê o formulário. (Ele lê o **fonte** da view: por isso os
+campos da guerra estão escritos um a um, e não num laço.)
+
+1418 testes verdes.

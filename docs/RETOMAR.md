@@ -62,7 +62,7 @@ GDD sem interrupções."* Mesmo valor do "siga por todas as fases": não pergunt
 aberta. **Sem deploy** — commit e push, sim. Ordem:
 
 9. [x] **(D-257)** O `EnduranceItemSeeder` re-rodado zera `quantidade_vendida`; o `TechnologySeeder` fora do `DatabaseSeeder`.
-10. [ ] Parâmetros que se dizem "do painel" e não estão nele (estoque, upgrade de veículo, guerra, pesquisa).
+10. [x] **(D-258)** Parâmetros que se dizem "do painel" e não estão nele (estoque, upgrade de veículo, guerra, pesquisa).
 11. [ ] `upgrade_segundos_por_nivel`: o veículo fica indisponível durante o upgrade, como a migration promete.
 12. [ ] Decisão 7 da guerra federativa: a tropa consome operadores da colônia.
 13. [ ] Decisão 11: detecção de contas vinculadas com revisão humana.
@@ -76,7 +76,7 @@ instalada no root). Ponto exato de parada:
 - o **D-253 continua sem deploy** — o usuário vai fazê-lo "de outra forma";
 - **três defeitos de código achados ao escrever o v41, esperando o usuário** (D-254): o cerco de
   colônia não acontece pelo jogo — ✅ **corrigido no D-255**, commit sem deploy; o
-  Observatório 1–4 não dá vaga — ✅ **corrigido no D-256**; parâmetros que se dizem "do painel" e não estão nele;
+  Observatório 1–4 não dá vaga — ✅ **corrigido no D-256**; parâmetros que se dizem "do painel" e não estão nele — ✅ **D-258**;
 - **D-256 (commit sem deploy):** o Observatório com a ficha do v35 (exige Laboratório 3, soma
   1/1/2/2/3 vagas, teto 3 → 4) e a escavação ligada com a partida do usuário (360 min; 15 F$ + 300
   energia; 6 peças de escavação em 3 seções). As duas migrations não desfazem o que o operador já

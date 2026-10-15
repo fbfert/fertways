@@ -84,11 +84,14 @@
     <div class="cartao">
         <p class="mut pequeno">
             O Marco anda por <b>atos</b>, e cada ato vale o que está aqui. A <b>curva é fixa</b>
-            (50 × N² de XP acumulado — marco 5 = 1.250, marco 20 = 20.000): mudá-la reescalaria o
-            marco de todo mundo, e isso é arbitragem, não balanceamento. Mudanças valem para atos
-            <b>novos</b> — o ledger de XP nunca é reescrito. Os gates vivos: <b>marco 10</b> fabrica
-            Drone nível 2+; <b>marco 20</b> ocupa zona neutra. O Mercado <b>não</b> tem gate
-            (contradição consciente com o §05 — o §03 promete o primeiro lote ao recém-chegado).
+            ({{ \App\Domain\Marco\Curva::BASE }} × N² de XP acumulado — marco 5 =
+            {{ number_format(\App\Domain\Marco\Curva::xpDoMarco(5), 0, ',', '.') }}, marco 20 =
+            {{ number_format(\App\Domain\Marco\Curva::xpDoMarco(20), 0, ',', '.') }}; a base caiu de
+            50 no D-223): mudá-la reescalaria o marco de todo mundo, e isso é arbitragem, não
+            balanceamento. Mudanças valem para atos <b>novos</b> — o ledger de XP nunca é reescrito.
+            Os gates vivos: <b>marco 10</b> fabrica Drone nível 2+; <b>marco 20</b> ocupa zona neutra
+            (dobrável por evento, D-232). O Mercado <b>não</b> tem gate (contradição consciente com o
+            §05 — o §03 promete o primeiro lote ao recém-chegado).
         </p>
 
         <form method="POST" action="{{ route('admin.marco.parametros') }}" class="linha-form" style="margin-top:8px">
@@ -190,6 +193,115 @@
             </table>
 
             <div style="margin-top:10px"><button>Salvar kit inicial</button></div>
+        </form>
+    </div>
+
+    {{--
+        ── D-258: três tabelas de parâmetros que o jogo dizia "do painel" e que não tinham tela ──
+        Os números, sim. As CHAVES de liga/desliga, não: ligar a População ou o teto de estoque
+        exige um passo antes (a migração de colonos, o grandfather do estoque), e por isso têm
+        comando próprio. Aqui elas aparecem só para leitura.
+    --}}
+    @php
+        $chave = fn ($ligada) => $ligada
+            ? '<b style="color:#2f5e1e">ligada</b>'
+            : '<b style="color:#8a2f08">desligada</b>';
+        $operadoresZona = collect(json_decode($populacao->zona_operadores_por_nivel ?? '{}', true) ?: [])
+            ->map(fn ($q, $n) => "{$n}:{$q}")->implode("\n");
+    @endphp
+
+    <h2 class="secao">População</h2>
+    <div class="cartao" data-parametros-populacao>
+        <p class="mut pequeno">
+            A regra está {!! $chave($populacao->ativo) !!}. O teto é a Estrutura de Sobrevivência:
+            base no nível 1, multiplicada pelo fator a cada nível (§13.1 do GDD). O fator não é a
+            curva de custo do jogo (D-239) — e abaixo de 1× o teto encolheria a cada nível, e o
+            formulário recusa.
+        </p>
+        <form method="POST" action="{{ route('admin.populacao.parametros') }}" style="margin-top:8px">
+            @csrf
+            <div class="linha-form">
+                @foreach ([
+                    'capacidade_base' => 'Teto no nível 1 (colonos)',
+                    'capacidade_fator_milesimos' => 'Fator por nível (milésimos)',
+                    'crescimento_bps_hora' => 'Crescimento (bps/h)',
+                    'crescimento_min_suprimento_bps' => 'Suprimento mínimo p/ crescer (bps)',
+                    'escassez_eficiencia_bps' => 'Piso de eficiência na escassez (bps)',
+                ] as $campo => $rotulo)
+                    <div style="flex:0">
+                        <label>{{ $rotulo }}</label>
+                        <input type="number" min="0" name="{{ $campo }}" value="{{ $populacao->{$campo} }}" required style="width:110px">
+                    </div>
+                @endforeach
+            </div>
+            <div class="linha-form" style="margin-top:8px">
+                @foreach ([
+                    'agua_milli_por_colono_hora' => 'Água',
+                    'oxigenio_milli_por_colono_hora' => 'Oxigênio',
+                    'biomassa_milli_por_colono_hora' => 'Biomassa',
+                    'energia_milli_por_colono_hora' => 'Energia',
+                ] as $campo => $rotulo)
+                    <div style="flex:0">
+                        <label>{{ $rotulo }} por colono/h (milésimos)</label>
+                        <input type="number" min="0" name="{{ $campo }}" value="{{ $populacao->{$campo} }}" required style="width:110px">
+                    </div>
+                @endforeach
+                <div style="flex:0">
+                    <label>Operadores por nível de zona (nível:quantidade)</label>
+                    <textarea name="zona_operadores_por_nivel" rows="4" style="width:140px">{{ $operadoresZona }}</textarea>
+                </div>
+            </div>
+            <div style="margin-top:10px"><button data-salvar-populacao>Salvar população</button></div>
+        </form>
+    </div>
+
+    <h2 class="secao">Teto de estoque</h2>
+    <div class="cartao" data-parametros-estoque>
+        <p class="mut pequeno">
+            O teto está {!! $chave($estoque->ativo) !!}. ⚠️ <b>Ligá-lo não é deste formulário</b>:
+            antes é preciso gravar o piso pessoal de quem já passou da curva
+            (<code>fertways:estoque-grandfather --aplicar</code>), ou as colônias param de produzir na
+            hora (D-191, D-192). A folga só conta no próximo grandfather.
+        </p>
+        <form method="POST" action="{{ route('admin.estoque.parametros') }}" class="linha-form" style="margin-top:8px">
+            @csrf
+            <div style="flex:0">
+                <label>Cabe, por recurso, no nível 1</label>
+                <input type="number" min="1" name="estoque_capacidade_base" value="{{ $estoque->capacidade_base }}" required style="width:120px">
+            </div>
+            <div style="flex:0">
+                <label>Fator por nível (milésimos)</label>
+                <input type="number" min="1000" max="5000" name="estoque_capacidade_fator_milesimos" value="{{ $estoque->capacidade_fator_milesimos }}" required style="width:110px">
+            </div>
+            <div style="flex:0">
+                <label>Folga do piso pessoal (bps)</label>
+                <input type="number" min="0" max="10000" name="estoque_grandfather_folga_bps" value="{{ $estoque->grandfather_folga_bps }}" required style="width:110px">
+            </div>
+            <div style="flex:0"><label>&nbsp;</label><button data-salvar-estoque>Salvar</button></div>
+        </form>
+    </div>
+
+    <h2 class="secao">Vagas de pesquisa</h2>
+    <div class="cartao" data-parametros-pesquisa>
+        <p class="mut pequeno">
+            A pesquisa está {!! $chave($pesquisa->ativo) !!}. O Laboratório dá a base mais uma vaga a
+            cada N níveis; o Observatório soma pela ficha do v35 (D-256); o teto vale para a soma.
+        </p>
+        <form method="POST" action="{{ route('admin.pesquisa.parametros') }}" class="linha-form" style="margin-top:8px">
+            @csrf
+            <div style="flex:0">
+                <label>Vaga base do Laboratório</label>
+                <input type="number" min="0" max="10" name="vagas_base" value="{{ $pesquisa->vagas_base }}" required style="width:80px">
+            </div>
+            <div style="flex:0">
+                <label>Uma vaga a cada N níveis</label>
+                <input type="number" min="1" max="10" name="vagas_por_niveis_de_laboratorio" value="{{ $pesquisa->vagas_por_niveis_de_laboratorio }}" required style="width:80px">
+            </div>
+            <div style="flex:0">
+                <label>Teto da soma</label>
+                <input type="number" min="1" max="20" name="vagas_teto" value="{{ $pesquisa->vagas_teto }}" required style="width:80px">
+            </div>
+            <div style="flex:0"><label>&nbsp;</label><button data-salvar-pesquisa>Salvar</button></div>
         </form>
     </div>
 

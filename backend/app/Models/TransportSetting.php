@@ -28,6 +28,13 @@ class TransportSetting extends Model
         // O frete público (§07, D-76): bandeirada + por slot de distância. Do operador, no painel.
         'frete_base_micro',
         'frete_por_slot_micro',
+        // O upgrade de veículo (D-175): moravam aqui "para o balanceamento do transporte morar num
+        // lugar só" e o painel não os editava — só mudavam por SQL (D-258).
+        'upgrade_nivel_maximo',
+        'upgrade_capacidade_bps_por_nivel',
+        'upgrade_manutencao_bps_por_nivel',
+        'upgrade_custo_bps_do_custo',
+        'upgrade_segundos_por_nivel',
     ];
 
     protected $casts = [

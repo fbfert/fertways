@@ -237,12 +237,69 @@
                            value="{{ $guerra->niobio_preco_micro }}" data-p="niobio" required>
                     <span class="mut pequeno">= {{ $fert($guerra->niobio_preco_micro) }} Fert$ a unidade</span>
                 </div>
-                <button type="submit" data-salvar-guerra>Salvar parâmetros</button>
             </div>
             <p class="mut pequeno">
                 O governo o vende do <b>caixa do Tesouro</b> — é a <b>única</b> fonte no planeta, e o
                 caixa pode secar. Este é o número que decide se a guerra é cara ou barata, e ele é a
                 válvula mais direta que o operador tem sobre o ritmo dela.
+            </p>
+
+            {{--
+                D-258: a guerra federativa (D-193 a D-207). Seis destes o D-206 abriu na validação e no
+                modelo e esqueceu no formulário; os três últimos não estavam em lugar nenhum.
+            --}}
+            <h3 style="margin-top:14px">Guerra entre federações <span class="mut pequeno">— declaração, duração, neutralidade e capitulação</span></h3>
+            {{-- Um a um, e não num laço: o gerador do GDD lê este arquivo para saber o que o painel edita. --}}
+            <div class="linha-form">
+                <div style="flex:0">
+                    <label>Duração da guerra (h)</label>
+                    <input type="number" min="1" name="federativa_duracao_horas" value="{{ $guerra->federativa_duracao_horas }}" required>
+                </div>
+                <div style="flex:0">
+                    <label>Cooldown do par (h)</label>
+                    <input type="number" min="0" name="federativa_cooldown_horas" value="{{ $guerra->federativa_cooldown_horas }}" required>
+                </div>
+                <div style="flex:0">
+                    <label>Custo: Fert$ do fundo (micro)</label>
+                    <input type="number" min="0" name="federativa_custo_fert_micro" value="{{ $guerra->federativa_custo_fert_micro }}" required>
+                </div>
+                <div style="flex:0">
+                    <label>Custo: Nióbio do fundo</label>
+                    <input type="number" min="0" name="federativa_custo_niobio" value="{{ $guerra->federativa_custo_niobio }}" required>
+                </div>
+                <div style="flex:0">
+                    <label>Carência p/ sair da neutralidade (h)</label>
+                    <input type="number" min="0" name="neutralidade_carencia_horas" value="{{ $guerra->neutralidade_carencia_horas }}" required>
+                </div>
+                <div style="flex:0">
+                    <label>Capitulação em Fert$ (micro)</label>
+                    <input type="number" min="0" name="capitulacao_fert_micro" value="{{ $guerra->capitulacao_fert_micro }}" required>
+                </div>
+            </div>
+
+            <h3 style="margin-top:14px">Cerco de colônia e ranking <span class="mut pequeno">— a Torre de Defesa (D-203) e o Elo (D-207)</span></h3>
+            <div class="linha-form">
+                <div style="flex:0">
+                    <label>Torre de Defesa: corte do saque por nível (bps)</label>
+                    <input type="number" min="0" max="10000" name="torre_defesa_reducao_bps_por_nivel"
+                           value="{{ $guerra->torre_defesa_reducao_bps_por_nivel }}" required>
+                </div>
+                <div style="flex:0">
+                    <label>Torre de Defesa: teto do corte (bps)</label>
+                    <input type="number" min="0" max="9500" name="torre_defesa_reducao_teto_bps"
+                           value="{{ $guerra->torre_defesa_reducao_teto_bps }}" required>
+                </div>
+                <div style="flex:0">
+                    <label>K do Elo</label>
+                    <input type="number" min="1" max="400" name="rating_k"
+                           value="{{ $guerra->rating_k }}" required style="width:80px">
+                </div>
+                <button type="submit" data-salvar-guerra>Salvar parâmetros</button>
+            </div>
+            <p class="mut pequeno">
+                O teto do corte não passa de 95%: com 100%, uma Torre alta zeraria o espólio e o cerco
+                de colônia se desligaria sozinho, sem ninguém notar. Os números da declaração saem do
+                <b>fundo da federação</b>, nunca do bolso de quem clica.
             </p>
         </form>
     </div>

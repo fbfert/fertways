@@ -46,6 +46,10 @@ class WarSetting extends Model
         'neutralidade_carencia_horas',
         'capitulacao_fert_micro',
         'rating_k',
+        // O corte do saque pela Torre de Defesa (D-203). `Funcoes` dizia que "moram no painel da
+        // Guerra"; não moravam — nem no `fillable` (D-258).
+        'torre_defesa_reducao_bps_por_nivel',
+        'torre_defesa_reducao_teto_bps',
     ];
 
     protected $casts = [

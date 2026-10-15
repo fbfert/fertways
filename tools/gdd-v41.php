@@ -1222,8 +1222,8 @@ ob_start();
 <p style="margin-top:-6px">
   <?= arbitrado('curva declarada antes de medir: ~1 dia de produção de pico no nível 1, ~1 semana no nível 10') ?>
   — a rodada do simulador a confirmou nas duas pontas (20 h e 6,1 dias) <span class="d">D-181</span>.
-  Os três números moram em <code>estoque_settings</code>; ⚠️ <b>não há tela no painel para eles</b>:
-  mudar é escrever no banco.
+  Os três números moram em <code>estoque_settings</code> e mudam pela aba Operação do painel
+  (D-258); a chave de ligar, não — ela exige o grandfather antes (abaixo).
 </p>
 
 <div class="nota">
@@ -1630,7 +1630,7 @@ ob_start();
   <tr><td>Custo</td><td><b><?= n($config->upgrade_custo_bps_do_custo / 100, 0) ?>% do custo de compra</b>, em recursos, <b>× (nível alvo − 1)</b>, arredondado para cima — sem a multiplicação, o último nível sairia pelo preço do primeiro. Lançado no ledger como <code>upgrade_veiculo</code></td><td><?= arbitrado('fração de número publicado, a forma do D-60') ?></td></tr>
   <tr><td>Onde</td><td><b>Só veículo parado no pátio</b>: um veículo em rota tem a carga calculada com a capacidade atual</td><td>D-175</td></tr>
   <tr><td>Velocidade</td><td><b>Não muda, e há teste guardando.</b> Velocidade é traço do tipo — é o que separa Furgão de Caminhão; se o nível acelerasse, a distância encolheria a cada upgrade, e "logística sem teleporte" é pilar</td><td>D-175</td></tr>
-  <tr><td>Parâmetros</td><td>Os cinco moram em <code>transport_settings</code>, ao lado do desgaste e da manutenção — um lugar só para o balanceamento do transporte. ⚠️ O painel de Transportes <b>não</b> os edita: mudar é escrever no banco</td><td>D-175</td></tr>
+  <tr><td>Parâmetros</td><td>Os cinco moram em <code>transport_settings</code>, ao lado do desgaste e da manutenção — um lugar só para o balanceamento do transporte. O painel de Transportes os edita desde o D-258, e recusa manutenção que não supere a capacidade</td><td>D-175, D-258</td></tr>
 </table>
 
 <div class="nota">
@@ -2281,14 +2281,23 @@ todos desde a fundação, e os da zona se abrem conforme ela sobe.</p>
   <?php endforeach; ?>
 </table>
 
+<?php $gfTodosNoPainel = collect($gfParametros)->every(fn ($p) => $p['form'] && $p['valida'] && $p['grava']); ?>
+<?php if ($gfTodosNoPainel): ?>
+<div class="nota">
+  <b>Os nove moram em <code>war_settings</code> e mudam pelo painel da Guerra, sem deploy</b>
+  <span class="d">D-206, D-258</span>. Até o D-258 não mudavam: o D-206 abriu a validação e o
+  <code>fillable</code> de seis deles e esqueceu o formulário, e os três que vieram depois (o corte da
+  Torre e o K do Elo) não estavam em lugar nenhum — só mudavam por SQL à mão. Os números em si são do
+  desenvolvedor, salvo a duração (decisão 5) e a proteção do Depósito (decisão 16).
+</div>
+<?php else: ?>
 <div class="nota grave">
   <b>Os parâmetros moram em <code>war_settings</code> para "mudar sem deploy", e a tabela acima mostra
-  quantos de facto mudam.</b> O D-206 abriu a validação e o <code>fillable</code> dos seis da
-  declaração, da neutralidade e da capitulação — mas o formulário do painel nunca ganhou os campos,
-  e os três que vieram depois (o corte da Torre e o K do Elo) nem isso. Onde a coluna diz "não", o
-  número só muda por SQL à mão, que é exatamente o que a migration prometia evitar. Os números em
-  si são do desenvolvedor, salvo a duração (decisão 5) e a proteção do Depósito (decisão 16).
+  quantos de facto mudam.</b> Onde a coluna diz "não", o número só muda por SQL à mão, que é
+  exatamente o que a migration prometia evitar. Os números em si são do desenvolvedor, salvo a
+  duração (decisão 5) e a proteção do Depósito (decisão 16).
 </div>
+<?php endif; ?>
 
 <table>
   <tr><th>Regra</th><th>Como funciona</th></tr>

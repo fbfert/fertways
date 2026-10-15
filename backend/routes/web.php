@@ -64,6 +64,11 @@ Route::prefix('admin')->group(function () {
         Route::get('/operacao', [PainelController::class, 'operacao'])->name('admin.operacao');
         Route::post('/operacao/marco', [AcoesController::class, 'marco'])->name('admin.marco.parametros');
         Route::post('/operacao/kit-inicial', [AcoesController::class, 'kitInicial'])->name('admin.kit_inicial.parametros');
+        // Os números da População, do teto de estoque e da pesquisa (D-258) — prometidos "do painel"
+        // desde as migrations que os criaram, e que só mudavam por SQL.
+        Route::post('/operacao/populacao', [AcoesController::class, 'populacao'])->name('admin.populacao.parametros');
+        Route::post('/operacao/estoque', [AcoesController::class, 'estoque'])->name('admin.estoque.parametros');
+        Route::post('/operacao/pesquisa', [AcoesController::class, 'pesquisa'])->name('admin.pesquisa.parametros');
 
         // Gestão de Construções (D-107): tempo, Silo e custo, por nível — hoje fixos no GDD.
         Route::get('/construcoes', [PainelController::class, 'construcoes'])->name('admin.construcoes');

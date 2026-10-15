@@ -577,6 +577,14 @@ class AcoesController extends Controller
             'federativa_custo_niobio' => ['nullable', 'integer', 'min:0'],
             'neutralidade_carencia_horas' => ['nullable', 'integer', 'min:0'],
             'capitulacao_fert_micro' => ['nullable', 'integer', 'min:0'],
+            /*
+             * E os três que vieram depois (D-203, D-207) e ficaram fora até da validação (D-258):
+             * o corte do saque pela Torre de Defesa e o K do Elo. O teto do corte é o que impede uma
+             * Torre alta de zerar o espólio — 10000 desligaria o cerco de colônia sem ninguém notar.
+             */
+            'torre_defesa_reducao_bps_por_nivel' => ['nullable', 'integer', 'min:0', 'max:10000'],
+            'torre_defesa_reducao_teto_bps' => ['nullable', 'integer', 'min:0', 'max:9500'],
+            'rating_k' => ['nullable', 'integer', 'min:1', 'max:400'],
         ]);
 
         // O que não veio no formulário não muda — `nullable` deixa passar ausente E nulo.
@@ -676,6 +684,19 @@ class AcoesController extends Controller
             // legítima do operador — a Garagem finita continua sendo o freio.
             'frete_base_micro' => ['required', 'integer', 'min:0'],
             'frete_por_slot_micro' => ['required', 'integer', 'min:0'],
+            /*
+             * O upgrade de veículo (D-175), que só mudava por SQL (D-258). `sometimes`: o formulário
+             * antigo não os manda, e um painel aberto antes do deploy não pode falhar ao salvar.
+             *
+             * ⚠️ A manutenção tem de subir MAIS que a capacidade (`gt:`): é o que faz do upgrade uma
+             * escolha econômica, e não aumento nominal — o critério de saída da fase. Invertidos, todo
+             * veículo deveria subir ao máximo, sempre.
+             */
+            'upgrade_nivel_maximo' => ['sometimes', 'integer', 'min:1', 'max:10'],
+            'upgrade_capacidade_bps_por_nivel' => ['sometimes', 'integer', 'min:0', 'max:10000'],
+            'upgrade_manutencao_bps_por_nivel' => ['sometimes', 'integer', 'min:0', 'max:10000', 'gt:upgrade_capacidade_bps_por_nivel'],
+            'upgrade_custo_bps_do_custo' => ['sometimes', 'integer', 'min:0', 'max:20000'],
+            'upgrade_segundos_por_nivel' => ['sometimes', 'integer', 'min:0', 'max:604800'],
         ]);
 
         // O antes e o depois destes quatro números importam: eles mudam o envelhecimento da frota
@@ -839,6 +860,138 @@ class AcoesController extends Controller
                 .($mudou !== '' ? $mudou : 'Nada mudou.')
                 .' Valem para os atos NOVOS: o ledger de XP não é reescrito.';
         });
+    }
+
+    /**
+     * Os números da População (A2.2) — teto habitacional, consumo, crescimento, escassez e os
+     * operadores por nível de zona (D-258).
+     *
+     * ⚠️ **A chave (`ativo`) não está aqui, de propósito.** Ligar a população sem a migração de
+     * colonos (o grandfathering do §6.7) faria colônias existentes devendo gente que nunca tiveram;
+     * isso tem comando próprio. O painel muda os números de uma regra que já está de pé.
+     */
+    public function populacao(Request $request): RedirectResponse
+    {
+        $dados = $request->validate([
+            'capacidade_base' => ['required', 'integer', 'min:1', 'max:100000'],
+            // Abaixo de 1× o teto ENCOLHERIA a cada nível: subir a Estrutura abrigaria menos gente.
+            'capacidade_fator_milesimos' => ['required', 'integer', 'min:1000', 'max:5000'],
+            'crescimento_bps_hora' => ['required', 'integer', 'min:0', 'max:10000'],
+            'agua_milli_por_colono_hora' => ['required', 'integer', 'min:0', 'max:1000000'],
+            'oxigenio_milli_por_colono_hora' => ['required', 'integer', 'min:0', 'max:1000000'],
+            'biomassa_milli_por_colono_hora' => ['required', 'integer', 'min:0', 'max:1000000'],
+            'energia_milli_por_colono_hora' => ['required', 'integer', 'min:0', 'max:1000000'],
+            'escassez_eficiencia_bps' => ['required', 'integer', 'min:0', 'max:10000'],
+            'crescimento_min_suprimento_bps' => ['required', 'integer', 'min:0', 'max:10000'],
+            // `nivel:operadores`, um por linha — o mesmo formato recurso:quantidade das outras telas.
+            'zona_operadores_por_nivel' => ['required', 'string', 'max:500'],
+        ]);
+
+        $dados['zona_operadores_por_nivel'] = json_encode(
+            $this->linhasInteiras($dados['zona_operadores_por_nivel'], 'zona_operadores_por_nivel'),
+        );
+
+        return $this->salvarLinha('population_settings', 'populacao.parametros', $dados,
+            'Parâmetros da População atualizados.', ' O teto e o consumo valem já no próximo tick.');
+    }
+
+    /**
+     * Os números do teto de estoque (§3.5; D-181, D-191, D-192).
+     *
+     * ⚠️ **A chave não é do formulário** — e o teste guarda isso. Ligar o teto antes de gravar o
+     * piso pessoal (`fertways:estoque-grandfather --aplicar`) faria as colônias pararem de produzir
+     * na hora (D-191). Os nomes levam o prefixo `estoque_` porque a aba Operação também tem os da
+     * População, com as mesmas colunas.
+     */
+    public function estoque(Request $request): RedirectResponse
+    {
+        $dados = $request->validate([
+            'estoque_capacidade_base' => ['required', 'integer', 'min:1', 'max:100000000'],
+            'estoque_capacidade_fator_milesimos' => ['required', 'integer', 'min:1000', 'max:5000'],
+            'estoque_grandfather_folga_bps' => ['required', 'integer', 'min:0', 'max:10000'],
+        ]);
+
+        $semPrefixo = [];
+        foreach ($dados as $campo => $valor) {
+            $semPrefixo[substr($campo, strlen('estoque_'))] = $valor;
+        }
+
+        return $this->salvarLinha('estoque_settings', 'estoque.parametros', $semPrefixo,
+            'Parâmetros do teto de estoque atualizados.',
+            ' A folga só conta no próximo grandfather; pisos já gravados não mudam.');
+    }
+
+    /**
+     * As vagas de pesquisa (A2.3; D-252, D-256): a base do Laboratório, a razão por nível e o teto
+     * da soma das duas fontes. As vagas do Observatório são da ficha do v35, não deste formulário.
+     */
+    public function pesquisa(Request $request): RedirectResponse
+    {
+        $dados = $request->validate([
+            'vagas_base' => ['required', 'integer', 'min:0', 'max:10'],
+            'vagas_por_niveis_de_laboratorio' => ['required', 'integer', 'min:1', 'max:10'],
+            // Teto abaixo da base tiraria vaga de quem já tem só o Laboratório.
+            'vagas_teto' => ['required', 'integer', 'min:1', 'max:20', 'gte:vagas_base'],
+        ]);
+
+        return $this->salvarLinha('research_settings', 'pesquisa.parametros', $dados,
+            'Vagas de pesquisa atualizadas.', ' Pesquisa em curso não é interrompida.');
+    }
+
+    /**
+     * Grava a linha única de uma tabela de parâmetros e audita o antes → depois — o que os outros
+     * formulários desta classe fazem à mão, para as tabelas que não têm modelo (D-258).
+     */
+    private function salvarLinha(string $tabela, string $acao, array $dados, string $titulo, string $rodape): RedirectResponse
+    {
+        $antes = (array) DB::table($tabela)->where('id', 1)->first(array_keys($dados));
+
+        return $this->tentar($acao, function () use ($tabela, $dados, $antes, $titulo, $rodape) {
+            $comHora = DB::getSchemaBuilder()->hasColumn($tabela, 'updated_at') ? ['updated_at' => now()] : [];
+            DB::table($tabela)->where('id', 1)->update($dados + $comHora);
+
+            $mudou = collect($dados)
+                ->reject(fn ($v, $k) => (string) $v === (string) ($antes[$k] ?? ''))
+                ->map(fn ($v, $k) => "{$k}: ".($antes[$k] ?? '—')." → {$v}")
+                ->implode('; ');
+
+            return $titulo.' '.($mudou !== '' ? $mudou : 'Nada mudou.').$rodape;
+        });
+    }
+
+    /**
+     * `chave:valor` inteiros, um por linha, para um mapa — com a falta nomeada pela linha.
+     *
+     * @return array<int,int>
+     */
+    private function linhasInteiras(string $texto, string $campo): array
+    {
+        $mapa = [];
+
+        foreach (preg_split('/\R/', $texto) as $linha) {
+            $linha = trim($linha);
+            if ($linha === '') {
+                continue;
+            }
+
+            [$chave, $valor] = array_pad(explode(':', $linha, 2), 2, null);
+
+            if (! ctype_digit(trim((string) $chave)) || ! ctype_digit(trim((string) $valor))) {
+                throw ValidationException::withMessages([
+                    $campo => "Linha inválida: «{$linha}». Use nível:quantidade, um por linha.",
+                ]);
+            }
+
+            $mapa[(int) $chave] = (int) $valor;
+        }
+
+        if ($mapa === []) {
+            throw ValidationException::withMessages([$campo => 'Informe ao menos um nível.']);
+        }
+
+        ksort($mapa);
+
+        return $mapa;
     }
 
     /**
