@@ -302,6 +302,23 @@ class SimularPesquisa extends Command
         return $out;
     }
 
+    /**
+     * Uma célula sem colônia. `colonies` tem índice único em (x, y), e sortear às cegas fazia duas
+     * colônias simuladas caírem, de vez em quando, na mesma célula — o comando morria, e o teste dele
+     * ficava vermelho sem defeito nenhum (D-257).
+     *
+     * @return array{0:int,1:int}
+     */
+    private function celulaLivre(): array
+    {
+        do {
+            $x = random_int(-40, 40);
+            $y = random_int(-40, 40);
+        } while (DB::table('colonies')->where('x', $x)->where('y', $y)->exists());
+
+        return [$x, $y];
+    }
+
     private function colonia(string $nome, array $predios, int $nivelLab): Colony
     {
         $userId = DB::table('users')->insertGetId([
@@ -310,9 +327,11 @@ class SimularPesquisa extends Command
             'password' => 'x', 'created_at' => now(), 'updated_at' => now(),
         ]);
 
+        [$x, $y] = $this->celulaLivre();
+
         $colonyId = DB::table('colonies')->insertGetId([
             'user_id' => $userId, 'name' => $nome,
-            'x' => random_int(-40, 40), 'y' => random_int(-40, 40),
+            'x' => $x, 'y' => $y,
             'created_at' => now(), 'updated_at' => now(),
         ]);
 

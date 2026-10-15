@@ -14301,3 +14301,25 @@ os efeitos é, para o estoque não.
 
 Exercitadas nos dois sentidos no **SQLite local**; o MariaDB não está nesta máquina. Conferir no
 `fertwaysdev` antes do deploy.
+
+---
+
+## D-257 — Re-semear não zera o placar, e a instalação nova nasce com a árvore de pesquisa
+
+**Data:** 2026-10-15 · **Status:** entregue (commit; sem deploy)
+
+Primeira fatia da segunda leva ("continue a construção do GDD sem interrupções"). Três consertos
+pequenos, cada um com teste que falhou antes:
+
+- **`EnduranceItemSeeder` deixava de zerar `quantidade_vendida`.** Era `updateOrCreate` com o `0`
+  junto: re-semear em produção devolvia à prateleira tudo o que já tinha sido vendido e, desde o
+  D-256, tudo o que já tinha sido achado escavando. Agora o estoque vendido só é escrito na criação.
+- **`TechnologySeeder` entrou no `DatabaseSeeder`.** Uma instalação nova — o e2e inclusive — subia
+  com o Laboratório abrindo uma árvore vazia. Terceira vez da mesma família (D-184). O
+  `InstalacaoNovaTest` roda o `DatabaseSeeder` inteiro e confere as tabelas que as regras leem; é o
+  lugar onde o próximo esquecimento aparece. O `GaragemSeeder` fica fora de propósito (roda à mão,
+  pelo próprio comentário).
+- **`fertways:simular-pesquisa` sorteava a célula da colônia às cegas**, e o índice único (x, y) o
+  derrubava de vez em quando — o teste dele ficava vermelho sem defeito. Agora sorteia célula livre.
+
+1410 testes verdes.

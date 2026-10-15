@@ -115,7 +115,17 @@ class EnduranceItemSeeder extends Seeder
             $efeitos = $item['efeitos'];
             unset($item['efeitos']);
 
-            $linha = EnduranceItem::updateOrCreate(['item_key' => $item['item_key']], $item);
+            /*
+             * ⚠️ `quantidade_vendida` só na criação (D-257). Era `updateOrCreate` com o `0` junto, e
+             * re-semear em produção devolvia à prateleira tudo o que já tinha sido vendido — e, desde
+             * o D-256, tudo o que já tinha sido achado escavando. O seeder é dono do conteúdo da
+             * peça; o estoque vendido é placar do jogo.
+             */
+            $existente = EnduranceItem::where('item_key', $item['item_key'])->first();
+
+            $linha = $existente
+                ? tap($existente)->update(array_diff_key($item, ['quantidade_vendida' => true]))
+                : EnduranceItem::create($item);
 
             /*
              * Os efeitos são reescritos, não acumulados: re-semear duas vezes não pode dar a uma

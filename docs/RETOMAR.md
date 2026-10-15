@@ -57,6 +57,17 @@ O que falta foi medido contra o código em 07/10, não lembrado:
 7. [x] **(D-253, commit sem deploy)** **O "Depois" do A2.8**: eventos de combate e de Federação, encadeados, condições compostas.
 8. [x] **(D-254)** **GDD v41** cobrindo D-230 em diante, e a cópia em `frontend/public/gdd.html`.
 
+**Segunda leva, autorizada em 15/10:** *"não vou fazer deploy agora, quero que continue a construção do
+GDD sem interrupções."* Mesmo valor do "siga por todas as fases": não pergunte, continue da fatia
+aberta. **Sem deploy** — commit e push, sim. Ordem:
+
+9. [x] **(D-257)** O `EnduranceItemSeeder` re-rodado zera `quantidade_vendida`; o `TechnologySeeder` fora do `DatabaseSeeder`.
+10. [ ] Parâmetros que se dizem "do painel" e não estão nele (estoque, upgrade de veículo, guerra, pesquisa).
+11. [ ] `upgrade_segundos_por_nivel`: o veículo fica indisponível durante o upgrade, como a migration promete.
+12. [ ] Decisão 7 da guerra federativa: a tropa consome operadores da colônia.
+13. [ ] Decisão 11: detecção de contas vinculadas com revisão humana.
+14. [ ] Espaçoporto / Cargueiro Interplanetário / planetas NPC — só o que o GDD publica; o resto vira lacuna marcada.
+
 **Sessão de 15/10 — numa máquina Windows nova** (`C:\Users\Dell\Desktop\Fertways`), clone limpo,
 SQLite local; **sem acesso SSH ao servidor ainda** (chave `~/.ssh/fertways_deploy` gerada, não
 instalada no root). Ponto exato de parada:

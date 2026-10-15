@@ -44,6 +44,12 @@ class DatabaseSeeder extends Seeder
              * e tipo de veículo, conferidos por teste, não FK.
              */
             EnduranceItemSeeder::class,
+            /*
+             * A árvore de pesquisa (A2.3). Ficou fora desta lista desde que nasceu, e uma instalação
+             * nova — o e2e inclusive — subia com o Laboratório abrindo uma árvore vazia (D-257). Os
+             * efeitos usam o vocabulário do `EfeitosDaEndurance`, sem FK para as tabelas acima.
+             */
+            TechnologySeeder::class,
         ]);
     }
 }

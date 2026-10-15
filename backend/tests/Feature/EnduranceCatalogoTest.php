@@ -248,4 +248,18 @@ class EnduranceCatalogoTest extends TestCase
         $this->assertSame($itens, EnduranceItem::count());
         $this->assertSame($efeitos, DB::table('endurance_item_effects')->count());
     }
+
+    /**
+     * ⚠️ Re-semear não devolve à prateleira o que já foi vendido — nem o que já foi achado escavando
+     * (D-257). O estoque vendido é estado do jogo; o seeder é dono do conteúdo, não do placar.
+     */
+    public function test_semear_de_novo_nao_zera_o_que_ja_foi_vendido(): void
+    {
+        $peca = EnduranceItem::where('tipo', EnduranceItem::RARO)->firstOrFail();
+        $peca->update(['quantidade_vendida' => 7]);
+
+        $this->seed(EnduranceItemSeeder::class);
+
+        $this->assertSame(7, (int) $peca->fresh()->quantidade_vendida);
+    }
 }
