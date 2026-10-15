@@ -593,7 +593,7 @@
     <tr>
     <td class="num">5</td>
     <td class="num">375</td>
-    <td>8 peças da Loja da Endurance (§10.2)</td>
+    <td>11 peças da Loja da Endurance (§10.2)</td>
     <td><code>endurance_items.marco_minimo</code>, por peça</td>
   </tr>
     <tr>
@@ -1436,7 +1436,7 @@
     <td>Amplia o paralelismo da pesquisa.</td>
     <td>GDD_ALPHA2 §7.2</td>
     <td>
-      <span class="sel sel-ok">Vagas_de_pesquisa</span>              <div style="font-size:.8rem;color:var(--ink-soft);margin-top:4px">Soma vagas de pesquisa na mesma razão do Laboratório — uma a cada vagas_por_niveis_de_laboratorio níveis, sem a vaga base —, e o teto de vagas vale para a soma. Custo, tempo e energia são os do Laboratório, por arbitragem (D-252).</div>
+      <span class="sel sel-ok">Vagas_de_pesquisa</span>              <div style="font-size:.8rem;color:var(--ink-soft);margin-top:4px">Soma vagas de pesquisa desde o nível 1 — com o Laboratório, 2/2/3/3/4 pesquisas simultâneas do nível 1 ao 5, como no v35 —, e o teto de vagas vale para a soma. Exige o Laboratório no nível 3. Não acelera pesquisa nenhuma: só abre vagas (D-256).</div>
           </td>
   </tr>
   </table>
@@ -2675,67 +2675,57 @@
   <tr>
     <th class="num">Nível</th>
     <th class="num">Tempo</th>
-    <th class="num">Ligas Metálicas</th><th class="num">Compostos Químicos</th><th class="num">Componentes Eletrônicos</th><th class="num">Energia</th><th class="num">Água</th><th class="num">Resina organica</th>    <th class="num">Energia/h</th>
+    <th class="num">Ligas Metálicas</th><th class="num">Componentes Eletrônicos</th><th class="num">Compostos Químicos</th><th class="num">Resina organica</th>    <th class="num">Energia/h</th>
   </tr>
     <tr>
     <td class="num">1</td>
     <td class="num">
-              21 min          </td>
-          <td class="num">60</td>
-          <td class="num">40</td>
-          <td class="num">20</td>
-          <td class="num">18</td>
-          <td class="num">12</td>
-          <td class="num">2</td>
-        <td class="num">20</td>
+              45 min          </td>
+          <td class="num">140</td>
+          <td class="num">90</td>
+          <td class="num">80</td>
+          <td class="num">4</td>
+        <td class="num">30</td>
   </tr>
     <tr>
     <td class="num">2</td>
     <td class="num">
-              32 min          </td>
-          <td class="num">99</td>
-          <td class="num">66</td>
-          <td class="num">33</td>
-          <td class="num">30</td>
-          <td class="num">20</td>
-          <td class="num">3</td>
-        <td class="num">30</td>
+              68 min          </td>
+          <td class="num">231</td>
+          <td class="num">149</td>
+          <td class="num">132</td>
+          <td class="num">7</td>
+        <td class="num">45</td>
   </tr>
     <tr>
     <td class="num">3</td>
     <td class="num">
-              47 min          </td>
-          <td class="num">163</td>
-          <td class="num">109</td>
-          <td class="num">54</td>
-          <td class="num">49</td>
-          <td class="num">33</td>
-          <td class="num">5</td>
-        <td class="num">45</td>
+              101 min          </td>
+          <td class="num">381</td>
+          <td class="num">245</td>
+          <td class="num">218</td>
+          <td class="num">11</td>
+        <td class="num">68</td>
   </tr>
     <tr>
     <td class="num">4</td>
     <td class="num">
-              71 min          </td>
-          <td class="num">270</td>
-          <td class="num">180</td>
-          <td class="num">90</td>
-          <td class="num">81</td>
-          <td class="num">54</td>
-          <td class="num">9</td>
-        <td class="num">68</td>
+              152 min          </td>
+          <td class="num">629</td>
+          <td class="num">404</td>
+          <td class="num">359</td>
+          <td class="num">18</td>
+        <td class="num">101</td>
   </tr>
     <tr>
     <td class="num">5</td>
     <td class="num">
-              106 min          </td>
-          <td class="num">445</td>
-          <td class="num">296</td>
-          <td class="num">148</td>
-          <td class="num">133</td>
-          <td class="num">89</td>
-          <td class="num">15</td>
-        <td class="num">101</td>
+              228 min          </td>
+          <td class="num">1.038</td>
+          <td class="num">667</td>
+          <td class="num">593</td>
+          <td class="num">30</td>
+        <td class="num">152</td>
   </tr>
   </table>
 
@@ -4118,7 +4108,7 @@ rating  += K × (resultado − esperado)        K = 32, início 1.000</pre>
   O admin cria/edita/apaga itens à vontade pelo painel — nada de linha fixa. Cada item tem tipo
   (comum/raro/único), estoque GLOBAL do servidor (não por colônia), preço em Fert$, marco mínimo
   OPCIONAL, e uma lista de efeitos EMPILHÁVEIS — um item pode ter vários. Hoje o catálogo tem
-  <b>19</b> item(ns) cadastrado(s).
+  <b>25</b> item(ns) cadastrado(s).
 </p>
 
 <table>
@@ -4177,15 +4167,15 @@ rating  += K × (resultado − esperado)        K = 32, início 1.000</pre>
   <tr><th>Raridade</th><th class="num">Peças</th><th class="num">Estoque de cada</th><th class="num">Preço</th><th class="num">Marco mínimo</th></tr>
     <tr>
     <td>Comum</td>
-    <td class="num">8</td>
-    <td class="num">126</td>
+    <td class="num">11</td>
+    <td class="num">40–126</td>
     <td class="num">20 F$</td>
     <td class="num">1</td>
   </tr>
     <tr>
     <td>Raro</td>
-    <td class="num">8</td>
-    <td class="num">42</td>
+    <td class="num">11</td>
+    <td class="num">10–42</td>
     <td class="num">50 F$</td>
     <td class="num">5</td>
   </tr>
@@ -4215,8 +4205,8 @@ rating  += K × (resultado − esperado)        K = 32, início 1.000</pre>
   </tr>
     <tr>
     <td><b>Baía Criogênica</b></td>
-    <td><code>drone_bateria</code> +20%</td>
-    <td><code>drone_bateria</code> +40%<br><code>producao_bonus:refinaria_quimica</code> +10%</td>
+    <td><code>drone_bateria</code> +20%<br><code>drone_bateria</code> +20%</td>
+    <td><code>drone_bateria</code> +40%<br><code>producao_bonus:refinaria_quimica</code> +10%<br><code>drone_bateria</code> +40%<br><code>producao_bonus:refinaria_quimica</code> +10%</td>
     <td>—</td>
   </tr>
     <tr>
@@ -4245,14 +4235,14 @@ rating  += K × (resultado − esperado)        K = 32, início 1.000</pre>
   </tr>
     <tr>
     <td><b>Seção de Acoplagem</b></td>
-    <td><code>capacidade_veiculo:todos</code> +10%</td>
-    <td><code>capacidade_veiculo:todos</code> +20%<br><code>velocidade_veiculo:todos</code> +10%</td>
+    <td><code>capacidade_veiculo:todos</code> +10%<br><code>capacidade_veiculo:todos</code> +10%</td>
+    <td><code>capacidade_veiculo:todos</code> +20%<br><code>velocidade_veiculo:todos</code> +10%<br><code>capacidade_veiculo:todos</code> +20%<br><code>velocidade_veiculo:todos</code> +10%</td>
     <td>—</td>
   </tr>
     <tr>
     <td><b>Silo de Suprimentos</b></td>
-    <td><code>producao_bonus:fazenda</code> +10%</td>
-    <td><code>producao_bonus:fazenda</code> +20%<br><code>producao_bonus:captacao_de_agua</code> +10%</td>
+    <td><code>producao_bonus:fazenda</code> +10%<br><code>producao_bonus:fazenda</code> +10%</td>
+    <td><code>producao_bonus:fazenda</code> +20%<br><code>producao_bonus:captacao_de_agua</code> +10%<br><code>producao_bonus:fazenda</code> +20%<br><code>producao_bonus:captacao_de_agua</code> +10%</td>
     <td>—</td>
   </tr>
   </table>
@@ -4334,19 +4324,23 @@ rating  += K × (resultado − esperado)        K = 32, início 1.000</pre>
 
 <table>
   <tr><th>Parâmetro do operador</th><th>Hoje, no banco deste documento</th></tr>
-  <tr><td>Escavação ligada</td><td><b>desligada</b></td></tr>
-  <tr><td>Duração</td><td><span class="sel sel-lac">Não definida</span></td></tr>
-  <tr><td>Custo</td><td><span class="sel sel-lac">Não definido</span></td></tr>
+  <tr><td>Escavação ligada</td><td><span class="sel sel-ok">Ligada</span></td></tr>
+  <tr><td>Duração</td><td>360 min</td></tr>
+  <tr><td>Custo</td><td>15,00 F$, 300 Energia</td></tr>
 </table>
 
-<div class="nota grave">
-  <b>⚠️ A escavação nasce desligada, e o jogo não inventa o preço dela.</b> Custo (Fert$ e/ou
-  recursos) e duração são do operador, no cartão do topo de <code>/central/admin/endurance</code>.
-  O painel recusa ligar sem duração; custo vazio é permitido e quer dizer escavar de graça, e a
-  tela diz isso com todas as letras. E ligar não basta: só há o que achar depois de o operador
-  marcar peças com origem «escavação». No último registro de produção (07/10/2026) ela seguia
-  desligada, à espera desses números.
-</div>
+<div class="nota">
+  <b>Os números são do operador, e a partida veio do usuário</b> <span class="d">D-249, D-256</span>.
+  O D-249 construiu a escavação desligada e vazia: custo (Fert$ e/ou recursos) e duração não são
+  número de jogo, e o jogo não os inventa. Em 15/10 o usuário aprovou a partida — <b>6 h por
+  escavação, 15 F$ + 300 de energia</b> — e um lote de peças que só se acham escavando, um comum e um
+  raro em cada uma das três seções sem peça única na loja:
+  Silo de Suprimentos, Baía Criogênica, Seção de Acoplagem.
+  O estoque é o peso no sorteio, e por isso cada seção dá cerca de 80% comum e 20% raro. Tudo
+  continua no cartão do topo de <code>/central/admin/endurance</code>: o painel recusa ligar sem
+  duração, aceita custo vazio (escavar de graça, e a tela diz isso), e o deploy que trouxe a partida
+  não desfaz o que o operador já tiver mudado ali.
+  <span class="sel sel-arb">Arbitrado · 15 F$ + 300 de energia, 6 h e o lote de 6 peças — aprovados pelo usuário, D-256</span></div>
 
 <!-- ══════════════════════════════════════════════════════════════ 11 -->
 <h2 id="s11">11. Operação e administração</h2>
@@ -4805,58 +4799,54 @@ rating  += K × (resultado − esperado)        K = 32, início 1.000</pre>
   menu. <span class="d">D-172</span>
 </div>
 
-<h3>14.1 As vagas, e o Observatório <span class="d">D-252</span></h3>
+<h3>14.1 As vagas, e o Observatório <span class="d">D-252, D-256</span></h3>
 
 <p>
   Quantas pesquisas correm ao mesmo tempo é a soma de <b>duas fontes</b>, com um teto para a soma.
   O <b>Laboratório</b> dá <b>1</b> vaga de base mais uma a cada
   <b>5</b> níveis; sem Laboratório erguido
   não há pesquisa nenhuma, nem a base. O <b>Observatório</b> — a construção que o GDD_ALPHA2 §7.2
-  previa para o paralelismo e que ficou fora da primeira entrega — soma na <b>mesma razão</b>, sem
-  base, porque a base é de quem abre a árvore. O total nunca passa de
-  <b>3</b>: vaga infinita faria da árvore uma fila de espera, e o
-  ponto dela é obrigar a escolher.
+  previa para o paralelismo — soma vagas <b>pela ficha do v35</b>, sem a base, porque a base é de
+  quem abre a árvore. O total nunca passa de <b>4</b>: vaga
+  infinita faria da árvore uma fila de espera, e o ponto dela é obrigar a escolher.
 </p>
 
-<p>Vagas totais, por nível de Laboratório (linhas) e de Observatório (colunas):</p>
+<p>
+  Vagas totais, por nível de Laboratório (linhas) e de Observatório (colunas). O Observatório só se
+  ergue com o Laboratório no nível 3, e por isso as
+  linhas abaixo dele só têm a primeira coluna:
+</p>
 
 <table>
   <tr><th class="num">Laboratório</th><th class="num">sem Obs.</th>
     <th class="num">Obs. 1</th><th class="num">Obs. 2</th><th class="num">Obs. 3</th><th class="num">Obs. 4</th><th class="num">Obs. 5</th></tr>
     <tr><td class="num">1</td><td class="num">1</td>
-    <td class="num">1</td><td class="num">1</td><td class="num">1</td><td class="num">1</td><td class="num">2</td></tr>
+    <td class="num">—</td><td class="num">—</td><td class="num">—</td><td class="num">—</td><td class="num">—</td></tr>
     <tr><td class="num">2</td><td class="num">1</td>
-    <td class="num">1</td><td class="num">1</td><td class="num">1</td><td class="num">1</td><td class="num">2</td></tr>
+    <td class="num">—</td><td class="num">—</td><td class="num">—</td><td class="num">—</td><td class="num">—</td></tr>
     <tr><td class="num">3</td><td class="num">1</td>
-    <td class="num">1</td><td class="num">1</td><td class="num">1</td><td class="num">1</td><td class="num">2</td></tr>
+    <td class="num">2</td><td class="num">2</td><td class="num">3</td><td class="num">3</td><td class="num">4</td></tr>
     <tr><td class="num">4</td><td class="num">1</td>
-    <td class="num">1</td><td class="num">1</td><td class="num">1</td><td class="num">1</td><td class="num">2</td></tr>
+    <td class="num">2</td><td class="num">2</td><td class="num">3</td><td class="num">3</td><td class="num">4</td></tr>
     <tr><td class="num">5</td><td class="num">2</td>
-    <td class="num">2</td><td class="num">2</td><td class="num">2</td><td class="num">2</td><td class="num">3</td></tr>
+    <td class="num">3</td><td class="num">3</td><td class="num">4</td><td class="num">4</td><td class="num">4</td></tr>
   </table>
 
-<div class="nota grave">
-  <b>⚠️ Com os parâmetros de hoje, o Observatório do nível 1 ao 4  não dá vaga nenhuma.</b> A razão "uma vaga a cada 5 níveis", herdada do
-  Laboratório, só rende no nível 5 — e o Laboratório tem a vaga de base para
-  compensar, o Observatório não. O jogador paga níveis que não mudam nada. E o divisor e o teto
-  (<code>research_settings</code>) <b>não têm tela no painel</b>: mudam só por migration. É a
-  primeira coisa a decidir na revisão abaixo. <span class="d">D-252</span>
-</div>
-
 <p>
-  O Observatório ocupa um slot da colmeia, é <b>único</b>, e <b>só se ergue com o Laboratório</b>
-  de pé (nível 1 ou mais). Custo, tempo e energia por nível são <b>os do Laboratório</b>, linha a
-  linha — estão na tabela da §4.2.
-  <span class="sel sel-arb">Arbitrado · custo, tempo, energia e vagas do Observatório ancorados no Laboratório — a revisar (D-252)</span></p>
+  O Observatório ocupa um slot da colmeia, é <b>único</b>, e não acelera pesquisa nenhuma — só abre
+  vagas. Custo, tempo e energia por nível estão na tabela da §4.2.
+  <span class="sel sel-arb">Arbitrado · adotar a ficha do v35 numa construção que soma, e não substitui, o Laboratório — D-256</span></p>
 
 <div class="nota">
-  <b>O v35 tem uma ficha do Observatório — e o D-252 não a usou.</b> No v35 ele é uma
-  <i>especialização</i>: <b>substitui</b> o Laboratório no slot de especialização, exige
-  Laboratório nível 3, dá <b>2/2/3/3/4</b> trilhas simultâneas do nível 1 ao 5 e custa bem mais
-  (Ligas 140→1.038, Componentes Eletrônicos 90→667, Compostos 80→593, Resina 4→30; 45→228 min;
-  energia 30→152/h). O sistema de especializações do v35 nunca entrou no jogo, e o v36 em diante
-  não o manteve — por isso o D-252 fez do Observatório uma construção que <b>soma</b>, e não que
-  substitui. A ficha continua sendo o único número publicado para ele, e é a base natural da revisão.
+  <b>De onde vêm os números</b> <span class="d">D-252, D-256</span>. O D-252 pôs o Observatório no
+  jogo copiando o Laboratório linha a linha e dizendo que nenhum documento publicava os dele. O v35
+  publica: "11. Observatório", uma <i>especialização</i> que substituía o Laboratório, exigia o
+  Laboratório nível 3 e dava <b>2/2/3/3/4</b> trilhas simultâneas. O sistema de especializações do
+  v35 nunca entrou no jogo, então o Observatório continua uma construção que <b>soma</b>: a
+  contribuição dele é a ficha menos a vaga base, e com o Laboratório no nível 3 o total é exatamente o
+  do v35. A cópia do Laboratório tinha um defeito pior que o preço: com os parâmetros padrão, os
+  níveis 1 a 4 não davam vaga nenhuma. E o teto subiu de 3 para 4 junto, porque com 3 os níveis 4 e
+  5 da ficha não somariam nada.
 </div>
 
 <div class="nota">
@@ -5335,27 +5325,14 @@ rating  += K × (resultado − esperado)        K = 32, início 1.000</pre>
   <b>Fechados nesta revisão</b> (D-230 a D-253): os <b>modificadores seguintes</b> que o roadmap da
   A2.8 prometia — tributo, logística, construção, pesquisa, população e território —, e o "depois"
   dela: combate, escopo de federação, encadeamento e condição (§15.2, §15.5, §15.6); a <b>cesta</b> e
-  as <b>missões de evento</b> (§15.3, §15.4); a <b>escavação</b> da Endurance e as peças liberadas
-  por evento (§10.6); o <b>Observatório</b> (§14.1); a pergunta de telemetria sobre quem foi saqueado
+  as <b>missões de evento</b> (§15.3, §15.4); a <b>escavação</b> da Endurance, já ligada com a partida do usuário (D-256), e as peças liberadas
+  por evento (§10.6); o <b>Observatório</b>, já com a ficha do v35 (§14.1, D-256); a pergunta de telemetria sobre quem foi saqueado
   ausente (§11.7); e o <b>piso anti-farming</b> deixou de valer para o XP do Mercado, que ganhou teto
   diário (§2.5) — na reputação ele continua.
 </p>
 
 <table>
   <tr><th>Assunto</th><th>O que falta</th><th>O que ele trava</th></tr>
-  <tr>
-    <td><b>Observatório</b> <span class="d">D-252</span></td>
-    <td>Custo, tempo, energia e vagas foram ancorados no Laboratório, por arbitragem. Com os
-        parâmetros de hoje, os níveis 1 a 4 não dão vaga
-        nenhuma (§14.1). A única ficha publicada é a do v35, como especialização</td>
-    <td>Que o Observatório valha o slot que ocupa. Custo e tempo se ajustam no painel de Construções;
-        vagas, divisor e teto, só por migration</td>
-  </tr>
-  <tr>
-    <td><b>Escavação da Endurance</b> <span class="d">D-249</span></td>
-    <td><b>Custo e duração</b> — do operador, nascem vazios — e <b>quais peças</b> são de escavação</td>
-    <td>A escavação inteira: está construída e desligada (§10.6)</td>
-  </tr>
   <tr>
     <td><b>Cargueiro Interplanetário / Espaçoporto</b></td>
     <td>O <b>Espaçoporto</b> e os 5 planetas NPC — nenhuma rota, doca ou taxa existe</td>

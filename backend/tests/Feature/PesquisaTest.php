@@ -164,44 +164,78 @@ class PesquisaTest extends TestCase
     }
 
     /**
-     * D-252: o Observatório soma vagas na razão do Laboratório, sem a base — e o teto vale para a
-     * soma. Duas fontes não furam o teto.
+     * D-256: o Observatório soma as trilhas da ficha do v35 (2/2/3/3/4 com o Laboratório) menos a
+     * vaga base, que já é do Laboratório — 1/1/2/2/3. Com os parâmetros PADRÃO, e não com um divisor
+     * de teste: foi um divisor de teste (1) que escondeu, no D-252, que os níveis 1 a 4 não davam nada.
      */
-    public function test_o_observatorio_soma_vagas_e_o_teto_vale_para_a_soma(): void
+    public function test_o_observatorio_da_vaga_desde_o_nivel_1_com_os_parametros_padrao(): void
     {
-        DB::table('research_settings')->where('id', 1)->update([
-            'vagas_base' => 1, 'vagas_por_niveis_de_laboratorio' => 1, 'vagas_teto' => 4,
-        ]);
-        $c = $this->colonia(2);
+        $c = $this->colonia(3);
         $c->buildings()->create(['type' => 'observatorio', 'level' => 1]);
-        $c = $c->fresh(['buildings']);
 
-        $this->assertSame(['laboratorio' => 3, 'observatorio' => 1], app(Vagas::class)->fontes($c));
-        $this->assertSame(4, app(Vagas::class)->total($c));
-
-        $c->buildings()->where('type', 'observatorio')->update(['level' => 3]);
-        $this->assertSame(4, app(Vagas::class)->total($c->fresh(['buildings'])), 'o teto segura a soma');
+        $this->assertSame(2, app(Vagas::class)->total($c->fresh(['buildings'])));
     }
 
-    /** Sem Laboratório, o Observatório não se ergue — não há pesquisa a ampliar. */
-    public function test_o_observatorio_exige_o_laboratorio(): void
+    /** As trilhas do v35, nível a nível, com o Laboratório no mínimo que o Observatório exige. */
+    public function test_as_vagas_do_observatorio_seguem_a_ficha_do_v35(): void
     {
-        $this->seed(BuildingSpecSeeder::class);
-        $sem = $this->colonia(0, ['ligas_metalicas' => 9999, 'compostos_quimicos' => 9999,
-            'componentes_eletronicos' => 9999, 'energia' => 9999, 'agua' => 9999, 'resina_organica' => 9999]);
+        $c = $this->colonia(3);
+        $obs = $c->buildings()->create(['type' => 'observatorio', 'level' => 1]);
 
-        try {
-            app(ConstruirEmSlot::class)->handle($sem, 'observatorio', 7);
-            $this->fail('devia exigir o Laboratório');
-        } catch (DomainRuleException $e) {
-            $this->assertSame('exige_laboratorio', $e->codigo);
+        $porNivel = [];
+        foreach ([1, 2, 3, 4, 5] as $nivel) {
+            $obs->update(['level' => $nivel]);
+            $porNivel[$nivel] = app(Vagas::class)->total($c->fresh(['buildings']));
         }
 
-        $com = $this->colonia(1, ['ligas_metalicas' => 9999, 'compostos_quimicos' => 9999,
-            'componentes_eletronicos' => 9999, 'energia' => 9999, 'agua' => 9999, 'resina_organica' => 9999]);
-        $item = app(ConstruirEmSlot::class)->handle($com, 'observatorio', 7);
+        $this->assertSame([1 => 2, 2 => 2, 3 => 3, 4 => 3, 5 => 4], $porNivel, 'v35: 2/2/3/3/4 trilhas');
+    }
+
+    /** O teto continua valendo para a soma: duas fontes no máximo não furam o teto. */
+    public function test_o_teto_vale_para_a_soma_das_duas_fontes(): void
+    {
+        $c = $this->colonia(5);
+        $c->buildings()->create(['type' => 'observatorio', 'level' => 5]);
+
+        $teto = (int) DB::table('research_settings')->value('vagas_teto');
+        $this->assertSame($teto, app(Vagas::class)->total($c->fresh(['buildings'])));
+    }
+
+    /** v35: o Observatório exige o Laboratório no nível 3 — e não basta tê-lo de pé. */
+    public function test_o_observatorio_exige_o_laboratorio_nivel_3(): void
+    {
+        $this->seed(BuildingSpecSeeder::class);
+        $farto = ['ligas_metalicas' => 9999, 'compostos_quimicos' => 9999,
+            'componentes_eletronicos' => 9999, 'energia' => 9999, 'agua' => 9999, 'resina_organica' => 9999];
+
+        foreach ([0, 2] as $nivelLab) {
+            try {
+                app(ConstruirEmSlot::class)->handle($this->colonia($nivelLab, $farto), 'observatorio', 7);
+                $this->fail("Laboratório nível {$nivelLab} não devia bastar");
+            } catch (DomainRuleException $e) {
+                $this->assertSame('exige_laboratorio', $e->codigo);
+            }
+        }
+
+        $item = app(ConstruirEmSlot::class)->handle($this->colonia(3, $farto), 'observatorio', 7);
 
         $this->assertSame('observatorio', $item->building->type);
+    }
+
+    /** O custo é o da ficha do v35, e não mais o do Laboratório copiado (D-252 → D-256). */
+    public function test_o_observatorio_custa_o_que_o_v35_publica(): void
+    {
+        $n1 = DB::table('building_specs')->where('building_type', 'observatorio')->where('level', 1)->first();
+        $n5 = DB::table('building_specs')->where('building_type', 'observatorio')->where('level', 5)->first();
+
+        $this->assertSame(
+            ['ligas_metalicas' => 140, 'componentes_eletronicos' => 90, 'compostos_quimicos' => 80, 'resina_organica' => 4],
+            json_decode($n1->cost_json, true),
+        );
+        $this->assertSame(45 * 60, (int) $n1->build_time_seconds);
+        $this->assertSame(30, (int) $n1->energia_consumo_hora);
+        $this->assertSame(228 * 60, (int) $n5->build_time_seconds);
+        $this->assertSame(152, (int) $n5->energia_consumo_hora);
     }
 
     // ────────────────────────────────────────────── o custo

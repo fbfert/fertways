@@ -151,12 +151,11 @@ class Funcoes
             'frase' => 'Amplia o paralelismo da pesquisa.',
             'fonte' => 'GDD_ALPHA2 §7.2',
             'efeito' => 'vagas_de_pesquisa',
-            // Corrigido no D-254: dizia "cada nível soma vagas" e "no painel". Nem um nem outro: a
-            // vaga vem a cada `vagas_por_niveis_de_laboratorio` níveis, e `research_settings` não
-            // tem tela. E o v35 publica, sim, uma ficha dele — como especialização.
-            'nota' => 'Soma vagas de pesquisa na mesma razão do Laboratório — uma a cada '
-                .'vagas_por_niveis_de_laboratorio níveis, sem a vaga base —, e o teto de vagas vale '
-                .'para a soma. Custo, tempo e energia são os do Laboratório, por arbitragem (D-252).',
+            // D-256: pela ficha do v35 ("11. Observatório"), numa construção que SOMA ao Laboratório.
+            // Antes (D-252) copiava o Laboratório, e com os padrões os níveis 1 a 4 não davam vaga.
+            'nota' => 'Soma vagas de pesquisa desde o nível 1 — com o Laboratório, 2/2/3/3/4 pesquisas '
+                .'simultâneas do nível 1 ao 5, como no v35 —, e o teto de vagas vale para a soma. '
+                .'Exige o Laboratório no nível 3. Não acelera pesquisa nenhuma: só abre vagas (D-256).',
         ],
         'antena_de_comunicacao' => [
             'frase' => 'Comunicação com a Capital, alertas, eventos.',

@@ -27,6 +27,22 @@ use Illuminate\Support\Facades\DB;
 class Vagas
 {
     /**
+     * Quantas vagas o Observatório SOMA, por nível (D-256).
+     *
+     * A ficha do v35 ("11. Observatório") publica as trilhas simultâneas com ele: 2/2/3/3/4. Lá ele
+     * substituía o Laboratório; aqui ele soma ao Laboratório, que já dá a vaga base — então a
+     * contribuição é a ficha menos essa base. Com o Laboratório no nível que o Observatório exige
+     * (3, que dá só a base), o total é exatamente o do v35.
+     *
+     * ⚠️ Era `intdiv(nível, vagas_por_niveis_de_laboratorio)` (D-252): com o divisor padrão, 5, os
+     * níveis 1 a 4 não davam vaga nenhuma, e o jogador pagava quatro níveis por nada.
+     */
+    public const OBSERVATORIO_POR_NIVEL = [1 => 1, 2 => 1, 3 => 2, 4 => 2, 5 => 3];
+
+    /** O Laboratório que o Observatório exige — a matriz de especializações do v35. */
+    public const LABORATORIO_PARA_O_OBSERVATORIO = 3;
+
+    /**
      * @return array<string,int> quanto cada fonte contribui, para a tela poder explicar o número
      */
     public function fontes(Colony $colonia): array
@@ -51,11 +67,12 @@ class Vagas
         return [
             'laboratorio' => (int) $p->vagas_base + intdiv($nivelLab, $porNivel),
             /*
-             * D-252: o Observatório, com a linha que este método prometia desde a A2.3. Na MESMA
-             * razão do Laboratório e sem a base: a base é do Laboratório, que é quem abre a árvore.
-             * O teto (`vagas_teto`) vale para a soma, em `total()` — duas fontes não furam o teto.
+             * D-252: o Observatório, com a linha que este método prometia desde a A2.3. Sem a base,
+             * que é do Laboratório — quem abre a árvore. Desde o D-256, pela ficha do v35
+             * (`OBSERVATORIO_POR_NIVEL`), e não mais pela razão do Laboratório. O teto
+             * (`vagas_teto`) vale para a soma, em `total()` — duas fontes não furam o teto.
              */
-            'observatorio' => intdiv($nivelObs, $porNivel),
+            'observatorio' => self::OBSERVATORIO_POR_NIVEL[$nivelObs] ?? 0,
         ];
     }
 

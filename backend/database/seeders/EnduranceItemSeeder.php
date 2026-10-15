@@ -97,6 +97,18 @@ class EnduranceItemSeeder extends Seeder
 
     private const RARO_PRECO = 50;
 
+    /**
+     * O lote de partida da escavação (D-256), aprovado pelo usuário em 15/10: um comum e um raro em
+     * três seções, que a loja NÃO vende — só se acham escavando (D-249).
+     *
+     * As três seções sem peça única na loja: é nelas que achar alguma coisa é novidade. O estoque é o
+     * peso no sorteio (uma unidade, um bilhete), então 40 + 10 dá ~80% comum e ~20% raro por seção.
+     * Sem único: a peça única é conteúdo de outra natureza, com descobridor, e não sai num lote.
+     */
+    public const LOTE_DE_ESCAVACAO = ['silo_suprimentos', 'baia_criogenica', 'secao_acoplagem'];
+
+    private const ESCAVACAO_QTD = ['comum' => 40, 'raro' => 10];
+
     public function run(): void
     {
         foreach ($this->catalogo() as $item) {
@@ -138,6 +150,37 @@ class EnduranceItemSeeder extends Seeder
 
             if (($s['unico'] ?? false) === true) {
                 $itens[] = $this->item($secao, 'unico', $s, $secoes);
+            }
+        }
+
+        return [...$itens, ...$this->loteDeEscavacao()];
+    }
+
+    /**
+     * As peças do lote de partida da escavação, na mesma régua das da loja: fração do teto do tipo, e
+     * o raro com o vizinho de casco. Pública porque a migration que as põe em produção lê daqui — os
+     * números moram num lugar só.
+     *
+     * @return list<array<string,mixed>>
+     */
+    public function loteDeEscavacao(): array
+    {
+        $secoes = $this->secoes();
+        $itens = [];
+
+        foreach (self::LOTE_DE_ESCAVACAO as $secao) {
+            $s = $secoes[$secao];
+
+            foreach (['comum', 'raro'] as $raridade) {
+                $item = $this->item($secao, $raridade, $s, $secoes);
+
+                $itens[] = array_merge($item, [
+                    'item_key' => $s['escavacao']['chave'][$raridade],
+                    'nome' => $s['escavacao']['nome'][$raridade],
+                    'descricao' => $s['escavacao']['descricao'][$raridade],
+                    'origem' => EnduranceItem::ESCAVACAO,
+                    'quantidade_total' => self::ESCAVACAO_QTD[$raridade],
+                ]);
             }
         }
 
@@ -285,6 +328,21 @@ class EnduranceItemSeeder extends Seeder
                     'comum' => 'Célula que mantinha um berço frio por décadas com o que hoje se gasta num dia. O Drone voa mais tempo com ela a bordo.',
                     'raro' => 'Um banco inteiro de células, do corredor dos berços. Pesado, teimoso, e a bateria simplesmente não acaba.',
                 ],
+                // D-256: o que só se acha escavando — a loja não vende.
+                'escavacao' => [
+                    'chave' => [
+                        'comum' => 'criogenia_escavada_serpentina_de_resfriamento',
+                        'raro' => 'criogenia_escavada_berco_intacto',
+                    ],
+                    'nome' => [
+                        'comum' => 'Serpentina de Resfriamento',
+                        'raro' => 'Berço Criogênico Intacto',
+                    ],
+                    'descricao' => [
+                        'comum' => 'Tubo de cobre arrancado da parede de um berço, ainda frio ao toque depois de tudo. Ninguém vende isto: alguém tem de ir buscar.',
+                        'raro' => 'Um berço que nunca abriu, achado sob o entulho do corredor. O que ele guardava já não importa; a carga que o mantinha frio, sim.',
+                    ],
+                ],
             ],
             'secao_acoplagem' => [
                 'efeito' => Efeitos::CAPACIDADE_VEICULO,
@@ -301,6 +359,21 @@ class EnduranceItemSeeder extends Seeder
                 'descricao' => [
                     'comum' => 'Trilho do convés de carga. Instalado numa caçamba, faz caber o que antes ficava para a segunda viagem.',
                     'raro' => 'A garra que segurava módulos de dez toneladas em órbita. Num furgão, ela ri da carga.',
+                ],
+                // D-256: o que só se acha escavando — a loja não vende.
+                'escavacao' => [
+                    'chave' => [
+                        'comum' => 'acoplagem_escavada_cinta_de_amarracao',
+                        'raro' => 'acoplagem_escavada_trava_de_doca',
+                    ],
+                    'nome' => [
+                        'comum' => 'Cinta de Amarração',
+                        'raro' => 'Trava de Doca Soterrada',
+                    ],
+                    'descricao' => [
+                        'comum' => 'Uma cinta do porão de carga, enterrada desde a queda. A trama aguenta o que nenhuma corda de Fertways aguentaria.',
+                        'raro' => 'A trava que prendia a doca à nave, desenterrada da cratera da acoplagem. Leva dias para soltar; depois, segura qualquer carga.',
+                    ],
                 ],
             ],
             'silo_suprimentos' => [
@@ -319,6 +392,21 @@ class EnduranceItemSeeder extends Seeder
                 'descricao' => [
                     'comum' => 'Um lote de sementes que atravessou o vazio dormindo. Acordou com fome de solo, e a Fazenda agradece.',
                     'raro' => 'O banco genético que a Endurance trouxe da Terra para o dia da chegada. Este é o dia.',
+                ],
+                // D-256: o que só se acha escavando — a loja não vende.
+                'escavacao' => [
+                    'chave' => [
+                        'comum' => 'silo_escavado_saca_selada',
+                        'raro' => 'silo_escavado_estufa_de_bordo',
+                    ],
+                    'nome' => [
+                        'comum' => 'Saca Selada do Silo',
+                        'raro' => 'Estufa de Bordo Soterrada',
+                    ],
+                    'descricao' => [
+                        'comum' => 'Uma saca de adubo selada a vácuo, achada sob as placas do silo. A data no lacre é de antes da partida.',
+                        'raro' => 'A estufa de testes da tripulação, inteira debaixo da poeira. As lâmpadas acendem. A Fazenda que a recebe não reconhece o próprio solo.',
+                    ],
                 ],
             ],
             'anel_habitacional' => [

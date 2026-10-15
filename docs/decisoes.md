@@ -14246,3 +14246,58 @@ vermelhos com a correção da chegada desligada. ⚠️ Pegadinha no caminho: s�
 A tela (`Quartel.tsx`) já mandava as Sentinelas em casa: ela estava certa, o servidor é que não.
 
 1401 testes verdes.
+
+---
+
+## D-256 — O Observatório pela ficha do v35, e a escavação ligada com os números do usuário
+
+**Data:** 2026-10-15 · **Status:** entregue (commit; deploy pendente)
+
+As duas coisas que esperavam o usuário desde o D-249 e o D-252. Ele aprovou em 15/10 as propostas
+do brief: o Observatório com os números do v35 numa construção que soma, e a escavação com uma
+partida concreta.
+
+### Observatório
+
+O D-252 copiou o Laboratório linha a linha e disse que nenhum documento publicava o Observatório. O
+**v35 publica** ("11. Observatório"), como especialização que **substituía** o Laboratório. O sistema
+de especializações nunca entrou no jogo, e o Observatório continua uma construção que **soma**:
+
+| | antes (D-252) | agora |
+|---|---|---|
+| vagas que soma, nível 1→5 | `intdiv(nível, 5)`: **0/0/0/0/1** | **1/1/2/2/3** — a ficha (2/2/3/3/4) menos a vaga base do Laboratório |
+| exige | Laboratório nível 1 | **Laboratório nível 3** (matriz do v35) |
+| custo nível 1 → 5 | o do Laboratório | Ligas 140→1.038, Componentes 90→667, Compostos 80→593, Resina 4→30 |
+| tempo | 21→106 min | 45→228 min |
+| energia/h | 20→101 | 30→152 |
+| teto de vagas | 3 | **4** |
+
+⚠️ **O teto subiu, e foi correção da minha própria proposta.** O brief recomendou manter o teto em 3;
+escrevendo o teste nível a nível, ficou claro que com 3 os níveis 4 e 5 do Observatório não somariam
+nada — o mesmo defeito que esta decisão conserta nos níveis 1 a 4. Com 4 (o máximo da ficha), o
+Laboratório 3 + Observatório 5 dá exatamente as 4 trilhas do v35. A migration só sobe o teto se ele
+ainda estiver em 3.
+
+Migration `2026_10_15_100000_observatorio_pela_ficha_do_v35` (lê o mesmo JSON do seeder; down volta
+à cópia do Laboratório). Os testes de vagas usam os parâmetros **padrão** — foi um divisor de teste
+(1) que escondeu, no D-252, que os níveis 1 a 4 não davam nada.
+
+### Escavação
+
+Partida aprovada: **360 min, 15 F$ + 300 de energia**, e um lote de seis peças de origem
+«escavação» — um comum (40) e um raro (10) em Silo de Suprimentos, Baía Criogênica e Seção de
+Acoplagem, as três seções sem peça única na loja. A régua é a do catálogo (fração do teto, vizinho de
+casco no raro); os nomes e textos são meus, no tom do catálogo.
+
+O lote mora no `EnduranceItemSeeder` (`LOTE_DE_ESCAVACAO`, `loteDeEscavacao()`), e a migration
+`2026_10_15_200000_escavacao_com_os_numeros_de_partida` o lê de lá. ⚠️ **Ela nunca desfaz o
+painel**: só liga se a configuração ainda estiver como o D-249 a deixou (desligada, sem duração, sem
+custo), e só insere a peça cuja chave não existe. O down recusa se alguma peça do lote já foi achada.
+
+⚠️ **Achado de passagem, não corrigido:** o `EnduranceItemSeeder::run()` faz `updateOrCreate` com
+`quantidade_vendida => 0`. Re-rodá-lo em produção **zera o estoque vendido de todo o catálogo** — e
+agora também o das peças já achadas na escavação. O comentário dele diz que re-semear é seguro; para
+os efeitos é, para o estoque não.
+
+Exercitadas nos dois sentidos no **SQLite local**; o MariaDB não está nesta máquina. Conferir no
+`fertwaysdev` antes do deploy.

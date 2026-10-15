@@ -607,62 +607,52 @@
         "levels": [
             {
                 "level": 1,
-                "build_time_seconds": 1260,
+                "build_time_seconds": 2700,
                 "cost": {
-                    "ligas_metalicas": 60,
-                    "compostos_quimicos": 40,
-                    "componentes_eletronicos": 20,
-                    "energia": 18,
-                    "agua": 12,
-                    "resina_organica": 2
+                    "ligas_metalicas": 140,
+                    "componentes_eletronicos": 90,
+                    "compostos_quimicos": 80,
+                    "resina_organica": 4
                 }
             },
             {
                 "level": 2,
-                "build_time_seconds": 1920,
+                "build_time_seconds": 4080,
                 "cost": {
-                    "ligas_metalicas": 99,
-                    "compostos_quimicos": 66,
-                    "componentes_eletronicos": 33,
-                    "energia": 30,
-                    "agua": 20,
-                    "resina_organica": 3
+                    "ligas_metalicas": 231,
+                    "componentes_eletronicos": 149,
+                    "compostos_quimicos": 132,
+                    "resina_organica": 7
                 }
             },
             {
                 "level": 3,
-                "build_time_seconds": 2820,
+                "build_time_seconds": 6060,
                 "cost": {
-                    "ligas_metalicas": 163,
-                    "compostos_quimicos": 109,
-                    "componentes_eletronicos": 54,
-                    "energia": 49,
-                    "agua": 33,
-                    "resina_organica": 5
+                    "ligas_metalicas": 381,
+                    "componentes_eletronicos": 245,
+                    "compostos_quimicos": 218,
+                    "resina_organica": 11
                 }
             },
             {
                 "level": 4,
-                "build_time_seconds": 4260,
+                "build_time_seconds": 9120,
                 "cost": {
-                    "ligas_metalicas": 270,
-                    "compostos_quimicos": 180,
-                    "componentes_eletronicos": 90,
-                    "energia": 81,
-                    "agua": 54,
-                    "resina_organica": 9
+                    "ligas_metalicas": 629,
+                    "componentes_eletronicos": 404,
+                    "compostos_quimicos": 359,
+                    "resina_organica": 18
                 }
             },
             {
                 "level": 5,
-                "build_time_seconds": 6360,
+                "build_time_seconds": 13680,
                 "cost": {
-                    "ligas_metalicas": 445,
-                    "compostos_quimicos": 296,
-                    "componentes_eletronicos": 148,
-                    "energia": 133,
-                    "agua": 89,
-                    "resina_organica": 15
+                    "ligas_metalicas": 1038,
+                    "componentes_eletronicos": 667,
+                    "compostos_quimicos": 593,
+                    "resina_organica": 30
                 }
             }
         ]

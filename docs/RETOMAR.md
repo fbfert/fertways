@@ -65,10 +65,14 @@ instalada no root). Ponto exato de parada:
 - o **D-253 continua sem deploy** — o usuário vai fazê-lo "de outra forma";
 - **três defeitos de código achados ao escrever o v41, esperando o usuário** (D-254): o cerco de
   colônia não acontece pelo jogo — ✅ **corrigido no D-255**, commit sem deploy; o
-  Observatório 1–4 não dá vaga; parâmetros que se dizem "do painel" e não estão nele;
-- as duas coisas que esperam o usuário (Observatório, D-252; números da escavação, D-249) — agora
-  com um brief: o v35 tem ficha do Observatório (2/2/3/3/4 trilhas) e há proposta de partida para
-  a escavação (360 min; 15 F$ + 300 energia).
+  Observatório 1–4 não dá vaga — ✅ **corrigido no D-256**; parâmetros que se dizem "do painel" e não estão nele;
+- **D-256 (commit sem deploy):** o Observatório com a ficha do v35 (exige Laboratório 3, soma
+  1/1/2/2/3 vagas, teto 3 → 4) e a escavação ligada com a partida do usuário (360 min; 15 F$ + 300
+  energia; 6 peças de escavação em 3 seções). As duas migrations não desfazem o que o operador já
+  mudou no painel. **Exercitadas só no SQLite** — conferir no `fertwaysdev` antes do deploy;
+- ⚠️ o `EnduranceItemSeeder` re-rodado zera `quantidade_vendida` do catálogo inteiro (D-256) — não o
+  rode em produção até isso ser corrigido;
+- ~~as duas coisas que esperavam o usuário (Observatório, D-252; escavação, D-249)~~ — resolvidas no D-256.
 
 **PAUSA em 07/10, pedida pelo usuário.** Ponto exato de parada:
 - o **D-253 está commitado e no GitHub, mas NÃO publicado** — o usuário pediu só commit e push. A

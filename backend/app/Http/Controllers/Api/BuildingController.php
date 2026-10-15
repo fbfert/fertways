@@ -10,6 +10,7 @@ use App\Domain\Building\EstadoDaConstrucao;
 use App\Domain\Building\Funcoes;
 use App\Domain\Colony\Slots;
 use App\Domain\Eventos\Modificadores;
+use App\Domain\Pesquisa\Vagas;
 use App\Domain\Production\ColonyTick;
 use App\Exceptions\DomainRuleException;
 use App\Http\Controllers\Controller;
@@ -139,9 +140,11 @@ class BuildingController extends Controller
         $eventos = app(Modificadores::class);
         $agora = now();
 
-        $temLaboratorio = $colony->buildings->contains(fn ($b) => $b->type === 'laboratorio' && $b->level >= 1);
+        $laboratorioBasta = $colony->buildings->contains(
+            fn ($b) => $b->type === 'laboratorio' && $b->level >= Vagas::LABORATORIO_PARA_O_OBSERVATORIO,
+        );
 
-        $itens = collect(Building::PROGRESSAO)->map(function (string $tipo) use ($specs, $erguidas, $eventos, $colony, $agora, $temLaboratorio) {
+        $itens = collect(Building::PROGRESSAO)->map(function (string $tipo) use ($specs, $erguidas, $eventos, $colony, $agora, $laboratorioBasta) {
             $spec = $specs->para($tipo, 1);
             $quantas = $erguidas->get($tipo)?->count() ?? 0;
             $repetivel = in_array($tipo, Building::REPETIVEIS, true);
@@ -157,9 +160,9 @@ class BuildingController extends Controller
                 // Uma construção única já erguida não pode ser erguida de novo; uma repetível,
                 // sempre pode — o limite dela é o slot vago e a energia (§19.8).
                 'disponivel' => ($repetivel || $quantas === 0)
-                    // D-252: o Observatório só aparece com o Laboratório de pé — a mesma regra
+                    // D-252/D-256: o Observatório só aparece com o Laboratório no nível 3 — a mesma regra
                     // que o `ConstruirEmSlot` cobra, para a tela não oferecer o que ele recusa.
-                    && ($tipo !== 'observatorio' || $temLaboratorio),
+                    && ($tipo !== 'observatorio' || $laboratorioBasta),
             ];
         })->values();
 

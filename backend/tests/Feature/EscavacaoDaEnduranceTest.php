@@ -71,17 +71,85 @@ class EscavacaoDaEnduranceTest extends TestCase
 
     // ── a chave-mestra ──────────────────────────────────────────────────────
 
-    public function test_nasce_desligada_e_sem_parametros(): void
+    /**
+     * O D-249 a fez nascer desligada, esperando os números do usuário; o D-256 os traz. Os números
+     * são DELE — aprovados em 15/10 —, e não do jogo: o teste guarda que a partida é a decidida.
+     */
+    public function test_liga_com_os_numeros_de_partida_do_usuario(): void
     {
         $config = EnduranceEscavacaoSetting::singleton();
 
-        $this->assertFalse($config->ativo);
-        $this->assertNull($config->duracao_minutos, 'nenhum número de jogo inventado');
-        $this->assertFalse($config->ligada());
+        $this->assertTrue($config->ligada());
+        $this->assertSame(360, (int) $config->duracao_minutos);
+        $this->assertSame(
+            [EntregarCestas::FERT => 15 * Colony::MICRO_POR_FERT, 'energia' => 300],
+            $config->custo,
+        );
+    }
 
+    /** Desligada pelo painel, recusa — a chave-mestra continua do operador. */
+    public function test_desligada_recusa(): void
+    {
+        EnduranceEscavacaoSetting::singleton()->update(['ativo' => false]);
         $this->peca();
+
         $this->expectException(DomainRuleException::class);
         app(Escavar::class)->handle($this->colonia(), 'comando');
+    }
+
+    /** Um deploy não desfaz o painel: a migration só preenche o que ainda está intocado. */
+    public function test_a_partida_nao_sobrescreve_o_que_o_operador_mudou(): void
+    {
+        EnduranceEscavacaoSetting::singleton()->update(['ativo' => false, 'duracao_minutos' => 90, 'custo' => null]);
+
+        (require database_path('migrations/2026_10_15_200000_escavacao_com_os_numeros_de_partida.php'))->up();
+
+        $config = EnduranceEscavacaoSetting::singleton();
+        $this->assertFalse($config->ativo);
+        $this->assertSame(90, (int) $config->duracao_minutos);
+    }
+
+    /**
+     * O lote de partida: três seções, um comum e um raro de escavação em cada, na regra do catálogo —
+     * fração do teto, e o raro com o vizinho de casco (D-244/D-245).
+     */
+    public function test_o_lote_de_partida_tem_pecas_de_escavacao_em_tres_secoes(): void
+    {
+        $lote = EnduranceItem::where('origem', EnduranceItem::ESCAVACAO)->orderBy('secao')->get();
+
+        $this->assertSame(
+            ['baia_criogenica', 'secao_acoplagem', 'silo_suprimentos'],
+            $lote->pluck('secao')->unique()->values()->all(),
+        );
+
+        foreach ($lote as $peca) {
+            [$qtd, $marco, $efeitos] = $peca->tipo === EnduranceItem::COMUM ? [40, 1, 1] : [10, 5, 2];
+
+            $this->assertSame($qtd, (int) $peca->quantidade_total, $peca->item_key);
+            $this->assertSame($marco, (int) $peca->marco_minimo, $peca->item_key);
+            $this->assertCount($efeitos, $peca->efeitos, $peca->item_key);
+        }
+
+        $this->assertCount(6, $lote, 'um comum e um raro por seção, sem único');
+    }
+
+    /** O jogo inteiro, com os números de partida: escava, paga, volta com uma peça do lote. */
+    public function test_escavar_com_os_numeros_de_partida_acha_uma_peca_do_lote(): void
+    {
+        $c = $this->colonia();
+
+        $e = app(Escavar::class)->handle($c, 'silo_suprimentos');
+
+        $this->assertSame(485 * Colony::MICRO_POR_FERT, (int) $c->fresh()->fert_micro, '15 F$');
+        $this->assertSame(700, (int) $c->resources()->where('resource_type', 'energia')->value('amount'), '300 de energia');
+
+        Carbon::setTestNow($e->finishes_at->copy()->addSecond());
+        app(ConcluirEscavacoes::class)->handle($c);
+        Carbon::setTestNow();
+
+        $achada = ColonyEnduranceItem::where('colony_id', $c->id)->first();
+        $this->assertNotNull($achada);
+        $this->assertSame('silo_suprimentos', EnduranceItem::find($achada->endurance_item_id)->secao);
     }
 
     public function test_ligada_sem_duracao_continua_desligada(): void
@@ -304,6 +372,9 @@ class EscavacaoDaEnduranceTest extends TestCase
 
     public function test_o_painel_recusa_ligar_sem_duracao(): void
     {
+        // Desde o D-256 ela nasce ligada; a recusa é de LIGAR, então parte de desligada.
+        EnduranceEscavacaoSetting::singleton()->update(['ativo' => false, 'duracao_minutos' => null]);
+
         $this->actingAs($this->dono(), 'admin')
             ->post('/admin/endurance/escavacao', ['ativo' => 1, 'custo' => 'fert:50'])
             ->assertSessionHas('erro');

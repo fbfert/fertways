@@ -101,6 +101,7 @@ use App\Domain\Marco\Desbloqueios;
 use App\Domain\Marco\ExigirMarco;
 use App\Domain\Logistics\VeiculoSpecs;
 use App\Domain\Market\Deposito;
+use App\Domain\Pesquisa\Vagas;
 use App\Domain\Trade\AcordoSpecs;
 use App\Domain\Transport\Ministerio;
 use App\Domain\Transport\UpgradeVeiculo;
@@ -116,6 +117,7 @@ use App\Models\MilestoneSetting;
 use App\Models\TransportSetting;
 use App\Models\Vehicle;
 use App\Models\WarSetting;
+use Database\Seeders\EnduranceItemSeeder;
 use Illuminate\Support\Facades\DB;
 
 // ─────────────────────────────────────────────────────────────── helpers de marcação
@@ -2845,13 +2847,18 @@ rating  += K × (resultado − esperado)        K = <?= $gfRatingK ?>, início <
   ?></td></tr>
 </table>
 
-<div class="nota grave">
-  <b>⚠️ A escavação nasce desligada, e o jogo não inventa o preço dela.</b> Custo (Fert$ e/ou
-  recursos) e duração são do operador, no cartão do topo de <code>/central/admin/endurance</code>.
-  O painel recusa ligar sem duração; custo vazio é permitido e quer dizer escavar de graça, e a
-  tela diz isso com todas as letras. E ligar não basta: só há o que achar depois de o operador
-  marcar peças com origem «escavação». No último registro de produção (07/10/2026) ela seguia
-  desligada, à espera desses números.
+<div class="nota">
+  <b>Os números são do operador, e a partida veio do usuário</b> <span class="d">D-249, D-256</span>.
+  O D-249 construiu a escavação desligada e vazia: custo (Fert$ e/ou recursos) e duração não são
+  número de jogo, e o jogo não os inventa. Em 15/10 o usuário aprovou a partida — <b>6 h por
+  escavação, 15 F$ + 300 de energia</b> — e um lote de peças que só se acham escavando, um comum e um
+  raro em cada uma das três seções sem peça única na loja:
+  <?= e(implode(', ', array_map(fn ($s) => EnduranceItem::SECOES[$s], EnduranceItemSeeder::LOTE_DE_ESCAVACAO))) ?>.
+  O estoque é o peso no sorteio, e por isso cada seção dá cerca de 80% comum e 20% raro. Tudo
+  continua no cartão do topo de <code>/central/admin/endurance</code>: o painel recusa ligar sem
+  duração, aceita custo vazio (escavar de graça, e a tela diz isso), e o deploy que trouxe a partida
+  não desfaz o que o operador já tiver mudado ali.
+  <?= arbitrado('15 F$ + 300 de energia, 6 h e o lote de 6 peças — aprovados pelo usuário, D-256') ?>
 </div>
 
 <!-- ══════════════════════════════════════════════════════════════ 11 -->
@@ -3191,62 +3198,55 @@ rating  += K × (resultado − esperado)        K = <?= $gfRatingK ?>, início <
   menu. <span class="d">D-172</span>
 </div>
 
-<h3>14.1 As vagas, e o Observatório <span class="d">D-252</span></h3>
+<h3>14.1 As vagas, e o Observatório <span class="d">D-252, D-256</span></h3>
 
 <p>
   Quantas pesquisas correm ao mesmo tempo é a soma de <b>duas fontes</b>, com um teto para a soma.
   O <b>Laboratório</b> dá <b><?= (int) $pesquisaCfg->vagas_base ?></b> vaga de base mais uma a cada
   <b><?= (int) $pesquisaCfg->vagas_por_niveis_de_laboratorio ?></b> níveis; sem Laboratório erguido
   não há pesquisa nenhuma, nem a base. O <b>Observatório</b> — a construção que o GDD_ALPHA2 §7.2
-  previa para o paralelismo e que ficou fora da primeira entrega — soma na <b>mesma razão</b>, sem
-  base, porque a base é de quem abre a árvore. O total nunca passa de
-  <b><?= (int) $pesquisaCfg->vagas_teto ?></b>: vaga infinita faria da árvore uma fila de espera, e o
-  ponto dela é obrigar a escolher.
+  previa para o paralelismo — soma vagas <b>pela ficha do v35</b>, sem a base, porque a base é de
+  quem abre a árvore. O total nunca passa de <b><?= (int) $pesquisaCfg->vagas_teto ?></b>: vaga
+  infinita faria da árvore uma fila de espera, e o ponto dela é obrigar a escolher.
 </p>
 
 <?php
 $porNiveis = max(1, (int) $pesquisaCfg->vagas_por_niveis_de_laboratorio);
 $vagas = fn (int $lab, int $obs) => min((int) $pesquisaCfg->vagas_teto,
-    (int) $pesquisaCfg->vagas_base + intdiv($lab, $porNiveis) + intdiv($obs, $porNiveis));
+    (int) $pesquisaCfg->vagas_base + intdiv($lab, $porNiveis) + (Vagas::OBSERVATORIO_POR_NIVEL[$obs] ?? 0));
 $labMax = max(array_keys($porTipo['laboratorio'] ?? [5 => null]));
 ?>
-<p>Vagas totais, por nível de Laboratório (linhas) e de Observatório (colunas):</p>
+<p>
+  Vagas totais, por nível de Laboratório (linhas) e de Observatório (colunas). O Observatório só se
+  ergue com o Laboratório no nível <?= Vagas::LABORATORIO_PARA_O_OBSERVATORIO ?>, e por isso as
+  linhas abaixo dele só têm a primeira coluna:
+</p>
 
 <table>
   <tr><th class="num">Laboratório</th><th class="num">sem Obs.</th>
     <?php for ($obs = 1; $obs <= $observatorioMax; $obs++): ?><th class="num">Obs. <?= $obs ?></th><?php endfor; ?></tr>
   <?php for ($lab = 1; $lab <= $labMax; $lab++): ?>
   <tr><td class="num"><?= $lab ?></td><td class="num"><?= $vagas($lab, 0) ?></td>
-    <?php for ($obs = 1; $obs <= $observatorioMax; $obs++): ?><td class="num"><?= $vagas($lab, $obs) ?></td><?php endfor; ?></tr>
+    <?php for ($obs = 1; $obs <= $observatorioMax; $obs++): ?><td class="num"><?= $lab >= Vagas::LABORATORIO_PARA_O_OBSERVATORIO ? $vagas($lab, $obs) : '—' ?></td><?php endfor; ?></tr>
   <?php endfor; ?>
 </table>
 
-<?php if ($porNiveis > 1): ?>
-<div class="nota grave">
-  <b>⚠️ Com os parâmetros de hoje, o Observatório do nível 1 ao <?= min($observatorioMax, $porNiveis - 1) ?>
-  não dá vaga nenhuma.</b> A razão "uma vaga a cada <?= $porNiveis ?> níveis", herdada do
-  Laboratório, só rende no nível <?= $porNiveis ?> — e o Laboratório tem a vaga de base para
-  compensar, o Observatório não. O jogador paga níveis que não mudam nada. E o divisor e o teto
-  (<code>research_settings</code>) <b>não têm tela no painel</b>: mudam só por migration. É a
-  primeira coisa a decidir na revisão abaixo. <span class="d">D-252</span>
-</div>
-<?php endif; ?>
-
 <p>
-  O Observatório ocupa um slot da colmeia, é <b>único</b>, e <b>só se ergue com o Laboratório</b>
-  de pé (nível 1 ou mais). Custo, tempo e energia por nível são <b>os do Laboratório</b>, linha a
-  linha — estão na tabela da §4.2.
-  <?= arbitrado('custo, tempo, energia e vagas do Observatório ancorados no Laboratório — a revisar (D-252)') ?>
+  O Observatório ocupa um slot da colmeia, é <b>único</b>, e não acelera pesquisa nenhuma — só abre
+  vagas. Custo, tempo e energia por nível estão na tabela da §4.2.
+  <?= arbitrado('adotar a ficha do v35 numa construção que soma, e não substitui, o Laboratório — D-256') ?>
 </p>
 
 <div class="nota">
-  <b>O v35 tem uma ficha do Observatório — e o D-252 não a usou.</b> No v35 ele é uma
-  <i>especialização</i>: <b>substitui</b> o Laboratório no slot de especialização, exige
-  Laboratório nível 3, dá <b>2/2/3/3/4</b> trilhas simultâneas do nível 1 ao 5 e custa bem mais
-  (Ligas 140→1.038, Componentes Eletrônicos 90→667, Compostos 80→593, Resina 4→30; 45→228 min;
-  energia 30→152/h). O sistema de especializações do v35 nunca entrou no jogo, e o v36 em diante
-  não o manteve — por isso o D-252 fez do Observatório uma construção que <b>soma</b>, e não que
-  substitui. A ficha continua sendo o único número publicado para ele, e é a base natural da revisão.
+  <b>De onde vêm os números</b> <span class="d">D-252, D-256</span>. O D-252 pôs o Observatório no
+  jogo copiando o Laboratório linha a linha e dizendo que nenhum documento publicava os dele. O v35
+  publica: "11. Observatório", uma <i>especialização</i> que substituía o Laboratório, exigia o
+  Laboratório nível 3 e dava <b>2/2/3/3/4</b> trilhas simultâneas. O sistema de especializações do
+  v35 nunca entrou no jogo, então o Observatório continua uma construção que <b>soma</b>: a
+  contribuição dele é a ficha menos a vaga base, e com o Laboratório no nível 3 o total é exatamente o
+  do v35. A cópia do Laboratório tinha um defeito pior que o preço: com os parâmetros padrão, os
+  níveis 1 a 4 não davam vaga nenhuma. E o teto subiu de 3 para 4 junto, porque com 3 os níveis 4 e
+  5 da ficha não somariam nada.
 </div>
 
 <div class="nota">
@@ -3677,27 +3677,14 @@ if ($semFrase !== []) {
   <b>Fechados nesta revisão</b> (D-230 a D-253): os <b>modificadores seguintes</b> que o roadmap da
   A2.8 prometia — tributo, logística, construção, pesquisa, população e território —, e o "depois"
   dela: combate, escopo de federação, encadeamento e condição (§15.2, §15.5, §15.6); a <b>cesta</b> e
-  as <b>missões de evento</b> (§15.3, §15.4); a <b>escavação</b> da Endurance e as peças liberadas
-  por evento (§10.6); o <b>Observatório</b> (§14.1); a pergunta de telemetria sobre quem foi saqueado
+  as <b>missões de evento</b> (§15.3, §15.4); a <b>escavação</b> da Endurance, já ligada com a partida do usuário (D-256), e as peças liberadas
+  por evento (§10.6); o <b>Observatório</b>, já com a ficha do v35 (§14.1, D-256); a pergunta de telemetria sobre quem foi saqueado
   ausente (§11.7); e o <b>piso anti-farming</b> deixou de valer para o XP do Mercado, que ganhou teto
   diário (§2.5) — na reputação ele continua.
 </p>
 
 <table>
   <tr><th>Assunto</th><th>O que falta</th><th>O que ele trava</th></tr>
-  <tr>
-    <td><b>Observatório</b> <span class="d">D-252</span></td>
-    <td>Custo, tempo, energia e vagas foram ancorados no Laboratório, por arbitragem. Com os
-        parâmetros de hoje, os níveis 1 a <?= max(0, min($observatorioMax, $porNiveis - 1)) ?> não dão vaga
-        nenhuma (§14.1). A única ficha publicada é a do v35, como especialização</td>
-    <td>Que o Observatório valha o slot que ocupa. Custo e tempo se ajustam no painel de Construções;
-        vagas, divisor e teto, só por migration</td>
-  </tr>
-  <tr>
-    <td><b>Escavação da Endurance</b> <span class="d">D-249</span></td>
-    <td><b>Custo e duração</b> — do operador, nascem vazios — e <b>quais peças</b> são de escavação</td>
-    <td>A escavação inteira: está construída e desligada (§10.6)</td>
-  </tr>
   <tr>
     <td><b>Cargueiro Interplanetário / Espaçoporto</b></td>
     <td>O <b>Espaçoporto</b> e os 5 planetas NPC — nenhuma rota, doca ou taxa existe</td>

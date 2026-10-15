@@ -3,6 +3,7 @@
 namespace App\Domain\Building;
 
 use App\Domain\Colony\Slots;
+use App\Domain\Pesquisa\Vagas;
 use App\Exceptions\DomainRuleException;
 use App\Models\Building;
 use App\Models\BuildQueue;
@@ -43,9 +44,14 @@ class ConstruirEmSlot
         }
 
         // D-252: o Observatório amplia a pesquisa, e sem Laboratório não há pesquisa a ampliar.
+        // D-256: e pede o Laboratório no nível 3, como a matriz do v35.
         if ($tipo === 'observatorio'
-            && ! $colony->buildings()->where('type', 'laboratorio')->where('level', '>=', 1)->exists()) {
-            throw new DomainRuleException('exige_laboratorio', 'O Observatório só se ergue com o Laboratório de pé.');
+            && ! $colony->buildings()->where('type', 'laboratorio')
+                ->where('level', '>=', Vagas::LABORATORIO_PARA_O_OBSERVATORIO)->exists()) {
+            throw new DomainRuleException(
+                'exige_laboratorio',
+                'O Observatório só se ergue com o Laboratório no nível '.Vagas::LABORATORIO_PARA_O_OBSERVATORIO.'.',
+            );
         }
 
         Slots::exigirEscolhivel($slot);
