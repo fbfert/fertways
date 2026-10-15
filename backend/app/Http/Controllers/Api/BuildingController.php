@@ -151,7 +151,7 @@ class BuildingController extends Controller
 
             return [
                 'type' => $tipo,
-                'funcao' => Funcoes::de($tipo),
+                'funcao' => Funcoes::paraJogador($tipo),
                 'cost' => $spec['custo'],
                 'build_time_seconds' => $eventos->aplicarEm($colony, Modificadores::CONSTRUCAO, (int) $spec['tempo_segundos'], $agora),
                 'max_level' => $specs->nivelMaximo($tipo),
@@ -335,7 +335,7 @@ class BuildingController extends Controller
                     'repetivel' => $b->podeRepetir(),
                     // O que ela FAZ: a frase do GDD, a fonte, e a nota honesta de quando o efeito
                     // ainda não morde no jogo.
-                    'funcao' => Funcoes::de($b->type),
+                    'funcao' => Funcoes::paraJogador($b->type),
                     'efeito_atual' => $atual,
                     'efeito_proximo' => $efeito($b->type, $alvo),
                     // Só a Oficina escolhe receita (§24.5). Sem este campo a UI não teria como

@@ -14559,3 +14559,33 @@ O que muda:
   os portões) continuam valendo: elas mediram o motor, não o público.
 
 A §16.5 e a §12 do GDD v41 ganharam a correção.
+
+---
+
+## D-266 — As primeiras horas, jogadas por um novato
+
+**Data:** 2026-10-15 · **Status:** entregue (commit; deploy pendente)
+
+Primeiro dos três itens que o usuário pediu depois do D-265 ("preparar a chegada dos primeiros
+jogadores"). Em vez de ler código, **joguei**: pilha local (artisan serve + Vite, SQLite descartável),
+um Chrome automatizado (`puppeteer-core` do próprio e2e) fazendo o percurso de quem nunca viu o jogo —
+landing, cadastro, fundação, colônia, missões, primeira obra —, em desktop e em celular, com foto de
+cada tela. O que achei, e o que foi feito:
+
+| achado | correção |
+|---|---|
+| A colônia recém-fundada não diz o que fazer — a tutoria (5 passos) só aparecia a quem abria Missões | aviso **"Próximo passo"** com o passo ativo da tutoria, no topo da faixa; some quando a tutoria acaba. Se o passo já é "construa", o "Nada em construção" genérico não repete |
+| No **celular** a faixa de avisos inteira mora em "Mais" — o novato pelo telefone nunca via nada | faixa compacta sobre a colônia, só com o urgente e o próximo passo |
+| Uma **diária impossível** no primeiro dia ("fabrique 2 unidades no Quartel", sem Quartel; "Bandeira fincada" sem poder ocupar) | `Atribuir::alcancavel()`: o sorteio só entrega o que a colônia consegue cumprir — Quartel, portão do território, Drone |
+| "O que erguer aqui?" mostrava `industria_siderurgica` cru, com "Não está no GDD … (D-82)" | nome no mapa do cliente (com teste que lê o arquivo do frontend), e um `resumo` para o jogador nas oito construções cuja citação do GDD não descreve o jogo (Oficina "produz ligas", Tanque "Gelo de Metano", Quartel sem Sentinela…) |
+| O detalhe da construção citava o diário de decisões ("duas Minas produzem o dobro (D-59)") | `Funcoes::paraJogador()` tira D-nn e códigos de fase do que a API serve; o GDD continua lendo `de()` intacto |
+| Tutoria em jargão: "espere o **tick** entregar"; "os seus **50** Fert$ iniciais (§03)" com o kit em 100 | texto de jogador; e duas diárias que prometiam um piso de "500 F$" que não existe (Mercado sem piso, D-241; Acordo com 5 F$, D-43) — migration que só troca o texto ainda original |
+| A landing prometia "colônia inviolável — **sempre**" e "toda colônia nova nasce protegida" | falso desde a guerra entre federações (D-201) — e a trégua de 8 dias é da **zona**; textos corrigidos |
+| A tela de fundação disparava 3 erros 422 a cada 5 s (pedia construções e fila de quem não tem colônia) | colônia primeiro; sem colônia, nada de polling |
+| No celular a colmeia ocupava um terço da tela e os nomes quebravam no meio ("Fazend/a") | sem a coluna lateral, a colmeia usa a largura inteira (+28% de raio); quebra só em espaço |
+| O favicon era o raio roxo padrão do Vite, nem ligado no HTML | o hexágono "F" da marca |
+
+Fora, registrado: os nomes de três linhas ("Estrutura de Sobrevivência") ainda passam da borda do
+hexágono no celular; as notas de algumas construções falam de "painel da Guerra", que é do operador.
+
+Migration `2026_10_16_200000_tutoria_em_lingua_de_jogador`. 1464 testes verdes, `npm run build` limpo.

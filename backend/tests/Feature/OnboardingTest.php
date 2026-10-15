@@ -210,4 +210,19 @@ class OnboardingTest extends TestCase
         $this->assertSame(1, $this->tutoria($nova)->count());
         $this->assertSame('ativa', $this->tutoria($nova)->firstOrFail()->status);
     }
+
+    /**
+     * A tutoria fala a língua de quem acabou de chegar (D-266). Jogando como novato, o primeiro passo
+     * dizia "espere o tick entregar" — palavra de quem escreve o jogo — e o terceiro prometia "os seus
+     * 50 Fert$ iniciais (§03)", quando o kit é outro número e o § é referência de documento interno.
+     */
+    public function test_as_missoes_falam_lingua_de_jogador(): void
+    {
+        // Toda missão, e não só a tutoria: duas diárias prometiam um piso de "500 F$" que não existe.
+        foreach (\App\Models\MissionTemplate::pluck('descricao', 'chave') as $chave => $texto) {
+            $this->assertDoesNotMatchRegularExpression(
+                '/\btick\b|§|\bD-\d+|\d+ Fert\$ iniciais|acima de 500/i', $texto, "{$chave}: «{$texto}»",
+            );
+        }
+    }
 }

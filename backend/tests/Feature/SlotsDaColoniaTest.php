@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Domain\Building\Funcoes;
 use App\Domain\Colony\CreateColony;
 use App\Domain\Colony\Slots;
 use App\Domain\Production\ColonyTick;
@@ -498,5 +499,65 @@ class SlotsDaColoniaTest extends TestCase
         // Está no nível 0, mas está NA FILA: apagá-la seria roubar a obra do colono.
         $this->assertNotNull($destilaria->fresh());
         $this->assertSame('building', BuildQueue::where('building_id', $destilaria->id)->value('status'));
+    }
+
+    /**
+     * ⚠️ Achado jogando como novato (D-266): a lista "O que erguer aqui?" mostrava a Indústria
+     * Siderúrgica como "Não está no GDD — construção nova, pedida pelo usuário (D-82)" — nota de
+     * bastidor na cara do jogador —, e a Oficina como "Produção de ligas metálicas", que ela não faz.
+     *
+     * A `frase` é a CITAÇÃO do GDD e continua sendo; o que o jogador lê é o `resumo` quando existe.
+     * Nenhuma descrição que chega à tela pode falar de GDD nem de decisão interna.
+     */
+    public function test_nenhuma_descricao_do_jogador_fala_de_bastidor(): void
+    {
+        foreach (array_keys(Funcoes::CATALOGO) as $tipo) {
+            $f = Funcoes::de($tipo);
+            $doJogador = $f['resumo'] ?? $f['frase'];
+
+            $this->assertDoesNotMatchRegularExpression('/GDD|\bD-\d+/', $doJogador, "{$tipo}: «{$doJogador}»");
+        }
+
+        $this->assertStringContainsString('Componentes Eletrônicos', Funcoes::de('oficina')['resumo']);
+        $this->assertStringContainsString('Biocombustível', Funcoes::de('tanque_de_combustivel')['resumo']);
+        $this->assertStringContainsString('Sentinela', Funcoes::de('quartel')['resumo']);
+    }
+
+    /**
+     * As notas do catálogo chegam ao jogador sem as referências ao diário de decisões (D-266). O
+     * detalhe da Mina mostrava "duas Minas produzem o dobro (D-59)" — o `decisoes.md` não é público,
+     * e "D-59" na tela é ruído. O GDD continua citando: ele lê `Funcoes::de()`, que fica intacto.
+     */
+    public function test_a_nota_do_jogador_nao_cita_o_diario_de_decisoes(): void
+    {
+        foreach (array_keys(Funcoes::CATALOGO) as $tipo) {
+            $f = Funcoes::paraJogador($tipo);
+            $this->assertDoesNotMatchRegularExpression('/\bD-\d+/', (string) $f['nota'], $tipo);
+            $this->assertDoesNotMatchRegularExpression('/\(\s*\)|,\s*\)|\(\s*,/', (string) $f['nota'], "{$tipo}: sobra de parêntese");
+        }
+
+        $this->assertSame(
+            'Pode ser repetida em mais de um slot: duas Minas produzem o dobro.',
+            Funcoes::paraJogador('mina_local')['nota'],
+        );
+        $this->assertStringContainsString('(200 no nível 1, até 1.012 — §21.9)', Funcoes::paraJogador('tanque_de_combustivel')['nota']);
+        $this->assertStringContainsString('(D-59)', Funcoes::de('mina_local')['nota'], 'o GDD continua citando');
+
+        $catalogo = collect($this->actingAs($this->colono())->getJson('/buildings/catalogo')->json('buildings'));
+        $this->assertDoesNotMatchRegularExpression('/\bD-\d+/', json_encode($catalogo->pluck('funcao'), JSON_UNESCAPED_UNICODE));
+    }
+
+    /**
+     * Toda construção tem nome próprio na tela (D-266). A Indústria Siderúrgica entrou no D-82 e nunca
+     * entrou no mapa de nomes do cliente: a lista mostrava `industria_siderurgica`. O teste lê o
+     * arquivo do frontend — atravessa a fronteira de propósito, porque é ali que o nome falta.
+     */
+    public function test_toda_construcao_tem_nome_na_tela(): void
+    {
+        $cena = file_get_contents(base_path('../frontend/src/game/ColonyScene.ts'));
+
+        foreach (Building::MVP as $tipo) {
+            $this->assertMatchesRegularExpression("/^\s+{$tipo}: '/m", $cena, "{$tipo} sem nome no NOMES da ColonyScene");
+        }
     }
 }

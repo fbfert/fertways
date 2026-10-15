@@ -21,8 +21,9 @@ const PILARES = [
   },
   {
     titulo: 'Território conquistado, colônia protegida',
+    // D-266: dizia "inviolável — sempre", e desde a guerra entre federações (D-201) não é.
     texto:
-      'O conflito acontece nas zonas neutras do planeta. O slot principal da sua colônia é inviolável — sempre.',
+      'O conflito acontece nas zonas neutras do planeta. A sua colônia só vira alvo numa guerra declarada entre federações — e mesmo aí o que o Depósito protege nunca é levado.',
   },
   {
     titulo: 'Logística física, sem teleporte',

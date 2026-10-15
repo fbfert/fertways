@@ -466,8 +466,9 @@ function OQueFaz({ funcao, atual, proximo }: { funcao: Funcao; atual: Efeito | n
 
   return (
     <>
-      <p className="text-ink mt-3 text-sm leading-snug">{funcao.frase}</p>
-      <p className="text-ink-soft/60 mt-0.5 text-xs">GDD {funcao.fonte}</p>
+      {/* D-266: o resumo, quando existe, é o que a construção faz hoje — e aí a fonte do GDD não é dele. */}
+      <p className="text-ink mt-3 text-sm leading-snug">{funcao.resumo ?? funcao.frase}</p>
+      {!funcao.resumo && <p className="text-ink-soft/60 mt-0.5 text-xs">GDD {funcao.fonte}</p>}
 
       {producao && (
         <div className="mt-3">
@@ -831,7 +832,7 @@ export function SlotVazio({
                     <span className="text-ink-soft text-xs font-normal"> · você tem {b.quantas}</span>
                   )}
                 </div>
-                <div className="text-ink-soft/80 text-xs leading-snug">{b.funcao.frase}</div>
+                <div className="text-ink-soft/80 text-xs leading-snug">{b.funcao.resumo ?? b.funcao.frase}</div>
                 {/* A construção inerte é anunciada como inerte, aqui também — e não só depois de paga. */}
                 {b.funcao.efeito === 'nenhum' && (
                   <div className="text-rust/70 text-xs">efeito ainda não implementado</div>

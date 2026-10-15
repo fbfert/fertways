@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { api, ApiError, token } from './api/client'
-import type { Catalogo, Colonia, Fila, Spec } from './api/client'
+import type { Aviso, Catalogo, Colonia, Fila, Spec } from './api/client'
 import { ColonyCanvas } from './game/ColonyCanvas'
 import { Capital } from './ui/Capital'
 import { Endurance } from './ui/Endurance'
@@ -30,6 +30,13 @@ import { Detalhe, FilaDeObras, Populacao, SlotVazio, TaxasDeRecursos } from './u
 
 /** Sem websocket nesta fase: polling simples, como o plano define. */
 const INTERVALO_MS = 5000
+
+/**
+ * O que a faixa do CELULAR mostra sobre a colônia (D-266): o urgente e o próximo passo da tutoria.
+ * No celular a coluna de avisos inteira mora em "Mais" — e o novato que joga pelo telefone nunca via
+ * o primeiro passo. Constante fora do componente: um filtro novo a cada render refaria a busca.
+ */
+const AVISOS_DO_CELULAR = (a: Aviso) => a.severidade === 'urgente' || a.codigo === 'proximo_passo'
 
 /**
  * A colônia, e a navegação que sai dela (D-59, item 6).
@@ -67,12 +74,13 @@ export default function App() {
 
   const carregar = useCallback(async () => {
     try {
-      const [c, s, f, cat] = await Promise.all([
-        api.colonia(),
-        api.construcoes(),
-        api.fila(),
-        api.catalogo(),
-      ])
+      /*
+       * A colônia primeiro (D-266). As quatro iam em paralelo, e quem ainda não fundou recebia
+       * construções, fila e catálogo como 422 — três erros no console a cada 5 s, na tela de
+       * fundação inteira. Sem colônia, o resto nem é pedido.
+       */
+      const c = await api.colonia()
+      const [s, f, cat] = await Promise.all([api.construcoes(), api.fila(), api.catalogo()])
       setColonia(c)
       setSpecs(s)
       setFila(f)
@@ -120,9 +128,11 @@ export default function App() {
   useEffect(() => {
     if (!autenticado) return
     void carregar()
+    // Sem colônia não há o que atualizar: a fundação chama `carregar` quando termina (D-266).
+    if (semColonia) return
     const t = setInterval(() => void carregar(), INTERVALO_MS)
     return () => clearInterval(t)
-  }, [autenticado, carregar])
+  }, [autenticado, carregar, semColonia])
 
   // Faz o contador da fila andar de segundo em segundo, sem bater na API.
   const [, tique] = useState(0)
@@ -298,6 +308,12 @@ export default function App() {
 
         Medido no navegador, não estimado: ver as caixas que `e2e/foto.mjs` imprime.
       */}
+      {/* D-266: no celular, só o que exige ação e o próximo passo, logo abaixo do cabeçalho — e à
+          esquerda dos botões de zoom, que ficam no canto direito. */}
+      <div className="absolute top-20 right-14 left-3 z-10 md:hidden">
+        <Avisos filtro={AVISOS_DO_CELULAR} />
+      </div>
+
       <div className="absolute top-32 right-5 hidden w-64 space-y-4 md:block">
         {/* A2.V2 (D-211): a faixa de avisos, acima de tudo o mais na coluna — o que exige ação
             não pode estar abaixo do que é rotina. Ela SOME quando não há nada a dizer. */}

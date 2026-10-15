@@ -312,4 +312,38 @@ class MissoesTest extends TestCase
             ->where('categoria', 'semanal');
         $this->assertSame($semana1->first()['id'], $semanaAinda->first()['id']);
     }
+
+
+    // ------------------------------------ só o que a colônia consegue fazer (D-266)
+
+    /**
+     * ⚠️ Achado jogando como novato: a colônia recém-fundada recebeu "Suprimento militar — fabrique 2
+     * unidades no Quartel", sem Quartel. Uma diária impossível no primeiro dia ensina que as missões
+     * são ruído. O sorteio passa a deixar de fora o que a colônia ainda não consegue fazer.
+     */
+    public function test_a_colonia_nova_nao_recebe_diaria_que_nao_consegue_cumprir(): void
+    {
+        $c = $this->colono()->colony;
+
+        $sorteadas = [];
+        for ($dia = 0; $dia < 12; $dia++) {
+            MissionAssignment::where('colony_id', $c->id)->where('categoria', 'diaria')->delete();
+            app(\App\Domain\Missoes\Atribuir::class)->sortear($c, 'diaria', 3, now()->addDay());
+            $sorteadas = [...$sorteadas, ...MissionAssignment::where('colony_id', $c->id)->where('categoria', 'diaria')->pluck('acao')->all()];
+        }
+
+        foreach (['fabricar_unidade', 'combate_vencido', 'zona_ocupada', 'missao_drone'] as $impossivel) {
+            $this->assertNotContains($impossivel, $sorteadas, "{$impossivel} sem a estrutura para cumprir");
+        }
+    }
+
+    /** Com Quartel erguido, as militares voltam ao baralho. */
+    public function test_com_quartel_a_fabricacao_volta_ao_sorteio(): void
+    {
+        $c = $this->colono()->colony;
+        $c->buildings()->create(['type' => 'quartel', 'level' => 1, 'slot' => 20]);
+
+        $this->assertTrue(app(\App\Domain\Missoes\Atribuir::class)->alcancavel($c->fresh(), 'fabricar_unidade'));
+        $this->assertFalse(app(\App\Domain\Missoes\Atribuir::class)->alcancavel($c->fresh(), 'missao_drone'));
+    }
 }

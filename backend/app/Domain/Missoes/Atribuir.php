@@ -2,6 +2,8 @@
 
 namespace App\Domain\Missoes;
 
+use App\Domain\Drone\DroneSpecs;
+use App\Domain\Logistics\RequisitosDeOcupacao;
 use App\Models\Colony;
 use App\Models\Federation;
 use App\Models\GameEvent;
@@ -86,6 +88,25 @@ class Atribuir
             ->get();
     }
 
+    /**
+     * A colônia consegue fazer isto agora? (D-266)
+     *
+     * Só as ações que dependem de algo que a colônia pode não ter: o Quartel (fabricar e combater), o
+     * portão do território (ocupar) e um Drone (a missão dele). O resto — obra, despacho, Mercado,
+     * rádio — toda colônia faz desde o primeiro minuto.
+     */
+    public function alcancavel(Colony $colony, string $acao): bool
+    {
+        $temQuartel = fn () => $colony->buildings()->where('type', 'quartel')->where('level', '>=', 1)->exists();
+
+        return match ($acao) {
+            'fabricar_unidade', 'combate_vencido' => $temQuartel(),
+            'zona_ocupada' => (int) $colony->xp >= app(RequisitosDeOcupacao::class)->xpExigido(),
+            'missao_drone' => $colony->vehicles()->where('type', DroneSpecs::TIPO)->exists(),
+            default => true,
+        };
+    }
+
     /** Sorteia do pool, sem repetir template que já passou pela colônia nesta janela. */
     public function sortear(Colony $colony, string $categoria, int $quantas, CarbonInterface $expira): int
     {
@@ -96,11 +117,18 @@ class Atribuir
             ->where('created_at', '>=', $inicioDaJanela)
             ->pluck('template_id');
 
+        /*
+         * Só o que a colônia CONSEGUE cumprir hoje (D-266). Jogando como novato, a colônia recém-
+         * fundada recebeu "fabrique 2 unidades no Quartel" sem Quartel — uma diária impossível no
+         * primeiro dia ensina que missão é ruído. Filtra depois de embaralhar, e não antes: o baralho
+         * continua o mesmo, só a mão é que respeita a mesa.
+         */
         $sorteadas = MissionTemplate::where('categoria', $categoria)->where('ativa', true)
             ->whereNotIn('id', $jaVistas)
             ->inRandomOrder()
-            ->limit($quantas)
-            ->get();
+            ->get()
+            ->filter(fn (MissionTemplate $t) => $this->alcancavel($colony, $t->acao))
+            ->take($quantas);
 
         $agora = now();
 

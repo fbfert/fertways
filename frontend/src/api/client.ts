@@ -267,7 +267,10 @@ export type JogadorInfo = {
  * anunciar só a promessa faria o colono gastar 90 Ligas num prédio inerte.
  */
 export type Funcao = {
+  /** A citação do GDD, com a fonte. */
   frase: string
+  /** D-266: o que o jogador lê, quando a citação do GDD não descreve o que a construção faz hoje. */
+  resumo?: string
   fonte: string
   /** produz | converte | porta (abre uma tela) | nenhum */
   efeito: string

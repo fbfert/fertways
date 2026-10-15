@@ -37,7 +37,13 @@ export function colmeia(
   vista: Vista = VISTA_INICIAL,
 ) {
   const folga = 1.14
-  const base = Math.min(largura / 13.5, altura / 10.5)
+  /*
+   * O 13,5 reserva a coluna lateral do desktop (fila, taxas, população). No celular ela não existe —
+   * mora em "Mais" — e a colmeia ficava num terço da tela, com hexágonos tão pequenos que o nome
+   * quebrava no meio da palavra (D-266). Abaixo do `md` do Tailwind, a colmeia usa a largura inteira.
+   */
+  const SEM_COLUNA_LATERAL = 768
+  const base = Math.min(largura / (largura < SEM_COLUNA_LATERAL ? 10.5 : 13.5), altura / 10.5)
   const passoX = Math.sqrt(3) * base * folga
   const passoY = 1.5 * base * folga
 
@@ -98,6 +104,8 @@ const NOMES: Record<string, string> = {
   destilaria: 'Destilaria',
   tanque_de_combustivel: 'Tanque de Combustível',
   deposito_local: 'Depósito Local',
+  // D-266: faltava — a lista "O que erguer aqui?" mostrava o slug cru ao jogador.
+  industria_siderurgica: 'Indústria Siderúrgica',
 }
 
 export function rotulo(tipo: string): string {
@@ -481,7 +489,9 @@ export class ColonyScene extends Phaser.Scene {
         fontSize: `${Math.max(9, Math.round(r * 0.14))}px`,
         color: temArte ? '#1e1c17' : erguida ? '#fdf0e2' : '#372f27',
         align: 'center',
-        wordWrap: { width: r * 1.15, useAdvancedWrap: true },
+        // Quebra só em espaço (D-266): o "avançado" partia a palavra no meio — "Fazend/a" — quando
+        // o hexágono era pequeno. Palavra que não cabe passa um pouco da borda; partida, não se lê.
+        wordWrap: { width: r * 1.15, useAdvancedWrap: false },
       })
       .setOrigin(0.5, 0)
 

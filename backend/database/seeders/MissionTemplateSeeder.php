@@ -48,11 +48,11 @@ class MissionTemplateSeeder extends Seeder
             ['chave' => 'dia_frete', 'titulo' => 'Deixa com o governo', 'descricao' => 'Use o frete público do Mercado 1 vez.', 'acao' => 'frete_publico', 'meta' => 1, 'fert' => 0, 'xp' => 250, 'rec' => null],
             ['chave' => 'dia_manutencao', 'titulo' => 'Oficina aberta', 'descricao' => 'Faça a manutenção de um veículo.', 'acao' => 'manutencao', 'meta' => 1, 'fert' => 6.0, 'xp' => 0, 'rec' => null],
             // Mercado
-            ['chave' => 'dia_mercado_1', 'titulo' => 'Negócio fechado', 'descricao' => 'Feche 1 negócio no Mercado Central (acima de 500 F$).', 'acao' => 'mercado_executado', 'meta' => 1, 'fert' => 6.0, 'xp' => 0, 'rec' => null],
+            ['chave' => 'dia_mercado_1', 'titulo' => 'Negócio fechado', 'descricao' => 'Feche 1 negócio no Mercado Central, comprando ou vendendo.', 'acao' => 'mercado_executado', 'meta' => 1, 'fert' => 6.0, 'xp' => 0, 'rec' => null],
             ['chave' => 'dia_mercado_2', 'titulo' => 'Dia de pregão', 'descricao' => 'Feche 2 negócios no Mercado Central.', 'acao' => 'mercado_executado', 'meta' => 2, 'fert' => 0, 'xp' => 350, 'rec' => null],
             ['chave' => 'dia_ordem_1', 'titulo' => 'Na vitrine', 'descricao' => 'Coloque 1 ordem no Mercado Central.', 'acao' => 'ordem_colocada', 'meta' => 1, 'fert' => 0, 'xp' => 200, 'rec' => null],
             ['chave' => 'dia_ordem_2', 'titulo' => 'Banca cheia', 'descricao' => 'Coloque 2 ordens no Mercado Central.', 'acao' => 'ordem_colocada', 'meta' => 2, 'fert' => 6.0, 'xp' => 0, 'rec' => null],
-            ['chave' => 'dia_acordo', 'titulo' => 'Palavra cumprida', 'descricao' => 'Tenha 1 Acordo de Troca executado (acima de 500 F$).', 'acao' => 'acordo_executado', 'meta' => 1, 'fert' => 8.0, 'xp' => 0, 'rec' => null],
+            ['chave' => 'dia_acordo', 'titulo' => 'Palavra cumprida', 'descricao' => 'Tenha 1 Acordo de Troca executado, de pelo menos '.number_format(\App\Domain\Trade\AcordoSpecs::PISO_REPUTACAO_MICRO / 1_000_000, 0, ',', '.').' F$.', 'acao' => 'acordo_executado', 'meta' => 1, 'fert' => 8.0, 'xp' => 0, 'rec' => null],
             // Guerra e defesa
             ['chave' => 'dia_unidade_1', 'titulo' => 'Reforços na linha', 'descricao' => 'Fabrique 1 unidade no Quartel.', 'acao' => 'fabricar_unidade', 'meta' => 1, 'fert' => 0, 'xp' => 250, 'rec' => null],
             ['chave' => 'dia_unidade_3', 'titulo' => 'Linha de produção', 'descricao' => 'Fabrique 3 unidades no Quartel.', 'acao' => 'fabricar_unidade', 'meta' => 3, 'fert' => 6.0, 'xp' => 0, 'rec' => null],
@@ -230,7 +230,7 @@ class MissionTemplateSeeder extends Seeder
          */
         return [
             ['chave' => 'tut_primeira_obra', 'titulo' => 'A primeira obra',
-                'descricao' => 'Conclua 1 nível de construção — enfileire um upgrade e espere o tick entregar.',
+                'descricao' => 'Construa algo: toque num hexágono vazio, ou suba o nível de uma construção, e espere a obra terminar.',
                 'acao' => 'obra_concluida', 'meta' => 1, 'fert' => 6.0, 'xp' => 100, 'rec' => null,
                 'obrigatoria' => true],
             ['chave' => 'tut_primeiro_despacho', 'titulo' => 'Pé na estrada',
@@ -238,7 +238,7 @@ class MissionTemplateSeeder extends Seeder
                 'acao' => 'despacho', 'meta' => 1, 'fert' => 6.0, 'xp' => 100, 'rec' => null,
                 'obrigatoria' => true, 'requer' => 'tut_primeira_obra'],
             ['chave' => 'tut_primeiro_lote', 'titulo' => 'O primeiro lote',
-                'descricao' => 'Compre no Mercado Central — os seus 50 Fert$ iniciais existem para isto (§03).',
+                'descricao' => 'Compre alguma coisa no Mercado Central, na Capital — o Fert$ com que você chegou existe para isto.',
                 'acao' => 'mercado_executado', 'meta' => 1, 'fert' => 6.0, 'xp' => 100,
                 'rec' => ['ligas_metalicas' => 200], 'requer' => 'tut_primeiro_despacho'],
             ['chave' => 'tut_primeira_oferta', 'titulo' => 'Do outro lado do balcão',

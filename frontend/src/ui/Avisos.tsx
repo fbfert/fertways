@@ -42,17 +42,25 @@ const CORES: Record<Aviso['severidade'], string> = {
  * carrega o aviso quando a cor falha; o glifo era um terceiro canal, não o segundo.
  */
 
-export function Avisos({ aoAbrirResumo }: { aoAbrirResumo?: () => void }) {
+export function Avisos({
+  aoAbrirResumo,
+  filtro,
+}: {
+  aoAbrirResumo?: () => void
+  /** D-266: no celular, a faixa sobre a colônia mostra só o que exige ação e o próximo passo. */
+  filtro?: (a: Aviso) => boolean
+}) {
   const [avisos, setAvisos] = useState<Aviso[]>([])
 
   const carregar = useCallback(async () => {
     try {
-      setAvisos((await api.avisos()).avisos)
+      const todos = (await api.avisos()).avisos
+      setAvisos(filtro ? todos.filter(filtro) : todos)
     } catch {
       // Uma falha aqui não pode derrubar a colônia: a faixa some, o jogo continua.
       setAvisos([])
     }
-  }, [])
+  }, [filtro])
 
   useEffect(() => {
     void carregar()

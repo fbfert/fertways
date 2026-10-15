@@ -22,14 +22,16 @@ const ATOS = [
 
 const REGRAS = [
   {
-    titulo: 'A colônia principal é inviolável',
+    // D-266: dizia "inviolável. Sempre." — e desde a guerra entre federações (D-201, D-203) não é.
+    titulo: 'A colônia principal não se destrói',
     texto:
-      'Sempre. O slot onde você fundou nunca é alvo — nem no primeiro dia, nem no centésimo. O conflito de Fertways é sobre território disputável, não sobre destruir quem já está em pé.',
+      'Fora de uma guerra declarada entre federações, o slot onde você fundou nunca é alvo. Dentro dela, um cerco pode levar parte do que excede o seu Depósito — nunca o que ele protege, e nunca a colônia. O conflito de Fertways é sobre território disputável, não sobre destruir quem já está em pé.',
   },
   {
-    titulo: 'Oito dias de trégua, sempre',
+    // D-266: dizia "toda colônia nova nasce protegida"; a trégua de 8 dias é da zona recém-ocupada.
+    titulo: 'Oito dias de trégua na zona nova',
     texto:
-      'Toda colônia nova nasce protegida. Ninguém aprende as regras do jogo sob ataque.',
+      'Toda zona neutra recém-ocupada nasce protegida por oito dias. Ninguém perde o primeiro território antes de aprender a defendê-lo.',
   },
   {
     titulo: 'A janela de vulnerabilidade é sua escolha',

@@ -291,4 +291,39 @@ class AvisosTest extends TestCase
 
         $this->assertNotContains('evento_terminando', $this->codigos($user->colony));
     }
+
+    // ── o próximo passo do novato (D-266) ──────────────────────────────────
+
+    /**
+     * ⚠️ Achado jogando como novato: a colônia recém-fundada mostrava "Nada em construção" e mais
+     * nada. A tutoria (A2.1) existe — cinco passos encadeados —, mas só aparece a quem abre Missões.
+     * O passo atual vai para a faixa, que é o que todo mundo vê.
+     */
+    public function test_o_novato_ve_o_proximo_passo_da_tutoria(): void
+    {
+        $this->seed(\Database\Seeders\MissionTemplateSeeder::class);
+        $user = $this->colono();
+
+        $avisos = app(Avisos::class)->paraColonia(Colony::with(['buildings', 'resources'])->find($user->colony->id));
+        $passo = collect($avisos)->firstWhere('codigo', 'proximo_passo');
+
+        $this->assertNotNull($passo);
+        $this->assertStringContainsString('A primeira obra', $passo['titulo']);
+        // O próprio passo já manda construir: o "Nada em construção" genérico diria o mesmo de novo.
+        $this->assertNotContains('fila_vazia', array_column($avisos, 'codigo'));
+    }
+
+    /** Tutoria concluída, o aviso some — ele é para os primeiros dias, não papel de parede. */
+    public function test_sem_tutoria_ativa_nao_ha_proximo_passo(): void
+    {
+        $this->seed(\Database\Seeders\MissionTemplateSeeder::class);
+        $user = $this->colono();
+        DB::table('mission_assignments')->where('colony_id', $user->colony->id)
+            ->where('categoria', 'tutoria')->update(['status' => 'concluida']);
+
+        $codigos = $this->codigos($user->colony);
+
+        $this->assertNotContains('proximo_passo', $codigos);
+        $this->assertContains('fila_vazia', $codigos);
+    }
 }

@@ -73,6 +73,8 @@ class Funcoes
         // ---------------------------------------------------------------- progressão
         'oficina' => [
             'frase' => 'Produção de ligas metálicas.',
+            // D-266: o que o jogador lê. A `frase` acima é a citação do GDD, e fica.
+            'resumo' => 'Monta Componentes Eletrônicos a partir dos minerais eletrônicos — você escolhe a receita no painel.',
             'fonte' => '§17.2',
             'efeito' => 'converte',
             // A meia-verdade mais antiga do projeto (D-19) — resolvida no D-83, mas não do jeito
@@ -86,6 +88,8 @@ class Funcoes
         ],
         'refinaria_quimica' => [
             'frase' => 'Produz Compostos Químicos a partir de minerais e água.',
+            // D-266: o que o jogador lê. A `frase` acima é a citação do GDD, e fica.
+            'resumo' => 'Converte Metal Bruto, Água, Biomassa e Energia em Compostos Químicos.',
             'fonte' => '§17.2',
             'efeito' => 'converte',
             'nota' => 'Converte Metal Bruto, Água, Biomassa e Energia em Compostos Químicos (D-83) '
@@ -103,6 +107,8 @@ class Funcoes
         ],
         'industria_siderurgica' => [
             'frase' => 'Não está no GDD — construção nova, pedida pelo usuário (D-82).',
+            // D-266: o que o jogador lê. A `frase` acima é a citação do GDD, e fica.
+            'resumo' => 'Processa Metal Bruto em Ligas Metálicas e em cinco minerais eletrônicos.',
             'fonte' => '—',
             'efeito' => 'converte',
             'nota' => 'Processa Metal Bruto em Ligas Metálicas e nos cinco minerais eletrônicos que, '
@@ -121,6 +127,8 @@ class Funcoes
         ],
         'central_de_transportes' => [
             'frase' => 'Produção e gestão de Caminhões de Carga e Naves de Transporte Planetária.',
+            // D-266: o que o jogador lê. A `frase` acima é a citação do GDD, e fica.
+            'resumo' => 'Mostra a sua frota, e o nível dela limita quantos Caminhões de Carga você pode ter.',
             'fonte' => '§17.2',
             'efeito' => 'porta',
             // Corrigido em 2026-07-19 (D-122, achado numa revisão de construções): esta nota dizia
@@ -165,6 +173,8 @@ class Funcoes
         ],
         'torre_de_defesa' => [
             'frase' => 'Defesa básica do slot.',
+            // D-266: o que o jogador lê. A `frase` acima é a citação do GDD, e fica.
+            'resumo' => 'Corta parte do que um cerco de colônia consegue saquear.',
             'fonte' => '§17.2',
             // Corrigido no D-252: dizia que não havia o que defender (§01, slot inviolável). O D-203
             // revogou isso na prática — o cerco de colônia saqueia o excedente, e a Torre corta.
@@ -175,6 +185,8 @@ class Funcoes
         'quartel' => [
             'frase' => 'Recruta e treina Robôs Mineradores, Infiltradores e Predadores. Necessário '
                 .'para ocupar zonas neutras ou atacar.',
+            // D-266: o que o jogador lê. A `frase` acima é a citação do GDD, e fica.
+            'resumo' => 'Fabrica Sentinelas, Robôs Mineradores, Infiltradores e Predadores. Necessário para ocupar zonas neutras ou atacar.',
             'fonte' => '§17.2',
             'efeito' => 'converte',
             // Corrigido em 2026-07-19 (D-122): dizia que "nenhuma unidade é recrutada aqui ainda" —
@@ -194,6 +206,8 @@ class Funcoes
         'tanque_de_combustivel' => [
             'frase' => 'Armazena Gelo de Metano refinado. Disponível no slot principal e nas zonas '
                 .'neutras.',
+            // D-266: o que o jogador lê. A `frase` acima é a citação do GDD, e fica.
+            'resumo' => 'Guarda o Biocombustível. Sem ele, a Destilaria não converte.',
             'fonte' => '§21.9',
             // Corrigido no D-252: dizia "guardar mais não faz diferença" — falso desde o D-131.
             'efeito' => 'armazena',
@@ -204,6 +218,8 @@ class Funcoes
         // ---------------------------------------------------------------- fora do GDD (D-105)
         'deposito_local' => [
             'frase' => 'Não está no GDD — nasce erguido em todo colono, no centro da colmeia, slot 10 (pedido do usuário; D-142).',
+            // D-266: o que o jogador lê. A `frase` acima é a citação do GDD, e fica.
+            'resumo' => 'Mostra tudo o que a colônia tem guardado.',
             'fonte' => '—',
             'efeito' => 'mostra',
             'nota' => 'É por aqui que se vê o que a colônia tem guardado: os recursos deixaram de '
@@ -215,7 +231,49 @@ class Funcoes
         ],
     ];
 
-    /** @return array{frase: string, fonte: string, efeito: string, nota: ?string} */
+    /**
+     * O mesmo catálogo, como o jogador o lê (D-266): sem as referências ao diário de decisões.
+     *
+     * As notas são escritas por quem constrói o jogo e citam o `decisoes.md` ("(D-59)", "desde o
+     * D-60") — que não é público. O GDD as quer, e por isso `de()` fica intacto e o gerador lê dele;
+     * a API serve isto. Só os D-nn saem: os § do GDD ficam, porque o GDD é publicado.
+     *
+     * @return array{frase: string, resumo?: string, fonte: string, efeito: string, nota: ?string}
+     */
+    public static function paraJogador(string $tipo): array
+    {
+        $f = self::de($tipo);
+
+        foreach (['frase', 'resumo', 'nota'] as $campo) {
+            if (isset($f[$campo]) && is_string($f[$campo])) {
+                $f[$campo] = self::semDecisoes($f[$campo]);
+            }
+        }
+
+        return $f;
+    }
+
+    private static function semDecisoes(string $texto): string
+    {
+        $limpo = preg_replace(
+            [
+                '/,\s*desde o D-\d+/u',          // "(§27.1), desde o D-66."  → "(§27.1)."
+                '/desde o D-\d+,\s*/u',          // "desde o D-83, só a…"     → "só a…"
+                '/,\s*D-\d+(?=\s*\))/u',         // "(§21.9, D-131)"           → "(§21.9)"
+                '/\s*\(A2\.[\d.]+\)/u',          // " (A2.10)": a fase interna, idem
+                '/\s*\(D-\d+(?:,\s*D-\d+)*\)/u', // " (D-59)"                  → ""
+                '/\s*\bD-\d+\b/u',               // o que sobrar
+                '/\s+([.,:;])/u',                // espaço antes de pontuação
+                '/\s{2,}/u',
+            ],
+            ['', '', '', '', '', '', '$1', ' '],
+            $texto,
+        );
+
+        return trim((string) $limpo);
+    }
+
+    /** @return array{frase: string, resumo?: string, fonte: string, efeito: string, nota: ?string} */
     public static function de(string $tipo): array
     {
         return self::CATALOGO[$tipo] ?? [

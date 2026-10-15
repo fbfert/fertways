@@ -310,7 +310,35 @@ class Avisos
     {
         $avisos = [];
 
-        if (DB::table('build_queue')->where('colony_id', $colonia->id)->count() === 0) {
+        /*
+         * O próximo passo do novato (D-266). Jogando como novato, a colônia recém-fundada mostrava só
+         * "Nada em construção": a tutoria do A2.1 existe — cinco passos encadeados —, mas morava na
+         * aba Missões, que quem acabou de chegar não sabe que deve abrir. Aqui ela fica à vista.
+         *
+         * É raro por construção, como todo aviso tem de ser: existe só enquanto houver passo de
+         * tutoria ativo, e some quando o último é cumprido.
+         */
+        $passo = DB::table('mission_assignments as a')
+            ->join('mission_templates as t', 't.id', '=', 'a.template_id')
+            ->where('a.colony_id', $colonia->id)
+            ->where('a.categoria', 'tutoria')
+            ->where('a.status', 'ativa')
+            ->orderBy('a.id')
+            ->first(['t.titulo', 't.descricao', 'a.acao']);
+
+        if ($passo) {
+            $avisos[] = [
+                'codigo' => 'proximo_passo',
+                'severidade' => self::OPORTUNIDADE,
+                'titulo' => "Próximo passo: {$passo->titulo}",
+                'detalhe' => rtrim($passo->descricao, '.').'. A tutoria inteira está em Missões.',
+            ];
+        }
+
+        // Se o passo da tutoria já é "construa", o aviso genérico diria a mesma coisa duas vezes.
+        $passoJaMandaConstruir = $passo && $passo->acao === 'obra_concluida';
+
+        if (! $passoJaMandaConstruir && DB::table('build_queue')->where('colony_id', $colonia->id)->count() === 0) {
             $avisos[] = [
                 'codigo' => 'fila_vazia',
                 'severidade' => self::OPORTUNIDADE,
