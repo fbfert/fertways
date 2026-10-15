@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>FERTWAYS — GDD v40 (consolidado)</title>
+<title>FERTWAYS — GDD v41 (consolidado)</title>
 <style>
   :root{--rust:#b4450b;--rust-bright:#cd5512;--ember:#eaae65;--sand:#f8e7d6;--sand-light:#fdf0e2;
         --ink:#1e1c17;--ink-soft:#4a4038;--ok:#2f5e1e;--prom:#8a6a00;--lac:#8a2f08;--arb:#1e4a6e;}
@@ -49,21 +49,22 @@
 
 <header class="capa">
   <div class="env">
-    <small>Game Design Document · versão 40 · consolidada</small>
+    <small>Game Design Document · versão 41 · consolidada</small>
     <h1>FERTWAYS</h1>
     <p>
       A base de produção do jogo. Este documento <b>substitui o v35</b> e, ao contrário dele,
-      <b>não se contradiz</b>. É a quarta regeneração do v36 (D-62) — as anteriores chegaram ao
-      D-101, ao D-140 e ao D-159; esta chega ao <b>D-229</b> e cobre a <b>Alpha 2 inteira</b>:
-      <b>População</b>, <b>Pesquisa</b>, <b>Eventos de mundo</b> e a <b>guerra federativa</b> são
-      sistemas que não existiam na versão anterior.
+      <b>não se contradiz</b>. É a quinta regeneração do v36 (D-62) — as anteriores chegaram ao
+      D-101, ao D-140, ao D-159 e ao D-229; esta chega ao <b>D-253</b>: o <b>motor de eventos
+      completo</b>, a <b>escavação da Endurance</b>, o <b>Observatório</b> e a habitação que deixou
+      de copiar a curva de custo.
     </p>
     <p style="font-size:.9rem;color:rgba(253,240,226,.72)">
-      E traz uma seção que nenhuma versão anterior teve: <b>§16, o que o campo mediu</b> — o que 24
-      dias de produção com 29 colônias ensinaram, inclusive onde a medida contradisse a regra escrita.
+      E <b>conserta o v40</b>, que anunciava seções que nunca escreveu: o teto de estoque, o upgrade
+      de veículos, a guerra entre federações e a curva do Marco recalibrada estão, enfim, descritos
+      — e a §2.5 deixou de publicar uma curva aposentada.
     </p>
     <p style="font-size:.85rem;color:rgba(253,240,226,.55);margin-top:20px">
-      Gerado em 06/08/2026 · As tabelas numéricas são lidas do mesmo banco de onde o jogo lê.
+      Gerado em 15/10/2026 · As tabelas numéricas são lidas do mesmo banco de onde o jogo lê.
     </p>
   </div>
 </header>
@@ -81,7 +82,7 @@
 </p>
 
 <p>
-  Das <b>159 decisões</b> já mescladas que este projeto registrou até hoje, boa parte existe
+  Das decisões que este projeto registrou até o <b>D-253</b>, boa parte existe
   porque o GDD se contradiz ou é omisso — e uma parte crescente (Leilões, o Ranking de Guerras, a
   Federação, a Loja de Peças da Endurance) não tem seção nenhuma no GDD: são sistemas inteiros que
   o documento só cita de passagem, e que teve de ser desenhados do zero. Este documento resolve as
@@ -149,6 +150,14 @@
   D-156), o ícone da zona neutra livre na legenda (D-158) e a Lista Mestra de Assets de Estruturas
   (D-143, que é o vínculo entre um arquivo de imagem e uma chave do jogo — arte, não mecânica).
   <b>Nenhuma delas muda uma regra</b>, e o documento não descreve telas.
+  <br><br>
+  <b>No v41, pelo mesmo critério</b>: a faixa de eventos que tomava 45% do telefone (D-236), o
+  presente aparecendo no "Desde sua última visita" (D-235 — a regra que ele carrega está na §15.3),
+  a aba de eventos que caía com 500 (D-233), a fábrica do Quartel mostrando o preço (D-240 — a
+  regra de fonte única está na §8.3), a Federação no mapa (D-242 — a parte de privacidade está na
+  §9), a ordem de leitura da loja da Endurance (D-246) e o painel do Marco (D-247). Os bots
+  rodando contra a produção (D-238) não são regra de jogo — são regra de <i>medida</i>, e por isso
+  estão na §16.
 </div>
 
 <nav class="indice">
@@ -165,10 +174,10 @@
     <li><a href="#s9">A Federação</a></li>
     <li><a href="#s10">A Endurance</a></li>
     <li><a href="#s11">Operação e administração</a></li>
-    <li><a href="#s13">População <span class="d">novo no v40</span></a></li>
-    <li><a href="#s14">Pesquisa <span class="d">novo no v40</span></a></li>
-    <li><a href="#s15">Eventos de mundo <span class="d">novo no v40</span></a></li>
-    <li><a href="#s16">O que o campo mediu <span class="d">novo no v40</span></a></li>
+    <li><a href="#s13">População</a></li>
+    <li><a href="#s14">Pesquisa e o Observatório</a></li>
+    <li><a href="#s15">Eventos de mundo <span class="d">reescrita no v41</span></a></li>
+    <li><a href="#s16">O que o campo mediu</a></li>
     <li><a href="#s12">Tudo o que ainda falta decidir</a></li>
   </ol>
 </nav>
@@ -368,9 +377,10 @@
   uma sub-aba de admin para configurar "o que poderá ser saqueado" por nível — perguntei se era uma
   construção nova; não é. O nível máximo subiu de 5 para <b>10</b>, e uma tabela nova
   (<code>silo_capacidades</code>) guarda quanto de CADA recurso cabe protegido, por nível —
-  editável pelo painel, sem deploy. <b>Só a regra e o dado existem nesta entrega</b>: não há guerra
-  de colônia no jogo hoje (o saque do §8.1 mira só Zona Neutra), então "protegido/exposto" não tem
-  nenhuma tela nem consequência ainda — fica pronto para quando existir.
+  editável pelo painel, sem deploy. Quando nasceu, "protegido/exposto" não tinha consequência — não
+  havia guerra de colônia. <b>Desde a A2.10 tem</b>: é o excedente acima desta tabela que o cerco de
+  colônia saqueia (§8.13), e a curva passou a crescer por nível (D-199). Não confundir com o teto de
+  estoque (§3.5), que é outra pergunta sobre o mesmo prédio.
 </div>
 
 <table>
@@ -388,7 +398,7 @@
   </table>
 
 <p style="margin-top:-6px">
-  <span class="sel sel-arb">Arbitrado · 10.000 em todos os 26 recursos, em todos os 10 níveis, é só o valor de partida</span>  — o operador ajusta célula a célula pelo painel (Gestão de Construções → Silo).
+  <span class="sel sel-arb">Arbitrado · base e crescimento por nível — decisão 16 da guerra federativa, D-199</span>  — o operador ajusta célula a célula pelo painel (Gestão de Construções → Silo).
 </p>
 
 <h3>2.3 Repetíveis e únicas</h3>
@@ -432,34 +442,207 @@
 
 <p>O v35 <b>não fala em demolição</b>, nem na palavra nem no conceito. <span class="sel sel-arb">Arbitrado · tudo acima</span></p>
 
-<h3>2.5 O Marco <span class="d">D-75, §03/§05</span></h3>
+<h3>2.5 O Marco <span class="d">D-75, D-223, D-232, D-241, D-247</span></h3>
 
 <p>
-  O v35 nomeia os oito marcos e nunca diz como se sobe. A fórmula: <b>XP acumulado = 50 × N²</b>
-  — curva quadrática, porque as curvas publicadas do GDD (1,5×/1,65×) são para 5 níveis e
-  explodem muito antes do marco 100.
+  O v35 nomeia os oito marcos e nunca diz como se sobe. A fórmula:
+  <b>XP acumulado = 15 × N²</b> — curva quadrática, porque as curvas publicadas do
+  GDD (1,5×/1,65×) são para 5 níveis e explodem muito antes do marco 100. Todo colono nasce no
+  marco 1; o teto é o 100. <span class="sel sel-arb">Arbitrado · D-75, a forma; D-223, a base</span></p>
+
+<table>
+  <tr><th class="num">Marco</th><th>Título</th><th class="num">XP acumulado</th><th class="num">No D-75 (base 50)</th></tr>
+    <tr>
+    <td class="num">1</td>
+    <td>Sobrevivente</td>
+    <td class="num"><b>15</b></td>
+    <td class="num">50</td>
+  </tr>
+    <tr>
+    <td class="num">5</td>
+    <td>Colono</td>
+    <td class="num"><b>375</b></td>
+    <td class="num">1.250</td>
+  </tr>
+    <tr>
+    <td class="num">10</td>
+    <td>Pioneiro</td>
+    <td class="num"><b>1.500</b></td>
+    <td class="num">5.000</td>
+  </tr>
+    <tr>
+    <td class="num">20</td>
+    <td>Desbravador</td>
+    <td class="num"><b>6.000</b></td>
+    <td class="num">20.000</td>
+  </tr>
+    <tr>
+    <td class="num">35</td>
+    <td>Construtor</td>
+    <td class="num"><b>18.375</b></td>
+    <td class="num">61.250</td>
+  </tr>
+    <tr>
+    <td class="num">50</td>
+    <td>Arquiteto</td>
+    <td class="num"><b>37.500</b></td>
+    <td class="num">125.000</td>
+  </tr>
+    <tr>
+    <td class="num">75</td>
+    <td>Guardião</td>
+    <td class="num"><b>84.375</b></td>
+    <td class="num">281.250</td>
+  </tr>
+    <tr>
+    <td class="num">100</td>
+    <td>Lenda de Fertways</td>
+    <td class="num"><b>150.000</b></td>
+    <td class="num">500.000</td>
+  </tr>
+  </table>
+
+<div class="nota grave">
+  <b>A base caiu de 50 para 15, e a âncora é o campo, não o gosto</b>
+  <span class="d">D-223</span>. O 50 foi escolhido no dia em que o Marco nasceu, sem medida nenhuma.
+  Vinte e quatro dias depois, o XP semanal do mundo tinha caído 98,5% — <b>96% dele vinha de
+  <code>obra_concluida</code></b>, fonte de largada que seca quando a colônia se ergue — e o marco 20,
+  que o §05 associa a território, pedia <b>3× o total de vida do melhor jogador</b>. Não era distante:
+  era <b>assintótico</b>. Com a base nova, o jogador mais avançado caiu exatamente na faixa do
+  Desbravador, que é o que o §05 descreve. A base é <b>constante de código</b>, não parâmetro de
+  painel: mudá-la reescala o marco de todo mundo de uma vez, e isso é arbitragem, não balanceamento.
+  </div>
+
+<h4>De onde vem XP</h4>
+
+<p>
+  Tudo em <code>xp_entries</code>, append-only, pela única porta (<code>ConcederXp</code>). Os valores
+  são do <b>operador</b> (painel → Operação → Marco, <code>milestone_settings</code>), sem deploy, e
+  valem para os atos <b>novos</b> — o ledger de XP não é reescrito. <b>Zero desliga a fonte.</b> A
+  tabela abaixo é a mesma lista que o jogador vê (ver a nota do D-247, abaixo): fonte zerada não aparece.
 </p>
 
 <table>
-  <tr><th>Marco</th><th>Título</th><th class="num">XP</th></tr>
-  <tr><td>1</td><td>Sobrevivente</td><td class="num">50</td></tr>
-  <tr><td>5</td><td>Colono</td><td class="num">1.250</td></tr>
-  <tr><td>10</td><td>Pioneiro</td><td class="num">5.000</td></tr>
-  <tr><td>20</td><td>Desbravador</td><td class="num">20.000</td></tr>
-  <tr><td>35</td><td>Construtor</td><td class="num">61.250</td></tr>
-  <tr><td>50</td><td>Arquiteto</td><td class="num">125.000</td></tr>
-  <tr><td>75</td><td>Guardião</td><td class="num">281.250</td></tr>
-  <tr><td>100</td><td>Lenda de Fertways</td><td class="num">500.000</td></tr>
-</table>
+  <tr><th>Ato</th><th class="num">XP</th><th>Observação</th></tr>
+    <tr>
+    <td>Concluir um nível de construção</td>
+    <td class="num">100</td>
+    <td></td>
+  </tr>
+    <tr>
+    <td>Cumprir uma missão</td>
+    <td class="num">—</td>
+    <td>cada missão paga o que o catálogo dela diz</td>
+  </tr>
+    <tr>
+    <td>Negociar no Mercado Central</td>
+    <td class="num">50</td>
+    <td>até 3 vezes por dia</td>
+  </tr>
+    <tr>
+    <td>Cumprir um Acordo de Troca</td>
+    <td class="num">150</td>
+    <td></td>
+  </tr>
+    <tr>
+    <td>Ocupar uma zona neutra</td>
+    <td class="num">500</td>
+    <td></td>
+  </tr>
+    <tr>
+    <td>Vencer um combate</td>
+    <td class="num">400</td>
+    <td></td>
+  </tr>
+  </table>
+
+<ul>
+  <li><b>Obra concluída</b> paga por nível; a fundação (as cinco essenciais no nível 1) vale cinco
+      destes.</li>
+  <li><b>Acordo de Troca</b> paga os dois lados, e <b>só acima do piso de reputação</b> do D-43
+      (5 Fert$): o XP herda o anti-farm da
+      reputação, porque as duas moedas premiam o mesmo ato. Acordo quebrado não rende.</li>
+  <li><b>Mercado Central</b> paga os dois lados de cada execução — e o leilão fechado conta como mais
+      um negócio de Mercado (§6.6). O Governo, que não é colônia, não pontua.</li>
+  <li><b>Missão</b> não tem valor único: cada uma paga o que o seu catálogo diz <span class="d">D-78</span>.</li>
+</ul>
+
+<div class="nota grave">
+  <b>O XP do Mercado trocou o piso de valor por um teto por dia</b> <span class="d">D-241</span>.
+  Até aqui o Mercado só pagava XP acima do mesmo piso de
+  5 Fert$ da reputação. Medido nas execuções
+  da produção, <b>100,0% ficavam abaixo dele</b> — a execução média valia 0,05 Fert$, e "comerciar
+  rende XP" disparou três vezes em 1.507 ordens. E o piso nunca deteve a fraude que o justificava:
+  num mercado <b>o preço é das partes</b>, e dois cúmplices passam de qualquer piso anunciando uma
+  unidade cara. Agora toda execução paga, até
+  <b>3 vez(es) por dia</b> por colônia
+  (<code>milestone_settings.xp_mercado_teto_diario</code>), contadas no <b>dia de missão</b>
+  (07h → 07h, §2.6) — uma régua de "hoje" só. O padrão é o número das missões diárias.
+  <br><br>
+  ⚠️ <b>Ali, zero significa o contrário</b> das outras linhas: desliga o <b>teto</b> (XP sem limite),
+  não a fonte — quem desliga a fonte é zerar o XP por execução. ⚠️ <b>A reputação continua com o piso
+  de 5 Fert$</b>: lá ele mede confiança entre duas contas, não o ritmo de um jogador. Não mexa num pelo
+  outro. ⚠️ <code>fertways:marco --aplicar</code>, o crédito retroativo (idempotente), <b>ignora o
+  teto</b>: conta vendas do histórico inteiro, não de um dia.
+</div>
+
+<h4>O que o Marco abre</h4>
+
+<table>
+  <tr><th class="num">Marco</th><th class="num">XP</th><th>O que abre</th><th>Quem cobra</th></tr>
+    <tr>
+    <td class="num">5</td>
+    <td class="num">375</td>
+    <td>8 peças da Loja da Endurance (§10.2)</td>
+    <td><code>endurance_items.marco_minimo</code>, por peça</td>
+  </tr>
+    <tr>
+    <td class="num">10</td>
+    <td class="num">1.500</td>
+    <td>Fabricar Drone nível 2 ou superior</td>
+    <td><code>ExigirMarco::GATES</code>, fixo</td>
+  </tr>
+    <tr>
+    <td class="num">10</td>
+    <td class="num">1.500</td>
+    <td>3 peças da Loja da Endurance (§10.2)</td>
+    <td><code>endurance_items.marco_minimo</code>, por peça</td>
+  </tr>
+    <tr>
+    <td class="num">20</td>
+    <td class="num">6.000</td>
+    <td>Ocupar zona neutra (Desbravador)</td>
+    <td><code>RequisitosDeOcupacao::xpExigido()</code>, dobrável por evento <span class="d">D-232</span></td>
+  </tr>
+  </table>
 
 <p>
-  Ganha XP: obra concluída (por nível), zona ocupada, combate vencido, Acordo executado, ordem
-  executada no Mercado Central — tudo em <code>xp_entries</code>, append-only, valores do
-  operador (painel Operação). <b>Dois portões vivos</b>: marco 10 libera Drone nível 2+; marco
-  20 libera ocupar zona neutra. <b>O Mercado Central não tem portão</b> — contradição consciente
-  com o §05, para que o §03 ("compra o primeiro lote de Ligas com os 50 F$") continue verdadeiro.
-  Posse anterior ao gate é sempre preservada; <code>fertways:marco --aplicar</code> credita XP
-  retroativo, idempotente.
+  <b>Os "dois portões vivos" do v39 continuam dois no §05, mas um deles mudou de casa</b>, e há um
+  terceiro tipo, que não é fixo: <b>o fixo</b> mora em <code>ExigirMarco::GATES</code>
+  (1 hoje, ao lado do código que o cobra); <b>o do território</b>, no
+  <code>RequisitosDeOcupacao</code> desde o D-232; e <b>o da Endurance</b> é por peça — cada uma
+  traz o seu <code>marco_minimo</code>, que o operador escolhe ao criá-la (a tabela acima lista só as
+  que pedem mais que o marco 1). <b>O Mercado Central não tem portão</b> — contradição consciente com o
+  §05, que o põe no marco 5, para que o §03 ("compra o primeiro lote de Ligas com os 50 F$") continue
+  verdadeiro. <b>Posse anterior ao portão é sempre preservada</b>: ele barra a aquisição nova, nunca o
+  que o colono já tem.
+</p>
+
+<div class="nota">
+  <b>O portão do território saiu do <code>ExigirMarco</code>, e a régua dele desce sem dar XP a
+  ninguém</b> <span class="d">D-232</span>. Quem calcula é o <code>RequisitosDeOcupacao</code> — o
+  mesmo objeto que o painel do mapa lê —, que multiplica o XP do marco 20  pelo modificador pontual <code>ocupacao_marco</code> de um evento de mundo (§15). A Cesta de
+  Presente usou −9.500 bps: o portão cobrou 5% do normal enquanto durou. ⚠️ <b>A régua abaixa; o XP de
+  ninguém sobe</b> — passado o evento, cada colônia tem exatamente o XP e o título que tinha. E o
+  modificador vale <b>só para ocupar</b>: o Drone nível 2 continua no marco 10. Por isso a conferência
+  compara XP com XP, e não marco com marco — uma régua reduzida não é o piso de marco nenhum.
+</div>
+
+<p>
+  <b>O chip do Marco é a porta</b> <span class="d">D-247</span>: no cabeçalho, ele abre um painel com
+  o que ainda está fechado para aquela colônia (lido de <code>ExigirMarco::GATES</code>, do
+  <code>RequisitosDeOcupacao</code> e do catálogo da Endurance) e de onde vem XP (lido de
+  <code>milestone_settings</code>, com o teto diário do Mercado na frase) — nenhuma linha escrita à mão.
 </p>
 
 <h3>2.6 As Missões <span class="d">D-78, §06</span></h3>
@@ -498,8 +681,21 @@
   colônia, é o MESMO placar espelhado entre todas as irmãs do grupo (<span class="d">§9.4</span>).
   <b>A categoria Narrativa é a primeira com PRÉ-REQUISITO</b> — um capítulo só chega à mão quando o
   anterior está concluído (<code>mission_templates.requer_template_id</code>, auto-referente). São
-  as duas únicas extensões estruturais que o motor genérico do D-78 ganhou desde que nasceu.
+  as duas extensões estruturais que o motor genérico do D-78 ganhou antes da Alpha 2; a terceira é a
+  <b>missão de evento</b> (<span class="d">§15.4</span>, D-250).
 </div>
+
+<h4>A missão chega a quem joga, não a quem abre a tela <span class="d">D-243</span></h4>
+
+<p>
+  Até o D-243 a diária era sorteada <b>quando a tela de Missões era aberta</b> — e quem jogava sem
+  abri-la (construindo, despachando, negociando) nunca recebia missão nenhuma. Hoje o
+  <code>fertways:missoes-diarias</code> roda <b>todo dia às 07h05</b> (cinco minutos depois de o dia
+  de missão virar; relógio do app, em UTC, a mesma base da <code>Janela</code>) e entrega diárias,
+  semanal, narrativa e tutoria pendente a <b>toda colônia que agiu nos últimos 7 dias</b>. "Agiu" é
+  ter lançamento em <code>xp_entries</code> — e não no ledger, que recebe produção de colônia
+  abandonada. A entrega é idempotente por janela: abrir a tela depois não sorteia de novo.
+  <span class="sel sel-arb">Arbitrado · sortear para quem não pediu, desde que tenha agido na semana — D-243</span></p>
 
 <!-- ══════════════════════════════════════════════════════════════ 3 -->
 <h2 id="s3">3. Recursos e economia</h2>
@@ -514,13 +710,6 @@
 
 <table>
   <tr><th>Recurso</th><th>Classe</th><th class="num">Alíquota</th><th class="num">Preço-base (F$)</th><th class="num">Produção máx./h</th></tr>
-    <tr>
-    <td>Água</td>
-    <td>primario</td>
-    <td class="num">3%</td>
-    <td class="num">0,0062</td>
-    <td class="num">405</td>
-  </tr>
     <tr>
     <td>Biomassa</td>
     <td>primario</td>
@@ -548,6 +737,76 @@
     <td class="num">3%</td>
     <td class="num">0,0050</td>
     <td class="num">506</td>
+  </tr>
+    <tr>
+    <td>Água</td>
+    <td>primario</td>
+    <td class="num">3%</td>
+    <td class="num">0,0062</td>
+    <td class="num">405</td>
+  </tr>
+    <tr>
+    <td>Bioenergia Curativa</td>
+    <td>raro</td>
+    <td class="num">1%</td>
+    <td class="num">0,5060</td>
+    <td class="num">5</td>
+  </tr>
+    <tr>
+    <td>Cristal de Hélio-3</td>
+    <td>raro</td>
+    <td class="num">1%</td>
+    <td class="num">0,3163</td>
+    <td class="num">8</td>
+  </tr>
+    <tr>
+    <td>Ferro Vermelho</td>
+    <td>raro</td>
+    <td class="num">1%</td>
+    <td class="num">0,2108</td>
+    <td class="num">12</td>
+  </tr>
+    <tr>
+    <td>Fungo Bioluminescente</td>
+    <td>raro</td>
+    <td class="num">1%</td>
+    <td class="num">0,2530</td>
+    <td class="num">10</td>
+  </tr>
+    <tr>
+    <td>Gelo de Metano</td>
+    <td>raro</td>
+    <td class="num">1%</td>
+    <td class="num">0,2530</td>
+    <td class="num">10</td>
+  </tr>
+    <tr>
+    <td>Nióbio Alienígena</td>
+    <td>raro</td>
+    <td class="num">1%</td>
+    <td class="num">0,3163</td>
+    <td class="num">8</td>
+  </tr>
+    <tr>
+    <td>Plasma Fossilizado</td>
+    <td>raro</td>
+    <td class="num">1%</td>
+    <td class="num">0,4217</td>
+    <td class="num">6</td>
+  </tr>
+    <tr>
+    <td>Quartzo Piezoelétrico</td>
+    <td>raro</td>
+    <td class="num">1%</td>
+    <td class="num">0,3163</td>
+    <td class="num">8</td>
+  </tr>
+    <tr>
+    <td>Resina Orgânica</td>
+    <td>raro</td>
+    <td class="num">1%</td>
+    <td class="num">0,3163</td>
+    <td class="num">8</td>
   </tr>
     <tr>
     <td>Alumínio</td>
@@ -620,13 +879,6 @@
     <td class="num">70</td>
   </tr>
     <tr>
-    <td>Tântalo</td>
-    <td>secundario</td>
-    <td class="num">2%</td>
-    <td class="num">0,1012</td>
-    <td class="num">25</td>
-  </tr>
-    <tr>
     <td>Tungstênio</td>
     <td>secundario</td>
     <td class="num">2%</td>
@@ -634,67 +886,11 @@
     <td class="num">45</td>
   </tr>
     <tr>
-    <td>Bioenergia Curativa</td>
-    <td>raro</td>
-    <td class="num">1%</td>
-    <td class="num">0,5060</td>
-    <td class="num">5</td>
-  </tr>
-    <tr>
-    <td>Cristal de Hélio-3</td>
-    <td>raro</td>
-    <td class="num">1%</td>
-    <td class="num">0,3163</td>
-    <td class="num">8</td>
-  </tr>
-    <tr>
-    <td>Ferro Vermelho</td>
-    <td>raro</td>
-    <td class="num">1%</td>
-    <td class="num">0,2108</td>
-    <td class="num">12</td>
-  </tr>
-    <tr>
-    <td>Fungo Bioluminescente</td>
-    <td>raro</td>
-    <td class="num">1%</td>
-    <td class="num">0,2530</td>
-    <td class="num">10</td>
-  </tr>
-    <tr>
-    <td>Gelo de Metano</td>
-    <td>raro</td>
-    <td class="num">1%</td>
-    <td class="num">0,2530</td>
-    <td class="num">10</td>
-  </tr>
-    <tr>
-    <td>Nióbio Alienígena</td>
-    <td>raro</td>
-    <td class="num">1%</td>
-    <td class="num">0,3163</td>
-    <td class="num">8</td>
-  </tr>
-    <tr>
-    <td>Plasma Fossilizado</td>
-    <td>raro</td>
-    <td class="num">1%</td>
-    <td class="num">0,4217</td>
-    <td class="num">6</td>
-  </tr>
-    <tr>
-    <td>Quartzo Piezoelétrico</td>
-    <td>raro</td>
-    <td class="num">1%</td>
-    <td class="num">0,3163</td>
-    <td class="num">8</td>
-  </tr>
-    <tr>
-    <td>Resina Orgânica</td>
-    <td>raro</td>
-    <td class="num">1%</td>
-    <td class="num">0,3163</td>
-    <td class="num">8</td>
+    <td>Tântalo</td>
+    <td>secundario</td>
+    <td class="num">2%</td>
+    <td class="num">0,1012</td>
+    <td class="num">25</td>
   </tr>
   </table>
 
@@ -725,11 +921,6 @@
 <table>
   <tr><th>Recurso</th><th>Classe</th><th class="num">Quantidade no kit</th></tr>
     <tr>
-    <td>Água</td>
-    <td>primario</td>
-    <td class="num">500</td>
-  </tr>
-    <tr>
     <td>Biomassa</td>
     <td>primario</td>
     <td class="num">500</td>
@@ -748,6 +939,56 @@
     <td>Oxigênio</td>
     <td>primario</td>
     <td class="num">500</td>
+  </tr>
+    <tr>
+    <td>Água</td>
+    <td>primario</td>
+    <td class="num">500</td>
+  </tr>
+    <tr>
+    <td>Bioenergia Curativa</td>
+    <td>raro</td>
+    <td class="num">5</td>
+  </tr>
+    <tr>
+    <td>Cristal de Hélio-3</td>
+    <td>raro</td>
+    <td class="num">5</td>
+  </tr>
+    <tr>
+    <td>Ferro Vermelho</td>
+    <td>raro</td>
+    <td class="num">5</td>
+  </tr>
+    <tr>
+    <td>Fungo Bioluminescente</td>
+    <td>raro</td>
+    <td class="num">0</td>
+  </tr>
+    <tr>
+    <td>Gelo de Metano</td>
+    <td>raro</td>
+    <td class="num">15</td>
+  </tr>
+    <tr>
+    <td>Nióbio Alienígena</td>
+    <td>raro</td>
+    <td class="num">0</td>
+  </tr>
+    <tr>
+    <td>Plasma Fossilizado</td>
+    <td>raro</td>
+    <td class="num">2</td>
+  </tr>
+    <tr>
+    <td>Quartzo Piezoelétrico</td>
+    <td>raro</td>
+    <td class="num">2</td>
+  </tr>
+    <tr>
+    <td>Resina Orgânica</td>
+    <td>raro</td>
+    <td class="num">5</td>
   </tr>
     <tr>
     <td>Alumínio</td>
@@ -800,59 +1041,14 @@
     <td class="num">10</td>
   </tr>
     <tr>
-    <td>Tântalo</td>
-    <td>secundario</td>
-    <td class="num">10</td>
-  </tr>
-    <tr>
     <td>Tungstênio</td>
     <td>secundario</td>
     <td class="num">10</td>
   </tr>
     <tr>
-    <td>Bioenergia Curativa</td>
-    <td>raro</td>
-    <td class="num">5</td>
-  </tr>
-    <tr>
-    <td>Cristal de Hélio-3</td>
-    <td>raro</td>
-    <td class="num">5</td>
-  </tr>
-    <tr>
-    <td>Ferro Vermelho</td>
-    <td>raro</td>
-    <td class="num">5</td>
-  </tr>
-    <tr>
-    <td>Fungo Bioluminescente</td>
-    <td>raro</td>
-    <td class="num">0</td>
-  </tr>
-    <tr>
-    <td>Gelo de Metano</td>
-    <td>raro</td>
-    <td class="num">15</td>
-  </tr>
-    <tr>
-    <td>Nióbio Alienígena</td>
-    <td>raro</td>
-    <td class="num">0</td>
-  </tr>
-    <tr>
-    <td>Plasma Fossilizado</td>
-    <td>raro</td>
-    <td class="num">2</td>
-  </tr>
-    <tr>
-    <td>Quartzo Piezoelétrico</td>
-    <td>raro</td>
-    <td class="num">2</td>
-  </tr>
-    <tr>
-    <td>Resina Orgânica</td>
-    <td>raro</td>
-    <td class="num">5</td>
+    <td>Tântalo</td>
+    <td>secundario</td>
+    <td class="num">10</td>
   </tr>
   </table>
 
@@ -898,6 +1094,16 @@
   extrato de toda colônia junto vive só do lado do admin, em Extrato Colonos.
 </p>
 
+<div class="nota">
+  <b>Emitir não é distribuir</b> <span class="d">D-232, D-234</span>. A cesta de um evento (§15.3)
+  é a primeira fonte de recurso que <b>não sai do Tesouro nem da produção</b>: ela escreve
+  <code>presente_evento</code> no ledger de cada colônia, e o caixa do Governo fica intocado —
+  conferido nas duas cestas de agosto. A regra de ouro continua de pé, porque o recurso nasce com
+  história: o lançamento diz de qual evento ele veio. E o custo de escavar a Endurance (§10.6) faz
+  o caminho inverso — sai da colônia como <code>escavacao_endurance</code>; o Fert$ entra no
+  Tesouro, e os recursos, se o operador cobrar algum, são consumidos.
+</div>
+
 <h3>3.4 A taxa por hora: o fluxo, e não só o estoque <span class="d">D-153</span></h3>
 
 <p>
@@ -916,12 +1122,155 @@
   <tr><td>Bônus da Endurance</td><td>Entram na conta — é a mesma taxa que o tick usa (§10.2)</td></tr>
 </table>
 
+<h3>3.5 O teto de estoque — quanto cabe <span class="d">D-181, D-191, D-192</span></h3>
+
+<p>
+  O §14 do balanceamento decidiu a forma e deixou o número: <i>"o teto trava, não derrama. Ao encher,
+  a produção para; nada transborda e vira desperdício. O jogador perde oportunidade, nunca
+  estoque."</i> Quem segura é o <b>Depósito Local</b> (§2.2): cada recurso cabe até
+  <b>10.000</b> no nível 1, multiplicado por
+  <b>1,25×</b> a cada nível — o fator
+  <b>compõe</b>, como o da Estrutura de Sobrevivência (§13.1). Vale para <b>todos os recursos menos
+  um</b>: o Biocombustível já tem prédio próprio, o
+  Tanque de Combustível (D-131), e um recurso não responde a dois prédios.
+</p>
+
+<table>
+  <tr><th class="num">Nível do Depósito Local</th><th class="num">Cabe, por recurso</th><th class="num">Protegido de saque (Silo, metal bruto)</th></tr>
+    <tr>
+    <td class="num">1</td>
+    <td class="num">10.000</td>
+    <td class="num">50.000</td>
+  </tr>
+    <tr>
+    <td class="num">2</td>
+    <td class="num">12.500</td>
+    <td class="num">62.500</td>
+  </tr>
+    <tr>
+    <td class="num">3</td>
+    <td class="num">15.625</td>
+    <td class="num">78.125</td>
+  </tr>
+    <tr>
+    <td class="num">4</td>
+    <td class="num">19.531</td>
+    <td class="num">97.656</td>
+  </tr>
+    <tr>
+    <td class="num">5</td>
+    <td class="num">24.413</td>
+    <td class="num">122.070</td>
+  </tr>
+    <tr>
+    <td class="num">6</td>
+    <td class="num">30.516</td>
+    <td class="num">152.587</td>
+  </tr>
+    <tr>
+    <td class="num">7</td>
+    <td class="num">38.145</td>
+    <td class="num">190.733</td>
+  </tr>
+    <tr>
+    <td class="num">8</td>
+    <td class="num">47.681</td>
+    <td class="num">238.416</td>
+  </tr>
+    <tr>
+    <td class="num">9</td>
+    <td class="num">59.601</td>
+    <td class="num">298.020</td>
+  </tr>
+    <tr>
+    <td class="num">10</td>
+    <td class="num">74.501</td>
+    <td class="num">372.525</td>
+  </tr>
+  </table>
+
+<p style="margin-top:-6px">
+  <span class="sel sel-arb">Arbitrado · curva declarada antes de medir: ~1 dia de produção de pico no nível 1, ~1 semana no nível 10</span>  — a rodada do simulador a confirmou nas duas pontas (20 h e 6,1 dias) <span class="d">D-181</span>.
+  Os três números moram em <code>estoque_settings</code>; ⚠️ <b>não há tela no painel para eles</b>:
+  mudar é escrever no banco.
+</p>
+
+<div class="nota">
+  <b>Quanto cabe e quanto está a salvo são duas perguntas, e duas tabelas.</b> O teto
+  (<code>TetoDoEstoque</code>) diz até onde a produção sobe; o Silo (<code>silo_capacidades</code>,
+  §2.2) diz quanto o saque não leva. Partilham o prédio e a forma da curva, <b>e nada mais</b> — por
+  isso as duas colunas acima se movem em separado. Conflá-las teria sido a decisão fácil e errada.
+  <span class="d">D-181, D-199</span>
+</div>
+
+<h4>Como trava</h4>
+
+<table>
+  <tr><th>Caminho</th><th>Como o teto o trava</th></tr>
+  <tr><td>Extração</td><td>O ganho é limitado ao espaço livre — não há insumo a perder</td></tr>
+  <tr><td>Conversões (Compostos, Componentes)</td><td><b>Antes de consumir</b>: a conversão só gasta insumo para o que cabe na saída. Travar depois seria derramar — o insumo já teria ido</td></tr>
+  <tr><td>Indústria Siderúrgica</td><td><b>O lote inteiro</b>, pela saída mais apertada: o lote tem seis saídas, e creditar cinco descartando a sexta seria derramar. O progresso volta ao acumulador</td></tr>
+  <tr><td>Entrega, saque, cesta, missão</td><td><b>Não trava.</b> O teto governa a produção do tick; o que chega de fora entra inteiro, mesmo acima dele — e a colônia para de produzir aquele recurso até gastar. No butim isso foi escolhido: travar o saque no teto daria ao defensor cheio um escudo grátis <span class="d">D-205</span></td></tr>
+</table>
+
+<p>
+  Estoque <b>acima</b> do teto nunca é destruído: a produção daquele recurso simplesmente para.
+  É a mesma forma do teto habitacional (§13.1) e do de zona (§13.2): <b>trava o ganho, nunca tira o
+  que existe.</b> O colono vê o recurso cheio pelo nome nos avisos da colônia, e a construção que
+  parou por falta de espaço diz isso no próprio estado.
+</p>
+
+<h4>O piso pessoal</h4>
+
+<div class="nota grave">
+  <b>⚠️ Ligar como estava faria as 29 colônias pararem de produzir — e subir o prédio não resolvia.</b>
+  Medido antes de virar a chave: <b>112 de 725</b> pares colônia×recurso acima do teto, e <b>todas as
+  29</b> com ao menos um travado — justamente os quatro essenciais. O grandfathering pelo prédio era
+  impossível: elas precisariam do Depósito Local nível 9 a 18, e ele para no
+  10. A curva foi calibrada contra uma colônia madura <b>simulada</b>; o mundo
+  real tinha acumulado por meses sem teto, de 6× a 44× além dela. O §6.7 é categórico:
+  <i>"nenhuma colônia existente pode parar de produzir por uma regra que não existia quando ela foi
+  construída."</i> <span class="d">D-191</span>
+</div>
+
+<p>
+  A escolha do Dono, entre quatro caminhos postos na mesa, foi o <b>piso pessoal</b>
+  <span class="d">D-192</span>: <b>o teto de cada linha é
+  <code>max(curva do nível, piso)</code></b>, e o piso é o que a colônia tinha no dia da virada
+  <b>mais 20% de folga</b>
+  (<code>grandfather_folga_bps</code>) — gravado em <code>resources.storage_cap</code>, coluna que
+  existia desde o D-14 sem ninguém a ler. A folga não é conforto: piso igual ao estoque exato zeraria
+  o espaço livre e pararia a produção <b>no mesmo instante da virada</b>, cumprindo o §6.7 no papel e
+  violando-o no relógio. É o mesmo número da migração da população, e não por coincidência.
+  <span class="sel sel-arb">Arbitrado · opção (d) do D-191</span></p>
+
+<ul>
+  <li><b>Só quem passa da curva ganha piso.</b> Gravar em todo mundo encheria a coluna de números que
+      um dia alguém leria como "o teto é este" — quando o teto é a curva. Colônia nova nunca tem piso.</li>
+  <li>O piso é gravado pelo comando <code>fertways:estoque-grandfather --aplicar</code>, que calcula a
+      curva <b>à mão</b>: com a chave desligada, o <code>TetoDoEstoque</code> devolve "sem teto", e o
+      comando mediria o nada e diria que não há nada a fazer — o pior jeito de falhar, porque parece
+      sucesso.</li>
+  <li>Neste banco, hoje: a chave está <b>desligada</b>
+      (<code>estoque_settings.ativo</code>), e <b>0</b> linha(s) de
+      estoque em <b>0</b> colônia(s) têm piso gravado.</li>
+</ul>
+
+<div class="nota grave">
+  <b>O preço, dito por escrito para ninguém o redescobrir como defeito.</b> O veterano cujo estoque já
+  passa do que o nível 10 comporta (74.501) <b>não
+  consegue subir o próprio teto construindo</b>: o piso dele É o teto, para sempre. Ele para de
+  acumular aquilo de que tem anos de sobra, e os extratores ficam ociosos até gastar. Estava na mesa
+  quando a opção foi escolhida. <span class="d">D-191, D-192</span>
+</div>
+
+
 <!-- ══════════════════════════════════════════════════════════════ 4 -->
 <h2 id="s4">4. Construções</h2>
 
 <p>
-  <b>18 construções</b> — 5 essenciais e
-  13 de progressão. Custo e tempo saem da curva do GDD, e as tabelas
+  <b>19 construções</b> — 5 essenciais e
+  14 de progressão. Custo e tempo saem da curva do GDD, e as tabelas
   abaixo são lidas do banco.
 </p>
 
@@ -952,7 +1301,7 @@
     <td>Habitação dos colonos. Cresce em módulos.</td>
     <td>§17.1</td>
     <td>
-      <span class="sel sel-prom">Só consome energia</span>              <div style="font-size:.8rem;color:var(--ink-soft);margin-top:4px">O GDD não diz quantos colonos ela abriga, nem o que a população faz. Hoje ela só consome energia — o efeito ainda não existe no jogo.</div>
+      <span class="sel sel-ok">Abriga</span>              <div style="font-size:.8rem;color:var(--ink-soft);margin-top:4px">É o teto habitacional da colônia (A2.2): cada nível abriga mais colonos, e a população só cresce até ele. Os números moram no painel da População.</div>
           </td>
   </tr>
     <tr>
@@ -999,7 +1348,7 @@
     <td>Pesquisa tecnológica.</td>
     <td>§17.2</td>
     <td>
-      <span class="sel sel-prom">Só consome energia</span>              <div style="font-size:.8rem;color:var(--ink-soft);margin-top:4px">O GDD diz duas palavras e nunca publica árvore de pesquisa, tecnologias, custo nem tempo. Hoje o Laboratório só consome energia — o efeito não existe.</div>
+      <span class="sel sel-ok">Vagas_de_pesquisa</span>              <div style="font-size:.8rem;color:var(--ink-soft);margin-top:4px">Abre a árvore de pesquisa (A2.3) e dá as vagas de pesquisa simultânea; o nível também decide quais tecnologias estão ao alcance.</div>
           </td>
   </tr>
     <tr>
@@ -1015,7 +1364,7 @@
     <td>Defesa básica do slot.</td>
     <td>§17.2</td>
     <td>
-      <span class="sel sel-prom">Só consome energia</span>              <div style="font-size:.8rem;color:var(--ink-soft);margin-top:4px">O GDD se contradiz: o slot principal é INVIOLÁVEL (§01), então não há o que defender aqui. O bônus nunca é dado em número. Hoje só consome energia.</div>
+      <span class="sel sel-ok">Defende</span>              <div style="font-size:.8rem;color:var(--ink-soft);margin-top:4px">Corta uma fatia do saque num cerco de colônia (A2.10, D-203), com teto — os dois números moram no painel da Guerra.</div>
           </td>
   </tr>
     <tr>
@@ -1071,7 +1420,7 @@
     <td>Armazena Gelo de Metano refinado. Disponível no slot principal e nas zonas neutras.</td>
     <td>§21.9</td>
     <td>
-      <span class="sel sel-prom">Só consome energia</span>              <div style="font-size:.8rem;color:var(--ink-soft);margin-top:4px">O GDD publica a capacidade (200 no nível 1, até 1.012), mas o jogo ainda não tem teto de estoque nenhum — guardar mais não faz diferença. Hoje só consome energia.</div>
+      <span class="sel sel-ok">Armazena</span>              <div style="font-size:.8rem;color:var(--ink-soft);margin-top:4px">Guarda o Biocombustível (200 no nível 1, até 1.012 — §21.9, D-131). Sem Tanque a Destilaria não converte: o teto TRAVA a produção.</div>
           </td>
   </tr>
     <tr>
@@ -1080,6 +1429,14 @@
     <td>—</td>
     <td>
       <span class="sel sel-ok">Converte</span>              <div style="font-size:.8rem;color:var(--ink-soft);margin-top:4px">Processa Metal Bruto em Ligas Metálicas e nos cinco minerais eletrônicos que, na Temporada 1, só o governo extrai (§4.3) — arbitragem consciente, não lacuna. A cada 1000 Metal Bruto: 350 Ligas, 35 Alumínio, 30 Cobre, 20 Estanho, 4 Ouro, 1 Tungstênio. Só credita em lotes inteiros de 1000; o resto fica guardado para o próximo tick. Taxa de processamento igual à Mina Local, nível a nível. Pode ser repetida em mais de um slot (D-59): duas somam produção.</div>
+          </td>
+  </tr>
+    <tr>
+    <td><b>Observatório</b></td>
+    <td>Amplia o paralelismo da pesquisa.</td>
+    <td>GDD_ALPHA2 §7.2</td>
+    <td>
+      <span class="sel sel-ok">Vagas_de_pesquisa</span>              <div style="font-size:.8rem;color:var(--ink-soft);margin-top:4px">Soma vagas de pesquisa na mesma razão do Laboratório — uma a cada vagas_por_niveis_de_laboratorio níveis, sem a vaga base —, e o teto de vagas vale para a soma. Custo, tempo e energia são os do Laboratório, por arbitragem (D-252).</div>
           </td>
   </tr>
   </table>
@@ -2313,6 +2670,74 @@
         <td class="num">—</td>
   </tr>
   </table>
+<h4>Observatório <span class="d">(até o nível 5)</span></h4>
+<table>
+  <tr>
+    <th class="num">Nível</th>
+    <th class="num">Tempo</th>
+    <th class="num">Ligas Metálicas</th><th class="num">Compostos Químicos</th><th class="num">Componentes Eletrônicos</th><th class="num">Energia</th><th class="num">Água</th><th class="num">Resina organica</th>    <th class="num">Energia/h</th>
+  </tr>
+    <tr>
+    <td class="num">1</td>
+    <td class="num">
+              21 min          </td>
+          <td class="num">60</td>
+          <td class="num">40</td>
+          <td class="num">20</td>
+          <td class="num">18</td>
+          <td class="num">12</td>
+          <td class="num">2</td>
+        <td class="num">20</td>
+  </tr>
+    <tr>
+    <td class="num">2</td>
+    <td class="num">
+              32 min          </td>
+          <td class="num">99</td>
+          <td class="num">66</td>
+          <td class="num">33</td>
+          <td class="num">30</td>
+          <td class="num">20</td>
+          <td class="num">3</td>
+        <td class="num">30</td>
+  </tr>
+    <tr>
+    <td class="num">3</td>
+    <td class="num">
+              47 min          </td>
+          <td class="num">163</td>
+          <td class="num">109</td>
+          <td class="num">54</td>
+          <td class="num">49</td>
+          <td class="num">33</td>
+          <td class="num">5</td>
+        <td class="num">45</td>
+  </tr>
+    <tr>
+    <td class="num">4</td>
+    <td class="num">
+              71 min          </td>
+          <td class="num">270</td>
+          <td class="num">180</td>
+          <td class="num">90</td>
+          <td class="num">81</td>
+          <td class="num">54</td>
+          <td class="num">9</td>
+        <td class="num">68</td>
+  </tr>
+    <tr>
+    <td class="num">5</td>
+    <td class="num">
+              106 min          </td>
+          <td class="num">445</td>
+          <td class="num">296</td>
+          <td class="num">148</td>
+          <td class="num">133</td>
+          <td class="num">89</td>
+          <td class="num">15</td>
+        <td class="num">101</td>
+  </tr>
+  </table>
 
 <div class="nota grave">
   <b>O v35 não publica tempo de construção para 10 das 25 tabelas.</b> Onde ele publica, usamos o
@@ -2326,7 +2751,7 @@
   A tabela acima é a curva BASE do GDD, mas o operador pode sobrepor custo e tempo por
   (construção, nível) numa tabela à parte (<code>building_specs_overrides</code>), sem deploy e
   sem risco de o ajuste se perder no próximo <code>db:seed</code> — o Silo (§2.2) foi o primeiro a
-  usar esse mecanismo (nível máximo 5→10), mas ele vale para qualquer uma das 18.
+  usar esse mecanismo (nível máximo 5→10), mas ele vale para qualquer uma das 19.
   Ver <span class="d">§11.3</span>.
 </div>
 
@@ -2520,6 +2945,125 @@
   e a soma é que não pode passar de 30.000 — mesmo que cada um sozinho coubesse.
 </div>
 
+<h3>5.7 Upgrade de veículo <span class="d">D-175, D-180, D-181</span></h3>
+
+<p>
+  <code>vehicles.level</code> existia no banco desde sempre e <b>nunca teve caminho para subir</b>. O
+  caminho agora existe, na tela da Frota, até o <b>nível 5</b>. É <b>um eixo
+  com contrapartida</b>: a capacidade sobe
+  <b>15%</b> por nível e a manutenção sobe
+  <b>20%</b> — mais do que a capacidade, de
+  propósito. É o que transforma o upgrade em <b>escolha econômica</b> em vez de aumento nominal, que é
+  o critério de saída da fase; há teste que exige a manutenção acima da capacidade, para que ninguém
+  inverta os dois em silêncio.
+</p>
+
+<table>
+  <tr><th>Veículo</th><th class="num">Nível</th><th class="num">Capacidade</th><th class="num">Manutenção</th><th>Custo para chegar a este nível</th></tr>
+        <tr>
+    <td><b>Furgão de Comércio</b></td>
+    <td class="num">1</td>
+    <td class="num">6.000</td>
+    <td class="num">100%</td>
+    <td>— (é o veículo de fábrica)</td>
+  </tr>
+      <tr>
+    <td></td>
+    <td class="num">2</td>
+    <td class="num">6.900</td>
+    <td class="num">120%</td>
+    <td>16 Ligas Metálicas + 4 Componentes Eletrônicos + 3 Metal Bruto</td>
+  </tr>
+      <tr>
+    <td></td>
+    <td class="num">3</td>
+    <td class="num">7.800</td>
+    <td class="num">140%</td>
+    <td>32 Ligas Metálicas + 8 Componentes Eletrônicos + 6 Metal Bruto</td>
+  </tr>
+      <tr>
+    <td></td>
+    <td class="num">4</td>
+    <td class="num">8.700</td>
+    <td class="num">160%</td>
+    <td>48 Ligas Metálicas + 12 Componentes Eletrônicos + 9 Metal Bruto</td>
+  </tr>
+      <tr>
+    <td></td>
+    <td class="num">5</td>
+    <td class="num">9.600</td>
+    <td class="num">180%</td>
+    <td>64 Ligas Metálicas + 16 Componentes Eletrônicos + 12 Metal Bruto</td>
+  </tr>
+            <tr>
+    <td><b>Caminhão de Carga</b></td>
+    <td class="num">1</td>
+    <td class="num">30.000</td>
+    <td class="num">100%</td>
+    <td>— (é o veículo de fábrica)</td>
+  </tr>
+      <tr>
+    <td></td>
+    <td class="num">2</td>
+    <td class="num">34.500</td>
+    <td class="num">120%</td>
+    <td>36 Ligas Metálicas + 10 Componentes Eletrônicos + 7 Metal Bruto</td>
+  </tr>
+      <tr>
+    <td></td>
+    <td class="num">3</td>
+    <td class="num">39.000</td>
+    <td class="num">140%</td>
+    <td>72 Ligas Metálicas + 20 Componentes Eletrônicos + 13 Metal Bruto</td>
+  </tr>
+      <tr>
+    <td></td>
+    <td class="num">4</td>
+    <td class="num">43.500</td>
+    <td class="num">160%</td>
+    <td>108 Ligas Metálicas + 30 Componentes Eletrônicos + 20 Metal Bruto</td>
+  </tr>
+      <tr>
+    <td></td>
+    <td class="num">5</td>
+    <td class="num">48.000</td>
+    <td class="num">180%</td>
+    <td>144 Ligas Metálicas + 40 Componentes Eletrônicos + 26 Metal Bruto</td>
+  </tr>
+      </table>
+
+<table>
+  <tr><th>Regra</th><th>Valor</th><th>Origem</th></tr>
+  <tr><td>Capacidade</td><td><b>Reescrita a partir da base do tipo</b> (§5.1) a cada upgrade, e não incrementada sobre a atual — incrementar acumularia arredondamento e ficaria errado para sempre no dia em que o parâmetro mudasse</td><td>D-175</td></tr>
+  <tr><td>Manutenção</td><td>Multiplica o custo de manutenção do §5.3 (10% do custo do veículo) pelo multiplicador do nível</td><td>D-175</td></tr>
+  <tr><td>Custo</td><td><b>40% do custo de compra</b>, em recursos, <b>× (nível alvo − 1)</b>, arredondado para cima — sem a multiplicação, o último nível sairia pelo preço do primeiro. Lançado no ledger como <code>upgrade_veiculo</code></td><td><span class="sel sel-arb">Arbitrado · fração de número publicado, a forma do D-60</span></td></tr>
+  <tr><td>Onde</td><td><b>Só veículo parado no pátio</b>: um veículo em rota tem a carga calculada com a capacidade atual</td><td>D-175</td></tr>
+  <tr><td>Velocidade</td><td><b>Não muda, e há teste guardando.</b> Velocidade é traço do tipo — é o que separa Furgão de Caminhão; se o nível acelerasse, a distância encolheria a cada upgrade, e "logística sem teleporte" é pilar</td><td>D-175</td></tr>
+  <tr><td>Parâmetros</td><td>Os cinco moram em <code>transport_settings</code>, ao lado do desgaste e da manutenção — um lugar só para o balanceamento do transporte. ⚠️ O painel de Transportes <b>não</b> os edita: mudar é escrever no banco</td><td>D-175</td></tr>
+</table>
+
+<div class="nota">
+  <b>É escolha, e não botão — e a tela mostra os dois lados juntos</b> <span class="d">D-180, D-181</span>.
+  Com os parâmetros de hoje, no nível 5 o veículo carrega
+  <b>1,60×</b> e custa <b>1,80×</b> de manutenção por
+  reparo: cada unidade de capacidade sai <b>12,5%</b> mais cara de
+  manter, em troca de 1,60× menos viagens para a mesma tonelagem. A rodada do
+  simulador, que conta também o desgaste por hora de estrada, mediu <b>+11,7%</b> de manutenção pela
+  mesma tonelagem. Subir troca custo por unidade por vazão por veículo: vale para quem tem vaga de frota
+  escassa (§5.4), não vale para quem tem veículo ocioso. A rota chegou a existir <b>sem porta</b> — o
+  cliente não a chamava (D-180) —, e desde então há teste que olha a tela, que mostra
+  <i>"carrega X → Y, e a manutenção passa de A% para B% do normal"</i>.
+  Neste banco, hoje: <b>0</b> veículo(s) acima do nível 1.
+</div>
+
+<div class="nota grave">
+  <b>⚠️ O tempo do serviço é um parâmetro que ninguém lê.</b>
+  <code>transport_settings.upgrade_segundos_por_nivel</code> vale
+  3.600 s, e a migration o descreve como o tempo em que o
+  veículo fica indisponível enquanto sobe — mas o <code>UpgradeVeiculo</code> não o consulta: <b>o
+  upgrade é instantâneo</b>. <span class="sel sel-lac">Ligar o tempo ou apagar o campo</span></div>
+
+
 <!-- ══════════════════════════════════════════════════════════════ 6 -->
 <h2 id="s6">6. O Mercado e o comércio</h2>
 
@@ -2579,8 +3123,8 @@
 <table>
   <tr><th>Classe</th><th class="num">Teto</th></tr>
     <tr><td>Primário</td><td class="num">10.000</td></tr>
-    <tr><td>Secundário</td><td class="num">2.500</td></tr>
     <tr><td>Raro</td><td class="num">100</td></tr>
+    <tr><td>Secundário</td><td class="num">2.500</td></tr>
   </table>
 
 <p>
@@ -3056,7 +3600,8 @@ todos desde a fundação, e os da zona se abrem conforme ela sobe.</p>
 <p>
   O §27.13 publica a fórmula por inteiro, com exemplo numérico — cada sub-ranking vira um
   "percentil" (0–100) dividindo o valor do jogador pelo MÁXIMO do servidor; o Ranking Geral é a
-  soma ponderada. Cinco dos seis sub-rankings entraram, todos lendo dado que já existia:
+  soma ponderada. Os seis sub-rankings estão no jogo — os cinco primeiros desde o D-128, lendo dado
+  que já existia, e o sexto desde o D-207:
 </p>
 
 <table>
@@ -3066,13 +3611,386 @@ todos desde a fundação, e os da zona se abrem conforme ela sobe.</p>
   <tr><td>Tempo de Controle</td><td class="num">20%</td><td>Histórico de posse da zona (§8.7)</td></tr>
   <tr><td>Recursos Saqueados em Fert$</td><td class="num">15%</td><td>Ledger de saque, convertido pelo preço-base do catálogo</td></tr>
   <tr><td>Maior Sequência</td><td class="num">10%</td><td>A mesma régua de vitória, em série</td></tr>
-  <tr><td>Guerras Vencidas (Federação)</td><td class="num">10%</td><td><span class="sel sel-prom">o jogo não tem &quot;guerra de federação&quot; — todo combate é entre DUAS COLÔNIAS</span></td></tr>
+  <tr><td>Guerras Vencidas (Federação)</td><td class="num">10%</td><td>O rating Elo da federação da colônia (§8.15) — cada membro herda o percentil da sua; sem federação, zero <span class="d">D-207</span></td></tr>
 </table>
 
 <p>
-  <b>Os cinco pesos publicados somam 90, não 100 — não renormalizamos</b>: é a régua do documento,
-  não correção nossa. Tela em <code>GET /war/ranking</code>, dentro do Quartel.
+  <b>Os seis pesos somam 100.</b> Até o D-207 só cinco existiam e somavam 90 — e o v40 registrava
+  que não renormalizávamos, porque faltava a parcela, não a conta. Tela em
+  <code>GET /war/ranking</code>, dentro do Quartel.
 </p>
+
+<h3>8.12 Guerra entre federações: declaração e custo <span class="d">D-193, D-195, D-206</span></h3>
+
+<p>
+  Até a A2.10 todo combate era entre <b>duas colônias</b> por uma zona neutra (§8.1). A guerra
+  federativa põe uma camada por cima: <b>uma federação declara guerra a outra</b>, a guerra tem
+  prazo, e dentro dela passam a valer regras que fora dela não valem — a colônia vira alvo (§8.13),
+  a zona conquistada é saqueada por inteiro, e o resultado move um rating (§8.15).
+  <span class="sel sel-ok">Implementado</span> As decisões de desenho são dezesseis, tomadas pelo usuário em duas levas:
+</p>
+
+<table>
+  <tr><th class="num">#</th><th>Decidido</th><th>No jogo</th></tr>
+  <tr><td class="num">1</td><td>Construir e ligar agora</td><td><span class="sel sel-ok">No ar</span></td></tr>
+  <tr><td class="num">2</td><td>Colônia é alvo, só no excedente do Depósito</td><td>§8.13</td></tr>
+  <tr><td class="num">3</td><td>Declarar custa Fert$ do fundo + Nióbio</td><td>Abaixo</td></tr>
+  <tr><td class="num">4</td><td>Não há recusa</td><td>Quem é declarado <b>está</b> em guerra</td></tr>
+  <tr><td class="num">5</td><td>Duração de 7 dias</td><td>168 h, do banco</td></tr>
+  <tr><td class="num">6</td><td>Capital e Espaçoporto fora, sempre</td><td>Vale por construção: a Capital não é colônia, e o Espaçoporto não existe (§12)</td></tr>
+  <tr><td class="num">7</td><td>Tropa consome operadores da colônia</td><td><span class="sel sel-prom">nenhum código liga unidade a operador (§13.2)</span></td></tr>
+  <tr><td class="num">8</td><td>Declarar a uma aliada rompe a aliança</td><td>Abaixo</td></tr>
+  <tr><td class="num">9</td><td>Capitulação: o vencedor escolhe zona ou Fert$</td><td>§8.14</td></tr>
+  <tr><td class="num">10</td><td>Fórmula do ranking como desenho próprio</td><td>Elo, §8.15</td></tr>
+  <tr><td class="num">11</td><td>Contas vinculadas: travas econômicas + detecção com revisão humana</td><td>A trava estrutural existe (soma zero do Elo, zona <i>cedida</i> não conta como conquista); a <span class="sel sel-prom">detecção com revisão humana</span> não</td></tr>
+  <tr><td class="num">12</td><td>Neutralidade declarada antes da guerra; inatividade não protege</td><td>§8.14</td></tr>
+  <tr><td class="num">13</td><td>O §01 (colônia inviolável) fica revogado em guerra declarada</td><td>§8.13</td></tr>
+  <tr><td class="num">14</td><td>A Torre de Defesa reduz o quanto o saque leva</td><td>§8.13</td></tr>
+  <tr><td class="num">15</td><td>Ataque a colônia reusa o cerco da zona e exige Quartel</td><td>§8.13</td></tr>
+  <tr><td class="num">16</td><td>Proteção do Depósito: base 50.000, +25%/nível</td><td>§2.2, <span class="d">D-199</span></td></tr>
+</table>
+
+<p>
+  <b>Quem declara:</b> o Líder ou o Diplomata — a mesma permissão da aliança (§9). O custo sai do
+  <b>fundo da federação</b>, nunca do bolso de quem clica: guerra é decisão coletiva. Qualquer membro
+  abastece o caixa em Fert$; sacar continua sendo de Líder e Intendente (§9.1). As duas pernas do
+  custo — o Fert$ e o Nióbio — vão ao extrato da federação.
+</p>
+
+<table>
+  <tr><th>Parâmetro</th><th class="num">Valor</th><th>No painel da Guerra?</th></tr>
+    <tr>
+    <td>Custo da declaração, em Fert$ do fundo <code>federativa_custo_fert_micro</code></td>
+    <td class="num">500,00 F$</td>
+    <td><span class="sel sel-lac">não — falta o campo no formulário</span></td>
+  </tr>
+    <tr>
+    <td>Custo da declaração, em Nióbio do fundo <code>federativa_custo_niobio</code></td>
+    <td class="num">50</td>
+    <td><span class="sel sel-lac">não — falta o campo no formulário</span></td>
+  </tr>
+    <tr>
+    <td>Duração da guerra <code>federativa_duracao_horas</code></td>
+    <td class="num">168 h</td>
+    <td><span class="sel sel-lac">não — falta o campo no formulário</span></td>
+  </tr>
+    <tr>
+    <td>Cooldown do par, depois do fim <code>federativa_cooldown_horas</code></td>
+    <td class="num">168 h</td>
+    <td><span class="sel sel-lac">não — falta o campo no formulário</span></td>
+  </tr>
+    <tr>
+    <td>Carência para sair da neutralidade <code>neutralidade_carencia_horas</code></td>
+    <td class="num">24 h</td>
+    <td><span class="sel sel-lac">não — falta o campo no formulário</span></td>
+  </tr>
+    <tr>
+    <td>Preço da capitulação em Fert$ <code>capitulacao_fert_micro</code></td>
+    <td class="num">500,00 F$</td>
+    <td><span class="sel sel-lac">não — falta o campo no formulário</span></td>
+  </tr>
+    <tr>
+    <td>Torre de Defesa: corte do saque por nível <code>torre_defesa_reducao_bps_por_nivel</code></td>
+    <td class="num">10%</td>
+    <td><span class="sel sel-lac">não — falta o campo no formulário, a validação no controlador, o fillable do modelo</span></td>
+  </tr>
+    <tr>
+    <td>Torre de Defesa: teto do corte <code>torre_defesa_reducao_teto_bps</code></td>
+    <td class="num">70%</td>
+    <td><span class="sel sel-lac">não — falta o campo no formulário, a validação no controlador, o fillable do modelo</span></td>
+  </tr>
+    <tr>
+    <td>K do Elo <code>rating_k</code></td>
+    <td class="num">32</td>
+    <td><span class="sel sel-lac">não — falta o campo no formulário, a validação no controlador</span></td>
+  </tr>
+  </table>
+
+<div class="nota grave">
+  <b>Os parâmetros moram em <code>war_settings</code> para "mudar sem deploy", e a tabela acima mostra
+  quantos de facto mudam.</b> O D-206 abriu a validação e o <code>fillable</code> dos seis da
+  declaração, da neutralidade e da capitulação — mas o formulário do painel nunca ganhou os campos,
+  e os três que vieram depois (o corte da Torre e o K do Elo) nem isso. Onde a coluna diz "não", o
+  número só muda por SQL à mão, que é exatamente o que a migration prometia evitar. Os números em
+  si são do desenvolvedor, salvo a duração (decisão 5) e a proteção do Depósito (decisão 16).
+</div>
+
+<table>
+  <tr><th>Regra</th><th>Como funciona</th></tr>
+  <tr><td><b>Não há recusa</b></td><td>Não existe caminho para o alvo negar. A saída dele é a capitulação ou o tratado (§8.14)</td></tr>
+  <tr><td><b>Aliada vira inimiga</b></td><td>A aliança cai <b>depois</b> de todas as conferências — se a declaração fosse recusada, a federação não perderia a aliada por uma guerra que não houve</td></tr>
+  <tr><td><b>Uma guerra por par</b></td><td>Duas federações não têm duas guerras abertas ao mesmo tempo</td></tr>
+  <tr><td><b>Cooldown do PAR</b></td><td>168 h contadas do <b>fim previsto</b> da guerra, entre as mesmas duas. Não impede declarar a uma terceira — congelar a geopolítica puniria quem foi atacado</td></tr>
+  <tr><td><b>Anúncio público</b></td><td>No mural do planeta e no chat de Líder e Diplomata dos dois lados. Guerra secreta, num jogo assíncrono, é emboscada</td></tr>
+  <tr><td><b>Fim pelo prazo</b></td><td>O tick encerra a guerra vencida e aplica o rating (§8.15)</td></tr>
+</table>
+
+<p>
+  <b>O Governo manda no portão</b> (§15) <span class="d">D-194, D-253</span>. Três modificadores de
+  evento alcançam a guerra, todos lidos <b>no instante do ato</b>, nunca por média — "há trégua
+  agora?" não se responde com a média de um intervalo:
+</p>
+
+<table>
+  <tr><th>Modificador</th><th>Efeito</th></tr>
+  <tr><td><code>guerra_declaracao</code></td><td>A <b>trégua</b>. Só fecha quando a soma chega a −10000; qualquer valor acima não impede declaração nenhuma — o preview avisa, para ninguém achar que impôs "meia trégua"</td></tr>
+  <tr><td><code>guerra_custo</code></td><td>Multiplica as duas pernas do custo da declaração</td></tr>
+  <tr><td><code>combate_defesa</code></td><td>Multiplica a força <b>defensiva</b>, pela colônia que defende — na zona e no cerco de colônia. Positivo favorece quem defende; negativo, quem ataca</td></tr>
+</table>
+
+<div class="nota">
+  <b>No campo, nada disto rodou ainda</b>: o fundo da única federação estava em 0 F$ quando a
+  capitulação foi medida — ninguém no mundo conseguia pagar uma declaração — e a guerra segue com
+  <b>0 combates desde sempre</b> (medido em 2026-09-09). Ver §16. <span class="d">D-206, D-240</span>
+</div>
+
+<h3>8.13 Cerco de colônia e saque <span class="d">D-201 a D-205, D-253</span></h3>
+
+<div class="nota grave">
+  <b>⚠️ Duas contradições do GDD com o §01 foram revogadas na prática, de olhos abertos.</b>
+  <ul>
+    <li><b>"O slot principal é inviolável" (§01)</b> deixa de valer <b>dentro de guerra federativa
+      declarada</b> (decisão 13). Fora dela a colônia continua intocável — a rota recusa com a
+      citação do §01 — e dentro dela o saque leva só o excedente do Depósito: o protegido nunca é
+      tocado. É a linha entre <i>"a colônia é alvo"</i> e <i>"a colônia é destruída"</i>.
+      <span class="d">D-201, D-203</span></li>
+    <li><b>A Torre de Defesa (§17.2) defendia um slot que o §01 dizia não haver o que defender.</b>
+      Onze colônias a tinham erguido sem efeito nenhum. A contradição foi resolvida a favor da Torre:
+      ela <b>corta o saque</b> (decisão 14). <span class="d">D-201, D-202</span></li>
+  </ul>
+  E uma terceira revogação, de arbitragem nossa e não do GDD: na <b>zona conquistada em guerra
+  federativa</b> o Depósito deixa de proteger (D-66/D-107 revogados nesse contexto, abaixo).
+  <span class="d">D-205</span>
+</div>
+
+<p>
+  <b>A porta é separada da do ataque de zona</b> — as travas são outras, o desfecho é outro, e o §01
+  só cai aqui. O Quartel lista <b>quem pode ser atacado agora</b> (só colônias de federação em guerra
+  ativa com a sua) e mostra, de cada uma, o <b>exposto</b> e o nível da Torre: marchar sem saber o
+  que se ganha é aposta, não decisão.
+</p>
+
+<table>
+  <tr><th>Trava ou regra</th><th>Valor</th></tr>
+  <tr><td>Guerra federativa ativa entre as duas federações</td><td>Conferida no despacho; o combate leva a marca da guerra (<code>war_id</code>)</td></tr>
+  <tr><td>Quartel erguido em quem ataca</td><td>Nível ≥ 1 (decisão 15)</td></tr>
+  <tr><td>Um cerco por colônia de cada vez</td><td>Dois simultâneos dobrariam o saque sobre o mesmo estoque</td></tr>
+  <tr><td>Marcha</td><td>120 s por slot de distância, com piso de 10 min — o defensor precisa de janela para reagir</td></tr>
+  <tr><td>Defensor ausente</td><td>Fotografado no despacho, como na zona; quem sai do ar depois não muda nada (mas ver o aviso no fim desta seção)</td></tr>
+</table>
+
+<p>
+  <b>O combate reusa a rodada da zona</b> (§8.2): dano de 15% ×
+  (força própria / total), a cada 10 minutos. A defesa da colônia são
+  <b>as unidades dela que não estão em marcha</b>, e só — a Torre <b>não</b> entra na força, porque
+  pôr o mesmo prédio nos dois lados da conta faria um investimento pagar duas vezes. O
+  <code>combate_defesa</code> multiplica essa defesa a cada rodada. Colônia
+  sem uma unidade de pé perde na chegada, sem luta. O resolvedor é próprio, e a fórmula da rodada
+  está <b>duplicada de propósito</b>: ramificar o da zona arriscaria o único combate testado do jogo —
+  o preço é que, se o dano mudar lá, tem de mudar aqui. <span class="d">D-203</span>
+</p>
+
+<p>
+  <b>O saque</b> leva <b>50% do exposto</b> de cada recurso (§27.8),
+  menos o corte da Torre de Defesa do alvo — 10% por nível, com teto
+  de 70%. Sem o teto, uma Torre alta zeraria o espólio e a mecânica se
+  desligaria sozinha. "Exposto" é o que excede o Depósito Local, cuja proteção vai de
+  50.000 no nível 1 a 372.525 no nível
+  10 (§2.2). <span class="sel sel-arb">Arbitrado · base e curva da proteção, decisão 16</span></p>
+
+<table>
+  <tr><th class="num">Torre de Defesa</th><th class="num">Corte</th><th class="num">O saque leva, do exposto</th></tr>
+    <tr><td class="num">sem Torre</td><td class="num">0%</td><td class="num">50%</td></tr>
+    <tr><td class="num">1</td><td class="num">10%</td><td class="num">45%</td></tr>
+    <tr><td class="num">2</td><td class="num">20%</td><td class="num">40%</td></tr>
+    <tr><td class="num">3</td><td class="num">30%</td><td class="num">35%</td></tr>
+    <tr><td class="num">4</td><td class="num">40%</td><td class="num">30%</td></tr>
+    <tr><td class="num">5</td><td class="num">50%</td><td class="num">25%</td></tr>
+  </table>
+
+<div class="nota">
+  <b>O teto de 70% não é alcançável hoje</b>: o catálogo leva a Torre de
+  Defesa só até o nível 5, e 5 ×
+  10% = 50%. A
+  garantia "a Torre nunca zera o saque" vale pelo nível máximo, não pelo teto — o teto só morde se a
+  Torre ganhar níveis ou o corte por nível subir.
+</div>
+
+<p>
+  O butim vai direto para a colônia de quem atacou, em duas pernas no ledger
+  (<code>saque_sofrido</code> / <code>saque_recebido</code>), <b>sem tributo</b> — saque não é
+  comércio. Cada saque grava a telemetria <code>colonia_saqueada</code> com o defensor ausente ou
+  não, e o painel de métricas responde <b>"quem foi saqueado ausente voltou?"</b> em três estados
+  (voltou em 7 dias, não voltou, em aberto), só para humanos. Enquanto nenhum saque houver, o
+  indicador é lacuna, não zero. <span class="d">D-203, D-251</span>
+</p>
+
+<p>
+  <b>A zona, em guerra federativa</b> <span class="d">D-205</span>. Invasão vitoriosa sobre zona de
+  federação inimiga leva <b>100% do estoque inteiro</b> — o Depósito da zona deixa de proteger. A
+  guerra é conferida <b>no instante da vitória</b>, não no despacho: quem chega depois da paz saqueia
+  como em paz, e o defensor é o dono <b>atual</b> da zona. O <b>cerco de zona continua nos
+  30% do exposto</b>, em guerra ou fora dela — quem quer tudo invade e
+  toma; quem cerca leva uma fatia e vai embora.
+</p>
+
+<div class="nota">
+  <b>O butim atravessa o teto de estoque da colônia, e isso foi escolhido.</b> O teto governa a
+  produção, não o saque: a colônia recebe tudo e passa a produzir zero daquele recurso até gastá-lo.
+  Travar o saque no teto viraria, no cerco, escudo grátis para o defensor — bastaria o atacante estar
+  cheio. <span class="d">D-205</span>
+</div>
+
+<div class="nota grave">
+  <b>⚠️ Achado ao redigir esta seção: pelo jogo, hoje, o cerco de colônia não acontece.</b> Os testes
+  montam a tropa à mão e passam; o caminho real tem três quebras, todas no código e nenhuma no
+  desenho:
+  <ul>
+    <li>a fábrica do Quartel cria unidades em casa (<code>casa</code>), e o ataque a colônia só aceita
+      unidades <code>ociosa</code> — estado que só o próprio cerco atribui. Toda marcha disparada pela
+      tela é recusada;</li>
+    <li>a força ofensiva conta só unidades <code>em_combate</code>, e o resolvedor do cerco nunca as
+      passa a esse estado. Contra uma colônia com uma unidade de pé que seja, o atacante seria
+      repelido sem dano na primeira rodada;</li>
+    <li>o bônus do defensor ausente (§8.2) é fotografado no despacho e <b>não é aplicado</b> na
+      rodada; e a trava de "um cerco por vez" não olha o estado <code>em_curso</code>.</li>
+  </ul>
+  O que <b>funciona</b> pelo jogo é a tomada de zona com saque total (acima), que roda no resolvedor
+  de zona.
+</div>
+
+<h3>8.14 Capitulação, tratado de paz e neutralidade declarada <span class="d">D-197, D-206</span></h3>
+
+<p>Uma guerra acaba de três jeitos, e cada um diz ao ranking (§8.15) um resultado diferente:</p>
+
+<table>
+  <tr><th>Fim</th><th>Quem propõe</th><th>Quem responde</th><th>O que muda de mãos</th></tr>
+  <tr><td><b>Prazo</b></td><td>—</td><td>—</td><td>Nada além do que a guerra já moveu</td></tr>
+  <tr><td><b>Capitulação</b></td><td>Quem quer sair</td><td>O vencedor, <b>escolhendo o espólio</b></td><td>Uma zona <b>ou</b> Fert$ do fundo</td></tr>
+  <tr><td><b>Tratado de paz</b></td><td>Qualquer um dos dois</td><td>O outro, aceitando ou recusando</td><td>Nada</td></tr>
+</table>
+
+<p>
+  <b>Capitular é oferecer sem saber o preço</b> — é a decisão 9 à letra: <i>"o vencedor escolhe"</i>.
+  O que protege quem se rende não é poder recusar, é o preço ser <b>estruturalmente limitado</b>:
+  exatamente uma zona, ou exatamente <b>500,00 F$</b> —
+  hoje o mesmo valor da declaração: capitular custa o que custou declarar. O vencedor
+  escolhe <b>qual</b>, nunca <b>quanto</b>. E <b>não pode recusar</b> uma rendição — recusar prenderia
+  o outro numa derrota que já aconteceu; ele pode só não responder, e aí vale o prazo. Quem se rendeu
+  pode retirar a oferta enquanto o preço não foi escolhido.
+</p>
+
+<table>
+  <tr><th>Regra da capitulação</th><th>Por quê</th></tr>
+  <tr><td><b>Leva-se o que houver</b> no fundo; não se cria dívida</td><td>Bloquear a rendição por pobreza é a armadilha que o §9 do GDD da guerra nomeia</td></tr>
+  <tr><td>A zona exigida tem de ser de colônia da federação que se rendeu, e <b>não estar sob combate</b></td><td>Sem a primeira, o vencedor levaria zona de terceiro; sem a segunda, dois donos no mesmo instante</td></tr>
+  <tr><td>A zona vai para a colônia de quem assinou; o Fert$, para o fundo do vencedor</td><td>A zona só tem dono-colônia; o espólio é da federação (§11)</td></tr>
+  <tr><td>A <b>guarnição volta para casa</b>, não morre</td><td>Não houve batalha — apagá-la seria um segundo preço que ninguém combinou</td></tr>
+  <tr><td>O histórico grava a zona como <b>cedida</b>, não <i>conquistada</i></td><td>Conta para o tempo de controle, não para o sub-ranking de conquistas (§8.11) — senão duas amigas trocariam zonas para subir</td></tr>
+  <tr><td>O <b>fim previsto não se antecipa</b></td><td>O cooldown do par conta dele; capitular não pode ser o jeito barato de zerar a proteção contra assédio</td></tr>
+</table>
+
+<p>
+  Capitulação e tratado partilham as mesmas guardas: só Líder ou Diplomata negociam, só as duas
+  partes, só em guerra ativa, <b>uma proposta pendente por tipo e por guerra</b> venha de qual lado
+  vier, e quem propôs nunca é quem responde. O tratado recusado deixa a guerra correndo.
+</p>
+
+<p>
+  <b>Neutralidade declarada</b> <span class="d">D-197</span>. A válvula de escape que a decisão 12
+  escolheu no lugar de proteger quem some: <b>inatividade não protege</b>, e quem sabe que vai se
+  ausentar declara. O Líder ou o Diplomata a declaram, com anúncio público.
+</p>
+
+<table>
+  <tr><th>Regra</th><th>Valor</th></tr>
+  <tr><td>Entrar</td><td>Imediato — e <b>nunca no meio de uma guerra</b>: a saída de lá é a capitulação</td></tr>
+  <tr><td>Simetria</td><td>A neutra <b>não pode ser declarada e não pode declarar</b></td></tr>
+  <tr><td>Sair</td><td>Só vale <b>24 h</b> depois do pedido; até lá a proteção continua inteira</td></tr>
+</table>
+
+<div class="nota">
+  <b>Simetria e carência são julgamento do desenvolvedor, registrado</b> — a decisão 12 não dizia
+  quanto a neutralidade custa, e grátis e reversível na hora ela viraria o estado padrão do mundo:
+  todos neutros, largando o escudo no instante de atacar. A assimetria é a da aliança pelo motivo
+  oposto: lá sair é livre para ninguém ficar refém de um pacto; aqui sair é lento para ninguém
+  atacar de dentro do abrigo. <span class="d">D-197</span>
+</div>
+
+<div class="nota grave">
+  <b>O custo aceito é a ausência imprevista.</b> Colônia saqueável + guerra de
+  7 dias + inatividade sem proteção fazem de uma viagem de uma semana uma
+  perda material, e o §1.1 do GDD pede para não exigir login constante. A neutralidade cobre quem
+  sabe que vai sumir; quem some sem aviso, não. Por isso o indicador de retorno do saqueado ausente
+  (§8.13) existe: se quem apanha ausente não volta, isso aparece antes de virar êxodo, e a carência
+  ainda dá para mudar. <span class="d">D-193, D-251</span>
+</div>
+
+<h3>8.15 O ranking federativo é Elo <span class="d">D-207</span></h3>
+
+<p>
+  O GDD da guerra diz o que o ranking deve fazer — <i>"mede guerras travadas, não guerras
+  vencidas"</i>, e <i>"considerar a diferença de força premia enfrentar quem é páreo"</i> — e não
+  publica conta nenhuma (decisão 10). Com zero guerras no mundo, nenhuma fórmula era validável
+  contra dados; o critério passou a ser <b>qual resiste a ser fraudada</b>. Elo é soma zero: duas
+  federações amigas guerreando entre si para subir juntas (o ataque da decisão 11) <b>não ganham
+  nada líquido</b>. Nas alternativas, a fraude pagava.
+</p>
+
+<pre>esperado = 1 / (1 + 10^((rating_do_outro − meu) / 400))
+rating  += K × (resultado − esperado)        K = 32, início 1.000</pre>
+
+<table>
+  <tr><th>Fim da guerra</th><th>Resultado de quem declarou</th></tr>
+  <tr><td>Capitulação</td><td>1 se a outra se rendeu, 0 se foi ela — quem aceita a rendição venceu</td></tr>
+  <tr><td>Tratado</td><td>0,5 — a paz não move espólio, e premiar quem propôs premiaria propor</td></tr>
+  <tr><td>Prazo</td><td>Pelo <b>saldo</b> dos combates marcados com a guerra: zonas tomadas; empatando, o saque; empatando, empate</td></tr>
+</table>
+
+<table>
+  <tr><th>Quem declara × alvo</th><th class="num">Vence</th><th class="num">Tratado</th><th class="num">Perde</th></tr>
+    <tr>
+    <td>1.000 × 1.000</td>
+    <td class="num">+16</td>
+    <td class="num">+0</td>
+    <td class="num">-16</td>
+  </tr>
+    <tr>
+    <td>1.000 × 1.200</td>
+    <td class="num">+24</td>
+    <td class="num">+8</td>
+    <td class="num">-8</td>
+  </tr>
+    <tr>
+    <td>1.200 × 1.000</td>
+    <td class="num">+8</td>
+    <td class="num">-8</td>
+    <td class="num">-24</td>
+  </tr>
+  </table>
+
+<p style="margin-top:-6px">
+  O alvo recebe o <b>simétrico</b> exato — uma conta só, não duas: arredondar cada lado em separado
+  faria a soma dar ±1, e numa guerra encenada repetida o resíduo viraria ganho. Entre desiguais, até
+  o tratado move o número, na direção de quem era o azarão.
+</p>
+
+<div class="nota">
+  <b>Sem piso, e é consequência do argumento</b>: um chão devolveria o ganho ao par encenado — o
+  perdedor pararia de cair e o vencedor continuaria a subir. O §12 do GDD da guerra proíbe perda
+  permanente de território, não de posição num placar. A tela da federação avisa, antes de declarar,
+  que o rating <b>cai</b>.
+</div>
+
+<div class="nota">
+  <b>O sexto sub-ranking do §8.11 enfim tem de onde sair.</b> <i>"Guerras Vencidas (Federação)"</i>,
+  vazio desde o D-128, passa a ler o <b>rating da federação</b> de cada membro — e com ele os pesos
+  somam <b>100</b>: não faltava renormalizar, faltava a sexta parcela. Colônia sem federação fica com
+  <b>zero</b>, não com os 1.000 de partida, senão um solitário empataria com uma
+  federação que nunca perdeu. Para isso todo combate passou a levar a marca da guerra em que foi
+  despachado — sem ela o fim por prazo não teria resposta.
+</div>
+
 
 <!-- ══════════════════════════════════════════════════════════════ 9 -->
 <h2 id="s9">9. A Federação</h2>
@@ -3154,6 +4072,17 @@ todos desde a fundação, e os da zona se abrem conforme ela sobe.</p>
   federação do outro — a metade que o §26.8 previa e ficava inerte desde o D-44 (§7.2).
 </p>
 
+<h3>9.6 O mapa diz quem é aliado, e só isso <span class="d">D-242</span></h3>
+
+<p>
+  No mapa, a colônia vizinha que é da <b>mesma federação</b> que a sua aparece marcada como
+  aliada. É tudo o que o servidor entrega: um sim ou não (<code>aliada</code>), <b>nunca o nome
+  nem o id da federação de uma colônia que não é sua</b>. Se o mapa dissesse a qual federação cada
+  vizinho pertence, viraria um censo de alianças — e saber quem está com quem é informação de
+  guerra (§8.12), que se conquista, não se lê na legenda.
+  <span class="sel sel-arb">Arbitrado · privacidade da filiação alheia no mapa</span>  Os eventos que valem só para uma federação estão na <span class="d">§15.5</span>.
+</p>
+
 <!-- ══════════════════════════════════════════════════════════════ 10 -->
 <h2 id="s10">10. A Endurance</h2>
 
@@ -3174,13 +4103,20 @@ todos desde a fundação, e os da zona se abrem conforme ela sobe.</p>
   catálogo dinâmico, não mais 8 grupos numa tela só.
 </p>
 
+<p>
+  A loja lista da raridade mais alta para a mais baixa, e dentro dela pelo preço. O mapa do casco
+  diz, por seção, quantas peças estão à venda, se há uma única e qual a mais barata — <b>sem
+  filtrar pelo marco de quem olha</b>, de propósito: ver a peça que ainda não se pode comprar é o
+  que dá vontade de subir. <span class="d">D-246</span>
+</p>
+
 <h3>10.2 O catálogo dinâmico, e os efeitos que mexem no motor de verdade <span class="d">D-135</span></h3>
 
 <p>
   O admin cria/edita/apaga itens à vontade pelo painel — nada de linha fixa. Cada item tem tipo
   (comum/raro/único), estoque GLOBAL do servidor (não por colônia), preço em Fert$, marco mínimo
   OPCIONAL, e uma lista de efeitos EMPILHÁVEIS — um item pode ter vários. Hoje o catálogo tem
-  <b>0</b> item(ns) cadastrado(s).
+  <b>19</b> item(ns) cadastrado(s).
 </p>
 
 <table>
@@ -3224,6 +4160,114 @@ todos desde a fundação, e os da zona se abrem conforme ela sobe.</p>
   Oficina) é THROUGHPUT</b> — mais saída, mas também mais insumo consumido, proporcionalmente.
   <span class="sel sel-arb">Arbitrado · os 6 tipos de efeito, os tetos por tipo, e a distinção grátis/throughput</span></p>
 
+<h4>10.2.1 A escala das raridades: fração do teto <span class="d">D-244, D-245</span></h4>
+
+<p>
+  Até o D-244 o catálogo tinha <b>um item</b> — a sala existia e estava vazia. O catálogo inicial
+  (<code>EnduranceItemSeeder</code>) mede o efeito de cada peça como <b>fração do teto do tipo</b>,
+  e não em número absoluto: <b>comum 20%</b>, <b>raro 40%</b>, <b>único 60%</b> do teto da tabela
+  acima. Em absoluto, o único do Comando nascia exatamente no teto do desconto de tributo e apagava
+  o comum e o raro do mesmo tipo — foi um teste que pegou. A âncora é a única peça que já existia
+  e que ninguém mexeu: a Broca do operador, rara, +20% de produção = 40% do teto.
+</p>
+
+<table>
+  <tr><th>Raridade</th><th class="num">Peças</th><th class="num">Estoque de cada</th><th class="num">Preço</th><th class="num">Marco mínimo</th></tr>
+    <tr>
+    <td>Comum</td>
+    <td class="num">8</td>
+    <td class="num">126</td>
+    <td class="num">20 F$</td>
+    <td class="num">1</td>
+  </tr>
+    <tr>
+    <td>Raro</td>
+    <td class="num">8</td>
+    <td class="num">42</td>
+    <td class="num">50 F$</td>
+    <td class="num">5</td>
+  </tr>
+    <tr>
+    <td>Único</td>
+    <td class="num">3</td>
+    <td class="num">1</td>
+    <td class="num">500 F$</td>
+    <td class="num">10</td>
+  </tr>
+  </table>
+
+<p>
+  <b>Do raro para cima, a peça traz também o efeito da seção vizinha no casco</b> — a que era
+  acoplada à sua na nave —, sempre na fração do comum. É o que impede o raro de ser "o comum,
+  maior", a queixa exata do D-134 que o primeiro catálogo tinha herdado sem perceber. A peça
+  <b>única</b> existe só em algumas seções, e é a que ganha descobridor (§10.6).
+</p>
+
+<table>
+  <tr><th>Seção</th><th>Comum</th><th>Raro</th><th>Único</th></tr>
+    <tr>
+    <td><b>Anel Habitacional</b></td>
+    <td><code>producao_bonus:captacao_de_agua</code> +10%</td>
+    <td><code>producao_bonus:captacao_de_agua</code> +20%<br><code>producao_bonus:fazenda</code> +10%</td>
+    <td>—</td>
+  </tr>
+    <tr>
+    <td><b>Baía Criogênica</b></td>
+    <td><code>drone_bateria</code> +20%</td>
+    <td><code>drone_bateria</code> +40%<br><code>producao_bonus:refinaria_quimica</code> +10%</td>
+    <td>—</td>
+  </tr>
+    <tr>
+    <td><b>Comando</b></td>
+    <td><code>desconto_tributo</code> +6%</td>
+    <td><code>desconto_tributo</code> +12%<br><code>drone_raio</code> +20%</td>
+    <td><code>desconto_tributo</code> +18%<br><code>drone_raio</code> +20%</td>
+  </tr>
+    <tr>
+    <td><b>Matriz de Comunicação</b></td>
+    <td><code>drone_raio</code> +20%</td>
+    <td><code>drone_raio</code> +40%<br><code>desconto_tributo</code> +6%</td>
+    <td><code>drone_raio</code> +60%<br><code>desconto_tributo</code> +6%</td>
+  </tr>
+    <tr>
+    <td><b>Módulo Médico</b></td>
+    <td><code>producao_bonus:refinaria_quimica</code> +10%</td>
+    <td><code>producao_bonus:refinaria_quimica</code> +20%<br><code>drone_bateria</code> +20%</td>
+    <td>—</td>
+  </tr>
+    <tr>
+    <td><b>Núcleo de Propulsão</b></td>
+    <td><code>velocidade_veiculo:todos</code> +10%</td>
+    <td><code>velocidade_veiculo:todos</code> +20%<br><code>capacidade_veiculo:todos</code> +10%</td>
+    <td><code>velocidade_veiculo:todos</code> +30%<br><code>capacidade_veiculo:todos</code> +10%</td>
+  </tr>
+    <tr>
+    <td><b>Seção de Acoplagem</b></td>
+    <td><code>capacidade_veiculo:todos</code> +10%</td>
+    <td><code>capacidade_veiculo:todos</code> +20%<br><code>velocidade_veiculo:todos</code> +10%</td>
+    <td>—</td>
+  </tr>
+    <tr>
+    <td><b>Silo de Suprimentos</b></td>
+    <td><code>producao_bonus:fazenda</code> +10%</td>
+    <td><code>producao_bonus:fazenda</code> +20%<br><code>producao_bonus:captacao_de_agua</code> +10%</td>
+    <td>—</td>
+  </tr>
+  </table>
+
+<p style="font-size:.86rem;color:var(--ink-soft)">
+  A tabela é o catálogo do banco em que este documento foi gerado. O operador cria e edita peças
+  pelo painel sem deploy, então o catálogo vivo pode ter mais linhas que esta.
+  <span class="sel sel-arb">Arbitrado · as frações 20/40/60%, preço, estoque e marco por raridade — inferidos de uma âncora só (D-244)</span></p>
+
+<div class="nota">
+  <b>O portão de reputação na loja fica fechado de propósito.</b> O D-134 pedia que peças exigissem
+  reputação comercial; o D-245 mediu e achou <b>um valor só no mundo inteiro</b> — todos os usuários
+  com a mesma confiança comercial, porque o comércio nunca passou do piso que a move. Um portão de
+  reputação hoje não separaria ninguém. Reabre quando houver comércio que a diferencie.
+  <span class="d">D-245</span>
+</div>
+
 <h3>10.3 Leilões vendendo item <span class="d">D-136</span></h3>
 
 <p>
@@ -3261,6 +4305,46 @@ todos desde a fundação, e os da zona se abrem conforme ela sobe.</p>
   <span class="sel sel-arb">Arbitrado · tema, ordem e recompensa dos 4 capítulos — o GDD só dá o rótulo &quot;missões narrativas&quot;, nenhum conteúdo</span>  Só o capítulo 1 ganhou uma ação dedicada (<code>comprar_item_endurance</code>); os demais
   reaproveitam ações genéricas já existentes, tematizadas como a "escavação" continuando.
 </p>
+
+<h3>10.6 A escavação, e as peças que um evento libera <span class="d">D-249</span></h3>
+
+<p>
+  O §11 chama a Endurance de <b>origem</b> de peças, e até o D-249 toda peça nascia na compra. Agora
+  cada peça tem uma <b>origem</b>: <code>loja</code> (a de sempre, comprada pelo preço) ou
+  <code>escavacao</code> — que a loja <b>não vende</b> e só se acha mandando uma equipe ao casco.
+</p>
+
+<ul>
+  <li><b>Uma escavação por colônia de cada vez</b>, numa seção escolhida. Paga o custo na partida e
+      volta depois da duração; conclui no tick da colônia, depois da pesquisa e antes da produção.</li>
+  <li><b>O sorteio é pelo estoque livre</b>: cada unidade ainda não achada é um bilhete. Só entram
+      peças de origem «escavação» daquela seção e com marco mínimo ao alcance da colônia — achar uma
+      peça que a loja recusaria vender seria contornar o portão do marco pela porta dos fundos.</li>
+  <li><b>A peça é sorteada e reservada na partida</b>, sob trava: toda escavação aceita acha alguma
+      coisa, e a seção sem nada para achar é recusada <b>antes</b> de cobrar. A colônia só fica
+      sabendo o que achou quando a equipe volta. Uma peça <b>única</b> achada assim ganha
+      <b>descobridor</b>.</li>
+  <li><b>Peça de evento</b>: uma peça (de loja ou de escavação) pode ser presa a um evento
+      (<code>game_event_id</code>). Ela só existe — na vitrine e no sorteio — <b>enquanto o evento
+      vale</b>, pelo mesmo critério de vigência do motor de eventos (§15). É o "lote liberado por
+      evento" do §11.2.</li>
+</ul>
+
+<table>
+  <tr><th>Parâmetro do operador</th><th>Hoje, no banco deste documento</th></tr>
+  <tr><td>Escavação ligada</td><td><b>desligada</b></td></tr>
+  <tr><td>Duração</td><td><span class="sel sel-lac">Não definida</span></td></tr>
+  <tr><td>Custo</td><td><span class="sel sel-lac">Não definido</span></td></tr>
+</table>
+
+<div class="nota grave">
+  <b>⚠️ A escavação nasce desligada, e o jogo não inventa o preço dela.</b> Custo (Fert$ e/ou
+  recursos) e duração são do operador, no cartão do topo de <code>/central/admin/endurance</code>.
+  O painel recusa ligar sem duração; custo vazio é permitido e quer dizer escavar de graça, e a
+  tela diz isso com todas as letras. E ligar não basta: só há o que achar depois de o operador
+  marcar peças com origem «escavação». No último registro de produção (07/10/2026) ela seguia
+  desligada, à espera desses números.
+</div>
 
 <!-- ══════════════════════════════════════════════════════════════ 11 -->
 <h2 id="s11">11. Operação e administração</h2>
@@ -3409,6 +4493,19 @@ todos desde a fundação, e os da zona se abrem conforme ela sobe.</p>
   existe só para responder na hora, nunca como a trava de verdade.
 </div>
 
+<h3>11.7 A pergunta que a guerra deixou para a telemetria <span class="d">D-202, D-251</span></h3>
+
+<p>
+  O cerco de colônia saqueia quem não está olhando (§8.13). O risco de desenho é óbvio: o jogador
+  que volta e encontra o estoque saqueado <b>pode não voltar mais</b>. O painel de telemetria
+  responde isso com um cartão derivado: de cada colônia saqueada <b>com o defensor ausente</b>, o
+  próximo login decide entre <b>voltou</b> (em até 7 dias), <b>não voltou</b> (7 dias passados sem
+  login) e <b>em aberto</b> (ainda dentro dos 7 dias — separado, para não contar como abandono o que
+  só não teve tempo). Só humanos entram na conta. E <b>zero saques aparece como lacuna, não como
+  zero</b>: "ninguém deixou de voltar" e "ninguém foi saqueado" são respostas diferentes, e só a
+  segunda é a verdade de hoje.
+</p>
+
 <!-- ══════════════════════════════════════════════════════════════ 12 -->
 <h2 id="s13">13. População</h2>
 
@@ -3431,17 +4528,30 @@ todos desde a fundação, e os da zona se abrem conforme ela sobe.</p>
   Quem abriga é a <b>Estrutura de Sobrevivência</b> — a construção que o catálogo descrevia como
   <i>"efeito: nenhum"</i> até esta leva. A capacidade é
   <b>10</b> no nível 1, multiplicada por
-  <b>1,65×</b> a cada nível.
+  <b>2,00×</b> a cada nível.
 </p>
 
 <table>
   <tr><th class="num">Nível</th><th class="num">Colonos abrigados</th></tr>
     <tr><td class="num">1</td><td class="num">10</td></tr>
-    <tr><td class="num">2</td><td class="num">16</td></tr>
-    <tr><td class="num">3</td><td class="num">27</td></tr>
-    <tr><td class="num">4</td><td class="num">44</td></tr>
-    <tr><td class="num">5</td><td class="num">74</td></tr>
+    <tr><td class="num">2</td><td class="num">20</td></tr>
+    <tr><td class="num">3</td><td class="num">40</td></tr>
+    <tr><td class="num">4</td><td class="num">80</td></tr>
+    <tr><td class="num">5</td><td class="num">160</td></tr>
   </table>
+
+<div class="nota">
+  <b>Por que o fator não é a curva de custo do jogo</b> <span class="d">D-239</span>. Até setembro
+  ele era <b>1,65×</b> — copiado da curva de custo (D-01), como se habitação crescesse como preço.
+  O campo mostrou o defeito: a <b>demanda</b> de operadores cresce com a soma dos níveis de
+  <b>todas</b> as construções da colônia, e a <b>oferta</b> crescia com o nível de <b>uma só</b>. A
+  mediana da população comprometida (a métrica-chave do §7.3 do balanceamento) estava em
+  <b>134%</b>, onde a simulação previa 52%. Mexeu-se no <b>fator</b>, e não na base: a base consertaria
+  o campo e esvaziaria o começo. O teste que guarda isto protege a <b>razão</b> — o fator da habitação
+  não pode ser o da curva de custo —, não o número, que segue editável no painel da População.
+  Medido depois: mediana <b>80%</b>, e o teto passou a comportar os 2 colonos de uma ocupação em
+  18 de 30 colônias, onde comportava em 5.
+</div>
 
 <div class="nota grave">
   <b>O total pode passar do teto — e isso é regra, não defeito.</b> O grandfathering do §6.7
@@ -3693,6 +4803,69 @@ todos desde a fundação, e os da zona se abrem conforme ela sobe.</p>
   menu. <span class="d">D-172</span>
 </div>
 
+<h3>14.1 As vagas, e o Observatório <span class="d">D-252</span></h3>
+
+<p>
+  Quantas pesquisas correm ao mesmo tempo é a soma de <b>duas fontes</b>, com um teto para a soma.
+  O <b>Laboratório</b> dá <b>1</b> vaga de base mais uma a cada
+  <b>5</b> níveis; sem Laboratório erguido
+  não há pesquisa nenhuma, nem a base. O <b>Observatório</b> — a construção que o GDD_ALPHA2 §7.2
+  previa para o paralelismo e que ficou fora da primeira entrega — soma na <b>mesma razão</b>, sem
+  base, porque a base é de quem abre a árvore. O total nunca passa de
+  <b>3</b>: vaga infinita faria da árvore uma fila de espera, e o
+  ponto dela é obrigar a escolher.
+</p>
+
+<p>Vagas totais, por nível de Laboratório (linhas) e de Observatório (colunas):</p>
+
+<table>
+  <tr><th class="num">Laboratório</th><th class="num">sem Obs.</th>
+    <th class="num">Obs. 1</th><th class="num">Obs. 2</th><th class="num">Obs. 3</th><th class="num">Obs. 4</th><th class="num">Obs. 5</th></tr>
+    <tr><td class="num">1</td><td class="num">1</td>
+    <td class="num">1</td><td class="num">1</td><td class="num">1</td><td class="num">1</td><td class="num">2</td></tr>
+    <tr><td class="num">2</td><td class="num">1</td>
+    <td class="num">1</td><td class="num">1</td><td class="num">1</td><td class="num">1</td><td class="num">2</td></tr>
+    <tr><td class="num">3</td><td class="num">1</td>
+    <td class="num">1</td><td class="num">1</td><td class="num">1</td><td class="num">1</td><td class="num">2</td></tr>
+    <tr><td class="num">4</td><td class="num">1</td>
+    <td class="num">1</td><td class="num">1</td><td class="num">1</td><td class="num">1</td><td class="num">2</td></tr>
+    <tr><td class="num">5</td><td class="num">2</td>
+    <td class="num">2</td><td class="num">2</td><td class="num">2</td><td class="num">2</td><td class="num">3</td></tr>
+  </table>
+
+<div class="nota grave">
+  <b>⚠️ Com os parâmetros de hoje, o Observatório do nível 1 ao 4  não dá vaga nenhuma.</b> A razão "uma vaga a cada 5 níveis", herdada do
+  Laboratório, só rende no nível 5 — e o Laboratório tem a vaga de base para
+  compensar, o Observatório não. O jogador paga níveis que não mudam nada. E o divisor e o teto
+  (<code>research_settings</code>) <b>não têm tela no painel</b>: mudam só por migration. É a
+  primeira coisa a decidir na revisão abaixo. <span class="d">D-252</span>
+</div>
+
+<p>
+  O Observatório ocupa um slot da colmeia, é <b>único</b>, e <b>só se ergue com o Laboratório</b>
+  de pé (nível 1 ou mais). Custo, tempo e energia por nível são <b>os do Laboratório</b>, linha a
+  linha — estão na tabela da §4.2.
+  <span class="sel sel-arb">Arbitrado · custo, tempo, energia e vagas do Observatório ancorados no Laboratório — a revisar (D-252)</span></p>
+
+<div class="nota">
+  <b>O v35 tem uma ficha do Observatório — e o D-252 não a usou.</b> No v35 ele é uma
+  <i>especialização</i>: <b>substitui</b> o Laboratório no slot de especialização, exige
+  Laboratório nível 3, dá <b>2/2/3/3/4</b> trilhas simultâneas do nível 1 ao 5 e custa bem mais
+  (Ligas 140→1.038, Componentes Eletrônicos 90→667, Compostos 80→593, Resina 4→30; 45→228 min;
+  energia 30→152/h). O sistema de especializações do v35 nunca entrou no jogo, e o v36 em diante
+  não o manteve — por isso o D-252 fez do Observatório uma construção que <b>soma</b>, e não que
+  substitui. A ficha continua sendo o único número publicado para ele, e é a base natural da revisão.
+</div>
+
+<div class="nota">
+  <b>Quatro construções que a tela dizia inertes, e não eram</b> <span class="d">D-252</span>. Ao
+  pôr o Observatório no catálogo de funções, a revisão achou quatro linhas mentindo: a
+  <b>Estrutura de Sobrevivência</b> abriga (§13.1), o <b>Laboratório</b> abre a pesquisa, a
+  <b>Torre de Defesa</b> corta o saque do cerco de colônia (§8.13) e o <b>Tanque de Combustível</b>
+  trava a Destilaria — sem ele ela não converte. A §4.1 já sai corrigida, porque é lida do mesmo
+  catálogo que a tela lê. A Antena e a Plataforma continuam inertes de verdade.
+</div>
+
 <div class="nota grave">
   <b>⚠️ A vaga do Laboratório é perdida para sempre se a pesquisa não concluir.</b> O
   <code>ColonyTick</code> conclui a pesquisa vencida <b>antes</b> de calcular produção — e por
@@ -3704,25 +4877,26 @@ todos desde a fundação, e os da zona se abrem conforme ela sobe.</p>
 <h2 id="s15">15. Eventos de mundo</h2>
 
 <p>
-  O planeta pode mudar. Um evento aplica um <b>modificador de produção ou de consumo</b> a todo o
-  mundo (ou a um recurso), por uma janela de tempo — e o jogador <b>vê que algo está acontecendo</b>.
-  <span class="d">D-185</span>
+  O planeta pode mudar. Um evento muda uma regra do jogo por uma janela de tempo — produção, prazo,
+  tributo, portão, combate — e pode, além disso, <b>entregar uma cesta</b> e <b>trazer missões</b>.
+  O jogador <b>vê que algo está acontecendo</b>, e vê quando acaba.
+  <span class="d">D-185, D-232, D-237, D-248, D-250, D-253</span>
 </p>
 
 <div class="nota grave">
   <b>Um motor que muda a economia sem que ninguém veja é indistinguível de um defeito.</b> O jogador
   veria a produção cair e concluiria que o jogo quebrou — e essa é uma desconfiança que não se
-  recupera depois. Por isso o evento anunciado aparece em <b>todas as telas</b>, com nome, mensagem
-  e o efeito em número.
-</p>
+  recupera depois. Por isso o evento anunciado aparece em <b>todas as telas</b>, com nome, mensagem,
+  o efeito em número e o prazo.
+</div>
 
 <h3>15.1 Os três graus de visibilidade</h3>
 
 <table>
   <tr><th>Grau</th><th>O que o jogador vê</th></tr>
-  <tr><td><b>Anunciado</b></td><td>Nome, mensagem e o efeito exato (<i>"produção −20% em tudo"</i>).</td></tr>
-  <tr><td><b>Parcial</b></td><td>Que <b>algo</b> afeta a produção — sem dizer o quê nem quanto.</td></tr>
-  <tr><td><b>Secreto</b></td><td>Nada. O servidor o filtra antes de a tela existir.</td></tr>
+  <tr><td><b>Anunciado</b></td><td>Nome, mensagem, o efeito exato (<i>"produção −20% em tudo"</i>) e o prazo.</td></tr>
+  <tr><td><b>Parcial</b></td><td>Que <b>algo</b> afeta o jogo — sem dizer o quê nem quanto. Continua parcial depois de terminar: sai a notícia, não o segredo.</td></tr>
+  <tr><td><b>Secreto</b></td><td>Nada. O servidor o filtra antes de a tela existir — e a missão que ele traz chega sem o nome dele.</td></tr>
 </table>
 
 <div class="nota">
@@ -3730,20 +4904,220 @@ todos desde a fundação, e os da zona se abrem conforme ela sobe.</p>
   que há uma causa e vai procurá-la, em vez de achar que os números estão errados.
 </div>
 
-<h3>15.2 Criar é ato de governo</h3>
+<h3>15.2 Os modificadores <span class="d">D-185, D-232, D-248, D-253</span></h3>
 
 <p>
-  Eventos nascem por <b>comando do Dono</b>, não por rota HTTP — mesmo molde da intervenção
-  econômica e do conciliador. E há uma razão a mais: um evento <b>secreto</b> que passasse por HTTP
-  deixaria rastro no log de acesso do servidor web, que é o lugar mais fácil do mundo de alguém ler
-  por acidente.
+  <b>Um evento, um modificador.</b> Quem quer mudar duas coisas cria dois eventos — é o que permite
+  cancelar um sem o outro. O valor é sempre o <code>efeito_bps</code> que o operador escreve
+  (100 bps = 1%), sobre uma grandeza que o jogo já calcula: <b>nenhum modificador traz número de
+  jogo próprio</b>. O sinal segue a regra da casa: nas <b>barreiras</b> (tempo, custo, alíquota,
+  portão) o negativo favorece o jogador; nas <b>torneiras</b> (produção, crescimento), o positivo.
+</p>
+
+
+<table>
+  <tr><th>Modificador</th><th>O que muda</th><th>Como se mede</th><th>Por recurso?</th></tr>
+    <tr>
+    <td><code>producao</code></td>
+    <td>A produção (de tudo, ou de um recurso).</td>
+    <td>por média no intervalo</td>
+    <td>sim</td>
+  </tr>
+    <tr>
+    <td><code>consumo</code></td>
+    <td>O consumo (de tudo, ou de um recurso).</td>
+    <td>por média no intervalo</td>
+    <td>sim</td>
+  </tr>
+    <tr>
+    <td><code>guerra_declaracao</code></td>
+    <td>O portão de declarar guerra: −100% fecha, e ninguém declara enquanto durar.</td>
+    <td>no instante</td>
+    <td>—</td>
+  </tr>
+    <tr>
+    <td><code>guerra_custo</code></td>
+    <td>Quanto custa declarar e mobilizar.</td>
+    <td>no instante</td>
+    <td>—</td>
+  </tr>
+    <tr>
+    <td><code>ocupacao_marco</code></td>
+    <td>O XP que o portão de ocupar zona neutra exige. Baixa a régua; não dá XP a ninguém.</td>
+    <td>no instante</td>
+    <td>—</td>
+  </tr>
+    <tr>
+    <td><code>ocupacao_populacao</code></td>
+    <td>Quantos colonos livres ocupar uma zona exige. −100% isenta — a zona nasce com a equipe assim mesmo.</td>
+    <td>no instante</td>
+    <td>—</td>
+  </tr>
+    <tr>
+    <td><code>taxa</code></td>
+    <td>A alíquota-base do tributo, antes de qualquer desconto (aliado, Endurance, pesquisa). Medida na chegada da entrega, na execução da ordem e no fechamento do leilão.</td>
+    <td>no instante</td>
+    <td>sim</td>
+  </tr>
+    <tr>
+    <td><code>logistica</code></td>
+    <td>A duração do trecho de viagem, medida no despacho. O desgaste do veículo continua pelo tempo real.</td>
+    <td>no instante</td>
+    <td>—</td>
+  </tr>
+    <tr>
+    <td><code>construcao</code></td>
+    <td>A duração da obra — na colônia, na zona e na subida de nível da zona —, medida quando a obra começa.</td>
+    <td>no instante</td>
+    <td>—</td>
+  </tr>
+    <tr>
+    <td><code>pesquisa</code></td>
+    <td>A duração da pesquisa, medida quando ela começa.</td>
+    <td>no instante</td>
+    <td>—</td>
+  </tr>
+    <tr>
+    <td><code>populacao</code></td>
+    <td>A taxa de crescimento da população.</td>
+    <td>por média no intervalo</td>
+    <td>—</td>
+  </tr>
+    <tr>
+    <td><code>territorio</code></td>
+    <td>O custo da manutenção territorial, medido na cobrança diária. A −100%, nada é debitado.</td>
+    <td>no instante</td>
+    <td>—</td>
+  </tr>
+    <tr>
+    <td><code>combate_defesa</code></td>
+    <td>A força defensiva de quem defende, em zona e em cerco de colônia, medida na rodada. Positivo favorece a defesa; negativo, o ataque.</td>
+    <td>no instante</td>
+    <td>—</td>
+  </tr>
+  </table>
+
+<div class="nota">
+  <b>"No instante" e "por média" não são detalhe de implementação</b>, são o que o evento promete.
+  Produção é taxa — corre no tempo — e a média ponderada é exata para ela. Prazo não é: o prazo de
+  uma obra nasce num instante e fica gravado. <b>Uma obra iniciada durante o evento leva o desconto
+  até o fim; uma iniciada depois não leva nada; e nenhum prazo é recalculado quando a janela abre
+  ou fecha</b> — recalcular moveria um prazo que o jogo já prometeu ao jogador. Pela mesma razão,
+  um portão "meio aberto" não é um estado que exista.
+  <br><br>
+  Só três modificadores aceitam recurso. Nos outros, um evento com recurso seria ativado,
+  anunciado e <b>não faria nada</b>, sem erro nenhum — e por isso o painel e o comando recusam a
+  combinação em vez de deixá-la morrer em silêncio.
+</div>
+
+<h3>15.3 A cesta: o evento que presenteia <span class="d">D-232, D-234, D-235</span></h3>
+
+<p>
+  Um evento pode trazer uma <b>cesta</b> de recursos e Fert$. As duas metades do evento não se
+  confundem: o <b>modificador</b> muda a taxa e <b>nunca escreve no ledger</b>; a <b>cesta</b> é
+  entregue <b>uma vez por colônia</b> e <b>sempre escreve</b>, como <code>presente_evento</code>. A
+  entrega marca primeiro e credita depois (uma linha por evento e colônia, com chave única), roda a
+  cada 5 minutos e <b>alcança quem fundar durante a janela</b>. É emissão direta: não sai do Tesouro
+  (§3.3). Um evento pode ser <b>só cesta</b>, sem modificador nenhum — foi o caso da segunda cesta
+  de agosto.
+</p>
+
+<p>
+  No "Desde sua última visita", o presente aparece numa <b>seção própria</b>, agrupado por evento e
+  antes da produção — nunca somado a ela. Um presente que entrasse na conta da produção faria a
+  colônia parecer mais produtiva do que é.
+</p>
+
+<h3>15.4 As missões que um evento traz <span class="d">D-250</span></h3>
+
+<p>
+  Um evento pode trazer missões da categoria <b>Eventuais</b> (§2.6) — e só delas; o painel e o
+  comando recusam as outras. Cada colônia recebe cada missão <b>uma vez por evento</b>, com prazo no
+  fim do evento. A entrega tem três portas, sem coordenação entre elas porque a chave única basta:
+  abrir a tela de Missões, a entrega periódica dos eventos (a quem agiu nos últimos 7 dias) e as
+  diárias das 07h05. <b>Cancelar o evento vence as missões abertas</b>; as concluídas ficam. O
+  evento secreto não põe o próprio nome na carta da missão.
+</p>
+
+<h3>15.5 Para quem vale: mundo, colônia ou federação <span class="d">D-253</span></h3>
+
+<p>
+  O <b>escopo</b> diz quem o evento alcança: o <b>mundo</b> inteiro, <b>uma colônia</b>, ou <b>uma
+  federação</b> — e, neste caso, toda colônia que for membro dela no instante em que a regra é
+  aplicada. A regra de alcance mora num lugar só, e é a mesma para modificador, cesta e missão.
+</p>
+
+<h3>15.6 Quando começa: na data, depois de outro, ou quando o mundo chegar lá <span class="d">D-253</span></h3>
+
+<p>
+  Um evento nasce <b>rascunho</b>, e rascunho nunca se ativa sozinho. Ativá-lo na mão é um ato; o
+  outro caminho é <b>armá-lo</b>, e então ele se ativa sozinho por um de dois gatilhos:
+</p>
+
+<ul>
+  <li><b>Encadeado</b>: o evento sucede outro. Ativa quando o anterior está ativo, não cancelado e
+      já venceu; <b>começa no fim do anterior</b> e mantém a duração escrita. Cancelar o anterior
+      deixa o seguinte armado e parado — a corrente não pula elos.</li>
+  <li><b>Por condição</b>: o evento ativa quando o mundo satisfaz uma condição — <b>todas</b> as
+      regras (E) ou <b>qualquer</b> uma (OU), sem aninhar: quem precisar de mais encadeia dois
+      eventos. Condição vazia nunca dispara. Cada regra compara uma métrica do catálogo fechado
+      abaixo com um valor inteiro do operador, por <code>&gt;= &lt;= &gt; &lt; =</code>.</li>
+</ul>
+
+<table>
+  <tr><th>Métrica</th><th>O que mede</th></tr>
+    <tr><td><code>colonias</code></td><td>Colônias fundadas</td></tr>
+    <tr><td><code>zonas_ocupadas</code></td><td>Zonas neutras ocupadas</td></tr>
+    <tr><td><code>combates</code></td><td>Combates registrados (desde sempre)</td></tr>
+    <tr><td><code>federacoes</code></td><td>Federações</td></tr>
+    <tr><td><code>colonias_ativas_7d</code></td><td>Colônias que agiram nos últimos 7 dias</td></tr>
+  </table>
+
+<p>
+  A verificação dos armados roda junto da entrega das cestas, a cada 5 minutos, e cada ativação
+  automática fica registrada na telemetria, com o gatilho que a disparou. É o que torna possível
+  escrever um evento <i>"quando a primeira zona for ocupada"</i> ou <i>"quando houver o primeiro
+  combate"</i> — o mundo que reage ao que os jogadores fazem, em vez de esperar o operador olhar.
+</p>
+
+<h3>15.7 Quando acaba, e o jogo diz <span class="d">D-237</span></h3>
+
+<p>
+  O fim do evento é o que vier primeiro: o <b>prazo</b> ou o <b>cancelamento</b>. O prazo aparece
+  na faixa ao lado do efeito (<i>"termina em 24 h"</i>, <i>"amanhã"</i>), calculado, e não escrito
+  em prosa pelo operador — data em prosa envelhece. <b>48 horas antes do fim</b>, um aviso de última
+  chamada, mas <b>só para o evento que favorece o jogador</b> e que ele ainda pode aproveitar: a
+  seca que acaba amanhã é boa notícia e não pede ação. O favor se lê pelo sinal (barreira negativa,
+  torneira positiva, ou cesta ou missão a receber). E o "Desde sua última visita" conta o que
+  <b>terminou</b> enquanto o jogador estava fora — sem isso, quem entrasse no dia seguinte não teria
+  como saber que o evento existiu. O parcial termina sem nome e sem aviso, porque o aviso nomeia o
+  evento.
+</p>
+
+<h3>15.8 Criar é ato de governo</h3>
+
+<p>
+  Eventos são do <b>Dono</b>, e de mais ninguém: pela aba <code>/central/admin/eventos</code>
+  (<span class="d">D-232</span>) ou pelo comando <code>fertways:evento</code>. Criar <b>nunca
+  ativa</b> — ativar ou armar é um segundo gesto — e um evento cuja cesta já foi entregue não se
+  reescreve.
 </p>
 
 <div class="nota">
-  <b>Preview obrigatório, e cancelar nunca apaga.</b> O comando <b>sempre</b> mostra o que faria;
-  ativar exige dizê-lo em voz alta. E cancelar grava a data: o evento <b>para de valer dali para a
-  frente</b> e <b>continua valendo para trás</b>. Apagar a linha faria o "Desde sua última visita"
-  dizer que a produção caiu sem motivo.
+  <b>Por que o comando continua sendo o caminho canônico para o secreto.</b> A primeira versão do
+  motor não tinha rota HTTP nenhuma, porque um evento secreto deixaria rastro no log de acesso do
+  servidor web. A aba existe porque o usuário a pediu, e o argumento sobrevive quase inteiro: o
+  servidor web registra método e endereço, <b>não o corpo</b> — um POST com o nome no corpo não vaza.
+  O que vazaria é um GET com o nome no endereço, e por isso <b>a listagem da aba não filtra por nome
+  e não deve passar a filtrar</b>.
+</div>
+
+<div class="nota">
+  <b>Preview obrigatório, e cancelar nunca apaga.</b> O comando <b>sempre</b> mostra o que faria
+  antes de fazer — inclusive o total que a cesta vai emitir —, e ativar exige dizê-lo em voz alta.
+  Cancelar grava a data: o evento <b>para de valer dali para a frente</b> e <b>continua valendo
+  para trás</b>. Apagar a linha faria o "Desde sua última visita" dizer que a produção caiu sem
+  motivo.
 </div>
 
 <h2 id="s16">16. O que o campo mediu</h2>
@@ -3762,13 +5136,17 @@ todos desde a fundação, e os da zona se abrem conforme ela sobe.</p>
 <h3>16.1 Sistemas construídos e nunca exercitados</h3>
 
 <table>
-  <tr><th>Sistema</th><th class="num">Uso real</th></tr>
-  <tr><td>Guerra (combates registrados, desde sempre)</td><td class="num">0</td></tr>
-  <tr><td>Eventos de mundo criados</td><td class="num">0</td></tr>
-  <tr><td>Zonas neutras ocupadas (de 77)</td><td class="num">1</td></tr>
-  <tr><td>Itens da Endurance no catálogo</td><td class="num">1</td></tr>
-  <tr><td>Ordens de mercado executadas por <b>humanos</b></td><td class="num">0</td></tr>
+  <tr><th>Sistema</th><th class="num">06/08 (v40)</th><th class="num">setembro</th></tr>
+  <tr><td>Guerra (combates registrados, desde sempre)</td><td class="num">0</td><td class="num">0 <span class="d">08/09</span></td></tr>
+  <tr><td>Eventos de mundo criados</td><td class="num">0</td><td class="num">3 — 60 entregas, 841 lançamentos <span class="d">08/09</span></td></tr>
+  <tr><td>Zonas neutras ocupadas (de 77)</td><td class="num">1</td><td class="num">2 <span class="d">08/09</span></td></tr>
+  <tr><td>Itens da Endurance no catálogo</td><td class="num">1</td><td class="num">20 <span class="d">D-244</span></td></tr>
+  <tr><td>Ordens de mercado executadas por <b>humanos</b></td><td class="num">0</td><td class="num">—</td></tr>
 </table>
+
+<p style="font-size:.86rem;color:var(--ink-soft)">
+  A coluna de setembro é a primeira medida depois do v40; o traço é o que não foi medido de novo.
+</p>
 
 <div class="nota grave">
   <b>⚠️ A guerra federativa inteira — o sistema mais longo já construído neste jogo — nunca teve um
@@ -3831,6 +5209,83 @@ todos desde a fundação, e os da zona se abrem conforme ela sobe.</p>
   <b>Antes de concluir de um número: de onde ele veio, e ele é medida ou capacidade?</b>
 </div>
 
+<h3>16.5 A Cesta abriu os três portões, e ninguém passou <span class="d">D-232, D-234, D-237</span></h3>
+
+<p>
+  Em 07/08, o portão de ocupar zona travava todo mundo: das 29 colônias, o marco travava 27, o
+  material 28 e os colonos livres 21 — <b>nenhuma</b> podia ocupar. Dois eventos baixaram a régua
+  (marco de 6.000 para 300 XP; colonos livres de 2 para 0) e duas cestas entregaram o material.
+  Passaram a poder ocupar <b>29 de 29</b>. A primeira cesta virou prédio em 13 horas.
+</p>
+
+<table>
+  <tr><th></th><th class="num">antes (07/08)</th><th class="num">30 dias depois (08/09)</th></tr>
+  <tr><td>Colônias que podiam ocupar</td><td class="num">0 de 29</td><td class="num">29 de 29</td></tr>
+  <tr><td>Zonas ocupadas</td><td class="num">1 de 77</td><td class="num">2 de 77</td></tr>
+  <tr><td>Combates</td><td class="num">0</td><td class="num">0</td></tr>
+</table>
+
+<div class="nota grave">
+  <b>⚠️ A única zona nova foi ocupada por um bot, dois dias depois da abertura — e o último login
+  humano era de 17/07.</b> Os portões foram abertos para uma sala vazia. É o achado mais importante
+  desta revisão, porque muda a pergunta: o que trava o território não era nenhum dos três portões,
+  e <b>nenhuma regra conserta a ausência de jogador</b>.
+</div>
+
+<h3>16.6 Os bots são a maior parte do mundo, de propósito <span class="d">D-238</span></h3>
+
+<p>
+  Em setembro, <b>21 das 30 colônias</b> e <b>23 dos 35 usuários</b> eram bots — que rodam contra a
+  produção por decisão do usuário (o roadmap é que dizia o contrário, e foi corrigido). A regra de
+  medida que sai disso é a da §16.4 elevada a lei: <b>toda medida de uso filtra o domínio dos bots
+  antes de virar conclusão</b>. E os bots servem de instrumento: como eles continuam jogando, uma
+  fonte que seca neles secou de verdade, e não por falta de jogador.
+</p>
+
+<h3>16.7 A torneira de XP fechada, medida nos bots <span class="d">D-241</span></h3>
+
+<table>
+  <tr><th>Semana</th><th class="num">XP dos bots</th></tr>
+  <tr><td>1ª</td><td class="num">40.100</td></tr>
+  <tr><td>2ª</td><td class="num">24.100</td></tr>
+  <tr><td>3ª</td><td class="num">11.000</td></tr>
+  <tr><td>4ª</td><td class="num">2.600</td></tr>
+  <tr><td>5ª</td><td class="num">900</td></tr>
+</table>
+
+<p>
+  Queda de <b>97,8%</b> com os bots jogando sem parar — a prova de que o §16.2 era a fonte secando,
+  e não o jogador sumindo. Do XP do mundo inteiro, <b>93,3% vinha de obra</b>, 6,0% de missão, 0,5%
+  de zona e <b>0,1% do Mercado</b>: das 13.551 execuções de ordem, 13.545 estavam abaixo do piso de
+  5 Fert$ que dava XP (média de 0,05 F$ por execução). O piso protegia a reputação de farm e, de
+  quebra, desligava a única fonte de XP que não é de largada. Daí o teto diário da §2.5. E as missões
+  passaram a chegar a quem joga (§2.6): fazia 5 semanas que nenhuma era atribuída, e só 6 de 30
+  colônias tinham missão ativa.
+</p>
+
+<h3>16.8 A habitação, medida pela primeira vez <span class="d">D-239</span></h3>
+
+<table>
+  <tr><th></th><th class="num">antes (fator 1,65)</th><th class="num">depois (fator 2,00)</th></tr>
+  <tr><td>População comprometida, mediana</td><td class="num">134%</td><td class="num">80%</td></tr>
+  <tr><td>Colônias acima de 100%</td><td class="num">23 de 30</td><td class="num">11 de 30</td></tr>
+  <tr><td>Colônias na faixa saudável (40–70%)</td><td class="num">4</td><td class="num">14</td></tr>
+  <tr><td>Teto que comporta os 2 colonos de uma ocupação</td><td class="num">5 de 30</td><td class="num">18 de 30</td></tr>
+</table>
+
+<p>
+  O simulador previa 52% antes da correção; corrigido o instrumento (ele tratava a lista de prédios
+  como mapa por tipo, e o campo tem três Minas Locais), deu 102% contra 109% medidos — a primeira
+  vez que reproduziu o campo. E a premissa que mandava baratear a Siderúrgica caiu na mesma medida:
+  as colônias humanas tinham de 2.713 a 23.085 Ligas, e <b>nenhuma</b> estava travada por material.
+</p>
+
+<div class="nota">
+  <b>Previsão registrada e nunca conferida</b>: sem ninguém entrar no jogo, "Maior Colonia" teria 2
+  colonos livres em ~15 h e "Energizer do Gamer" em ~51 h. Se não aconteceu, quem está errado é o
+  modelo de crescimento — e a conferência está na §12.
+</div>
+
 
 <h2 id="s12">12. Tudo o que ainda falta decidir</h2>
 
@@ -3854,7 +5309,7 @@ todos desde a fundação, e os da zona se abrem conforme ela sobe.</p>
 </p>
 
 <p>
-  <b>Fechados nesta revisão</b> (D-141 a D-159): a <b>zona neutra em colmeia de slots</b>, com
+  <b>Fechados no v39</b> (D-141 a D-159): a <b>zona neutra em colmeia de slots</b>, com
   crescimento por nível e três estruturas repetíveis (D-144, §8.0); <b>onde se pode fundar</b> —
   a periferia curada célula a célula pelo Dono (D-147, §1.1.1); <b>onde pode existir zona neutra</b>
   — fora dos 4 distritos, por decisão do Dono (D-148, §8); o <b>mapa do painel de admin</b> e as
@@ -3866,17 +5321,39 @@ todos desde a fundação, e os da zona se abrem conforme ela sobe.</p>
 </p>
 
 <p>
-  <b>Fechados nesta revisão (D-160 a D-229)</b>, e por isso saíram da tabela abaixo: a
-  <b>População</b> por inteiro — teto habitacional, operadores, consumo, crescimento e escassez
-  (§13); a <b>árvore de pesquisa</b>, com trilhas, custo, tempo e efeitos que mexem no motor (§14);
-  os <b>eventos de mundo</b> (§15); o <b>teto de estoque</b> dos demais recursos, com o piso pessoal
-  que o §6.7 exigiu (§3.5); <b>o que o nível do veículo muda</b>, e o caminho para subi-lo (§5.6);
-  e a <b>guerra entre federações</b> — declaração, cerco de colônia, saque, capitulação, tratado de
-  paz, neutralidade declarada e ranking Elo (§8.9 a §8.14).
+  <b>Fechados no v40</b> (D-160 a D-229): a <b>População</b> por inteiro (§13); a <b>árvore de
+  pesquisa</b> (§14); os <b>eventos de mundo</b> (§15); o <b>teto de estoque</b> dos demais
+  recursos, com o piso pessoal (§3.5); <b>o que o nível do veículo muda</b>, e o caminho para subi-lo
+  (§5.7); a <b>curva do Marco</b> recalibrada (§2.5); e a <b>guerra entre federações</b> (§8.12 em
+  diante). <b>⚠️ O v40 listava estes cinco últimos como publicados e não os publicava</b> — o v41
+  escreveu as seções que faltavam (D-254).
+</p>
+
+<p>
+  <b>Fechados nesta revisão</b> (D-230 a D-253): os <b>modificadores seguintes</b> que o roadmap da
+  A2.8 prometia — tributo, logística, construção, pesquisa, população e território —, e o "depois"
+  dela: combate, escopo de federação, encadeamento e condição (§15.2, §15.5, §15.6); a <b>cesta</b> e
+  as <b>missões de evento</b> (§15.3, §15.4); a <b>escavação</b> da Endurance e as peças liberadas
+  por evento (§10.6); o <b>Observatório</b> (§14.1); a pergunta de telemetria sobre quem foi saqueado
+  ausente (§11.7); e o <b>piso anti-farming</b> deixou de valer para o XP do Mercado, que ganhou teto
+  diário (§2.5) — na reputação ele continua.
 </p>
 
 <table>
   <tr><th>Assunto</th><th>O que falta</th><th>O que ele trava</th></tr>
+  <tr>
+    <td><b>Observatório</b> <span class="d">D-252</span></td>
+    <td>Custo, tempo, energia e vagas foram ancorados no Laboratório, por arbitragem. Com os
+        parâmetros de hoje, os níveis 1 a 4 não dão vaga
+        nenhuma (§14.1). A única ficha publicada é a do v35, como especialização</td>
+    <td>Que o Observatório valha o slot que ocupa. Custo e tempo se ajustam no painel de Construções;
+        vagas, divisor e teto, só por migration</td>
+  </tr>
+  <tr>
+    <td><b>Escavação da Endurance</b> <span class="d">D-249</span></td>
+    <td><b>Custo e duração</b> — do operador, nascem vazios — e <b>quais peças</b> são de escavação</td>
+    <td>A escavação inteira: está construída e desligada (§10.6)</td>
+  </tr>
   <tr>
     <td><b>Cargueiro Interplanetário / Espaçoporto</b></td>
     <td>O <b>Espaçoporto</b> e os 5 planetas NPC — nenhuma rota, doca ou taxa existe</td>
@@ -3893,19 +5370,27 @@ todos desde a fundação, e os da zona se abrem conforme ela sobe.</p>
 </table>
 
 <div class="nota grave">
-  <b>⚠️ A lacuna que a §16 acrescenta, e que não é de regra:</b> quatro sistemas estão
-  <b>construídos e nunca foram exercitados</b> — guerra (0 combates), eventos (0 criados), Endurance
-  (1 item), e o livro do Mercado entre humanos (0 execuções). O GDD não tem buraco ali; <b>o jogo
-  tem mais sistema do que tem jogo acontecendo</b>. É a diferença entre "falta decidir" e "falta
-  ser jogado", e as duas exigem trabalho de naturezas opostas.
+  <b>⚠️ A lacuna que a §16 acrescenta, e que não é de regra:</b> o jogo tem <b>mais sistema do que
+  jogo acontecendo</b>. Desde o v40, eventos (3 criados) e a Endurance (20 peças) deixaram a lista
+  dos nunca exercitados; a guerra (0 combates) e o Mercado entre humanos não. E a §16.5 achou a
+  causa de fundo: <b>nenhum login humano desde 17/07</b>. É a diferença entre "falta decidir" e
+  "falta ser jogado", e as duas exigem trabalho de naturezas opostas — nenhuma linha da tabela acima
+  conserta a segunda.
 </div>
 
 <div class="nota">
-  <b>Dois números que valem revisitar mesmo sem serem lacuna:</b> o <b>salário do conciliador</b>
+  <b>Duas conferências que ficaram para trás:</b> a previsão do D-239 (dois colonos livres em ~15 h
+  e ~51 h, §16.8), que nunca foi medida; e a pergunta do §11.7 (quem foi saqueado ausente voltou?),
+  que só terá resposta depois do primeiro combate.
+</div>
+
+<div class="nota">
+  <b>Números que valem revisitar mesmo sem serem lacuna:</b> o <b>salário do conciliador</b>
   é emissão contínua (50 F$/dia), e o kit inicial de um colono é 50 F$ — um conciliador ganha um
-  kit inicial por dia sem jogar (D-50). E o piso anti-farming do §26.3 desceu de 500 para
-  <b>5 Fert$</b> (D-117) — reduz 100× o custo de entrada de um farm de reputação; se aparecer, é
-  o primeiro número a subir de novo.
+  kit inicial por dia sem jogar (D-50). O piso anti-farming do §26.3 desceu de 500 para
+  <b>5 Fert$</b> (D-117) e hoje só protege a reputação (D-241); se um farm de reputação aparecer, é
+  o primeiro número a subir. E o <b>portão de reputação na loja da Endurance</b> está fechado com
+  razão — reabre quando o comércio separar uma colônia da outra (§10.2.1, D-245).
 </div>
 
 <div class="nota">
@@ -3914,26 +5399,31 @@ todos desde a fundação, e os da zona se abrem conforme ela sobe.</p>
   Federação vai para o Tesouro na dissolução, não dividido pelo histórico de contribuição
   (<span class="d">D-114</span>); o canal Federação do Chat é isento da pena de silêncio
   (<span class="d">D-115</span>); uma colônia que sai da federação no meio de uma missão
-  cooperativa ainda recebe se o grupo terminar (<span class="d">D-116</span>); e demolir uma
+  cooperativa ainda recebe se o grupo terminar (<span class="d">D-116</span>); demolir uma
   estrutura de zona não reduz a manutenção territorial, porque ela nunca dependeu do nível de
-  nenhuma das 12 estruturas — só do nível da zona (<span class="d">D-138</span>).
+  nenhuma das 12 estruturas — só do nível da zona (<span class="d">D-138</span>); a escala do
+  catálogo da Endurance (20/40/60% do teto, preço, estoque e marco por raridade) saiu de uma âncora
+  só (<span class="d">D-244</span>); e o jogo sorteia missão para quem não abriu a tela, desde que
+  tenha agido na semana (<span class="d">D-243</span>).
 </div>
 
 </main>
-
 <footer>
   <div class="env">
     <p>
-      <b>FERTWAYS — GDD v40.</b> Substitui o v39 (D-160), que substituiu o v38 (D-141), que
-      substituiu o v36 (D-62), que substituiu o v35 — os quatro ficam como registro histórico do
+      <b>FERTWAYS — GDD v41.</b> Substitui o v40 (D-230), que substituiu o v39 (D-160), que
+      substituiu o v38 (D-141), que substituiu o v36 (D-62), que substituiu o v35 — os cinco ficam
+      como registro histórico do
       que se pensava antes. <b>Nenhuma versão é editada depois de publicada</b>: cada uma é um
       gerador novo, e é isso que permite ler o que o jogo era em cada corte.
     </p>
     <p>
       As tabelas numéricas são geradas de <code>building_specs</code>, <code>resource_types</code>,
       <code>fabrica_veiculos</code>, <code>federation_settings</code>, <code>silo_capacidades</code>,
-      <code>population_settings</code> e <code>estoque_settings</code> — as mesmas de onde o jogo lê —
-      por <code>tools/gdd-v40.php</code>. O documento <b>não pode
+      <code>population_settings</code>, <code>estoque_settings</code>, <code>research_settings</code>,
+      <code>endurance_items</code> e <code>endurance_escavacao_settings</code> — as mesmas de onde o
+      jogo lê —, e as listas do motor de eventos saem das constantes do próprio código, por
+      <code>tools/gdd-v41.php</code>. O documento <b>não pode
       divergir do jogo</b>.
     </p>
     <p>

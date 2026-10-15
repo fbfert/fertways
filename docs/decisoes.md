@@ -14152,3 +14152,64 @@ O item 7 da lista. Nenhum número de jogo: o valor de cada evento é do operador
 
 Migration: `escopo` e `status` deixam de ser `enum`; exercitada nos dois sentidos no MariaDB.
 1395 testes verdes, 10 suítes e2e verdes.
+
+---
+
+## D-254 — O GDD v41, e as cinco seções que o v40 dizia ter e não tinha
+
+**Data:** 2026-10-15 · **Status:** gerado (sem commit; ver "Onde foi gerado")
+
+O item 8 da lista, o último. `tools/gdd-v41.php` é cópia evoluída do `gdd-v40.php`, que fica
+intocado. Cobre D-230 a D-253.
+
+⚠️ **O achado que mudou o tamanho da entrega:** o v40 anunciava, no cabeçalho e na §12, seções que
+**nunca escreveu** — o teto de estoque (§3.5), o upgrade de veículos, a guerra entre federações
+(cerco de colônia, saque, capitulação, tratado, neutralidade, Elo) e a curva do Marco recalibrada.
+A §2.5 dele ainda publicava `50 × N²`, a curva que o D-223 aposentou, e a `estoque_settings` era
+carregada e nunca lida. O v41 escreve as cinco: §2.5 (reescrita, lida de `Curva` e de
+`Desbloqueios::fontes()`), §3.5, §5.7 e §8.12 a §8.15. Um GDD que diz ter publicado o que não
+publicou é pior que uma lacuna marcada: o leitor para de procurar.
+
+O que mais entrou, pelas seções:
+
+- **§15 reescrita.** Os 13 modificadores numa tabela lida de `Modificadores::TODOS/PONTUAIS/
+  ACEITAM_RECURSO` — um modificador novo sem frase **para o gerador**, como o `nomesProprios()`. Cesta,
+  missões de evento, escopo de federação, encadeamento, condição (métricas de
+  `CondicoesDoMundo::METRICAS`), prazo e fim. Saíram duas frases que o jogo desmentiu: "produção ou
+  consumo" e "não por rota HTTP" (a aba existe desde o D-232).
+- **§10.2.1 e §10.6** — a escala do catálogo e a escavação, lidas de `endurance_items` e
+  `endurance_escavacao_settings`.
+- **§14.1** — vagas e Observatório, com a tabela calculada de `research_settings`.
+- **§2.6, §3.3, §9.6, §11.7, §13.1** — D-243, emitir não é distribuir, a federação no mapa, a
+  telemetria do saqueado ausente, e por que o fator da habitação não é a curva de custo.
+- **§16.5 a §16.8** — a Cesta que abriu os portões para uma sala vazia, os bots como instrumento, a
+  torneira de XP medida neles, a habitação medida pela primeira vez.
+- **§12** — reescrita: entram o Observatório e a escavação; o piso de 5 F$ fica só na reputação.
+- Defeito de HTML herdado: o `div.nota.grave` da §15 do v40 fechava com `</p>`. O v41 sai com tags
+  balanceadas.
+
+⚠️ **Três achados de código, registrados no GDD e NÃO corrigidos** — esperam o usuário:
+
+1. **O cerco de colônia não acontece pelo jogo.** `FabricarUnidade` cria unidade com status `casa`;
+   `AtacarColonia::reservar()` só aceita `ociosa`, que só o resolvedor do cerco escreve. Toda marcha
+   pela tela é recusada. `CercoDeColoniaTest` monta a tropa já `ociosa` à mão — falso-verde.
+   E mais dois no mesmo caminho: `Forcas::ofensiva()` conta só `em_combate`, que o
+   `ResolverCercoDeColonia` nunca grava (o atacante chega sem força); e `conferirCercoEmCurso` procura
+   `cercando`, que ninguém grava (o "um cerco por vez" não segura).
+2. **O Observatório do nível 1 ao 4 não dá vaga** com os padrões (`intdiv(nível, 5)`, sem base). A
+   nota do `Funcoes.php` dizia "cada nível soma vagas" e "no painel" — corrigida nesta decisão: o
+   `research_settings` não tem tela. E o D-252 dizia que nenhum documento publica o Observatório: o
+   v35 publica, como especialização que substitui o Laboratório (2/2/3/3/4 trilhas).
+3. **Parâmetros que se dizem "do painel" e não estão no painel:** `estoque_settings`, os `upgrade_*`
+   de `transport_settings`, e seis dos nove de `war_settings` (três nem na validação).
+   `transport_settings.upgrade_segundos_por_nivel` não é lido por ninguém — o upgrade é instantâneo.
+
+De passagem: o `TechnologySeeder` **não está no `DatabaseSeeder`** — instalação nova nasce sem árvore
+de pesquisa. Mesma família do D-178 (o `BuildingOperatorRequirementSeeder`). Não corrigido.
+
+**Onde foi gerado.** Pela primeira vez, numa máquina Windows, contra **SQLite local** migrado e
+semeado do zero — não contra o `fertwaysdev`. As tabelas de spec saem iguais (migrations e seeders),
+mas o que é do operador sai nos defaults: catálogo da Endurance com 19 peças (a produção tem 20),
+escavação e teto de estoque desligados, nenhum veículo acima do nível 1. As linhas "neste banco,
+hoje" dizem isso com todas as letras, mas **o HTML publicado deve ser regerado no servidor, contra o
+`fertwaysdev`**, antes de ir ao ar.
