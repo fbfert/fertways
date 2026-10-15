@@ -54,7 +54,7 @@ O que falta foi medido contra o código em 07/10, não lembrado:
 4. [x] **(D-250)** **Missões especiais / narrativas ligadas a evento** (`game_events.missoes` existe e não tem leitor).
 5. [x] **(D-251)** **Telemetria de retorno de quem foi saqueado ausente** (recomendada desde o D-202).
 6. [x] **(D-252)** **Observatório** — ⚠️ custo/tempo/vagas ancorados no Laboratório: arbitragem minha, a revisar (A2.3, ficou fora da primeira entrega).
-7. [x] **(D-253, commit sem deploy)** **O "Depois" do A2.8**: eventos de combate e de Federação, encadeados, condições compostas.
+7. [x] **(D-253, no ar desde 15/10 em `fa1af6b`)** **O "Depois" do A2.8**: eventos de combate e de Federação, encadeados, condições compostas.
 8. [x] **(D-254)** **GDD v41** cobrindo D-230 em diante, e a cópia em `frontend/public/gdd.html`.
 
 **Segunda leva, autorizada em 15/10:** *"não vou fazer deploy agora, quero que continue a construção do
@@ -68,7 +68,7 @@ aberta. **Sem deploy** — commit e push, sim. Ordem:
 13. [x] **(D-261)** Decisão 11: detecção de contas vinculadas com revisão humana.
 14. [x] **(D-262)** Espaçoporto / Cargueiro Interplanetário / planetas NPC — só o que o GDD publica; o resto vira lacuna marcada.
 
-**A segunda leva fechou em 15/10 (D-257 a D-262), toda commitada e sem deploy.** O que sobra do GDD
+**A segunda leva fechou em 15/10 (D-257 a D-262), e foi ao ar no mesmo dia em `fa1af6b`.** O que sobra do GDD
 não é construível sem o usuário — cada item precisa de número ou de desenho que nenhum documento
 publica:
 
@@ -82,8 +82,32 @@ publica:
 - as **missões de reconhecimento** (v3.4 §2): o pipeline tem fases e durações publicadas, mas o que
   ele revela (taxa, capacidade do planeta novo) não tem número — seria mais sistema sem jogo.
 
-⚠️ Antes do deploy deste lote: **seis migrations novas** (D-256 a D-262) exercitadas só no SQLite —
-conferir no `fertwaysdev` (MariaDB) nos dois sentidos, e regerar o GDD v41 lá.
+### ✅ No ar em 15/10/2026 — o lote D-253 a D-262 inteiro
+
+**Publicado em `fa1af6b`** (`sudo ./tools/deploy.sh`, 18:42 São Paulo; a produção estava em `f74e051`).
+- **Antes, no `fertwaysdev` (MariaDB):** as sete migrations foram e voltaram sem erro (`migrate`,
+  `migrate:rollback --step=7`, `migrate`); `vehicles.status` lista `em_upgrade`. A árvore de trabalho
+  tem `APP_ENV=production` no `.env` — o `migrate` dela **pede `--force`**, mesmo apontando o dev.
+- **GDD v41 regerado contra o `fertwaysdev`** (commit `fa1af6b`), saída limpa; cópia em `frontend/public/gdd.html`.
+- **Suíte:** 1446 verdes; `npm run build` limpo.
+- **Backup:** `/home/fertways/backups/fertwaysbd-antes-fa1af6b-20261015-184159.sql.gz` (4,5 MB,
+  gzip ok, `colonies` presente).
+- **Deploy:** banco `[fertwaysbd]` conferido, as **sete migrations DONE**, `APP_DEBUG` off, opcache
+  na árvore de deploy, bundle `index-D6HYEY4b.js`, fumaça 200/401.
+- **Conferido por leitura em produção depois:**
+  - escavação **estava intocada** → agora ativo=1, 360 min, `{__fert__:15000000, energia:300}`;
+    6 peças com origem escavação;
+  - Observatório níveis 1–5 iguais ao `building_specs.json` novo (L1: 2700 s, 30 energia/h, 140 ligas)
+    — a migration cobriu o JSON, **nenhum seeder à mão é preciso**;
+  - `research_settings.vagas_teto` **estava em 3 → 4**;
+  - `war_settings.operadores_por_unidade` = 1;
+  - os 5 planetas NPC, todos fechados; `espacoporto_settings` ativo 0, números nulos;
+  - ⚠️ **`population_settings.ativo` = 1: a regra do D-260 já vale** — atacar exige colonos livres
+    para a tropa.
+- **Não** foi rodado o `EnduranceItemSeeder` (o lote de escavação entrou pela migration).
+
+> As duas notas de parada abaixo (Windows 15/10 e pausa 07/10) ficaram **superadas pelo deploy de
+> `fa1af6b`** — guardadas como histórico; o que dizem estar "sem deploy" já está no ar.
 
 **Sessão de 15/10 — numa máquina Windows nova** (`C:\Users\Dell\Desktop\Fertways`), clone limpo,
 SQLite local; **sem acesso SSH ao servidor ainda** (chave `~/.ssh/fertways_deploy` gerada, não
@@ -110,9 +134,8 @@ instalada no root). Ponto exato de parada:
 - e duas coisas que esperam o usuário: revisar a âncora do Observatório no Laboratório (D-252) e
   ligar a escavação com os números dele (D-249).
 
-⚠️ **A escavação está DESLIGADA em produção** (D-249): custo e duração são do operador e nascem
-vazios. Liga-se em `/central/admin/endurance`, no cartão do topo — e só há o que achar depois de
-marcar peças com origem «escavação».
+~~⚠️ **A escavação está DESLIGADA em produção** (D-249)~~ — **ligada desde 15/10** pela migration do
+D-256 (360 min; 15 mi F$ + 300 energia; 6 peças). Ajusta-se em `/central/admin/endurance`.
 
 Fora desta lista, e por quê: a **A2.V4/V5/V6 restante** não tem dado para desenhar (ver abaixo) e a
 **A2.11** (bots) é programa externo (§17 do GDD_ALPHA2).
