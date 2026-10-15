@@ -50,6 +50,8 @@ Route::prefix('admin')->group(function () {
         // configuráveis", §28.10 chances sem conta publicada) e que até aqui só se mudavam por SQL.
         Route::get('/guerra', [PainelController::class, 'guerra'])->name('admin.guerra');
         Route::post('/guerra', [AcoesController::class, 'guerra'])->name('admin.guerra.parametros');
+        // Decisão 11 (D-261): o veredito humano sobre um par de federações que guerreia de novo e de novo.
+        Route::post('/guerra/pares', [AcoesController::class, 'guerraParRevisar'])->name('admin.guerra.par');
         Route::get('/transportes', [PainelController::class, 'transportes'])->name('admin.transportes');
         // Federação (§04/§07; D-114) — painel de leitura, o teto antimonopólio (D-119) e uma
         // alavanca de emergência.

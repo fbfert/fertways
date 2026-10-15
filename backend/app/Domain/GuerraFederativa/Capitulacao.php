@@ -2,6 +2,7 @@
 
 namespace App\Domain\GuerraFederativa;
 
+use App\Domain\Federacao\Concentracao;
 use App\Domain\News\PublicarNoticia;
 use App\Exceptions\DomainRuleException;
 use App\Models\Colony;
@@ -191,6 +192,26 @@ class Capitulacao
             throw new DomainRuleException(
                 'zona_de_terceiro',
                 'Só se pode exigir uma zona da federação que se rendeu.',
+            );
+        }
+
+        /*
+         * ⚠️ Decisão 11 (D-261): *"transferência territorial por guerra conta para o teto do bloco —
+         * se a lavagem estoura o teto, ela simplesmente não completa"* (GDD_GUERRA_FEDERATIVA §15).
+         *
+         * A lavagem que o GDD descreve é exatamente esta: uma segunda federação de contas próprias,
+         * uma guerra encenada, uma capitulação de propósito — e o território passa por cima do §04
+         * sem ninguém ter ocupado nada. A mesma conta de `Concentracao`, que é a da ocupação e a da
+         * tela. O vencedor no teto continua podendo levar o Fert$: o teto barra o território, não o
+         * fim da guerra.
+         */
+        $vencedora = Federation::find($vencedor->federation_id);
+
+        if ($vencedora && app(Concentracao::class)->de($vencedora)['no_teto']) {
+            throw new DomainRuleException(
+                'teto_antimonopolio_da_federacao',
+                'A sua federação (com as aliadas) já está no limite antimonopólio do §04 — receber esta '
+                .'zona o furaria. Escolha o espólio em Fert$.',
             );
         }
 

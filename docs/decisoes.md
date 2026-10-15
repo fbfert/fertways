@@ -14407,3 +14407,32 @@ só Nióbio."*
 
 Migration `2026_10_15_400000_tropa_consome_operadores` (uma coluna). GDD v41 §13.5 nova, e a linha 7
 da tabela de decisões deixa de ser promessa. 1430 testes verdes, `npm run build` limpo.
+
+---
+
+## D-261 — Contas vinculadas: a capitulação respeita o teto, e o operador vê os pares
+
+**Data:** 2026-10-15 · **Status:** entregue (commit; sem deploy)
+
+Decisão 11 da guerra federativa: *"travas econômicas + detecção com revisão humana"*. O
+GDD_GUERRA_FEDERATIVA §15 descreve o abuso — contas próprias, guerra encenada, capitulação de
+propósito, território lavado por cima do teto antimonopólio — e lista quatro itens. Conferi cada um:
+
+| item do §15 | antes | agora |
+|---|---|---|
+| 1. transferência por guerra conta para o teto do bloco | ⚠️ **a capitulação entregava zona sem olhar o teto** — exatamente o caminho da lavagem | recusa (`teto_antimonopolio_da_federacao`), pela mesma conta do `Concentracao`; o vencedor leva o Fert$ |
+| 2. toda guerra no mural público | já estava (D-195) | — |
+| 3. cooldown do par | já estava | — |
+| 4. relatório de pares recorrentes para o operador | não existia | painel da Guerra: pares em qualquer sentido, guerras, capitulações, zonas cedidas; recorrente a partir de 2 |
+
+A **revisão humana**: o operador registra `legitimo` ou `suspeito` com nota
+(`federation_war_pair_reviews`, append-only, auditado). **Não muda estado de jogo** — o GDD: *"punir
+irmão que joga junto é pior do que deixar passar um trapaceiro"*. Se for fraude, o operador age com as
+ferramentas que já auditam, e a revisão é o motivo escrito.
+
+Fora, de propósito: a conquista por **invasão** continua sem o teto do bloco. É batalha, não acordo,
+existia antes das federações (D-66), e barrar uma vitória militar no teto mudaria o combate inteiro.
+O GDD fala de "transferência territorial por guerra" de forma geral; a lavagem que ele descreve é a
+capitulação, e é ela que fecha.
+
+1435 testes verdes.

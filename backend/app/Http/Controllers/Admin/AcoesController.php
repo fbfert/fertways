@@ -19,6 +19,7 @@ use App\Domain\Eventos\Modificadores;
 use App\Domain\Federacao\DissolverFederacao;
 use App\Domain\Finance\DeclararIntervencao;
 use App\Domain\Frete\Garagem;
+use App\Domain\GuerraFederativa\ParesRecorrentes;
 use App\Domain\Logistics\VeiculoSpecs;
 use App\Domain\Logistics\ZonasNeutras;
 use App\Domain\Market\OfertarComoGoverno;
@@ -613,6 +614,31 @@ class AcoesController extends Controller
                 .($mudou !== '' ? $mudou : 'Nada mudou.')
                 .' Valem no PRÓXIMO combate: os em curso já congelaram a força e o dano.';
         });
+    }
+
+    /**
+     * O veredito humano sobre um par de federações recorrente (decisão 11, D-261).
+     *
+     * Não muda estado de jogo nenhum — é o registro do que o operador concluiu, e o motivo escrito
+     * para o que ele fizer depois com as ferramentas que já auditam. Append-only: mudar de ideia é
+     * uma linha nova, e a antiga continua lá.
+     */
+    public function guerraParRevisar(Request $request, ParesRecorrentes $pares): RedirectResponse
+    {
+        $dados = $request->validate([
+            'federacao_a' => ['required', 'integer', 'exists:federations,id'],
+            'federacao_b' => ['required', 'integer', 'exists:federations,id', 'different:federacao_a'],
+            'veredito' => ['required', Rule::in(ParesRecorrentes::VEREDITOS)],
+            'nota' => ['required', 'string', 'min:3', 'max:2000'],
+        ]);
+
+        [$a, $b] = $pares->ordenar((int) $dados['federacao_a'], (int) $dados['federacao_b']);
+
+        return $this->tentar('guerra.par_revisado', function () use ($pares, $a, $b, $dados) {
+            $pares->revisar(Auth::guard('admin')->user(), $a, $b, $dados['veredito'], $dados['nota']);
+
+            return "Par {$a}–{$b} revisado: {$dados['veredito']}. {$dados['nota']}";
+        }, "federacoes:{$a}-{$b}");
     }
 
     /**

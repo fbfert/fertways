@@ -2255,7 +2255,7 @@ todos desde a fundação, e os da zona se abrem conforme ela sobe.</p>
   <tr><td class="num">8</td><td>Declarar a uma aliada rompe a aliança</td><td>Abaixo</td></tr>
   <tr><td class="num">9</td><td>Capitulação: o vencedor escolhe zona ou Fert$</td><td>§8.14</td></tr>
   <tr><td class="num">10</td><td>Fórmula do ranking como desenho próprio</td><td>Elo, §8.15</td></tr>
-  <tr><td class="num">11</td><td>Contas vinculadas: travas econômicas + detecção com revisão humana</td><td>A trava estrutural existe (soma zero do Elo, zona <i>cedida</i> não conta como conquista); a <?= promessa('detecção com revisão humana') ?> não</td></tr>
+  <tr><td class="num">11</td><td>Contas vinculadas: travas econômicas + detecção com revisão humana</td><td>As travas: soma zero do Elo, zona <i>cedida</i> não conta como conquista, a capitulação não entrega zona a quem está no teto do bloco; e o relatório de pares recorrentes com veredito do operador (§8.14) <span class="d">D-261</span></td></tr>
   <tr><td class="num">12</td><td>Neutralidade declarada antes da guerra; inatividade não protege</td><td>§8.14</td></tr>
   <tr><td class="num">13</td><td>O §01 (colônia inviolável) fica revogado em guerra declarada</td><td>§8.13</td></tr>
   <tr><td class="num">14</td><td>A Torre de Defesa reduz o quanto o saque leva</td><td>§8.13</td></tr>
@@ -2478,6 +2478,7 @@ todos desde a fundação, e os da zona se abrem conforme ela sobe.</p>
   <tr><td>A zona exigida tem de ser de colônia da federação que se rendeu, e <b>não estar sob combate</b></td><td>Sem a primeira, o vencedor levaria zona de terceiro; sem a segunda, dois donos no mesmo instante</td></tr>
   <tr><td>A zona vai para a colônia de quem assinou; o Fert$, para o fundo do vencedor</td><td>A zona só tem dono-colônia; o espólio é da federação (§11)</td></tr>
   <tr><td>A <b>guarnição volta para casa</b>, não morre</td><td>Não houve batalha — apagá-la seria um segundo preço que ninguém combinou</td></tr>
+  <tr><td>A zona <b>não sai</b> se o bloco do vencedor já estiver no teto antimonopólio — ele leva o Fert$</td><td>A lavagem do §15: guerra encenada, capitulação de propósito, território por cima do §04 (D-261)</td></tr>
   <tr><td>O histórico grava a zona como <b>cedida</b>, não <i>conquistada</i></td><td>Conta para o tempo de controle, não para o sub-ranking de conquistas (§8.11) — senão duas amigas trocariam zonas para subir</td></tr>
   <tr><td>O <b>fim previsto não se antecipa</b></td><td>O cooldown do par conta dele; capitular não pode ser o jeito barato de zerar a proteção contra assédio</td></tr>
 </table>
@@ -2517,6 +2518,21 @@ todos desde a fundação, e os da zona se abrem conforme ela sobe.</p>
   (§8.13) existe: se quem apanha ausente não volta, isso aparece antes de virar êxodo, e a carência
   ainda dá para mudar. <span class="d">D-193, D-251</span>
 </div>
+
+<h4>Contas vinculadas: caro e visível, nunca punido sozinho <span class="d">D-193, D-261</span></h4>
+
+<p>
+  A decisão 11 é <i>"travas econômicas + detecção com revisão humana"</i>, e o GDD da guerra recomenda
+  <i>"não tentar impedir por regra, e sim tornar caro e visível"</i>. As travas estão acima — o teto do
+  bloco na capitulação, o cooldown do par, o mural público, o Elo de soma zero. A parte visível é o
+  painel da Guerra: os <b>pares de federações</b> que guerreiam entre si, em qualquer sentido, com
+  quantas guerras, capitulações e zonas cedidas; a partir de
+  <b><?= \App\Domain\GuerraFederativa\ParesRecorrentes::RECORRENTE_A_PARTIR_DE ?> guerras</b> o par é
+  marcado como recorrente. O operador registra um veredito — <b>legítimo</b> ou <b>suspeito</b>, com
+  nota — que fica auditado e <b>não muda nada no jogo</b>: <i>"punir irmão que joga junto é pior do que
+  deixar passar um trapaceiro"</i>. As revisões são append-only, e mudar de ideia deixa rastro.
+</p>
+
 
 <h3>8.15 O ranking federativo é Elo <span class="d">D-207</span></h3>
 

@@ -782,4 +782,34 @@ class GuerraFederativaTest extends TestCase
         $this->assertSame(RatingFederativo::INICIAL, $this->rating($fa->id));
         $this->assertSame(RatingFederativo::INICIAL, $this->rating($fb->id));
     }
+
+    // ── decisão 11: contas vinculadas (D-261) ───────────────────────────────
+
+    /**
+     * *"Transferência territorial por guerra conta para o teto do bloco — se a lavagem estoura o
+     * teto, ela simplesmente não completa."* (GDD_GUERRA_FEDERATIVA §15, item 1.)
+     *
+     * A lavagem descrita é exatamente esta: duas federações amigas, uma guerra encenada, uma
+     * capitulação de propósito — e o território passa "legitimamente" por cima do limite do §04.
+     */
+    public function test_a_capitulacao_nao_entrega_zona_a_quem_ja_esta_no_teto(): void
+    {
+        [$guerra, , $ca, , $cb] = $this->guerraEntreDuas();
+        $this->zonaDe($ca);                    // A já tem 1 de 2 zonas do jogo: 50%, acima dos 20%
+        $zona = $this->zonaDe($cb);
+        app(Capitulacao::class)->propor($cb, $guerra->id);
+
+        try {
+            app(Capitulacao::class)->aceitar($ca, $guerra->id, 'zona', $zona->id);
+            $this->fail('a zona passaria por cima do teto antimonopólio');
+        } catch (DomainRuleException $e) {
+            $this->assertSame('teto_antimonopolio_da_federacao', $e->codigo);
+        }
+
+        $this->assertSame($cb->id, (int) $zona->fresh()->owner_colony_id, 'nada mudou de mãos');
+
+        // O Fert$ continua sendo saída: o teto barra o território, não o fim da guerra.
+        app(Capitulacao::class)->aceitar($ca, $guerra->id, 'fert');
+        $this->assertSame('capitulada', $guerra->fresh()->status);
+    }
 }

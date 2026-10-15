@@ -563,6 +563,8 @@ class PainelController extends Controller
                 ->orderBy('id')
                 ->get(),
             'fotos' => (int) DB::table('drone_sightings')->count(),
+            // Decisão 11 (D-261): o jogo aponta o par que guerreia de novo e de novo; o operador decide.
+            'pares' => app(\App\Domain\GuerraFederativa\ParesRecorrentes::class)->listar(),
         ]);
     }
 

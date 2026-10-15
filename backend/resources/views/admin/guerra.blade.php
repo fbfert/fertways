@@ -118,6 +118,56 @@
     </div>
 
     {{-- ── Os dez números ── --}}
+    {{--
+        ── Decisão 11 (D-261): pares recorrentes, e a revisão humana ──
+        O GDD_GUERRA_FEDERATIVA §15: "não tentar impedir por regra, e sim tornar caro e visível". Isto
+        é o visível. O jogo aponta; o operador decide — e nada aqui pune ninguém sozinho.
+    --}}
+    <h2 class="secao">Pares de federações</h2>
+    <div class="cartao" data-pares-de-guerra>
+        <p class="mut pequeno">
+            Guerras entre as mesmas duas federações, em qualquer sentido, da mais repetida para a menos.
+            Duas ou mais é padrão — o cooldown do par existe para que seja raro. A lavagem que isto
+            procura é a do §15: contas próprias, guerra encenada, capitulação de propósito. A
+            capitulação já não entrega zona a quem está no teto do bloco; o resto é olho humano.
+            <b>Punir irmão que joga junto é pior do que deixar passar um trapaceiro</b>: o veredito
+            fica registrado e não muda nada no jogo.
+        </p>
+        @if ($pares->isEmpty())
+            <p class="mut">Nenhuma guerra entre federações até agora.</p>
+        @else
+            <table>
+                <tr><th>Par</th><th class="num">Guerras</th><th class="num">Capitulações</th><th class="num">Zonas cedidas</th><th>Última</th><th>Revisão</th></tr>
+                @foreach ($pares as $p)
+                    <tr data-par-recorrente="{{ $p['federacoes'][0] }}-{{ $p['federacoes'][1] }}" @if ($p['recorrente']) style="background:#fbf0cf" @endif>
+                        <td>{{ $p['nomes'][0] }} × {{ $p['nomes'][1] }}</td>
+                        <td class="num">{{ $p['guerras'] }}</td>
+                        <td class="num">{{ $p['capitulacoes'] }}</td>
+                        <td class="num">{{ $p['zonas_cedidas'] }}</td>
+                        <td>{{ $quando($p['ultima']) }}</td>
+                        <td>
+                            @if ($p['revisao'])
+                                <b>{{ $p['revisao']['veredito'] }}</b>
+                                <span class="mut pequeno">— {{ $p['revisao']['nota'] }} ({{ $p['revisao']['admin'] ?? 'sistema' }})</span>
+                            @endif
+                            <form method="POST" action="{{ route('admin.guerra.par') }}" class="linha-form" style="margin-top:4px">
+                                @csrf
+                                <input type="hidden" name="federacao_a" value="{{ $p['federacoes'][0] }}">
+                                <input type="hidden" name="federacao_b" value="{{ $p['federacoes'][1] }}">
+                                <select name="veredito" required>
+                                    <option value="legitimo">legítimo</option>
+                                    <option value="suspeito">suspeito</option>
+                                </select>
+                                <input type="text" name="nota" placeholder="o que você viu" required minlength="3" style="width:200px">
+                                <button class="leve">Registrar</button>
+                            </form>
+                        </td>
+                    </tr>
+                @endforeach
+            </table>
+        @endif
+    </div>
+
     <h2 class="secao">Parâmetros da guerra</h2>
     <div class="cartao">
         <p class="mut pequeno">
