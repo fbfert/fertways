@@ -55,16 +55,16 @@ O que falta foi medido contra o código em 07/10, não lembrado:
 5. [x] **(D-251)** **Telemetria de retorno de quem foi saqueado ausente** (recomendada desde o D-202).
 6. [x] **(D-252)** **Observatório** — ⚠️ custo/tempo/vagas ancorados no Laboratório: arbitragem minha, a revisar (A2.3, ficou fora da primeira entrega).
 7. [x] **(D-253, commit sem deploy)** **O "Depois" do A2.8**: eventos de combate e de Federação, encadeados, condições compostas.
-8. [x] **(D-254, sem commit)** **GDD v41** cobrindo D-230 em diante, e a cópia em `frontend/public/gdd.html`.
+8. [x] **(D-254)** **GDD v41** cobrindo D-230 em diante, e a cópia em `frontend/public/gdd.html`.
 
 **Sessão de 15/10 — numa máquina Windows nova** (`C:\Users\Dell\Desktop\Fertways`), clone limpo,
 SQLite local; **sem acesso SSH ao servidor ainda** (chave `~/.ssh/fertways_deploy` gerada, não
 instalada no root). Ponto exato de parada:
-- o **GDD v41 está escrito e gerado, mas NÃO commitado** — e foi gerado contra SQLite local, não
+- o **GDD v41 está commitado (D-254) mas NÃO publicado** — e foi gerado contra SQLite local, não
   contra o `fertwaysdev`. **Regere no servidor antes de publicar** (D-254, "Onde foi gerado");
 - o **D-253 continua sem deploy** — o usuário vai fazê-lo "de outra forma";
 - **três defeitos de código achados ao escrever o v41, esperando o usuário** (D-254): o cerco de
-  colônia não acontece pelo jogo (status `casa` × `ociosa`, e mais dois no mesmo caminho); o
+  colônia não acontece pelo jogo — ✅ **corrigido no D-255**, commit sem deploy; o
   Observatório 1–4 não dá vaga; parâmetros que se dizem "do painel" e não estão nele;
 - as duas coisas que esperam o usuário (Observatório, D-252; números da escavação, D-249) — agora
   com um brief: o v35 tem ficha do Observatório (2/2/3/3/4 trilhas) e há proposta de partida para

@@ -14190,7 +14190,7 @@ O que mais entrou, pelas seções:
 
 ⚠️ **Três achados de código, registrados no GDD e NÃO corrigidos** — esperam o usuário:
 
-1. **O cerco de colônia não acontece pelo jogo.** `FabricarUnidade` cria unidade com status `casa`;
+1. **O cerco de colônia não acontece pelo jogo.** ✅ Corrigido no D-255. `FabricarUnidade` cria unidade com status `casa`;
    `AtacarColonia::reservar()` só aceita `ociosa`, que só o resolvedor do cerco escreve. Toda marcha
    pela tela é recusada. `CercoDeColoniaTest` monta a tropa já `ociosa` à mão — falso-verde.
    E mais dois no mesmo caminho: `Forcas::ofensiva()` conta só `em_combate`, que o
@@ -14213,3 +14213,36 @@ mas o que é do operador sai nos defaults: catálogo da Endurance com 19 peças 
 escavação e teto de estoque desligados, nenhum veículo acima do nível 1. As linhas "neste banco,
 hoje" dizem isso com todas as letras, mas **o HTML publicado deve ser regerado no servidor, contra o
 `fertwaysdev`**, antes de ir ao ar.
+
+---
+
+## D-255 — O cerco de colônia passa a acontecer pelo jogo
+
+**Data:** 2026-10-15 · **Status:** entregue (commit; deploy pendente)
+
+Achado ao escrever a §8.13 do GDD v41 (D-254). Desde a A2.10, **nenhum cerco de colônia passava da
+marcha** — e `CercoDeColoniaTest` estava verde, porque montava a tropa à mão já no estado que o
+ataque pedia, contra colônias sem defensor nenhum. Seis defeitos, todos no caminho do jogador:
+
+| | o que acontecia | agora |
+|---|---|---|
+| 1 | `AtacarColonia::reservar()` pedia `ociosa`; o Quartel entrega `casa`. Toda marcha pela tela era recusada | pede `casa` e HP > 0, como o `Atacar` de zona |
+| 2 | o tick nunca chamava `ResolverCercoDeColonia` (o de zona o ignora de propósito) | `TickColonies` o chama logo depois das batalhas de zona, mesmo contador |
+| 3 | na chegada a tropa não ia a `em_combate`; `Forcas::ofensiva()` via zero e o atacante era repelido sem dano | a primeira rodada põe a tropa em campo, como o `chegar()` da zona |
+| 4 | "um cerco por vez" procurava `cercando`, que ninguém grava — só segurava na marcha | procura `marchando` e `em_curso` |
+| 5 | as sobreviventes voltavam `ociosa`, de onde não marchavam nem defendiam | voltam `casa` |
+| 6 | a defesa contava toda unidade sem combate, inclusive a guarnição das zonas | só quem está `casa` |
+
+**O defensor ausente continua sem bônus no cerco de colônia, e isso não é defeito:** a decisão 12 do
+D-193 diz que *inatividade não protege*. O código tinha um `if` que não fazia nada e um comentário
+prometendo o bônus "ao atacante"; os dois saíram, e a regra ficou escrita. A ausência continua
+fotografada para a telemetria do D-251.
+
+Seis testes novos passam pelas portas do jogo — `FabricarUnidade`, `AtacarColonia`, `fertways:tick` —
+e o helper antigo deixou de criar a tropa `ociosa`. Os dois testes de força foram conferidos
+vermelhos com a correção da chegada desligada. ⚠️ Pegadinha no caminho: só a **Sentinela** tem ataque
+(§27.1); o helper antigo usava Predador, de ataque zero, e por isso nunca podia ter visto o defeito 3.
+
+A tela (`Quartel.tsx`) já mandava as Sentinelas em casa: ela estava certa, o servidor é que não.
+
+1401 testes verdes.

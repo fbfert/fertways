@@ -9,6 +9,7 @@ use App\Domain\Drone\ConcluirMissoes;
 use App\Domain\Guerra\ChegarReforcos;
 use App\Domain\Guerra\ResolverCombates;
 use App\Domain\GuerraFederativa\EncerrarGuerras;
+use App\Domain\GuerraFederativa\ResolverCercoDeColonia;
 use App\Domain\Leilao\FecharLeiloes;
 use App\Domain\Logistics\ConcluirTrechos;
 use App\Domain\Logistics\ExtrairZonasNeutras;
@@ -191,6 +192,13 @@ class TickColonies extends Command
         $chegaram = $reforcos->handle($agora);
 
         $batalhas = $combates->handle($agora);
+
+        /*
+         * O cerco de COLÔNIA (A2.10) tem resolvedor próprio, e o de zona o ignora de propósito
+         * (`whereNotNull('zone_id')`). Faltava quem o chamasse: desde a A2.10 nenhum cerco de colônia
+         * passava da marcha (D-255). Mesmo instante das batalhas de zona, mesmo contador.
+         */
+        $batalhas += app(ResolverCercoDeColonia::class)->handle($agora);
 
         /*
          * O resgate automático da Apreensão (§28.10, D-66/D-118): 24h depois de o Predador desligar

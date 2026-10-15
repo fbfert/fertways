@@ -82,6 +82,17 @@ class ResolverCercoDeColonia
                 return false;
             }
 
+            /*
+             * A marcha acabou: a tropa entra em campo — o `chegar()` do `ResolverCombates`. Sem isto
+             * `Forcas::ofensiva()`, que só conta `em_combate`, via força zero, e todo cerco contra
+             * colônia defendida era repelido na primeira rodada sem um ponto de dano (D-255).
+             */
+            if ($combate->status === 'marchando') {
+                Unit::where('combat_id', $combate->id)
+                    ->where('status', 'marchando')
+                    ->update(['status' => 'em_combate', 'arrives_at' => null]);
+            }
+
             $atacantes = $this->atacantes($combate);
             $defensores = $this->defensores($alvo);
 
@@ -92,13 +103,14 @@ class ResolverCercoDeColonia
             $fd = intdiv($fd * app(Modificadores::class)->em($alvo, Modificadores::COMBATE_DEFESA, now()), 10_000);
 
             /*
-             * §27.7: o defensor que não estava à mesa quando a marcha começou dá bônus ao atacante.
-             * O snapshot foi tirado no despacho, e não agora — desconectar depois não ajuda.
+             * ⚠️ Sem o +20% do defensor ausente (§27.7), e de propósito: a decisão 12 do D-193 diz que
+             * na guerra federativa **inatividade não protege** — quem quer proteção declara
+             * neutralidade antes da guerra. Na zona o bônus continua (`Forcas::defensiva`).
+             *
+             * O snapshot `defensor_offline`, tirado no despacho, não muda a força: ele vai para a
+             * telemetria do saque (D-251), que mede se quem apanha ausente volta. Aqui havia um `if`
+             * que não fazia nada e um comentário que prometia o bônus "ao atacante" (D-255).
              */
-            if (! ($combate->resultado['defensor_offline'] ?? false)) {
-                // Sem o bônus, a defesa vale o que vale. Com ele, o atacante já entrou mais forte.
-                $fd = (int) $fd;
-            }
 
             $combate->status = 'em_curso';
             $combate->rodada = (int) $combate->rodada + 1;
@@ -247,12 +259,17 @@ class ResolverCercoDeColonia
         $this->liberar($combate);
     }
 
-    /** As unidades que sobreviveram voltam para casa; as mortas somem. */
+    /**
+     * As unidades que sobreviveram voltam para casa; as mortas somem.
+     *
+     * `casa`, como no `recolherSobreviventes()` da zona — era `ociosa`, um estado que só este arquivo
+     * conhecia: a tropa voltava e não podia mais marchar nem defender (D-255).
+     */
     private function liberar(Combat $combate): void
     {
         Unit::where('combat_id', $combate->id)->where('hp_bps', '<=', 0)->delete();
         Unit::where('combat_id', $combate->id)->update([
-            'combat_id' => null, 'status' => 'ociosa', 'arrives_at' => null,
+            'combat_id' => null, 'status' => 'casa', 'arrives_at' => null,
         ]);
     }
 
@@ -261,10 +278,15 @@ class ResolverCercoDeColonia
         return Unit::where('combat_id', $combate->id)->where('hp_bps', '>', 0)->get();
     }
 
-    /** Os defensores são as unidades ociosas da colônia — quem está em marcha não defende casa. */
+    /**
+     * Os defensores são as unidades EM CASA — quem está em marcha, guarnecendo zona ou em outro
+     * combate não defende a colônia. Bastava `combat_id` nulo, e isso contava a guarnição das zonas,
+     * que está longe (D-255).
+     */
     private function defensores(Colony $alvo): Collection
     {
         return Unit::where('colony_id', $alvo->id)
+            ->where('status', 'casa')
             ->whereNull('combat_id')
             ->where('hp_bps', '>', 0)
             ->get();

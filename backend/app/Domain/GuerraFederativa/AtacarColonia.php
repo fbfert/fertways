@@ -128,12 +128,17 @@ class AtacarColonia
         }
     }
 
-    /** Um cerco por par de cada vez: dois simultâneos dobrariam o saque sobre o mesmo estoque. */
+    /**
+     * Um cerco por colônia de cada vez: dois simultâneos dobrariam o saque sobre o mesmo estoque.
+     *
+     * `em_curso` é o que o `ResolverCercoDeColonia` escreve na primeira rodada. Isto procurava
+     * `cercando`, que ninguém escreve: a trava só segurava durante a marcha (D-255).
+     */
     private function conferirCercoEmCurso(Colony $atacante, Colony $alvo): void
     {
         $existe = Combat::whereNull('zone_id')
             ->where('defender_colony_id', $alvo->id)
-            ->whereIn('status', ['marchando', 'cercando'])
+            ->whereIn('status', ['marchando', 'em_curso'])
             ->exists();
 
         if ($existe) {
@@ -141,12 +146,19 @@ class AtacarColonia
         }
     }
 
-    /** @param list<int> $unitIds */
+    /**
+     * ⚠️ `casa`, o estado em que o Quartel entrega a unidade e em que ela volta de toda batalha — o
+     * mesmo do `Atacar` de zona. Isto pedia `ociosa`, que nenhum caminho do jogo escreve: toda marcha
+     * pela tela era recusada, e os testes passavam montando a tropa à mão (D-255).
+     *
+     * @param  list<int>  $unitIds
+     */
     private function reservar(Colony $atacante, array $unitIds)
     {
         $unidades = Unit::whereIn('id', $unitIds)
             ->where('colony_id', $atacante->id)
-            ->where('status', 'ociosa')
+            ->where('status', 'casa')
+            ->where('hp_bps', '>', 0)
             ->whereNull('combat_id')
             ->lockForUpdate()
             ->get();
@@ -154,7 +166,7 @@ class AtacarColonia
         if ($unidades->isEmpty() || $unidades->count() !== count($unitIds)) {
             throw new DomainRuleException(
                 'unidades_indisponiveis',
-                'Alguma das unidades não está ociosa ou não é sua.',
+                'Alguma das unidades não está em casa ou não é sua.',
             );
         }
 

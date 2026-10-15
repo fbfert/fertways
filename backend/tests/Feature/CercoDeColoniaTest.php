@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Domain\Colony\Silo;
+use App\Domain\Guerra\FabricarUnidade;
 use App\Domain\Guerra\ResolverCombates;
 use App\Domain\GuerraFederativa\AtacarColonia;
 use App\Domain\GuerraFederativa\DeclararGuerra;
@@ -11,9 +12,11 @@ use App\Domain\Telemetria\RegistrarEvento;
 use App\Exceptions\DomainRuleException;
 use App\Models\Colony;
 use App\Models\Federation;
+use App\Models\NeutralZone;
 use App\Models\Unit;
 use App\Models\User;
 use App\Models\WarSetting;
+use Database\Seeders\BuildingSpecSeeder;
 use Database\Seeders\ResourceTypeSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -79,7 +82,8 @@ class CercoDeColoniaTest extends TestCase
         for ($n = 0; $n < $quantas; $n++) {
             $ids[] = Unit::create([
                 'colony_id' => $c->id, 'type' => 'predador', 'level' => 1,
-                'status' => 'ociosa', 'hp_bps' => 10_000,
+                // `casa`, como o Quartel entrega — era `ociosa`, que o jogo nunca escreve (D-255).
+                'status' => 'casa', 'hp_bps' => 10_000,
             ])->id;
         }
 
@@ -354,5 +358,133 @@ class CercoDeColoniaTest extends TestCase
         app(ResolverCombates::class)->handle(now());
 
         $this->assertSame('marchando', $combate->fresh()->status);
+    }
+
+    // ─────────────────────────── ⚠️ o caminho do jogo, e não o do teste (D-255)
+    //
+    // Todos os testes acima montam a tropa já `ociosa` à mão e chamam o resolvedor direto. Pelo jogo,
+    // nada disso acontecia: o Quartel fabrica unidade `casa`, o tick nunca chamava este resolvedor, e
+    // o atacante chegava sem força. Os testes abaixo passam pelas mesmas portas que o jogador.
+
+    /** A tropa como o Quartel a entrega — `FabricarUnidade`, e não um `Unit::create` com o status certo. */
+    private function tropaFabricada(Colony $c, int $quantas = 3): array
+    {
+        $this->seed(BuildingSpecSeeder::class);
+
+        foreach (DB::table('resource_types')->pluck('code') as $codigo) {
+            $c->resources()->updateOrCreate(['resource_type' => $codigo], ['amount' => 1_000_000]);
+        }
+
+        $antes = Unit::where('colony_id', $c->id)->pluck('id')->all();
+        // Sentinela: a única unidade com ataque (§27.1) — a de invasão.
+        app(FabricarUnidade::class)->handle($c->fresh(), 'sentinela', 1, $quantas);
+
+        return Unit::where('colony_id', $c->id)->whereNotIn('id', $antes)->pluck('id')->all();
+    }
+
+    public function test_a_tropa_que_o_quartel_fabrica_pode_marchar(): void
+    {
+        [, $a] = $this->federacao();
+        [, $b] = $this->federacao();
+        $this->comQuartel($a);
+        $this->guerra($a, $b);
+
+        $combate = app(AtacarColonia::class)->handle($a->fresh(), $b, $this->tropaFabricada($a));
+
+        $this->assertSame('marchando', $combate->status);
+    }
+
+    public function test_o_tick_resolve_o_cerco_de_colonia(): void
+    {
+        [, $a] = $this->federacao();
+        [, $b] = $this->federacao();
+        $this->comQuartel($a);
+        $this->guerra($a, $b);
+        $tropa = $this->tropaFabricada($a);
+        $this->comEstoque($b, app(Silo::class)->capacidade($b, 'agua') + 10_000);
+
+        $combate = app(AtacarColonia::class)->handle($a->fresh(), $b, $tropa);
+        $this->travelTo($combate->chega_at->copy()->addMinute());
+
+        // O código de saída não importa aqui: as colônias deste arquivo não são fundadas (sem a linha
+        // de energia), e o tick de colônia as conta como falha. O que importa é o cerco andar.
+        $this->artisan('fertways:tick');
+
+        $this->assertSame('vitoria_atacante', $combate->fresh()->status);
+    }
+
+    /** O atacante luta com a força que marchou — e não chega com zero e é repelido na primeira rodada. */
+    public function test_o_atacante_chega_com_a_forca_que_marchou(): void
+    {
+        [, $a] = $this->federacao();
+        [, $b] = $this->federacao();
+        $this->comQuartel($a);
+        $this->guerra($a, $b);
+        $sentinela = Unit::create([
+            'colony_id' => $b->id, 'type' => 'sentinela', 'level' => 1,
+            'status' => 'casa', 'hp_bps' => 10_000,
+        ]);
+
+        $combate = app(AtacarColonia::class)->handle($a->fresh(), $b, $this->tropaFabricada($a));
+        app(ResolverCercoDeColonia::class)->handle($combate->chega_at->copy()->addMinute());
+
+        $this->assertNotSame('defensor_venceu', $combate->fresh()->status, 'repelido sem dano = atacante sem força');
+        $this->assertLessThan(10_000, (int) $sentinela->fresh()->hp_bps, 'a defesa tem de ter apanhado');
+    }
+
+    public function test_um_cerco_ja_em_rodada_bloqueia_o_segundo(): void
+    {
+        [, $a] = $this->federacao();
+        [, $b] = $this->federacao();
+        $this->comQuartel($a);
+        $this->guerra($a, $b);
+        Unit::create([
+            'colony_id' => $b->id, 'type' => 'sentinela', 'level' => 1,
+            'status' => 'casa', 'hp_bps' => 10_000,
+        ]);
+
+        $combate = app(AtacarColonia::class)->handle($a->fresh(), $b, $this->tropaFabricada($a));
+        app(ResolverCercoDeColonia::class)->handle($combate->chega_at->copy()->addMinute());
+        $this->assertSame('em_curso', $combate->fresh()->status, 'pré-condição: o cerco está em rodada');
+
+        $this->expectException(DomainRuleException::class);
+        app(AtacarColonia::class)->handle($a->fresh(), $b, $this->tropaFabricada($a));
+    }
+
+    /** Quem volta do cerco volta para CASA — o mesmo estado de quem volta da zona —, e pode marchar de novo. */
+    public function test_os_sobreviventes_voltam_para_casa(): void
+    {
+        [, $a] = $this->federacao();
+        [, $b] = $this->federacao();
+        $this->comQuartel($a);
+        $this->guerra($a, $b);
+        $tropa = $this->tropaFabricada($a);
+
+        $combate = app(AtacarColonia::class)->handle($a->fresh(), $b, $tropa);
+        app(ResolverCercoDeColonia::class)->handle($combate->chega_at->copy()->addMinute());
+
+        $this->assertSame(['casa'], Unit::whereIn('id', $tropa)->pluck('status')->unique()->values()->all());
+    }
+
+    /** A guarnição de uma zona está longe: não defende a colônia de origem. */
+    public function test_quem_guarnece_zona_nao_defende_a_colonia(): void
+    {
+        [, $a] = $this->federacao();
+        [, $b] = $this->federacao();
+        $this->comQuartel($a);
+        $this->guerra($a, $b);
+        $zona = NeutralZone::create([
+            'x' => 48, 'y' => 48, 'district' => 'nordeste', 'mineral' => 'metal_bruto',
+            'owner_colony_id' => $b->id, 'status' => 'ocupada',
+        ]);
+        Unit::create([
+            'colony_id' => $b->id, 'zone_id' => $zona->id, 'type' => 'sentinela', 'level' => 1,
+            'status' => 'na_zona', 'hp_bps' => 10_000,
+        ]);
+
+        $combate = app(AtacarColonia::class)->handle($a->fresh(), $b, $this->tropaFabricada($a));
+        app(ResolverCercoDeColonia::class)->handle($combate->chega_at->copy()->addMinute());
+
+        $this->assertSame('vitoria_atacante', $combate->fresh()->status, 'colônia sem defensor em casa cai sem luta');
     }
 }

@@ -2415,21 +2415,23 @@ todos desde a fundação, e os da zona se abrem conforme ela sobe.</p>
 </div>
 
 <div class="nota grave">
-  <b>⚠️ Achado ao redigir esta seção: pelo jogo, hoje, o cerco de colônia não acontece.</b> Os testes
-  montam a tropa à mão e passam; o caminho real tem três quebras, todas no código e nenhuma no
-  desenho:
+  <b>⚠️ Até o D-255, pelo jogo, o cerco de colônia não acontecia</b> — e os testes passavam, porque
+  montavam a tropa à mão no estado que o ataque pedia. Achado ao escrever esta seção, e corrigido
+  com teste que passa pelas portas do jogador (Quartel → marcha → tick):
   <ul>
-    <li>a fábrica do Quartel cria unidades em casa (<code>casa</code>), e o ataque a colônia só aceita
-      unidades <code>ociosa</code> — estado que só o próprio cerco atribui. Toda marcha disparada pela
-      tela é recusada;</li>
-    <li>a força ofensiva conta só unidades <code>em_combate</code>, e o resolvedor do cerco nunca as
-      passa a esse estado. Contra uma colônia com uma unidade de pé que seja, o atacante seria
-      repelido sem dano na primeira rodada;</li>
-    <li>o bônus do defensor ausente (§8.2) é fotografado no despacho e <b>não é aplicado</b> na
-      rodada; e a trava de "um cerco por vez" não olha o estado <code>em_curso</code>.</li>
+    <li>o ataque só aceitava unidades num estado (<code>ociosa</code>) que nenhum caminho do jogo
+      escrevia — o Quartel entrega a unidade <code>casa</code>. Toda marcha pela tela era recusada;</li>
+    <li>o tick nunca chamava o resolvedor do cerco: o combate ficava em marcha para sempre;</li>
+    <li>na chegada, a tropa não entrava em campo, e a força ofensiva saía zero — contra uma colônia com
+      uma unidade de pé que fosse, o atacante era repelido sem dano;</li>
+    <li>a trava de "um cerco por vez" procurava um estado que ninguém grava, e só segurava durante a
+      marcha; as sobreviventes voltavam num estado de onde não podiam mais marchar; e a guarnição das
+      zonas contava como defesa da colônia, longe dali.</li>
   </ul>
-  O que <b>funciona</b> pelo jogo é a tomada de zona com saque total (acima), que roda no resolvedor
-  de zona.
+  <b>O defensor ausente não ganha bônus no cerco de colônia</b>, ao contrário da zona (§8.2): a
+  decisão 12 diz que na guerra federativa <i>inatividade não protege</i> — a proteção é a
+  neutralidade declarada (§8.14). A ausência continua fotografada no despacho, para a telemetria
+  (§11.7). <span class="d">D-193, D-255</span>
 </div>
 
 <h3>8.14 Capitulação, tratado de paz e neutralidade declarada <span class="d">D-197, D-206</span></h3>
