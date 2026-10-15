@@ -14589,3 +14589,28 @@ Fora, registrado: os nomes de três linhas ("Estrutura de Sobrevivência") ainda
 hexágono no celular; as notas de algumas construções falam de "painel da Guerra", que é do operador.
 
 Migration `2026_10_16_200000_tutoria_em_lingua_de_jogador`. 1464 testes verdes, `npm run build` limpo.
+
+---
+
+## D-267 — O kit do primeiro teste com pessoas de verdade
+
+**Data:** 2026-10-15 · **Status:** entregue (commit; deploy pendente)
+
+Segundo dos três itens depois do D-265. O jogo nunca foi jogado por alguém de fora; este é o roteiro
+da primeira vez, e o que ele precisava do código.
+
+- **A marca de conta da equipe** (`users.equipe`). Sem ela, o primeiro funil real misturaria os
+  testadores com as contas do próprio usuário — exatamente o erro de leitura que o D-265 desfez. A
+  retenção (D-264) passa a ignorá-las. `fertways:equipe --todos-os-atuais` marca de uma vez todo
+  humano que existe hoje ("tudo o que existe sou eu"); `--marcar`/`--desmarcar` para os casos soltos.
+  Bots e contas de sistema não são marcados — já ficam fora pelo domínio.
+- **`docs/PLAYTEST.md`**: a pergunta do teste ("quem chega consegue começar sozinho, e volta?"), o
+  checklist antes (deploy, marcar a equipe, dizer dos bots, não mexer no balanceamento no meio), quem
+  chamar (5 a 10, perfis misturados, dois no celular, ninguém que já viu o jogo), duas semanas, o
+  convite pronto, a rotina do operador (feedback todo dia; retenção nos dias 3, 7 e 14) e a entrevista
+  final de 5 perguntas.
+- O canal de feedback já existia e é testado (aba Bugs/Melhorias → painel Feedback); o roteiro usa ele.
+- O prompt de deploy cobre agora o lote inteiro pendente (D-263 a D-267, três migrations) e **pede
+  confirmação** antes de marcar a equipe em produção.
+
+1466 testes verdes.

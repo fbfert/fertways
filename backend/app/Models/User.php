@@ -39,6 +39,8 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'tutorial_completed_at' => 'datetime',
+            // D-267: conta da equipe — fica fora da medida de retenção. Só `fertways:equipe` a escreve.
+            'equipe' => 'boolean',
             // A suspensão administrativa (D-61). Sem estes casts, `suspenso_ate` volta como string
             // e o `isFuture()` que decide se a suspensão ainda vale estoura — foi assim que um
             // teste a pegou.

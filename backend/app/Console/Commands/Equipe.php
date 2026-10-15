@@ -2,131 +2,62 @@
 
 namespace App\Console\Commands;
 
-use App\Domain\Ministry\Apelacao;
-use App\Domain\Ministry\DecidirCaso;
-use App\Domain\Ministry\PunicaoSpecs;
-use App\Models\Report;
+use App\Domain\Telemetria\Retencao;
+use App\Models\User;
 use Illuminate\Console\Command;
 
 /**
- * A "equipe do jogo" do §9.2 e do §9.3, que julga casos graves, casos órfãos de conciliador e
- * apelações.
+ * Marca contas como da equipe, para ficarem fora da medida de retenção (D-267).
  *
- * Ela é o **operador**, fora do jogo (D-44): com quatro colônias no servidor, era a única leitura de
- * "equipe" que funciona. Por isso um comando de artisan, e não uma rota — expor isto na API daria a
- * um colono o poder de suspender conciliadores.
+ *     fertways:equipe --listar
+ *     fertways:equipe --marcar=email@exemplo.com   (e --desmarcar=)
+ *     fertways:equipe --todos-os-atuais            (antes do primeiro teste: "tudo o que existe sou eu")
  *
- *   artisan fertways:equipe --fila
- *   artisan fertways:equipe 12 --procedente
- *   artisan fertways:equipe 12 --improcedente
- *   artisan fertways:equipe 12 --manter      # apelação: a decisão do conciliador fica de pé
- *   artisan fertways:equipe 12 --reverter    # apelação: estorna a punição e conta a reversão
+ * Bots e contas de sistema não são marcados: eles já ficam fora pelo domínio do e-mail.
  */
 class Equipe extends Command
 {
     protected $signature = 'fertways:equipe
-        {report? : id da denúncia}
-        {--fila : lista o que espera a equipe}
-        {--procedente}
-        {--improcedente}
-        {--manter}
-        {--reverter}';
+        {--listar : mostra quem está marcado}
+        {--marcar= : e-mail da conta a marcar}
+        {--desmarcar= : e-mail da conta a desmarcar}
+        {--todos-os-atuais : marca todo humano que existe agora}';
 
-    protected $description = 'A equipe do jogo julga casos graves e apelações do Ministério';
+    protected $description = 'Contas da equipe ficam fora da medida de retenção (D-267).';
 
-    public function handle(DecidirCaso $decidir, Apelacao $apelacao): int
+    public function handle(): int
     {
-        if ($this->option('fila')) {
-            return $this->fila();
-        }
+        if ($email = $this->option('marcar') ?? $this->option('desmarcar')) {
+            $user = User::where('email', $email)->first();
 
-        $denuncia = Report::find($this->argument('report'));
+            if (! $user) {
+                $this->error("Nenhuma conta com o e-mail {$email}.");
 
-        if (! $denuncia) {
-            $this->error('Denúncia não encontrada. Use --fila para ver o que espera a equipe.');
+                return self::FAILURE;
+            }
 
-            return self::FAILURE;
-        }
-
-        $spec = PunicaoSpecs::violacao($denuncia->violation);
-
-        try {
-            match (true) {
-                (bool) $this->option('procedente') => $this->julgado($decidir->pelaEquipe($denuncia, true), $spec),
-                (bool) $this->option('improcedente') => $this->julgado($decidir->pelaEquipe($denuncia, false), $spec),
-                (bool) $this->option('manter') => $this->mantida($apelacao->manter($denuncia)),
-                (bool) $this->option('reverter') => $this->revertida($apelacao->reverter($denuncia)),
-                default => $this->mostrar($denuncia, $spec),
-            };
-        } catch (\App\Exceptions\DomainRuleException $e) {
-            $this->error($e->getMessage());
-
-            return self::FAILURE;
-        }
-
-        return self::SUCCESS;
-    }
-
-    private function fila(): int
-    {
-        $casos = Report::whereIn('status', ['na_equipe', 'apelado'])->orderBy('id')->get();
-
-        if ($casos->isEmpty()) {
-            $this->info('Nada espera a equipe.');
+            $user->forceFill(['equipe' => $this->option('marcar') !== null])->save();
+            $this->info(($user->equipe ? 'Marcada' : 'Desmarcada')." como equipe: {$email}");
 
             return self::SUCCESS;
         }
 
-        $this->table(
-            ['id', 'status', 'violação', 'grave', 'denunciante', 'denunciado'],
-            $casos->map(fn (Report $r) => [
-                $r->id,
-                $r->status,
-                $r->violation,
-                $r->grave ? 'sim' : '—',
-                $r->reporter?->name ?? $r->reporter_colony_id,
-                $r->accused?->name ?? $r->accused_colony_id,
-            ])->all(),
-        );
+        if ($this->option('todos-os-atuais')) {
+            $n = $this->humanos()->where('equipe', false)->update(['equipe' => true]);
+            $this->info("{$n} conta(s) marcada(s) como equipe. Quem se cadastrar a partir de agora conta como jogador.");
+
+            return self::SUCCESS;
+        }
+
+        $this->table(['id', 'nickname', 'cadastro'], $this->humanos()->where('equipe', true)
+            ->orderBy('id')->get(['id', 'nickname', 'created_at'])->map(fn ($u) => [$u->id, $u->nickname, $u->created_at])->all());
 
         return self::SUCCESS;
     }
 
-    private function mostrar(Report $r, array $spec): void
+    private function humanos()
     {
-        $this->line("denúncia {$r->id}: {$r->violation} ({$spec['fonte']})");
-        $this->line("  status {$r->status} · decisão ".($r->decision ?? '—'));
-        $this->line("  evidência: {$r->evidence_type}, acordo ".($r->trade_agreement_id ?? '—'));
-        $this->line('  se procedente: '.implode(' + ', $spec['punicoes'])." em {$spec['indice']} ({$spec['pontos']})");
-        $this->newLine();
-        $this->line($r->texto);
-    }
-
-    private function julgado(Report $r, array $spec): void
-    {
-        $this->info("denúncia {$r->id}: {$r->decision}.");
-
-        if ($r->decision === 'procedente') {
-            $this->line('  aplicado: '.implode(' + ', $spec['punicoes'])." em {$spec['indice']} ({$spec['pontos']} pontos)");
-        }
-
-        $this->line("  janela de apelação até {$r->appeal_until}.");
-    }
-
-    private function mantida(Report $r): void
-    {
-        $this->info("denúncia {$r->id}: decisão mantida. O conciliador recebe o bônus no próximo tick.");
-    }
-
-    private function revertida(Report $r): void
-    {
-        $this->info("denúncia {$r->id}: decisão revertida. Punição estornada, sem bônus.");
-
-        $c = $r->conciliator;
-
-        if ($c) {
-            $this->line("  {$c->nickname}: {$c->reversoes}/".PunicaoSpecs::LIMITE_REVERSOES.' reversões'
-                .($c->conciliador_suspenso_em ? ' — SUSPENSO' : ''));
-        }
+        return User::where('email', 'not like', '%'.Retencao::DOMINIO_DOS_BOTS)
+            ->where('email', 'not like', '%'.Retencao::DOMINIO_DO_SISTEMA);
     }
 }

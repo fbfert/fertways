@@ -1,4 +1,4 @@
-# Prompt de deploy na VPS — lote D-263 (o Espaçoporto abre)
+# Prompt de deploy na VPS — lote D-263 a D-267
 
 > Cole o bloco abaixo numa sessão do Claude Code **aberta no servidor**, em
 > `/home/fertways/apps/fertways`. O lote anterior (D-253 a D-262) já está no ar desde `fa1af6b`.
@@ -7,12 +7,17 @@
 ---
 
 ```text
-Vamos publicar em produção o D-263: o Espaçoporto abre, com os números de partida que eu aprovei.
+Vamos publicar em produção o lote D-263 a D-267: o Espaçoporto abre (D-263), a retenção no painel
+(D-264), as primeiras horas do novato (D-266) e a marca de conta da equipe (D-267).
 Leia docs/deploy.md e docs/RETOMAR.md antes. Siga a ordem abaixo e pare para me perguntar se
 qualquer conferência falhar — não contorne.
 
 CONTEXTO
-- Uma migration pendente: 2026_10_16_100000_espacoporto_com_os_numeros_de_partida.
+- Três migrations pendentes:
+    2026_10_16_100000_espacoporto_com_os_numeros_de_partida   (D-263)
+    2026_10_16_200000_tutoria_em_lingua_de_jogador            (D-266: troca texto só se ainda original)
+    2026_10_16_300000_contas_da_equipe                        (D-267: users.equipe, nasce falso)
+- Sobre a primeira:
   Ela chama o EspacoportoPartidaSeeder (o mesmo que o DatabaseSeeder chama numa instalação nova) e:
     * configura o Cargueiro — ativo, aluguel 20 F$, 10.000 unidades por perna, 2 cargueiros —
       SÓ se espacoporto_settings ainda estiver vazio (como o D-262 deixou);
@@ -25,14 +30,14 @@ CONTEXTO
 PASSO 1 — Código e suíte
 - cd /home/fertways/apps/fertways; git status limpo; git pull --ff-only origin main.
 - cd backend && sudo -u fertways /usr/bin/php84 /bin/composer install --no-interaction
-- sudo -u fertways /usr/bin/php84 artisan test   → esperado: 1451 verdes.
+- sudo -u fertways /usr/bin/php84 artisan test   → esperado: 1466 verdes.
 - Frontend: export PATH="/usr/local/lib/nodejs/node-v22.12.0-linux-x64/bin:$PATH";
   cd ../frontend && npm ci && npm run build   → limpo.
 
-PASSO 2 — A migration no fertwaysdev, nos dois sentidos
+PASSO 2 — As três migrations no fertwaysdev, nos dois sentidos
 - Confirme que o artisan da árvore de trabalho fala com fertwaysdev (tinker:
   DB::connection()->getDatabaseName()). Se não, PARE.
-- migrate --force; migrate:rollback --step=1 --force; migrate --force.
+- migrate --force; migrate:rollback --step=3 --force; migrate --force.
 - Depois: DB::table('planeta_npc_precos')->count() > 0, e
   DB::table('planetas_npc')->pluck('aberto','chave') → kalidor, veyra, auryn abertos.
 
@@ -64,7 +69,12 @@ PASSO 6 — Conferir a produção (só leitura)
 - DB::table('planetas_npc')->pluck('aberto','nome') → Kalidor, Veyra e Auryn abertos.
 - DB::table('planeta_npc_precos')->count() → 47.
 
-PASSO 7 — Fechar
-- Atualize docs/RETOMAR.md (D-263 no ar, sha, backup, resultado dos passos 3 e 6). Commit e push.
+PASSO 7 — A marca da equipe (NÃO rode sem me perguntar)
+- O docs/PLAYTEST.md manda rodar `fertways:equipe --todos-os-atuais` ANTES do primeiro testador.
+  Pergunte-me se é para rodar agora; se eu disser que sim, rode na cópia de deploy como fertways e
+  me mostre quantas contas foram marcadas.
+
+PASSO 8 — Fechar
+- Atualize docs/RETOMAR.md (lote D-263 a D-267 no ar, sha, backup, resultado dos passos 3, 6 e 7). Commit e push.
 - Me entregue um resumo curto.
 ```

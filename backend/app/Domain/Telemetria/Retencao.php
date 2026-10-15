@@ -101,6 +101,8 @@ class Retencao
             ->where('email', 'not like', '%'.self::DOMINIO_DOS_BOTS)
             // As contas de sistema do rádio (Capital, Missões, Federação — `ContaSistema`) não jogam.
             ->where('email', 'not like', '%'.self::DOMINIO_DO_SISTEMA)
+            // Nem as da equipe (D-267): até o primeiro teste, todo humano do servidor era o dono do jogo.
+            ->where('equipe', false)
             ->get(['id', 'created_at', 'resumo_visto_em']);
 
         $colonias = DB::table('colonies')->whereIn('user_id', $usuarios->pluck('id'))

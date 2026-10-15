@@ -1,6 +1,6 @@
 # Prompt para medir o abandono na produção (D-264) — sem deploy
 
-> ⚠️ **Não rode agora (D-265).** Todas as contas humanas do servidor são do próprio usuário ou bots: não há abandono para medir. Guardado para o dia em que houver jogadores de fora.
+> ⚠️ **Não rode agora (D-265).** Todas as contas humanas do servidor são do próprio usuário ou bots: não há abandono para medir. Para o primeiro teste com pessoas de verdade, use `docs/PLAYTEST.md` (D-267): depois do deploy, o relatório roda direto na cópia de deploy, com as contas da equipe já marcadas.
 
 > Cole o bloco abaixo numa sessão do Claude Code **aberta no servidor**, em
 > `/home/fertways/apps/fertways`. Ele **não publica nada** e **não escreve em banco nenhum**: traz o

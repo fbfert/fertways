@@ -27,9 +27,10 @@ class RetencaoTest extends TestCase
 
     private function jogador(Carbon $cadastro, ?string $email = null): User
     {
+        $n = $this->proximo++;
         $u = User::create([
-            'name' => 'j', 'nickname' => 'j'.$this->proximo,
-            'email' => $email ?? 'j'.$this->proximo++.'@exemplo.com', 'password' => Hash::make('x'),
+            'name' => 'j', 'nickname' => 'j'.$n,
+            'email' => $email ?? "j{$n}@exemplo.com", 'password' => Hash::make('x'),
         ]);
         $u->forceFill(['created_at' => $cadastro])->save();
 
@@ -144,6 +145,40 @@ class RetencaoTest extends TestCase
             ->assertSuccessful();
 
         $this->assertSame($antes, DB::table('users')->count() + DB::table('xp_entries')->count());
+    }
+
+    /**
+     * As contas da equipe não são jogadores (D-267). Todo humano do servidor hoje é o próprio usuário
+     * testando (D-265): se o teste com pessoas de verdade começasse sem esta marca, o funil misturaria
+     * os testadores com as contas dele, e a primeira medida real nasceria contaminada.
+     */
+    public function test_conta_da_equipe_nao_entra_na_retencao(): void
+    {
+        [$agora] = $this->mundo();
+        $this->travelTo($agora);
+
+        $antes = app(Retencao::class)->relatorio()['funil']['cadastrou'];
+        User::where('email', 'like', '%@exemplo.com')->limit(2)->update(['equipe' => true]);
+
+        $this->assertSame($antes - 2, app(Retencao::class)->relatorio()['funil']['cadastrou']);
+    }
+
+    /** Antes do teste: marcar de uma vez todo humano que existe hoje — "tudo o que existe sou eu". */
+    public function test_o_comando_marca_os_atuais_como_equipe_sem_tocar_nos_bots(): void
+    {
+        $this->jogador(now()->subDays(3));
+        $this->jogador(now()->subDays(2));
+        $bot = $this->jogador(now()->subDay(), 'r2@bots.fertways.local');
+
+        $this->artisan('fertways:equipe', ['--todos-os-atuais' => true])->assertSuccessful();
+
+        $this->assertSame(0, User::where('email', 'like', '%@exemplo.com')->where('equipe', false)->count());
+        $this->assertFalse((bool) $bot->fresh()->equipe, 'bot não é equipe: ele já fica fora pelo domínio');
+        $this->assertSame(0, app(Retencao::class)->relatorio()['funil']['cadastrou']);
+
+        // Quem se cadastra DEPOIS é testador, e conta.
+        $this->jogador(now());
+        $this->assertSame(1, app(Retencao::class)->relatorio()['funil']['cadastrou']);
     }
 
     public function test_o_painel_de_metricas_mostra_a_retencao(): void
