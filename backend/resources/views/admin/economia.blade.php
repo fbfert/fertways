@@ -184,6 +184,8 @@
                 ao que já está anunciado: subir o número reserva mais do Tesouro, descer devolve a
                 diferença, zerar cancela a oferta daquele recurso. O que vender cai daqui igual a
                 qualquer venda: anuncie 100 e alguém compre 5, e o número aqui vira 95 sozinho.
+                O preço <b>nunca fica abaixo do que um planeta do Espaçoporto paga</b> pelo recurso
+                (D-279): o salvar recusa esse recurso e diz qual planeta impede.
             </p>
             <form method="POST" action="{{ route('admin.mercado.governo') }}" style="margin-top:12px">
                 @csrf

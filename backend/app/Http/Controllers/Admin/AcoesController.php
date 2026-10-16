@@ -13,6 +13,7 @@ use App\Domain\Admin\Suspender;
 use App\Domain\Chat\ContaSistema;
 use App\Domain\Chat\EnviarMensagem;
 use App\Domain\Endurance\EfeitosDaEndurance;
+use App\Domain\Espacoporto\ArbitragemComOGoverno;
 use App\Domain\Eventos\CondicoesDoMundo;
 use App\Domain\Eventos\EntregarCestas;
 use App\Domain\Eventos\Modificadores;
@@ -686,6 +687,9 @@ class AcoesController extends Controller
         }
 
         return $this->tentar('espacoporto.planeta', function () use ($planeta, $dados, $precos) {
+            // D-279: nenhuma compra acima do que o Governo cobra no Mercado Central.
+            app(ArbitragemComOGoverno::class)->conferirPlaneta($precos);
+
             DB::transaction(function () use ($planeta, $dados, $precos) {
                 $planeta->update([
                     'aberto' => (bool) ($dados['aberto'] ?? false),

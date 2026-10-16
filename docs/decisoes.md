@@ -15014,3 +15014,50 @@ Nota do mesmo deploy: dois testes de `EspacoportoCargaTest` falham **só no serv
 SQLite 3.34.1. Antes da 3.35 não há `DROP COLUMN` nativo: o `down()` da `400000` recria `planetas_npc`, e
 o `cascadeOnDelete` apaga os preços. No MariaDB os 47 preços sobrevivem ao `down()` (medido). É defeito do
 teste, a corrigir à parte.
+
+## D-279 — A guarda do D-278 também no painel, e os dois testes do SQLite antigo
+
+As duas pendências que o deploy do lote D-263 a D-278 deixou.
+
+### O painel recusa criar a arbitragem que a partida limpou
+
+O D-278 tirou, na partida, toda compra de planeta acima do preço do Governo, mas o painel podia
+reabrir o conflito pelos dois lados. Agora a regra mora numa classe só,
+`App\Domain\Espacoporto\ArbitragemComOGoverno`, e é conferida nos dois lados:
+- **o planeta** (`espacoportoPlaneta`): se a tabela nova tem alguma compra acima da oferta aberta do
+  Governo, o formulário inteiro é recusado e nada é salvo. A mensagem diz qual recurso e quanto o
+  Governo cobra;
+- **o Governo** (`OfertarComoGoverno::definir`, por onde passa todo anúncio do Governo): uma oferta
+  abaixo do que algum planeta paga é recusada, sem tocar no Tesouro. A mensagem diz qual planeta
+  impede e quanto ele paga. O formulário do Mercado já salva recurso por recurso, então os outros
+  recursos são salvos e só o recusado aparece no aviso.
+
+Os limites:
+- pagar **o mesmo** que o Governo cobra é permitido, como na partida (`>`, não `>=`), porque ali não
+  há lucro;
+- **tirar a oferta do ar** (quantidade 0) continua livre;
+- a **venda** do planeta não entra na regra;
+- **planeta fechado conta.** Abrir é um clique no mesmo formulário, e o conflito estaria pronto;
+- a ordem para subir os dois juntos é **primeiro o Governo, depois o planeta**. Os dois avisos do
+  painel dizem isso.
+
+O preço do Nióbio (D-66, D-269) é a guarda do outro sentido, a venda do planeta contra o
+`war_settings`, e não mudou.
+
+### Os dois testes que só falhavam no servidor
+
+O `down()` da `2026_10_16_400000` tira colunas de `planetas_npc`. O SQLite anterior à 3.35 (o do
+servidor é o 3.34.1; o daqui, o 3.53.4) não tem `DROP COLUMN`, e o Laravel recria a tabela. Dentro da
+transação do `RefreshDatabase`, o `PRAGMA foreign_keys = OFF` não tem efeito, e o `cascadeOnDelete`
+apaga os preços. No MariaDB eles sobrevivem (medido no `fertwaysdev`). O defeito era só do teste, e a
+migration ficou como estava.
+
+Os três testes que desfazem a migration passaram a chamar `desfazer()`, que guarda os preços, roda o
+`down()` e os devolve com `insertOrIgnore`: onde não sumiram, nada muda. **Reproduzido aqui antes da
+correção**: apagando os preços logo depois do `down()`, as mesmas duas falhas do servidor apareceram
+(`0 is identical to 3163000` e `3 is identical to 5`). Com a devolução, os 15 testes passam.
+
+**Verificação:** 8 testes novos em `ArbitragemNoPainelTest`, 4 deles vermelhos antes da guarda. Os 4
+que já nasceram verdes são os limites que precisam continuar livres. Suíte: 1544 em SQLite e 1544 em
+MariaDB 10.5.29, mais o round-trip das migrations. Sem
+migration.

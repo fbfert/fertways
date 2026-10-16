@@ -100,6 +100,20 @@ class EspacoportoCargaTest extends TestCase
         app(ConcluirContratosDeRota::class)->handle($k->chega_em->copy()->addSecond());
     }
 
+    /**
+     * O `down()` da migration, com os preços dos planetas preservados. O SQLite anterior à 3.35 (o do
+     * servidor é o 3.34.1) não tem `DROP COLUMN`, e o Laravel recria `planetas_npc`. Dentro da transação
+     * do teste o `PRAGMA foreign_keys = OFF` não tem efeito, e o `cascadeOnDelete` apaga os preços. No
+     * MariaDB eles sobrevivem ao `down()` (medido). Como o que se testa é a produção, que tem os preços,
+     * eles são restaurados aqui. Onde não sumiram, nada muda.
+     */
+    private function desfazer(object $migration): void
+    {
+        $precos = DB::table('planeta_npc_precos')->get()->map(fn ($p) => (array) $p)->all();
+        $migration->down();
+        DB::table('planeta_npc_precos')->insertOrIgnore($precos);
+    }
+
     // ── o imposto ───────────────────────────────────────────────────────────
 
     public function test_a_venda_ao_planeta_paga_o_imposto_do_recurso_na_volta(): void
@@ -259,7 +273,7 @@ class EspacoportoCargaTest extends TestCase
     public function test_a_migration_sobe_o_niobio_de_drakmoor(): void
     {
         $m = require database_path('migrations/2026_10_16_400000_carga_interplanetaria.php');
-        $m->down();
+        $this->desfazer($m);
         $this->planeta('drakmoor')->precos()->where('resource_type', 'niobio_alienigena')->update(['venda_micro' => 1]);
 
         $m->up();
@@ -278,7 +292,7 @@ class EspacoportoCargaTest extends TestCase
     {
         $m = require database_path('migrations/2026_10_16_400000_carga_interplanetaria.php');
 
-        $m->down();
+        $this->desfazer($m);
         $this->assertSame(3, PlanetaNpc::where('aberto', true)->count());
 
         $m->up();
@@ -290,7 +304,7 @@ class EspacoportoCargaTest extends TestCase
     public function test_a_migration_nao_reabre_o_que_nao_tem_preco(): void
     {
         $m = require database_path('migrations/2026_10_16_400000_carga_interplanetaria.php');
-        $m->down();
+        $this->desfazer($m);
         $this->planeta('drakmoor')->precos()->delete();
 
         $m->up();

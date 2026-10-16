@@ -97,12 +97,12 @@ As "Deploy pendente" das levas acima estão **superadas**.
 - **Suíte no servidor: 1534 verdes e 2 vermelhos, os dois só no SQLite.** O PHP do servidor traz o SQLite
   3.34.1, que não tem `DROP COLUMN` nativo (só da 3.35 em diante). O `down()` da `400000` recria
   `planetas_npc`, e o `cascadeOnDelete` apaga os preços: 47 → 0. No MariaDB os 47 sobrevivem (medido no
-  `fertwaysdev`). ⚠️ **Pendente: corrigir os dois testes** de `EspacoportoCargaTest` (D-278, nota).
+  `fertwaysdev`). ✅ Os dois testes de `EspacoportoCargaTest` foram corrigidos no **D-279** (deploy pendente).
 - **`fertwaysdev`:** as seis migrations subiram, voltaram e subiram de novo, todas DONE.
 - **Passo 3, a guarda de arbitragem, FALHOU e virou o D-278.** O Governo vendia 7 recursos abaixo do que
   um planeta pagaria (biocombustível a 0,29×, estanho a 0,32×, alumínio a 0,44× contra os 0,70× de Auryn;
   plasma, fungo, gelo de metano e componentes um pouco abaixo de 0,80). O usuário escolheu **tirar a
-  compra do planeta**. A regra é `semCompraAcimaDoGoverno()` na partida, e o painel não a aplica.
+  compra do planeta**. A regra é `semCompraAcimaDoGoverno()` na partida, e desde o **D-279** o painel também a aplica, nos dois lados (deploy pendente).
 - **GDD v41** regerado contra o `fertwaysdev` (`d7245ad`), saída limpa.
 - **Backup:** `/home/fertways/backups/fertwaysbd-antes-d7245ad-20261016-155249.sql.gz` (4,5 MB, `colonies`
   presente).

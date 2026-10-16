@@ -399,7 +399,9 @@
                 ato seu</b>: os portões por planeta (Auryn "por marco de servidor", Solène "por ciência",
                 Drakmoor "tardio") não têm critério publicado. Os preços vão um por linha,
                 <code>recurso:compra:venda</code> em Fert$ por unidade — <b>compra</b> é o que o planeta
-                paga ao colono, <b>venda</b> é o que ele cobra; vazio é "não negocia". O risco de Drakmoor
+                paga ao colono, <b>venda</b> é o que ele cobra; vazio é "não negocia". A <b>compra nunca
+                passa do preço do Governo</b> no Mercado Central (D-279): o painel recusa, porque comprar de
+                um e vender ao outro seria lucro garantido. O risco de Drakmoor
                 não tem mecânica (escolta e seguro são "de temporada", v3.2).
             </p>
             @foreach ($planetas as $p)

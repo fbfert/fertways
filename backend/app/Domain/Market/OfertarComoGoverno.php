@@ -2,6 +2,7 @@
 
 namespace App\Domain\Market;
 
+use App\Domain\Espacoporto\ArbitragemComOGoverno;
 use App\Domain\Treasury\Tesouro;
 use App\Exceptions\DomainRuleException;
 use App\Models\MarketOrder;
@@ -37,6 +38,11 @@ class OfertarComoGoverno
 
         if ($qtdAlvo > 0 && $precoMicro <= 0) {
             throw new DomainRuleException('preco_invalido', 'O preço tem de ser positivo.');
+        }
+
+        if ($qtdAlvo > 0) {
+            // D-279: nunca abaixo do que um planeta NPC paga. Tirar a oferta do ar continua livre.
+            app(ArbitragemComOGoverno::class)->conferirGoverno($recurso, $precoMicro);
         }
 
         return DB::transaction(function () use ($recurso, $qtdAlvo, $precoMicro) {
