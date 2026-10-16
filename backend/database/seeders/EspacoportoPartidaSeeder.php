@@ -125,6 +125,29 @@ class EspacoportoPartidaSeeder extends Seeder
         }
 
         self::niobioNoPrecoDoGoverno();
+        self::semCompraAcimaDoGoverno();
+    }
+
+    /**
+     * Um planeta não compra o que o Governo vende mais barato no Mercado Central (D-278): comprar do
+     * Governo e revender ao planeta seria lucro garantido. O Governo vende abaixo da referência de
+     * propósito, para o novato; a compra do planeta é que sai. Linha que fica sem compra e sem venda
+     * some.
+     */
+    public static function semCompraAcimaDoGoverno(): void
+    {
+        $governo = DB::table('market_orders')
+            ->whereNull('colony_id')->where('side', 'sell')->whereIn('status', ['aberta', 'parcial'])
+            ->pluck('price_micro', 'resource_type');
+
+        foreach ($governo as $recurso => $preco) {
+            DB::table('planeta_npc_precos')
+                ->where('resource_type', $recurso)
+                ->where('compra_micro', '>', $preco)
+                ->update(['compra_micro' => null, 'updated_at' => now()]);
+        }
+
+        DB::table('planeta_npc_precos')->whereNull('compra_micro')->whereNull('venda_micro')->delete();
     }
 
     /**

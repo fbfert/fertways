@@ -14987,3 +14987,30 @@ Depois: **zero violações**, nas duas larguras.
 **Verificação:** 1535 testes em SQLite e 1535 em MariaDB 10.5.29, mais o round-trip das migrations
 (fresh, rollback, migrate). Build, tsc e lint limpos (só o aviso antigo de `App.tsx:116`). Sem
 migration nova.
+
+## D-278 — Planeta não compra o que o Governo vende mais barato
+
+Achado na conferência antes do deploy do lote D-263 a D-277. Um planeta paga 0,80× a referência (Auryn,
+0,70×), mas o Governo vende alguns recursos no Mercado Central abaixo disso — o estanho a 0,32×, o
+biocombustível a 0,29×. Comprar do Governo e revender ao planeta seria lucro garantido: uma perna cheia de
+biocombustível renderia 141 F$ antes do aluguel de 20.
+
+Na produção, em 16/10, eram sete recursos: biocombustível, estanho e alumínio (Auryn), plasma, fungo e gelo
+de metano (Solène), componentes eletrônicos (Drakmoor e Veyra).
+
+O usuário escolheu **tirar a compra do planeta**, e não subir o preço do Governo, que é baixo de propósito.
+A regra é `EspacoportoPartidaSeeder::semCompraAcimaDoGoverno()`, e não uma lista: na partida, nenhum
+planeta paga por um recurso mais do que a oferta aberta do Governo cobra. Se o planeta também vende aquele
+recurso, a venda fica; uma linha sem compra e sem venda some. A regra roda junto com a do Nióbio
+(D-269), dentro da migration `100000`.
+
+⚠️ **O painel não aplica esta guarda.** Baixar o preço do Governo, ou subir a compra de um planeta, pelo
+painel depois da partida reabre a arbitragem. A regra vale só na partida.
+
+**Verificação:** teste novo em `EspacoportoPartidaTest`; no `fertwaysdev` (MariaDB), com as 21 ofertas da
+produção inseridas numa transação desfeita depois, a guarda tirou exatamente as 8 compras esperadas.
+
+Nota do mesmo deploy: dois testes de `EspacoportoCargaTest` falham **só no servidor**, cujo PHP traz o
+SQLite 3.34.1. Antes da 3.35 não há `DROP COLUMN` nativo: o `down()` da `400000` recria `planetas_npc`, e
+o `cascadeOnDelete` apaga os preços. No MariaDB os 47 preços sobrevivem ao `down()` (medido). É defeito do
+teste, a corrigir à parte.

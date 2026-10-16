@@ -85,6 +85,33 @@ class EspacoportoPartidaTest extends TestCase
         }
     }
 
+    /**
+     * D-278: o Governo vende estanho a 0,32× e Auryn pagaria 0,70× — comprar de um e vender ao outro
+     * seria lucro garantido. A partida tira a compra do planeta; a venda do mesmo recurso fica.
+     */
+    public function test_planeta_nao_compra_o_que_o_governo_vende_mais_barato(): void
+    {
+        DB::table('planeta_npc_precos')->delete();
+        $base = fn (string $r) => (int) DB::table('resource_types')->where('code', $r)->value('preco_base_micro');
+        foreach (['estanho' => 0.32, 'agua' => 0.85] as $r => $fator) {
+            DB::table('market_orders')->insert([
+                'colony_id' => null, 'resource_type' => $r, 'side' => 'sell', 'price_micro' => (int) ($base($r) * $fator),
+                'qty' => 100, 'escrow_resource_qty' => 100, 'status' => 'aberta', 'created_at' => now(), 'updated_at' => now(),
+            ]);
+        }
+
+        $this->seed(EspacoportoPartidaSeeder::class);
+
+        $compra = fn (string $planeta, string $r) => DB::table('planeta_npc_precos as p')
+            ->join('planetas_npc as n', 'n.id', '=', 'p.planeta_npc_id')
+            ->where('n.chave', $planeta)->where('p.resource_type', $r)->first(['compra_micro', 'venda_micro']);
+
+        $this->assertNull($compra('auryn', 'estanho'));
+        $this->assertNotNull($compra('kalidor', 'estanho')->venda_micro);
+        $this->assertNull($compra('kalidor', 'estanho')->compra_micro);
+        $this->assertNotNull($compra('auryn', 'agua')->compra_micro);
+    }
+
     /** Um deploy não desfaz o painel: planeta já mexido e Cargueiro já configurado ficam como estão. */
     public function test_a_partida_nao_sobrescreve_o_que_o_operador_mudou(): void
     {
