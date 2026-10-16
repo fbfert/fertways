@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { api, ApiError } from '../api/client'
-import type { ContratoDeRota, EstadoEspacoporto, PlanetaNpc } from '../api/client'
+import type { ContratoDeRota, CotacaoDeRota, EstadoEspacoporto, OpcoesDeRota, PlanetaNpc } from '../api/client'
 import { dataHumana, nomeRecurso } from './recursos'
 import { Botao } from './sistema'
 import { DuvidasDoEspacoporto } from './DuvidasDoEspacoporto'
@@ -12,6 +12,10 @@ import { DuvidasDoEspacoporto } from './DuvidasDoEspacoporto'
  * em vez de transcritos aqui. O que mudou é que as rotas **podem** abrir — mas cada número de
  * economia (preço em cada planeta, aluguel e capacidade do Cargueiro, frota) é do operador, e nasce
  * vazio. Enquanto falta um, a tela diz qual.
+ *
+ * Desde o D-280, as rotas com risco aceitam **escolta** (as Sentinelas da colônia acompanham o
+ * Cargueiro e cortam a chance de sinistro) e **seguro** (o Governo paga o que o sinistro levar). A
+ * conta do prêmio é do servidor: a tela pede a cotação, para nunca prometer outro número.
  */
 const fert = (micro: number) =>
   (micro / 1_000_000).toLocaleString('pt-BR', { maximumFractionDigits: 6 })
@@ -101,6 +105,11 @@ export function Espacoporto() {
                 ) : (
                   'chegou inteiro'
                 )}
+                {(k.seguro_indenizacao_micro ?? 0) > 0 && (
+                  <span data-indenizacao={k.id}>
+                    , e o seguro pagou <b className="text-ink">{fert(k.seguro_indenizacao_micro ?? 0)} Fert$</b>
+                  </span>
+                )}
                 . Imposto: {fert(k.imposto_importacao_micro + (k.imposto_venda_micro ?? 0))} Fert$.
               </li>
             ))}
@@ -117,9 +126,11 @@ export function Espacoporto() {
               planeta={p}
               podeContratar={estado.ligado && p.portao.pode && estado.cargueiros_livres > 0}
               capacidade={estado.capacidade_unidades ?? 0}
-              aoContratar={async (venda, compra) => {
+              sentinelasEmCasa={estado.sentinelas_em_casa}
+              estado={estado}
+              aoContratar={async (venda, compra, opcoes) => {
                 try {
-                  const { contrato } = await api.contratarRota(p.chave, venda, compra)
+                  const { contrato } = await api.contratarRota(p.chave, venda, compra, opcoes)
                   setAviso(`O Cargueiro partiu para ${p.nome} — pousa em ${dataHumana(contrato.chega_em)}.`)
                   await carregar()
                 } catch (e) {
@@ -134,7 +145,8 @@ export function Espacoporto() {
       <p className="text-ink-soft text-xs" data-imposto-interplanetario>
         A carga paga imposto como no Mercado Central: a encomenda, na partida; a venda, na volta, sobre o
         que o planeta pagou. As peças de alfândega da Endurance dão desconto. Nos planetas com risco, um
-        sinistro na viagem pode levar parte da carga das duas pernas — o que se pagou não volta.
+        sinistro na viagem pode levar parte da carga das duas pernas — o que se pagou não volta, a não ser
+        que a viagem tenha seguro.
       </p>
 
       <DuvidasDoEspacoporto />
@@ -151,6 +163,8 @@ function Viagem({ contrato: k }: { contrato: ContratoDeRota }) {
       <b className="text-ink">{k.planeta}</b> — leva {leva.join(', ') || 'nada'}, traz{' '}
       {traz.join(', ') || 'nada'}. Pousa em {dataHumana(k.chega_em)}.
       {k.imposto_importacao_micro > 0 && ` Imposto de importação pago: ${fert(k.imposto_importacao_micro)} Fert$.`}
+      {k.escolta_sentinelas > 0 && ` Escolta: ${k.escolta_sentinelas} Sentinela(s).`}
+      {k.seguro_cobertura_micro > 0 && ` Segurado em ${fert(k.seguro_cobertura_micro)} Fert$.`}
     </li>
   )
 }
@@ -159,18 +173,24 @@ function Planeta({
   planeta: p,
   podeContratar,
   capacidade,
+  sentinelasEmCasa,
+  estado,
   aoContratar,
 }: {
   planeta: PlanetaNpc
   podeContratar: boolean
   capacidade: number
-  aoContratar: (venda: Record<string, number>, compra: Record<string, number>) => Promise<void>
+  sentinelasEmCasa: number
+  estado: EstadoEspacoporto
+  aoContratar: (venda: Record<string, number>, compra: Record<string, number>, opcoes: OpcoesDeRota) => Promise<void>
 }) {
   const [venda, setVenda] = useState<Record<string, number>>({})
   const [compra, setCompra] = useState<Record<string, number>>({})
+  const [opcoes, setOpcoes] = useState<OpcoesDeRota>({ seguro: false, escolta: 0 })
   const [ocupado, setOcupado] = useState(false)
   const negocia = Object.keys(p.compra).length + Object.keys(p.venda).length > 0
   const aberto = p.aberto && negocia
+  const temRisco = p.risco_chance_bps > 0 && p.risco_perda_bps > 0
 
   return (
     <li className="border-rust/20 bg-sand border p-3" data-planeta={p.nome}>
@@ -181,10 +201,10 @@ function Planeta({
           <span className={p.risco === 'alto' ? 'text-rust font-bold' : ''}>risco {p.risco}</span>
         </div>
       </div>
-      <div className="text-ink-soft/80 mt-1 text-xs">
+      <div className="text-ink-soft mt-1 text-xs">
         <b>Exporta:</b> {p.exporta} · <b>Importa:</b> {p.importa}
       </div>
-      {p.risco_chance_bps > 0 && (
+      {temRisco && (
         <div className="text-ink-soft mt-1 text-xs" data-risco={p.chave}>
           Em {pct(p.risco_chance_bps)} das viagens há sinistro, e ele leva {pct(p.risco_perda_bps)} da carga.
         </div>
@@ -213,6 +233,17 @@ function Planeta({
             mudar={setCompra}
             rotuloPreco="cobra"
           />
+          {podeContratar && temRisco && (
+            <Protecao
+              planeta={p}
+              venda={venda}
+              compra={compra}
+              opcoes={opcoes}
+              mudar={setOpcoes}
+              sentinelasEmCasa={sentinelasEmCasa}
+              estado={estado}
+            />
+          )}
           {podeContratar && (
             <div className="sm:col-span-2">
               <Botao
@@ -222,15 +253,16 @@ function Planeta({
                 data-contratar={p.chave}
                 onClick={async () => {
                   setOcupado(true)
-                  await aoContratar(venda, compra)
+                  await aoContratar(venda, compra, temRisco ? opcoes : { seguro: false, escolta: 0 })
                   setVenda({})
                   setCompra({})
+                  setOpcoes({ seguro: false, escolta: 0 })
                   setOcupado(false)
                 }}
               >
                 Alugar o Cargueiro para {p.nome}
               </Botao>
-              <span className="text-ink-soft/70 ml-2 text-xs">
+              <span className="text-ink-soft ml-2 text-xs">
                 até {capacidade.toLocaleString('pt-BR')} unidades em cada perna; o preço fica travado na partida.
               </span>
             </div>
@@ -238,6 +270,117 @@ function Planeta({
         </div>
       )}
     </li>
+  )
+}
+
+/**
+ * A escolta e o seguro de uma viagem com risco (D-280). A cotação vem do servidor, pela mesma conta
+ * do contrato, e só é pedida quando há carga e alguma proteção escolhida.
+ */
+function Protecao({
+  planeta: p,
+  venda,
+  compra,
+  opcoes,
+  mudar,
+  sentinelasEmCasa,
+  estado,
+}: {
+  planeta: PlanetaNpc
+  venda: Record<string, number>
+  compra: Record<string, number>
+  opcoes: OpcoesDeRota
+  mudar: (o: OpcoesDeRota) => void
+  sentinelasEmCasa: number
+  estado: EstadoEspacoporto
+}) {
+  const [cotacao, setCotacao] = useState<CotacaoDeRota | null>(null)
+  const [erroCotacao, setErroCotacao] = useState<string | null>(null)
+  const temCarga = [...Object.values(venda), ...Object.values(compra)].some((q) => q > 0)
+  const querProtecao = opcoes.seguro || opcoes.escolta > 0
+  // Dez Sentinelas nível 1 somam os 800 de ataque da partida: a régua que a tela mostra.
+  const plenaEmNivel1 = Math.ceil(estado.escolta_poder_pleno / 80)
+
+  useEffect(() => {
+    if (!temCarga || !querProtecao) {
+      setCotacao(null)
+      setErroCotacao(null)
+      return
+    }
+
+    let vivo = true
+    const t = setTimeout(async () => {
+      try {
+        const c = await api.cotarRota(p.chave, venda, compra, opcoes)
+        if (vivo) {
+          setCotacao(c)
+          setErroCotacao(null)
+        }
+      } catch (e) {
+        if (vivo) {
+          setCotacao(null)
+          setErroCotacao(e instanceof ApiError ? e.message : 'Não foi possível cotar a viagem.')
+        }
+      }
+    }, 400)
+
+    return () => {
+      vivo = false
+      clearTimeout(t)
+    }
+  }, [p.chave, venda, compra, opcoes, temCarga, querProtecao])
+
+  return (
+    <div className="border-rust/20 bg-sand-light border p-2 sm:col-span-2" data-protecao={p.chave}>
+      <div className="eyebrow text-ink-soft">Proteção da carga</div>
+      <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs">
+        <label className="flex items-center gap-2">
+          <span className="text-ink">Escolta:</span>
+          <input
+            type="number"
+            min={0}
+            max={sentinelasEmCasa}
+            value={opcoes.escolta || ''}
+            aria-label={`Sentinelas de escolta para ${p.nome}`}
+            onChange={(e) =>
+              mudar({ ...opcoes, escolta: Math.min(sentinelasEmCasa, Math.max(0, Number(e.target.value) || 0)) })
+            }
+            className="border-rust/30 w-16 border px-1 py-0.5 text-right tabular-nums"
+            data-escolta={p.chave}
+          />
+          <span className="text-ink-soft">de {sentinelasEmCasa} Sentinela(s) em casa</span>
+        </label>
+        <label className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            checked={opcoes.seguro}
+            onChange={(e) => mudar({ ...opcoes, seguro: e.target.checked })}
+            data-seguro={p.chave}
+          />
+          <span className="text-ink">Segurar a carga</span>
+        </label>
+      </div>
+      <p className="text-ink-soft mt-1 text-xs leading-relaxed">
+        A escolta plena (cerca de {plenaEmNivel1} Sentinelas nível 1) corta {pct(estado.escolta_reducao_max_bps)} da
+        chance de sinistro; uma escolta menor corta na proporção. As Sentinelas ficam fora de casa a viagem
+        inteira. O seguro paga o que o sinistro levar, e custa a perda esperada mais{' '}
+        {pct(estado.seguro_carregamento_bps)}.
+      </p>
+      {erroCotacao && <p className="text-rust mt-1 text-xs">{erroCotacao}</p>}
+      {cotacao && (
+        <p className="text-ink mt-1 text-xs" data-cotacao={p.chave}>
+          Chance de sinistro: <b>{pct(cotacao.risco_chance_bps)}</b>
+          {cotacao.risco_chance_bps < p.risco_chance_bps && ` (era ${pct(p.risco_chance_bps)} sem escolta)`}.
+          {cotacao.seguro_cobertura_micro > 0 && (
+            <>
+              {' '}
+              Seguro: <b>{fert(cotacao.seguro_premio_micro)} Fert$</b> na partida, e paga{' '}
+              <b>{fert(cotacao.seguro_cobertura_micro)} Fert$</b> se o sinistro vier.
+            </>
+          )}
+        </p>
+      )}
+    </div>
   )
 }
 
@@ -269,11 +412,12 @@ function Perna({
                 type="number"
                 min={0}
                 value={valores[r] ?? ''}
+                aria-label={`${titulo}: ${nomeRecurso(r)}`}
                 onChange={(e) => mudar({ ...valores, [r]: Math.max(0, Number(e.target.value) || 0) })}
                 className="border-rust/30 w-20 border px-1 py-0.5 text-right tabular-nums"
               />
               <span className="text-ink">{nomeRecurso(r)}</span>
-              <span className="text-ink-soft/70">
+              <span className="text-ink-soft">
                 — {rotuloPreco} {fert(precos[r])} Fert$/un.
               </span>
             </li>

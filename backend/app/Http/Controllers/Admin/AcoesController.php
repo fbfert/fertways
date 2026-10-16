@@ -631,6 +631,10 @@ class AcoesController extends Controller
             'aluguel' => ['nullable', 'numeric', 'min:0', 'max:1000000'],
             'capacidade_unidades' => ['nullable', 'integer', 'min:1', 'max:10000000'],
             'cargueiros' => ['nullable', 'integer', 'min:1', 'max:100'],
+            // D-280: o seguro e a escolta. Ausentes no formulário, não mudam.
+            'seguro_carregamento' => ['nullable', 'numeric', 'min:0', 'max:500'],
+            'escolta_poder_pleno' => ['nullable', 'integer', 'min:1', 'max:1000000'],
+            'escolta_reducao_max' => ['nullable', 'numeric', 'min:0', 'max:100'],
         ]);
 
         $linha = [
@@ -639,7 +643,11 @@ class AcoesController extends Controller
                 ? (int) round((float) $dados['aluguel'] * Colony::MICRO_POR_FERT) : null,
             'capacidade_unidades' => $dados['capacidade_unidades'] ?? null,
             'cargueiros' => $dados['cargueiros'] ?? null,
-        ];
+        ] + array_filter([
+            'seguro_carregamento_bps' => isset($dados['seguro_carregamento']) ? (int) round((float) $dados['seguro_carregamento'] * 100) : null,
+            'escolta_poder_pleno' => $dados['escolta_poder_pleno'] ?? null,
+            'escolta_reducao_max_bps' => isset($dados['escolta_reducao_max']) ? (int) round((float) $dados['escolta_reducao_max'] * 100) : null,
+        ], fn ($v) => $v !== null);
 
         return $this->salvarLinha('espacoporto_settings', 'espacoporto.config', $linha,
             'Cargueiro Interplanetário atualizado.', ' Contratos em viagem seguem com o preço com que saíram.');

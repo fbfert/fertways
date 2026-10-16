@@ -22,6 +22,9 @@ class ContratoDeRota extends Model
         'colony_id', 'planeta_npc_id', 'status', 'venda', 'compra', 'aluguel_micro',
         'parte_em', 'chega_em', 'concluido_em',
         'sinistro_bps', 'imposto_importacao_micro', 'imposto_venda_micro',
+        // D-280: a escolta e o seguro.
+        'risco_chance_bps', 'seguro_premio_micro', 'seguro_cobertura_micro', 'seguro_indenizacao_micro',
+        'escolta_unit_ids', 'escolta_poder',
     ];
 
     protected $casts = [
@@ -31,6 +34,12 @@ class ContratoDeRota extends Model
         'sinistro_bps' => 'integer',
         'imposto_importacao_micro' => 'integer',
         'imposto_venda_micro' => 'integer',
+        'risco_chance_bps' => 'integer',
+        'seguro_premio_micro' => 'integer',
+        'seguro_cobertura_micro' => 'integer',
+        'seguro_indenizacao_micro' => 'integer',
+        'escolta_unit_ids' => 'array',
+        'escolta_poder' => 'integer',
         'parte_em' => 'datetime',
         'chega_em' => 'datetime',
         'concluido_em' => 'datetime',

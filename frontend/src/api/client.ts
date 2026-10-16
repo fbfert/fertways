@@ -530,6 +530,8 @@ export type EstadoDaGuerra = {
     ultima: string | null
     minutos_por_nivel: number
   }
+  /** D-280: Sentinelas de escolta num Cargueiro do Espaçoporto, fora de casa até ele pousar. */
+  em_escolta: number
   /** O hangar (§21.4: o Quartel armazena e recarrega; a fábrica é a Oficina — D-74). */
   drones: Drone[]
   oficina_nivel: number
@@ -1168,7 +1170,25 @@ export type ContratoDeRota = {
   sinistro_bps: number | null
   imposto_importacao_micro: number
   imposto_venda_micro: number | null
+  /** D-280: a chance de sinistro travada na partida, já com a escolta (nula nos contratos de antes). */
+  risco_chance_bps: number | null
+  seguro_premio_micro: number
+  seguro_cobertura_micro: number
+  /** Nula sem seguro ou no ar; 0 voltou sem sinistro; >0 o que o seguro pagou. */
+  seguro_indenizacao_micro: number | null
+  escolta_sentinelas: number
 }
+
+/** D-280: o que a escolta e o seguro fariam numa viagem, pela mesma conta do contrato. */
+export type CotacaoDeRota = {
+  risco_chance_bps: number
+  escolta_sentinelas: number
+  escolta_poder: number
+  seguro_cobertura_micro: number
+  seguro_premio_micro: number
+}
+
+export type OpcoesDeRota = { seguro: boolean; escolta: number }
 
 export type EstadoEspacoporto = {
   ligado: boolean
@@ -1178,6 +1198,11 @@ export type EstadoEspacoporto = {
   cargueiros: number | null
   cargueiros_livres: number
   portao: PortaoEspacoporto
+  /** D-280: as regras do seguro e da escolta, e quantas Sentinelas estão em casa para escoltar. */
+  seguro_carregamento_bps: number
+  escolta_poder_pleno: number
+  escolta_reducao_max_bps: number
+  sentinelas_em_casa: number
   planetas: PlanetaNpc[]
   contratos: ContratoDeRota[]
 }
@@ -1599,10 +1624,21 @@ export const api = {
    */
   /** D-262: o Espaçoporto — fechado até o operador escrever os números de economia. */
   espacoporto: () => req<EstadoEspacoporto>('/espacoporto'),
-  contratarRota: (planeta: string, venda: Record<string, number>, compra: Record<string, number>) =>
+  contratarRota: (
+    planeta: string,
+    venda: Record<string, number>,
+    compra: Record<string, number>,
+    opcoes: OpcoesDeRota = { seguro: false, escolta: 0 },
+  ) =>
     req<{ contrato: { id: number; chega_em: string } }>('/espacoporto/contratos', {
       method: 'POST',
-      body: JSON.stringify({ planeta, venda, compra }),
+      body: JSON.stringify({ planeta, venda, compra, ...opcoes }),
+    }),
+  /** D-280: a cotação da escolta e do seguro, sem fechar nada. */
+  cotarRota: (planeta: string, venda: Record<string, number>, compra: Record<string, number>, opcoes: OpcoesDeRota) =>
+    req<CotacaoDeRota>('/espacoporto/cotacao', {
+      method: 'POST',
+      body: JSON.stringify({ planeta, venda, compra, ...opcoes }),
     }),
   /** D-270: as dúvidas do Espaçoporto — a fila do Atendente. */
   duvidasEspacoporto: () => req<DuvidasEspacoporto>('/espacoporto/duvidas'),

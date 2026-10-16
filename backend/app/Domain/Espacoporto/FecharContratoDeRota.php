@@ -8,6 +8,7 @@ use App\Models\Colony;
 use App\Models\ContratoDeRota;
 use App\Models\Ledger;
 use App\Models\PlanetaNpc;
+use App\Models\Unit;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -38,15 +39,17 @@ class FecharContratoDeRota
         private readonly Espacoporto $espacoporto,
         private readonly Tesouro $tesouro,
         private readonly ImpostoInterplanetario $imposto,
+        private readonly ProtecaoDaCarga $protecao,
     ) {}
 
     /**
      * @param  array<string,int>  $venda  recurso => quantidade que o colono leva
      * @param  array<string,int>  $compra  recurso => quantidade que o colono encomenda
+     * @param  array{seguro?: bool, escolta?: int}  $opcoes  o seguro e quantas Sentinelas vão de escolta (D-280)
      */
-    public function handle(Colony $colony, PlanetaNpc $planeta, array $venda, array $compra): ContratoDeRota
+    public function handle(Colony $colony, PlanetaNpc $planeta, array $venda, array $compra, array $opcoes = []): ContratoDeRota
     {
-        return DB::transaction(function () use ($colony, $planeta, $venda, $compra) {
+        return DB::transaction(function () use ($colony, $planeta, $venda, $compra, $opcoes) {
             $colonia = Colony::whereKey($colony->id)->lockForUpdate()->firstOrFail();
             $config = $this->espacoporto->config();
 
@@ -112,8 +115,26 @@ class FecharContratoDeRota
             $importacao = $this->imposto->sobre($colonia, $pernaCompra, $agora);
             $impostoDaCompra = array_sum(array_column($importacao, 'imposto'));
 
-            if ((int) $colonia->fert_micro < $aluguel + $custoDaCompra + $impostoDaCompra) {
-                throw new DomainRuleException('fert_insuficiente', 'Falta Fert$ para o aluguel, a encomenda e o imposto de importação.');
+            // D-280: a escolta e o seguro, com a chance de sinistro que fica travada no contrato.
+            $protecao = $this->protecao->cotar($colonia, $planeta->fresh(), $pernaVenda, $pernaCompra, $opcoes, $agora, travar: true);
+            $premio = $protecao['seguro_premio_micro'];
+            $cobertura = $protecao['seguro_cobertura_micro'];
+
+            if ((int) $colonia->fert_micro < $aluguel + $custoDaCompra + $impostoDaCompra + $premio) {
+                throw new DomainRuleException(
+                    'fert_insuficiente',
+                    $premio > 0
+                        ? 'Falta Fert$ para o aluguel, a encomenda, o imposto de importação e o seguro.'
+                        : 'Falta Fert$ para o aluguel, a encomenda e o imposto de importação.',
+                );
+            }
+
+            // O Tesouro reserva a indenização inteira antes de vender o seguro: nunca promete o que não tem.
+            if ($cobertura > 0 && ! $this->tesouro->debitar(Tesouro::FERT, $cobertura, "espacoporto_seguro_reserva:{$colonia->id}")) {
+                throw new DomainRuleException(
+                    'seguro_sem_lastro',
+                    'O Tesouro não tem Fert$ para garantir este seguro agora. Viaje sem seguro, ou leve menos carga.',
+                );
             }
 
             $ref = "espacoporto:{$planeta->chave}";
@@ -126,7 +147,15 @@ class FecharContratoDeRota
                 ]);
             }
 
-            $colonia->decrement('fert_micro', $aluguel + $custoDaCompra + $impostoDaCompra);
+            $colonia->decrement('fert_micro', $aluguel + $custoDaCompra + $impostoDaCompra + $premio);
+
+            if ($premio > 0) {
+                $this->tesouro->creditarFert($premio, "espacoporto_seguro_premio:{$colonia->id}");
+                Ledger::create([
+                    'colony_id' => $colonia->id, 'type' => 'espacoporto_seguro', 'amount' => -$premio,
+                    'resource_type' => null, 'ref' => $ref, 'created_at' => $agora,
+                ]);
+            }
 
             if ($aluguel > 0) {
                 $this->tesouro->creditarFert($aluguel, "espacoporto_aluguel:{$colonia->id}");
@@ -155,7 +184,16 @@ class FecharContratoDeRota
                 // um de ida e outro de volta. "Possui previsão de chegada" (v3.2 §11).
                 'chega_em' => $agora->copy()->addMinutes((int) $planeta->distancia_minutos),
                 'imposto_importacao_micro' => $impostoDaCompra,
+                'risco_chance_bps' => $protecao['risco_chance_bps'],
+                'seguro_premio_micro' => $premio,
+                'seguro_cobertura_micro' => $cobertura,
+                'escolta_unit_ids' => $protecao['escolta']->isEmpty() ? null : $protecao['escolta']->pluck('id')->all(),
+                'escolta_poder' => $protecao['escolta_poder'],
             ]);
+
+            if ($protecao['escolta']->isNotEmpty()) {
+                Unit::whereIn('id', $protecao['escolta']->pluck('id'))->update(['status' => 'escolta']);
+            }
 
             if ($impostoDaCompra > 0) {
                 $this->tesouro->creditarFert($impostoDaCompra, "espacoporto_importacao:{$contrato->id}");
@@ -171,6 +209,30 @@ class FecharContratoDeRota
 
             return $contrato;
         });
+    }
+
+    /**
+     * O que a escolta e o seguro fariam nesta viagem, sem fechar nada (D-280). Usa a mesma conta do
+     * contrato, para a tela nunca prometer um prêmio diferente do que se cobra.
+     *
+     * @param  array{seguro?: bool, escolta?: int}  $opcoes
+     * @return array{risco_chance_bps:int, escolta_sentinelas:int, escolta_poder:int, seguro_cobertura_micro:int, seguro_premio_micro:int}
+     */
+    public function cotar(Colony $colonia, PlanetaNpc $planeta, array $venda, array $compra, array $opcoes): array
+    {
+        $precos = $planeta->precos()->get()->keyBy('resource_type');
+        $pernaVenda = $this->precificar($this->limpar($venda), $precos, 'compra_micro', 'planeta_nao_compra', "{$planeta->nome} não compra");
+        $pernaCompra = $this->precificar($this->limpar($compra), $precos, 'venda_micro', 'planeta_nao_vende', "{$planeta->nome} não vende");
+
+        $p = $this->protecao->cotar($colonia, $planeta, $pernaVenda, $pernaCompra, $opcoes, now());
+
+        return [
+            'risco_chance_bps' => $p['risco_chance_bps'],
+            'escolta_sentinelas' => $p['escolta']->count(),
+            'escolta_poder' => $p['escolta_poder'],
+            'seguro_cobertura_micro' => $p['seguro_cobertura_micro'],
+            'seguro_premio_micro' => $p['seguro_premio_micro'],
+        ];
     }
 
     /** @return array<string,int> só quantidades positivas, inteiras */

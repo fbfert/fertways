@@ -6,6 +6,7 @@ use App\Domain\Marco\Curva;
 use App\Models\Colony;
 use App\Models\ContratoDeRota;
 use App\Models\PlanetaNpc;
+use App\Models\Unit;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -103,6 +104,12 @@ class Espacoporto
             'cargueiros' => $c?->cargueiros !== null ? (int) $c->cargueiros : null,
             'cargueiros_livres' => $motivo === null ? $this->cargueirosLivres() : 0,
             'portao' => $this->portao($colonia),
+            // D-280: as regras do seguro e da escolta, e quem pode escoltar agora.
+            'seguro_carregamento_bps' => (int) ($c->seguro_carregamento_bps ?? 0),
+            'escolta_poder_pleno' => (int) ($c->escolta_poder_pleno ?? 0),
+            'escolta_reducao_max_bps' => (int) ($c->escolta_reducao_max_bps ?? 0),
+            'sentinelas_em_casa' => Unit::where('colony_id', $colonia->id)->where('type', 'sentinela')
+                ->where('status', 'casa')->where('hp_bps', '>', 0)->count(),
             'planetas' => PlanetaNpc::with('precos')->orderBy('ordem')->get()->map(fn (PlanetaNpc $p) => [
                 'chave' => $p->chave,
                 'nome' => $p->nome,
@@ -132,6 +139,11 @@ class Espacoporto
                     'sinistro_bps' => $k->sinistro_bps,
                     'imposto_importacao_micro' => (int) $k->imposto_importacao_micro,
                     'imposto_venda_micro' => $k->imposto_venda_micro,
+                    'risco_chance_bps' => $k->risco_chance_bps,
+                    'seguro_premio_micro' => (int) $k->seguro_premio_micro,
+                    'seguro_cobertura_micro' => (int) $k->seguro_cobertura_micro,
+                    'seguro_indenizacao_micro' => $k->seguro_indenizacao_micro,
+                    'escolta_sentinelas' => count($k->escolta_unit_ids ?? []),
                     'parte_em' => $k->parte_em->toIso8601String(),
                     'chega_em' => $k->chega_em->toIso8601String(),
                 ]),

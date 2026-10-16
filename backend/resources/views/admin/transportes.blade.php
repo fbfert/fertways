@@ -388,8 +388,28 @@
                     <label>Cargueiros do Governo</label>
                     <input type="number" min="1" max="100" name="cargueiros" value="{{ $espacoporto->cargueiros }}" style="width:80px">
                 </div>
+                {{-- D-280: o seguro e a escolta. Números meus, de partida; o GDD só as nomeia. --}}
+                <div style="flex:0">
+                    <label>Carregamento do seguro (%)</label>
+                    <input type="number" step="0.01" min="0" max="500" name="seguro_carregamento" value="{{ ($espacoporto->seguro_carregamento_bps ?? 2500) / 100 }}" style="width:80px">
+                </div>
+                <div style="flex:0">
+                    <label>Poder da escolta plena</label>
+                    <input type="number" min="1" name="escolta_poder_pleno" value="{{ $espacoporto->escolta_poder_pleno ?? 800 }}" style="width:90px">
+                </div>
+                <div style="flex:0">
+                    <label>Corte máximo da escolta (%)</label>
+                    <input type="number" step="0.01" min="0" max="100" name="escolta_reducao_max" value="{{ ($espacoporto->escolta_reducao_max_bps ?? 7500) / 100 }}" style="width:80px">
+                </div>
                 <div style="flex:0"><label>&nbsp;</label><button data-salvar-espacoporto>Salvar</button></div>
             </form>
+            <p class="mut pequeno" style="margin-top:8px">
+                <b>Seguro e escolta (D-280)</b>, só nas rotas com risco. O <b>prêmio</b> é a perda esperada
+                (cobertura × chance) mais o carregamento; o Tesouro reserva a cobertura inteira na partida e
+                não vende seguro sem esse lastro. A <b>escolta</b> são as Sentinelas da colônia: o ataque
+                somado delas, até o poder pleno (800 = dez Sentinelas nível 1), corta a chance de sinistro
+                até o corte máximo. Elas ficam fora de casa a viagem inteira.
+            </p>
         </div>
 
         <h2 class="secao">Os cinco planetas</h2>

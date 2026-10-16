@@ -121,6 +121,8 @@ class WarController extends Controller
                 'ultima' => $naLinha->last()?->arrives_at?->toIso8601String(),
                 'minutos_por_nivel' => (int) $config->fabricacao_minutos_por_nivel,
             ],
+            // D-280: as Sentinelas que acompanham um Cargueiro. Fora de casa, não aparecem acima.
+            'em_escolta' => Unit::where('colony_id', $colony->id)->where('status', 'escolta')->count(),
             'drones' => $drones,
             'oficina_nivel' => $colony->buildings()->where('type', 'oficina')->value('level') ?? 0,
             'drone_custos' => DroneSpecs::CUSTO,

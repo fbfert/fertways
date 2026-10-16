@@ -216,6 +216,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // O Espaçoporto e os planetas NPC (D-262): fechado até o operador escrever os números.
     Route::get('/espacoporto', [\App\Http\Controllers\Api\EspacoportoController::class, 'index']);
     Route::post('/espacoporto/contratos', [\App\Http\Controllers\Api\EspacoportoController::class, 'contratar']);
+    Route::post('/espacoporto/cotacao', [\App\Http\Controllers\Api\EspacoportoController::class, 'cotacao']);
     // D-270: a fila de dúvidas do Atendente do Espaçoporto.
     Route::get('/espacoporto/duvidas', [\App\Http\Controllers\Api\DuvidasDoEspacoportoController::class, 'index']);
     Route::post('/espacoporto/duvidas', [\App\Http\Controllers\Api\DuvidasDoEspacoportoController::class, 'perguntar'])->middleware('throttle:10,1');

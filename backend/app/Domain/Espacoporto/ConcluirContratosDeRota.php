@@ -7,6 +7,7 @@ use App\Domain\Treasury\Tesouro;
 use App\Models\Colony;
 use App\Models\ContratoDeRota;
 use App\Models\Ledger;
+use App\Models\Unit;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\DB;
 
@@ -53,7 +54,8 @@ class ConcluirContratosDeRota
                 $colonia = Colony::whereKey($k->colony_id)->lockForUpdate()->first();
                 $ref = 'espacoporto:'.($k->planeta?->chave ?? $k->planeta_npc_id);
 
-                $chance = (int) ($k->planeta?->risco_chance_bps ?? 0);
+                // D-280: a chance travada na partida, já com a escolta. Contrato de antes não a tem.
+                $chance = (int) ($k->risco_chance_bps ?? $k->planeta?->risco_chance_bps ?? 0);
                 $sinistro = $chance > 0 && $this->sorteio->sucesso($chance) ? (int) $k->planeta->risco_perda_bps : 0;
                 $chegou = fn (array $perna) => array_map(
                     fn ($p) => ['qtd' => (int) $p['qtd'] - intdiv((int) $p['qtd'] * $sinistro, 10_000), 'preco_micro' => (int) $p['preco_micro']],
@@ -97,9 +99,33 @@ class ConcluirContratosDeRota
                     }
                 }
 
+                // D-280: o seguro paga o que o sinistro levou, da reserva feita na partida; sem
+                // sinistro (ou sem colônia para receber), a reserva volta ao Tesouro.
+                $cobertura = (int) $k->seguro_cobertura_micro;
+                $indenizacao = null;
+                if ($cobertura > 0) {
+                    if ($sinistro > 0 && $colonia) {
+                        $colonia->increment('fert_micro', $cobertura);
+                        Ledger::create([
+                            'colony_id' => $colonia->id, 'type' => 'espacoporto_seguro', 'amount' => $cobertura,
+                            'resource_type' => null, 'ref' => $ref, 'created_at' => $agora,
+                        ]);
+                        $indenizacao = $cobertura;
+                    } else {
+                        $this->tesouro->creditarFert($cobertura, "espacoporto_seguro_devolvido:{$k->id}");
+                        $indenizacao = 0;
+                    }
+                }
+
+                // As Sentinelas da escolta voltam para casa, com ou sem sinistro.
+                if ($k->escolta_unit_ids) {
+                    Unit::whereIn('id', $k->escolta_unit_ids)->where('status', 'escolta')->update(['status' => 'casa']);
+                }
+
                 $k->update([
                     'status' => ContratoDeRota::CONCLUIDO, 'concluido_em' => $agora,
                     'sinistro_bps' => $sinistro, 'imposto_venda_micro' => $impostoDaVenda,
+                    'seguro_indenizacao_micro' => $indenizacao,
                 ]);
 
                 return 1;

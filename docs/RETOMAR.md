@@ -39,7 +39,25 @@
 
 ---
 
-## EM ANDAMENTO AGORA (desde 2026-10-07) — terminar o que falta do GDD
+## EM ANDAMENTO AGORA (desde 2026-10-16) — temporada: escolta, seguro, Nave, reconhecimento, revisão
+
+**Autorização do usuário, em 16/10:** *"vamos fazer a escolta e o seguro de carga, depois já faz
+também as missões de reconhecimento, plataforma de pouso. Bots não faremos [...] Faça tudo isso sem
+me fazer perguntas, siga suas recomendações, só pare quando terminar [...] E quando terminar tudo
+isso, faça uma revisão completa do jogo, me surpreenda."* Vale como o "siga por todas as fases":
+não pergunte, continue da fatia aberta. **Sem deploy** (não foi pedido): commit e push, sim. Ciclo de
+sempre por fatia: testes primeiro, SQLite e MariaDB 10.5 local (container `fertways-mariadb105`,
+porta 33106, usuário `fertways_ci`, senha `ci_local`), commit, push, `gh run list`.
+
+1. [x] **D-280** Escolta e seguro de carga no Espaçoporto (a v3.2 os chama de "mecânicas de temporada";
+   o GDD não dá número, então os números são meus e nascem no painel).
+2. [ ] **D-281** A Nave de Transporte Planetária (§17.5, §21.8, §28.9: 4.000 un., 10 slots/min, 50 Gelo
+   de Metano/min) e as duas Plataformas de Pouso, a do slot (vagas de nave) e a da zona (pouso).
+3. [ ] **D-282** Missões de reconhecimento (aditivo v3.4 §2): Gagarin, boletins, missão planetária e
+   missão lunar, com as oito luas.
+4. [ ] **Revisão completa do jogo**, ao fim.
+
+## (Encerrado) — terminar o que falta do GDD (desde 2026-10-07)
 
 **Autorização do usuário, em 07/10:** *"Vamos continuar e terminar tudo que falta no GDD até o
 final."* Vale como o "siga por todas as fases" do topo: não pergunte de novo, continue da fatia

@@ -361,6 +361,12 @@ export function Quartel() {
             {dataHumana(dados.em_fabricacao.ultima ?? '')}.
           </p>
         )}
+        {dados.em_escolta > 0 && (
+          <p className="text-ink mt-2 text-sm" data-em-escolta>
+            <b>De escolta:</b> {dados.em_escolta} Sentinela(s) acompanham um Cargueiro do Espaçoporto e
+            voltam quando ele pousar. Até lá, não marcham nem defendem a colônia.
+          </p>
+        )}
 
         <div className="mt-3 grid gap-2 sm:grid-cols-2">
           {TIPOS.map((t) => (

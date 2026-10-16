@@ -114,6 +114,8 @@ class DirecaoDoLedger
         'espacoporto_compra',
         // D-269: o imposto de importação sai da colônia para o Tesouro.
         'espacoporto_imposto',
+        // D-280: o prêmio sai da colônia para o Tesouro; a indenização volta dele. Fluxo de verdade.
+        'espacoporto_seguro',
         'frete_publico',
         // A2.3: destrói recurso de verdade — vira conhecimento, que não é estoque.
         'custo_pesquisa',

@@ -15061,3 +15061,75 @@ correção**: apagando os preços logo depois do `down()`, as mesmas duas falhas
 que já nasceram verdes são os limites que precisam continuar livres. Suíte: 1544 em SQLite e 1544 em
 MariaDB 10.5.29, mais o round-trip das migrations. Sem
 migration.
+
+## D-280 — A escolta e o seguro de carga do Espaçoporto
+
+**Data:** 2026-10-16 · **Status:** decidido pelo usuário ("siga suas recomendações"), números de partida meus
+
+O GDD só nomeia as duas: dá a Drakmoor "Alto — escolta opcional" (§03) e as chama de "mecânicas de
+temporada" (v3.2, §11). Não dá nenhum número nem regra. O que entrou aqui é recomendação minha, com os
+três números no painel (`/admin/transportes?aba=espacoporto`).
+
+### A escolta: as Sentinelas da própria colônia
+
+Uma escolta do Governo, paga, seria só um desconto com outro nome. A escolha foi pelas **Sentinelas da
+colônia**, que têm um custo de verdade:
+- elas ficam fora de casa a viagem inteira (status `escolta`, ainda na colônia);
+- não marcham para zona nenhuma;
+- **não defendem a colônia** num cerco federativo (D-255), que só conta quem está `casa`.
+
+É também o primeiro uso das Sentinelas fora da guerra, num jogo que ainda não teve combate.
+
+As regras:
+- **Poder** é o ataque somado (§27.1). Sentinela ferida vale menos, como no combate. Vão as mais
+  fortes que estão em casa.
+- **Corte da chance.** O corte é `min(poder, poder_pleno) / poder_pleno × corte_máximo`.
+  - Na partida: **poder pleno de 800** (dez Sentinelas nível 1) e **corte máximo de 75%**.
+  - Drakmoor cai de 30% para 7,5% com a escolta plena. A chance **nunca zera**, porque o planeta
+    continua sendo de risco alto.
+- **Volta.** As Sentinelas voltam inteiras, com ou sem sinistro: o sinistro é da carga, e não há
+  combate nele.
+- **Onde vale.** Escolta e seguro só existem em rota com risco. Pedir qualquer um dos dois para
+  Kalidor ou Veyra é recusado (`sem_risco`).
+- **Chance travada.** O contrato guarda a chance de sinistro da partida, já com a escolta
+  (`contratos_de_rota.risco_chance_bps`), como já guardava os preços. Um ajuste de risco no painel
+  não reescreve uma viagem no ar. Contrato de antes do D-280, sem a coluna, lê o risco do planeta,
+  como lia.
+
+### O seguro: o Governo como seguradora
+
+- **Cobertura.** É exatamente o que o sinistro levaria, a fração `risco_perda_bps` das duas pernas:
+  - a venda perdida vale o que o planeta pagaria, **já sem o imposto da venda**, porque quem perde
+    a carga também não paga imposto sobre ela;
+  - a encomenda perdida vale o que se pagou por ela;
+  - o imposto de importação não volta, porque é tributo e não carga.
+  Com seguro, quem perde metade da carga recebe o mesmo que receberia se ela chegasse inteira.
+- **Prêmio.** É a perda esperada (cobertura × chance, já com a escolta), arredondada para cima, mais
+  **25% de carregamento**. Na média o seguro tira Fert$ da economia em vez de pôr: não é torneira. E a
+  escolta barateia o seguro, porque baixa a chance.
+- **Lastro.** O Tesouro nunca fica negativo (D-57), e por isso **reserva a cobertura inteira na
+  partida**. Se não tiver Fert$ para reservar, o seguro não é vendido (`seguro_sem_lastro`) e o
+  contrato inteiro é recusado, sem cobrar nada. Na volta, ou a reserva vai para o colono, ou volta ao
+  Tesouro.
+- **Registro.** O prêmio e a indenização entram no ledger como `espacoporto_seguro` (saída na
+  partida, entrada na volta), e a telemetria os conta como fluxo.
+
+### O que o jogador vê
+
+- **A cotação** (`POST /central/espacoporto/cotacao`) usa a mesma conta do contrato, para a tela
+  nunca prometer um prêmio diferente do que se cobra. No cartão do planeta com risco, a tela mostra
+  a chance com e sem escolta, o prêmio e o que o seguro pagaria.
+- **As viagens no ar** mostram a escolta e o valor segurado. **As que voltaram** mostram o que o
+  seguro pagou.
+- **O Quartel** passa a dizer quantas Sentinelas estão de escolta. Antes elas sumiriam da lista sem
+  explicação.
+
+**Verificação:** `EspacoportoSeguroEscoltaTest`, com 18 testes:
+- o prêmio, a reserva e a indenização;
+- o seguro sem lastro e o pedido em rota sem risco;
+- a escolta plena, a meia escolta e a Sentinela ferida;
+- a ordem das mais fortes e a escolta insuficiente;
+- a chance travada, a cotação igual ao contrato, a tela e o painel.
+
+Uma migration (`2026_10_17_100000`), com `down()` que devolve para casa qualquer Sentinela em
+escolta.
