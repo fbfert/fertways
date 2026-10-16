@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Carbon;
 
 /**
  * Uma batalha por uma zona neutra (GDD §27.5, §28.10; docs/decisoes.md D-66).
@@ -95,5 +96,35 @@ class Combat extends Model
     public function vivo(): bool
     {
         return in_array($this->status, ['marchando', 'em_curso'], true);
+    }
+
+    /**
+     * Quando a batalha acabou, pelo relógio do motor (D-275): a rodada 1 é na chegada e cada outra
+     * 10 min depois. O `updated_at` não serve — qualquer gravação posterior no combate (o cerco que
+     * uma ruptura encerra, por exemplo) o moveria sem a batalha mudar. Sem rodada nenhuma (expirou
+     * antes de lutar), é o instante em que foi encerrada.
+     */
+    public function terminouEm(): ?Carbon
+    {
+        if ($this->vivo()) {
+            return null;
+        }
+
+        return $this->rodada > 0 && $this->chega_at
+            ? $this->chega_at->copy()->addMinutes(($this->rodada - 1) * self::RODADA_MINUTOS)
+            : $this->updated_at;
+    }
+
+    /**
+     * Quem venceu, pelo status final: `true` o atacante, `false` o defensor, `null` ninguém (a
+     * batalha expirou sem acontecer).
+     */
+    public function atacanteVenceu(): ?bool
+    {
+        return match ($this->status) {
+            'vitoria_atacante', 'rendido' => true,
+            'repelido', 'vitoria_defensor', 'abandonado' => false,
+            default => null,
+        };
     }
 }

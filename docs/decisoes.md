@@ -14789,3 +14789,43 @@ API: `/endurance/secoes-mapa` ganha `catalogo`, `minhas` e `lote_de_evento`; cad
 `TemaDoCascoTest` (3). Fotografado no computador e no celular, com uma compra pelo clique.
 ⚠️ Localmente os destroços aparecem como círculos: a arte deles só existe no banco de produção
 (importada por `ImportarImagens`). Em produção a arte fica sobre o casco escuro, e vale olhar a foto lá.
+
+---
+
+## D-275 — A2.V6: a batalha deixa relatório
+
+**Data:** 2026-10-16 · **Status:** entregue (mesma leva do D-274)
+
+A V6 pede avisos, preparação, impacto, relatórios, linha do tempo e efeitos ambientais. Os efeitos
+ambientais e os avisos de eventos já estavam entregues (D-235 a D-237), e o aviso da batalha ao vivo
+também (`sob_ataque` na faixa, D-211). Medido antes de desenhar, faltava o essencial: **a batalha
+terminava e sumia.** O `/war/combats` só lista o que marcha ou está em curso, e nenhuma tela do jogo
+lia `vitoria_atacante` ou `repelido`. E as baixas nem existiam: o motor apaga a unidade que zera e
+não conta.
+
+- **O motor anota** (`ResolverCombates`), sem mudar conta nenhuma:
+  - na chegada, quantos havia de cada lado (`atacantes_inicio`, `defensores_inicio`);
+  - no começo de cada rodada de invasão, cerco ou ruptura, a força de cada lado (`linha`). É a
+    força **efetiva**, a que a batalha usa, com bônus de construção e o +20% do defensor offline. O
+    teste pegou a primeira expectativa (800 crus) contra os 960 efetivos, e a efetiva ficou: a soma
+    crua contaria outra história. Sabotagem e apreensão são detecção, não desgaste, e não têm curva;
+  - no fim, quantos ficaram de pé (`atacantes_de_pe`, `defensores_de_pe`).
+- **`GET /war/relatorios`**: as dez batalhas encerradas mais recentes, dos dois lados. A Torre de
+  Vigia decide quando o defensor vê o ataque chegando (D-67); o desfecho, não, porque uma zona
+  perdida é perdida à vista de todos.
+- **O fim pelo relógio do motor** (`Combat::terminouEm`): a rodada 1 é na chegada e cada outra 10 min
+  depois. A primeira versão usava o `updated_at`, e a foto mostrou "terminou" antes de "chegou":
+  qualquer gravação posterior no combate o move.
+- **No Quartel**, «Batalhas encerradas»: Vitória, Derrota ou Sem combate (escrito no selo, nunca só
+  em cor), a frase de quem atacou o quê, as baixas dos dois lados, o saque e a curva da batalha
+  (ataque em linha cheia e defesa tracejada, para não depender da cor).
+- **No «Desde sua última visita»**, antes de tudo: a manchete de cada batalha que acabou na janela.
+  A zona que já não é sua muda o jogo de quem volta mais do que qualquer cesta.
+- **Preparação:** nas batalhas em curso o relógio diz quanto falta ("marcha chega em 20 min", "a
+  próxima rodada em 7 min"), e não a hora. "Chega 16/10 21:40" obrigava a fazer conta para saber se
+  ainda dava para reforçar.
+
+As batalhas de antes do D-275 aparecem com o que se sabe: sem contagem e sem curva. Sem migration
+(tudo vive no `resultado` JSON que já existia). Testes: `RelatorioDeBatalhaTest` (6). Fotografado
+no computador e no celular com duas batalhas reais rodadas pelo motor no banco local (uma vitória
+em 11 rodadas e uma derrota em 8) e uma marcha em curso.

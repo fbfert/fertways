@@ -161,6 +161,15 @@ class ResolverCombates
 
         $combate->status = 'em_curso';
 
+        /*
+         * D-275: quantos havia de cada lado quando a marcha chegou. O motor apaga quem zera e não
+         * conta — sem esta linha o relatório da batalha não teria baixa nenhuma para mostrar.
+         */
+        $combate->resultado = array_merge($combate->resultado ?? [], [
+            'atacantes_inicio' => Unit::where('combat_id', $combate->id)->where('status', 'em_combate')->count(),
+            'defensores_inicio' => $this->ladoDefensor($combate, $zona)->count(),
+        ]);
+
         if ($combate->tipo === 'cerco') {
             // "O bloqueio ocorre apenas nas rotas externas" — a zona fica fechada, e após 30 min
             // (as 3 rodadas do §28.10) o depósito para de aceitar. O defensor tem 48 h.
@@ -229,6 +238,7 @@ class ResolverCombates
     private function rodada(Combat $combate, NeutralZone $zona, Carbon $agora): void
     {
         $combate->rodada++;
+        $this->anotarNaLinha($combate, $zona);
         $combate->proxima_rodada_at = $combate->proxima_rodada_at
             ->copy()
             ->addMinutes(Combat::RODADA_MINUTOS);
@@ -530,6 +540,8 @@ class ResolverCombates
             'resultado' => array_merge($cerco->resultado ?? [], [
                 'rompido_por' => $ruptura->id,
                 'rodadas' => $cerco->rodada,
+                // D-275: o sitiante foi destruído em campo aberto, inteiro.
+                'atacantes_de_pe' => 0,
             ]),
         ]);
 
@@ -548,6 +560,7 @@ class ResolverCombates
     /** O socorro morreu. **O cerco continua**, e o relógio das 48 h não parou. */
     private function socorroDestruido(Combat $ruptura): void
     {
+        $this->fecharContas($ruptura);
         Unit::where('combat_id', $ruptura->id)->delete();
 
         $ruptura->status = 'repelido';
@@ -898,6 +911,8 @@ class ResolverCombates
      */
     private function recolherSobreviventes(Combat $combate): void
     {
+        $this->fecharContas($combate);
+
         Unit::where('combat_id', $combate->id)
             ->where('hp_bps', '>', 0)
             ->update([
@@ -909,6 +924,56 @@ class ResolverCombates
             ]);
 
         Unit::where('combat_id', $combate->id)->delete();   // os que zeraram, se sobrou algum
+    }
+
+    // ── O relatório (D-275) ─────────────────────────────────────────────────────────────────────
+
+    /**
+     * Quem está do outro lado: a guarnição da zona — ou, na ruptura, o exército sitiante, que é
+     * contra quem o socorro luta em campo aberto (§28.10).
+     *
+     * @return Collection<int,Unit>
+     */
+    private function ladoDefensor(Combat $combate, ?NeutralZone $zona): Collection
+    {
+        if ($combate->tipo === 'ruptura') {
+            return $this->sitiantes($combate);
+        }
+
+        return $zona ? $this->defensores($zona) : collect();
+    }
+
+    /**
+     * A linha do tempo: a força de cada lado no COMEÇO de cada rodada. É o que o relatório desenha
+     * — a defesa caindo, o reforço que chegou e mudou a curva. Só nos combates de força contra
+     * força: a sabotagem e a apreensão são detecção, não desgaste, e não têm curva.
+     *
+     * Três inteiros por rodada; o laço do motor para em 500 rodadas, e a linha com ele.
+     */
+    private function anotarNaLinha(Combat $combate, NeutralZone $zona): void
+    {
+        if (! in_array($combate->tipo, ['invasao', 'cerco', 'ruptura'], true)) {
+            return;
+        }
+
+        $r = $combate->resultado ?? [];
+
+        $fo = $this->atacantes($combate)->sum(fn (Unit $u) => $u->ataque());
+        $fd = $combate->tipo === 'ruptura'
+            ? $this->sitiantes($combate)->sum(fn (Unit $u) => $u->defesa())
+            : $this->forcas->defensiva($zona, (bool) ($r['defensor_offline'] ?? false));
+
+        $r['linha'] = [...($r['linha'] ?? []), ['r' => $combate->rodada, 'fo' => (int) $fo, 'fd' => (int) $fd]];
+        $combate->resultado = $r;
+    }
+
+    /** Quantos ficaram de pé de cada lado, no instante em que a batalha acaba. */
+    private function fecharContas(Combat $combate): void
+    {
+        $combate->resultado = array_merge($combate->resultado ?? [], [
+            'atacantes_de_pe' => Unit::where('combat_id', $combate->id)->where('hp_bps', '>', 0)->count(),
+            'defensores_de_pe' => $this->ladoDefensor($combate, $combate->zone_id ? NeutralZone::find($combate->zone_id) : null)->count(),
+        ]);
     }
 
     /** @return Collection<int,Unit> */

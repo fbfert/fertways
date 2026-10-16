@@ -576,6 +576,29 @@ export type Combate = {
 }
 
 /**
+ * Uma batalha encerrada, dos dois lados (A2.V6; D-275). As contagens são nulas nas batalhas de antes
+ * do D-275, quando o motor não contava; `linha` é a força de cada lado no começo de cada rodada.
+ */
+export type RelatorioDeBatalha = {
+  id: number
+  tipo: TipoDeCombate
+  status: string
+  sou_o_atacante: boolean
+  /** Nulo quando não houve vencedor (a batalha expirou). */
+  venci: boolean | null
+  adversario: string | null
+  zona: { id: number; x: number; y: number; nome: string | null } | null
+  rodadas: number
+  despachado_em: string | null
+  chegou_em: string | null
+  terminou_em: string | null
+  atacantes: { inicio: number | null; de_pe: number | null }
+  defensores: { inicio: number | null; de_pe: number | null }
+  saque: number | null
+  linha: { r: number; fo: number; fd: number }[]
+}
+
+/**
  * Uma linha do Ranking de Guerras (§27.13; D-128). Cinco sub-rankings normalizados por percentil
  * (0-100, o valor do jogador sobre o MÁXIMO do servidor) e o Ranking Geral, soma ponderada deles.
  */
@@ -1363,6 +1386,15 @@ export type ResumoDeRetorno = {
    * `parcial` continua parcial depois de morto: vem sem nome, e a tela diz só que algo acabou.
    */
   eventos_terminados: { parcial: boolean; nome: string | null; cancelado: boolean }[]
+  /** D-275: as batalhas que acabaram na janela, dos dois lados. `venci` nulo: expirou sem lutar. */
+  batalhas: {
+    id: number
+    tipo: TipoDeCombate
+    sou_o_atacante: boolean
+    venci: boolean | null
+    adversario: string | null
+    zona: string | null
+  }[]
   /** A janela existiu, mas nada aconteceu nela. É resultado legítimo, não erro. */
   vazio: boolean
 }
@@ -1655,6 +1687,7 @@ export const api = {
 
   /** As batalhas em curso — atacando E defendendo: o §27.5 quer que o defensor veja e socorra. */
   combates: () => req<{ combats: Combate[] }>('/war/combats'),
+  relatoriosDeBatalha: () => req<{ relatorios: RelatorioDeBatalha[] }>('/war/relatorios'),
 
   /** O Ranking de Guerras (§27.13; D-128) — cinco sub-rankings por percentil, e o Geral. */
   rankingDeGuerras: () => req<{ ranking: LinhaDoRanking[] }>('/war/ranking'),

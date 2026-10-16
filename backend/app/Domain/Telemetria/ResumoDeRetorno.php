@@ -3,6 +3,7 @@
 namespace App\Domain\Telemetria;
 
 use App\Models\Colony;
+use App\Models\Combat;
 use App\Models\GameEvent;
 use App\Models\Ledger;
 use App\Models\User;
@@ -128,6 +129,7 @@ class ResumoDeRetorno
         $obras = $this->obras($colonia, $desde, $agora);
         $presentes = $this->presentes($colonia, $desde, $agora);
         $terminados = $this->eventosTerminados($colonia, $desde, $agora);
+        $batalhas = $this->batalhas($colonia, $desde, $agora);
 
         return [
             'mostrar' => true,
@@ -140,12 +142,13 @@ class ResumoDeRetorno
             'obras_concluidas' => $obras,
             'presentes' => $presentes,
             'eventos_terminados' => $terminados,
+            'batalhas' => $batalhas,
             /*
              * "Nada aconteceu" é um resultado legítimo e precisa ser dizível: quem passou dois dias
              * fora com a colônia sem energia PRECISA ver que não produziu nada. Um resumo que só
              * aparece quando há boa notícia esconde exatamente o que mais importa.
              */
-            'vazio' => $producao === [] && $obras === [] && $presentes === [] && $terminados === []
+            'vazio' => $producao === [] && $obras === [] && $presentes === [] && $terminados === [] && $batalhas === []
                 && $fert['ganho'] === 0 && $fert['gasto'] === 0,
         ];
     }
@@ -180,8 +183,47 @@ class ResumoDeRetorno
             'obras_concluidas' => [],
             'presentes' => [],
             'eventos_terminados' => [],
+            'batalhas' => [],
             'vazio' => true,
         ];
+    }
+
+    /**
+     * As batalhas que ACABARAM enquanto o jogador esteve fora (A2.V6; D-275), dos dois lados.
+     *
+     * O relatório completo mora no Quartel; aqui vai a manchete — quem venceu, onde, contra quem. É
+     * a notícia que mais muda o jogo de quem volta: a zona que já não é dele, ou a que agora é. O fim
+     * é o do relógio do motor (`Combat::terminouEm`), o mesmo que o relatório mostra.
+     *
+     * @return list<array{id: int, tipo: string, sou_o_atacante: bool, venci: ?bool, adversario: ?string, zona: ?string}>
+     */
+    private function batalhas(Colony $colonia, Carbon $desde, Carbon $ate): array
+    {
+        return Combat::with(['zone:id,name', 'attacker:id,name', 'defender:id,name'])
+            ->where(fn ($q) => $q
+                ->where('attacker_colony_id', $colonia->id)
+                ->orWhere('defender_colony_id', $colonia->id))
+            ->whereNotIn('status', ['marchando', 'em_curso'])
+            // Pré-filtro barato: nada que tenha sido gravado pela última vez antes da janela acabou nela.
+            ->where('updated_at', '>', $desde)
+            ->orderBy('id')
+            ->get()
+            ->filter(fn (Combat $c) => ($fim = $c->terminouEm()) !== null && $fim->greaterThan($desde) && $fim->lessThanOrEqualTo($ate))
+            ->map(function (Combat $c) use ($colonia) {
+                $souAtacante = (int) $c->attacker_colony_id === $colonia->id;
+                $venceu = $c->atacanteVenceu();
+
+                return [
+                    'id' => $c->id,
+                    'tipo' => $c->tipo,
+                    'sou_o_atacante' => $souAtacante,
+                    'venci' => $venceu === null ? null : $venceu === $souAtacante,
+                    'adversario' => $souAtacante ? $c->defender?->name : $c->attacker?->name,
+                    'zona' => $c->zone?->name,
+                ];
+            })
+            ->values()
+            ->all();
     }
 
     /**

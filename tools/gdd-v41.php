@@ -2195,6 +2195,27 @@ todos desde a fundação, e os da zona se abrem conforme ela sobe.</p>
   <tr><td>Proteção de novato</td><td><b>8 dias completos</b> desde a primeira ocupação</td></tr>
 </table>
 
+<h3>8.4.1 O relatório de batalha <span class="d">D-275</span></h3>
+
+<p>
+  Até a A2.V6 a batalha terminava e <b>sumia</b>: o Quartel só listava o que marcha ou está em curso, e
+  nenhuma tela dizia quem venceu. Agora o combate guarda, enquanto corre, a <b>força de cada lado no
+  começo de cada rodada</b> (a força efetiva, com bônus de construção e de defensor offline) e quantas
+  unidades havia de cada lado na chegada e no fim — o motor apaga a unidade que zera, e antes não
+  contava.
+</p>
+
+<ul>
+  <li><b>No Quartel</b>, «Batalhas encerradas»: as dez mais recentes, atacando ou defendendo — Vitória,
+      Derrota ou Sem combate (escrito, não só em cor), as baixas dos dois lados, o saque, e a
+      <b>curva da batalha</b> (ataque em linha cheia, defesa tracejada) rodada a rodada.</li>
+  <li><b>No «Desde sua última visita»</b>, antes de tudo: a manchete de cada batalha que acabou enquanto
+      o jogador esteve fora («Você tomou…», «…tomou a zona…»).</li>
+  <li><b>Nas batalhas em curso</b>, o relógio diz quanto falta («marcha chega em 20 min», «a próxima
+      rodada em 7 min»), e não a hora.</li>
+  <li>O fim da batalha é o do relógio do motor: a rodada 1 é na chegada e cada outra 10 min depois.</li>
+</ul>
+
 <h3>8.5 O Drone de Exploração <span class="d">D-74</span></h3>
 
 <p>

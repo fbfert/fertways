@@ -7,6 +7,19 @@ import { fert, nomeRecurso } from './recursos'
 import { Botao, Selo } from './sistema'
 import { rotulo } from '../game/ColonyScene'
 
+/** A manchete de uma batalha encerrada, do ponto de vista de quem lê (D-275). */
+function manchete(b: Resumo['batalhas'][number]): string {
+  const zona = b.zona ? `a zona ${b.zona}` : 'uma zona'
+  const quem = b.adversario ?? 'uma colônia que não existe mais'
+
+  if (b.venci === null) return `A batalha por ${zona} terminou sem combate.`
+  // "a + a zona" é crase; "a + uma zona" não.
+  const aZona = b.zona ? `à zona ${b.zona}` : 'a uma zona'
+  if (b.sou_o_atacante) return b.venci ? `Você tomou ${zona} de ${quem}.` : `Seu ataque ${aZona}, de ${quem}, foi repelido.`
+
+  return b.venci ? `Você segurou ${zona} contra ${quem}.` : `${quem} tomou ${zona}.`
+}
+
 /**
  * "Desde sua última visita" (A2.0.3; janela do GDD ALPHA 2 §5.1).
  *
@@ -112,6 +125,32 @@ export function ResumoDeRetorno({
           </p>
         ) : (
           <>
+            {/*
+             * As batalhas vêm antes de tudo (A2.V6, D-275): a zona que já não é sua — ou a que agora
+             * é — muda o jogo de quem volta mais do que qualquer cesta. A manchete fica aqui; o
+             * relatório inteiro (baixas, saque, a curva das rodadas) mora no Quartel.
+             */}
+            {dados.batalhas.length > 0 && (
+              <section data-resumo-batalhas>
+                <h3 className="text-rust eyebrow mb-2">Batalhas enquanto você esteve fora</h3>
+                <ul className="space-y-1.5">
+                  {dados.batalhas.map((b) => (
+                    <li key={b.id} className="text-ink-soft text-sm" data-resumo-batalha={b.id}>
+                      {b.venci === true ? (
+                        <Selo estado="sucesso" tom="forte">Vitória</Selo>
+                      ) : b.venci === false ? (
+                        <Selo estado="perigo" tom="forte">Derrota</Selo>
+                      ) : (
+                        <Selo estado="neutro" tom="forte">Sem combate</Selo>
+                      )}{' '}
+                      {manchete(b)}
+                    </li>
+                  ))}
+                </ul>
+                <p className="text-ink-soft mt-1 text-xs">O relatório de cada uma está no Quartel.</p>
+              </section>
+            )}
+
             {/*
              * ⚠️ O presente vem PRIMEIRO, e em seção própria (A2.V6, D-235).
              *

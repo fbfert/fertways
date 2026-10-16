@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState } from 'react'
 import { api, ApiError } from '../api/client'
-import type { Combate, ColoniaInimiga, EstadoDaGuerra, LinhaDoRanking, Unidade } from '../api/client'
+import type { Combate, ColoniaInimiga, EstadoDaGuerra, LinhaDoRanking, RelatorioDeBatalha as Relatorio, Unidade } from '../api/client'
 import { Botao, Selo } from './sistema'
-import { dataHumana } from './recursos'
+import { dataHumana, prazoHumano, segundosRestantes } from './recursos'
+import { RelatorioDeBatalha } from './RelatorioDeBatalha'
 
 /**
  * O Quartel (§27.1, §28.7; docs/decisoes.md D-66) — a porta da guerra.
@@ -121,6 +122,7 @@ export function Quartel() {
    */
   const [inimigos, setInimigos] = useState<{ tem_quartel: boolean; inimigos: ColoniaInimiga[] } | null>(null)
   const [combates, setCombates] = useState<Combate[]>([])
+  const [relatorios, setRelatorios] = useState<Relatorio[]>([])
   const [ranking, setRanking] = useState<LinhaDoRanking[]>([])
   const [erro, setErro] = useState<string | null>(null)
   const [recibo, setRecibo] = useState<string | null>(null)
@@ -134,16 +136,19 @@ export function Quartel() {
 
   const carregar = useCallback(async () => {
     try {
-      const [g, c, r, i] = await Promise.all([
+      const [g, c, r, i, rel] = await Promise.all([
         api.guerra(),
         api.combates(),
         api.rankingDeGuerras(),
         // A2.10. `catch` próprio: uma falha na lista de inimigos não pode derrubar o Quartel inteiro,
         // que é a tela onde o jogador produz unidades e vê os combates dele.
         api.inimigos().catch(() => ({ tem_quartel: false, inimigos: [] })),
+        // D-275: o mesmo — o relatório é leitura do passado, e não pode derrubar o presente.
+        api.relatoriosDeBatalha().catch(() => ({ relatorios: [] })),
       ])
       setDados(g)
       setCombates(c.combats)
+      setRelatorios(rel.relatorios)
       setRanking(r.ranking)
       setInimigos(i)
     } catch (e) {
@@ -629,10 +634,14 @@ export function Quartel() {
                           : '⚠ Estão a atacar você'}{' '}
                       — {c.tipo} na zona ({c.zona.x}, {c.zona.y})
                     </strong>
-                    <span className="text-ink-soft text-xs">
+                    {/*
+                      D-275 (A2.V6, preparação): quanto falta, e não a hora. "Chega 16/10 21:40"
+                      obriga a fazer conta; "chega em 23 min" diz se ainda dá para reforçar.
+                    */}
+                    <span className="text-ink-soft text-xs" data-combate-relogio>
                       {c.status === 'marchando'
-                        ? `marcha chega ${dataHumana(c.chega_at)}`
-                        : `rodada ${c.rodada}`}
+                        ? `marcha chega em ${prazoHumano(segundosRestantes(c.chega_at))}`
+                        : `rodada ${c.rodada}${c.proxima_rodada_at ? ` · a próxima em ${prazoHumano(segundosRestantes(c.proxima_rodada_at))}` : ''}`}
                     </span>
                   </div>
 
@@ -696,6 +705,19 @@ export function Quartel() {
           </ul>
         )}
       </section>
+
+      {/* ── as batalhas que acabaram (A2.V6, D-275) ──────────────────────────────────────── */}
+      {relatorios.length > 0 && (
+        <section className="mt-6" data-secao="relatorios-de-batalha">
+          <h3 className="font-bold">Batalhas encerradas</h3>
+          <p className="text-ink-soft mt-1 text-xs">As dez mais recentes, atacando ou defendendo.</p>
+          <ul className="mt-2 space-y-2">
+            {relatorios.map((r) => (
+              <RelatorioDeBatalha key={r.id} r={r} />
+            ))}
+          </ul>
+        </section>
+      )}
 
       {/* ── o ranking de guerras (§27.13, D-128) ──────────────────────────────────────────── */}
       <section className="mt-6" data-secao="ranking-de-guerras">

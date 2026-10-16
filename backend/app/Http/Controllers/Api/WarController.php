@@ -416,6 +416,61 @@ class WarController extends Controller
     }
 
     /**
+     * Os relatórios das batalhas que ACABARAM (A2.V6; D-275) — as dez mais recentes, dos dois lados.
+     *
+     * Até aqui a batalha terminava e sumia: o `combates()` só lista o que marcha ou está em curso, e
+     * nenhuma tela lia o desfecho. Quem perdesse uma zona à noite voltaria a um mapa diferente sem uma
+     * linha dizendo por quê.
+     *
+     * ⚠️ A Torre de Vigia decide quando o defensor VÊ o ataque chegando (D-67); o desfecho, não. Uma
+     * zona perdida é perdida à vista de todos — esconder o relatório de quem a perdeu não protegeria
+     * segredo nenhum.
+     */
+    public function relatorios(Request $request): JsonResponse
+    {
+        $colony = $request->user()->colony()->firstOrFail();
+
+        $relatorios = Combat::with(['zone:id,x,y,name', 'attacker:id,name', 'defender:id,name'])
+            ->where(fn ($q) => $q
+                ->where('attacker_colony_id', $colony->id)
+                ->orWhere('defender_colony_id', $colony->id))
+            ->whereNotIn('status', ['marchando', 'em_curso'])
+            ->latest('updated_at')
+            ->latest('id')
+            ->limit(10)
+            ->get()
+            ->map(function (Combat $c) use ($colony) {
+                $souAtacante = (int) $c->attacker_colony_id === $colony->id;
+                $r = $c->resultado ?? [];
+
+                // Quem venceu, pelo status final. `expirado` não tem vencedor: a batalha não houve.
+                $atacanteVenceu = $c->atacanteVenceu();
+
+                return [
+                    'id' => $c->id,
+                    'tipo' => $c->tipo,
+                    'status' => $c->status,
+                    'sou_o_atacante' => $souAtacante,
+                    'venci' => $atacanteVenceu === null ? null : $atacanteVenceu === $souAtacante,
+                    'adversario' => $souAtacante ? $c->defender?->name : $c->attacker?->name,
+                    'zona' => $c->zone ? ['id' => $c->zone->id, 'x' => $c->zone->x, 'y' => $c->zone->y, 'nome' => $c->zone->name] : null,
+                    'rodadas' => (int) $c->rodada,
+                    'despachado_em' => $c->created_at?->toIso8601String(),
+                    'chegou_em' => $c->chega_at?->toIso8601String(),
+                    // Pelo relógio do motor, e não pelo `updated_at` (ver `Combat::terminouEm`).
+                    'terminou_em' => $c->terminouEm()?->toIso8601String(),
+                    // Nulos nas batalhas de antes do D-275: o motor não contava.
+                    'atacantes' => ['inicio' => $r['atacantes_inicio'] ?? null, 'de_pe' => $r['atacantes_de_pe'] ?? null],
+                    'defensores' => ['inicio' => $r['defensores_inicio'] ?? null, 'de_pe' => $r['defensores_de_pe'] ?? null],
+                    'saque' => isset($r['saque']) ? (int) $r['saque'] : null,
+                    'linha' => $r['linha'] ?? [],
+                ];
+            });
+
+        return response()->json(['relatorios' => $relatorios]);
+    }
+
+    /**
      * O Ranking de Guerras (§27.13, D-128) — cinco sub-rankings normalizados por percentil, com o
      * Ranking Geral publicado. `mine` marca a linha da própria colônia, como o Mapa já faz (D-74).
      */
