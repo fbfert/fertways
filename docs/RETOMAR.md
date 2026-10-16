@@ -90,6 +90,33 @@ não era construível sem o usuário — e **foi todo resolvido em 15/10** (D-26
 - ✅ **silício, lítio e tântalo** — Auryn os vende desde o D-263;
 - ✅ as **missões de reconhecimento** — fora, até o primeiro teste com jogadores (D-273).
 
+### ✅ No ar em 16/10/2026 — o lote D-263 a D-278 inteiro
+
+**Publicado em `d7245ad`** (`sudo ./tools/deploy.sh`, 15:52 São Paulo; a produção estava em `fa1af6b`).
+As "Deploy pendente" das levas acima estão **superadas**.
+- **Suíte no servidor: 1534 verdes e 2 vermelhos, os dois só no SQLite.** O PHP do servidor traz o SQLite
+  3.34.1, que não tem `DROP COLUMN` nativo (só da 3.35 em diante). O `down()` da `400000` recria
+  `planetas_npc`, e o `cascadeOnDelete` apaga os preços: 47 → 0. No MariaDB os 47 sobrevivem (medido no
+  `fertwaysdev`). ⚠️ **Pendente: corrigir os dois testes** de `EspacoportoCargaTest` (D-278, nota).
+- **`fertwaysdev`:** as seis migrations subiram, voltaram e subiram de novo, todas DONE.
+- **Passo 3, a guarda de arbitragem, FALHOU e virou o D-278.** O Governo vendia 7 recursos abaixo do que
+  um planeta pagaria (biocombustível a 0,29×, estanho a 0,32×, alumínio a 0,44× contra os 0,70× de Auryn;
+  plasma, fungo, gelo de metano e componentes um pouco abaixo de 0,80). O usuário escolheu **tirar a
+  compra do planeta**. A regra é `semCompraAcimaDoGoverno()` na partida, e o painel não a aplica.
+- **GDD v41** regerado contra o `fertwaysdev` (`d7245ad`), saída limpa.
+- **Backup:** `/home/fertways/backups/fertwaysbd-antes-d7245ad-20261016-155249.sql.gz` (4,5 MB, `colonies`
+  presente).
+- **Deploy:** banco `[fertwaysbd]`, as **seis migrations DONE**, `APP_DEBUG` off, opcache na árvore de
+  deploy, bundle `index-W66lpqwW.js`, fumaça 200/401. `/central/estatisticas` → 200 com
+  `X-RateLimit-Limit: 600`; a pasta `storage/framework/cache/data` é do `fertways`.
+- **Conferido por leitura em produção:** o Cargueiro ativo, 20 F$, 10.000, 2; os cinco planetas abertos,
+  Auryn 1000/2000/25, Drakmoor 3000/5000/35, Solène `tec_ciencia_1`; Nióbio de Drakmoor = governo
+  (3.163.000); `fabricacao_minutos_por_nivel` = 2; 40 preços, 25 compras, **nenhuma acima do Governo**.
+- **Passo 7, com autorização:** `fertways:equipe --todos-os-atuais` marcou **9 contas**. As 26 restantes
+  são 23 bots (`bots.fertways.local`) e 3 contas de sistema (`fertways.sistema`).
+- **Falta fazer à mão:** nomear o Atendente do Espaçoporto com
+  `fertways:cargo-civico <nick> atendente_espacoporto --nomear`. Até lá, o cargo não existe.
+
 ### ✅ No ar em 15/10/2026 — o lote D-253 a D-262 inteiro
 
 **Publicado em `fa1af6b`** (`sudo ./tools/deploy.sh`, 18:42 São Paulo; a produção estava em `f74e051`).
