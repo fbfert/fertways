@@ -207,9 +207,17 @@ export function EventosDoMundo() {
    *    e só a caixa recebe `pointer-events-auto`. O aviso para de ser uma parede que não se remove
    *    sem deixar de flutuar sobre a colônia.
    */
+  /** D-271: o evento que a Antena anunciou antes de começar — quando começa, e não quando acaba. */
+  const comeca = (e: EventoDoMundo): string | null => {
+    if (!e.em_breve || !e.comeca_em) return null
+    const horas = Math.max(0, (Date.parse(e.comeca_em) - Date.now()) / 3_600_000)
+
+    return horas < 1 ? 'começa na próxima hora' : `começa em ${Math.ceil(horas)} h`
+  }
+
   /** O que é derivado, numa nota só: o mecanismo e o prazo. Nunca some, nunca envelhece. */
   const nota = (e: EventoDoMundo): string | null =>
-    [oQueFaz(e), prazo(e.termina_em)].filter(Boolean).join(' · ') || null
+    [oQueFaz(e), comeca(e) ?? prazo(e.termina_em)].filter(Boolean).join(' · ') || null
 
   const varios = eventos.length > 1
   const detalhado = !varios || aberta
@@ -233,19 +241,24 @@ export function EventosDoMundo() {
               >
                 {e.parcial ? (
                   <>
-                    <strong>Algo está afetando a produção no planeta.</strong>
+                    {e.em_breve ? (
+                      <strong>A Antena captou: algo vai afetar a produção no planeta.</strong>
+                    ) : (
+                      <strong>Algo está afetando a produção no planeta.</strong>
+                    )}
                     {detalhado ? (
                       <span className="text-ink-soft">
                         {' '}
                         A Central de Notícias ainda não explicou o quê.
                       </span>
                     ) : null}{' '}
-                    {prazo(e.termina_em) ? (
-                      <span className="text-ink-soft">({prazo(e.termina_em)})</span>
+                    {(comeca(e) ?? prazo(e.termina_em)) ? (
+                      <span className="text-ink-soft">({comeca(e) ?? prazo(e.termina_em)})</span>
                     ) : null}
                   </>
                 ) : (
                   <>
+                    {e.em_breve && <span className="text-rust text-xs font-bold uppercase">Em breve · </span>}
                     <strong>{e.nome}</strong>
                     {detalhado && e.mensagem ? ` — ${e.mensagem}` : ''}{' '}
                     {nota(e) ? <span className="text-ink-soft">({nota(e)})</span> : null}

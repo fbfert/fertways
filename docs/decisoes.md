@@ -14690,3 +14690,21 @@ O D-130 deixou o Atendente de fora por não haver Espaçoporto. Agora há. O §1
 - Nomeação como os outros: `fertways:cargo-civico <nick> atendente_espacoporto --nomear`.
 
 Migration `2026_10_16_500000_duvidas_do_espacoporto`.
+
+---
+
+## D-271 — A Antena de Comunicação avisa antes
+
+**Data:** 2026-10-15 · **Status:** decidido pelo usuário ("siga suas recomendações") · commit, deploy pendente
+
+O GDD promete *"comunicação com a Capital, alertas, eventos"* (§17.2) e nenhum número; até aqui a
+Antena só consumia energia. A recomendação aprovada não inventa recurso nem bônus de produção: **a
+colônia com Antena fica sabendo dos eventos do mundo antes de eles começarem — 12 horas por nível**
+(nível 5: dois dias e meio). Sem Antena, nada muda: o evento aparece quando começa.
+
+- O aviso respeita a visibilidade: o secreto continua fora; o parcial chega sem nome ("a Antena
+  captou: algo vai afetar a produção").
+- Na faixa de eventos, o que ainda não começou aparece como **"Em breve"**, com "começa em N h" no
+  lugar do prazo de fim.
+- O catálogo da construção diz o efeito (`avisa`). A construção inerte que resta é a Plataforma de
+  Pouso (D-273).

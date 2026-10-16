@@ -694,6 +694,9 @@ export type EventoDoMundo = {
    * do evento era invisível, e o operador o escrevia à mão dentro da `mensagem`, onde envelhece.
    */
   termina_em: string
+  /** D-271: ainda não começou — só chega a quem tem Antena de Comunicação, 12 h por nível. */
+  em_breve?: boolean
+  comeca_em?: string
 }
 
 /** A árvore de pesquisa (A2.3). */

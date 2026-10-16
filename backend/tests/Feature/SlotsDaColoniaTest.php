@@ -353,10 +353,12 @@ class SlotsDaColoniaTest extends TestCase
 
         // E a verdade sobre o que ela faz HOJE. ⚠️ Este teste afirmava "nada" — e fixou a mentira por
         // dois meses depois que a A2.3 deu pesquisa ao Laboratório (D-252). A construção inerte de
-        // verdade, que tem de se anunciar inerte, é a Antena.
+        // verdade, que tem de se anunciar inerte, era a Antena — até o D-271 lhe dar o aviso
+        // antecipado. Agora é a Plataforma de Pouso, à espera da nave que ela guardaria.
         $this->assertSame('vagas_de_pesquisa', $catalogo['laboratorio']['funcao']['efeito']);
-        $this->assertSame('nenhum', $catalogo['antena_de_comunicacao']['funcao']['efeito']);
-        $this->assertStringContainsString('só consome energia', $catalogo['antena_de_comunicacao']['funcao']['nota']);
+        $this->assertSame('avisa', $catalogo['antena_de_comunicacao']['funcao']['efeito']);
+        $this->assertSame('nenhum', $catalogo['plataforma_de_pouso']['funcao']['efeito']);
+        $this->assertStringContainsString('só consome energia', $catalogo['plataforma_de_pouso']['funcao']['nota']);
 
         // A Mina produz de verdade, e pode repetir.
         $this->assertSame('produz', $catalogo['mina_local']['funcao']['efeito']);

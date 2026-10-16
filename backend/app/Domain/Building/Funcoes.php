@@ -167,9 +167,12 @@ class Funcoes
         ],
         'antena_de_comunicacao' => [
             'frase' => 'Comunicação com a Capital, alertas, eventos.',
+            'resumo' => 'Avisa dos eventos do mundo antes de eles começarem: 12 horas por nível.',
             'fonte' => '§17.2',
-            'efeito' => 'nenhum',
-            'nota' => 'Sem número de efeito em lugar nenhum do GDD. Hoje só consome energia.',
+            // D-271: o GDD não dá número; a recomendação aprovada é o aviso antecipado.
+            'efeito' => 'avisa',
+            'nota' => 'O evento que vai começar aparece na tela como "em breve" com 12 horas de '
+                .'antecedência por nível da Antena (D-271). Não muda o evento: só dá tempo de se preparar.',
         ],
         'torre_de_defesa' => [
             'frase' => 'Defesa básica do slot.',

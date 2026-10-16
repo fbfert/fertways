@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Domain\Eventos\Antena;
 use App\Http\Controllers\Controller;
 use App\Models\GameEvent;
 use Illuminate\Http\JsonResponse;
@@ -31,25 +32,34 @@ class EventosController extends Controller
     {
         $colonia = $request->user()->colony;
         $agora = now();
+        // D-271: com Antena, o que começa nas próximas horas também aparece — como "em breve".
+        $ate = $agora->copy()->addHours(Antena::horas($colonia));
 
         $eventos = GameEvent::query()
             ->whereIn('status', ['ativo', 'cancelado'])
-            ->where('comeca_em', '<=', $agora)
+            ->where('comeca_em', '<=', $ate)
             ->where('termina_em', '>=', $agora)
             ->alcanca($colonia)
             ->orderBy('comeca_em')
             ->get()
-            ->filter(fn (GameEvent $e) => $e->vigenteEm($agora) && $e->visivelAoJogador());
+            ->filter(fn (GameEvent $e) => $e->visivelAoJogador() && ($e->comeca_em->greaterThan($agora)
+                ? $e->status === 'ativo' && $e->cancelado_em === null
+                : $e->vigenteEm($agora)));
 
         return response()->json([
             'eventos' => $eventos->map(fn (GameEvent $e) => $e->visibilidade === 'parcial'
                 ? [
                     // Parcial: a tensão sem a explicação. Nem o nome, nem o número.
                     'parcial' => true,
+                    'em_breve' => $e->comeca_em->greaterThan($agora),
+                    'comeca_em' => $e->comeca_em->toIso8601String(),
                     'termina_em' => $e->termina_em->toIso8601String(),
                 ]
                 : [
                     'parcial' => false,
+                    // D-271: ainda não começou — a Antena avisou antes.
+                    'em_breve' => $e->comeca_em->greaterThan($agora),
+                    'comeca_em' => $e->comeca_em->toIso8601String(),
                     'nome' => $e->nome,
                     'mensagem' => $e->mensagem_publica,
                     'modificador' => $e->modificador,
