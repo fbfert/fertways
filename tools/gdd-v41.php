@@ -1681,7 +1681,7 @@ $espConfig = DB::table('espacoporto_settings')->find(1);
 $espMotivo = app(\App\Domain\Espacoporto\Espacoporto::class)->motivoFechado();
 $espPlanetas = \App\Models\PlanetaNpc::with('precos')->orderBy('ordem')->get();
 ?>
-<h3>5.8 O Espaçoporto e o Cargueiro Interplanetário <span class="d">§03, §05, §16.2, §21.10; D-262, D-269</span></h3>
+<h3>5.8 O Espaçoporto e o Cargueiro Interplanetário <span class="d">§03, §05, §16.2, §21.10; D-262, D-269, D-278</span></h3>
 
 <p>
   <i>"O governo de Fertways detém o monopólio inicial do comércio interplanetário. Colonos alugam o uso
@@ -1701,10 +1701,18 @@ $espPlanetas = \App\Models\PlanetaNpc::with('precos')->orderBy('ordem')->get();
   abrem Kalidor, Veyra e Auryn. O mapeamento de "exporta metais pesados" para recursos do jogo é
   interpretação do §03, aprovada junto.
   <br><br>
-  ⚠️ <b>A guarda que o painel não faz</b>: se o governo vender um recurso no Mercado Central abaixo do
-  que um planeta paga por ele, comprar do governo e revender ao planeta vira lucro. O preço de venda do
-  governo fica em ou acima de 0,80× a referência.
-  <?= arbitrado('multiplicadores, Cargueiro e mapeamento — proposta minha, aprovada pelo usuário em 15/10 (D-263)') ?>
+  <b>Planeta não compra o que o governo vende mais barato</b> <span class="d">D-278</span>. O governo
+  vende alguns recursos no Mercado Central bem abaixo da referência, de propósito, para o novato — o
+  estanho a 0,32×, o biocombustível a 0,29×. Comprar do governo e revender ao planeta seria lucro
+  garantido. Em vez de subir o preço do governo, a partida <b>tira a compra do planeta</b>: nenhum
+  planeta paga por um recurso mais do que a oferta aberta do governo cobra. Se o planeta também vende
+  aquele recurso, a venda fica. Na produção, em 16/10, isso tirou oito compras de sete recursos —
+  biocombustível, estanho e alumínio de Auryn; plasma, fungo e gelo de metano de Solène; componentes
+  eletrônicos de Drakmoor e Veyra.
+  <br><br>
+  ⚠️ <b>A guarda vale na partida, não no painel</b>: baixar depois o preço do governo, ou subir a compra
+  de um planeta, pelo painel reabre a arbitragem.
+  <?= arbitrado('multiplicadores, Cargueiro e mapeamento — proposta minha, aprovada pelo usuário em 15/10 (D-263); a compra que sai, escolha do usuário em 16/10 (D-278)') ?>
 </div>
 
 <table>
@@ -3218,6 +3226,18 @@ rating  += K × (resultado − esperado)        K = <?= $gfRatingK ?>, início <
   só não teve tempo). Só humanos entram na conta. E <b>zero saques aparece como lacuna, não como
   zero</b>: "ninguém deixou de voltar" e "ninguém foi saqueado" são respostas diferentes, e só a
   segunda é a verdade de hoje.
+</p>
+
+<h3>11.8 O teto de requisições por jogador <span class="d">D-277</span></h3>
+
+<p>
+  Cada jogador tem um teto de <b><?= n((int) config('fertways.teto_requisicoes_por_minuto', 600)) ?> requisições
+  por minuto</b> na API inteira. O número saiu de uma medida tela a tela: a tela que mais consulta, o
+  Mercado, faz 164 por minuto. Quem passa do teto recebe <b>429</b>, com a mensagem em português e o
+  tempo de espera. O teto existe contra abuso, e não deve tocar o jogo normal. Se uma tela nova
+  consultar mais, o número é revisto com uma medida nova. O login continua com o limite próprio do
+  D-186, que conta só a tentativa que falha.
+  <?= arbitrado('600 por minuto, medido tela a tela (D-277)') ?>
 </p>
 
 <!-- ══════════════════════════════════════════════════════════════ 12 -->
