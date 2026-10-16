@@ -69,6 +69,9 @@ return new class extends Migration
                 DB::table('planetas_npc')->where('id', $id)->update(['aberto' => true, 'updated_at' => now()]);
             }
         }
+
+        // Drakmoor aberto não pode vender Nióbio abaixo do governo: é o freio do exército (D-66).
+        \Database\Seeders\EspacoportoPartidaSeeder::niobioNoPrecoDoGoverno();
     }
 
     public function down(): void

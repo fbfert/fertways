@@ -112,6 +112,8 @@ class DirecaoDoLedger
         'espacoporto_aluguel',
         'espacoporto_venda',
         'espacoporto_compra',
+        // D-269: o imposto de importação sai da colônia para o Tesouro.
+        'espacoporto_imposto',
         'frete_publico',
         // A2.3: destrói recurso de verdade — vira conhecimento, que não é estoque.
         'custo_pesquisa',

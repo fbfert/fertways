@@ -64,7 +64,7 @@
       — e a §2.5 deixou de publicar uma curva aposentada.
     </p>
     <p style="font-size:.85rem;color:rgba(253,240,226,.55);margin-top:20px">
-      Gerado em 15/10/2026 · As tabelas numéricas são lidas do mesmo banco de onde o jogo lê.
+      Gerado em 16/10/2026 · As tabelas numéricas são lidas do mesmo banco de onde o jogo lê.
     </p>
   </div>
 </header>
@@ -255,7 +255,7 @@
   <tr><td><b>Norte</b></td><td>Governo Central — a grade dos 19 slots institucionais (1–5, 7–8, 9–20; o 9–20 aparece <b>visível e travado</b>, expansão futura)</td><td><span class="sel sel-ok">Implementado</span></td></tr>
   <tr><td><b>Oeste</b></td><td>Os destroços da <b>Endurance</b> — mapa das 8 seções do casco, uma Loja de Peças dinâmica por seção, e as missões narrativas que contam a história da escavação. Ver <span class="d">§10</span></td><td><span class="sel sel-ok">Implementado</span> <span class="d">D-132 a D-140</span></td></tr>
   <tr><td><b>Leste</b></td><td>O <b>slot 6 inteiro</b>: Mercado Central + Pátio Logístico, juntos. Clicar abre o Mercado</td><td><span class="sel sel-ok">Implementado</span> <span class="d">D-65</span></td></tr>
-  <tr><td><b>Sul</b></td><td>O <b>Espaçoporto</b> — os 5 planetas NPC e o aluguel do Cargueiro do Governo (§5.8). Construído e fechado até o operador escrever os números de economia</td><td><span class="sel sel-ok">Construído, fechado</span></td></tr>
+  <tr><td><b>Sul</b></td><td>O <b>Espaçoporto</b> — os 5 planetas NPC e o aluguel do Cargueiro do Governo (§5.8), com imposto, risco e portão por planeta, e a fila de dúvidas do Atendente</td><td><span class="sel sel-ok">Implementado</span> <span class="d">D-262, D-263, D-269, D-270</span></td></tr>
   <tr><td><b>Centro</b></td><td>A praça — 1 slot de tamanho, decorativa</td><td><span class="sel sel-ok">Implementado</span></td></tr>
 </table>
 
@@ -1368,7 +1368,7 @@
     <td>Comunicação com a Capital, alertas, eventos.</td>
     <td>§17.2</td>
     <td>
-      <span class="sel sel-prom">Só consome energia</span>              <div style="font-size:.8rem;color:var(--ink-soft);margin-top:4px">Sem número de efeito em lugar nenhum do GDD. Hoje só consome energia.</div>
+      <span class="sel sel-ok">Avisa</span>              <div style="font-size:.8rem;color:var(--ink-soft);margin-top:4px">O evento que vai começar aparece na tela como &quot;em breve&quot; com 12 horas de antecedência por nível da Antena (D-271). Não muda o evento: só dá tempo de se preparar.</div>
           </td>
   </tr>
     <tr>
@@ -1392,7 +1392,7 @@
     <td>Recruta e treina Robôs Mineradores, Infiltradores e Predadores. Necessário para ocupar zonas neutras ou atacar.</td>
     <td>§17.2</td>
     <td>
-      <span class="sel sel-ok">Converte</span>              <div style="font-size:.8rem;color:var(--ink-soft);margin-top:4px">Recruta Sentinela, Robô Minerador, Infiltrador e Predador — consome recurso e credita a unidade (§27.1), desde o D-66. Exige o Quartel nível 1 ou mais.</div>
+      <span class="sel sel-ok">Converte</span>              <div style="font-size:.8rem;color:var(--ink-soft);margin-top:4px">Recruta Sentinela, Robô Minerador, Infiltrador e Predador — consome recurso e credita a unidade (§27.1), desde o D-66. As unidades saem da linha de montagem uma a uma, alguns minutos por nível cada (D-272). Exige o Quartel nível 1 ou mais.</div>
           </td>
   </tr>
     <tr>
@@ -3073,7 +3073,7 @@
 
 
 
-<h3>5.8 O Espaçoporto e o Cargueiro Interplanetário <span class="d">§03, §05, §16.2, §21.10; D-262</span></h3>
+<h3>5.8 O Espaçoporto e o Cargueiro Interplanetário <span class="d">§03, §05, §16.2, §21.10; D-262, D-269</span></h3>
 
 <p>
   <i>"O governo de Fertways detém o monopólio inicial do comércio interplanetário. Colonos alugam o uso
@@ -3099,11 +3099,13 @@
   <span class="sel sel-arb">Arbitrado · multiplicadores, Cargueiro e mapeamento — proposta minha, aprovada pelo usuário em 15/10 (D-263)</span></div>
 
 <table>
-  <tr><th>Planeta</th><th class="num">Viagem</th><th>Risco</th><th>Exporta</th><th>Importa</th><th>Neste banco</th></tr>
+  <tr><th>Planeta</th><th class="num">Viagem</th><th>Risco</th><th>Sinistro</th><th>Portão além do Cargueiro</th><th>Exporta</th><th>Importa</th><th>Neste banco</th></tr>
     <tr>
     <td><b>Kalidor</b></td>
     <td class="num">4,0 h</td>
     <td>nenhum</td>
+    <td>—</td>
+    <td>—</td>
     <td>Metais pesados, compostos químicos</td>
     <td>Biomassa, água</td>
     <td>aberto, 7 preço(s)</td>
@@ -3112,6 +3114,8 @@
     <td><b>Veyra</b></td>
     <td class="num">6,5 h</td>
     <td>nenhum</td>
+    <td>—</td>
+    <td>—</td>
     <td>Sementes alienígenas, compostos orgânicos</td>
     <td>Energia, componentes</td>
     <td>aberto, 4 preço(s)</td>
@@ -3120,6 +3124,8 @@
     <td><b>Auryn</b></td>
     <td class="num">12,0 h</td>
     <td>baixo</td>
+    <td>10% das viagens, leva 20%</td>
+    <td>marco 25</td>
     <td>Variedade enorme</td>
     <td>Qualquer recurso</td>
     <td>aberto, 17 preço(s)</td>
@@ -3128,17 +3134,21 @@
     <td><b>Solène</b></td>
     <td class="num">18,0 h</td>
     <td>nenhum</td>
+    <td>—</td>
+    <td>pesquisa Método Experimental</td>
     <td>Tecnologia, dados de pesquisa</td>
     <td>Recursos raros</td>
-    <td>fechado</td>
+    <td>aberto, 10 preço(s)</td>
   </tr>
     <tr>
     <td><b>Drakmoor</b></td>
     <td class="num">31,0 h</td>
     <td>alto</td>
+    <td>30% das viagens, leva 50%</td>
+    <td>marco 35</td>
     <td>Minerais raros exclusivos</td>
     <td>Biomassa, água, componentes</td>
-    <td>fechado</td>
+    <td>aberto, 9 preço(s)</td>
   </tr>
   </table>
 
@@ -3167,13 +3177,25 @@
   <tr><td>Preços, planeta a planeta</td><td>47 preço(s)</td></tr>
 </table>
 
-<div class="nota grave">
-  <b>⚠️ O que continua sem desenho</b>, e por isso não foi construído: o <b>risco</b> (o que "alto"
-  significa — perda de carga? —, e a escolta e o seguro, que a v3.2 chama de "mecânicas de temporada");
-  o <b>imposto</b> sobre a carga interplanetária (o §25 cobra entre donos do planeta, e não diz nada de um
-  planeta NPC); os <b>portões por planeta</b> (Auryn "por marco de servidor", Solène "por ciência",
-  Drakmoor "tardio" — sem critério, abrir é ato do operador); o <b>Atendente do Espaçoporto</b> (sem
-  salário publicado); e as <b>missões de reconhecimento</b> que descobrem planetas novos.
+<div class="nota">
+  <b>Imposto, risco e portão por planeta</b> <span class="d">D-269</span>. O que o D-262 deixou sem
+  desenho virou regra, pela recomendação que o usuário aprovou:
+  <ul>
+    <li><b>Imposto</b> — a régua do Mercado Central: a alíquota do recurso sobre o valor, com os eventos
+        de taxa e o desconto das peças de alfândega da Endurance. A <b>encomenda</b> paga na partida; a
+        <b>venda</b>, na volta, sobre o que o planeta pagou. Tudo ao Tesouro.</li>
+    <li><b>Risco</b> — um sinistro sorteado uma vez por viagem leva a mesma fração das duas pernas; o
+        planeta paga só o que chegou, e o pago não volta. Os números estão na tabela acima.</li>
+    <li><b>Portão por planeta</b> — soma-se ao do Cargueiro: Auryn "por marco" (25), Solène "por
+        ciência" (Método Experimental), Drakmoor "tardio" (35, Construtor). Com isso, os cinco abrem —
+        e Drakmoor <b>nunca vende Nióbio abaixo do governo</b>, para o freio do exército (§8.3) não sumir.</li>
+  </ul>
+  O <b>Atendente do Espaçoporto</b> entrou como o quinto cargo cívico (§7.4, D-270). Fora, de propósito:
+  a escolta e o seguro (a v3.2 os chama de "mecânicas de temporada") e as <b>missões de reconhecimento</b>
+  que descobririam planetas novos — o que elas revelariam não tem número nenhum (D-273).
+  <span class="sel sel-arb">Arbitrado · imposto, risco e portões — recomendação minha, aprovada pelo usuário em 15/10 (D-269)</span></div>
+
+<div class="nota">
   <span class="sel sel-arb">Arbitrado · a viagem inteira dura a distância do planeta; o preço travado na partida; o aluguel ao Tesouro — D-262</span>  </div>
 
 
@@ -3418,7 +3440,7 @@
   <tr><td><b>Repórter</b></td><td>Publica no mesmo mural da Central de Notícias, marcado "boletim" — distinto do comunicado oficial</td><td><span class="sel sel-ok">Implementado</span></td></tr>
   <tr><td><b>Fiscal de Mercado</b></td><td>Sinaliza preço suspeito para a equipe; bônus só paga quando a equipe CONFIRMA, nunca no ato de sinalizar</td><td><span class="sel sel-ok">Implementado</span></td></tr>
   <tr><td><b>Auxiliar de Tesouro</b></td><td>Aponta inconsistência financeira, mesmo desenho do Fiscal</td><td><span class="sel sel-ok">Implementado</span></td></tr>
-  <tr><td>Atendente do Espaçoporto</td><td>Ajuda com rotas, taxas e docas do Espaçoporto</td><td><span class="sel sel-prom">100% dependente do Espaçoporto, que não existe</span></td></tr>
+  <tr><td><b>Atendente do Espaçoporto</b></td><td>Responde à fila de dúvidas do Espaçoporto (com respostas prontas, os "fluxos predefinidos") ou encaminha à equipe; o bônus paga só a resposta que <b>quem perguntou</b> diz que ajudou</td><td><span class="sel sel-ok">Implementado</span> <span class="d">D-270</span></td></tr>
 </table>
 
 <p>
@@ -3556,6 +3578,8 @@ todos desde a fundação, e os da zona se abrem conforme ela sobe.</p>
   (<code>3 5 8 13 22</code>) — e <b>nada no jogo produz Nióbio</b>: o planeta nasce com 20
   unidades (5 por colônia fundadora), e o <b>governo vende</b> a ~3,16 F$/unidade
   (Secretaria de Finanças, preço do operador). Sem isto a Sentinela seria inalcançável.
+  <b>Fabricar leva tempo</b> desde o D-272: uma linha de montagem por Quartel, as unidades saem uma a uma,
+  2 min × o nível de cada (parâmetro do operador; zero é instantâneo).
   <br><br>
   <b>Robô Minerador</b> defende a própria zona onde já trabalha, improvisado (§27.2): defesa
   <b>25% da Sentinela</b>, ataque zero. <b>Infiltrador</b> e <b>Predador</b> têm custo publicado,
@@ -5020,7 +5044,9 @@ rating  += K × (resultado − esperado)        K = 32, início 1.000</pre>
   <b>Estrutura de Sobrevivência</b> abriga (§13.1), o <b>Laboratório</b> abre a pesquisa, a
   <b>Torre de Defesa</b> corta o saque do cerco de colônia (§8.13) e o <b>Tanque de Combustível</b>
   trava a Destilaria — sem ele ela não converte. A §4.1 já sai corrigida, porque é lida do mesmo
-  catálogo que a tela lê. A Antena e a Plataforma continuam inertes de verdade.
+  catálogo que a tela lê. A <b>Antena</b> ganhou função no D-271 — avisa os eventos do mundo antes de
+  começarem, 12 horas por nível —, e a <b>Plataforma de Pouso</b> continua inerte de verdade, à espera da
+  nave que ela guardaria (D-273).
 </div>
 
 <div class="nota grave">
@@ -5505,8 +5531,8 @@ rating  += K × (resultado − esperado)        K = 32, início 1.000</pre>
   <tr><th>Assunto</th><th>O que falta</th><th>O que ele trava</th></tr>
   <tr>
     <td><b>Cargueiro Interplanetário / Espaçoporto</b></td>
-    <td>Aberto desde o D-263 em Kalidor, Veyra e Auryn (§5.8). Falta o desenho do <b>risco</b> (Drakmoor fica fechado por isso), do <b>imposto</b> interplanetário e do <b>portão por ciência</b> de Solène</td>
-    <td>Dois dos cinco planetas. E o cargo de <b>Atendente do Espaçoporto</b> (§7.4, D-130), sem salário publicado</td>
+    <td>Os cinco planetas abertos desde o D-269, com imposto, risco e portão (§5.8). Falta só o que a v3.2 chama de temporada: escolta e seguro de carga</td>
+    <td>Nada do ciclo básico. As missões de reconhecimento ficam de fora até o primeiro teste com jogadores (D-273)</td>
   </tr>
   <tr>
     <td><b>Os 8 minerais eletrônicos</b></td>

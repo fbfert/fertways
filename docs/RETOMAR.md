@@ -68,23 +68,20 @@ aberta. **Sem deploy** — commit e push, sim. Ordem:
 13. [x] **(D-261)** Decisão 11: detecção de contas vinculadas com revisão humana.
 14. [x] **(D-262)** Espaçoporto / Cargueiro Interplanetário / planetas NPC — só o que o GDD publica; o resto vira lacuna marcada.
 
-**D-264/D-265 (15/10):** retenção no painel e no `fertways:retencao` — e a correção de leitura: **não houve abandono, o jogo nunca teve jogador de fora** (todas as contas humanas são do usuário; o resto é bot). **Não rode** o `PROMPT_MEDIR_ABANDONO.md`. A frente aberta agora, autorizada a seguir sem parar: (1) ✅ **D-266** as primeiras horas, jogadas por um novato; (2) ✅ **D-267** o kit do teste com pessoas (`docs/PLAYTEST.md`); (3) ✅ **D-268** revisão visual de veterano (zoom sobre o "sair", Endurance no celular, 31 textos citando D-nn/§, nomes de hexágono). As pendências pequenas do GDD continuam esperando números do usuário (lista abaixo). **Deploy pendente: lote D-263 a D-268** (o D-268 não tem migration; o prompt espera 1467 testes).
+**D-264/D-265 (15/10):** retenção no painel e no `fertways:retencao` — e a correção de leitura: **não houve abandono, o jogo nunca teve jogador de fora** (todas as contas humanas são do usuário; o resto é bot). **Não rode** o `PROMPT_MEDIR_ABANDONO.md`. A frente aberta agora, autorizada a seguir sem parar: (1) ✅ **D-266** as primeiras horas, jogadas por um novato; (2) ✅ **D-267** o kit do teste com pessoas (`docs/PLAYTEST.md`); (3) ✅ **D-268** revisão visual de veterano (zoom sobre o "sair", Endurance no celular, 31 textos citando D-nn/§, nomes de hexágono). Depois, *"vamos para todas essas pendências, siga suas recomendações. Só pare quando terminar todas"*: ✅ **D-269** imposto, risco e portão por planeta (Solène e Drakmoor abrem); ✅ **D-270** Atendente do Espaçoporto (fila de dúvidas); ✅ **D-271** a Antena avisa os eventos antes (12 h/nível); ✅ **D-272** fabricar unidade leva tempo (2 min × nível, uma a uma); ✅ **D-273** Plataforma de Pouso e missões de reconhecimento ficam de fora, de propósito. **A lista de pendências do GDD abaixo está fechada.** **Deploy pendente: lote D-263 a D-273** — seis migrations; o prompt espera 1504 testes.
 
 **Depois do deploy de `fa1af6b` (15/10):** o usuário escolheu abrir o Espaçoporto e aprovou a proposta de números — **D-263, commit sem deploy**. Uma migration (`2026_10_16_100000_espacoporto_com_os_numeros_de_partida`), exercitada só no SQLite. O prompt de deploy em `docs/PROMPT_DEPLOY_VPS.md` foi reescrito para este lote; ele manda conferir os preços de venda do governo contra os 0,80× que os planetas pagam.
 
-**A segunda leva fechou em 15/10 (D-257 a D-262), e foi ao ar no mesmo dia em `fa1af6b`.** O que sobra do GDD
-não é construível sem o usuário — cada item precisa de número ou de desenho que nenhum documento
-publica:
+**A segunda leva fechou em 15/10 (D-257 a D-262), e foi ao ar no mesmo dia em `fa1af6b`.** O que sobrava do GDD
+não era construível sem o usuário — e **foi todo resolvido em 15/10** (D-263, D-269 a D-273), item a item:
 
-- os **números de economia do Espaçoporto** (preço por planeta e recurso, aluguel, capacidade, frota)
-  — o mecanismo está pronto e fechado (D-262);
-- o **risco** interplanetário, o **imposto** sobre carga de planeta NPC, os **portões por planeta**;
-- o **salário do Atendente do Espaçoporto** (o último cargo cívico);
-- o **efeito da Antena de Comunicação e da Plataforma de Pouso** (o GDD promete sem número);
-- o **tempo de fabricação de unidades** (hoje instantâneo; "se ele quiser, é decisão dele");
-- **silício, lítio e tântalo** sem fonte além do governo — estrutural, talvez de propósito;
-- as **missões de reconhecimento** (v3.4 §2): o pipeline tem fases e durações publicadas, mas o que
-  ele revela (taxa, capacidade do planeta novo) não tem número — seria mais sistema sem jogo.
+- ✅ os **números de economia do Espaçoporto** — D-263;
+- ✅ o **risco**, o **imposto** e os **portões por planeta** — D-269;
+- ✅ o **Atendente do Espaçoporto** — D-270 (os números dos outros cargos; bônus pela resposta que ajudou);
+- ✅ a **Antena de Comunicação** — D-271; a **Plataforma de Pouso** fica inerte até existir a nave — D-273;
+- ✅ o **tempo de fabricação de unidades** — D-272;
+- ✅ **silício, lítio e tântalo** — Auryn os vende desde o D-263;
+- ✅ as **missões de reconhecimento** — fora, até o primeiro teste com jogadores (D-273).
 
 ### ✅ No ar em 15/10/2026 — o lote D-253 a D-262 inteiro
 

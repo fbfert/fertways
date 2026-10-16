@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use App\Models\Colony;
 use Illuminate\Database\Seeder;
+use App\Models\WarSetting;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -122,6 +123,26 @@ class EspacoportoPartidaSeeder extends Seeder
                 DB::table('planetas_npc')->where('id', $planeta->id)->update(['aberto' => true, 'updated_at' => now()]);
             }
         }
+
+        self::niobioNoPrecoDoGoverno();
+    }
+
+    /**
+     * O Nióbio é o freio do exército (D-66): o governo o vende a 10× a referência. Drakmoor, a 1,25×,
+     * seria Nióbio a um sétimo do preço — e o freio sumiria para quem chega ao marco 35. Ele continua
+     * vendendo (é uma segunda fonte), mas nunca abaixo do governo (D-269).
+     */
+    public static function niobioNoPrecoDoGoverno(): void
+    {
+        // Lê sem criar a linha: ela nasce na primeira leitura do jogo, com os números do D-66 — e
+        // sem linha o preço do governo é o padrão da coluna (10× a referência, a_guerra).
+        $governo = (int) (WarSetting::query()->value('niobio_preco_micro') ?? 3_163_000);
+
+        DB::table('planeta_npc_precos')
+            ->where('resource_type', 'niobio_alienigena')
+            ->whereNotNull('venda_micro')
+            ->where('venda_micro', '<', $governo)
+            ->update(['venda_micro' => $governo, 'updated_at' => now()]);
     }
 
 }

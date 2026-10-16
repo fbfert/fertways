@@ -244,6 +244,33 @@ class EspacoportoCargaTest extends TestCase
     }
 
     /**
+     * O Nióbio é o freio do exército (D-66): o governo o vende a 10× a referência. Drakmoor aberto, a
+     * 1,25×, seria Nióbio a um sétimo do preço. Ele vende — é uma segunda fonte —, mas nunca abaixo do
+     * governo.
+     */
+    public function test_drakmoor_nao_vende_niobio_abaixo_do_governo(): void
+    {
+        $governo = (int) \App\Models\WarSetting::singleton()->niobio_preco_micro;
+
+        $this->assertGreaterThanOrEqual($governo, $this->preco($this->planeta('drakmoor'), 'niobio_alienigena', 'venda_micro'));
+    }
+
+    /** O mesmo vale numa produção que já tinha a partida do D-263: a migration corrige o preço. */
+    public function test_a_migration_sobe_o_niobio_de_drakmoor(): void
+    {
+        $m = require database_path('migrations/2026_10_16_400000_carga_interplanetaria.php');
+        $m->down();
+        $this->planeta('drakmoor')->precos()->where('resource_type', 'niobio_alienigena')->update(['venda_micro' => 1]);
+
+        $m->up();
+
+        $this->assertSame(
+            (int) \App\Models\WarSetting::singleton()->niobio_preco_micro,
+            $this->preco($this->planeta('drakmoor'), 'niobio_alienigena', 'venda_micro'),
+        );
+    }
+
+    /**
      * Em produção, a partida do D-263 já precificou os cinco e deixou dois fechados. A migration volta
      * e vai: fecha os dois e tira as colunas; reabre e escreve o risco e o portão.
      */

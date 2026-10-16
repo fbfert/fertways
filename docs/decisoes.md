@@ -14664,7 +14664,9 @@ O D-262 deixou três lacunas escritas no código do Espaçoporto. As três viram
   "tardio": marco 35 (Construtor). A tela diz, por planeta, o que falta.
 
 Com portão e risco, **Solène e Drakmoor abrem** (a partida do D-263 já os precificou; a migration só
-abre planeta que tem preço). Risco e portão são números do operador, no painel (Transportes →
+abre planeta que tem preço). ⚠️ **Drakmoor nunca vende Nióbio abaixo do governo**: a partida o
+punha a 1,25× a referência, e o governo vende a 10× — o freio do exército (D-66) sumiria para quem
+chega ao marco 35. Drakmoor continua sendo uma segunda fonte, ao preço do governo. Risco e portão são números do operador, no painel (Transportes →
 Espaçoporto, por planeta). A tela mostra o risco em número, o portão, o imposto pago e as últimas
 viagens com o sinistro, se houve.
 

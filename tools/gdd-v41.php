@@ -704,7 +704,7 @@ ob_start();
   <tr><td><b>Norte</b></td><td>Governo Central — a grade dos 19 slots institucionais (1–5, 7–8, 9–20; o 9–20 aparece <b>visível e travado</b>, expansão futura)</td><td><?= entregue() ?></td></tr>
   <tr><td><b>Oeste</b></td><td>Os destroços da <b>Endurance</b> — mapa das 8 seções do casco, uma Loja de Peças dinâmica por seção, e as missões narrativas que contam a história da escavação. Ver <span class="d">§10</span></td><td><?= entregue() ?> <span class="d">D-132 a D-140</span></td></tr>
   <tr><td><b>Leste</b></td><td>O <b>slot 6 inteiro</b>: Mercado Central + Pátio Logístico, juntos. Clicar abre o Mercado</td><td><?= entregue() ?> <span class="d">D-65</span></td></tr>
-  <tr><td><b>Sul</b></td><td>O <b>Espaçoporto</b> — os 5 planetas NPC e o aluguel do Cargueiro do Governo (§5.8). Construído e fechado até o operador escrever os números de economia</td><td><?= entregue('Construído, fechado') ?></td></tr>
+  <tr><td><b>Sul</b></td><td>O <b>Espaçoporto</b> — os 5 planetas NPC e o aluguel do Cargueiro do Governo (§5.8), com imposto, risco e portão por planeta, e a fila de dúvidas do Atendente</td><td><?= entregue() ?> <span class="d">D-262, D-263, D-269, D-270</span></td></tr>
   <tr><td><b>Centro</b></td><td>A praça — 1 slot de tamanho, decorativa</td><td><?= entregue() ?></td></tr>
 </table>
 
@@ -1681,7 +1681,7 @@ $espConfig = DB::table('espacoporto_settings')->find(1);
 $espMotivo = app(\App\Domain\Espacoporto\Espacoporto::class)->motivoFechado();
 $espPlanetas = \App\Models\PlanetaNpc::with('precos')->orderBy('ordem')->get();
 ?>
-<h3>5.8 O Espaçoporto e o Cargueiro Interplanetário <span class="d">§03, §05, §16.2, §21.10; D-262</span></h3>
+<h3>5.8 O Espaçoporto e o Cargueiro Interplanetário <span class="d">§03, §05, §16.2, §21.10; D-262, D-269</span></h3>
 
 <p>
   <i>"O governo de Fertways detém o monopólio inicial do comércio interplanetário. Colonos alugam o uso
@@ -1708,12 +1708,14 @@ $espPlanetas = \App\Models\PlanetaNpc::with('precos')->orderBy('ordem')->get();
 </div>
 
 <table>
-  <tr><th>Planeta</th><th class="num">Viagem</th><th>Risco</th><th>Exporta</th><th>Importa</th><th>Neste banco</th></tr>
+  <tr><th>Planeta</th><th class="num">Viagem</th><th>Risco</th><th>Sinistro</th><th>Portão além do Cargueiro</th><th>Exporta</th><th>Importa</th><th>Neste banco</th></tr>
   <?php foreach ($espPlanetas as $pl): ?>
   <tr>
     <td><b><?= e($pl->nome) ?></b></td>
     <td class="num"><?= n($pl->distancia_minutos / 60, 1) ?> h</td>
     <td><?= e($pl->risco) ?></td>
+    <td><?= (int) $pl->risco_chance_bps > 0 ? n($pl->risco_chance_bps / 100).'% das viagens, leva '.n($pl->risco_perda_bps / 100).'%' : '—' ?></td>
+    <td><?= e(trim(($pl->marco_exigido ? 'marco '.$pl->marco_exigido : '').($pl->tecnologia_exigida ? ' pesquisa '.(\Illuminate\Support\Facades\DB::table('technologies')->where('chave', $pl->tecnologia_exigida)->value('nome') ?? $pl->tecnologia_exigida) : '')) ?: '—') ?></td>
     <td><?= e($pl->exporta) ?></td>
     <td><?= e($pl->importa) ?></td>
     <td><?= $pl->aberto ? 'aberto, '.$pl->precos->count().' preço(s)' : 'fechado' ?></td>
@@ -1746,13 +1748,26 @@ $espPlanetas = \App\Models\PlanetaNpc::with('precos')->orderBy('ordem')->get();
   <tr><td>Preços, planeta a planeta</td><td><?= $espPlanetas->sum(fn ($pl) => $pl->precos->count()) > 0 ? n($espPlanetas->sum(fn ($pl) => $pl->precos->count())).' preço(s)' : lacuna('Nenhum') ?></td></tr>
 </table>
 
-<div class="nota grave">
-  <b>⚠️ O que continua sem desenho</b>, e por isso não foi construído: o <b>risco</b> (o que "alto"
-  significa — perda de carga? —, e a escolta e o seguro, que a v3.2 chama de "mecânicas de temporada");
-  o <b>imposto</b> sobre a carga interplanetária (o §25 cobra entre donos do planeta, e não diz nada de um
-  planeta NPC); os <b>portões por planeta</b> (Auryn "por marco de servidor", Solène "por ciência",
-  Drakmoor "tardio" — sem critério, abrir é ato do operador); o <b>Atendente do Espaçoporto</b> (sem
-  salário publicado); e as <b>missões de reconhecimento</b> que descobrem planetas novos.
+<div class="nota">
+  <b>Imposto, risco e portão por planeta</b> <span class="d">D-269</span>. O que o D-262 deixou sem
+  desenho virou regra, pela recomendação que o usuário aprovou:
+  <ul>
+    <li><b>Imposto</b> — a régua do Mercado Central: a alíquota do recurso sobre o valor, com os eventos
+        de taxa e o desconto das peças de alfândega da Endurance. A <b>encomenda</b> paga na partida; a
+        <b>venda</b>, na volta, sobre o que o planeta pagou. Tudo ao Tesouro.</li>
+    <li><b>Risco</b> — um sinistro sorteado uma vez por viagem leva a mesma fração das duas pernas; o
+        planeta paga só o que chegou, e o pago não volta. Os números estão na tabela acima.</li>
+    <li><b>Portão por planeta</b> — soma-se ao do Cargueiro: Auryn "por marco" (25), Solène "por
+        ciência" (Método Experimental), Drakmoor "tardio" (35, Construtor). Com isso, os cinco abrem —
+        e Drakmoor <b>nunca vende Nióbio abaixo do governo</b>, para o freio do exército (§8.3) não sumir.</li>
+  </ul>
+  O <b>Atendente do Espaçoporto</b> entrou como o quinto cargo cívico (§7.4, D-270). Fora, de propósito:
+  a escolta e o seguro (a v3.2 os chama de "mecânicas de temporada") e as <b>missões de reconhecimento</b>
+  que descobririam planetas novos — o que elas revelariam não tem número nenhum (D-273).
+  <?= arbitrado('imposto, risco e portões — recomendação minha, aprovada pelo usuário em 15/10 (D-269)') ?>
+</div>
+
+<div class="nota">
   <?= arbitrado('a viagem inteira dura a distância do planeta; o preço travado na partida; o aluguel ao Tesouro — D-262') ?>
   <?php if ($espMotivo): ?><br><br>Neste banco o Espaçoporto está <b>fechado</b>: <?= e($espMotivo) ?><?php endif; ?>
 </div>
@@ -2009,7 +2024,7 @@ $espPlanetas = \App\Models\PlanetaNpc::with('precos')->orderBy('ordem')->get();
   <tr><td><b>Repórter</b></td><td>Publica no mesmo mural da Central de Notícias, marcado "boletim" — distinto do comunicado oficial</td><td><?= entregue() ?></td></tr>
   <tr><td><b>Fiscal de Mercado</b></td><td>Sinaliza preço suspeito para a equipe; bônus só paga quando a equipe CONFIRMA, nunca no ato de sinalizar</td><td><?= entregue() ?></td></tr>
   <tr><td><b>Auxiliar de Tesouro</b></td><td>Aponta inconsistência financeira, mesmo desenho do Fiscal</td><td><?= entregue() ?></td></tr>
-  <tr><td>Atendente do Espaçoporto</td><td>Ajuda com rotas, taxas e docas do Espaçoporto</td><td><?= promessa('100% dependente do Espaçoporto, que não existe') ?></td></tr>
+  <tr><td><b>Atendente do Espaçoporto</b></td><td>Responde à fila de dúvidas do Espaçoporto (com respostas prontas, os "fluxos predefinidos") ou encaminha à equipe; o bônus paga só a resposta que <b>quem perguntou</b> diz que ajudou</td><td><?= entregue() ?> <span class="d">D-270</span></td></tr>
 </table>
 
 <p>
@@ -2150,6 +2165,8 @@ todos desde a fundação, e os da zona se abrem conforme ela sobe.</p>
   (<code>3 5 8 13 22</code>) — e <b>nada no jogo produz Nióbio</b>: o planeta nasce com 20
   unidades (5 por colônia fundadora), e o <b>governo vende</b> a ~3,16 F$/unidade
   (Secretaria de Finanças, preço do operador). Sem isto a Sentinela seria inalcançável.
+  <b>Fabricar leva tempo</b> desde o D-272: uma linha de montagem por Quartel, as unidades saem uma a uma,
+  <?= (int) $guerraCfg->fabricacao_minutos_por_nivel ?> min × o nível de cada (parâmetro do operador; zero é instantâneo).
   <br><br>
   <b>Robô Minerador</b> defende a própria zona onde já trabalha, improvisado (§27.2): defesa
   <b>25% da Sentinela</b>, ataque zero. <b>Infiltrador</b> e <b>Predador</b> têm custo publicado,
@@ -3403,7 +3420,9 @@ $labMax = max(array_keys($porTipo['laboratorio'] ?? [5 => null]));
   <b>Estrutura de Sobrevivência</b> abriga (§13.1), o <b>Laboratório</b> abre a pesquisa, a
   <b>Torre de Defesa</b> corta o saque do cerco de colônia (§8.13) e o <b>Tanque de Combustível</b>
   trava a Destilaria — sem ele ela não converte. A §4.1 já sai corrigida, porque é lida do mesmo
-  catálogo que a tela lê. A Antena e a Plataforma continuam inertes de verdade.
+  catálogo que a tela lê. A <b>Antena</b> ganhou função no D-271 — avisa os eventos do mundo antes de
+  começarem, 12 horas por nível —, e a <b>Plataforma de Pouso</b> continua inerte de verdade, à espera da
+  nave que ela guardaria (D-273).
 </div>
 
 <div class="nota grave">
@@ -3840,8 +3859,8 @@ if ($semFrase !== []) {
   <tr><th>Assunto</th><th>O que falta</th><th>O que ele trava</th></tr>
   <tr>
     <td><b>Cargueiro Interplanetário / Espaçoporto</b></td>
-    <td>Aberto desde o D-263 em Kalidor, Veyra e Auryn (§5.8). Falta o desenho do <b>risco</b> (Drakmoor fica fechado por isso), do <b>imposto</b> interplanetário e do <b>portão por ciência</b> de Solène</td>
-    <td>Dois dos cinco planetas. E o cargo de <b>Atendente do Espaçoporto</b> (§7.4, D-130), sem salário publicado</td>
+    <td>Os cinco planetas abertos desde o D-269, com imposto, risco e portão (§5.8). Falta só o que a v3.2 chama de temporada: escolta e seguro de carga</td>
+    <td>Nada do ciclo básico. As missões de reconhecimento ficam de fora até o primeiro teste com jogadores (D-273)</td>
   </tr>
   <tr>
     <td><b>Os 8 minerais eletrônicos</b></td>
