@@ -1089,6 +1089,21 @@ export type PlanetaNpc = {
   compra: Record<string, number>
   /** O que o planeta COBRA por unidade que você traz (micro-Fert$). */
   venda: Record<string, number>
+  /** D-269: a chance de sinistro na viagem e quanto da carga ele leva, em bps. */
+  risco_chance_bps: number
+  risco_perda_bps: number
+  /** D-269: o portão deste planeta, somado ao do Cargueiro. */
+  portao: PortaoEspacoporto
+}
+
+export type PortaoEspacoporto = {
+  pode: boolean
+  marco: number
+  marco_exigido: number
+  dias: number
+  dias_exigidos: number
+  tecnologia: string | null
+  falta: string | null
 }
 
 export type ContratoDeRota = {
@@ -1100,6 +1115,10 @@ export type ContratoDeRota = {
   aluguel_micro: number
   parte_em: string
   chega_em: string
+  /** D-269: nulo enquanto no ar; 0 chegou inteiro; >0 quanto da carga o sinistro levou (bps). */
+  sinistro_bps: number | null
+  imposto_importacao_micro: number
+  imposto_venda_micro: number | null
 }
 
 export type EstadoEspacoporto = {
@@ -1109,7 +1128,7 @@ export type EstadoEspacoporto = {
   capacidade_unidades: number | null
   cargueiros: number | null
   cargueiros_livres: number
-  portao: { pode: boolean; marco: number; marco_exigido: number; dias: number; dias_exigidos: number }
+  portao: PortaoEspacoporto
   planetas: PlanetaNpc[]
   contratos: ContratoDeRota[]
 }

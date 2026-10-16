@@ -652,6 +652,11 @@ class AcoesController extends Controller
             'aberto' => ['nullable', 'boolean'],
             'distancia_minutos' => ['required', 'integer', 'min:1', 'max:100000'],
             'precos' => ['nullable', 'string', 'max:5000'],
+            // D-269: o risco (em %) e o portão do planeta. Ausentes no formulário, não mudam.
+            'risco_chance' => ['nullable', 'numeric', 'min:0', 'max:100'],
+            'risco_perda' => ['nullable', 'numeric', 'min:0', 'max:100'],
+            'marco_exigido' => ['nullable', 'integer', 'min:1', 'max:100'],
+            'tecnologia_exigida' => ['nullable', 'string', 'exists:technologies,chave'],
         ]);
 
         $codigos = DB::table('resource_types')->pluck('code')->all();
@@ -683,7 +688,12 @@ class AcoesController extends Controller
                 $planeta->update([
                     'aberto' => (bool) ($dados['aberto'] ?? false),
                     'distancia_minutos' => (int) $dados['distancia_minutos'],
-                ]);
+                ] + (array_key_exists('risco_chance', $dados) ? [
+                    'risco_chance_bps' => (int) round((float) ($dados['risco_chance'] ?? 0) * 100),
+                    'risco_perda_bps' => (int) round((float) ($dados['risco_perda'] ?? 0) * 100),
+                    'marco_exigido' => ($dados['marco_exigido'] ?? null) ?: null,
+                    'tecnologia_exigida' => ($dados['tecnologia_exigida'] ?? null) ?: null,
+                ] : []));
 
                 // A tabela de preços é reescrita inteira: o formulário é a lista, e o que saiu dela
                 // deixa de ser negociado. Contrato em viagem não muda — o preço dele foi travado.

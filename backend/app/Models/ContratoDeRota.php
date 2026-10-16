@@ -21,12 +21,16 @@ class ContratoDeRota extends Model
     protected $fillable = [
         'colony_id', 'planeta_npc_id', 'status', 'venda', 'compra', 'aluguel_micro',
         'parte_em', 'chega_em', 'concluido_em',
+        'sinistro_bps', 'imposto_importacao_micro', 'imposto_venda_micro',
     ];
 
     protected $casts = [
         'venda' => 'array',
         'compra' => 'array',
         'aluguel_micro' => 'integer',
+        'sinistro_bps' => 'integer',
+        'imposto_importacao_micro' => 'integer',
+        'imposto_venda_micro' => 'integer',
         'parte_em' => 'datetime',
         'chega_em' => 'datetime',
         'concluido_em' => 'datetime',

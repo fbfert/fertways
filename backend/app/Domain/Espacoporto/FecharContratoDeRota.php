@@ -27,12 +27,18 @@ use Illuminate\Support\Facades\DB;
  * As duas últimas atravessam a fronteira do mundo, e é por isso que os preços são do operador e nascem
  * vazios: um preço de venda alto demais é uma torneira de Fert$ que nenhum outro sistema tem.
  *
- * ⚠️ **Sem imposto sobre a carga interplanetária**: o §25 cobra na entrega física entre donos do
- * planeta, e nenhum documento diz o que vale para um planeta NPC. Lacuna, não zero escolhido.
+ * ## O imposto (D-269)
+ *
+ * A encomenda paga, na partida, o imposto de importação — a alíquota do recurso sobre o valor, a mesma
+ * régua do Mercado (ver `ImpostoInterplanetario`). A venda paga o dela na volta, sobre o que chegou.
  */
 class FecharContratoDeRota
 {
-    public function __construct(private readonly Espacoporto $espacoporto, private readonly Tesouro $tesouro) {}
+    public function __construct(
+        private readonly Espacoporto $espacoporto,
+        private readonly Tesouro $tesouro,
+        private readonly ImpostoInterplanetario $imposto,
+    ) {}
 
     /**
      * @param  array<string,int>  $venda  recurso => quantidade que o colono leva
@@ -59,6 +65,12 @@ class FecharContratoDeRota
                     "O Cargueiro abre no marco {$portao['marco_exigido']}, com {$portao['dias_exigidos']} dias de colônia (§05). "
                     ."Você está no marco {$portao['marco']}, com {$portao['dias']} dia(s).",
                 );
+            }
+
+            // D-269: o portão do planeta, além do do Cargueiro.
+            $doPlaneta = $this->espacoporto->portao($colonia, $planeta);
+            if (! $doPlaneta['pode']) {
+                throw new DomainRuleException('portao_do_planeta', "{$planeta->nome}: {$doPlaneta['falta']}");
             }
 
             // O Governo é o operador exclusivo (§16.2): a frota é finita, e os contratos também.
@@ -96,12 +108,14 @@ class FecharContratoDeRota
 
             $aluguel = (int) $config->aluguel_micro;
             $custoDaCompra = array_sum(array_map(fn ($p) => $p['qtd'] * $p['preco_micro'], $pernaCompra));
+            $agora = now();
+            $importacao = $this->imposto->sobre($colonia, $pernaCompra, $agora);
+            $impostoDaCompra = array_sum(array_column($importacao, 'imposto'));
 
-            if ((int) $colonia->fert_micro < $aluguel + $custoDaCompra) {
-                throw new DomainRuleException('fert_insuficiente', 'Falta Fert$ para o aluguel e a encomenda.');
+            if ((int) $colonia->fert_micro < $aluguel + $custoDaCompra + $impostoDaCompra) {
+                throw new DomainRuleException('fert_insuficiente', 'Falta Fert$ para o aluguel, a encomenda e o imposto de importação.');
             }
 
-            $agora = now();
             $ref = "espacoporto:{$planeta->chave}";
 
             foreach ($venda as $recurso => $qtd) {
@@ -112,7 +126,7 @@ class FecharContratoDeRota
                 ]);
             }
 
-            $colonia->decrement('fert_micro', $aluguel + $custoDaCompra);
+            $colonia->decrement('fert_micro', $aluguel + $custoDaCompra + $impostoDaCompra);
 
             if ($aluguel > 0) {
                 $this->tesouro->creditarFert($aluguel, "espacoporto_aluguel:{$colonia->id}");
@@ -129,7 +143,7 @@ class FecharContratoDeRota
                 ]);
             }
 
-            return ContratoDeRota::create([
+            $contrato = ContratoDeRota::create([
                 'colony_id' => $colonia->id,
                 'planeta_npc_id' => $planeta->id,
                 'status' => ContratoDeRota::EM_VIAGEM,
@@ -140,7 +154,22 @@ class FecharContratoDeRota
                 // A distância do planeta é o contrato inteiro: o GDD dá um tempo por planeta, e não
                 // um de ida e outro de volta. "Possui previsão de chegada" (v3.2 §11).
                 'chega_em' => $agora->copy()->addMinutes((int) $planeta->distancia_minutos),
+                'imposto_importacao_micro' => $impostoDaCompra,
             ]);
+
+            if ($impostoDaCompra > 0) {
+                $this->tesouro->creditarFert($impostoDaCompra, "espacoporto_importacao:{$contrato->id}");
+                Ledger::create([
+                    'colony_id' => $colonia->id, 'type' => 'espacoporto_imposto', 'amount' => -$impostoDaCompra,
+                    'resource_type' => null, 'ref' => $ref, 'created_at' => $agora,
+                ]);
+            }
+
+            foreach ($importacao as $recurso => $linha) {
+                $this->imposto->registrar('espacoporto_importacao', "rota:{$contrato->id}:compra:{$recurso}", $colonia, $recurso, $linha, $agora);
+            }
+
+            return $contrato;
         });
     }
 

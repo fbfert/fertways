@@ -30,8 +30,11 @@ class EspacoportoPartidaSeeder extends Seeder
 
     private const VENDA = 1.25;
 
-    /** Kalidor, Veyra e Auryn abrem; Solène ("por ciência") e Drakmoor (risco alto) não. */
-    private const ABREM = ['kalidor', 'veyra', 'auryn'];
+    /**
+     * Kalidor, Veyra e Auryn abriram no D-263; Solène e Drakmoor, no D-269 — quando o portão "por
+     * ciência" e o risco alto ganharam mecânica.
+     */
+    private const ABREM = ['kalidor', 'veyra', 'auryn', 'solene', 'drakmoor'];
 
     /** @return array<string, array{compra: list<string>, venda: list<string>}> */
     private function mapa(): array

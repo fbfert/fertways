@@ -50,6 +50,9 @@ class EspacoportoTest extends TestCase
         DB::table('espacoporto_settings')->where('id', 1)->update([
             'ativo' => false, 'aluguel_micro' => null, 'capacidade_unidades' => null, 'cargueiros' => null,
         ]);
+
+        // As contas daqui são as do mecanismo; o imposto da carga (D-269) tem o teste dele.
+        DB::table('resource_types')->whereIn('code', ['agua', 'metal_bruto'])->update(['tax_bps' => 0]);
     }
 
     private int $proximo = 0;

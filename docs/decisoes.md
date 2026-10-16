@@ -14640,3 +14640,32 @@ consciente, não lacuna", "que é exatamente o que a frase do GDD descreve") —
 jogador como os oito do D-266. Sem arte local, a revisão não julga as imagens, só layout e texto.
 
 1467 testes verdes, `npm run build` limpo.
+
+---
+
+## D-269 — A carga interplanetária: imposto, risco e portão por planeta
+
+**Data:** 2026-10-15 · **Status:** decidido pelo usuário ("siga suas recomendações") · commit, deploy pendente
+
+O D-262 deixou três lacunas escritas no código do Espaçoporto. As três viram regra:
+
+- **Imposto** — a mesma régua do Mercado Central, sem alíquota nova: a do recurso
+  (`resource_types.tax_bps`), sobre o valor, mexida pelos eventos de taxa e pelo desconto de tributo
+  das peças da Endurance (que são, quase todas, de alfândega). As duas pernas pagam, e quem paga é o
+  colono: a **encomenda** na partida (`espacoporto_importacao`, entra na conta do "falta Fert$"), a
+  **venda** na volta, sobre o que o planeta pagou (`espacoporto_venda`). Tudo ao Tesouro. Sem isto, o
+  Espaçoporto seria o único comércio livre de tributo do jogo.
+- **Risco** — o §03 dá palavras; viram um sinistro sorteado uma vez por viagem (a moeda da guerra,
+  `Sorteio`), que leva a mesma fração das duas pernas. O planeta paga só o que chegou; da encomenda
+  chega o resto; o pago não volta. **Auryn (baixo): 10% de chance, leva 20%. Drakmoor (alto): 30%,
+  leva 50%.** Os outros, nenhum.
+- **Portão por planeta** — soma-se ao do Cargueiro (marco 20, 10 dias). **Auryn** "por marco":
+  marco 25. **Solène** "por ciência": a pesquisa Método Experimental concluída. **Drakmoor**
+  "tardio": marco 35 (Construtor). A tela diz, por planeta, o que falta.
+
+Com portão e risco, **Solène e Drakmoor abrem** (a partida do D-263 já os precificou; a migration só
+abre planeta que tem preço). Risco e portão são números do operador, no painel (Transportes →
+Espaçoporto, por planeta). A tela mostra o risco em número, o portão, o imposto pago e as últimas
+viagens com o sinistro, se houve.
+
+Migration `2026_10_16_400000_carga_interplanetaria` (testada nos dois sentidos sobre a partida do D-263).

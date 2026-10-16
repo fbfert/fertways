@@ -44,10 +44,11 @@ class EspacoportoPartidaTest extends TestCase
         $this->assertSame(2, (int) $c->cargueiros);
     }
 
-    public function test_abrem_kalidor_veyra_e_auryn_e_ficam_fechados_solene_e_drakmoor(): void
+    /** O D-263 abriu três; o D-269 abriu Solène e Drakmoor, quando o portão e o risco ganharam mecânica. */
+    public function test_numa_instalacao_nova_abrem_os_cinco(): void
     {
         $this->assertSame(
-            ['Kalidor' => true, 'Veyra' => true, 'Auryn' => true, 'Solène' => false, 'Drakmoor' => false],
+            ['Kalidor' => true, 'Veyra' => true, 'Auryn' => true, 'Solène' => true, 'Drakmoor' => true],
             PlanetaNpc::orderBy('ordem')->pluck('aberto', 'nome')->map(fn ($a) => (bool) $a)->all(),
         );
     }

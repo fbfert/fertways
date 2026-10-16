@@ -49,18 +49,43 @@ class Espacoporto
             - ContratoDeRota::where('status', ContratoDeRota::EM_VIAGEM)->count());
     }
 
-    /** @return array{pode:bool, marco:int, marco_exigido:int, dias:int, dias_exigidos:int} */
-    public function portao(Colony $colonia): array
+    /**
+     * O portão: o do Cargueiro (§05), e — se vier um planeta — o dele também (D-269). O marco que
+     * vale é o maior dos dois; a tecnologia, quando o planeta pede, é a mais.
+     *
+     * @return array{pode:bool, marco:int, marco_exigido:int, dias:int, dias_exigidos:int, tecnologia:?string, falta:?string}
+     */
+    public function portao(Colony $colonia, ?PlanetaNpc $planeta = null): array
     {
         $marco = Curva::marco((int) $colonia->xp);
         $dias = (int) floor($colonia->created_at->diffInDays(now()));
+        $marcoExigido = max(self::MARCO_DO_CARGUEIRO, (int) ($planeta?->marco_exigido ?? 0));
+
+        $tecnologia = null;
+        $temTecnologia = true;
+        if ($planeta?->tecnologia_exigida) {
+            $tec = DB::table('technologies')->where('chave', $planeta->tecnologia_exigida)->first(['id', 'nome']);
+            $tecnologia = $tec->nome ?? $planeta->tecnologia_exigida;
+            $temTecnologia = $tec !== null && DB::table('colony_technologies')
+                ->where('colony_id', $colonia->id)->where('technology_id', $tec->id)
+                ->where('status', 'concluida')->exists();
+        }
+
+        $falta = match (true) {
+            $marco < $marcoExigido => "Pede o marco {$marcoExigido} — você está no {$marco}.",
+            $dias < self::DIAS_DO_CARGUEIRO => 'Pede '.self::DIAS_DO_CARGUEIRO." dias de colônia — você tem {$dias}.",
+            ! $temTecnologia => "Pede a pesquisa {$tecnologia}, concluída no seu Laboratório.",
+            default => null,
+        };
 
         return [
-            'pode' => $marco >= self::MARCO_DO_CARGUEIRO && $dias >= self::DIAS_DO_CARGUEIRO,
+            'pode' => $falta === null,
             'marco' => $marco,
-            'marco_exigido' => self::MARCO_DO_CARGUEIRO,
+            'marco_exigido' => $marcoExigido,
             'dias' => $dias,
             'dias_exigidos' => self::DIAS_DO_CARGUEIRO,
+            'tecnologia' => $tecnologia,
+            'falta' => $falta,
         ];
     }
 
@@ -83,6 +108,10 @@ class Espacoporto
                 'nome' => $p->nome,
                 'distancia_minutos' => $p->distancia_minutos,
                 'risco' => $p->risco,
+                // D-269: o risco em número e o portão deste planeta, ditos antes do aluguel.
+                'risco_chance_bps' => (int) $p->risco_chance_bps,
+                'risco_perda_bps' => (int) $p->risco_perda_bps,
+                'portao' => $this->portao($colonia, $p),
                 'exporta' => $p->exporta,
                 'importa' => $p->importa,
                 'aberto' => $p->aberto,
@@ -100,6 +129,9 @@ class Espacoporto
                     'venda' => $k->venda,
                     'compra' => $k->compra,
                     'aluguel_micro' => $k->aluguel_micro,
+                    'sinistro_bps' => $k->sinistro_bps,
+                    'imposto_importacao_micro' => (int) $k->imposto_importacao_micro,
+                    'imposto_venda_micro' => $k->imposto_venda_micro,
                     'parte_em' => $k->parte_em->toIso8601String(),
                     'chega_em' => $k->chega_em->toIso8601String(),
                 ]),

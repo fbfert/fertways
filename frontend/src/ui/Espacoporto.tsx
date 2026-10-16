@@ -15,6 +15,8 @@ import { Botao } from './sistema'
 const fert = (micro: number) =>
   (micro / 1_000_000).toLocaleString('pt-BR', { maximumFractionDigits: 6 })
 
+const pct = (bps: number) => `${(bps / 100).toLocaleString('pt-BR')}%`
+
 const horas = (min: number) =>
   min >= 60 ? `${(min / 60).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} h` : `${min} min`
 
@@ -40,6 +42,7 @@ export function Espacoporto() {
   if (!estado) return <p className="text-ink-soft mt-5 text-sm">Abrindo o Espaçoporto…</p>
 
   const emViagem = estado.contratos.filter((k) => k.status === 'em_viagem')
+  const voltaram = estado.contratos.filter((k) => k.status === 'concluido').slice(0, 5)
 
   return (
     <div className="mt-5 space-y-5" data-tela="espacoporto">
@@ -83,14 +86,35 @@ export function Espacoporto() {
         </section>
       )}
 
+      {voltaram.length > 0 && (
+        <section>
+          <h3 className="text-ink font-black">Últimas viagens</h3>
+          <ul className="mt-2 space-y-1 text-sm">
+            {voltaram.map((k) => (
+              <li key={k.id} className="text-ink-soft" data-viagem-concluida={k.id}>
+                <b className="text-ink">{k.planeta}</b> —{' '}
+                {(k.sinistro_bps ?? 0) > 0 ? (
+                  <span className="text-rust font-bold">
+                    sinistro na viagem: perdeu {pct(k.sinistro_bps ?? 0)} da carga
+                  </span>
+                ) : (
+                  'chegou inteiro'
+                )}
+                . Imposto: {fert(k.imposto_importacao_micro + (k.imposto_venda_micro ?? 0))} Fert$.
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
       <section>
-        <h3 className="text-ink font-black">Os cinco planetas NPC</h3>
+        <h3 className="text-ink font-black">Os cinco planetas</h3>
         <ul className="mt-3 space-y-2">
           {estado.planetas.map((p) => (
             <Planeta
               key={p.chave}
               planeta={p}
-              podeContratar={estado.ligado && estado.portao.pode && estado.cargueiros_livres > 0}
+              podeContratar={estado.ligado && p.portao.pode && estado.cargueiros_livres > 0}
               capacidade={estado.capacidade_unidades ?? 0}
               aoContratar={async (venda, compra) => {
                 try {
@@ -106,9 +130,10 @@ export function Espacoporto() {
         </ul>
       </section>
 
-      <p className="text-ink-soft/60 text-xs">
-        O risco de Drakmoor ainda não tem efeito no jogo — escolta e seguro de carga são mecânicas de
-        temporada (GDD v3.2). E novos planetas, descobertos por missões de reconhecimento, também não.
+      <p className="text-ink-soft/60 text-xs" data-imposto-interplanetario>
+        A carga paga imposto como no Mercado Central: a encomenda, na partida; a venda, na volta, sobre o
+        que o planeta pagou. As peças de alfândega da Endurance dão desconto. Nos planetas com risco, um
+        sinistro na viagem pode levar parte da carga das duas pernas — o que se pagou não volta.
       </p>
     </div>
   )
@@ -122,6 +147,7 @@ function Viagem({ contrato: k }: { contrato: ContratoDeRota }) {
     <li className="text-ink-soft" data-contrato={k.id}>
       <b className="text-ink">{k.planeta}</b> — leva {leva.join(', ') || 'nada'}, traz{' '}
       {traz.join(', ') || 'nada'}. Pousa em {dataHumana(k.chega_em)}.
+      {k.imposto_importacao_micro > 0 && ` Imposto de importação pago: ${fert(k.imposto_importacao_micro)} Fert$.`}
     </li>
   )
 }
@@ -155,6 +181,16 @@ function Planeta({
       <div className="text-ink-soft/80 mt-1 text-xs">
         <b>Exporta:</b> {p.exporta} · <b>Importa:</b> {p.importa}
       </div>
+      {p.risco_chance_bps > 0 && (
+        <div className="text-ink-soft mt-1 text-xs" data-risco={p.chave}>
+          Em {pct(p.risco_chance_bps)} das viagens há sinistro, e ele leva {pct(p.risco_perda_bps)} da carga.
+        </div>
+      )}
+      {p.aberto && !p.portao.pode && p.portao.falta && (
+        <div className="text-rust mt-1 text-xs" data-portao-planeta={p.chave}>
+          {p.portao.falta}
+        </div>
+      )}
 
       {!aberto ? (
         <div className="text-ink-soft/60 mt-2 text-xs">Rota fechada.</div>

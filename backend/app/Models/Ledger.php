@@ -130,6 +130,7 @@ class Ledger extends Model
         'espacoporto_aluguel',
         'espacoporto_venda',
         'espacoporto_compra',
+        'espacoporto_imposto', // D-269: o imposto de importação, na partida
     ];
 
     public function colony(): BelongsTo

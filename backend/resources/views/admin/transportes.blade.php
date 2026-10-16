@@ -418,6 +418,21 @@
                             <input type="number" min="1" name="distancia_minutos" value="{{ $p->distancia_minutos }}" required style="width:90px">
                         </div>
                         <div style="flex:0">
+                            <label>Sinistro: chance / perda (%)</label>
+                            <input type="number" step="0.1" min="0" max="100" name="risco_chance" value="{{ $p->risco_chance_bps / 100 }}" style="width:60px">
+                            <input type="number" step="0.1" min="0" max="100" name="risco_perda" value="{{ $p->risco_perda_bps / 100 }}" style="width:60px">
+                        </div>
+                        <div style="flex:0">
+                            <label>Portão: marco / pesquisa</label>
+                            <input type="number" min="1" max="100" name="marco_exigido" value="{{ $p->marco_exigido }}" placeholder="20" style="width:60px">
+                            <select name="tecnologia_exigida">
+                                <option value="">—</option>
+                                @foreach (\Illuminate\Support\Facades\DB::table('technologies')->orderBy('nome')->get(['chave', 'nome']) as $t)
+                                    <option value="{{ $t->chave }}" @selected($p->tecnologia_exigida === $t->chave)>{{ $t->nome }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div style="flex:0">
                             <label>Preços</label>
                             <textarea name="precos" rows="3" style="width:240px">{{ $precosEmTexto($p) }}</textarea>
                         </div>

@@ -10,12 +10,16 @@ class PlanetaNpc extends Model
 {
     protected $table = 'planetas_npc';
 
-    protected $fillable = ['nome', 'distancia_minutos', 'risco', 'exporta', 'importa', 'aberto', 'ordem'];
+    protected $fillable = ['nome', 'distancia_minutos', 'risco', 'exporta', 'importa', 'aberto', 'ordem',
+        'risco_chance_bps', 'risco_perda_bps', 'marco_exigido', 'tecnologia_exigida'];
 
     protected $casts = [
         'distancia_minutos' => 'integer',
         'aberto' => 'boolean',
         'ordem' => 'integer',
+        'risco_chance_bps' => 'integer',
+        'risco_perda_bps' => 'integer',
+        'marco_exigido' => 'integer',
     ];
 
     public function precos(): HasMany
