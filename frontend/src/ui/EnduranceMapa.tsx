@@ -5,7 +5,7 @@ import { carregarArte } from '../game/arte'
 import type { Arte } from '../game/arte'
 import { ControlesDeZoom } from '../game/ControlesDeZoom'
 import { transformar, useVista } from '../game/vista'
-import { rotuloDoLote } from './LojaDaEndurance'
+import { rotuloDoLote } from './loteDeEvento'
 import { prazoHumano, segundosRestantes } from './recursos'
 
 /**

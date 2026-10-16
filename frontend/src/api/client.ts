@@ -434,6 +434,10 @@ export type ZonaNeutra = {
   status: string
   owner: { id: number; name: string; user_id: number } | null
   mine: boolean
+  /** D-276: a zona está sitiada agora (§28.10). Público — o cerco fecha as rotas à vista de todos. */
+  cercada: boolean
+  /** D-276: há batalha em curso nela agora. Público; a marcha a caminho, não (é da Torre, D-67). */
+  em_combate: boolean
   /**
    * Os dois únicos segredos do interior (D-74): null = névoa, não zero. Zero é um fato ("está
    * indefesa"); null é a honestidade de não saber. Mande um Drone.

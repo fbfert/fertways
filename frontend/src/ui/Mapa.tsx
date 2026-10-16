@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api, ApiError } from '../api/client'
 import type {
+  Combate,
   ColoniaVizinha,
   Diretorio,
   RequisitosDeOcupacao,
@@ -12,7 +13,7 @@ import type {
 } from '../api/client'
 import { CelulaSobOCursor, Faixas, Grade, Planeta, Reguas } from './Grade'
 import { InfoJogador } from './InfoJogador'
-import { nomeRecurso } from './recursos'
+import { nomeRecurso, prazoHumano, segundosRestantes } from './recursos'
 import {
   JANELA_PADRAO,
   LADO_SVG,
@@ -127,6 +128,14 @@ export function Mapa({
   const [dir, setDir] = useState<Diretorio | null>(null)
   const [zonas, setZonas] = useState<ZonaNeutra[]>([])
   const [frota, setFrota] = useState<Veiculo[]>([])
+  /*
+   * D-276 (A2.V4): as batalhas desta colônia — as marchas dela (trajetos) e os ataques contra ela
+   * que a Torre já deixa ver (ameaças). Do `/war/combats`, que aplica a regra da Torre (D-67): o
+   * mapa nunca mostra uma ameaça que o Quartel ainda não mostraria.
+   */
+  const [combates, setCombates] = useState<Combate[]>([])
+  // Os prazos ("chega em 20 min") envelhecem: um tique a cada 30 s redesenha, e a cada 2 recarrega.
+  const [tique, setTique] = useState(0)
   const [erro, setErro] = useState<string | null>(null)
   const [selecao, setSelecao] = useState<Selecao>(null)
   const [infoAberta, setInfoAberta] = useState<number | null>(null)
@@ -187,10 +196,17 @@ export function Mapa({
 
   const recarregar = useCallback(async () => {
     try {
-      const [d, z, f] = await Promise.all([api.colonias(), api.zonas(), api.frota()])
+      const [d, z, f, c] = await Promise.all([
+        api.colonias(),
+        api.zonas(),
+        api.frota(),
+        // `catch` próprio: o mapa é navegação, e uma falha da guerra não pode apagar o planeta.
+        api.combates().catch(() => ({ combats: [] as Combate[] })),
+      ])
       setDir(d)
       setZonas(z.zones)
       setFrota(f.vehicles)
+      setCombates(c.combats)
     } catch (e) {
       setErro(e instanceof ApiError ? e.message : 'Falha ao carregar o mapa.')
     }
@@ -199,6 +215,17 @@ export function Mapa({
   useEffect(() => {
     void recarregar()
   }, [recarregar])
+
+  useEffect(() => {
+    const t = setInterval(() => setTique((n) => n + 1), 30_000)
+
+    return () => clearInterval(t)
+  }, [])
+
+  useEffect(() => {
+    // Só quando há batalha a acompanhar: um planeta em paz não precisa de recarga nenhuma.
+    if (tique > 0 && tique % 2 === 0 && combates.length > 0) void recarregar()
+  }, [tique, combates.length, recarregar])
 
   const proj = useMemo(() => projecaoDoPlaneta(dir?.side ?? 1), [dir?.side])
 
@@ -423,6 +450,7 @@ export function Mapa({
                 vista={vista}
                 tamanhoSvg={tamanhoSvg}
                 zonas={zonas}
+                combates={combates}
                 selecao={selecao}
                 cursor={cursor}
                 pegando={pegando}
@@ -612,6 +640,7 @@ function Desenho({
   vista,
   tamanhoSvg,
   zonas,
+  combates,
   selecao,
   cursor,
   pegando,
@@ -629,6 +658,7 @@ function Desenho({
   /** O tamanho de tela do SVG (D-156) — antes da primeira medição, {0,0} (janela quadrada). */
   tamanhoSvg: { largura: number; altura: number }
   zonas: ZonaNeutra[]
+  combates: Combate[]
   selecao: Selecao
   cursor: { x: number; y: number } | null
   pegando: boolean
@@ -708,9 +738,55 @@ function Desenho({
             <title>
               {z.name ?? `Zona ${DISTRITO[z.district]}`} ({z.x}, {z.y}) — {MINERAL[z.mineral] ?? z.mineral}
               {z.owner ? ` · ${z.owner.name}` : ' · livre'}
+              {z.cercada ? ' · sob cerco' : ''}
+              {z.em_combate ? ' · em batalha' : ''}
             </title>
           </rect>
         ))}
+
+        {/*
+         * ⚠️ **Os estados territoriais** (A2.V4, D-276) — o que a V4 esperava desde agosto.
+         *
+         * Cada estado tem FORMA própria, além da cor (regra da A2.V1): o cerco é um anel tracejado em
+         * volta da zona (ela está fechada por fora), a batalha é um X sobre ela. Os dois juntos — o
+         * cerco é uma batalha — desenham anel e X. Sem clique: o quadrado de baixo continua sendo o
+         * alvo, e o `<title>` dele diz o estado por extenso.
+         */}
+        {zonas
+          .filter((z) => z.cercada || z.em_combate)
+          .map((z) => {
+            const x = proj.px(z.x)
+            const y = proj.py(z.y)
+            const b = rZona * 1.5
+
+            return (
+              <g
+                key={`estado${z.id}`}
+                pointerEvents="none"
+                data-zona-estado={z.id}
+                data-cercada={z.cercada ? '1' : undefined}
+                data-em-combate={z.em_combate ? '1' : undefined}
+              >
+                {z.cercada && (
+                  <circle
+                    cx={x}
+                    cy={y}
+                    r={rZona * 2.2}
+                    fill="none"
+                    stroke="var(--color-perigo)"
+                    strokeWidth={2 * k}
+                    strokeDasharray={`${4 * k} ${3 * k}`}
+                  />
+                )}
+                {z.em_combate && (
+                  <>
+                    <line x1={x - b} y1={y - b} x2={x + b} y2={y + b} stroke="var(--color-perigo)" strokeWidth={2.5 * k} />
+                    <line x1={x - b} y1={y + b} x2={x + b} y2={y - b} stroke="var(--color-perigo)" strokeWidth={2.5 * k} />
+                  </>
+                )}
+              </g>
+            )
+          })}
 
         {/* A Capital. Losango, para não se confundir com colônia nenhuma. */}
         <rect
@@ -779,6 +855,55 @@ function Desenho({
         >
           <title>{dir.me.name} — você</title>
         </circle>
+
+        {/*
+         * Os trajetos e as ameaças (A2.V4, D-276). A SUA marcha é um pontilhado da sua colônia até a
+         * zona — diferente do tracejado da seleção, que é só a régua do frete. O ataque contra você
+         * não tem linha: o `/war/combats` não diz de onde ele vem, e inventar a origem seria mentir
+         * sobre o que a Torre viu. Tem o aviso escrito em cima da zona, com o tempo que falta.
+         */}
+        {combates.map((c) => {
+          const x = proj.px(c.zona.x)
+          const y = proj.py(c.zona.y)
+          const meu = c.sou_o_atacante
+          const rotulo = meu
+            ? c.status === 'marchando'
+              ? `sua marcha · chega em ${prazoHumano(segundosRestantes(c.chega_at))}`
+              : `sua batalha · rodada ${c.rodada}`
+            : c.status === 'marchando'
+              ? `⚠ ataque chega em ${prazoHumano(segundosRestantes(c.chega_at))}`
+              : '⚠ sob ataque'
+
+          return (
+            <g key={`marcha${c.id}`} pointerEvents="none" data-marcha={c.id} data-lado={meu ? 'meu' : 'contra'}>
+              {meu && c.status === 'marchando' && (
+                <line
+                  x1={proj.px(dir.me.x)}
+                  y1={proj.py(dir.me.y)}
+                  x2={x}
+                  y2={y}
+                  stroke="var(--color-info)"
+                  strokeWidth={2 * k}
+                  strokeDasharray={`${1.5 * k} ${4 * k}`}
+                  strokeLinecap="round"
+                />
+              )}
+              <text
+                x={x}
+                y={y - rZona * 2.8}
+                textAnchor="middle"
+                fontSize={12 * k}
+                fontWeight={700}
+                fill={meu ? 'var(--color-info)' : 'var(--color-perigo)'}
+                stroke="var(--color-sand-light)"
+                strokeWidth={3 * k}
+                paintOrder="stroke"
+              >
+                {rotulo}
+              </text>
+            </g>
+          )
+        })}
 
         {/* A reta até o alvo escolhido: o frete cobra por esta distância. */}
         {selecao && (
@@ -1040,6 +1165,22 @@ function PainelZona({
         {z.mine && <Linha termo="Depósito" valor={`${deposito} / ${z.deposit_cap}`} />}
         {z.mine && <Linha termo="Extração" valor={`${z.extraction_per_hour}/h`} />}
       </dl>
+
+      {/*
+        D-276: o estado territorial também no painel, por extenso. O desenho (anel, X) chama o olho;
+        a frase diz o que fazer — e quem não enxerga a forma (leitor de tela) lê aqui.
+      */}
+      {(z.cercada || z.em_combate) && (
+        <p className="text-perigo mt-2 text-xs font-bold" data-zona-painel-estado>
+          {z.cercada
+            ? z.mine
+              ? 'Sob cerco: nada entra nem sai. Só rompendo o cerco, pelo Quartel.'
+              : 'Sob cerco: nada entra nem sai.'
+            : z.mine
+              ? 'Em batalha agora. Reforços ainda mudam o resultado — pelo Quartel.'
+              : 'Em batalha agora.'}
+        </p>
+      )}
 
       <button onClick={aoFocar} className="text-rust hover:text-rust-bright mt-2 text-xs">
         Focar no mapa
@@ -1335,6 +1476,27 @@ function Legenda() {
       </li>
       <li>
         <span className="bg-rust mr-2 inline-block h-3 w-3 align-middle" /> Zonas de outros
+      </li>
+      {/* D-276: os estados territoriais e os trajetos — a mesma FORMA que o mapa desenha. */}
+      <li>
+        <svg viewBox="0 0 12 12" className="mr-2 inline-block h-3 w-3 align-middle" aria-hidden="true">
+          <rect x="3" y="3" width="6" height="6" fill="var(--color-rust)" />
+          <path d="M1 1 L11 11 M1 11 L11 1" stroke="var(--color-perigo)" strokeWidth="1.5" />
+        </svg>
+        Em batalha
+      </li>
+      <li>
+        <svg viewBox="0 0 12 12" className="mr-2 inline-block h-3 w-3 align-middle" aria-hidden="true">
+          <rect x="4" y="4" width="4" height="4" fill="var(--color-rust)" />
+          <circle cx="6" cy="6" r="5" fill="none" stroke="var(--color-perigo)" strokeWidth="1.2" strokeDasharray="2 1.5" />
+        </svg>
+        Sob cerco
+      </li>
+      <li>
+        <svg viewBox="0 0 12 12" className="mr-2 inline-block h-3 w-3 align-middle" aria-hidden="true">
+          <path d="M0 6 L12 6" stroke="var(--color-info)" strokeWidth="2" strokeDasharray="1 2.5" strokeLinecap="round" />
+        </svg>
+        Sua marcha de ataque
       </li>
       <li>
         <span className="bg-rust/12 border-rust/40 mr-2 inline-block h-3 w-3 border align-middle" />{' '}

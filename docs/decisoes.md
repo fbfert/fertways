@@ -14829,3 +14829,35 @@ As batalhas de antes do D-275 aparecem com o que se sabe: sem contagem e sem cur
 (tudo vive no `resultado` JSON que já existia). Testes: `RelatorioDeBatalhaTest` (6). Fotografado
 no computador e no celular com duas batalhas reais rodadas pelo motor no banco local (uma vitória
 em 11 rodadas e uma derrota em 8) e uma marcha em curso.
+
+---
+
+## D-276 — A2.V4: o mapa mostra a guerra
+
+**Data:** 2026-10-16 · **Status:** entregue (mesma leva do D-274 e do D-275)
+
+A V4 parou em agosto "por falta de jogo" (D-223): ameaças, zonas, trajetos e estados territoriais
+não tinham dado nenhum. O motor sempre existiu, e o banco local agora tem batalha de verdade. A foto
+mostrou que o mapa continuava sem desenhar nada disso: a zona sitiada, a zona em batalha e a zona em
+paz eram o mesmo quadradinho.
+
+- **`/zones` ganha `cercada` e `em_combate`**, os dois públicos: um cerco fecha as rotas à vista de
+  todos (o D-116 até avisa a federação), e uma batalha de duas horas numa zona não é segredo. Uma
+  consulta para o planeta inteiro. **A marcha a caminho NÃO acende `em_combate`**: ela é da Torre de
+  Vigia (D-67), e acendê-la no mapa público daria a qualquer curioso o aviso que o dono paga para ter.
+- **Forma própria para cada estado**, além da cor: o X é batalha e o anel tracejado é cerco (o cerco
+  é uma batalha, e desenha os dois). Linhas novas na legenda com a mesma forma, e o `<title>` e o
+  painel da zona dizem o estado por extenso, com o que fazer.
+- **Trajetos e ameaças** vêm do `/war/combats`, que já aplica a regra da Torre: o mapa nunca mostra
+  uma ameaça que o Quartel ainda não mostraria. A sua marcha é um pontilhado até a zona, com "chega
+  em N min" (o tracejado já era da régua do frete). O ataque contra você é escrito em cima da zona
+  ("⚠ ataque chega em N min", "⚠ sob ataque"), **sem linha**: o jogo não diz de onde ele vem, e
+  inventar a origem seria mentir sobre o que a Torre viu.
+- O mapa redesenha os prazos a cada 30 s e recarrega a cada minuto, só enquanto houver batalha.
+
+Testes: `EstadoTerritorialNoMapaTest` (4). Fotografado no computador e no celular com um cerco real
+contra a zona do veterano e uma marcha dele a caminho. De passagem, `rotuloDoLote` (D-274) saiu do
+arquivo de componente para `ui/loteDeEvento.ts`, por um aviso do oxlint (fast refresh).
+
+**Com isto a revisão visual A2.V fica sem item pendente que tenha dado.** O que sobra do Alpha 2 é o
+que só jogador traz: medir as telas com uso real.

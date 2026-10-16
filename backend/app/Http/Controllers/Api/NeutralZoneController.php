@@ -35,8 +35,16 @@ class NeutralZoneController extends Controller
     {
         $minha = $request->user()->colony()->first();
 
+        /*
+         * D-276 (A2.V4): as zonas onde há batalha AGORA. Uma consulta para o planeta inteiro, e não
+         * uma por zona. Só `em_curso`: a marcha a caminho é da Torre de Vigia (D-67), e acendê-la no
+         * mapa público entregaria a qualquer curioso o aviso que o dono paga para ter.
+         */
+        $emCombate = \App\Models\Combat::where('status', 'em_curso')->whereNotNull('zone_id')
+            ->pluck('zone_id')->flip();
+
         $zonas = NeutralZone::with('owner:id,name,user_id')->orderBy('district')->orderBy('x')->orderBy('y')->get()
-            ->map(function (NeutralZone $z) use ($minha, $avistamentos) {
+            ->map(function (NeutralZone $z) use ($minha, $avistamentos, $emCombate) {
                 $visto = $minha
                     ? $avistamentos->de($minha, $z)
                     // Sem colônia não há drone nem direito a interior nenhum — só o público.
@@ -60,6 +68,10 @@ class NeutralZoneController extends Controller
                     // É o que deixa o mapa abrir a ficha do jogador (e o chat privado) a partir da zona.
                     'owner' => $z->owner ? ['id' => $z->owner->id, 'name' => $z->owner->name, 'user_id' => $z->owner->user_id] : null,
                     'mine' => $mine,
+                    // D-276: os estados territoriais, públicos — um cerco fecha as rotas à vista de
+                    // todos, e uma batalha de duas horas numa zona não é segredo de ninguém.
+                    'cercada' => $z->cercada(),
+                    'em_combate' => $emCombate->has($z->id),
                     // Derivados do nível, que é público — esconder seria teatro: qualquer um calcula.
                     'deposit_cap' => $z->capacidadeDeposito(),
                     'extraction_per_hour' => $z->extracaoPorHora(),

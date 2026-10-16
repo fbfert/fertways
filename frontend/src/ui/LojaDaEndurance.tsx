@@ -2,8 +2,8 @@ import { useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
 import { carregarArte } from '../game/arte'
 import type { Arte } from '../game/arte'
-import type { EfeitoDoItemDaEndurance, ItemDaEndurance, LoteDeEvento } from '../api/client'
-import { prazoHumano, segundosRestantes } from './recursos'
+import type { EfeitoDoItemDaEndurance, ItemDaEndurance } from '../api/client'
+import { rotuloDoLote } from './loteDeEvento'
 
 const ROTULO_TIPO: Record<ItemDaEndurance['tipo'], string> = {
   comum: 'Comum',
@@ -23,15 +23,6 @@ const MOLDURA: Record<ItemDaEndurance['tipo'], string> = {
   unico: 'border-4 border-double border-ember bg-ember/10',
 }
 
-/**
- * O lote de evento dito por extenso (D-274). Sem isto a peça entrava e saía da loja calada, e quem
- * deixasse para comprar amanhã a acharia sumida. O evento secreto abre a porta sem dizer o nome.
- */
-export function rotuloDoLote(lote: LoteDeEvento): string {
-  const quem = lote.nome ? `Lote do evento ${lote.nome}` : 'Lote por tempo limitado'
-
-  return `${quem} · some em ${prazoHumano(segundosRestantes(lote.ate))}`
-}
 
 /** Um efeito em texto legível — o mesmo vocabulário que `admin/endurance.blade.php` já rotula. */
 function rotuloEfeito(e: EfeitoDoItemDaEndurance): string {

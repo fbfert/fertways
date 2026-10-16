@@ -1,4 +1,4 @@
-# Prompt de deploy na VPS — lote D-263 a D-275
+# Prompt de deploy na VPS — lote D-263 a D-276
 
 > Cole o bloco abaixo numa sessão do Claude Code **aberta no servidor**, em
 > `/home/fertways/apps/fertways`. O lote anterior (D-253 a D-262) já está no ar desde `fa1af6b`.
@@ -7,11 +7,11 @@
 ---
 
 ```text
-Vamos publicar em produção o lote D-263 a D-275: o Espaçoporto abre (D-263), a retenção no painel
+Vamos publicar em produção o lote D-263 a D-276: o Espaçoporto abre (D-263), a retenção no painel
 (D-264), as primeiras horas do novato (D-266), a marca de conta da equipe (D-267), a revisão visual
 (D-268), e as pendências do GDD — imposto, risco e portão por planeta com Solène e Drakmoor abrindo
 (D-269), o Atendente do Espaçoporto (D-270), o aviso antecipado da Antena (D-271) e o tempo de
-fabricação de unidades (D-272), a Endurance com identidade visual própria (D-274) e o relatório de batalha (D-275), os dois sem migration.
+fabricação de unidades (D-272), a Endurance com identidade visual própria (D-274), o relatório de batalha (D-275) e a guerra no mapa (D-276), os três sem migration.
 Leia docs/deploy.md e docs/RETOMAR.md antes. Siga a ordem abaixo e pare para me perguntar se
 qualquer conferência falhar — não contorne.
 
@@ -36,7 +36,7 @@ CONTEXTO
 PASSO 1 — Código e suíte
 - cd /home/fertways/apps/fertways; git status limpo; git pull --ff-only origin main.
 - cd backend && sudo -u fertways /usr/bin/php84 /bin/composer install --no-interaction
-- sudo -u fertways /usr/bin/php84 artisan test   → esperado: 1518 verdes.
+- sudo -u fertways /usr/bin/php84 artisan test   → esperado: 1522 verdes.
 - Frontend: export PATH="/usr/local/lib/nodejs/node-v22.12.0-linux-x64/bin:$PATH";
   cd ../frontend && npm ci && npm run build   → limpo.
 
@@ -86,7 +86,7 @@ PASSO 7 — A marca da equipe (NÃO rode sem me perguntar)
   me mostre quantas contas foram marcadas.
 
 PASSO 8 — Fechar
-- Atualize docs/RETOMAR.md (lote D-263 a D-275 no ar, sha, backup, resultado dos passos 3, 6 e 7). Commit e push.
+- Atualize docs/RETOMAR.md (lote D-263 a D-276 no ar, sha, backup, resultado dos passos 3, 6 e 7). Commit e push.
 - Me entregue um resumo curto. Lembre-me de que o Atendente do Espaçoporto só existe depois de
   nomeado: `fertways:cargo-civico <nick> atendente_espacoporto --nomear`.
 ```
