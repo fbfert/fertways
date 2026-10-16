@@ -52,6 +52,8 @@ class WarSetting extends Model
         'torre_defesa_reducao_teto_bps',
         // Decisão 7 (D-260): quantos colonos cada unidade em campo tira da colônia.
         'operadores_por_unidade',
+        // D-272: minutos de linha de montagem por nível de unidade. Zero = instantâneo.
+        'fabricacao_minutos_por_nivel',
     ];
 
     protected $casts = [

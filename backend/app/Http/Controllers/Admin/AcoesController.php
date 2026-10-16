@@ -589,6 +589,8 @@ class AcoesController extends Controller
             'rating_k' => ['nullable', 'integer', 'min:1', 'max:400'],
             // Decisão 7 (D-260): colonos por unidade em campo. Zero desliga a regra.
             'operadores_por_unidade' => ['nullable', 'integer', 'min:0', 'max:20'],
+            // D-272: minutos de linha de montagem por nível de unidade. Zero = instantâneo.
+            'fabricacao_minutos_por_nivel' => ['nullable', 'integer', 'min:0', 'max:1440'],
         ]);
 
         // O que não veio no formulário não muda — `nullable` deixa passar ausente E nulo.

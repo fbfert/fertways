@@ -108,9 +108,19 @@ class WarController extends Controller
             ->flatMap(fn ($porNivel) => $porNivel->flatMap(fn ($custo) => array_keys($custo)))
             ->unique()->values();
 
+        // D-272: a linha de montagem — quantas, por tipo, e quando sai a próxima e a última.
+        $naLinha = Unit::where('colony_id', $colony->id)->where('status', 'em_fabricacao')->orderBy('arrives_at')->get(['type', 'arrives_at']);
+
         return response()->json([
             'quartel_nivel' => $quartel,
             'unidades' => $unidades,
+            'em_fabricacao' => [
+                'total' => $naLinha->count(),
+                'por_tipo' => $naLinha->countBy('type'),
+                'proxima' => $naLinha->first()?->arrives_at?->toIso8601String(),
+                'ultima' => $naLinha->last()?->arrives_at?->toIso8601String(),
+                'minutos_por_nivel' => (int) $config->fabricacao_minutos_por_nivel,
+            ],
             'drones' => $drones,
             'oficina_nivel' => $colony->buildings()->where('type', 'oficina')->value('level') ?? 0,
             'drone_custos' => DroneSpecs::CUSTO,
@@ -132,7 +142,7 @@ class WarController extends Controller
         ]);
     }
 
-    /** Fabrica no Quartel. Instantâneo: o freio é o Nióbio, não o relógio (D-66). */
+    /** Fabrica no Quartel. Desde o D-272, as unidades saem da linha de montagem uma a uma. */
     public function fabricar(Request $request, FabricarUnidade $fabrica): JsonResponse
     {
         $dados = $request->validate([

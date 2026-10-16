@@ -196,7 +196,8 @@ class Funcoes
             // falso desde o D-66. `Domain\Guerra\FabricarUnidade` recruta Sentinela, Robô
             // Minerador, Infiltrador e Predador no Quartel, com custo de `building_specs`.
             'nota' => 'Recruta Sentinela, Robô Minerador, Infiltrador e Predador — consome recurso '
-                .'e credita a unidade (§27.1), desde o D-66. Exige o Quartel nível 1 ou mais.',
+                .'e credita a unidade (§27.1), desde o D-66. As unidades saem da linha de montagem '
+                .'uma a uma, alguns minutos por nível cada (D-272). Exige o Quartel nível 1 ou mais.',
         ],
         'plataforma_de_pouso' => [
             'frase' => 'Hangar onde as Naves de Transporte Planetária ficam estacionadas. Upgrades '

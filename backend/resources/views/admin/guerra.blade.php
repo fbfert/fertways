@@ -349,12 +349,19 @@
                     <input type="number" min="0" max="20" name="operadores_por_unidade"
                            value="{{ $guerra->operadores_por_unidade }}" required style="width:80px">
                 </div>
+                <div style="flex:0">
+                    <label>Fabricação: minutos × nível</label>
+                    <input type="number" min="0" max="1440" name="fabricacao_minutos_por_nivel"
+                           value="{{ $guerra->fabricacao_minutos_por_nivel }}" required style="width:80px">
+                </div>
                 <button type="submit" data-salvar-guerra>Salvar parâmetros</button>
             </div>
             <p class="mut pequeno">
                 O teto do corte não passa de 95%: com 100%, uma Torre alta zeraria o espólio e o cerco
                 de colônia se desligaria sozinho, sem ninguém notar. Os <b>colonos por unidade</b> são a
-                decisão 7 (D-260): a tropa que marcha sai do bolo da colônia, e zero desliga a regra. Os números da declaração saem do
+                decisão 7 (D-260): a tropa que marcha sai do bolo da colônia, e zero desliga a regra.
+                A <b>fabricação</b> (D-272) põe as unidades numa linha de montagem por Quartel, uma a uma,
+                minutos × o nível de cada; zero volta ao instantâneo. Os números da declaração saem do
                 <b>fundo da federação</b>, nunca do bolso de quem clica.
             </p>
         </form>

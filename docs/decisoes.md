@@ -14708,3 +14708,40 @@ colônia com Antena fica sabendo dos eventos do mundo antes de eles começarem �
   lugar do prazo de fim.
 - O catálogo da construção diz o efeito (`avisa`). A construção inerte que resta é a Plataforma de
   Pouso (D-273).
+
+---
+
+## D-272 — Fabricar unidade leva tempo
+
+**Data:** 2026-10-15 · **Status:** decidido pelo usuário ("siga suas recomendações") · commit, deploy pendente
+
+Desde o D-66 a fabricação era instantânea — "o freio do exército é o Nióbio, não o relógio" — e o
+RETOMAR registrava "se ele quiser, é decisão dele". A recomendação: num jogo em que obra, viagem,
+pesquisa e upgrade de veículo levam tempo de verdade, um exército pronto no clique destoa; e um
+ataque montado em um segundo não dá ao alvo tempo nenhum de ver o vizinho se armando.
+
+- **Uma linha de montagem por Quartel**: as unidades saem **uma a uma, 2 minutos × o nível de
+  cada** depois da anterior. Dez Sentinelas nível 1: 20 minutos. Encomenda nova entra no fim da fila.
+- A unidade em fabricação já existe (`status = em_fabricacao`, `arrives_at` = quando fica pronta) e,
+  como toda consulta de tropa filtra `casa`, não ataca, não defende, não marcha. O tick a solta.
+- O número é do operador (`war_settings.fabricacao_minutos_por_nivel`, painel da Guerra); **zero volta
+  ao instantâneo**. A tela do Quartel mostra a linha: quantas, de que tipo, quando sai a próxima e a última.
+- O Nióbio continua sendo o freio principal; o relógio é o segundo.
+
+Migration `2026_10_16_600000_fabricacao_de_unidades_leva_tempo` (o `down` solta prontas as que
+estavam na linha).
+
+---
+
+## D-273 — Duas pendências que ficam de fora, de propósito
+
+**Data:** 2026-10-15 · **Status:** decidido pelo usuário ("siga suas recomendações")
+
+- **A Plataforma de Pouso continua sem efeito.** O GDD a descreve como hangar da Nave de Transporte
+  Planetária ("mais naves", "menos tempo") — e essa nave não existe no jogo. Dar à Plataforma um
+  efeito inventado, sem a nave, seria uma construção que finge servir. Ela continua anunciando que
+  só consome energia, e volta à mesa junto com a nave.
+- **As missões de reconhecimento não serão construídas agora.** O pipeline tem fases e durações
+  publicadas (v3.4 §2), mas o que ele revela — o planeta novo, a taxa, a capacidade — não tem número
+  nenhum. Seria mais sistema sem jogo. Os cinco planetas do §03 estão todos abertos (D-269); um sexto
+  só faz sentido quando os cinco tiverem uso medido. Volta depois do primeiro teste com jogadores.

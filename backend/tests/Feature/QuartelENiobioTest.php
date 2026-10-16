@@ -37,6 +37,9 @@ class QuartelENiobioTest extends TestCase
 
     private function colonoComQuartel(int $nivel = 1): Colony
     {
+        // O que se testa aqui é o Nióbio e o Quartel; o tempo da linha de montagem (D-272) tem o teste dele.
+        WarSetting::singleton()->update(['fabricacao_minutos_por_nivel' => 0]);
+
         $colony = app(CreateColony::class)->handle(User::factory()->create(), 'Base', 20, 20);
         $colony->update(['fert_micro' => 10_000 * 1_000_000]);
 

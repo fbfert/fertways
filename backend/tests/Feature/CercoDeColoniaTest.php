@@ -37,6 +37,8 @@ class CercoDeColoniaTest extends TestCase
     {
         parent::setUp();
         $this->seed(ResourceTypeSeeder::class);
+        // A tropa daqui sai pronta do Quartel: o tempo da linha de montagem (D-272) tem o teste dele.
+        \App\Models\WarSetting::singleton()->update(['fabricacao_minutos_por_nivel' => 0]);
     }
 
     private int $proximo = 0;

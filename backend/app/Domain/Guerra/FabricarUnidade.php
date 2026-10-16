@@ -8,6 +8,7 @@ use App\Models\Building;
 use App\Models\Colony;
 use App\Models\Ledger;
 use App\Models\Unit;
+use App\Models\WarSetting;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -23,8 +24,10 @@ use Illuminate\Support\Facades\DB;
  * Transportes do D-60 (o nível dela é o teto da frota). Sem um teto, um Quartel nível 1 faria
  * Sentinelas nível 5, e os níveis do Quartel não serviriam para nada.
  *
- * **É instantâneo**, e isso não é decisão nova: o Robô Minerador, o Infiltrador e o Predador já
- * tinham `build_time_seconds = 0` desde sempre. O freio do exército é o **Nióbio**, não o relógio.
+ * **Leva tempo desde o D-272.** Era instantâneo ("o freio do exército é o Nióbio, não o relógio"),
+ * e destoava de um jogo em que tudo leva tempo — e um ataque montado no clique não dava ao alvo tempo
+ * de ver nada. Agora há uma linha de montagem por Quartel: as unidades saem uma a uma, cada uma
+ * `fabricacao_minutos_por_nivel` × o nível dela depois da anterior. Zero volta ao instantâneo.
  */
 class FabricarUnidade
 {
@@ -112,16 +115,45 @@ class FabricarUnidade
 
             app(Progresso::class)->registrar($colony->id, 'fabricar_unidade', $quantidade);
 
-            Unit::insert(array_fill(0, $quantidade, [
-                'colony_id' => $colony->id,
-                'zone_id' => null,
-                'type' => $tipo,
-                'level' => $nivel,
-                'hp_bps' => Unit::INTEIRA,
-                'status' => 'casa',
-                'created_at' => $agora,
-                'updated_at' => $agora,
-            ]));
+            $minutos = (int) (WarSetting::singleton()->fabricacao_minutos_por_nivel ?? 0);
+
+            if ($minutos <= 0) {
+                Unit::insert(array_fill(0, $quantidade, [
+                    'colony_id' => $colony->id,
+                    'zone_id' => null,
+                    'type' => $tipo,
+                    'level' => $nivel,
+                    'hp_bps' => Unit::INTEIRA,
+                    'status' => 'casa',
+                    'created_at' => $agora,
+                    'updated_at' => $agora,
+                ]));
+
+                return $quantidade;
+            }
+
+            // Uma linha só: a encomenda nova começa quando a última da fila sai.
+            $fimDaFila = Unit::where('colony_id', $colony->id)->where('status', 'em_fabricacao')->max('arrives_at');
+            $relogio = $fimDaFila ? max($agora->copy(), \Illuminate\Support\Carbon::parse($fimDaFila)) : $agora->copy();
+            $porUnidade = $minutos * $nivel;
+            $linhas = [];
+
+            for ($i = 0; $i < $quantidade; $i++) {
+                $relogio = $relogio->copy()->addMinutes($porUnidade);
+                $linhas[] = [
+                    'colony_id' => $colony->id,
+                    'zone_id' => null,
+                    'type' => $tipo,
+                    'level' => $nivel,
+                    'hp_bps' => Unit::INTEIRA,
+                    'status' => 'em_fabricacao',
+                    'arrives_at' => $relogio,
+                    'created_at' => $agora,
+                    'updated_at' => $agora,
+                ];
+            }
+
+            Unit::insert($linhas);
 
             return $quantidade;
         });

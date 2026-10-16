@@ -338,6 +338,21 @@ export function Quartel() {
       {/* ── a fábrica ─────────────────────────────────────────────────────────────────────── */}
       <section className="painel bg-sand p-4" data-secao="fabricar">
         <h3 className="font-bold">Fabricar</h3>
+        <p className="text-ink-soft mt-1 text-xs">
+          {dados.em_fabricacao.minutos_por_nivel > 0
+            ? `As unidades saem da linha de montagem uma a uma: ${dados.em_fabricacao.minutos_por_nivel} min × o nível de cada.`
+            : 'As unidades saem prontas na hora.'}
+        </p>
+        {dados.em_fabricacao.total > 0 && (
+          <p className="text-ink mt-2 text-sm" data-linha-de-montagem>
+            <b>Na linha de montagem:</b>{' '}
+            {Object.entries(dados.em_fabricacao.por_tipo)
+              .map(([t, n]) => `${n} × ${NOMES[t as keyof typeof NOMES] ?? t}`)
+              .join(', ')}
+            . A próxima sai {dataHumana(dados.em_fabricacao.proxima ?? '')}; a última,{' '}
+            {dataHumana(dados.em_fabricacao.ultima ?? '')}.
+          </p>
+        )}
 
         <div className="mt-3 grid gap-2 sm:grid-cols-2">
           {TIPOS.map((t) => (
@@ -390,7 +405,9 @@ export function Quartel() {
             onClick={() =>
               void agir(async () => {
                 const r = await api.fabricarUnidade(tipo, nivel, quantas)
-                return `${r.fabricadas} × ${NOMES[tipo]} nível ${nivel}.`
+                return dados.em_fabricacao.minutos_por_nivel > 0
+                  ? `${r.fabricadas} × ${NOMES[tipo]} nível ${nivel} na linha de montagem.`
+                  : `${r.fabricadas} × ${NOMES[tipo]} nível ${nivel}.`
               })
             }
           >

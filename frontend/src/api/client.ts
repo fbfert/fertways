@@ -507,6 +507,14 @@ export type Unidade = {
 export type EstadoDaGuerra = {
   quartel_nivel: number
   unidades: Unidade[]
+  /** D-272: a linha de montagem do Quartel — as unidades saem uma a uma. */
+  em_fabricacao: {
+    total: number
+    por_tipo: Record<string, number>
+    proxima: string | null
+    ultima: string | null
+    minutos_por_nivel: number
+  }
   /** O hangar (§21.4: o Quartel armazena e recarrega; a fábrica é a Oficina — D-74). */
   drones: Drone[]
   oficina_nivel: number
