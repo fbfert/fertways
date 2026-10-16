@@ -126,7 +126,7 @@ function Carta({
         título, e a foto mostrou os dois se espremendo em duas linhas cada — "Caça às / peças".
       */}
       {m.evento && (
-        <p className="text-ember text-[0.65rem] font-bold" data-missao-evento>
+        <p className="text-rust text-[0.65rem] font-bold" data-missao-evento>
           {m.evento}
         </p>
       )}

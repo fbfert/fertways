@@ -2,12 +2,35 @@ import { useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
 import { carregarArte } from '../game/arte'
 import type { Arte } from '../game/arte'
-import type { EfeitoDoItemDaEndurance, ItemDaEndurance } from '../api/client'
+import type { EfeitoDoItemDaEndurance, ItemDaEndurance, LoteDeEvento } from '../api/client'
+import { prazoHumano, segundosRestantes } from './recursos'
 
 const ROTULO_TIPO: Record<ItemDaEndurance['tipo'], string> = {
   comum: 'Comum',
   raro: 'Raro',
   unico: 'Único',
+}
+
+/**
+ * A moldura de cada raridade (A2.V5, D-274). A palavra continua no eyebrow — cor e borda nunca são
+ * o único sinal (regra da A2.V1) —, mas a escada do D-246 (raridade primeiro, preço depois) agora
+ * se VÊ antes de se ler: o comum é um painel liso, o raro ganha a borda âmbar, e o único a borda
+ * dupla, o fundo aceso e o ◈ que o mapa já usa para ele.
+ */
+const MOLDURA: Record<ItemDaEndurance['tipo'], string> = {
+  comum: 'border border-hairline',
+  raro: 'border border-ember/70',
+  unico: 'border-4 border-double border-ember bg-ember/10',
+}
+
+/**
+ * O lote de evento dito por extenso (D-274). Sem isto a peça entrava e saía da loja calada, e quem
+ * deixasse para comprar amanhã a acharia sumida. O evento secreto abre a porta sem dizer o nome.
+ */
+export function rotuloDoLote(lote: LoteDeEvento): string {
+  const quem = lote.nome ? `Lote do evento ${lote.nome}` : 'Lote por tempo limitado'
+
+  return `${quem} · some em ${prazoHumano(segundosRestantes(lote.ate))}`
 }
 
 /** Um efeito em texto legível — o mesmo vocabulário que `admin/endurance.blade.php` já rotula. */
@@ -79,7 +102,7 @@ export function LojaDaEndurance({
   }
 
   return (
-    <div className="space-y-5" data-tela="loja-da-endurance" data-secao-loja={secao}>
+    <div className="space-y-5" data-tela="loja-da-endurance" data-secao-loja={secao} data-tema="casco">
       <div className="border-rust/20 bg-sand flex flex-wrap items-center justify-between gap-2 border p-3">
         <div className="flex items-center gap-3">
           {urls && <img src={urls.pequena} alt="" className="h-12 w-12 object-contain" />}
@@ -102,13 +125,36 @@ export function LojaDaEndurance({
           const podeComprar = item.estado === 'disponivel' && item.estoque_livre > 0
 
           return (
-            <div key={item.item_key} className="painel bg-sand p-3" data-item={item.item_key}>
+            <div
+              key={item.item_key}
+              className={`painel bg-sand p-3 ${MOLDURA[item.tipo]}`}
+              data-item={item.item_key}
+              data-raridade={item.tipo}
+            >
               <div className="flex items-center justify-between gap-2">
-                <div className="text-rust eyebrow text-xs">{ROTULO_TIPO[item.tipo]}</div>
-                <div className="text-ink-soft text-xs">
-                  {item.estoque_livre}/{item.quantidade_total}
+                <div className="text-rust eyebrow text-xs">
+                  {item.tipo === 'unico' ? '◈ ' : ''}
+                  {ROTULO_TIPO[item.tipo]}
+                </div>
+                {/* "126/126" não dizia se era o que sobrou ou o que eu tinha (D-274). */}
+                <div className="text-ink-soft text-xs" data-estoque>
+                  {item.quantidade_total === 1
+                    ? item.estoque_livre > 0
+                      ? 'existe uma só'
+                      : item.possuo > 0
+                        ? 'é sua'
+                        : 'já tem dono'
+                    : item.estoque_livre > 0
+                      ? `restam ${item.estoque_livre.toLocaleString('pt-BR')} de ${item.quantidade_total.toLocaleString('pt-BR')}`
+                      : `as ${item.quantidade_total.toLocaleString('pt-BR')} já têm dono`}
                 </div>
               </div>
+
+              {item.evento && (
+                <p className="bg-ember text-sand-light mt-1 inline-block px-1 text-micro font-bold" data-item-evento>
+                  {rotuloDoLote(item.evento)}
+                </p>
+              )}
 
               <p className="text-ink mt-1 text-sm font-bold">{item.nome}</p>
 

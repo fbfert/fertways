@@ -15,6 +15,7 @@ use App\Models\EnduranceEscavacao;
 use App\Models\EnduranceEscavacaoSetting;
 use App\Models\EnduranceItem;
 use App\Models\EnduranceItemInstance;
+use App\Models\GameEvent;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -47,21 +48,31 @@ class EnduranceController extends Controller
      */
     public function mapa(Request $request): JsonResponse
     {
-        $this->colonia($request);
+        $colony = $this->colonia($request);
 
         // D-249: o mapa conta a LOJA (o que se compra) e, à parte, quanto ainda está enterrado.
-        $disponiveis = EnduranceItem::query()
-            ->whereColumn('quantidade_vendida', '<', 'quantidade_total')
-            ->liberadas(now())
-            ->get(['secao', 'tipo', 'preco_micro', 'origem', 'quantidade_total', 'quantidade_vendida']);
+        $liberadas = EnduranceItem::query()->liberadas(now())->with('evento')
+            ->get(['id', 'secao', 'tipo', 'preco_micro', 'origem', 'quantidade_total', 'quantidade_vendida', 'game_event_id']);
+        $disponiveis = $liberadas->filter(fn (EnduranceItem $i) => $i->quantidade_vendida < $i->quantidade_total);
 
         $porSecao = $disponiveis->where('origem', EnduranceItem::LOJA)->groupBy('secao');
         $enterrado = $disponiveis->where('origem', EnduranceItem::ESCAVACAO)->groupBy('secao');
 
+        /*
+         * D-274 (A2.V5): o que a colônia já tirou de cada destroço. Conta TIPOS de peça, como o
+         * `a_escavar`: duas unidades do mesmo selo são uma peça da coleção. O catálogo da seção é
+         * tudo o que está liberado agora — inclusive o esgotado e o enterrado, que também se têm.
+         */
+        $minhas = ColonyEnduranceItem::where('colony_id', $colony->id)->where('quantidade', '>', 0)
+            ->pluck('endurance_item_id')->flip();
+        $liberadasPorSecao = $liberadas->groupBy('secao');
+
         return response()->json([
             'secoes' => collect(EnduranceItem::SECOES)
-                ->map(function (string $nome, string $chave) use ($porSecao, $enterrado) {
+                ->map(function (string $nome, string $chave) use ($porSecao, $enterrado, $minhas, $liberadasPorSecao) {
                     $itens = $porSecao->get($chave, collect());
+                    $catalogo = $liberadasPorSecao->get($chave, collect());
+                    $doEvento = $catalogo->first(fn (EnduranceItem $i) => $i->evento !== null);
 
                     return [
                         'chave' => $chave,
@@ -75,6 +86,9 @@ class EnduranceController extends Controller
                          * unidades — o número de bilhetes é o sorteio, e não é do jogador.
                          */
                         'a_escavar' => $enterrado->get($chave, collect())->count(),
+                        'catalogo' => $catalogo->count(),
+                        'minhas' => $catalogo->filter(fn (EnduranceItem $i) => $minhas->has($i->id))->count(),
+                        'lote_de_evento' => $doEvento ? self::loteDeEvento($doEvento->evento) : null,
                     ];
                 })
                 ->values(),
@@ -106,7 +120,7 @@ class EnduranceController extends Controller
 
         // D-249: a loja mostra o que é da loja e está liberado agora. A peça de escavação aparece
         // no bloco da escavação, e a de lote de evento fora da janela não existe.
-        $itens = EnduranceItem::where('secao', $secao)->with('efeitos')
+        $itens = EnduranceItem::where('secao', $secao)->with(['efeitos', 'evento'])
             ->where('origem', EnduranceItem::LOJA)
             ->liberadas(now())
             ->orderByRaw("CASE tipo {$escada} ELSE 99 END")
@@ -165,6 +179,8 @@ class EnduranceController extends Controller
                 'descricao' => $item->descricao,
                 'possuo' => $possuo,
                 'estado' => $estado,
+                // D-274: a peça de lote de evento diz que é temporária, e até quando.
+                'evento' => $item->evento ? self::loteDeEvento($item->evento) : null,
                 'efeitos' => $item->efeitos->map(fn ($e) => [
                     'tipo_efeito' => $e->tipo_efeito,
                     'alvo' => $e->alvo,
@@ -179,6 +195,27 @@ class EnduranceController extends Controller
             'itens' => $catalogo,
             'escavacao' => $this->escavacao($colony, $secao),
         ]);
+    }
+
+    /**
+     * O lote que um evento abriu (D-249), dito na tela (D-274): o nome do evento e o instante em
+     * que a peça deixa de existir. O fim é o MESMO do escopo `liberadas()` — o cancelado vale até
+     * `cancelado_em` —, para a tela nunca prometer um prazo que o servidor não cumpre.
+     *
+     * ⚠️ O evento secreto abre a porta sem se apresentar: o lote aparece, o nome não.
+     *
+     * @return array{nome: ?string, ate: string}
+     */
+    private static function loteDeEvento(GameEvent $evento): array
+    {
+        $ate = $evento->cancelado_em !== null && $evento->cancelado_em->lt($evento->termina_em)
+            ? $evento->cancelado_em
+            : $evento->termina_em;
+
+        return [
+            'nome' => $evento->segredo ? null : $evento->nome,
+            'ate' => $ate->toIso8601String(),
+        ];
     }
 
     /**

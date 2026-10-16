@@ -169,6 +169,35 @@ body {
 }
 
 /*
+ * O CASCO — a Endurance com identidade visual própria (A2.V5, D-274).
+ *
+ * Tudo no FERTWAYS é areia clara; a nave é a única coisa que não é do planeta. Dentro de
+ * `data-tema="casco"` as cores TROCAM DE LUGAR, sem nenhuma nova (a regra da casa: cor não se
+ * escolhe a olho, e o deck amostrado não está em toda máquina): o `ink` vira chão, o `sand` vira
+ * letra, e o `ember` — que sobre areia é ilegível (1,62:1) — vira o acento que pode ser texto.
+ *
+ * O `rust` como letra NÃO sobrevive ao escuro (2,38:1 sobre o painel), então no casco ele aponta
+ * para o `ember`: o eyebrow, o link e o erro continuam escritos `text-rust` e continuam legíveis.
+ * E o botão `bg-rust text-sand-light` vira âmbar com letra escura (8,71:1) sem mudar uma classe.
+ *
+ * `backend/tests/Unit/TemaDoCascoTest.php` lê este bloco e para a suíte se algum par cair abaixo
+ * de 4,5:1 ou se aparecer um hex que não é de marca.
+ */
+[data-tema='casco'] {
+  --color-sand: #372f27; /* painel     = ink-soft  */
+  --color-sand-light: #1e1c17; /* chão       = ink       */
+  --color-ink: #fdf0e2; /* letra      = sand-light: 15,19 / 11,72 */
+  --color-ink-soft: #f8e7d6; /* secundária = sand: 14,10 / 10,88 */
+  --color-rust: #eaae65; /* acento     = ember: 8,71 / 6,72 */
+  --color-rust-bright: #f8e7d6; /* hover      = sand */
+  --color-ember: #eaae65;
+  --color-hairline: #eaae6533;
+  --color-hairline-forte: #eaae6566;
+  background-color: var(--color-sand-light);
+  color: var(--color-ink);
+}
+
+/*
  * Respeita quem pediu menos movimento no sistema operacional. O jogo tem
  * animação sutil de produção e de fila (A2.V3); para quem marcou essa
  * preferência, elas viram estado, não movimento.

@@ -97,11 +97,16 @@ export function Endurance() {
             </button>
           </nav>
 
-          <div className="min-w-0 flex-1">
+          {/*
+            O casco (A2.V5, D-274): a nave é a única coisa da Capital que não é do planeta, e a tela
+            dela é a janela escura para dentro dos destroços. O cabeçalho e os atalhos ficam na areia
+            — são da Capital, não da nave.
+          */}
+          <div className="painel min-w-0 flex-1 p-3" data-tema="casco">
             {erro && <p className="text-rust mb-3 text-sm font-bold">{erro}</p>}
 
             {!secaoAberta && (
-              <div className="h-[60vh] min-h-[360px]">
+              <div className="h-[60vh] min-h-[460px] md:min-h-[360px]">
                 <EnduranceMapa aoAbrirLoja={abrirLoja} />
               </div>
             )}

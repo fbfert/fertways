@@ -24,7 +24,8 @@
 > hardening. Falta a **revisão visual A2.V**: V1 (design system), V2 (HUD e navegação) e **V3
 > (Colônia)** fecharam; a **V4 (Mapa e zonas)** andou até onde havia dado e **parou por falta de
 > jogo** (não há cerco, trajeto nem estado territorial para desenhar); a **V5 (Capital e Endurance)**
-> entregou a Capital e **não tocou a Endurance**, que é sistema construído e não jogado; a **V6
+> entregou a Capital e, em 16/10, a Endurance (**D-274**: o tema escuro "casco", raridades, exploração
+> por seções e lotes de evento); a **V6
 > (Combate e eventos)** tem só metade viva — **combate segue em 0 desde sempre**, e a metade
 > "eventos" está entregue (D-235, D-236, D-237). A A2.11 (bots) está fora do escopo por decisão —
 > mas eles rodam **contra a produção**, e o roadmap foi corrigido no D-238.
@@ -69,6 +70,8 @@ aberta. **Sem deploy** — commit e push, sim. Ordem:
 14. [x] **(D-262)** Espaçoporto / Cargueiro Interplanetário / planetas NPC — só o que o GDD publica; o resto vira lacuna marcada.
 
 **D-264/D-265 (15/10):** retenção no painel e no `fertways:retencao` — e a correção de leitura: **não houve abandono, o jogo nunca teve jogador de fora** (todas as contas humanas são do usuário; o resto é bot). **Não rode** o `PROMPT_MEDIR_ABANDONO.md`. A frente aberta agora, autorizada a seguir sem parar: (1) ✅ **D-266** as primeiras horas, jogadas por um novato; (2) ✅ **D-267** o kit do teste com pessoas (`docs/PLAYTEST.md`); (3) ✅ **D-268** revisão visual de veterano (zoom sobre o "sair", Endurance no celular, 31 textos citando D-nn/§, nomes de hexágono). Depois, *"vamos para todas essas pendências, siga suas recomendações. Só pare quando terminar todas"*: ✅ **D-269** imposto, risco e portão por planeta (Solène e Drakmoor abrem); ✅ **D-270** Atendente do Espaçoporto (fila de dúvidas); ✅ **D-271** a Antena avisa os eventos antes (12 h/nível); ✅ **D-272** fabricar unidade leva tempo (2 min × nível, uma a uma); ✅ **D-273** Plataforma de Pouso e missões de reconhecimento ficam de fora, de propósito. **A lista de pendências do GDD abaixo está fechada.** **Deploy pendente: lote D-263 a D-273** — seis migrations; o prompt espera 1504 testes.
+
+**Terceira leva, 16/10:** *"ok, vamos para a próxima etapa da construção."* Com o GDD fechado, a etapa é o que sobra do Alpha 2: a revisão visual A2.V. Ordem: (1) ✅ **D-274** A2.V5, a Endurance (tema "casco" sem cor nova, molduras de raridade, "você tem N de M" por seção, lote de evento com prazo); (2) A2.V6, combate (aviso, preparação, impacto, relatório, linha do tempo); (3) o que a A2.V4 deixou parado por falta de jogo, agora que cerco e fabricação existem. **Sem deploy**: commit e push, sim. O lote de deploy passa a ser **D-263 a D-274** (sem migration nova; 1512 testes).
 
 **Depois do deploy de `fa1af6b` (15/10):** o usuário escolheu abrir o Espaçoporto e aprovou a proposta de números — **D-263, commit sem deploy**. Uma migration (`2026_10_16_100000_espacoporto_com_os_numeros_de_partida`), exercitada só no SQLite. O prompt de deploy em `docs/PROMPT_DEPLOY_VPS.md` foi reescrito para este lote; ele manda conferir os preços de venda do governo contra os 0,80× que os planetas pagam.
 

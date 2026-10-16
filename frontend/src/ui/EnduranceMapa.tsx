@@ -5,6 +5,8 @@ import { carregarArte } from '../game/arte'
 import type { Arte } from '../game/arte'
 import { ControlesDeZoom } from '../game/ControlesDeZoom'
 import { transformar, useVista } from '../game/vista'
+import { rotuloDoLote } from './LojaDaEndurance'
+import { prazoHumano, segundosRestantes } from './recursos'
 
 /**
  * O campo de destroços da Endurance (D-132) — as 8 seções do casco, espalhadas e clicáveis.
@@ -27,6 +29,24 @@ const SECOES: { chave: string; nome: string; cx: number; cy: number }[] = [
   { chave: 'secao_acoplagem', nome: 'Seção de Acoplagem', cx: 0.86, cy: 0.62 },
   { chave: 'silo_suprimentos', nome: 'Silo de Suprimentos', cx: 0.3, cy: 0.86 },
   { chave: 'nucleo_propulsao', nome: 'Núcleo de Propulsão', cx: 0.7, cy: 0.86 },
+]
+
+/**
+ * O esqueleto do casco (A2.V5, D-274): o anel externo e a espinha até o Comando. As oito seções
+ * eram oito ilhas soltas na areia; ligadas, leem como UMA nave partida — e "exploração por seções"
+ * pede justamente saber que elas são partes da mesma coisa. Arbitrado, como as posições.
+ */
+const CASCO: [string, string][] = [
+  ['comando', 'matriz_comunicacao'],
+  ['matriz_comunicacao', 'secao_acoplagem'],
+  ['secao_acoplagem', 'nucleo_propulsao'],
+  ['nucleo_propulsao', 'silo_suprimentos'],
+  ['silo_suprimentos', 'baia_criogenica'],
+  ['baia_criogenica', 'anel_habitacional'],
+  ['anel_habitacional', 'comando'],
+  ['comando', 'modulo_medico'],
+  ['modulo_medico', 'nucleo_propulsao'],
+  ['modulo_medico', 'silo_suprimentos'],
 ]
 
 export function EnduranceMapa({
@@ -78,6 +98,16 @@ export function EnduranceMapa({
     return () => observador.disconnect()
   }, [])
 
+  // Numa caixa estreita (celular), as seções das pontas chegam para o meio e encolhem: com 110 px
+  // fixos e a posição das pontas, "Seção de Acoplagem" saía cortada pela borda (D-268).
+  const estreita = tamanho.largura < 480
+  const ponto = (chave: string): [number, number] => {
+    const s = SECOES.find((x) => x.chave === chave)!
+    const cx = estreita ? 0.5 + (s.cx - 0.5) * 0.8 : s.cx
+
+    return transformar(cx * tamanho.largura, s.cy * tamanho.altura, tamanho.largura, tamanho.altura, vista)
+  }
+
   return (
     <div
       ref={(el) => {
@@ -88,24 +118,43 @@ export function EnduranceMapa({
       className="border-rust/20 relative h-full w-full overflow-hidden border"
       style={{ cursor: arrastando ? 'grabbing' : 'grab', touchAction: 'none' }}
       data-mapa-endurance
+      data-tema="casco"
     >
       {/* No canto de cima à esquerda: à direita, cobriam o Comando e a Matriz no celular (D-268). */}
       <ControlesDeZoom vista={vista} ampliar={ampliar} centralizar={centralizar} canto="top-3 left-3" />
 
+      {tamanho.largura > 0 && (
+        <svg
+          className="pointer-events-none absolute inset-0"
+          width={tamanho.largura}
+          height={tamanho.altura}
+          aria-hidden="true"
+          data-casco
+        >
+          {CASCO.map(([a, b]) => {
+            const [x1, y1] = ponto(a)
+            const [x2, y2] = ponto(b)
+
+            return (
+              <line
+                key={`${a}-${b}`}
+                x1={x1}
+                y1={y1}
+                x2={x2}
+                y2={y2}
+                stroke="var(--color-hairline-forte)"
+                strokeWidth={2 * vista.escala}
+                strokeDasharray={`${6 * vista.escala} ${4 * vista.escala}`}
+              />
+            )
+          })}
+        </svg>
+      )}
+
       {tamanho.largura > 0 &&
         SECOES.map((s) => {
-          // Numa caixa estreita (celular), as seções das pontas chegam para o meio e encolhem: com
-          // 110 px fixos e a posição das pontas, "Seção de Acoplagem" saía cortada pela borda (D-268).
-          const estreita = tamanho.largura < 480
-          const cx = estreita ? 0.5 + (s.cx - 0.5) * 0.8 : s.cx
-          const [x, y] = transformar(
-            cx * tamanho.largura,
-            s.cy * tamanho.altura,
-            tamanho.largura,
-            tamanho.altura,
-            vista,
-          )
-          const lado = (estreita ? Math.min(110, tamanho.largura * 0.24) : 110) * vista.escala
+          const [x, y] = ponto(s.chave)
+          const lado = (estreita ? Math.min(110, tamanho.largura * 0.17) : 110) * vista.escala
           const urls = arte[`endurance:secao:${s.chave}`]
 
           return (
@@ -141,7 +190,16 @@ export function EnduranceMapa({
                   style={{ width: lado * 0.7, height: lado * 0.7 }}
                 />
               )}
-              <span className="bg-sand-light/90 text-ink pointer-events-none px-1 text-[0.65rem] font-bold whitespace-nowrap">
+              {/*
+                No celular o nome quebra em duas linhas: com o progresso da seção embaixo (D-274),
+                "Silo de Suprimentos" e "Núcleo de Propulsão" se encostavam na linha de baixo.
+              */}
+              <span
+                className={`bg-sand-light/90 text-ink pointer-events-none px-1 text-[0.65rem] leading-tight font-bold ${
+                  estreita ? 'text-center whitespace-normal' : 'whitespace-nowrap'
+                }`}
+                style={estreita ? { maxWidth: Math.max(lado, 84) } : undefined}
+              >
                 {s.nome}
               </span>
 
@@ -193,6 +251,36 @@ export function EnduranceMapa({
                   )}
                 </span>
               ) : null}
+
+              {/*
+               * D-274: a exploração da seção — quantas peças daqui a colônia já tirou. Some quando a
+               * seção não tem catálogo nenhum: "você tem 0 de 0" é ruído.
+               */}
+              {conteudo[s.chave] && conteudo[s.chave].catalogo > 0 && (
+                <span
+                  className={`pointer-events-none px-1 text-micro whitespace-nowrap ${
+                    conteudo[s.chave].minhas === conteudo[s.chave].catalogo
+                      ? 'bg-ember text-sand-light font-bold'
+                      : 'bg-sand-light/90 text-ink-soft'
+                  }`}
+                  data-destroco-minhas={s.chave}
+                  title={`Você tem ${conteudo[s.chave].minhas} dos ${conteudo[s.chave].catalogo} tipos de peça desta seção`}
+                >
+                  {conteudo[s.chave].minhas === conteudo[s.chave].catalogo
+                    ? 'seção completa'
+                    : `você tem ${conteudo[s.chave].minhas} de ${conteudo[s.chave].catalogo}`}
+                </span>
+              )}
+
+              {conteudo[s.chave]?.lote_de_evento && (
+                <span
+                  className="bg-ember text-sand-light pointer-events-none px-1 text-micro font-bold whitespace-nowrap"
+                  data-destroco-evento={s.chave}
+                  title={rotuloDoLote(conteudo[s.chave].lote_de_evento!)}
+                >
+                  evento · {prazoHumano(segundosRestantes(conteudo[s.chave].lote_de_evento!.ate))}
+                </span>
+              )}
             </button>
           )
         })}

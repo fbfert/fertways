@@ -574,7 +574,8 @@ export function Mapa({
                          * caçar o ponto certo entre trinta para saber de quem se trata.
                          */}
                         <span className="truncate">
-                          {c.aliada ? <span className="text-ember font-black">◈ </span> : null}
+                          {/* `rust`, e não `ember`: âmbar sobre areia dá 1,62:1 (D-274). */}
+                          {c.aliada ? <span className="text-rust font-black">◈ </span> : null}
                           {c.name}
                         </span>
                         <span className="ml-2 shrink-0 tabular-nums">{c.distance}</span>

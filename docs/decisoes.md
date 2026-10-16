@@ -14747,3 +14747,45 @@ estavam na linha).
   publicadas (v3.4 §2), mas o que ele revela — o planeta novo, a taxa, a capacidade — não tem número
   nenhum. Seria mais sistema sem jogo. Os cinco planetas do §03 estão todos abertos (D-269); um sexto
   só faz sentido quando os cinco tiverem uso medido. Volta depois do primeiro teste com jogadores.
+
+---
+
+## D-274 — A2.V5: a Endurance ganha identidade visual própria
+
+**Data:** 2026-10-16 · **Status:** entregue ("vamos para a próxima etapa da construção")
+
+Com a lista de pendências do GDD fechada (D-269 a D-273), o que resta do Alpha 2 é a revisão visual.
+A V5 tinha entregado a Capital e **nunca tocado a Endurance**. A foto de antes mostrava uma loja
+idêntica a todo o resto do jogo (mesma areia, mesmo cartão), e o código mostrava um defeito medido
+pela própria A2.V1: os efeitos das peças em `text-ember` sobre areia, o par que o `design-tokens.md`
+proíbe como letra (1,62:1).
+
+- **O casco.** Dentro de `data-tema="casco"` as cores **trocam de lugar**, sem nenhuma nova: o `ink`
+  vira chão, o `sand` vira letra e o `ember` vira acento legível (6,72 a 8,71:1). O `rust` como letra
+  não sobrevive ao escuro (2,38:1), então no escopo ele aponta para o `ember` — eyebrow, link, erro e
+  botão continuam com as mesmas classes. Cobre o mapa e a loja; o cabeçalho e os atalhos ficam na
+  areia, porque são da Capital. O `tools/valida_contraste.py` precisa de Python, que esta máquina não
+  tem; `tests/Unit/TemaDoCascoTest.php` lê o `index.css` e para a suíte se algum par do casco cair
+  abaixo de 4,5:1 ou se aparecer cor que não é de marca.
+- **Raridades vistas antes de lidas.** Comum: painel liso. Raro: borda âmbar. Único: borda dupla,
+  fundo aceso e o ◈. A palavra continua no eyebrow (a cor nunca é o único sinal).
+- **O estoque por extenso.** "126/126" não dizia se era o que sobrou ou o que eu tinha. Agora:
+  "restam 125 de 126", "existe uma só", "é sua", "já tem dono".
+- **Exploração por seções.** O mapa diz quantos tipos de peça de cada seção a colônia já tem ("você
+  tem 2 de 4"; "seção completa" quando fecha), contando o que está liberado agora, inclusive o
+  esgotado e o enterrado. E um esqueleto tracejado (o anel e a espinha até o Comando) liga as oito
+  seções: eram oito ilhas, e agora leem como uma nave partida.
+- **Eventos.** O lote que um evento libera (D-249) entrava e saía da loja calado. A peça agora diz
+  "Lote do evento X · some em N" e o mapa marca a seção. O prazo é o mesmo do escopo `liberadas()`
+  (o cancelado vale até `cancelado_em`). **O evento secreto não diz o nome**: "Lote por tempo limitado".
+- **De passagem:** os dois outros `text-ember` sobre areia (a linha do evento nas Missões e o ◈ do
+  aliado na lista do Mapa) viraram `text-rust`.
+- **Celular:** os nomes quebram em duas linhas e o destroço encolhe; com o progresso embaixo,
+  "Silo de Suprimentos" encostava em "Núcleo de Propulsão". O mapa continua cabendo na tela, porque
+  ele captura o toque para arrastar.
+
+API: `/endurance/secoes-mapa` ganha `catalogo`, `minhas` e `lote_de_evento`; cada item de
+`/endurance/secoes/{secao}` ganha `evento`. Sem migration. Testes: `EnduranceExploracaoTest` (5) e
+`TemaDoCascoTest` (3). Fotografado no computador e no celular, com uma compra pelo clique.
+⚠️ Localmente os destroços aparecem como círculos: a arte deles só existe no banco de produção
+(importada por `ImportarImagens`). Em produção a arte fica sobre o casco escuro, e vale olhar a foto lá.

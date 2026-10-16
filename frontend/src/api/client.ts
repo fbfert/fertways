@@ -159,7 +159,16 @@ export type DestrocoNoMapa = {
   a_partir_de: number | null
   /** D-249: quantos tipos de peça ainda se acham escavando aqui (zero com a escavação fechada). */
   a_escavar: number
+  /** D-274: tipos de peça liberados agora nesta seção — loja e escavação, esgotados inclusive. */
+  catalogo: number
+  /** D-274: quantos desses tipos a colônia já tem — o progresso da exploração da seção. */
+  minhas: number
+  /** D-274: o lote que um evento abriu aqui. `nome` nulo quando o evento é secreto. */
+  lote_de_evento: LoteDeEvento | null
 }
+
+/** Um lote que um evento liberou na Endurance (D-249), e o instante em que deixa de existir (D-274). */
+export type LoteDeEvento = { nome: string | null; ate: string }
 
 /** A escavação de uma seção da Endurance (D-249). A peça que a equipe vai achar nunca vem aqui. */
 export type EscavacaoDaSecao = {
@@ -186,6 +195,8 @@ export type ItemDaEndurance = {
   possuo: number
   estado: 'disponivel' | 'bloqueado' | 'esgotado'
   efeitos: EfeitoDoItemDaEndurance[]
+  /** D-274: peça de lote de evento — some da loja em `ate`. Nulo para a peça permanente. */
+  evento: LoteDeEvento | null
   /**
    * A identidade e a biografia do item ÚNICO (A2.9 / §11.1) — nulo em comum e raro, que são
    * fungíveis e não têm história nenhuma.

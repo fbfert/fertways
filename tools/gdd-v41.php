@@ -2989,6 +2989,24 @@ rating  += K × (resultado − esperado)        K = <?= $gfRatingK ?>, início <
   ?></td></tr>
 </table>
 
+<h3>10.7 A cara da nave <span class="d">D-274</span></h3>
+
+<p>
+  A Endurance é a única coisa da Capital que não é do planeta, e desde a A2.V5 tem <b>identidade visual
+  própria</b>: o mapa e a loja ficam no <b>casco</b>, um tema escuro feito só com as cores de marca
+  trocadas de lugar (nenhuma cor nova; o contraste de cada par é guardado em teste).
+</p>
+
+<ul>
+  <li><b>Raridade se vê antes de se ler</b>: o comum é um painel liso, o raro tem borda âmbar e o único
+      tem borda dupla, fundo aceso e o ◈. A palavra continua escrita.</li>
+  <li><b>Exploração por seções</b>: cada destroço do mapa diz quantos tipos de peça daquela seção a
+      colônia já tem («você tem 2 de 4»; «seção completa»), e um esqueleto tracejado liga as oito seções
+      numa nave só.</li>
+  <li><b>Lote de evento com prazo</b>: a peça de evento (§10.6) diz de que evento veio e quando some, e o
+      mapa marca a seção. O evento secreto abre a porta sem dizer o nome.</li>
+</ul>
+
 <div class="nota">
   <b>Os números são do operador, e a partida veio do usuário</b> <span class="d">D-249, D-256</span>.
   O D-249 construiu a escavação desligada e vazia: custo (Fert$ e/ou recursos) e duração não são
