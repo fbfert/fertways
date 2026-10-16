@@ -95,6 +95,8 @@ function Despacho({
             value={quantas}
             onChange={(e) => setQuantas(Math.max(1, Number(e.target.value)))}
             className="w-20 rounded border px-2 py-1 text-sm"
+            // D-277 (A2.12, acessibilidade): o número estava sem nome para o leitor de tela.
+            aria-label="Quantas Sentinelas despachar"
             data-quantas={teste}
           />
           <span className="text-ink-soft text-xs">
@@ -319,6 +321,7 @@ export function Quartel() {
             value={niobio}
             onChange={(e) => setNiobio(Math.max(1, Number(e.target.value)))}
             className="w-24 rounded border px-2 py-1 text-sm"
+            aria-label="Quantas unidades de Nióbio comprar"
             data-niobio-qtd
           />
           <button
@@ -400,6 +403,7 @@ export function Quartel() {
             value={quantas}
             onChange={(e) => setQuantas(Math.max(1, Number(e.target.value)))}
             className="w-24 rounded border px-2 py-1 text-sm"
+            aria-label="Quantas unidades fabricar"
             data-quantidade
           />
 
@@ -731,7 +735,8 @@ export function Quartel() {
         {ranking.length === 0 ? (
           <p className="text-ink-soft mt-2 text-sm">Ninguém pontuou ainda.</p>
         ) : (
-          <div className="mt-2 overflow-x-auto">
+          // Rola de lado no celular: o foco de teclado precisa poder entrar para rolar (D-277).
+          <div className="mt-2 overflow-x-auto" tabIndex={0} role="region" aria-label="Ranking de guerra">
             <table className="w-full text-left text-xs">
               <thead>
                 <tr className="text-ink-soft border-ink-soft/20 border-b">

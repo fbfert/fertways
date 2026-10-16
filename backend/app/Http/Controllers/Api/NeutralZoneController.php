@@ -43,8 +43,19 @@ class NeutralZoneController extends Controller
         $emCombate = \App\Models\Combat::where('status', 'em_curso')->whereNotNull('zone_id')
             ->pluck('zone_id')->flip();
 
-        $zonas = NeutralZone::with('owner:id,name,user_id')->orderBy('district')->orderBy('x')->orderBy('y')->get()
-            ->map(function (NeutralZone $z) use ($minha, $avistamentos, $emCombate) {
+        /*
+         * D-277 (A2.12, carga): estruturas, obras e guarnição viva em lote, para o planeta inteiro.
+         * Sem isso o mapa fazia duas consultas POR ZONA — 250 e 414 ms para 120 zonas, e o planeta
+         * só cresce. `guarnicao_viva` é lida por `NeutralZone::guarnicao()` quando está carregada.
+         */
+        $zonas = NeutralZone::with(['owner:id,name,user_id', 'zoneStructures', 'obras' => fn ($q) => $q->orderBy('id')])
+            ->withCount(['units as guarnicao_viva' => fn ($q) => $q->where('type', 'robo_minerador')->where('hp_bps', '>', 0)])
+            ->orderBy('district')->orderBy('x')->orderBy('y')->get();
+
+        $vagasDaFila = FilaSetting::singleton()->zona_vagas;
+
+        $zonas = $zonas
+            ->map(function (NeutralZone $z) use ($minha, $avistamentos, $emCombate, $vagasDaFila) {
                 $visto = $minha
                     ? $avistamentos->de($minha, $z)
                     // Sem colônia não há drone nem direito a interior nenhum — só o público.
@@ -103,13 +114,13 @@ class NeutralZoneController extends Controller
                     // A fila de construção (D-125) — o painel do Mapa nunca mostrou isso, só a
                     // ficha inteira da zona (`/zones/{id}`) mostrava. Só o dono vê, como o resto
                     // da seção de obras (canteiro, upgrade) — de fora, é o mesmo segredo do D-74.
-                    'obras' => $mine ? $z->obras()->orderBy('id')->get()->map(fn ($o) => [
+                    'obras' => $mine ? $z->obras->map(fn ($o) => [
                         'structure' => $o->structure,
                         'nome' => Estruturas::de($o->structure)['nome'],
                         'target_level' => $o->target_level,
                         'finishes_at' => $o->finishes_at,
                     ])->values() : null,
-                    'obras_vagas' => $mine ? FilaSetting::singleton()->zona_vagas : null,
+                    'obras_vagas' => $mine ? $vagasDaFila : null,
                 ];
             });
 

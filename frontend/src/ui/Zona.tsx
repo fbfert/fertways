@@ -425,7 +425,7 @@ export function Zona() {
                   Trazer todos de volta
                 </Botao>
 
-                <span className="text-ink-soft/60 text-xs">
+                <span className="text-ink-soft text-xs">
                   {z.operadores.livres_na_colonia} colono(s) livre(s) na colônia.
                 </span>
               </div>

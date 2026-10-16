@@ -77,7 +77,8 @@ class MarketController extends Controller
                 'tax_class' => $t->tax_class,
                 'taxa_bps' => (int) $t->tax_bps,
                 'preco_base_micro' => (int) $t->preco_base_micro,
-                'teto_deposito' => Deposito::teto($t->code),
+                // D-277: pela classe que já veio na consulta, e não um `find` por recurso.
+                'teto_deposito' => Deposito::tetoDaClasse($t->tax_class),
             ]);
 
         return response()->json([
@@ -155,20 +156,15 @@ class MarketController extends Controller
          * Capital se oferta no Mercado Central. `ocupado` inclui o que está preso em ofertas: é o
          * número que decide se cabe mais carga, e não o saldo livre.
          */
-        $deposito = ResourceType::orderBy('code')->pluck('code')->map(function (string $code) use ($colony, $estoque) {
-            $ocupado = Deposito::ocupado($colony->id, $code);
-            $saldo = (int) MarketAccount::where('colony_id', $colony->id)
-                ->where('resource_type', $code)->value('amount');
-
-            return [
-                'resource_type' => $code,
-                'na_colonia' => (int) ($estoque[$code] ?? 0),
-                'no_deposito' => $saldo,
-                'em_ofertas' => $ocupado - $saldo,
-                'teto' => Deposito::teto($code),
-                'livre' => Deposito::livre($colony->id, $code),
-            ];
-        })->values();
+        // D-277: o depósito inteiro em três consultas, não sete por recurso.
+        $deposito = collect(Deposito::painel($colony->id))->map(fn (array $d, string $code) => [
+            'resource_type' => $code,
+            'na_colonia' => (int) ($estoque[$code] ?? 0),
+            'no_deposito' => $d['saldo'],
+            'em_ofertas' => $d['ocupado'] - $d['saldo'],
+            'teto' => $d['teto'],
+            'livre' => $d['livre'],
+        ])->values();
 
         // O orçamento do frete público (§07, D-76): a tela mostra o preço ANTES de o colono pagar.
         $frete = app(\App\Domain\Frete\FretePublico::class)->orcamento($colony);

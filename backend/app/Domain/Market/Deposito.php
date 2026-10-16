@@ -36,8 +36,14 @@ class Deposito
             throw new DomainRuleException('recurso_desconhecido', "Recurso inexistente: {$recurso}");
         }
 
-        return self::TETOS[$tipo->tax_class]
-            ?? throw new DomainRuleException('classe_sem_teto', "Sem teto para a classe {$tipo->tax_class}.");
+        return self::tetoDaClasse($tipo->tax_class);
+    }
+
+    /** O teto pela classe tributária, para quem já tem o `ResourceType` na mão (D-277). */
+    public static function tetoDaClasse(string $classe): int
+    {
+        return self::TETOS[$classe]
+            ?? throw new DomainRuleException('classe_sem_teto', "Sem teto para a classe {$classe}.");
     }
 
     /** Saldo livre + escrow das vendas anunciadas + o que as compras abertas vão receber. */
@@ -57,6 +63,39 @@ class Deposito
             ->value('total');
 
         return $saldo + $emOfertas;
+    }
+
+    /**
+     * O depósito inteiro de uma colônia, todos os recursos de uma vez (D-277, A2.12 carga).
+     *
+     * A tela do Mercado chamava `ocupado`/`teto`/`livre` recurso a recurso: 7 consultas por tipo,
+     * 190 a cada abertura. Aqui são três para todos, pelas MESMAS regras dos métodos acima — o
+     * `CustoDoPollingTest` confere que os números batem com o cálculo um a um.
+     *
+     * @return array<string, array{saldo: int, ocupado: int, teto: int, livre: int}> por código, em ordem
+     */
+    public static function painel(int $colonyId): array
+    {
+        $saldos = DB::table('market_accounts')->where('colony_id', $colonyId)->pluck('amount', 'resource_type');
+
+        $emOfertas = DB::table('market_orders')
+            ->where('colony_id', $colonyId)
+            ->whereIn('status', ['aberta', 'parcial'])
+            ->groupBy('resource_type')
+            ->selectRaw('resource_type, COALESCE(SUM(CASE WHEN side = ? THEN escrow_resource_qty ELSE qty END), 0) AS total', ['sell'])
+            ->pluck('total', 'resource_type');
+
+        $painel = [];
+
+        foreach (ResourceType::orderBy('code')->get(['code', 'tax_class']) as $tipo) {
+            $teto = self::tetoDaClasse($tipo->tax_class);
+            $saldo = (int) ($saldos[$tipo->code] ?? 0);
+            $ocupado = $saldo + (int) ($emOfertas[$tipo->code] ?? 0);
+
+            $painel[$tipo->code] = ['saldo' => $saldo, 'ocupado' => $ocupado, 'teto' => $teto, 'livre' => max(0, $teto - $ocupado)];
+        }
+
+        return $painel;
     }
 
     public static function livre(int $colonyId, string $recurso): int

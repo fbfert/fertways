@@ -338,7 +338,12 @@ class Avisos
         // Se o passo da tutoria já é "construa", o aviso genérico diria a mesma coisa duas vezes.
         $passoJaMandaConstruir = $passo && $passo->acao === 'obra_concluida';
 
-        if (! $passoJaMandaConstruir && DB::table('build_queue')->where('colony_id', $colonia->id)->count() === 0) {
+        // Só o que está na fila DE VERDADE: obra concluída fica na tabela com `done` (D-277 — sem o
+        // filtro, a primeira obra da colônia calava este aviso para sempre).
+        $naFila = DB::table('build_queue')->where('colony_id', $colonia->id)
+            ->whereIn('status', ['queued', 'building'])->exists();
+
+        if (! $passoJaMandaConstruir && ! $naFila) {
             $avisos[] = [
                 'codigo' => 'fila_vazia',
                 'severidade' => self::OPORTUNIDADE,

@@ -83,7 +83,15 @@ return new class extends Migration
             $table->dropColumn('recompensa_federacao');
         });
 
+        /*
+         * ⚠️ No MariaDB, o único acima É o índice da chave estrangeira `federation_id`: o InnoDB
+         * descarta em silêncio o índice que ele próprio criou para a FK assim que outro índice começa
+         * pela mesma coluna. Derrubar o único sozinho falha (1553) — o CI MariaDB ficou vermelho do
+         * D-182 ao D-277 por isto, e a suíte inteira deixou de rodar no banco real. O índice simples
+         * entra antes, para a FK ter onde se apoiar.
+         */
         Schema::table('federation_ledger', function (Blueprint $table) {
+            $table->index('federation_id');
             $table->dropUnique(['federation_id', 'ref']);
         });
     }

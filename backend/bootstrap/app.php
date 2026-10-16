@@ -33,6 +33,10 @@ return Application::configure(basePath: dirname(__DIR__))
         // Os dois papéis do painel (D-61). A checagem é no servidor: esconder o botão sem barrar a
         // rota faria da divisão de papéis uma sugestão.
         $middleware->alias(['dono' => \App\Http\Middleware\ExigirDono::class]);
+
+        // O teto global da API (D-277): o limitador `api`, em `AppServiceProvider`. Só o grupo da
+        // API — o painel `/admin` é Blade por sessão e fica de fora.
+        $middleware->throttleApi('api');
     })
     ->withExceptions(function (Exceptions $exceptions) {
         /*

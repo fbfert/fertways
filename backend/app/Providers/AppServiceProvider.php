@@ -66,6 +66,23 @@ class AppServiceProvider extends ServiceProvider
 
         // Cadastro é raro por natureza: cinco por hora por IP não incomoda ninguém de verdade.
         RateLimiter::for('registro', fn (Request $r) => Limit::perHour(5)->by($r->ip()));
+
+        /*
+         * O teto global da API (D-277), que o D-186 deixou de fora até haver medida. A chave é o
+         * JOGADOR (pelo token, que é como a API autentica: o middleware roda antes do `auth:sanctum`
+         * da rota, e o guard padrão não enxergaria ninguém); sem login, o IP. O número e a razão dele
+         * moram em `config/fertways.php`.
+         */
+        RateLimiter::for('api', function (Request $r) {
+            $usuario = $r->user('sanctum');
+
+            return Limit::perMinute(config('fertways.teto_requisicoes_por_minuto'))
+                ->by($usuario ? 'u'.$usuario->getAuthIdentifier() : 'ip'.$r->ip())
+                ->response(fn (Request $r, array $headers) => response()->json([
+                    'code' => 'muitas_requisicoes',
+                    'message' => 'Muitas requisições em pouco tempo. Espere alguns segundos — o jogo volta sozinho.',
+                ], 429, $headers));
+        });
     }
 
     public function boot(): void

@@ -1,17 +1,20 @@
-# Prompt de deploy na VPS — lote D-263 a D-276
+# Prompt de deploy na VPS — lote D-263 a D-277
 
 > Cole o bloco abaixo numa sessão do Claude Code **aberta no servidor**, em
 > `/home/fertways/apps/fertways`. O lote anterior (D-253 a D-262) já está no ar desde `fa1af6b`.
-> Este lote foi escrito numa máquina Windows e testado só contra SQLite local.
+> Este lote foi escrito numa máquina Windows e testado contra SQLite e contra um MariaDB 10.5.29 local
+> (container), a mesma versão da produção — a suíte inteira e o round-trip das migrations (D-277).
 
 ---
 
 ```text
-Vamos publicar em produção o lote D-263 a D-276: o Espaçoporto abre (D-263), a retenção no painel
+Vamos publicar em produção o lote D-263 a D-277: o Espaçoporto abre (D-263), a retenção no painel
 (D-264), as primeiras horas do novato (D-266), a marca de conta da equipe (D-267), a revisão visual
 (D-268), e as pendências do GDD — imposto, risco e portão por planeta com Solène e Drakmoor abrindo
 (D-269), o Atendente do Espaçoporto (D-270), o aviso antecipado da Antena (D-271) e o tempo de
-fabricação de unidades (D-272), a Endurance com identidade visual própria (D-274), o relatório de batalha (D-275) e a guerra no mapa (D-276), os três sem migration.
+fabricação de unidades (D-272), a Endurance com identidade visual própria (D-274), o relatório de batalha (D-275) e a guerra no mapa (D-276), os três sem migration,
+e o endurecimento do D-277 (o teto global de 600 requisições por minuto por jogador, o polling
+mais barato, a acessibilidade e o aviso de fila parada que morria) — também sem migration.
 Leia docs/deploy.md e docs/RETOMAR.md antes. Siga a ordem abaixo e pare para me perguntar se
 qualquer conferência falhar — não contorne.
 
@@ -36,7 +39,7 @@ CONTEXTO
 PASSO 1 — Código e suíte
 - cd /home/fertways/apps/fertways; git status limpo; git pull --ff-only origin main.
 - cd backend && sudo -u fertways /usr/bin/php84 /bin/composer install --no-interaction
-- sudo -u fertways /usr/bin/php84 artisan test   → esperado: 1522 verdes.
+- sudo -u fertways /usr/bin/php84 artisan test   → esperado: 1535 verdes.
 - Frontend: export PATH="/usr/local/lib/nodejs/node-v22.12.0-linux-x64/bin:$PATH";
   cd ../frontend && npm ci && npm run build   → limpo.
 
@@ -70,6 +73,11 @@ PASSO 5 — Deploy
 - sudo ./tools/deploy.sh
 - Confira: backup conferido; banco [fertwaysbd]; as seis migrations DONE; APP_DEBUG off; opcache;
   bundle; fumaça 200/401.
+- ⚠️ O teto global (D-277) conta em ARQUIVO, em backend/storage/framework/cache/data da cópia de
+  deploy. Se o php-fpm não puder escrever ali, TODA requisição da API vira 500. Logo após o deploy:
+    curl -s -D - -o /dev/null https://fertways.tars.art.br/central/estatisticas | grep -i "^HTTP\|x-ratelimit"
+  → esperado 200 e x-ratelimit-limit: 600. Se vier 500, PARE e me diga: o conserto é o dono da pasta
+  (chown -R fertways:fertways backend/storage), e não desligar o teto.
 
 PASSO 6 — Conferir a produção (só leitura)
 - DB::table('espacoporto_settings')->first() → ativo 1, aluguel 20000000, 10000, 2
@@ -86,7 +94,7 @@ PASSO 7 — A marca da equipe (NÃO rode sem me perguntar)
   me mostre quantas contas foram marcadas.
 
 PASSO 8 — Fechar
-- Atualize docs/RETOMAR.md (lote D-263 a D-276 no ar, sha, backup, resultado dos passos 3, 6 e 7). Commit e push.
+- Atualize docs/RETOMAR.md (lote D-263 a D-277 no ar, sha, backup, resultado dos passos 3, 6 e 7). Commit e push.
 - Me entregue um resumo curto. Lembre-me de que o Atendente do Espaçoporto só existe depois de
   nomeado: `fertways:cargo-civico <nick> atendente_espacoporto --nomear`.
 ```

@@ -106,7 +106,7 @@ export function Noticias() {
                   <span className="text-rust ml-2 text-micro font-bold uppercase">boletim</span>
                 )}
               </div>
-              <div className="text-ink-soft/60 eyebrow text-micro">
+              <div className="text-ink-soft eyebrow text-micro">
                 {n.author} · {dataHumana(n.published_at)}
               </div>
               <p className="text-ink-soft mt-1 whitespace-pre-line text-sm">{n.body}</p>

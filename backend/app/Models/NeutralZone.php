@@ -250,6 +250,15 @@ class NeutralZone extends Model
      */
     public function guarnicao(): int
     {
+        /*
+         * D-277: o mapa (`NeutralZoneController::index`) carrega a contagem em lote, com este mesmo
+         * filtro, para não contar zona por zona. Só ele carrega `guarnicao_viva`, e só para ler —
+         * em qualquer outro caminho (combate, ocupação) a contagem é sempre fresca.
+         */
+        if (array_key_exists('guarnicao_viva', $this->attributes)) {
+            return (int) $this->attributes['guarnicao_viva'];
+        }
+
         return $this->units()
             ->where('type', 'robo_minerador')
             ->where('hp_bps', '>', 0)

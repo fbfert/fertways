@@ -183,7 +183,7 @@ export function Usados() {
                       }
                       disabled={ocupado}
                       data-cancelar-anuncio={a.id}
-                      className="text-ink-soft/60 hover:text-rust text-xs"
+                      className="text-ink-soft hover:text-rust text-xs"
                     >
                       Retirar anúncio
                     </button>

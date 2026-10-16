@@ -36,9 +36,10 @@ use Illuminate\Support\Facades\Route;
  */
 Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:registro');
 /*
- * ⚠️ O login NÃO usa o middleware `throttle`, e é de propósito: ele conta TODA requisição, inclusive
+ * ⚠️ O login NÃO usa um `throttle` próprio, e é de propósito: ele conta TODA requisição, inclusive
  * as bem-sucedidas, e quem entra e sai várias vezes bateria no teto por usar o jogo direito. O
- * `AuthController` conta à mão, e só o fracasso conta.
+ * `AuthController` conta à mão, e só o fracasso conta. (O teto global da API, D-277, vale aqui
+ * também, mas a 600 por minuto ninguém que entra no jogo o alcança.)
  */
 Route::post('/login', [AuthController::class, 'login']);
 

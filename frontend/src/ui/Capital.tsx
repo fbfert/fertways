@@ -163,7 +163,8 @@ export function Capital({
               <CapitalCanvas slots={SLOTS} aoClicarSlot={clicarSlot} aoClicarArea={clicarArea} />
             </div>
 
-            <p className="text-ink-soft/60 mt-3 shrink-0 text-xs">
+            {/* D-277: `/60` dava contraste 3,6 sobre a areia, abaixo dos 4,5 da AA. */}
+            <p className="text-ink-soft mt-3 shrink-0 text-xs">
               O <b>slot 6</b> não aparece no Governo Central porque ele <b>é</b> o Leste: o Mercado
               Central e o Pátio Logístico são a mesma área. Os slots 10–20 estão vagos.
             </p>

@@ -1275,7 +1275,7 @@ function PainelZona({
             </div>
           )}
           {drones.length === 0 && z.intel === 'nenhuma' && (
-            <p className="text-ink-soft/60 mt-1 text-xs">Nenhum Drone ocioso no hangar — fabrique um na Oficina, pelo Quartel.</p>
+            <p className="text-ink-soft mt-1 text-xs">Nenhum Drone ocioso no hangar — fabrique um na Oficina, pelo Quartel.</p>
           )}
         </div>
       )}
@@ -1318,7 +1318,7 @@ function PainelZona({
               </button>
             </>
           ) : (
-            <p className="text-ink-soft/60 text-xs">Nível máximo (5).</p>
+            <p className="text-ink-soft text-xs">Nível máximo (5).</p>
           )}
         </div>
       )}

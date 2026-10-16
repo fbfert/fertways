@@ -18,6 +18,15 @@ return [
     'default' => env('CACHE_STORE', 'database'),
 
     /*
+     * O teto global de requisições (D-277) conta em ARQUIVO, e não no cache padrão. Com o padrão no
+     * banco, como na produção, o limitador custava dez consultas por requisição — mais que o
+     * `/queue` inteiro, em cada pedido de cada jogador. O incremento do arquivo não é atômico entre
+     * pedidos simultâneos do mesmo jogador: pode contar a menos, nunca a mais — para um teto contra
+     * abuso, é o lado certo de errar. Nos testes, `array` (`phpunit.xml`).
+     */
+    'limiter' => env('CACHE_LIMITER', 'file'),
+
+    /*
     |--------------------------------------------------------------------------
     | Cache Stores
     |--------------------------------------------------------------------------

@@ -83,7 +83,7 @@ export function Tesouro() {
               <li key={i} className="flex items-baseline justify-between px-3 py-1.5 text-sm">
                 <span className="text-ink-soft truncate">
                   {e.colonia ?? '—'}
-                  <span className="text-ink-soft/60"> · {dataHumana(e.created_at)}</span>
+                  <span className="text-ink-soft"> · {dataHumana(e.created_at)}</span>
                 </span>
                 <span className="text-ink ml-2 shrink-0 tabular-nums">
                   {e.kind === 'mercado_venda'

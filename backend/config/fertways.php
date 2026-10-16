@@ -15,4 +15,13 @@ return [
      * não na disciplina de quem escreve o teste.
      */
     'media_raiz' => env('FERTWAYS_MEDIA_DIR', '/home/fertways/media'),
+
+    /*
+     * O teto global de requisições à API, por jogador por minuto (D-277, A2.12).
+     *
+     * Medido, não chutado: o pior caso com a tela parada é o Mercado (164 num minuto) e a navegação
+     * mais rápida que um humano consegue faz 167. 600 deixa caber três abas no Mercado de uma vez.
+     * Se uma tela nova passar a consultar mais, é ESTE número que se revê — com nova medida.
+     */
+    'teto_requisicoes_por_minuto' => (int) env('FERTWAYS_TETO_REQUISICOES', 600),
 ];

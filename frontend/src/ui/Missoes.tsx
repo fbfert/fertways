@@ -85,7 +85,7 @@ export function Missoes({ aoFechar }: { aoFechar: () => void }) {
             </div>
           </section>
         ))}
-        {grupos.length === 0 && <p className="text-ink-soft/60 text-xs">Nada por aqui — volte amanhã às 07h.</p>}
+        {grupos.length === 0 && <p className="text-ink-soft text-xs">Nada por aqui — volte amanhã às 07h.</p>}
       </div>
     </div>
   )

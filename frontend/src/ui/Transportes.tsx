@@ -236,7 +236,7 @@ function LinhaDoRegistro({
             <div className="text-ink text-sm font-black" data-conservacao={v.conservacao}>
               {v.conservacao.toFixed(0)}%
             </div>
-            <div className="text-ink-soft/60 text-xs">conservação</div>
+            <div className="text-ink-soft text-xs">conservação</div>
           </div>
         )}
       </div>
@@ -276,7 +276,7 @@ function LinhaDoRegistro({
               </button>
 
               {v.custo_manutencao && (
-                <span className="text-ink-soft/60 text-xs">
+                <span className="text-ink-soft text-xs">
                   {Object.entries(v.custo_manutencao)
                     .map(([r, q]) => `${q} ${nomeRecurso(r)}`)
                     .join(' · ')}
@@ -285,7 +285,7 @@ function LinhaDoRegistro({
               )}
 
               {!v.pode_reparar && v.conservacao >= v.teto_conservacao && (
-                <span className="text-ink-soft/60 text-xs">Já está no teto dele.</span>
+                <span className="text-ink-soft text-xs">Já está no teto dele.</span>
               )}
 
               {confirmarSucata ? (
@@ -314,7 +314,7 @@ function LinhaDoRegistro({
               ) : (
                 <button
                   onClick={() => setConfirmarSucata(true)}
-                  className="text-ink-soft/60 hover:text-rust ml-auto text-xs"
+                  className="text-ink-soft hover:text-rust ml-auto text-xs"
                 >
                   Sucatear
                 </button>
@@ -342,7 +342,7 @@ function LinhaDoRegistro({
               ele não carrega nada.
             </div>
           ) : u.no_maximo ? (
-            <div className="text-ink-soft/60 text-xs">
+            <div className="text-ink-soft text-xs">
               Nível {v.nivel}, o máximo. Este veículo não sobe mais.
             </div>
           ) : (
@@ -375,7 +375,7 @@ function LinhaDoRegistro({
               </span>
 
               {u.custo && (
-                <span className="text-ink-soft/60 w-full text-xs">
+                <span className="text-ink-soft w-full text-xs">
                   Custa{' '}
                   {Object.entries(u.custo)
                     .map(([r, q]) => `${q} ${nomeRecurso(r)}`)

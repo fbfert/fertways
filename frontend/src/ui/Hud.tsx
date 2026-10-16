@@ -468,7 +468,7 @@ function OQueFaz({ funcao, atual, proximo }: { funcao: Funcao; atual: Efeito | n
     <>
       {/* D-266: o resumo, quando existe, é o que a construção faz hoje — e aí a fonte do GDD não é dele. */}
       <p className="text-ink mt-3 text-sm leading-snug">{funcao.resumo ?? funcao.frase}</p>
-      {!funcao.resumo && <p className="text-ink-soft/60 mt-0.5 text-xs">GDD {funcao.fonte}</p>}
+      {!funcao.resumo && <p className="text-ink-soft mt-0.5 text-xs">GDD {funcao.fonte}</p>}
 
       {producao && (
         <div className="mt-3">

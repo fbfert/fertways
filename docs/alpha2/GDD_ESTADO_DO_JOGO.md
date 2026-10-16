@@ -207,6 +207,16 @@ da Alpha 2, e estava lá desde o começo. Agora: dez erros por minuto por **e-ma
 fracasso conta** — o acerto zera, senão quem entra e sai várias vezes bateria no teto por usar o jogo
 direito.
 
+**O teto global da API (D-277): 600 requisições por minuto, por jogador**, medido e não chutado. O
+pior caso com a tela parada é o Mercado, 164 num minuto; a navegação mais rápida que um humano faz,
+166. Passado o teto, 429 em português (`muitas_requisicoes`). A contagem é em arquivo
+(`cache.limiter`): no cache padrão, que na produção é o banco, ela custava dez consultas por pedido.
+
+⚠️ **E o CI do banco real ficou vermelho do D-182 ao D-276** (D-277): um `down()` de migration que o
+MariaDB recusa travava o job antes da suíte, e por 94 decisões nada foi testado no banco da produção.
+Destravado, ele achou um aviso ("Nada em construção") que morria na primeira obra de cada colônia.
+**Push com o CI vermelho não é push verde**: olhe o `gh run list` depois de publicar.
+
 ---
 
 ## 3. O que está CONSTRUÍDO E DORMENTE

@@ -297,13 +297,13 @@ export function MesaDiplomatica() {
           </Botao>
 
           {noTeto && (
-            <span className="text-ink-soft/60 text-xs">
+            <span className="text-ink-soft text-xs">
               No limite de aliadas — rompa uma para propor outra.
             </span>
           )}
         </div>
       ) : (
-        <p className="text-ink-soft/60 text-xs">
+        <p className="text-ink-soft text-xs">
           Só o Líder ou o Diplomata tratam de aliança com outra federação.
         </p>
       )}

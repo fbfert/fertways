@@ -112,6 +112,27 @@ class AvisosTest extends TestCase
         $this->assertStringContainsString('e mais', $aviso['titulo']);
     }
 
+    /**
+     * ⚠️ D-277: obra concluída não sai da fila — fica com `status = done`. Contar as linhas sem olhar
+     * o status calava o aviso para sempre depois da primeira obra da colônia.
+     */
+    public function test_a_fila_so_com_obras_concluidas_esta_parada(): void
+    {
+        $user = $this->colono();
+
+        foreach (['done', 'cancelled'] as $i => $status) {
+            DB::table('build_queue')->insert([
+                'colony_id' => $user->colony->id,
+                'building_id' => $user->colony->buildings()->value('id'),
+                'target_level' => 2, 'position' => $i + 1, 'quoted_cost_json' => '{}',
+                'enqueued_at' => now()->subDay(), 'finishes_at' => now()->subHours(20),
+                'status' => $status, 'created_at' => now(), 'updated_at' => now(),
+            ]);
+        }
+
+        $this->assertContains('fila_vazia', $this->codigos($user->colony->fresh()));
+    }
+
     /** Sem nada a dizer, a faixa fica vazia — silêncio é estado válido, e a tela some. */
     public function test_colonia_ocupada_e_sem_problema_nao_gera_urgencia(): void
     {
@@ -126,7 +147,9 @@ class AvisosTest extends TestCase
             'quoted_cost_json' => '{}',
             'enqueued_at' => now(),
             'finishes_at' => now()->addHour(),
-            'status' => 'em_obra',
+            // `building`: o `enum` da coluna. Era `em_obra`, que o SQLite aceitava e o MariaDB recusa
+            // — o CI MariaDB, vermelho desde o D-182, escondia isso (D-277).
+            'status' => 'building',
             'created_at' => now(),
             'updated_at' => now(),
         ]);

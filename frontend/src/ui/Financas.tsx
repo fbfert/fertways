@@ -104,7 +104,7 @@ export function Financas() {
             </tbody>
           </table>
         </div>
-        <p className="text-ink-soft/60 mt-1 text-xs">* preço derivado da fórmula, não publicado direto.</p>
+        <p className="text-ink-soft mt-1 text-xs">* preço derivado da fórmula, não publicado direto.</p>
       </section>
     </div>
   )

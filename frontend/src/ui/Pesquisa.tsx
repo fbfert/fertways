@@ -100,7 +100,7 @@ export function Pesquisa() {
           <li key={t.id} className="border-ink/10 border-t pt-2" data-tecnologia={t.chave}>
             <div className="flex flex-wrap items-baseline gap-2">
               <strong className="text-ink text-sm">{t.nome}</strong>
-              <span className="text-ink-soft/60 eyebrow text-xs">{t.trilha}</span>
+              <span className="text-ink-soft eyebrow text-xs">{t.trilha}</span>
 
               {t.status === 'concluida' && <Selo estado="sucesso">nível {t.nivel}</Selo>}
               {t.status === 'pesquisando' && <Selo estado="info">em pesquisa</Selo>}
@@ -119,7 +119,7 @@ export function Pesquisa() {
                 Pesquisar {t.nivel > 0 ? `nível ${t.nivel + 1}` : ''}
               </Botao>
 
-              <span className="text-ink-soft/60 text-xs">
+              <span className="text-ink-soft text-xs">
                 {Object.entries(t.custo)
                   .map(([r, q]) => `${q} ${nomeRecurso(r)}`)
                   .join(' · ')}{' '}
@@ -128,15 +128,15 @@ export function Pesquisa() {
 
               {/* O porquê de não poder, para a tela não oferecer o que a regra recusaria. */}
               {t.bloqueio === 'laboratorio' && (
-                <span className="text-ink-soft/60 text-xs">
+                <span className="text-ink-soft text-xs">
                   Exige Laboratório nível {t.laboratorio_minimo}.
                 </span>
               )}
               {t.bloqueio === 'no_maximo' && (
-                <span className="text-ink-soft/60 text-xs">Já está no nível máximo.</span>
+                <span className="text-ink-soft text-xs">Já está no nível máximo.</span>
               )}
               {t.bloqueio === null && d.vagas.livres < 1 && (
-                <span className="text-ink-soft/60 text-xs">Sem vaga livre no Laboratório.</span>
+                <span className="text-ink-soft text-xs">Sem vaga livre no Laboratório.</span>
               )}
             </div>
           </li>

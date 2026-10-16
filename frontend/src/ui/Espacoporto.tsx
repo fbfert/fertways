@@ -131,7 +131,7 @@ export function Espacoporto() {
         </ul>
       </section>
 
-      <p className="text-ink-soft/60 text-xs" data-imposto-interplanetario>
+      <p className="text-ink-soft text-xs" data-imposto-interplanetario>
         A carga paga imposto como no Mercado Central: a encomenda, na partida; a venda, na volta, sobre o
         que o planeta pagou. As peças de alfândega da Endurance dão desconto. Nos planetas com risco, um
         sinistro na viagem pode levar parte da carga das duas pernas — o que se pagou não volta.
@@ -196,7 +196,7 @@ function Planeta({
       )}
 
       {!aberto ? (
-        <div className="text-ink-soft/60 mt-2 text-xs">Rota fechada.</div>
+        <div className="text-ink-soft mt-2 text-xs">Rota fechada.</div>
       ) : (
         <div className="mt-3 grid gap-3 sm:grid-cols-2">
           <Perna
@@ -260,7 +260,7 @@ function Perna({
     <div>
       <div className="eyebrow text-ink-soft">{titulo}</div>
       {recursos.length === 0 ? (
-        <div className="text-ink-soft/60 text-xs">Nada, neste planeta.</div>
+        <div className="text-ink-soft text-xs">Nada, neste planeta.</div>
       ) : (
         <ul className="mt-1 space-y-1">
           {recursos.map((r) => (

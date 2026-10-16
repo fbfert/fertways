@@ -225,8 +225,14 @@ export default function App() {
    * por vontade própria. Poll de 30 s, duas contagens indexadas — barato o bastante para rodar
    * sempre; o painel aberto zera ao ler.
    */
+  /*
+   * ⚠️ D-277: depende de TER colônia, e não do objeto `colonia`. O laço de 5 s acima troca o objeto
+   * a cada volta, e cada troca refazia este efeito — que chama na hora e reinicia o relógio. O poll
+   * "de 30 s" rodava, medido, a cada 5 s: 13 chamadas por minuto com a tela parada.
+   */
+  const temColonia = colonia !== null
   useEffect(() => {
-    if (!colonia) return
+    if (!temColonia) return
     const puxar = () =>
       void api
         .chatPendencias()
@@ -238,7 +244,7 @@ export default function App() {
     puxar()
     const tique = setInterval(puxar, 30_000)
     return () => clearInterval(tique)
-  }, [colonia, chatAberto])
+  }, [temColonia, chatAberto])
 
 
   function abrirPorta(tipo: string) {

@@ -14861,3 +14861,129 @@ arquivo de componente para `ui/loteDeEvento.ts`, por um aviso do oxlint (fast re
 
 **Com isto a revisão visual A2.V fica sem item pendente que tenha dado.** O que sobra do Alpha 2 é o
 que só jogador traz: medir as telas com uso real.
+
+## D-277 — A2.12, segunda passada: o CI do banco real estava vermelho desde agosto
+
+O D-186 percorreu o checklist do endurecimento e deixou quatro itens anotados como não feitos: carga,
+teto global de requisições, auditoria de acessibilidade e migrations no MariaDB (feito uma vez, à
+mão). Fui atrás deles, e o primeiro que olhei já tinha dado errado.
+
+### ⚠️ O job `Backend / MariaDB` do CI estava vermelho desde o D-182 — 2 de agosto
+
+Cada push desde então terminou em ❌, e ninguém olhou. O job falhava no passo do round-trip das
+migrations, **antes** de chegar à suíte. Na prática, **a suíte nunca rodou no banco de produção**
+entre o D-182 e o D-276: noventa e quatro decisões testadas só em SQLite.
+
+A causa estava no `down()` de `2026_08_01_300000_objetivos_federativos`. O InnoDB cria sozinho um
+índice para a chave estrangeira `federation_ledger.federation_id`, e o **descarta em silêncio**
+quando surge outro índice que comece pela mesma coluna. Aqui foi o único `(federation_id, ref)`. Desde
+então é esse único que sustenta a chave estrangeira, e derrubá-lo sozinho falha com o erro 1553. A
+correção recria o índice simples antes de derrubar o único. Reproduzido antes num MariaDB 10.5.29
+local (a mesma versão da produção, em container), e depois o round-trip inteiro passou.
+
+**Com o CI destravado, a suíte rodou no MariaDB e achou uma falha real**, que o SQLite escondia:
+
+### ⚠️ O aviso "Nada em construção" morria na primeira obra da colônia
+
+O teste gravava `status = 'em_obra'` na `build_queue`, um valor que o `enum` da coluna não tem. O
+SQLite aceita qualquer texto; o MariaDB recusa. Corrigir o teste revelou o defeito do jogo: o
+`Avisos` contava **todas** as linhas da fila para decidir se ela estava parada, e obra concluída não
+sai da tabela (fica com `done`). **Toda colônia que já construiu alguma coisa nunca mais via o
+aviso.** Agora só contam `queued` e `building`, e há teste para a fila só com obras concluídas.
+
+Depois disso: **1535 testes verdes no MariaDB** e 1535 em SQLite.
+
+### Carga: o custo do polling crescia com o tamanho do mundo
+
+A carga do jogo vem do polling. Cada jogador logado bate em `/colony`, `/buildings` e `/queue` a
+cada 5 s em qualquer tela, e cada tela soma os seus. Medi as consultas SQL de cada endpoint como o
+veterano do banco local:
+
+| endpoint | antes | depois | por quê |
+|---|---|---|---|
+| `/zones` | 250 consultas, 414 ms | 12, 37 ms | estruturas e guarnição lidas zona a zona (120 zonas) |
+| `/market/account` | 190 | 10 | sete leituras por tipo de recurso |
+| `/buildings` (laço de 5 s) | 55 | 10 | ficha, override e nível máximo por construção, e o evento de obra relido a cada uma |
+| `/market/orders` (laço de 3 s) | 31 | 5 | o teto do depósito lido com um `find` por recurso |
+
+As respostas saíram com **o mesmo tamanho, byte a byte**, antes e depois. O `CustoDoPollingTest` fixa a
+propriedade, e não um número: o mapa custa o mesmo com 3 zonas ou com 15, `/buildings` o mesmo com 4
+construções a mais. Também confere que os números em lote batem com o cálculo um a um que o resto do
+jogo usa, incluindo um override do admin.
+
+Dois cuidados:
+- O `BuildingSpecs::precarregar()` é **explícito**: só o `/buildings` o chama. Todo o resto do jogo
+  continua lendo do banco a cada vez, e um ajuste do admin vale na hora.
+- A guarnição em lote (`guarnicao_viva`) só é carregada pelo mapa, e só para leitura. Combate e
+  ocupação continuam contando fresco.
+
+⚠️ **Um teste meu passou de primeira, e estava errado.** O `actingAs($eu->user)` reaproveita o mesmo
+objeto de usuário, com a colônia e as construções já guardadas em memória, e o pedido nunca via as
+construções novas. Com o usuário recarregado, ele ficou vermelho, como devia.
+
+### ⚠️ O poll "de 30 s" do rádio rodava a cada 5 s
+
+A medição do ritmo pegou isto: com a colônia parada, `/chat/pendencias` 13 vezes por minuto. O
+efeito dependia do objeto `colonia`, que o laço de 5 s do `App` substitui a cada volta. Cada troca
+refazia o efeito, que chama na hora e reinicia o relógio. Agora ele depende de **ter** colônia, e a
+colônia parada caiu de 67 para 56 requisições por minuto.
+
+### O teto global de requisições: 600 por minuto, por jogador, medido
+
+O D-186 recusou um número chutado. Medi tela a tela, logado como o veterano, um minuto parado em
+cada uma (puppeteer contando as requisições à API):
+
+| tela | requisições/min, parado |
+|---|---|
+| Colônia, Mapa, Quartel, Capital, Endurance, Perfil | 47 a 56 |
+| Frota | 70 |
+| Ministério | 90 |
+| **Mercado** | **150** (pico de 164 num minuto) |
+| navegação mais rápida que um humano faz (tela a cada 0,7 s) | 166 em 17 s, 102 em 10 s |
+
+**600 por minuto** deixa três abas no Mercado abertas ao mesmo tempo. A chave é o **jogador** (pelo
+token, porque o middleware roda antes do `auth:sanctum` da rota); sem login, o IP. Passado o teto, a
+API responde 429 em português, com `code: muitas_requisicoes` e `Retry-After`, e o polling do cliente
+já engole o erro e tenta na volta seguinte. O valor mora em `config/fertways.php`
+(`FERTWAYS_TETO_REQUISICOES`), com a medida ao lado: se uma tela nova consultar mais, é ele que se
+revê, com medida nova.
+
+Medido depois de ligado: as 775 requisições da medição inteira deram 200, nenhuma 429. E num servidor
+à parte, com o teto baixado para 5, o 429 saiu de ponta a ponta, com o corpo em português e o
+`Retry-After`.
+
+⚠️ **O limitador quase entrou custando dez consultas por requisição.** Na produção o cache padrão é o
+banco (`CACHE_STORE=database`), e o `RateLimiter` usa o cache padrão. A remedição pegou: todo endpoint
+ganhou dez consultas à tabela `cache`, o dobro do `/queue` inteiro, em cada pedido de cada jogador.
+Agora ele conta em **arquivo** (`cache.limiter`, `CACHE_LIMITER=file` por padrão); o resto do cache
+continua onde está, e os números voltaram aos da tabela acima. O incremento do arquivo não é atômico
+entre pedidos simultâneos do mesmo jogador: pode contar a menos, nunca a mais, e para um teto contra
+abuso esse é o lado certo de errar. Nos testes o limitador fica em `array` (`phpunit.xml`), para a
+contagem não vazar de um teste a outro.
+
+Mais duas notas:
+- Numa rota fechada, o `auth:sanctum` tem prioridade no Laravel e recusa o pedido sem token antes de
+  o teto contar. Para quem não está logado, o teto vale nas rotas públicas.
+- O login continua com o limite próprio do D-186, que conta só o fracasso.
+
+### Acessibilidade: o axe-core nas 13 telas, nas duas larguras
+
+O axe-core (WCAG 2.1 A e AA) rodou nas 13 telas, logado como o veterano, a 1400 e a 390 px. Achou
+pouco, e o pouco foi corrigido:
+- três campos numéricos do Quartel sem nome para o leitor de tela;
+- a tabela do ranking, que rola de lado no celular, sem acesso pelo teclado;
+- `text-ink-soft/60` com contraste de 3,6:1 sobre a areia, abaixo dos 4,5 da AA. Foi trocado pelo
+  tom cheio nas 28 ocorrências de texto de leitura. Os estados `disabled:` são isentos pela regra e
+  ficaram.
+
+Depois: **zero violações**, nas duas larguras.
+
+### O que continua sem fazer
+
+- **Simulação longa em staging**: não há staging.
+- **Carga com muitos jogadores simultâneos**: o que se fez foi tirar o custo que crescia com o mundo
+  e pôr um teto. Um teste de carga de verdade precisa da máquina de produção, ou de uma igual a ela.
+
+**Verificação:** 1535 testes em SQLite e 1535 em MariaDB 10.5.29, mais o round-trip das migrations
+(fresh, rollback, migrate). Build, tsc e lint limpos (só o aviso antigo de `App.tsx:116`). Sem
+migration nova.

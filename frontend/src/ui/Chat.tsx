@@ -226,7 +226,7 @@ function Canal({
     <>
       <div className="flex-1 space-y-1 overflow-y-auto px-3 py-2 text-sm" data-mensagens>
         {mensagens.length === 0 && (
-          <p className="text-ink-soft/60 text-xs">O canal está em silêncio — diga um oi.</p>
+          <p className="text-ink-soft text-xs">O canal está em silêncio — diga um oi.</p>
         )}
         {mensagens.map((m) => {
           // A citação: quem chamou o SEU nome sai destacado — é para isso que o selo trouxe você.
@@ -358,7 +358,7 @@ function Privadas({
           {termo && (
             <ul className="mt-2 space-y-1" data-resultados-busca>
               {encontrados.length === 0 ? (
-                <li className="text-ink-soft/60 text-xs">Ninguém com esse nick ou colônia.</li>
+                <li className="text-ink-soft text-xs">Ninguém com esse nick ou colônia.</li>
               ) : (
                 encontrados.map((j) => (
                   <li key={j.user_id}>
@@ -379,7 +379,7 @@ function Privadas({
       )}
 
       {conversas.length === 0 && (
-        <p className="text-ink-soft/60 text-xs">
+        <p className="text-ink-soft text-xs">
           Nenhuma conversa ainda. As privadas nascem no perfil dos outros colonos — ou aqui, quando
           alguém falar com você.
         </p>

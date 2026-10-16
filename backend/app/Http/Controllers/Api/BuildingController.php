@@ -295,8 +295,17 @@ class BuildingController extends Controller
             'energia_hora' => (int) $s->energia_consumo_hora,
         ] : null;
 
+        /*
+         * D-277 (A2.12, carga): este endpoint roda no laço de 5 s de toda tela. Fichas e overrides
+         * de todos os tipos da colônia em lote, e o evento de construção lido UMA vez — eram quatro
+         * consultas por construção, 55 para uma colônia de veterano, a cada 5 s, por jogador.
+         */
+        $specs->precarregar($colony->buildings->pluck('type'));
+        $modificadores = app(Modificadores::class);
+        $bpsDaObra = $modificadores->em($colony, Modificadores::CONSTRUCAO, now());
+
         return response()->json(
-            $colony->buildings->map(function (Building $b) use ($specs, $user, $efeito, $estados, $colony, $estoque) {
+            $colony->buildings->map(function (Building $b) use ($specs, $user, $efeito, $estados, $colony, $estoque, $modificadores, $bpsDaObra) {
                 $alvo = $b->level + 1;
                 $max = $specs->nivelMaximo($b->type);
 
@@ -361,9 +370,7 @@ class BuildingController extends Controller
                     // 'Esta construção será custeada pelo Governo Central até o nível 3'".
                     'cost' => $spec['custo'],
                     // D-248: com o evento de construção, como no catálogo.
-                    'build_time_seconds' => app(Modificadores::class)->aplicarEm(
-                        $colony, Modificadores::CONSTRUCAO, (int) $spec['tempo_segundos'], now(),
-                    ),
+                    'build_time_seconds' => $modificadores->aplicar((int) $spec['tempo_segundos'], $bpsDaObra),
                     'subsidized' => $b->ehEssencial() && $alvo <= 3 && $user->tutoriaConcluida(),
                 ];
             })->values(),
