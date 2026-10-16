@@ -1710,8 +1710,8 @@ $espPlanetas = \App\Models\PlanetaNpc::with('precos')->orderBy('ordem')->get();
   biocombustível, estanho e alumínio de Auryn; plasma, fungo e gelo de metano de Solène; componentes
   eletrônicos de Drakmoor e Veyra.
   <br><br>
-  ⚠️ <b>A guarda vale na partida, não no painel</b>: baixar depois o preço do governo, ou subir a compra
-  de um planeta, pelo painel reabre a arbitragem.
+  <b>O painel aplica a mesma guarda</b> (D-279): recusa uma compra de planeta acima da oferta do governo,
+  e uma oferta do governo abaixo do que algum planeta paga. Pagar o mesmo valor é permitido.
   <?= arbitrado('multiplicadores, Cargueiro e mapeamento — proposta minha, aprovada pelo usuário em 15/10 (D-263); a compra que sai, escolha do usuário em 16/10 (D-278)') ?>
 </div>
 
