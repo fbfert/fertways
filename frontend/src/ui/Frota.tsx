@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { api, ApiError } from '../api/client'
-import type { ColoniaVizinha, Frota as FrotaDto, Veiculo } from '../api/client'
+import type { ColoniaVizinha, Frota as FrotaDto, MinhaZona, Veiculo } from '../api/client'
 import { nomeRecurso, nomeVeiculo, relogio, segundosRestantes } from './recursos'
 
 const INTERVALO_MS = 3000
@@ -60,8 +60,25 @@ export function Frota() {
     return () => clearInterval(t)
   }, [])
 
+  // D-281: as zonas do colono, para os voos da Nave. Só se busca quando há Nave na frota.
+  const temNave = frota?.vehicles.some((v) => v.type === NAVE) ?? false
+  const [zonas, setZonas] = useState<MinhaZona[]>([])
+  useEffect(() => {
+    if (!temNave) return
+    api
+      .minhasZonas()
+      .then((r) => setZonas(r.zones))
+      .catch(() => {
+        /* Sem a lista, o painel da Nave diz que não há zona; o resto da frota segue. */
+      })
+  }, [temNave])
+
   function destino(v: Veiculo): string {
     if (v.destination_type === 'mercado_central') return 'Mercado Central'
+    if (v.destination_type === 'zona_neutra') {
+      const z = zonas.find((x) => x.id === v.destination_id)
+      return z ? (z.name ?? `Zona (${z.x}, ${z.y})`) : 'Zona neutra'
+    }
     if (v.destination_type === 'colonia') {
       const c = vizinhas.find((x) => x.id === v.destination_id)
       return c ? c.name : `Colônia #${v.destination_id}`
@@ -111,7 +128,9 @@ export function Frota() {
                   </span>
                 </div>
 
-                {v.status === 'ocioso' ? (
+                {v.status === 'ocioso' && v.type === NAVE && frota ? (
+                  <PainelDaNave nave={v} colonia={frota.colony.id} zonas={zonas} aoVoar={() => void carregar()} />
+                ) : v.status === 'ocioso' ? (
                   <p className="text-ink-soft mt-2 text-sm">
                     No pátio. Capacidade de {v.capacity.toLocaleString('pt-BR')} unidades.
                   </p>
@@ -131,7 +150,13 @@ export function Frota() {
                     {v.trip_purpose && (
                       <Linha
                         termo="Propósito"
-                        valor={v.trip_purpose === 'entrega' ? 'Entrega' : 'Retirada'}
+                        valor={
+                          v.trip_purpose === 'entrega'
+                            ? 'Entrega'
+                            : v.trip_purpose === 'reposicionamento'
+                              ? 'Indo vazio, para ficar lá'
+                              : 'Retirada'
+                        }
                       />
                     )}
                     {v.distance_slots !== null && (
@@ -166,6 +191,149 @@ export function Frota() {
           sempre de ida e volta: o veículo só volta a ficar ocioso ao regressar ao seu slot.
         </p>
       </div>
+    </div>
+  )
+}
+
+const NAVE = 'nave_de_transporte_planetaria'
+
+/**
+ * Os voos da Nave de Transporte Planetária (D-281). Ela só voa entre a colônia e as zonas com
+ * Plataforma de Pouso: daqui ela vai vazia até uma zona, volta para casa, troca de zona, ou leva até
+ * quatro Robôs Mineradores da zona onde está para outra. Retirar carga e levar material continuam
+ * na tela de cada zona, como para qualquer veículo.
+ */
+function PainelDaNave({
+  nave,
+  colonia,
+  zonas,
+  aoVoar,
+}: {
+  nave: Veiculo
+  colonia: number
+  zonas: MinhaZona[]
+  aoVoar: () => void
+}) {
+  const naZona = nave.local === 'zona'
+  const aqui = naZona ? zonas.find((z) => z.id === nave.destination_id) : undefined
+  const destinos = zonas.filter((z) => z.plataforma_de_pouso && z.id !== aqui?.id)
+  const [alvo, setAlvo] = useState<number | null>(null)
+  const [robos, setRobos] = useState(0)
+  const [ocupado, setOcupado] = useState(false)
+  const [aviso, setAviso] = useState<string | null>(null)
+  const escolhida = destinos.find((z) => z.id === alvo) ?? destinos[0]
+  const nomeZona = (z: MinhaZona) => z.name ?? `Zona (${z.x}, ${z.y})`
+  const robosAqui = aqui?.guarnicao.robos ?? 0
+
+  async function voar(acao: () => Promise<unknown>, recibo: string) {
+    setOcupado(true)
+    try {
+      await acao()
+      setAviso(recibo)
+      aoVoar()
+    } catch (e) {
+      setAviso(e instanceof ApiError ? e.message : 'A Nave não decolou.')
+    } finally {
+      setOcupado(false)
+    }
+  }
+
+  return (
+    <div className="mt-2 space-y-2 text-sm" data-painel-nave={nave.id}>
+      <p className="text-ink-soft">
+        {naZona ? (
+          <>
+            Pousada em <b className="text-ink">{aqui ? nomeZona(aqui) : 'uma zona sua'}</b>.
+          </>
+        ) : (
+          'Na Plataforma de Pouso da colônia.'
+        )}{' '}
+        Leva {nave.capacity.toLocaleString('pt-BR')} unidades e queima 50 de Gelo de Metano por minuto de voo
+        (10 slots por minuto).
+      </p>
+
+      {destinos.length === 0 ? (
+        <p className="text-ink-soft text-xs">
+          Nenhuma {naZona ? 'outra ' : ''}zona sua tem Plataforma de Pouso. Erga uma na zona para a Nave poder
+          pousar lá.
+        </p>
+      ) : (
+        <div className="flex flex-wrap items-center gap-2">
+          <select
+            className="border-rust/30 border bg-transparent px-1 py-0.5 text-xs"
+            value={escolhida?.id ?? ''}
+            onChange={(e) => setAlvo(Number(e.target.value))}
+            aria-label="Zona de destino da Nave"
+            data-destino-nave={nave.id}
+          >
+            {destinos.map((z) => (
+              <option key={z.id} value={z.id}>
+                {nomeZona(z)}
+                {z.cercada ? ' (cercada)' : ''}
+              </option>
+            ))}
+          </select>
+          <button
+            type="button"
+            className="botao text-xs"
+            disabled={ocupado || !escolhida}
+            data-voar-nave={nave.id}
+            onClick={() =>
+              escolhida &&
+              void voar(
+                () => api.reposicionarVazio(nave.id, 'zona_neutra', escolhida.id),
+                `A Nave decolou vazia para ${nomeZona(escolhida)}.`,
+              )
+            }
+          >
+            Voar vazia para lá
+          </button>
+        </div>
+      )}
+
+      {naZona && escolhida && robosAqui > 0 && (
+        <div className="flex flex-wrap items-center gap-2" data-robos-nave={nave.id}>
+          <span className="text-ink-soft text-xs">Levar</span>
+          <input
+            type="number"
+            min={1}
+            max={Math.min(4, robosAqui)}
+            value={robos || ''}
+            onChange={(e) => setRobos(Math.min(4, robosAqui, Math.max(0, Number(e.target.value) || 0)))}
+            aria-label="Robôs Mineradores a levar"
+            className="border-rust/30 w-14 border px-1 py-0.5 text-right text-xs tabular-nums"
+          />
+          <span className="text-ink-soft text-xs">
+            de {robosAqui} Robô(s) Minerador(es) desta zona (até 4 por voo) para {nomeZona(escolhida)}
+          </span>
+          <button
+            type="button"
+            className="botao text-xs"
+            disabled={ocupado || robos < 1}
+            onClick={() =>
+              void voar(
+                () => api.transportarRobos(nave.id, escolhida.id, robos),
+                `A Nave decolou com ${robos} robô(s) para ${nomeZona(escolhida)}.`,
+              )
+            }
+          >
+            Levar robôs
+          </button>
+        </div>
+      )}
+
+      {naZona && (
+        <button
+          type="button"
+          className="botao text-xs"
+          disabled={ocupado}
+          onClick={() => void voar(() => api.reposicionarVazio(nave.id, 'colonia', colonia), 'A Nave voltou a voar para casa.')}
+        >
+          Voltar para casa
+        </button>
+      )}
+
+      {aviso && <p className="text-ink text-xs">{aviso}</p>}
     </div>
   )
 }

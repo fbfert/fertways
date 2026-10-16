@@ -31,6 +31,7 @@ class Placas
         // Sem esta linha o Drone cairia no fallback 'X' — e placa é para sempre (D-75, auditoria
         // do painel). O 'X' é o código do tipo desconhecido, não uma escolha.
         'drone_de_exploracao' => 'D',
+        'nave_de_transporte_planetaria' => 'N', // D-281
     ];
 
     /**

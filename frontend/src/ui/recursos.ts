@@ -79,6 +79,7 @@ const NOME_VEICULO: Record<string, string> = {
   furgao_de_comercio: 'Furgão de Comércio',
   caminhao_de_carga: 'Caminhão de Carga',
   drone_de_exploracao: 'Drone de Exploração',
+  nave_de_transporte_planetaria: 'Nave de Transporte Planetária',
 }
 
 export const nomeVeiculo = (tipo: string) => NOME_VEICULO[tipo] ?? tipo

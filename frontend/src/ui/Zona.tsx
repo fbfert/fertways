@@ -90,6 +90,7 @@ export function Zona() {
   const [envio, setEnvio] = useState<Record<string, number>>({})
   const [envioVeiculoId, setEnvioVeiculoId] = useState<number | null>(null)
   const [retirar, setRetirar] = useState<Record<string, number>>({})
+  const [retiradaVeiculoId, setRetiradaVeiculoId] = useState<number | null>(null)
   const [nome, setNome] = useState('')
 
   // Demolir (D-138): a mesma confirmação por escrito que a colônia já exige (D-61).
@@ -241,7 +242,12 @@ export function Zona() {
   const emObraNesteSlot = sel !== null ? z.obras.some((o) => o.slot === sel) : false
   const catalogoDisponivel = estr.catalogo.filter((c) => c.disponivel)
   const tipoDoCatalogo = tipoEscolhido ? estr.catalogo.find((c) => c.type === tipoEscolhido) : null
-  const ociosos = frota.filter((v) => v.status === 'ocioso')
+  // D-281: a Nave só serve a esta zona se ela tiver Plataforma de Pouso — sem ela, não há onde pousar.
+  const temPlataforma = z.estruturas.erguidas.some((e) => e.type === 'plataforma_de_pouso_da_zona' && e.level >= 1)
+  const ociosos = frota.filter(
+    (v) => v.status === 'ocioso' && (v.type !== 'nave_de_transporte_planetaria' || temPlataforma),
+  )
+  const veiculoRetirada = ociosos.find((v) => v.id === retiradaVeiculoId) ?? ociosos[0]
 
   /** O canteiro tem com que pagar este custo? A mesma conta que o servidor fará. */
   const canteiroPaga = (custo: Record<string, number>) =>
@@ -570,7 +576,22 @@ export function Zona() {
                   <p className="text-ink-soft text-xs">Nenhum veículo ocioso para retirar carga.</p>
                 ) : (
                   <>
-                    <div className="text-ink eyebrow">Retirar (com {nomeVeiculo(ociosos[0].type)})</div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-ink eyebrow">Retirar com</span>
+                      <select
+                        className="border-rust/25 bg-sand-light border px-1 py-0.5 text-xs"
+                        value={veiculoRetirada.id}
+                        onChange={(e) => setRetiradaVeiculoId(Number(e.target.value))}
+                        aria-label="Veículo da retirada"
+                        data-veiculo-retirada
+                      >
+                        {ociosos.map((v) => (
+                          <option key={v.id} value={v.id}>
+                            {nomeVeiculo(v.type)} {v.plate ?? `#${v.id}`} — {v.capacity_efetiva.toLocaleString('pt-BR')} un
+                          </option>
+                        ))}
+                      </select>
+                    </div>
                     <div className="mt-1 grid gap-2 sm:grid-cols-3">
                       {disponiveis.map(({ recurso, tem }) => (
                         <label key={recurso} className="text-sm">
@@ -578,7 +599,7 @@ export function Zona() {
                           <input
                             type="number"
                             min={0}
-                            max={Math.min(tem, ociosos[0].capacity_efetiva)}
+                            max={Math.min(tem, veiculoRetirada.capacity_efetiva)}
                             value={retirar[recurso] ?? 0}
                             onChange={(e) =>
                               setRetirar((v) => ({
@@ -602,7 +623,7 @@ export function Zona() {
                           const carga = Object.fromEntries(
                             Object.entries(retirar).filter(([, q]) => q > 0),
                           )
-                          const v = await api.retirarDeZona(z.id, ociosos[0].id, carga)
+                          const v = await api.retirarDeZona(z.id, veiculoRetirada.id, carga)
                           setRetirar({})
 
                           const cargaTexto = Object.entries(carga)

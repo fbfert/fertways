@@ -15133,3 +15133,176 @@ As regras:
 
 Uma migration (`2026_10_17_100000`), com `down()` que devolve para casa qualquer Sentinela em
 escolta.
+
+## D-281 — A Nave de Transporte Planetária e as duas Plataformas de Pouso
+
+**Data:** 2026-10-17 · **Status:** decidido pelo usuário ("siga suas recomendações")
+
+O D-273 deixou a Plataforma de Pouso sem efeito porque a Nave não existia. Agora a Nave existe, com
+as specs que o GDD publica inteiras (§17.5, §21.8, §28.9): 4 m³ = 4.000 unidades por viagem, 10 slots
+por minuto, 50 de Gelo de Metano por minuto de voo, risco zero.
+
+### De onde ela vem
+
+O GDD diz que ela é "construída na Central de Transportes". No jogo, todo veículo vem do **Ministério
+dos Transportes** desde o D-60: ele fabrica com o caixa do Tesouro e vende da prateleira. A Nave
+segue o mesmo caminho, como o Furgão seguiu no D-109 (migration `2026_10_17_200000`):
+
+| | Nave | por quê |
+|---|---|---|
+| custo de fabricação | 250 Ligas · 120 Componentes · 45 Metal Bruto | §21.8, nível 1 |
+| preço | **1.400 Fert$** | o custo vale 4,7× o do Caminhão a preço de referência; 300 × 4,7 ≈ 1.410 |
+| linha de montagem | 280 min | os 60 min do Caminhão × 4,7 |
+| prateleira | 2 | veículo caro e de nicho |
+
+Os três últimos números são meus e estão no painel (aba Fábrica). A placa termina em `-N`.
+
+### A Plataforma de Pouso do slot: o hangar
+
+O GDD promete "mais naves estacionadas" e "menos tempo de construção" sem nenhum número
+(`App\Domain\Transport\Hangar`). Os números são meus:
+- **uma nave por nível.** Sem Plataforma, a Nave não se compra, nem nova nem usada. Ela ocupa também
+  a vaga da Central de Transportes, porque o D-60 conta todos os veículos.
+- **5% a menos no upgrade da Nave por nível acima do primeiro**, até 45%. A Nave não é construída pelo
+  colono, então o tempo de obra que a Plataforma encurta é o do serviço de upgrade (D-259).
+
+### A Plataforma de Pouso da zona: o pouso
+
+Ela deixou de ser inerte. A Nave **só pousa em zona com Plataforma**: sem ela, a Nave não retira
+carga, não leva material de obra e não estaciona na zona (`zona_sem_plataforma`).
+
+### Onde ela voa
+
+- **Para onde vai:** só entre a colônia dona e as zonas dela (`nave_so_voa_para_zonas`). Ela não vai
+  ao Mercado, ao Pátio, a outra colônia nem à federação, porque a Capital não tem onde pousar e o §17.5
+  desenha o fluxo inteiro entre o slot e as zonas.
+- **O que ela faz:** retira carga da zona, leva material de obra e se reposiciona, como os veículos de
+  chão. Faz também o que eles não fazem: **voa de uma zona sua para outra**.
+- **Combustível:** queima **Gelo de Metano**, e não energia (lançamento `combustivel_viagem`). Sem o
+  gelo, a recusa é própria (`falta_de_combustivel`), porque "falta energia" mandaria o colono olhar o
+  Reator.
+- **Desgaste:** deprecia como Furgão e Caminhão. O §16.4 da v3.0 dizia "apenas Furgão e Caminhão", e
+  o §06 consolidado do v35 corrige a lista e inclui as Naves.
+- **Zona cercada fecha o céu também.** O §17.5 fala em pousar "sem depender de via terrestre hostil",
+  mas o D-66 decidiu que no cerco "nada entra nem sai". Uma ponte aérea por cima do cerco o tornaria
+  decorativo.
+
+### Os robôs entre zonas (`App\Domain\Logistics\TransportarRobos`)
+
+*"Transporta Robôs Mineradores entre diferentes zonas neutras do mesmo colono."*
+- A Nave tem de estar **estacionada na zona de origem**. Os robôs embarcam ali, e não há perna a mais.
+- **Até 4 robôs por voo**, um por m³. O GDD não diz quantos cabem, e ancorar no volume é escolha minha.
+- As duas zonas precisam ser suas, ter Plataforma e não estar cercadas.
+- Os robôs saem da origem na hora e chegam com a Nave pelo `ChegarReforcos`, como um reforço. No ar,
+  não guarnecem nenhuma das duas zonas.
+- Pela API (`POST /central/vehicles/{id}/robos`), o colono diz quantos, e vão os mais inteiros.
+
+### ⚠️ Voar é caro, e isso é do GDD
+
+Com o Gelo de Metano a 0,253 F$, ida e volta de 30 slots queimam 300 unidades, cerca de 76 F$. Uma
+viagem cheia de Metal Bruto (4.000 × 0,033 F$ = 133 F$) quase não paga o combustível. A Nave só
+compensa com carga de valor e com os robôs, que nenhum outro veículo leva. Os números são do GDD e não
+mexi neles; está anotado para o primeiro teste com jogadores.
+
+### As telas
+
+- **Central de Transportes:** a Nave aparece na fábrica, com as vagas da Plataforma.
+- **Frota:** ganhou o painel da Nave: voar vazia para uma zona, trocar de zona, levar robôs, voltar
+  para casa.
+- **Zona:** a retirada passou a ter seletor de veículo (antes usava o primeiro ocioso), e a Nave só
+  aparece na zona que tem Plataforma.
+- **Mercado e Acordos:** deixaram de oferecer a Nave.
+- `/zones/minhas` diz quais zonas têm Plataforma.
+
+**Verificação:** `NaveDeTransporteTest`, com 20 testes:
+- as specs do §28.9, a depreciação e o custo do §21.8;
+- a Plataforma do slot: sem ela não se compra, uma vaga por nível, upgrade mais curto;
+- os voos: retirada queimando gelo, falta de combustível, zona sem Plataforma, material de obra,
+  recusa do Mercado e de outra colônia, zona cercada;
+- os robôs: o voo, o máximo de 4, as duas Plataformas, a zona de origem, o cerco e a API;
+- o voo vazio de zona a zona.
+
+Quatro testes antigos foram atualizados, porque afirmavam a Plataforma inerte ou um Ministério de dois
+tipos.
+
+## D-282 — As Missões de Reconhecimento e o Telescópio Gagarin
+
+**Data:** 2026-10-17 · **Status:** decidido pelo usuário ("siga suas recomendações")
+
+O D-273 deixou o reconhecimento de fora porque "o que ele revela não tem número nenhum". Isso vale
+para o planeta novo, mas não para o resto: o aditivo v3.4 §2 publica o pipeline inteiro. Construí o
+pipeline, e o resultado planetário fica com o operador, como o próprio aditivo manda.
+
+### O que o aditivo dá, e entrou como está
+
+- **Ativação do Gagarin:** 50 jogadores cadastrados ou 45 dias de servidor, o que vier primeiro.
+  - "Jogadores" exclui os bots e as contas de sistema, pelo mesmo filtro do `fertways:equipe`.
+  - A abertura do servidor é `gagarin_settings.servidor_aberto_em`. Vazia, vale a fundação da primeira
+    colônia, porque o jogo não guardava essa data.
+- **Missões simultâneas:** no máximo uma planetária e uma lunar em curso.
+- **Missão planetária:** triangulação pública (48 h) → preparação da sonda (24 h) → voo e leitura
+  (a faixa de distância: Próxima 4–6 h, Média 7–12, Distante 13–18, Remota 19–31) → validação (24 h) →
+  a rota abre no Espaçoporto para todos.
+- **Missão lunar:** leitura orbital → mapeamento de superfície → validação científica → janela orbital.
+  As oito luas seguem a ordem do §2.4, cada uma com o recurso, a primeira revelação e o gancho
+  publicados. A lua continua "só informação até a Temporada 2": não há pouso, extração nem conflito.
+- **"100% por calendário e contribuição":** as fases com tarefa (triangulação, leitura orbital) só
+  terminam com o prazo vencido **e** a meta de tarefas cumprida. Nada as conclui na hora.
+- **Participação:** "até duas tarefas diárias de pesquisa", por colônia, somando todas as missões, no
+  dia de missão (07h→07h).
+  - Fert$, compras e cosméticos não aceleram nada: a tarefa não custa e não se compra.
+  - Pede **Laboratório**, porque é tarefa de pesquisa (A2.3).
+- **Recompensas permitidas:** XP e entrada privada no **Diário do Colono**. Nunca recurso raro,
+  veículo, Fert$ ou prioridade de rota.
+  - A lua dá o fragmento cartográfico no fim do mapeamento; o planeta dá a entrada na abertura.
+  - Os emblemas e os cosméticos narrativos do §2.5 **não** entraram: o jogo não tem onde exibi-los.
+- **Resultado lacrado (§2.5):** "pré-configurado na versão da missão e assinado no log antes da
+  abertura da fase pública".
+  - A missão nasce com o resultado em JSON e o **SHA-256** dele. A assinatura fica pública desde o
+    primeiro minuto, no registro e na tela do colono.
+  - O resultado inteiro só entra no registro na revelação, e qualquer um pode conferir que bate.
+  - O nome do planeta não aparece ao colono antes da rota abrir.
+- **Painel:** pausa por manutenção, com justificativa no registro. Ao retomar, os prazos em curso andam
+  o tempo da pausa. O painel **não edita resultado**: a única correção é reabrir a fase em curso, com
+  justificativa pública.
+- **Rota nova:** só depois de **14 dias da última** e de **três boletins** desde ela.
+- **Anti-monopólio da abertura:** "nas primeiras 48 h, [...] limites de ordem evitam monopólio de
+  lançamento". Cada colônia faz **uma viagem** para o planeta novo nesse período (número meu, no
+  painel).
+
+### O que é meu (todos os números no painel, aba Gagarin)
+
+| | partida | por quê |
+|---|---|---|
+| intervalo do boletim | 72 h | o meio dos "2 a 4 dias"; o painel aceita de 48 a 96 h |
+| XP por tarefa | 100 | o XP de um nível de obra |
+| meta de tarefas | 20 | dez colonos com as duas tarefas de um dia |
+| viagens na abertura | 1 | o "limite de ordem" das 48 h |
+| tipo de assinatura de cada lua | — | lido da primeira revelação dela (a "assinatura cristalina" de Tereshkova é espectral; a "perturbação magnética" de Hawking, energética) |
+
+Duas regras de execução também são minhas:
+- **A missão lunar abre sozinha** no boletim, quando não há outra lunar em curso. Ela não tem nada a
+  inventar: o §2.4 dá tudo.
+- **A planetária só o Dono abre**, como os Eventos (D-232): ele escreve o planeta inteiro (nome,
+  distância, risco, o que exporta e importa, os preços) e o jogo o lacra. Os preços passam pela guarda
+  do D-279.
+
+### Onde vive
+
+- **Domínio:** `App\Domain\Reconhecimento` (`Gagarin`, `Contribuir`, `AbrirMissaoPlanetaria`,
+  `Revelacoes`, `Registro`). O `Gagarin::tick` roda no `fertways:tick`.
+- **Tela do colono:** a Central de Pesquisas e Notícias, slot 3 da Capital, troca o cartão "ainda
+  inativo" pelo estado de verdade: as operações em curso com o botão da tarefa, as oito luas e o Diário.
+- **Painel:** aba própria, **Gagarin**.
+- **Notícias:** os boletins, as fases e as revelações saem no mural com autor "Telescópio Gagarin".
+
+**Verificação:** `ReconhecimentoTest`, com 22 testes:
+- a ativação pelos dois gatilhos e pela fundação da primeira colônia;
+- a lua pelas quatro fases, com o Diário e a revelação; a meta que segura a fase; a próxima lua só
+  depois da anterior;
+- o teto de tarefas e o XP; a exigência de Laboratório; a fase sem tarefa; a pausa;
+- os três boletins, a faixa de voo, o resultado lacrado e o nome escondido até a abertura;
+- uma planetária por vez, os 14 dias, a guarda do Governo e o limite de viagens na abertura;
+- a tela, a Capital e o painel.
+
+Uma migration (`2026_10_17_300000`).

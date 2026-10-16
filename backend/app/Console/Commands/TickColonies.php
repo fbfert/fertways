@@ -180,6 +180,9 @@ class TickColonies extends Command
         // O Cargueiro que pousou entrega a venda e a encomenda (D-262).
         $entregas += app(ConcluirContratosDeRota::class)->handle($agora);
 
+        // O Gagarin: ativação, fases das Missões de Reconhecimento e o boletim orbital (D-282).
+        app(\App\Domain\Reconhecimento\Gagarin::class)->tick($agora);
+
         /*
          * A hora do Pátio da Capital (D-65). **Depois** das entregas, nunca antes: o veículo que
          * estaciona neste mesmo tick tem de começar a pagar da chegada dele, e não do tick que vem

@@ -202,10 +202,14 @@ class Funcoes
         'plataforma_de_pouso' => [
             'frase' => 'Hangar onde as Naves de Transporte Planetária ficam estacionadas. Upgrades '
                 .'aumentam capacidade de naves estacionadas e reduzem tempo de construção.',
+            // D-281: o que o jogador lê. A `frase` acima é a citação do GDD, e fica.
+            'resumo' => 'Hangar da Nave de Transporte Planetária: cada nível estaciona uma nave e encurta o upgrade dela.',
             'fonte' => '§17.2',
-            'efeito' => 'nenhum',
-            'nota' => 'O GDD promete "mais naves" e "menos tempo" sem publicar um número sequer, e a '
-                .'Nave de Transporte Planetária está fora do MVP. Hoje só consome energia.',
+            'efeito' => 'abriga',
+            'nota' => 'Desde o D-281: cada nível estaciona uma Nave de Transporte Planetária (sem a '
+                .'Plataforma, a nave não se compra), e cada nível acima do primeiro corta 5% do tempo '
+                .'de upgrade dela, até 45%. Os dois números são meus: o GDD promete "mais naves" e '
+                .'"menos tempo" sem publicar nenhum.',
         ],
         'tanque_de_combustivel' => [
             'frase' => 'Armazena Gelo de Metano refinado. Disponível no slot principal e nas zonas '

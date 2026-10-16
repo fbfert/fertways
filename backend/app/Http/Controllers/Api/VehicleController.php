@@ -4,11 +4,14 @@ namespace App\Http\Controllers\Api;
 
 use App\Domain\Logistics\DespacharVeiculo;
 use App\Domain\Logistics\MapaFertways;
+use App\Domain\Logistics\TransportarRobos;
 use App\Domain\Logistics\VeiculoSpecs;
 use App\Domain\Transport\Conservacao;
 use App\Exceptions\DomainRuleException;
 use App\Http\Controllers\Controller;
 use App\Models\Colony;
+use App\Models\NeutralZone;
+use App\Models\Unit;
 use App\Models\Vehicle;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -21,7 +24,7 @@ class VehicleController extends Controller
         $colony = $this->colonia($request);
 
         return response()->json([
-            'colony' => ['x' => $colony->x, 'y' => $colony->y],
+            'colony' => ['id' => $colony->id, 'x' => $colony->x, 'y' => $colony->y],
             'capital' => ['x' => MapaFertways::CAPITAL_X, 'y' => MapaFertways::CAPITAL_Y],
             'vehicles' => $colony->vehicles->map(fn (Vehicle $v) => [
                 'id' => $v->id,
@@ -83,6 +86,8 @@ class VehicleController extends Controller
             'leg_seconds' => $trecho,
             'round_trip_seconds' => 2 * $trecho,
             'energy_cost' => VeiculoSpecs::energiaDaViagem($veiculo->type, $distancia),
+            // D-281: o que a viagem queima — energia, ou o Gelo de Metano da Nave.
+            'fuel' => VeiculoSpecs::combustivel($veiculo->type),
             'capacity' => $conservacao->capacidadeEfetiva($veiculo),
         ]);
     }
@@ -127,6 +132,40 @@ class VehicleController extends Controller
             'arrives_at' => $veiculo->arrives_at,
             'cargo' => $veiculo->cargo_json,
             'trade_agreement_id' => $veiculo->trade_agreement_id,
+        ], 201);
+    }
+
+    /**
+     * POST /central/vehicles/{vehicle}/robos — a Nave leva Robôs Mineradores da zona onde está para
+     * outra zona sua (D-281). O colono diz quantos; vão os mais inteiros.
+     */
+    public function transportarRobos(Request $request, Vehicle $vehicle, TransportarRobos $transportar): JsonResponse
+    {
+        $dados = $request->validate([
+            'zona' => ['required', 'integer', 'exists:neutral_zones,id'],
+            'quantidade' => ['required', 'integer', 'min:1', 'max:'.TransportarRobos::ROBOS_POR_VOO],
+        ]);
+
+        $colonia = $this->colonia($request);
+        $ids = $vehicle->naZona()
+            ? Unit::where('zone_id', $vehicle->destination_id)->where('type', 'robo_minerador')
+                ->where('status', 'na_zona')->whereNull('combat_id')->where('hp_bps', '>', 0)
+                ->orderByDesc('hp_bps')->orderBy('id')->limit((int) $dados['quantidade'])->pluck('id')->all()
+            : [];
+
+        if ($vehicle->naZona() && count($ids) < (int) $dados['quantidade']) {
+            throw new DomainRuleException(
+                'robos_indisponiveis',
+                'Esta zona tem só '.count($ids).' Robô(s) Minerador(es) livre(s) para embarcar.',
+            );
+        }
+
+        $nave = $transportar->handle($colonia, $vehicle, NeutralZone::findOrFail($dados['zona']), $ids);
+
+        return response()->json([
+            'id' => $nave->id,
+            'arrives_at' => $nave->arrives_at,
+            'robos' => count($ids),
         ], 201);
     }
 

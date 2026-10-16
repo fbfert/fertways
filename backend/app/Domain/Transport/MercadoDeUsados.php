@@ -146,6 +146,11 @@ class MercadoDeUsados
 
             $veiculo = Vehicle::whereKey($anuncio->vehicle_id)->lockForUpdate()->firstOrFail();
 
+            // D-281: Nave usada também precisa de vaga na Plataforma de Pouso de quem compra.
+            if ($veiculo->type === Vehicle::NAVE) {
+                app(Hangar::class)->exigirVaga($comprador);
+            }
+
             if ($veiculo->status !== 'ocioso' || $veiculo->colony_id !== $anuncio->seller_colony_id) {
                 throw new DomainRuleException(
                     'veiculo_indisponivel',

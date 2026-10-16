@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { api, ApiError } from '../api/client'
 import type { Noticias as NoticiasDto } from '../api/client'
 import { dataHumana } from './recursos'
+import { Reconhecimento } from './Reconhecimento'
 
 /**
  * Central de Pesquisas e Notícias (slot 3).
@@ -51,17 +52,8 @@ export function Noticias() {
 
   return (
     <div className="mt-5 space-y-5">
-      {/* Estado do Gagarin: inativo até o gatilho do §12.1. */}
-      <div className="border-rust/20 bg-sand border p-3">
-        <div className="text-rust eyebrow">Telescópio Gagarin</div>
-        <p className="text-ink-soft mt-1 text-sm">
-          {dados.gagarin.regra} No ar: <span className="tabular-nums">{dados.gagarin.jogadores}</span>/
-          {dados.gagarin.limiar_jogadores} jogadores.{' '}
-          <span className="text-ink font-bold">
-            {dados.gagarin.ativo ? 'Ativo.' : 'Ainda inativo — sem boletins automáticos.'}
-          </span>
-        </p>
-      </div>
+      {/* D-282: o Gagarin de verdade — estado, missões de reconhecimento, luas e Diário. */}
+      <Reconhecimento />
 
       {/* Só quem é Repórter vê isto (§14.2, D-130). */}
       {dados.posso_publicar && (

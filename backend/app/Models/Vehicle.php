@@ -86,7 +86,12 @@ class Vehicle extends Model
     public const CAPACIDADE = [
         'furgao_de_comercio' => 6_000,
         'caminhao_de_carga' => 30_000,
+        // D-281, §28.9: 4 m³.
+        'nave_de_transporte_planetaria' => 4_000,
     ];
+
+    /** A Nave de Transporte Planetária (D-281): vive na Plataforma de Pouso, voa só para zonas. */
+    public const NAVE = 'nave_de_transporte_planetaria';
 
     public function colony(): BelongsTo
     {

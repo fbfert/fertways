@@ -95,6 +95,9 @@ class ZoneController extends Controller
                         'finishes_at' => $z->level_upgrade_finishes_at,
                     ] : null,
 
+                    // D-281: a Nave só pousa aqui com a Plataforma de Pouso da zona.
+                    'plataforma_de_pouso' => $z->nivelDe('plataforma_de_pouso_da_zona') >= 1,
+
                     'guarnicao' => [
                         'robos' => $z->guarnicao(),
                         'sentinelas' => $z->units()->where('type', 'sentinela')->where('hp_bps', '>', 0)->count(),

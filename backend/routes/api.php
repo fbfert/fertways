@@ -178,6 +178,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/vehicles', [VehicleController::class, 'index']);
     Route::get('/vehicles/route', [VehicleController::class, 'rota']);
     Route::post('/vehicles/{vehicle}/dispatch', [VehicleController::class, 'despachar']);
+    Route::post('/vehicles/{vehicle}/robos', [VehicleController::class, 'transportarRobos']);
     Route::patch('/vehicles/{vehicle}/nickname', [VehicleController::class, 'renomear']);
 
     Route::get('/market/account', [MarketController::class, 'conta']);
@@ -217,6 +218,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/espacoporto', [\App\Http\Controllers\Api\EspacoportoController::class, 'index']);
     Route::post('/espacoporto/contratos', [\App\Http\Controllers\Api\EspacoportoController::class, 'contratar']);
     Route::post('/espacoporto/cotacao', [\App\Http\Controllers\Api\EspacoportoController::class, 'cotacao']);
+    // D-282: o Gagarin e as Missões de Reconhecimento.
+    Route::get('/reconhecimento', [\App\Http\Controllers\Api\ReconhecimentoController::class, 'index']);
+    Route::post('/reconhecimento/{missao}/tarefa', [\App\Http\Controllers\Api\ReconhecimentoController::class, 'tarefa'])->whereNumber('missao');
     // D-270: a fila de dúvidas do Atendente do Espaçoporto.
     Route::get('/espacoporto/duvidas', [\App\Http\Controllers\Api\DuvidasDoEspacoportoController::class, 'index']);
     Route::post('/espacoporto/duvidas', [\App\Http\Controllers\Api\DuvidasDoEspacoportoController::class, 'perguntar'])->middleware('throttle:10,1');

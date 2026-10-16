@@ -18,19 +18,38 @@ final class VeiculoSpecs
     private const VELOCIDADE = [
         'furgao_de_comercio' => 4.0,
         'caminhao_de_carga' => 1.5,
+        // §17.5, §28.9: 10 slots por minuto (D-281).
+        'nave_de_transporte_planetaria' => 10.0,
     ];
 
-    /** kW/h por minuto de viagem (§21.2: 1 · §21.3: 3). */
+    /**
+     * Combustível por minuto de viagem (§21.2: 1 kW/h · §21.3: 3 kW/h). A Nave queima **Gelo de
+     * Metano**, 50 unidades por minuto de voo (§28.9, D-281); os outros, energia.
+     */
     private const CONSUMO_POR_MINUTO = [
         'furgao_de_comercio' => 1.0,
         'caminhao_de_carga' => 3.0,
+        'nave_de_transporte_planetaria' => 50.0,
+    ];
+
+    /** O que cada veículo queima. Quem não está aqui roda a energia. */
+    private const COMBUSTIVEL = [
+        'nave_de_transporte_planetaria' => 'gelo_de_metano',
     ];
 
     /** §25.4: 1.000 unidades de qualquer recurso = 1 m³. Furgão 6 m³; Caminhão 30 m³. */
     public const CAPACIDADE = [
         'furgao_de_comercio' => 6_000,
         'caminhao_de_carga' => 30_000,
+        // §28.9: 4 m³ = 4.000 unidades por viagem.
+        'nave_de_transporte_planetaria' => 4_000,
     ];
+
+    /** O recurso que a viagem deste veículo consome: `energia`, ou `gelo_de_metano` na Nave. */
+    public static function combustivel(string $tipo): string
+    {
+        return self::COMBUSTIVEL[$tipo] ?? 'energia';
+    }
 
     public static function conhece(string $tipo): bool
     {

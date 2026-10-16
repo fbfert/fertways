@@ -609,7 +609,8 @@ class ZonaLugarTest extends TestCase
         // e mostra a zona ao vivo pros aliados.
         $this->assertTrue($catalogo['estrutura_de_extracao']['inerte']);
         $this->assertFalse($catalogo['central_de_comunicacao']['inerte']);
-        $this->assertTrue($catalogo['plataforma_de_pouso_da_zona']['inerte']);
+        // A Plataforma de Pouso da zona saiu do grupo no D-281: é onde a Nave pousa.
+        $this->assertFalse($catalogo['plataforma_de_pouso_da_zona']['inerte']);
     }
 
     /** A ficha da zona publica os minerais da Indústria Siderúrgica junto do resto do depósito. */
@@ -746,7 +747,8 @@ class ZonaLugarTest extends TestCase
             'metal_bruto' => 1000, 'ligas_metalicas' => 500, 'componentes_eletronicos' => 200,
         ]);
 
-        $inertes = ['estrutura_de_extracao' => true, 'central_de_comunicacao' => false, 'plataforma_de_pouso_da_zona' => true];
+        // D-281: a Plataforma de Pouso da zona deixou de ser inerte — a Nave pousa nela.
+        $inertes = ['estrutura_de_extracao' => true, 'central_de_comunicacao' => false, 'plataforma_de_pouso_da_zona' => false];
 
         foreach ($inertes as $estrutura => $deveSerInerte) {
             $this->assertContains($estrutura, Estruturas::CONSTRUIVEIS);

@@ -46,6 +46,10 @@ class ComprarVeiculo
     public function handle(Colony $colony, string $tipo): Vehicle
     {
         $this->vagas->exigirVagaLivre($colony);
+        // D-281: a Nave precisa também de vaga na Plataforma de Pouso.
+        if ($tipo === Vehicle::NAVE) {
+            app(Hangar::class)->exigirVaga($colony);
+        }
         $config = Ministerio::config($tipo);
 
         return DB::transaction(function () use ($colony, $tipo, $config) {
@@ -54,6 +58,9 @@ class ComprarVeiculo
             $colony = Colony::whereKey($colony->id)->lockForUpdate()->firstOrFail();
 
             $this->vagas->exigirVagaLivre($colony);
+            if ($tipo === Vehicle::NAVE) {
+                app(Hangar::class)->exigirVaga($colony);
+            }
 
             // O primeiro da prateleira DAQUELE TIPO, travado: duas compras simultâneas não levam
             // o mesmo veículo. Quem chegar depois pega o próximo, ou a fila.

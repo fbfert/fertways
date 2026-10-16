@@ -167,10 +167,11 @@ class CapitalController extends Controller
         return response()->json([
             'noticias' => $noticias,
             'posso_publicar' => $possoPublicar,
+            // D-282: o estado de verdade, que o tick muda; a tela das missões é `/central/reconhecimento`.
             'gagarin' => [
-                'ativo' => false,
+                'ativo' => app(\App\Domain\Reconhecimento\Gagarin::class)->ativo(),
                 'jogadores' => $jogadores,
-                'limiar_jogadores' => 50,
+                'limiar_jogadores' => (int) (app(\App\Domain\Reconhecimento\Gagarin::class)->config()->limiar_jogadores ?? 50),
                 'regra' => 'O Telescópio Gagarin ativa com 50 jogadores cadastrados ou 45 dias de servidor.',
             ],
         ]);

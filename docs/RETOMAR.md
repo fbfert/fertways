@@ -51,9 +51,9 @@ porta 33106, usuário `fertways_ci`, senha `ci_local`), commit, push, `gh run li
 
 1. [x] **D-280** Escolta e seguro de carga no Espaçoporto (a v3.2 os chama de "mecânicas de temporada";
    o GDD não dá número, então os números são meus e nascem no painel).
-2. [ ] **D-281** A Nave de Transporte Planetária (§17.5, §21.8, §28.9: 4.000 un., 10 slots/min, 50 Gelo
+2. [x] **D-281** A Nave de Transporte Planetária (§17.5, §21.8, §28.9: 4.000 un., 10 slots/min, 50 Gelo
    de Metano/min) e as duas Plataformas de Pouso, a do slot (vagas de nave) e a da zona (pouso).
-3. [ ] **D-282** Missões de reconhecimento (aditivo v3.4 §2): Gagarin, boletins, missão planetária e
+3. [x] **D-282** Missões de reconhecimento (aditivo v3.4 §2): Gagarin, boletins, missão planetária e
    missão lunar, com as oito luas.
 4. [ ] **Revisão completa do jogo**, ao fim.
 

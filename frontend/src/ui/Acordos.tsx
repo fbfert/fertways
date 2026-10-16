@@ -114,7 +114,8 @@ export function OfertarEntreColonos({ colonia }: { colonia: Colonia }) {
     }
   }
 
-  const ociosos = frota?.vehicles.filter((v) => v.status === 'ocioso') ?? []
+  // D-281: a Nave não entrega a outra colônia.
+  const ociosos = frota?.vehicles.filter((v) => v.status === 'ocioso' && v.type !== 'nave_de_transporte_planetaria') ?? []
   const abertos = carteira?.agreements.filter(ABERTO) ?? []
   const encerrados = carteira?.agreements.filter((a) => !ABERTO(a)) ?? []
 

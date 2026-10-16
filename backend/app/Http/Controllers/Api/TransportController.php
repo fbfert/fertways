@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Domain\Logistics\VeiculoSpecs;
 use App\Domain\Transport\ComprarVeiculo;
 use App\Domain\Transport\Conservacao;
+use App\Domain\Transport\Hangar;
 use App\Domain\Transport\Manutencao;
 use App\Domain\Transport\MercadoDeUsados;
 use App\Domain\Transport\Ministerio;
@@ -68,6 +69,12 @@ class TransportController extends Controller
                 'ocupadas' => $this->vagas->ocupadas($colony),
                 'livres' => $this->vagas->livres($colony),
                 'regra' => 'O teto é o nível da sua Central de Transportes (mínimo 1).',
+            ],
+            // D-281: a Plataforma de Pouso, hangar da Nave — uma vaga por nível.
+            'hangar' => [
+                'nivel' => app(Hangar::class)->nivel($colony),
+                'naves' => app(Hangar::class)->naves($colony),
+                'regra' => 'A Nave de Transporte Planetária estaciona na Plataforma de Pouso: uma nave por nível, além da vaga na Central.',
             ],
             'veiculos' => $colony->vehicles()->orderBy('id')->get()->map(
                 fn (Vehicle $v) => $this->registro($v),
@@ -144,7 +151,7 @@ class TransportController extends Controller
             // D-259: o serviço em curso — para qual nível, e quando fica pronto.
             'em_servico_para' => $emServico ? $alvo : null,
             'pronto_em' => $emServico ? $v->ready_at?->toIso8601String() : null,
-            'segundos' => $noMaximo ? null : $u->segundos($alvo, $config),
+            'segundos' => $noMaximo ? null : $u->segundosPara($v, $alvo, $config),
             'proximo_nivel' => $noMaximo ? null : $alvo,
             'custo' => $noMaximo ? null : $u->custo($v->type, $alvo, $config),
             'capacidade_agora' => $u->capacidade($v->type, $atual, $config),

@@ -70,7 +70,7 @@ class UpgradeVeiculo
              *
              * Zero mantém o upgrade instantâneo — foi o comportamento até aqui, e é decisão do operador.
              */
-            $segundos = $this->segundos($alvo, $config);
+            $segundos = $this->segundosPara($veiculo, $alvo, $config);
 
             if ($segundos > 0) {
                 $veiculo->update([
@@ -102,6 +102,21 @@ class UpgradeVeiculo
         $porNivel = (int) ($config ?? TransportSetting::singleton())->upgrade_segundos_por_nivel;
 
         return $porNivel * max(0, $alvo - 1);
+    }
+
+    /**
+     * O tempo do serviço para ESTE veículo. A Nave sai mais rápido com Plataforma de Pouso maior
+     * (D-281, `Hangar`): é o "reduzem tempo de construção" do §17.2. Os outros, como sempre.
+     */
+    public function segundosPara(Vehicle $veiculo, int $alvo, ?TransportSetting $config = null): int
+    {
+        $segundos = $this->segundos($alvo, $config);
+
+        if ($veiculo->type !== Vehicle::NAVE || ! $veiculo->colony) {
+            return $segundos;
+        }
+
+        return (int) round($segundos * app(Hangar::class)->fatorDeUpgradeBps($veiculo->colony) / 10_000);
     }
 
     /**

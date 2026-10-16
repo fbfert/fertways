@@ -70,6 +70,21 @@ class FecharContratoDeRota
                 );
             }
 
+            // D-282: nas primeiras 48 h de uma rota descoberta, cada colônia viaja até N vezes para lá
+            // ("limites de ordem evitam monopólio de lançamento", aditivo v3.4 §2.2).
+            $planetaAgora = $planeta->fresh();
+            if ($planetaAgora->abertura_ate && $planetaAgora->abertura_ate > now()) {
+                $limite = (int) (DB::table('gagarin_settings')->value('viagens_na_abertura') ?? 1);
+                $feitas = ContratoDeRota::where('colony_id', $colonia->id)->where('planeta_npc_id', $planeta->id)->count();
+                if ($feitas >= $limite) {
+                    throw new DomainRuleException(
+                        'limite_da_abertura',
+                        "{$planeta->nome} acabou de abrir: até ".$planetaAgora->abertura_ate->format('d/m H:i')
+                        ." cada colônia faz {$limite} viagem(ns) para lá, para ninguém monopolizar a abertura.",
+                    );
+                }
+            }
+
             // D-269: o portão do planeta, além do do Cargueiro.
             $doPlaneta = $this->espacoporto->portao($colonia, $planeta);
             if (! $doPlaneta['pode']) {

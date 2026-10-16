@@ -44,6 +44,12 @@ class MinisterioDosTransportesTest extends TestCase
     }
 
     /** O caixa do governo, dotado para N unidades de CADA tipo que a fábrica produz. */
+    /** A soma das prateleiras de todos os tipos que o Ministério fabrica (a Nave entrou no D-281). */
+    private function alvoTotal(): int
+    {
+        return array_sum(array_map(fn ($t) => Ministerio::config($t)['estoque_alvo'], Ministerio::TIPOS));
+    }
+
     private function dotarTesouro(int $vezes = 10): void
     {
         $total = [];
@@ -106,9 +112,9 @@ class MinisterioDosTransportesTest extends TestCase
         app(FabricarVeiculos::class)->handle();
 
         $placas = Vehicle::whereNotNull('plate')->pluck('plate');
-        $alvoTotal = Ministerio::config(self::CAMINHAO)['estoque_alvo'] + Ministerio::config(self::FURGAO)['estoque_alvo'];
+        $alvoTotal = $this->alvoTotal();
 
-        $this->assertCount($alvoTotal + 1, $placas, 'as prateleiras dos dois tipos mais o Furgão do kit');
+        $this->assertCount($alvoTotal + 1, $placas, 'as prateleiras de todos os tipos mais o Furgão do kit');
         $this->assertCount($placas->count(), $placas->unique(), 'nenhuma placa se repete');
     }
 
@@ -143,18 +149,21 @@ class MinisterioDosTransportesTest extends TestCase
 
         $resultado = app(FabricarVeiculos::class)->handle();
 
-        $alvoCaminhao = Ministerio::config(self::CAMINHAO)['estoque_alvo'];
-        $alvoFurgao = Ministerio::config(self::FURGAO)['estoque_alvo'];
+        $this->assertSame($this->alvoTotal(), $resultado['encomendados']);
+        foreach (Ministerio::TIPOS as $tipo) {
+            $this->assertSame(
+                Ministerio::config($tipo)['estoque_alvo'],
+                Vehicle::whereNull('colony_id')->where('type', $tipo)->where('status', 'fabricando')->count(),
+            );
+        }
 
-        $this->assertSame($alvoCaminhao + $alvoFurgao, $resultado['encomendados']);
-        $this->assertSame($alvoCaminhao, Vehicle::whereNull('colony_id')->where('type', self::CAMINHAO)->where('status', 'fabricando')->count());
-        $this->assertSame($alvoFurgao, Vehicle::whereNull('colony_id')->where('type', self::FURGAO)->where('status', 'fabricando')->count());
-
-        // O Tesouro pagou por cada um: dotámo-lo para 10×, saíram 5+5.
-        $dotado = Ministerio::config(self::CAMINHAO)['custo']['ligas_metalicas'] * 10
-            + Ministerio::config(self::FURGAO)['custo']['ligas_metalicas'] * 10;
-        $gasto = Ministerio::config(self::CAMINHAO)['custo']['ligas_metalicas'] * $alvoCaminhao
-            + Ministerio::config(self::FURGAO)['custo']['ligas_metalicas'] * $alvoFurgao;
+        // O Tesouro pagou por cada um: dotámo-lo para 10× de cada tipo, saiu a prateleira de cada.
+        $dotado = 0;
+        $gasto = 0;
+        foreach (Ministerio::TIPOS as $tipo) {
+            $dotado += Ministerio::config($tipo)['custo']['ligas_metalicas'] * 10;
+            $gasto += Ministerio::config($tipo)['custo']['ligas_metalicas'] * Ministerio::config($tipo)['estoque_alvo'];
+        }
 
         $this->assertSame($dotado - $gasto, (int) TreasuryHolding::whereKey('ligas_metalicas')->value('amount'));
     }
@@ -218,7 +227,7 @@ class MinisterioDosTransportesTest extends TestCase
         app(FabricarVeiculos::class)->handle();
         app(FabricarVeiculos::class)->handle();
 
-        $alvoTotal = Ministerio::config(self::CAMINHAO)['estoque_alvo'] + Ministerio::config(self::FURGAO)['estoque_alvo'];
+        $alvoTotal = $this->alvoTotal();
         $this->assertSame($alvoTotal, Vehicle::whereNull('colony_id')->count());
     }
 
@@ -226,7 +235,7 @@ class MinisterioDosTransportesTest extends TestCase
     {
         $this->prepararPrateleira();
 
-        $alvoTotal = Ministerio::config(self::CAMINHAO)['estoque_alvo'] + Ministerio::config(self::FURGAO)['estoque_alvo'];
+        $alvoTotal = $this->alvoTotal();
         $this->assertSame($alvoTotal, Vehicle::whereNull('colony_id')->where('status', 'estoque')->count());
     }
 

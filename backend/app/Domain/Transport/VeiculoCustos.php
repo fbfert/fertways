@@ -31,6 +31,12 @@ final class VeiculoCustos
             'componentes_eletronicos' => 25,
             'metal_bruto' => 16,
         ],
+        // §21.8, nível 1 (D-281).
+        'nave_de_transporte_planetaria' => [
+            'ligas_metalicas' => 250,
+            'componentes_eletronicos' => 120,
+            'metal_bruto' => 45,
+        ],
     ];
 
     /** @return array<string,int> */

@@ -824,6 +824,8 @@ export type MinhaZona = {
   /** Nível da zona e upgrade em curso, se houver (D-84/D-88). */
   level: number
   upgrade: { target: number; finishes_at: string } | null
+  /** D-281: tem Plataforma de Pouso — a Nave pousa aqui. */
+  plataforma_de_pouso: boolean
   guarnicao: { robos: number; sentinelas: number; defesa: number }
   /** Manutenção territorial (D-84/D-88) — `inadimplente_desde` nulo é dia em dia. */
   manutencao: { inadimplente_desde: string | null; penalidade_bps: number }
@@ -882,7 +884,7 @@ export type Veiculo = {
 }
 
 export type Frota = {
-  colony: { x: number; y: number }
+  colony: { id: number; x: number; y: number }
   capital: { x: number; y: number }
   vehicles: Veiculo[]
 }
@@ -1190,6 +1192,56 @@ export type CotacaoDeRota = {
 
 export type OpcoesDeRota = { seguro: boolean; escolta: number }
 
+/** D-282: uma Missão de Reconhecimento, no que ela tem de público. */
+export type MissaoDeReconhecimento = {
+  id: number
+  tipo: 'planetaria' | 'lunar'
+  setor: string
+  anomalia: string
+  faixa: string | null
+  fase: string
+  fase_nome: string
+  fase_ate: string | null
+  tarefas: number
+  meta_de_tarefas: number
+  pede_meta: boolean
+  aceita_tarefa: boolean
+  minhas_tarefas_hoje: number
+  /** O SHA-256 do resultado lacrado, público desde a criação (§2.5). */
+  assinatura: string
+  /** Nulo até a revelação: o planeta não tem nome antes de a rota abrir. */
+  alvo_nome: string | null
+  concluida_em: string | null
+}
+
+export type Reconhecimento = {
+  gagarin: {
+    ativo: boolean
+    ativado_em: string | null
+    pausado: boolean
+    proximo_boletim_em: string | null
+    jogadores: number
+    limiar_jogadores: number
+    dias: number
+    limiar_dias: number
+  }
+  missoes: MissaoDeReconhecimento[]
+  luas: {
+    chave: string
+    nome: string
+    ordem: number
+    revelada: boolean
+    recurso: string | null
+    primeira_revelacao: string | null
+    gancho: string | null
+  }[]
+  tarefas_por_dia: number
+  tarefas_hoje: number
+  xp_por_tarefa: number
+  tem_laboratorio: boolean
+  diario: { id: number; titulo: string; corpo: string; created_at: string }[]
+}
+
 export type EstadoEspacoporto = {
   ligado: boolean
   motivo_fechado: string | null
@@ -1287,6 +1339,8 @@ export type Transportes = {
   /** Desde o D-109: uma entrada por tipo que a fábrica produz — hoje Caminhão e Furgão. */
   fabrica: Record<string, ItemDaFabrica>
   frota: { teto: number; ocupadas: number; livres: number; regra: string }
+  /** D-281: a Plataforma de Pouso, hangar da Nave — uma nave por nível. */
+  hangar: { nivel: number; naves: number; regra: string }
   veiculos: RegistroVeiculo[]
   /** A 6ª atribuição do painel do §16, na porção que vai ao colono. */
   planeta: { veiculos_registrados: number; vendidos: number; sucateados: number }
@@ -1634,6 +1688,10 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ planeta, venda, compra, ...opcoes }),
     }),
+  /** D-282: o Gagarin, as missões de reconhecimento, as luas e o Diário do Colono. */
+  reconhecimento: () => req<Reconhecimento>('/reconhecimento'),
+  tarefaDeReconhecimento: (missao: number) =>
+    req<{ tarefas: number; meta_de_tarefas: number }>(`/reconhecimento/${missao}/tarefa`, { method: 'POST' }),
   /** D-280: a cotação da escolta e do seguro, sem fechar nada. */
   cotarRota: (planeta: string, venda: Record<string, number>, compra: Record<string, number>, opcoes: OpcoesDeRota) =>
     req<CotacaoDeRota>('/espacoporto/cotacao', {
@@ -1997,6 +2055,12 @@ export const api = {
    * zona neutra sua, só de volta para casa. O servidor decide o que aquele destino aceita a partir
    * de onde o veículo está agora — esta função só varia o destino.
    */
+  /** D-281: a Nave leva Robôs Mineradores da zona onde está para outra zona sua. */
+  transportarRobos: (veiculo: number, zona: number, quantidade: number) =>
+    req<{ id: number; arrives_at: string; robos: number }>(`/vehicles/${veiculo}/robos`, {
+      method: 'POST',
+      body: JSON.stringify({ zona, quantidade }),
+    }),
   reposicionarVazio: (
     veiculo: number,
     destinationType: 'colonia' | 'mercado_central' | 'zona_neutra',

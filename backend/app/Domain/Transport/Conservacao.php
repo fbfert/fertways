@@ -78,10 +78,13 @@ class Conservacao
     /**
      * §16.4, primeira frase: "**Apenas** Furgão e Caminhão de Carga possuem depreciação ativa, já que
      * rodam continuamente em missões. Os demais veículos registrados não têm desgaste por uso."
+     *
+     * A Nave entra desde o D-281: o §06 consolidado do v35 corrige a lista — "Depreciação aplica-se
+     * apenas a Furgões, Caminhões e Naves de Transporte Planetário, calculada por uso ativo".
      */
     public function deprecia(Vehicle $veiculo): bool
     {
-        return in_array($veiculo->type, ['furgao_de_comercio', 'caminhao_de_carga'], true);
+        return in_array($veiculo->type, ['furgao_de_comercio', 'caminhao_de_carga', Vehicle::NAVE], true);
     }
 
     /**

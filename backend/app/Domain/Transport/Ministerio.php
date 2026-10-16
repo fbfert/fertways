@@ -20,7 +20,8 @@ use Illuminate\Support\Facades\DB;
  */
 final class Ministerio
 {
-    public const TIPOS = ['caminhao_de_carga', 'furgao_de_comercio'];
+    /** Desde o D-281, a Nave de Transporte Planetária também (custo do §21.8, preço meu). */
+    public const TIPOS = ['caminhao_de_carga', 'furgao_de_comercio', 'nave_de_transporte_planetaria'];
 
     /**
      * A configuração de um tipo: preço, estoque-alvo, tempo de fabricação e custo em recursos.

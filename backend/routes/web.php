@@ -94,6 +94,13 @@ Route::prefix('admin')->group(function () {
         Route::post('/feedback/{feedback}/responder', [AcoesController::class, 'feedbackResponder'])->name('admin.feedback.responder');
         Route::post('/feedback/{feedback}/feito', [AcoesController::class, 'feedbackFeito'])->name('admin.feedback.feito');
 
+        // O Gagarin e as Missões de Reconhecimento (D-282). Abrir a planetária é do Dono (no controller).
+        Route::get('/reconhecimento', [\App\Http\Controllers\Admin\ReconhecimentoController::class, 'index'])->name('admin.reconhecimento');
+        Route::post('/reconhecimento/config', [\App\Http\Controllers\Admin\ReconhecimentoController::class, 'config'])->name('admin.reconhecimento.config');
+        Route::post('/reconhecimento/planetaria', [\App\Http\Controllers\Admin\ReconhecimentoController::class, 'planetaria'])->name('admin.reconhecimento.planetaria');
+        Route::post('/reconhecimento/pausa', [\App\Http\Controllers\Admin\ReconhecimentoController::class, 'pausa'])->name('admin.reconhecimento.pausa');
+        Route::post('/reconhecimento/{missao}/reabrir', [\App\Http\Controllers\Admin\ReconhecimentoController::class, 'reabrir'])->name('admin.reconhecimento.reabrir');
+
         // O catálogo de missões (§06, D-78): aba própria — o CRUD é grande demais para um card.
         Route::get('/missoes', [PainelController::class, 'missoes'])->name('admin.missoes');
         Route::post('/missoes', [AcoesController::class, 'missaoCriar'])->name('admin.missao.criar');

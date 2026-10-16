@@ -59,7 +59,7 @@ export function Transportes() {
   if (erro && !dados) return <p className="text-rust mt-4 text-sm font-bold">{erro}</p>
   if (!dados) return <p className="text-ink-soft mt-4 text-sm">Carregando…</p>
 
-  const { fabrica, frota, veiculos, planeta } = dados
+  const { fabrica, frota, hangar, veiculos, planeta } = dados
   const semVaga = frota.livres < 1
 
   return (
@@ -73,6 +73,7 @@ export function Transportes() {
             item={item}
             semVaga={semVaga}
             tetoDaFrota={frota.teto}
+            hangar={hangar}
             ocupado={ocupado}
             recibo={recibo}
             erro={erro}
@@ -122,6 +123,7 @@ function CartaoDaFabrica({
   item,
   semVaga,
   tetoDaFrota,
+  hangar,
   ocupado,
   recibo,
   erro,
@@ -130,12 +132,16 @@ function CartaoDaFabrica({
   item: ItemDaFabrica
   semVaga: boolean
   tetoDaFrota: number
+  hangar: TransportesDto['hangar']
   ocupado: boolean
   recibo: string | null
   erro: string | null
   agir: (acao: () => Promise<string>) => Promise<void>
 }) {
   const semEstoque = item.em_estoque < 1
+  // D-281: a Nave precisa também de vaga na Plataforma de Pouso — uma por nível.
+  const ehNave = item.tipo === 'nave_de_transporte_planetaria'
+  const semHangar = ehNave && hangar.naves >= hangar.nivel
 
   return (
     <div className="border-rust/20 bg-sand border p-4" data-fabrica={item.tipo}>
@@ -174,7 +180,7 @@ function CartaoDaFabrica({
             return `${nomeVeiculo(item.tipo)} ${comprado.placa} é seu. Ele vem dirigindo da Capital.`
           })
         }
-        disabled={semVaga || semEstoque || ocupado}
+        disabled={semVaga || semHangar || semEstoque || ocupado}
         data-comprar-veiculo={item.tipo}
         className="bg-rust text-sand-light hover:bg-rust-bright disabled:bg-ink-soft/30 mt-3 px-5 py-2 text-sm font-bold disabled:cursor-not-allowed"
       >
@@ -185,6 +191,13 @@ function CartaoDaFabrica({
       {semVaga && (
         <p className="text-ink-soft/80 mt-2 text-xs">
           A sua frota está no teto de {tetoDaFrota}. Suba a Central de Transportes para abrir vaga.
+        </p>
+      )}
+      {ehNave && (
+        <p className="text-ink-soft mt-2 text-xs" data-hangar={hangar.nivel}>
+          {hangar.nivel === 0
+            ? 'A Nave estaciona na Plataforma de Pouso da colônia, e você ainda não tem uma. Ela voa só entre a colônia e as suas zonas com Plataforma de Pouso, e queima Gelo de Metano.'
+            : `Plataforma de Pouso nível ${hangar.nivel}: ${hangar.naves} de ${hangar.nivel} vaga(s) de nave ocupada(s). A Nave voa só entre a colônia e as suas zonas com Plataforma de Pouso, e queima Gelo de Metano.`}
         </p>
       )}
       {semEstoque && !semVaga && (

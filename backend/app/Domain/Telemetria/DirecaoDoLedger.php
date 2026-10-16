@@ -97,6 +97,8 @@ class DirecaoDoLedger
         'fabricar_drone',
         'custo_obra_zona',
         'energia_viagem',
+        // D-281: o Gelo de Metano da Nave — queima de verdade, como a energia.
+        'combustivel_viagem',
         'custo_ocupacao',
         'manutencao_veiculo',
         'estacionamento',

@@ -167,9 +167,10 @@ export function Mercado({
   // Os três lugares onde um veículo ocioso pode estar (D-65, e a zona neutra desde o D-109): em
   // casa, no Pátio da Capital, ou estacionado numa zona sua. Um veículo no Pátio não pode sair de
   // casa, e um veículo em casa não carrega do depósito.
-  const emCasa = frota?.vehicles.filter((v) => v.status === 'ocioso' && v.local === 'colonia') ?? []
+  // D-281: a Nave não vai à Capital nem a outra colônia — os voos dela ficam na tela da Frota.
+  const emCasa = frota?.vehicles.filter((v) => v.status === 'ocioso' && v.local === 'colonia' && v.type !== 'nave_de_transporte_planetaria') ?? []
   const noPatio = frota?.vehicles.filter((v) => v.status === 'ocioso' && v.local === 'capital') ?? []
-  const naZona = frota?.vehicles.filter((v) => v.status === 'ocioso' && v.local === 'zona') ?? []
+  const naZona = frota?.vehicles.filter((v) => v.status === 'ocioso' && v.local === 'zona' && v.type !== 'nave_de_transporte_planetaria') ?? []
 
   return (
     <div className="bg-sand fixed inset-0 z-20 overflow-y-auto">

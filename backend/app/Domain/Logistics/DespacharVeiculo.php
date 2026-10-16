@@ -54,6 +54,8 @@ class DespacharVeiculo
     public function handle(Colony $origem, Vehicle $veiculo, string $destinoTipo, ?int $destinoId, array $carga, ?int $acordoId = null): Vehicle
     {
         $this->validarVeiculo($origem, $veiculo);
+        // D-281: carga da Nave só vai e vem entre a colônia e as zonas, pelos caminhos próprios.
+        $this->exigirNaveSoParaZonas($veiculo);
 
         if ($veiculo->noPatio()) {
             return $this->doPatio($origem, $veiculo, $destinoTipo, $destinoId, $carga, $acordoId);
@@ -275,6 +277,7 @@ class DespacharVeiculo
     public function retirar(Colony $origem, Vehicle $veiculo, array $pedido): Vehicle
     {
         $this->validarVeiculo($origem, $veiculo);
+        $this->exigirNaveSoParaZonas($veiculo);
 
         AcessoAoMercado::exigir($origem);
 
@@ -331,6 +334,7 @@ class DespacharVeiculo
         }
 
         $this->validarCarga($veiculo, $pedido);
+        self::exigirPlataformaNaZona($veiculo, $zona);
 
         /*
          * Desde o D-67 a zona pode ter até três POTES para levar: o minério que ela extrai, o
@@ -399,6 +403,14 @@ class DespacharVeiculo
 
         if (! in_array($destinoTipo, ['colonia', 'mercado_central', 'zona_neutra'], true)) {
             throw new DomainRuleException('destino_invalido', "Destino desconhecido: {$destinoTipo}");
+        }
+
+        // D-281: a Nave não vai à Capital; numa zona, só pousa se houver Plataforma.
+        if ($destinoTipo === 'mercado_central') {
+            $this->exigirNaveSoParaZonas($veiculo);
+        }
+        if ($destinoTipo === 'zona_neutra') {
+            self::exigirPlataformaNaZona($veiculo, $this->exigirZonaPropria($origem, $destinoId));
         }
 
         if ($veiculo->noPatio()) {
@@ -470,19 +482,39 @@ class DespacharVeiculo
      */
     private function reposicionarDaZona(Colony $origem, Vehicle $veiculo, string $destinoTipo, ?int $destinoId): Vehicle
     {
-        if ($destinoTipo !== 'colonia' || $destinoId !== $origem->id) {
-            throw new DomainRuleException(
-                'destino_invalido_da_zona',
-                'De uma zona neutra, hoje um veículo vazio só volta para a sua colônia.',
-            );
-        }
-
         // Onde ele está estacionado: `destination_id` guarda a zona desde que `terminarViagem()`
         // parou de limpá-la para quem fica `NA_ZONA` (ver D-109).
         $zona = NeutralZone::find($veiculo->destination_id);
 
         if (! $zona) {
             throw new DomainRuleException('zona_inexistente', 'A zona onde este veículo está não existe mais.');
+        }
+
+        /*
+         * D-281: a Nave voa de uma zona sua para outra. É o que o §17.5 desenha para ela ("transporta
+         * Robôs Mineradores entre diferentes zonas neutras do mesmo colono"), e a distância entre dois
+         * pontos quaisquer do mapa é a mesma conta de sempre. Os veículos de chão continuam só voltando
+         * para casa.
+         */
+        if ($veiculo->type === Vehicle::NAVE && $destinoTipo === 'zona_neutra') {
+            $destino = $this->exigirZonaPropria($origem, $destinoId);
+
+            if ($destino->id === $zona->id) {
+                throw new DomainRuleException('destino_igual_origem', 'A Nave já está nesta zona.');
+            }
+
+            $ida = $this->distancia($zona->x, $zona->y, $destino->x, $destino->y);
+
+            return $this->partirVazio($origem, $veiculo, 'zona_neutra', $destino->id, $ida);
+        }
+
+        if ($destinoTipo !== 'colonia' || $destinoId !== $origem->id) {
+            throw new DomainRuleException(
+                'destino_invalido_da_zona',
+                $veiculo->type === Vehicle::NAVE
+                    ? 'De uma zona neutra, a Nave volta para a sua colônia ou voa para outra zona sua com Plataforma de Pouso.'
+                    : 'De uma zona neutra, hoje um veículo vazio só volta para a sua colônia.',
+            );
         }
 
         $ida = $this->distancia($zona->x, $zona->y, $origem->x, $origem->y);
@@ -545,6 +577,7 @@ class DespacharVeiculo
         }
 
         $this->validarCarga($veiculo, $carga);
+        self::exigirPlataformaNaZona($veiculo, $zona);
 
         $destino = ['id' => $zona->id, 'x' => $zona->x, 'y' => $zona->y];
         [$distancia, $energia] = $this->idaEVolta($origem, $veiculo, $destino);
@@ -649,14 +682,61 @@ class DespacharVeiculo
         return [$distancia, VeiculoSpecs::energiaDasPernas($veiculo->type, [$distancia, $distancia])];
     }
 
-    /** Debita a energia e devolve a referência que amarra todos os lançamentos da viagem. */
+    /**
+     * Debita o combustível e devolve a referência que amarra todos os lançamentos da viagem.
+     *
+     * `$energia` é a quantidade de combustível do tipo: kWh para Furgão e Caminhão, Gelo de Metano
+     * para a Nave (§28.9, D-281). A Nave sem combustível tem recusa própria, porque "falta energia"
+     * mandaria o colono olhar o Reator, e o que falta é Gelo de Metano.
+     */
     private function partir(Colony $origem, Vehicle $veiculo, int $energia, CarbonInterface $agora): string
     {
         $ref = "viagem:{$veiculo->id}:{$agora->getTimestamp()}";
+        $combustivel = VeiculoSpecs::combustivel($veiculo->type);
 
-        $this->debitarEstoque($origem, 'energia', $energia, 'energia_viagem', $ref);
+        if ($combustivel === 'energia') {
+            $this->debitarEstoque($origem, 'energia', $energia, 'energia_viagem', $ref);
+
+            return $ref;
+        }
+
+        $tem = (int) ($origem->resources()->where('resource_type', $combustivel)->value('amount') ?? 0);
+        if ($tem < $energia) {
+            throw new DomainRuleException(
+                'falta_de_combustivel',
+                "Este voo queima {$energia} de Gelo de Metano, e a colônia tem {$tem}.",
+            );
+        }
+
+        $this->debitarEstoque($origem, $combustivel, $energia, 'combustivel_viagem', $ref);
 
         return $ref;
+    }
+
+    /**
+     * A Nave só voa entre a colônia dona e as zonas dela (§17.5, D-281). Ela não pousa no Mercado,
+     * no Pátio nem em outra colônia: a Capital não tem Plataforma de Pouso, e o §17.5 desenha o
+     * fluxo inteiro entre o slot e as zonas.
+     */
+    private function exigirNaveSoParaZonas(Vehicle $veiculo): void
+    {
+        if ($veiculo->type === Vehicle::NAVE) {
+            throw new DomainRuleException(
+                'nave_so_voa_para_zonas',
+                'A Nave de Transporte Planetária só voa entre a sua colônia e as suas zonas neutras com Plataforma de Pouso.',
+            );
+        }
+    }
+
+    /** A Nave só pousa em zona com a Plataforma de Pouso da zona erguida (§17.4, D-281). */
+    public static function exigirPlataformaNaZona(Vehicle $veiculo, NeutralZone $zona): void
+    {
+        if ($veiculo->type === Vehicle::NAVE && $zona->nivelDe('plataforma_de_pouso_da_zona') < 1) {
+            throw new DomainRuleException(
+                'zona_sem_plataforma',
+                'A zona '.($zona->name ?: "({$zona->x}, {$zona->y})").' não tem Plataforma de Pouso: a Nave não tem onde pousar. Erga a Plataforma na zona.',
+            );
+        }
     }
 
     /**

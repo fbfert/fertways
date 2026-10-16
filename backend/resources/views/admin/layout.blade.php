@@ -141,6 +141,7 @@
                 'admin.guerra' => 'Guerra',
                 'admin.chat' => 'Chat',
                 'admin.missoes' => 'Missões',
+                'admin.reconhecimento' => 'Gagarin',
                 'admin.transportes' => 'Transportes',
                 'admin.federacoes' => 'Federações',
                 'admin.auditoria' => 'Auditoria',

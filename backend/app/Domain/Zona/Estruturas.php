@@ -255,9 +255,11 @@ class Estruturas
             // ⚠️ Homônima da Plataforma de Pouso do slot da colônia — entidades e custos diferentes.
             'gdd' => 'Permite o pouso de Naves de Transporte Planetária para retirada direta de robôs e '
                 .'mercadorias da zona, sem depender de via terrestre hostil.',
-            'hoje' => 'Nada. Só serve à Nave de Transporte Planetária, que está no catálogo e não no jogo '
-                .'— é uma fatia inteira (§17.5): voo, placa, robôs transportados entre zonas.',
-            'inerte' => true,
+            // D-281: a Nave existe.
+            'hoje' => 'É onde a sua Nave de Transporte Planetária pousa: sem ela, a Nave não retira carga, '
+                .'não leva material e não estaciona aqui. Com Plataforma nesta zona e em outra sua, a Nave '
+                .'leva até 4 Robôs Mineradores de uma para a outra.',
+            'inerte' => false,
         ],
 
         /*
