@@ -26,8 +26,8 @@ use Tests\TestCase;
 
 /**
  * Cargos Públicos, §14.2 (D-130) — os 3 que sobravam depois do Conciliador: Repórter, Fiscal de
- * Mercado, Auxiliar de Tesouro. O Atendente do Espaçoporto fica de fora (100% dependente do
- * Espaçoporto, que não existe).
+ * Mercado, Auxiliar de Tesouro. O Atendente do Espaçoporto, o quinto, chegou
+ * no D-270 e tem o teste dele (AtendenteDoEspacoportoTest).
  */
 class CargosCivicosTest extends TestCase
 {

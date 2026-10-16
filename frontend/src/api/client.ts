@@ -603,7 +603,7 @@ export type Perfil = {
 
 /** Um Cargo Público ocupado por este colono (§14.2, D-130). */
 export type CargoCivico = {
-  kind: 'reporter' | 'fiscal_de_mercado' | 'auxiliar_de_tesouro'
+  kind: 'reporter' | 'fiscal_de_mercado' | 'auxiliar_de_tesouro' | 'atendente_espacoporto'
   nome: string
   suspenso: boolean
   salario_diario_fert: number
@@ -1133,6 +1133,19 @@ export type EstadoEspacoporto = {
   contratos: ContratoDeRota[]
 }
 
+export type DuvidasEspacoporto = {
+  sou_atendente: boolean
+  minhas: {
+    id: number
+    pergunta: string
+    resposta: string | null
+    encaminhada: boolean
+    ajudou: boolean | null
+    em: string
+  }[]
+  fila: { id: number; de: string | null; pergunta: string; em: string }[]
+}
+
 export type RegistroVeiculo = {
   id: number
   placa: string | null
@@ -1533,6 +1546,16 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ planeta, venda, compra }),
     }),
+  /** D-270: as dúvidas do Espaçoporto — a fila do Atendente. */
+  duvidasEspacoporto: () => req<DuvidasEspacoporto>('/espacoporto/duvidas'),
+  perguntarEspacoporto: (pergunta: string) =>
+    req<{ id: number }>('/espacoporto/duvidas', { method: 'POST', body: JSON.stringify({ pergunta }) }),
+  responderDuvida: (id: number, resposta: string) =>
+    req<{ ok: true }>(`/espacoporto/duvidas/${id}/responder`, { method: 'POST', body: JSON.stringify({ resposta }) }),
+  encaminharDuvida: (id: number) =>
+    req<{ ok: true }>(`/espacoporto/duvidas/${id}/encaminhar`, { method: 'POST' }),
+  avaliarDuvida: (id: number, ajudou: boolean) =>
+    req<{ ok: true }>(`/espacoporto/duvidas/${id}/avaliar`, { method: 'POST', body: JSON.stringify({ ajudou }) }),
 
   transportes: () => req<Transportes>('/transport'),
   comprarVeiculo: (tipo: string) =>

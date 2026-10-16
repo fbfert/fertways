@@ -3,6 +3,7 @@ import { api, ApiError } from '../api/client'
 import type { ContratoDeRota, EstadoEspacoporto, PlanetaNpc } from '../api/client'
 import { dataHumana, nomeRecurso } from './recursos'
 import { Botao } from './sistema'
+import { DuvidasDoEspacoporto } from './DuvidasDoEspacoporto'
 
 /**
  * O Espaçoporto — a área Sul da Capital (D-63, D-262).
@@ -135,6 +136,8 @@ export function Espacoporto() {
         que o planeta pagou. As peças de alfândega da Endurance dão desconto. Nos planetas com risco, um
         sinistro na viagem pode levar parte da carga das duas pernas — o que se pagou não volta.
       </p>
+
+      <DuvidasDoEspacoporto />
     </div>
   )
 }

@@ -17,8 +17,9 @@ use App\Models\Colony;
  * único valor que o GDD publica para cargo cívico, e a v32 descreve os 5 cargos como do mesmo porte
  * ("remuneração moderada", "nenhum cargo concede Fert$ suficiente para distorcer a economia").
  *
- * O Atendente do Espaçoporto (5º cargo do §14.2) NÃO está aqui — ver D-130: 100% dependente do
- * Espaçoporto, que não existe. Não há nada para nomear alguém "atender".
+ * O Atendente do Espaçoporto (5º cargo do §14.2) ficou de fora no D-130 — 100% dependente do
+ * Espaçoporto, que não existia. Entrou no D-270, com os mesmos números dos outros; o ato dele é a
+ * fila de dúvidas (`AtendimentoDoEspacoporto`).
  */
 final class CargosCivicosSpecs
 {
@@ -28,12 +29,15 @@ final class CargosCivicosSpecs
 
     public const AUXILIAR_DE_TESOURO = 'auxiliar_de_tesouro';
 
-    public const KINDS = [self::REPORTER, self::FISCAL_DE_MERCADO, self::AUXILIAR_DE_TESOURO];
+    public const ATENDENTE_DO_ESPACOPORTO = 'atendente_espacoporto';
+
+    public const KINDS = [self::REPORTER, self::FISCAL_DE_MERCADO, self::AUXILIAR_DE_TESOURO, self::ATENDENTE_DO_ESPACOPORTO];
 
     public const NOMES = [
         self::REPORTER => 'Repórter',
         self::FISCAL_DE_MERCADO => 'Fiscal de Mercado',
         self::AUXILIAR_DE_TESOURO => 'Auxiliar de Tesouro',
+        self::ATENDENTE_DO_ESPACOPORTO => 'Atendente do Espaçoporto',
     ];
 
     /**
@@ -46,6 +50,8 @@ final class CargosCivicosSpecs
         self::REPORTER => 'conduta_social',
         self::FISCAL_DE_MERCADO => 'confianca_comercial',
         self::AUXILIAR_DE_TESOURO => 'status_civico',
+        // §14.2 (v32): "Conduta Social alta".
+        self::ATENDENTE_DO_ESPACOPORTO => 'conduta_social',
     ];
 
     /** §26.7, reusado: único salário de cargo cívico que o GDD publica. */

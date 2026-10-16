@@ -14669,3 +14669,24 @@ Espaçoporto, por planeta). A tela mostra o risco em número, o portão, o impos
 viagens com o sinistro, se houve.
 
 Migration `2026_10_16_400000_carga_interplanetaria` (testada nos dois sentidos sobre a partida do D-263).
+
+---
+
+## D-270 — O Atendente do Espaçoporto, o quinto cargo cívico
+
+**Data:** 2026-10-15 · **Status:** decidido pelo usuário ("siga suas recomendações") · commit, deploy pendente
+
+O D-130 deixou o Atendente de fora por não haver Espaçoporto. Agora há. O §14.2 diz o que ele faz —
+*"responde a fluxos predefinidos e encaminha dúvidas; não altera reservas, fretes ou rotas"*, exige
+"Conduta Social alta" — e não diz quanto ganha.
+
+- **Os números dos outros cargos**: 50 F$/dia, bônus de 50 F$, teto de 400 F$/semana (D-130 reusou o
+  §26.7 para todos; o Atendente entra na mesma régua).
+- **O ato é uma fila de dúvidas** no Espaçoporto. Qualquer colono pergunta (três abertas por vez); o
+  Atendente responde — com respostas prontas para editar, os "fluxos predefinidos" — ou **encaminha**,
+  e a dúvida vira um item "dúvida" na aba Feedback do painel, em nome de quem perguntou.
+- **O bônus paga a resposta que ajudou, e quem diz é quem perguntou.** Uma avaliação por dúvida.
+  Resposta qualquer não rende; encaminhar não rende. O Atendente nunca atende a própria dúvida.
+- Nomeação como os outros: `fertways:cargo-civico <nick> atendente_espacoporto --nomear`.
+
+Migration `2026_10_16_500000_duvidas_do_espacoporto`.

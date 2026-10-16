@@ -355,8 +355,11 @@ function CargosPublicos({
             </div>
             <p className="text-ink-soft mt-1 text-xs">
               {c.salario_diario_fert.toLocaleString('pt-BR')} Fert$/dia
-              {c.kind !== 'reporter' && `, + ${c.bonus_fert.toLocaleString('pt-BR')} Fert$ por sinalização confirmada`}
+              {(c.kind === 'fiscal_de_mercado' || c.kind === 'auxiliar_de_tesouro') &&
+                `, + ${c.bonus_fert.toLocaleString('pt-BR')} Fert$ por sinalização confirmada`}
               {c.kind === 'reporter' && `, + ${c.bonus_fert.toLocaleString('pt-BR')} Fert$ por matéria publicada`}
+              {c.kind === 'atendente_espacoporto' &&
+                `, + ${c.bonus_fert.toLocaleString('pt-BR')} Fert$ por resposta que ajudou. A fila de dúvidas fica no Espaçoporto, na Capital.`}
             </p>
           </div>
         ))}
