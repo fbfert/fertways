@@ -19,6 +19,9 @@ class TickColoniesTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        // Os testes medem o intervalo entre dois `now()`. Com o relógio andando, uma virada de
+        // segundo no meio transformava 60 s em 61, e o MariaDB do CI, mais lento, pegou (915 ≠ 900).
+        $this->freezeSecond();
         $this->seed(\Database\Seeders\ResourceTypeSeeder::class);
         $this->seed(\Database\Seeders\ComponentRecipeSeeder::class);
         $this->seed(\Database\Seeders\BuildingSpecSeeder::class);
