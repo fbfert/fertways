@@ -5,7 +5,7 @@
 > e então **faça ao usuário as perguntas da seção "Perguntas em aberto"** antes de escolher
 > o que fazer. Atualize este arquivo ao fim de cada sessão.
 
-**Última atualização:** 2026-10-16 · **Branch:** `main`
+**Última atualização:** 2026-10-17 · **Branch:** `main`
 
 > **Se o usuário disser "retome" e houver uma seção "EM ANDAMENTO AGORA" abaixo**, ela já tem
 > autorização permanente para seguir sem novas perguntas ("siga por todas as fases... quero que
@@ -38,6 +38,22 @@
 > o v35 só serve onde o v39 tem lacuna.
 
 ---
+
+## Pronto e NÃO publicado (17/10/2026) — o lote D-287 a D-291
+
+**Pedido do usuário, em 17/10:** construir a avaliação de 0 a 5 estrelas, o Ministério das Reputações
+completo, a Embaixada Interplanetária (slot 9), o Cemitério de Robôs, a Estrutura de Extração e o
+assistente "Vender", "pelas suas recomendações sem me fazer perguntas". **Sem deploy** até ele pedir.
+
+- **D-287** estrelas no comércio entre colonos · **D-288** Ministério completo (chat, aliado, tratado,
+  avaliação) · **D-289** Embaixada, credencial por planeta; o Quartel foi ao slot 10 · **D-290** Cemitério
+  de Robôs e Estrutura de Extração (as duas últimas inertes da zona) · **D-291** assistente Vender.
+- **Commit `df8a7b3`**, em cima de `13b21d3`. **1674 testes** verdes no SQLite e no MariaDB 10.5
+  local; round-trip das quatro migrations novas; build e lint limpos (o aviso de `App.tsx:116` é antigo).
+- **Quatro migrations novas:** `2026_10_18_100000` a `400000`. O prompt de deploy está pronto em
+  `docs/PROMPT_DEPLOY_VPS.md`.
+- **Números meus, todos no painel ou em constantes comentadas:** credencial 40 F$ / 50% / 30 dias;
+  extração +10% por cópia no nível 1, curva 1,5, teto +100%; estrelas de -12 a +6 no índice.
 
 ## EM ANDAMENTO AGORA (desde 2026-10-16) — temporada: escolta, seguro, Nave, reconhecimento, revisão
 
