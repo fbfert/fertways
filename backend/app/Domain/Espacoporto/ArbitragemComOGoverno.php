@@ -4,6 +4,7 @@ namespace App\Domain\Espacoporto;
 
 use App\Exceptions\DomainRuleException;
 use App\Models\Colony;
+use App\Models\MissaoDeReconhecimento;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -57,6 +58,19 @@ class ArbitragemComOGoverno
             ->where('p.compra_micro', '>', $precoMicro)
             ->orderBy('n.ordem')
             ->get(['n.nome', 'p.compra_micro']);
+
+        /*
+         * D-284: o planeta de uma missão de reconhecimento em curso ainda não está em
+         * `planeta_npc_precos` — está lacrado no resultado da missão, e abre com ele. Sem olhar aqui,
+         * o Governo baixava o preço durante os ~4 dias da missão e a rota nascia com arbitragem. O
+         * nome do planeta não aparece: ele é segredo até a revelação, mesmo para o painel de preços.
+         */
+        foreach (MissaoDeReconhecimento::where('tipo', MissaoDeReconhecimento::PLANETARIA)->whereNull('concluida_em')->get() as $m) {
+            $compra = $m->resultado['precos'][$recurso]['compra_micro'] ?? null;
+            if ($compra !== null && (int) $compra > $precoMicro) {
+                $acima->push((object) ['nome' => "o planeta em reconhecimento em {$m->setor}", 'compra_micro' => (int) $compra]);
+            }
+        }
 
         if ($acima->isNotEmpty()) {
             $quem = $acima->map(fn ($l) => "{$l->nome} paga {$this->fert((int) $l->compra_micro)}")->implode(', ');

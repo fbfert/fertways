@@ -20,6 +20,10 @@ import { DuvidasDoEspacoporto } from './DuvidasDoEspacoporto'
 const fert = (micro: number) =>
   (micro / 1_000_000).toLocaleString('pt-BR', { maximumFractionDigits: 6 })
 
+/** D-285: dinheiro que o jogador lê como preço — duas casas, não seis. */
+const reais = (micro: number) =>
+  (micro / 1_000_000).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+
 const pct = (bps: number) => `${(bps / 100).toLocaleString('pt-BR')}%`
 
 const horas = (min: number) =>
@@ -207,6 +211,19 @@ function Planeta({
       {temRisco && (
         <div className="text-ink-soft mt-1 text-xs" data-risco={p.chave}>
           Em {pct(p.risco_chance_bps)} das viagens há sinistro, e ele leva {pct(p.risco_perda_bps)} da carga.
+          {!p.portao.pode && ' Quando a rota abrir para você, dá para ir com escolta de Sentinelas e com seguro.'}
+        </div>
+      )}
+      {p.aberto && p.demanda_restante_micro !== null && Object.keys(p.compra).length > 0 && (
+        <div className="text-ink-soft mt-1 text-xs" data-demanda={p.chave}>
+          {p.demanda_restante_micro > 0 ? (
+            <>
+              Hoje {p.nome} ainda compra <b className="text-ink">{fert(p.demanda_restante_micro)} Fert$</b> em carga,
+              somando todos os colonos. A demanda renova às 07h.
+            </>
+          ) : (
+            <span className="text-rust">{p.nome} já comprou tudo o que precisava hoje. A demanda renova às 07h.</span>
+          )}
         </div>
       )}
       {p.aberto && !p.portao.pode && p.portao.falta && (
@@ -348,7 +365,9 @@ function Protecao({
             className="border-rust/30 w-16 border px-1 py-0.5 text-right tabular-nums"
             data-escolta={p.chave}
           />
-          <span className="text-ink-soft">de {sentinelasEmCasa} Sentinela(s) em casa</span>
+          <span className="text-ink-soft">
+            de {sentinelasEmCasa} Sentinela(s) em casa{sentinelasEmCasa === 0 && ' — elas se fabricam no Quartel'}
+          </span>
         </label>
         <label className="flex items-center gap-2">
           <input
@@ -374,8 +393,8 @@ function Protecao({
           {cotacao.seguro_cobertura_micro > 0 && (
             <>
               {' '}
-              Seguro: <b>{fert(cotacao.seguro_premio_micro)} Fert$</b> na partida, e paga{' '}
-              <b>{fert(cotacao.seguro_cobertura_micro)} Fert$</b> se o sinistro vier.
+              Seguro: <b>{reais(cotacao.seguro_premio_micro)} Fert$</b> na partida, e paga{' '}
+              <b>{reais(cotacao.seguro_cobertura_micro)} Fert$</b> se o sinistro vier.
             </>
           )}
         </p>

@@ -333,6 +333,27 @@ class ChatTest extends TestCase
         $this->actingAs($admin, 'admin')
             ->get('/admin/chat?privada_a='.$a->id.'&privada_b='.$b->id)
             ->assertOk()->assertSee('segredo');
+
+        // D-284: a liberação é de uso único. Recarregar, ou montar a URL à mão, não mostra mais nada.
+        $this->actingAs($admin, 'admin')
+            ->get('/admin/chat?privada_a='.$a->id.'&privada_b='.$b->id)
+            ->assertOk()->assertDontSee('segredo');
+    }
+
+    public function test_a_url_da_privada_sem_espiar_nao_mostra_nada(): void
+    {
+        $a = $this->colono(20, 20, 'parte_a');
+        $b = $this->colono(30, 30, 'parte_b');
+        $this->actingAs($a)->postJson("/chat/privada/{$b->id}", ['body' => 'segredo']);
+        $admin = Admin::create([
+            'name' => 'Mod', 'email' => 'mod@fertways.test',
+            'password' => Hash::make('segredo-forte-1234'), 'role' => Admin::OPERADOR,
+        ]);
+
+        $this->actingAs($admin, 'admin')
+            ->get('/admin/chat?privada_a='.$a->id.'&privada_b='.$b->id)
+            ->assertOk()->assertDontSee('segredo');
+        $this->assertDatabaseMissing('audit_log', ['acao' => 'chat.acesso_privado']);
     }
 
     public function test_o_painel_silencia_com_prazo_e_auditoria(): void

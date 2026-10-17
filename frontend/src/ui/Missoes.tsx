@@ -23,7 +23,8 @@ const NOME_CATEGORIA = {
 } as const
 
 export function Missoes({ aoFechar }: { aoFechar: () => void }) {
-  const [missoes, setMissoes] = useState<Missao[]>([])
+  // D-285: nulo é "ainda carregando" — antes, a lista vazia do início dizia "nada por aqui" a quem tinha 5 missões.
+  const [missoes, setMissoes] = useState<Missao[] | null>(null)
   const [rejeicoes, setRejeicoes] = useState(0)
   const [erro, setErro] = useState<string | null>(null)
 
@@ -53,7 +54,7 @@ export function Missoes({ aoFechar }: { aoFechar: () => void }) {
 
   // `eventuais` logo depois da tutoria: tem prazo curto e some com o evento — é o mais urgente.
   const grupos = (['tutoria', 'eventuais', 'diaria', 'semanal', 'federacao', 'narrativa'] as const)
-    .map((c) => ({ categoria: c, itens: missoes.filter((m) => m.categoria === c) }))
+    .map((c) => ({ categoria: c, itens: (missoes ?? []).filter((m) => m.categoria === c) }))
     .filter((g) => g.itens.length > 0)
 
   return (
@@ -85,7 +86,10 @@ export function Missoes({ aoFechar }: { aoFechar: () => void }) {
             </div>
           </section>
         ))}
-        {grupos.length === 0 && <p className="text-ink-soft text-xs">Nada por aqui — volte amanhã às 07h.</p>}
+        {missoes === null && !erro && <p className="text-ink-soft text-xs">Abrindo as missões…</p>}
+        {missoes !== null && grupos.length === 0 && (
+          <p className="text-ink-soft text-xs">Nada por aqui — volte amanhã às 07h.</p>
+        )}
       </div>
     </div>
   )

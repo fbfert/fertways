@@ -87,7 +87,7 @@ class FabricarUnidade
                 if ($tem < $total) {
                     throw new DomainRuleException(
                         'recursos_insuficientes',
-                        "Faltam recursos: {$recurso} exige {$total}, você tem {$tem}."
+                        "Faltam recursos: pede {$total} de ".(\App\Models\ResourceType::find($recurso)?->nome ?? $recurso).", e você tem {$tem}."
                         // O Nióbio é o freio de propósito (D-66). Se for ele que falta, o colono
                         // compra do governo — e é por isso que a mensagem diz de onde vem.
                         .($recurso === 'niobio_alienigena'

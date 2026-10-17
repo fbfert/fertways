@@ -33,6 +33,10 @@ class UpgradeVeiculo
     public function handle(Colony $colonia, Vehicle $veiculo): Vehicle
     {
         return DB::transaction(function () use ($colonia, $veiculo) {
+            // D-284: relido e travado. Com o modelo da rota, um upgrade durante um despacho trocava
+            // `em_rota` por `em_upgrade` (a viagem nunca fechava) e dois upgrades cobravam duas vezes.
+            $veiculo = Vehicle::whereKey($veiculo->id)->lockForUpdate()->firstOrFail();
+
             if ($veiculo->colony_id !== $colonia->id) {
                 throw new DomainRuleException('veiculo_de_outra_colonia', 'Este veículo não é seu.');
             }

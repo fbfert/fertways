@@ -52,9 +52,9 @@ class ReconhecimentoController extends Controller
             'servidor_aberto_em' => ['nullable', 'date'],
             'limiar_jogadores' => ['required', 'integer', 'min:1', 'max:1000000'],
             'limiar_dias' => ['required', 'integer', 'min:0', 'max:3650'],
-            // §2.1: "a cada 2 a 4 dias".
-            'boletim_intervalo_horas' => ['required', 'integer', 'min:48', 'max:96'],
-            'tarefas_por_dia' => ['required', 'integer', 'min:1', 'max:10'],
+            // §2.1: "a cada 2 a 4 dias"; §12: "intervalo máximo de 72 horas" (D-283: o teto é 72).
+            'boletim_intervalo_horas' => ['required', 'integer', 'min:48', 'max:72'],
+            'tarefas_por_dia' => ['required', 'integer', 'min:1', 'max:2'], // §2.2: "até duas tarefas diárias"
             'xp_por_tarefa' => ['required', 'integer', 'min:0', 'max:100000'],
             'meta_de_tarefas' => ['required', 'integer', 'min:0', 'max:100000'],
             'viagens_na_abertura' => ['required', 'integer', 'min:1', 'max:20'],

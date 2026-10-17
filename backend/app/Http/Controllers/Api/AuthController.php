@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Domain\Admin\Suspender;
 use App\Domain\Chat\Filtro;
+use App\Domain\Chat\NomesReservados;
 use App\Domain\Telemetria\RegistrarEvento;
 use App\Http\Controllers\Controller;
 use App\Models\User;
@@ -29,6 +30,10 @@ class AuthController extends Controller
                     if (Filtro::barra($value)) {
                         $fail('Este nickname contém um termo vedado (§03).');
                     }
+                    // D-284: ninguém nasce chamado "Capital" ou "Missões" — são contas do sistema.
+                    if (NomesReservados::reservado((string) $value)) {
+                        $fail('Este nickname é de uma conta do sistema.');
+                    }
                 }],
             'email' => ['required', 'email', 'max:255', 'unique:users,email'],
             'password' => ['required', Password::defaults()],
@@ -50,6 +55,9 @@ class AuthController extends Controller
     /** Erros de senha por minuto, na mesma conta e do mesmo IP, antes de travar. */
     private const TENTATIVAS_DE_LOGIN = 10;
 
+    /** D-284: falhas por minuto por IP, somando todas as contas — o mesmo 30 do login do painel. */
+    private const FALHAS_POR_IP = 30;
+
     public function login(Request $request): JsonResponse
     {
         $dados = $request->validate([
@@ -68,15 +76,20 @@ class AuthController extends Controller
          * só por e-mail deixaria o atacante distribuir tentativas entre contas.
          */
         $chave = 'login:'.strtolower($dados['email']).'|'.$request->ip();
+        // D-284: e um teto de FALHAS por IP, mais frouxo, somando todas as contas. Sem ele, um IP só
+        // testava uma senha comum em quantas contas quisesse, dez por minuto em cada.
+        $chaveIp = 'login-ip:'.$request->ip();
 
-        if (RateLimiter::tooManyAttempts($chave, self::TENTATIVAS_DE_LOGIN)) {
-            abort(429, 'Tentativas demais. Espere '.RateLimiter::availableIn($chave).' s.');
+        if (RateLimiter::tooManyAttempts($chave, self::TENTATIVAS_DE_LOGIN)
+            || RateLimiter::tooManyAttempts($chaveIp, self::FALHAS_POR_IP)) {
+            abort(429, 'Tentativas demais. Espere '.max(RateLimiter::availableIn($chave), RateLimiter::availableIn($chaveIp)).' s.');
         }
 
         $user = User::where('email', $dados['email'])->first();
 
         if (! $user || ! Hash::check($dados['password'], $user->password)) {
             RateLimiter::hit($chave, 60);
+            RateLimiter::hit($chaveIp, 60);
 
             throw ValidationException::withMessages(['email' => 'Credenciais inválidas.']);
         }

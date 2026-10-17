@@ -10,6 +10,7 @@ use App\Models\Combat;
 use App\Models\GameEvent;
 use App\Models\NeutralZone;
 use App\Models\ResourceType;
+use App\Models\WarSetting;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -104,7 +105,22 @@ class Avisos
             ->where('attacker_colony_id', $colonia->id)
             ->orWhere('defender_colony_id', $colonia->id))
             ->whereIn('status', ['marchando', 'em_curso'])
-            ->get(['attacker_colony_id', 'status']);
+            ->with('zone.zoneStructures')
+            ->get(['id', 'zone_id', 'attacker_colony_id', 'status', 'chega_at']);
+
+        /*
+         * D-284: a marcha contra uma zona só vira aviso quando a Torre de Vigia a enxergaria — a mesma
+         * régua do Quartel (D-67: sem Torre, só quando chega; com Torre, `aviso × nível` antes). O aviso
+         * do HUD contava o ataque desde o despacho e anulava a Torre que o Quartel respeita.
+         */
+        $aviso = (int) WarSetting::singleton()->torre_aviso_minutos_por_nivel;
+        $combates = $combates->filter(function (Combat $c) use ($colonia, $aviso) {
+            if ((int) $c->attacker_colony_id === $colonia->id || $c->status !== 'marchando' || ! $c->zone || ! $c->chega_at) {
+                return true;
+            }
+
+            return $c->chega_at->copy()->subMinutes($aviso * $c->zone->nivelDe('torre_de_vigia'))->isPast();
+        });
 
         $defendendo = $combates->filter(fn ($c) => (int) $c->attacker_colony_id !== $colonia->id)->count();
         $atacando = $combates->count() - $defendendo;
@@ -348,7 +364,7 @@ class Avisos
                 'codigo' => 'fila_vazia',
                 'severidade' => self::OPORTUNIDADE,
                 'titulo' => 'Nada em construção',
-                'detalhe' => 'A fila está parada. Uma colônia que não cresce está a perder tempo, não recurso.',
+                'detalhe' => 'A fila está parada. Uma colônia que não cresce está perdendo tempo, não recurso.',
             ];
         }
 
@@ -356,7 +372,11 @@ class Avisos
             fn ($b) => $b->type === 'laboratorio' && $b->level >= 1,
         );
 
-        if ($temLaboratorio) {
+        // D-285: com a pesquisa desligada no servidor, não há o que pesquisar — cobrar o jogador por um
+        // Laboratório parado era mandar fazer o impossível.
+        $pesquisaLigada = (bool) DB::table('research_settings')->find(1)?->ativo;
+
+        if ($temLaboratorio && $pesquisaLigada) {
             $emCurso = DB::table('colony_technologies')
                 ->where('colony_id', $colonia->id)
                 // ⚠️ `pesquisando`, o valor que `Pesquisa\Vagas` de facto usa. Medi a primeira vez

@@ -719,7 +719,7 @@ ob_start();
   <tr><td>5</td><td>Ministério da Segurança e Guerra</td><td>Conflitos, tratados, auditoria de combate</td><td><?= entregue() ?> <span class="d">D-66</span></td></tr>
   <tr><td>7</td><td>Ministério das Reputações</td><td>Denúncias, conciliação, recursos</td><td><?= entregue() ?></td></tr>
   <tr><td>8</td><td><b>Ministério dos Transportes</b></td><td>Fábrica de caminhões, registro de placas, oficina, e a Garagem do frete público</td><td><?= entregue() ?> <span class="d">D-60, D-76</span></td></tr>
-  <tr><td>9</td><td>Embaixada Interplanetária</td><td>—</td><td><?= entregue() ?> — vendida pelo Ministério, estaciona na Plataforma de Pouso <span class="d">D-281</span></td></tr>
+  <tr><td>9</td><td>Embaixada Interplanetária</td><td>—</td><td><?= promessa('Fora do MVP') ?></td></tr>
   <tr><td>10–20</td><td>Expansão controlada</td><td>—</td><td><?= promessa('Fora do MVP') ?></td></tr>
 </table>
 
@@ -1352,12 +1352,12 @@ ob_start();
   <?php endforeach; ?>
 </table>
 
-<div class="nota grave">
-  <b>Sete destas construções não fazem nada além de consumir energia.</b> O v35 as descreve com uma
-  frase e nunca as quantifica — o Laboratório "pesquisa tecnologia" e não há árvore de pesquisa; a
-  Refinaria tem taxa publicada (30/h) e <b>nenhuma receita</b>, então creditá-la criaria recurso do
-  nada <span class="d">D-19</span>. Um documento que as listasse como funcionalidades faria um jogador
-  gastar 90 Ligas num prédio inerte. <b>Elas estão aqui como promessa, que é o que são.</b>
+<div class="nota">
+  <b>Desde o D-281 nenhuma destas construções é só consumo de energia.</b> Na v35, sete delas eram
+  descritas numa frase e nunca quantificadas: o Laboratório "pesquisa tecnologia" sem árvore de pesquisa,
+  a Refinaria com taxa publicada (30/h) e <b>nenhuma receita</b> <span class="d">D-19</span>. Uma a uma,
+  ganharam função: a Refinaria (D-83), o Laboratório (A2.3, D-252), a Antena (D-271) e, por último, a
+  Plataforma de Pouso, hangar da Nave (D-281). A coluna ao lado diz o que cada uma faz hoje.
 </div>
 
 <h3>4.2 Custo e tempo, por construção</h3>
@@ -1463,7 +1463,7 @@ ob_start();
     <td><?= entregue() ?> — <?= n($kitFrota['caminhao_de_carga'] ?? 0) ?>× no kit, comprado no Ministério <span class="d">D-92</span></td>
   </tr>
   <tr><td>Drone de Exploração</td><td class="num">não carrega</td><td class="num">8 slots/min</td><td class="num">bateria, não energia</td><td><?= entregue() ?> <span class="d">D-74</span></td></tr>
-  <tr><td>Nave de Transporte Planetária</td><td class="num">4.000 un.</td><td class="num">10 slots/min</td><td class="num">Gelo de Metano</td><td><?= promessa('Fora do MVP') ?></td></tr>
+  <tr><td>Nave de Transporte Planetária</td><td class="num">4.000 un.</td><td class="num">10 slots/min</td><td class="num">Gelo de Metano</td><td><?= entregue() ?> — vendida pelo Ministério, estaciona na Plataforma de Pouso <span class="d">D-281</span></td></tr>
   <tr><td>Cargueiro Interplanetário</td><td class="num">—</td><td class="num">—</td><td class="num">—</td><td>Frota do Governo, alugada por contrato de rota — não se fabrica (§5.8)</td></tr>
 </table>
 
@@ -3969,8 +3969,8 @@ if ($semFrase !== []) {
 
 <div class="nota">
   <b>Números que valem revisitar mesmo sem serem lacuna:</b> o <b>salário do conciliador</b>
-  é emissão contínua (50 F$/dia), e o kit inicial de um colono é 50 F$ — um conciliador ganha um
-  kit inicial por dia sem jogar (D-50). O piso anti-farming do §26.3 desceu de 500 para
+  é emissão contínua (50 F$/dia), e o kit inicial de um colono é 100 F$ (D-85) — um conciliador ganha
+  meio kit inicial por dia sem jogar (D-50). O piso anti-farming do §26.3 desceu de 500 para
   <b>5 Fert$</b> (D-117) e hoje só protege a reputação (D-241); se um farm de reputação aparecer, é
   o primeiro número a subir. E o <b>portão de reputação na loja da Endurance</b> está fechado com
   razão — reabre quando o comércio separar uma colônia da outra (§10.2.1, D-245).

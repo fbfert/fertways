@@ -103,6 +103,9 @@ class Atribuir
             'fabricar_unidade', 'combate_vencido' => $temQuartel(),
             'zona_ocupada' => (int) $colony->xp >= app(RequisitosDeOcupacao::class)->xpExigido(),
             'missao_drone' => $colony->vehicles()->where('type', DroneSpecs::TIPO)->exists(),
+            // D-285: manutenção só quando há o que manter. No dia 1, o Furgão do kit está no teto, o
+            // botão fica desabilitado ("já está no teto dele") e a diária era impossível.
+            'manutencao' => $colony->vehicles()->whereColumn('conservacao_bps', '<', 'teto_conservacao_bps')->exists(),
             default => true,
         };
     }

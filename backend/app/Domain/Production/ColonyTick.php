@@ -17,6 +17,7 @@ use App\Models\BuildQueue;
 use App\Models\Colony;
 use App\Models\Ledger;
 use Carbon\CarbonInterface;
+use Closure;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -80,7 +81,10 @@ class ColonyTick
         private EfeitosDaEndurance $efeitosDaEndurance,
         private Parametros $parametrosDePopulacao,
         private Ciclo $cicloDePopulacao,
-    ) {}
+    ) {
+        // D-286: o tick pergunta pelos eventos uma vez por recurso de cada colônia.
+        $this->eventos = $eventos->comMemoriaDoTick();
+    }
 
     /**
      * A eficiência da população neste tick, em pontos-base. 10.000 = sem penalidade.
@@ -271,11 +275,24 @@ class ColonyTick
         // ocupar a posição 1 de novo, sem colidir no índice único. Ver D-53.
         $item->update(['status' => 'done', 'position' => null]);
 
-        // O Marco anda por atos (D-75), e concluir um nível de obra é o mais comum deles. Um
-        // `concluir` = um nível — a fila nunca pula degrau.
-        app(ConcederXp::class)->handle(
-            $colony->id, 'obra_concluida', "build:{$building->type}:n{$item->target_level}",
-        );
+        /*
+         * O Marco anda por atos (D-75), e concluir um nível de obra é o mais comum deles. Um
+         * `concluir` = um nível — a fila nunca pula degrau.
+         *
+         * ⚠️ D-283: paga o CRESCIMENTO da colônia, não a obra. Até aqui, demolir e reerguer a mesma
+         * Mina rendia 100 XP a cada 14 minutos, sem teto — o marco 35 saía em ~42 h de farm. Agora só
+         * rende o nível que leva o total de níveis da colônia acima do maior total que ela já teve
+         * (`niveis_de_obra_pagos`). Reerguer o que se demoliu reconstrói, mas não paga de novo.
+         */
+        $total = (int) $colony->buildings()->sum('level');
+        $pagos = (int) DB::table('colonies')->where('id', $colony->id)->value('niveis_de_obra_pagos');
+
+        if ($total > $pagos) {
+            DB::table('colonies')->where('id', $colony->id)->update(['niveis_de_obra_pagos' => $total]);
+            app(ConcederXp::class)->handle(
+                $colony->id, 'obra_concluida', "build:{$building->type}:n{$item->target_level}", vezes: $total - $pagos,
+            );
+        }
         app(Progresso::class)->registrar($colony->id, 'obra_concluida');
 
         // §24.7: "o ledger registra subsídio de 100% no momento de concluir".
@@ -565,8 +582,25 @@ class ColonyTick
             );
         }
 
-        foreach ($estoque as $linha) {
+        /*
+         * D-285: o que o estoque GANHOU neste segmento, por recurso, vai para `producao_por_hora`. O
+         * resumo "Desde sua última visita" lia a produção do ledger, e o ledger nunca a recebeu (ela é
+         * crédito direto, sem lançamento — ver o comentário dos eventos acima). Resultado: toda colônia
+         * que só produziu ouvia "a colônia ficou parada: nada foi produzido". Uma linha por recurso e
+         * por hora, somada — não uma por minuto, que encheria o banco.
+         */
+        $hora = $ate->copy()->startOfHour();
+        foreach ($estoque as $recurso => $linha) {
+            $ganho = (int) $linha->amount - (int) $linha->getOriginal('amount');
             $linha->save();
+
+            if ($ganho > 0) {
+                DB::table('producao_por_hora')->upsert(
+                    [['colony_id' => $colony->id, 'resource_type' => $recurso, 'hora' => $hora, 'quantidade' => $ganho]],
+                    ['colony_id', 'resource_type', 'hora'],
+                    ['quantidade' => DB::raw('producao_por_hora.quantidade + '.$ganho)],
+                );
+            }
         }
     }
 
@@ -731,7 +765,8 @@ class ColonyTick
      */
     public function receita(string $codigo): array
     {
-        $insumos = DB::table('component_recipes')->where('code', $codigo)->value('insumos_json');
+        $insumos = $this->configuracao('component_recipes', fn () => DB::table('component_recipes')
+            ->pluck('insumos_json', 'code')->all())[$codigo] ?? null;
 
         return json_decode($insumos ?? '{}', true);
     }
@@ -753,9 +788,8 @@ class ColonyTick
             return [];
         }
 
-        $specs = DB::table('building_specs')
-            ->whereIn('building_type', $erguidas->pluck('type')->unique())
-            ->get()->keyBy(fn ($s) => "{$s->building_type}:{$s->level}");
+        $specs = collect($this->configuracao('building_specs', fn () => DB::table('building_specs')
+            ->get()->keyBy(fn ($s) => "{$s->building_type}:{$s->level}")->all()));
 
         $saida = [];
         foreach ($erguidas as $b) {
@@ -782,13 +816,34 @@ class ColonyTick
             return [];
         }
 
-        $tipos = array_unique(array_column($erguidas, 'tipo'));
-
-        return DB::table('manutencao_estruturas')
-            ->whereIn('building_type', $tipos)
+        $todas = $this->configuracao('manutencao_estruturas', fn () => DB::table('manutencao_estruturas')
             ->get()
             ->groupBy('building_type')
             ->map(fn ($linhas) => $linhas->pluck('qtd_hora', 'resource_type')->all())
-            ->all();
+            ->all());
+
+        return array_intersect_key($todas, array_flip(array_column($erguidas, 'tipo')));
+    }
+
+    /** @var array<string, array{0: int, 1: array}> */
+    private array $memoDeConfiguracao = [];
+
+    /**
+     * Uma tabela de configuração lida uma vez por tick, e não uma vez por colônia (D-286).
+     *
+     * O revisor de desempenho mediu `building_specs`, `manutencao_estruturas` e
+     * `component_recipes` relidas em cada uma de 1000 colônias, a cada minuto, com a mesma
+     * resposta. A instância do ColonyTick vive o tick inteiro (o comando resolve a sua), e a memória
+     * vence em 60 s de relógio: uma mudança no painel vale no tick seguinte, como já valia.
+     */
+    private function configuracao(string $tabela, Closure $ler): array
+    {
+        $agora = time();
+
+        if (! isset($this->memoDeConfiguracao[$tabela]) || $agora - $this->memoDeConfiguracao[$tabela][0] >= 60) {
+            $this->memoDeConfiguracao[$tabela] = [$agora, $ler()];
+        }
+
+        return $this->memoDeConfiguracao[$tabela][1];
     }
 }

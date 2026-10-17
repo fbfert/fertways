@@ -6,6 +6,7 @@ use App\Domain\Missoes\Janela;
 use App\Models\Colony;
 use App\Models\MilestoneSetting;
 use App\Models\XpEntry;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Concede XP por um ato — a ÚNICA porta de entrada do ledger de XP (D-75).
@@ -52,19 +53,32 @@ class ConcederXp
      */
     private const TETO_DIARIO = [
         'mercado_executado' => 'xp_mercado_teto_diario',
+        // D-283: o Acordo tinha o mesmo furo que o D-241 achou no Mercado — o valor é das partes, e
+        // duas contas amigas fechavam acordos de 5 F$ sem fim, 150 XP cada para os dois lados.
+        'acordo_executado' => 'xp_acordo_teto_diario',
     ];
 
     public function handle(int $colonyId, string $acao, ?string $ref = null, int $vezes = 1): void
     {
         $config = MilestoneSetting::singleton();
 
-        if ($this->batidoOTetoDoDia($colonyId, $acao, $config)) {
+        if (! isset(self::TETO_DIARIO[$acao])) {
+            $this->direto($colonyId, $acao, (int) $config->{self::CAMPO[$acao]} * max(1, $vezes), $ref);
+
             return;
         }
 
-        $porVez = (int) $config->{self::CAMPO[$acao]};
+        // D-284: o teto diário confere e grava sob a trava da colônia; sem ela, N execuções ao mesmo
+        // tempo contavam o mesmo total e passavam todas.
+        DB::transaction(function () use ($colonyId, $acao, $ref, $vezes, $config) {
+            Colony::whereKey($colonyId)->lockForUpdate()->first();
 
-        $this->direto($colonyId, $acao, $porVez * max(1, $vezes), $ref);
+            if ($this->batidoOTetoDoDia($colonyId, $acao, $config)) {
+                return;
+            }
+
+            $this->direto($colonyId, $acao, (int) $config->{self::CAMPO[$acao]} * max(1, $vezes), $ref);
+        });
     }
 
     /**
@@ -94,6 +108,7 @@ class ConcederXp
         return XpEntry::where('colony_id', $colonyId)
             ->where('acao', $acao)
             ->where('created_at', '>=', Janela::diaAtual())
+            ->lockForUpdate()
             ->count() >= $teto;
     }
 

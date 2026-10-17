@@ -206,10 +206,9 @@ class Funcoes
             'resumo' => 'Hangar da Nave de Transporte Planetária: cada nível estaciona uma nave e encurta o upgrade dela.',
             'fonte' => '§17.2',
             'efeito' => 'abriga',
-            'nota' => 'Desde o D-281: cada nível estaciona uma Nave de Transporte Planetária (sem a '
-                .'Plataforma, a nave não se compra), e cada nível acima do primeiro corta 5% do tempo '
-                .'de upgrade dela, até 45%. Os dois números são meus: o GDD promete "mais naves" e '
-                .'"menos tempo" sem publicar nenhum.',
+            // D-281: os dois números são meus — o GDD promete "mais naves" e "menos tempo" sem nenhum.
+            'nota' => 'Cada nível estaciona uma Nave de Transporte Planetária — sem a Plataforma, a nave '
+                .'não se compra — e cada nível acima do primeiro deixa o upgrade dela 5% mais curto.',
         ],
         'tanque_de_combustivel' => [
             'frase' => 'Armazena Gelo de Metano refinado. Disponível no slot principal e nas zonas '
@@ -265,6 +264,7 @@ class Funcoes
     {
         $limpo = preg_replace(
             [
+                '/\bDesde o D-\d+[:,]?\s*/u',    // D-285: "Desde o D-281: cada…" → "cada…"
                 '/,\s*desde o D-\d+/u',          // "(§27.1), desde o D-66."  → "(§27.1)."
                 '/desde o D-\d+,\s*/u',          // "desde o D-83, só a…"     → "só a…"
                 '/,\s*D-\d+(?=\s*\))/u',         // "(§21.9, D-131)"           → "(§21.9)"
@@ -279,7 +279,7 @@ class Funcoes
                 '/\s+([.,:;])/u',                // espaço antes de pontuação
                 '/\s{2,}/u',
             ],
-            ['', '', '', '', '', '', '', '', '', '', '$1', ' '],
+            ['', '', '', '', '', '', '', '', '', '', '', '$1', ' '],
             $texto,
         );
 

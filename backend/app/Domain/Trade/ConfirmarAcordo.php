@@ -74,8 +74,15 @@ class ConfirmarAcordo
             );
         }
 
-        $acordo->forceFill(['status' => 'cancelado'])->save();
+        // D-284: condicional ao estado na própria escrita. Um cancelamento no mesmo instante do aceite
+        // transformava o acordo já aceito em "cancelado".
+        $mudou = TradeAgreement::whereKey($acordo->id)->where('status', 'proposto')
+            ->update(['status' => 'cancelado', 'updated_at' => now()]);
 
-        return $acordo;
+        if ($mudou === 0) {
+            throw new DomainRuleException('acordo_nao_cancelavel', 'O acordo acabou de mudar de estado: confira antes de cancelar.');
+        }
+
+        return $acordo->fresh();
     }
 }

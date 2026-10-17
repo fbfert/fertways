@@ -295,6 +295,8 @@ class ZoneController extends Controller
             ]);
 
         $guerra = Combat::where('zone_id', $zone->id)
+            // D-284: a marcha a caminho não é história — é o que a Torre de Vigia avisa, e no tempo dela.
+            ->where('status', '!=', 'marchando')
             ->with(['attacker:id,name', 'defender:id,name'])
             ->orderByDesc('id')
             ->get()

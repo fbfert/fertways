@@ -188,7 +188,8 @@ class Populacao
 
         return $porUnidade * DB::table('units')
             ->where('colony_id', $colonia->id)
-            ->whereIn('status', ['marchando', 'em_combate'])
+            // D-284: a escolta de um Cargueiro (D-280) também é tropa fora de casa.
+            ->whereIn('status', ['marchando', 'em_combate', 'escolta'])
             ->where('hp_bps', '>', 0)
             ->count();
     }

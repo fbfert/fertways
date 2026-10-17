@@ -91,6 +91,15 @@ class FecharContratoDeRota
                 throw new DomainRuleException('portao_do_planeta', "{$planeta->nome}: {$doPlaneta['falta']}");
             }
 
+            // D-283: um Cargueiro no ar por colônia. A frota do Governo é de todos; sem esta trava, uma
+            // colônia com caixa ocupava os dois sem parar.
+            if (ContratoDeRota::where('colony_id', $colonia->id)->where('status', ContratoDeRota::EM_VIAGEM)->exists()) {
+                throw new DomainRuleException(
+                    'um_cargueiro_por_colonia',
+                    'Você já tem um Cargueiro no ar. A frota do Governo é de todos: espere ele pousar para alugar outro.',
+                );
+            }
+
             // O Governo é o operador exclusivo (§16.2): a frota é finita, e os contratos também.
             $emViagem = ContratoDeRota::where('status', ContratoDeRota::EM_VIAGEM)->lockForUpdate()->count();
             if ($emViagem >= (int) $config->cargueiros) {
@@ -107,6 +116,24 @@ class FecharContratoDeRota
             $precos = $planeta->precos()->get()->keyBy('resource_type');
             $pernaVenda = $this->precificar($venda, $precos, 'compra_micro', 'planeta_nao_compra', "{$planeta->nome} não compra");
             $pernaCompra = $this->precificar($compra, $precos, 'venda_micro', 'planeta_nao_vende', "{$planeta->nome} não vende");
+
+            /*
+             * D-283: a demanda do planeta é finita. Sem teto, 10.000 Componentes Eletrônicos rendiam
+             * ~8.900 F$ numa viagem a Auryn — 25 vezes o que o D-263 estimou para o servidor inteiro
+             * num dia. A linha do planeta é travada para dois contratos não gastarem a mesma demanda.
+             */
+            $planetaTravado = PlanetaNpc::whereKey($planeta->id)->lockForUpdate()->first();
+            $valorDaVenda = array_sum(array_map(fn ($p) => $p['qtd'] * $p['preco_micro'], $pernaVenda));
+            $restante = $this->espacoporto->demandaRestante($planetaTravado);
+
+            if ($valorDaVenda > 0 && $restante !== null && $valorDaVenda > $restante) {
+                throw new DomainRuleException(
+                    'demanda_do_planeta',
+                    "{$planeta->nome} só compra mais ".number_format($restante / Colony::MICRO_POR_FERT, 2, ',', '.')
+                    .' Fert$ hoje, somando todos os colonos, e a sua carga vale '
+                    .number_format($valorDaVenda / Colony::MICRO_POR_FERT, 2, ',', '.').' Fert$. Leve menos, ou volte depois das 07h.',
+                );
+            }
 
             $capacidade = (int) $config->capacidade_unidades;
             if (array_sum($venda) > $capacidade || array_sum($compra) > $capacidade) {
@@ -200,6 +227,8 @@ class FecharContratoDeRota
                 'chega_em' => $agora->copy()->addMinutes((int) $planeta->distancia_minutos),
                 'imposto_importacao_micro' => $impostoDaCompra,
                 'risco_chance_bps' => $protecao['risco_chance_bps'],
+                // D-284: a perda também fica travada — a cobertura do seguro foi calculada com ela.
+                'risco_perda_bps' => (int) $planeta->fresh()->risco_perda_bps,
                 'seguro_premio_micro' => $premio,
                 'seguro_cobertura_micro' => $cobertura,
                 'escolta_unit_ids' => $protecao['escolta']->isEmpty() ? null : $protecao['escolta']->pluck('id')->all(),

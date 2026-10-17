@@ -15306,3 +15306,308 @@ Duas regras de execução também são minhas:
 - a tela, a Capital e o painel.
 
 Uma migration (`2026_10_17_300000`).
+
+## D-283 — Revisão completa, economia: as três torneiras que a auditoria mediu
+
+**Data:** 2026-10-17 · **Status:** decidido pelo usuário ("faça uma revisão completa do jogo"; "siga suas recomendações")
+
+A revisão completa rodou seis revisores em paralelo: economia, bugs, segurança, a jornada do novato
+jogada de verdade, desempenho do tick e conformidade com o GDD. Este é o lote de economia. Confirmei
+cada achado no código ou com execução antes de corrigir.
+
+### 1. ⚠️ Os planetas compravam sem limite
+
+O D-263 estimou a entrada de Fert$ pelo Espaçoporto em **~360 F$/dia no servidor**. Era suposição, e
+estava errada por duas ordens de grandeza:
+- Auryn paga 0,894 F$ por Componente Eletrônico, e o Cargueiro leva 10.000 unidades por perna.
+- **Uma viagem rendia ~8.900 F$**, o equivalente a 89 kits iniciais.
+- Na produção, o D-278 tirou essa compra de Veyra e de Drakmoor, mas a de Auryn ficou.
+
+A correção é que **a demanda de cada planeta é finita** (`planetas_npc.demanda_diaria_micro`):
+- **Teto:** cada planeta paga no máximo **100 F$ por dia de missão** (07h→07h), somando todos os
+  colonos. São 500 F$/dia no servidor, a ordem de grandeza que o D-263 pretendia.
+- **Contagem:** a venda conta na partida, pelo preço travado, e a linha do planeta é travada para dois
+  contratos não gastarem a mesma demanda. Encomendar não gasta demanda.
+- **Recusa:** o contrato que não cabe é recusado (`demanda_do_planeta`), e a mensagem diz quanto o
+  planeta ainda compra.
+- **Painel:** o número está no formulário de cada planeta. Vazio é "sem teto".
+- **Tela:** o cartão do planeta diz quanto ele ainda compra hoje.
+
+Isso também fecha o laço de conversão que a auditoria achou: comprar minerais baratos do Governo,
+transformar em Componentes na Oficina e vender a Auryn. A guarda do D-279 compara só o mesmo
+recurso; com a demanda finita, o laço rende no máximo a demanda do dia.
+
+### 2. Uma colônia ocupava os dois Cargueiros do Governo
+
+Agora é **um Cargueiro no ar por colônia** (`um_cargueiro_por_colonia`). A frota do Governo é de todos.
+
+### 3. ⚠️ Demolir e reerguer rendia XP sem teto
+
+Cada nível concluído pagava 100 XP, e demolir não devolvia nada. Uma Mina demolida e reerguida rendia
+100 XP a cada 14 minutos: o **marco 35, portão de Drakmoor, saía em ~42 h de farm** por ~96 F$ de
+material.
+
+Agora o XP de obra paga o **crescimento**: só rende o nível que leva o total de níveis da colônia
+acima do maior total que ela já teve (`colonies.niveis_de_obra_pagos`).
+- Reerguer o que se demoliu reconstrói, mas não paga de novo.
+- Uma segunda Mina, ao lado, é crescimento e paga.
+- A migration começa com o total de hoje, então ninguém ganha nem perde XP com o deploy.
+- A fundação marca os níveis com que a colônia nasce.
+
+### 4. O XP de Acordo ganhou o teto diário que o Mercado já tinha
+
+O D-241 mostrou que um piso de valor não segura conluio, porque o preço é das partes, e pôs um teto
+diário no XP do Mercado. O do Acordo (150 XP para cada lado, por acordo de 5 F$) não tinha. Agora tem:
+**3 por dia de missão** (`milestone_settings.xp_acordo_teto_diario`, no painel).
+
+### 5. O XP das tarefas do Gagarin desceu de 100 para 25
+
+Com 100, as oito luas davam ~8.000 XP só de tarefa, de graça (o marco 20 pede 6.000). Com 25, ficam
+~2.000 ao longo de mais de um mês. A migration do D-282 ainda não tinha ido para produção, então o
+valor de partida mudou nela mesma.
+
+Também os limites do painel do Gagarin ficaram presos ao GDD:
+- **tarefas por dia:** no máximo **2** (§2.2: "até duas");
+- **intervalo do boletim:** no máximo **72 h** (§12: "intervalo máximo de 72 horas").
+
+### O que a auditoria apontou e fica como está, anotado para o teste com jogadores
+
+- **A Refinaria Química destrói 89% do valor.** Insumos de 0,157 F$ viram um Composto de 0,0166 F$.
+- **A Siderúrgica destrói 78%.** 1.000 de Metal Bruto (33 F$) viram ~7,40 F$ de produtos.
+- **A Nave de Transporte custa caro em combustível**, ~1.400 vezes mais que o Caminhão por unidade.
+  O Gelo de Metano também não tem fonte produtiva no jogo: só vem do kit, do Tesouro e de Drakmoor.
+
+São números do GDD ou de decisões antigas (D-82, D-83), e mexer neles muda o que o jogador planeja.
+Recomendo revisar com o teste.
+
+**Verificação:** `RevisaoEconomiaTest`, com 7 testes:
+- a demanda: o teto, o servidor inteiro, a renovação às 07h, o "sem teto" e a encomenda que não gasta;
+- um Cargueiro por colônia;
+- demolir e reerguer, contra a segunda Mina;
+- o teto do XP de Acordo.
+
+Todos ficaram vermelhos antes da correção; o de demolir mostrava 700 XP onde deviam ser 600.
+
+## D-284 — Revisão completa, bugs e segurança
+
+**Data:** 2026-10-17 · **Status:** decidido pelo usuário ("siga suas recomendações")
+
+O lote de correção da revisão. Os revisores de bugs e de segurança reproduziram com teste a maior parte;
+cada correção tem teste em `RevisaoBugsTest` (14 testes), salvo as corridas, que o SQLite de uma thread
+só não exercita e foram corrigidas pela leitura do código.
+
+### Os sistemas novos (D-280 a D-282)
+
+- **Seguro:** a fração perdida passou a ficar travada no contrato
+  (`contratos_de_rota.risco_perda_bps`), como a chance. Antes, baixar a perda de um planeta durante o
+  voo fazia o seguro pagar **50 vezes** o que se perdeu.
+- **Preço lacrado de missão planetária:** a guarda do Governo (D-279) passou a ver os preços lacrados
+  das missões em curso. Antes, o Governo baixava o preço durante a missão e a rota nascia com
+  arbitragem. Na abertura, a compra que ainda ficar acima do Governo sai, pela regra do D-278, e o
+  registro público anota `compra_retirada`.
+- **Robôs em batalha:** a Nave não tira nem põe robôs em zona com combate em marcha ou em curso. Ela
+  evacuava defensores no meio da invasão.
+- **Viagem de quem não está em casa:** retirada e entrega de material numa zona saem de onde o veículo
+  está (`veiculo_fora_de_casa`). Antes eram contadas a partir da colônia, e a Nave parada a 180 slots
+  pagava 10.
+  - A Nave estacionada **na própria zona** leva a carga dela numa perna só: só a volta.
+- **Zona perdida durante o voo:** a Nave (e qualquer veículo reposicionando) que chega a uma zona que
+  deixou de ser do dono, ou perdeu a Plataforma, dá meia-volta para casa.
+- **Escolta e população:** a Sentinela de escolta conta como tropa em campanha (D-260): consome colonos.
+- **Gagarin:**
+  - o tick e a abertura de missão planetária rodam com a linha de `gagarin_settings` travada; dois
+    ticks simultâneos publicavam dois boletins e abriam a mesma lua duas vezes;
+  - o registro público passou a aparecer ao colono, e com ele a conferência da assinatura (§2.5);
+  - as etapas novas do tick (Cargueiro e Gagarin) ficaram em `try/catch`, como as colônias: uma
+    exceção não derruba mais o tick inteiro.
+
+### Corridas antigas que a revisão achou
+
+- **Despacho de veículo:** o veículo é relido e travado no começo de toda transação de despacho
+  (`DespacharVeiculo::partir`). Dois pedidos simultâneos debitavam carga e combustível duas vezes e o
+  veículo levava uma carga só. O mesmo vale para o upgrade de veículo.
+- **Peça da Endurance:** a posse passou a ser incremento atômico, como no `FecharLeiloes`. Comprar e
+  leiloar a mesma peça ao mesmo tempo a duplicava.
+- **Tetos semanais dos cargos e teto diário de XP:** passaram a travar a colônia do beneficiário e a
+  somar com leitura travada.
+- **Mudanças de estado condicionais:** cancelar acordo, cancelar anúncio de usado e sucatear agora só
+  mudam o estado se ele ainda for o esperado.
+
+### Segurança e vazamentos
+
+- **API dos robôs:** confere o dono antes de contar a guarnição. A mensagem de erro revelava os robôs
+  da zona de outro jogador.
+- **Painel:** trocar e-mail e senha de jogador (tomar a conta dele) e corrigir saldos passaram para o
+  **Dono**. A tela esconde os formulários do operador.
+- **Conversa privada no painel:** só aparece com a liberação de uso único que o `espiar` deixa na sessão,
+  depois de auditar. Abrir a URL direto mostrava a conversa sem auditoria.
+- **Ataque em marcha:** o atacante não vê mais o depósito nem a força do alvo. Isso é trabalho do Drone;
+  mandar uma Sentinela não pode ser o reconhecimento barato.
+- **Torre de Vigia:**
+  - o aviso de ataque do HUD passou a respeitar a antecedência da Torre (D-67), como o Quartel já
+    fazia;
+  - o histórico da zona não mostra a marcha a caminho.
+- **Login de jogador:** ganhou um teto de **30 falhas por minuto por IP**, somando as contas. Só as
+  falhas contam, como no teto por conta.
+- **Apelido:**
+  - a troca segue as regras do cadastro (3 a 32 caracteres; letras, números, `_` e `-`);
+  - os nomes das contas de sistema ficaram reservados, comparados sem acento e sem separador
+    (`NomesReservados`);
+  - antes, "Capital (oficial) ✓", com espaço invisível, mandava mensagem privada como a Capital.
+- **Endurance:** a loja não mostra o nome de evento `secreto` ou `parcial`, e a recusa da compra não diz
+  o nome da peça de uma chave adivinhada.
+
+### O que a revisão achou e ficou para depois, anotado
+
+- tokens do Sanctum sem expiração (expirar agora desconectaria todo mundo);
+- o histórico da zona ainda mostra combates do dono anterior;
+- a loja da Endurance não filtra itens de evento restrito a outra colônia;
+- arrays sem tamanho máximo em alguns endpoints;
+- a realocação de colônia (painel) recalcula errado um voo zona→zona da Nave.
+
+**Verificação:** `RevisaoBugsTest` (14) e um teste novo em `ChatTest`; dois testes de auditoria do
+painel passaram a usar o Dono. Uma migration (`2026_10_17_400000_revisao_do_jogo`) para o D-283 e o
+D-284.
+
+## D-285 — Revisão completa, a primeira sessão jogada como novato
+
+**Data:** 2026-10-17 · **Status:** decidido pelo usuário ("siga suas recomendações")
+
+Um revisor jogou o jogo inteiro como novato, num banco descartável, com 72 screenshots em 1400 e 390
+px. O que ele achou de mais grave não era de novato.
+
+### ⚠️ O resumo "Desde sua última visita" dizia a TODO jogador que a colônia ficou parada
+
+Quem volta ao jogo depois de uma hora vê o resumo da ausência. Ele lia a produção do **ledger**, e o
+ledger nunca recebeu produção:
+- o tick credita a produção direto no estoque, sem lançamento, desde sempre;
+- o tipo `producao` estava declarado no `Ledger` e na telemetria, e ninguém o escrevia;
+- o teste do resumo passava porque inseria produção falsa no ledger.
+
+Resultado: toda colônia que só produziu (o caso mais comum de quem sai e volta) ouvia "a colônia
+ficou parada nesse período: nada foi produzido, nada foi concluído. Vale olhar se falta energia ou
+insumo". O revisor viu isso com o Depósito cheio ao lado.
+
+A correção é a tabela `producao_por_hora`: o tick soma o que o estoque ganhou, por recurso, numa linha
+por hora (não uma por minuto, que encheria o banco), e o resumo soma as horas da janela. O teste novo
+é de ponta a ponta, com o tick de verdade.
+
+### O que travava ou confundia a primeira sessão
+
+- **O próximo passo da tutoria só nascia quando o jogador abria a tela de Missões.** Concluída a
+  primeira obra, o "Próximo passo" sumia do HUD. Agora o degrau seguinte de uma cadeia (tutoria e
+  narrativa da Endurance) nasce no instante em que o anterior conclui.
+- **A diária "faça a manutenção de um veículo" vinha no dia 1**, com o único Furgão no teto de
+  conservação e o botão desabilitado. Agora só é sorteada quando há veículo abaixo do teto.
+- **O aviso "Laboratório parado" cobrava o jogador com a pesquisa desligada no servidor.** Agora só
+  aparece com a pesquisa ligada.
+- **"Faltam recursos: ligas_metalicas exige 120"** passou a dizer o nome do recurso ("pede 120 de Ligas
+  Metálicas"), na obra, no drone e na unidade.
+- **A validação respondia em inglês**, e o cliente mostrava só o primeiro erro ("(and 1 more error)").
+  - Agora há `lang/pt_BR/validation.php`, e o idioma padrão é `pt_BR` (`.env.example` também).
+  - O cliente da API junta todos os erros de uma vez, então o da senha deixou de ficar escondido atrás
+    do do apelido.
+  - ⚠️ A produção precisa de `APP_LOCALE=pt_BR` no `.env` (está no prompt de deploy).
+- **Telas vazias enquanto carregam:** as Missões diziam "Nada por aqui — volte amanhã" para quem tinha
+  cinco missões, porque a lista começava vazia em vez de "carregando".
+- **A Frota dizia "No pátio" para o veículo em casa.** Agora diz onde ele está: em casa, no Pátio da
+  Capital ou numa zona. O rodapé, que dizia "a viagem é sempre de ida e volta", foi corrigido.
+- **Texto de desenvolvedor na tela:**
+  - o painel de construção mostrava "GDD §17.2";
+  - a nota da Plataforma de Pouso, que eu escrevi no D-281, saía como "Desde o: … os dois números são
+    meus: o GDD promete…". O filtro `semDecisoes` ganhou o padrão "Desde o D-nnn:".
+- **"está a perder tempo"** (português de Portugal) virou "está perdendo tempo".
+- **Espaçoporto:**
+  - o seguro aparecia com seis casas decimais e agora tem duas;
+  - antes de a rota abrir, o planeta com risco já diz que dá para ir com escolta e seguro;
+  - sem Sentinela em casa, a tela diz que elas se fabricam no Quartel.
+- **Gagarin:**
+  - inativo, diz o que o jogador ganha quando ele ligar;
+  - a linha "Resultado lacrado · SHA-256 …" virou uma frase de jogo ("ninguém, nem a equipe, muda o que
+    ela vai revelar"), com a assinatura abreviada.
+
+### Uma correção ao D-281
+
+O D-281 disse "até 45%" de corte no upgrade da Nave, mas a Plataforma de Pouso vai só até o nível 5: o
+corte máximo é **20%**. Corrigido no `Hangar`.
+
+### O que o revisor achou e fica para depois, anotado
+
+Fica para depois o que é redesenho, não correção:
+- **o passo 3 da tutoria** ("compre alguma coisa no Mercado") trava num servidor sem ofertas. Na
+  produção o Governo tem ofertas abertas, mas um servidor novo não;
+- **o estoque** só aparece abrindo o Depósito Local, por decisão antiga;
+- **vender** exige três abas e dois formulários: pede um assistente "Vender";
+- **o menu de construção** tem 13 opções sem recomendação, e o modal corta o topo a 1400×900;
+- **a primeira obra** (a Mina) leva 14 minutos para render 15 Metal Bruto por hora.
+
+**Verificação:** `RevisaoNovatoTest`, com 5 testes:
+- o próximo passo imediato;
+- a diária de manutenção alcançável;
+- o nome do recurso na falta;
+- o aviso do Laboratório com a pesquisa desligada;
+- a validação em português.
+
+Mais um teste de ponta a ponta em `ResumoDeRetornoTest`, cujo ajudante passou a escrever onde o jogo
+escreve.
+
+## D-286 — Revisão completa, o tick medido em escala
+
+**Data:** 2026-10-17 · **Status:** decidido pelo usuário ("siga suas recomendações")
+
+O sexto revisor não leu código procurando defeito: montou mundos de 50, 200 e 1000 colônias (cada
+uma com 16 construções, obra na fila, Furgão em rota, caminhão no Pátio, unidades na fábrica, zonas
+ocupadas, contratos do Espaçoporto, Gagarin ativo) e rodou o `fertways:tick` de verdade, contando
+cada consulta, no SQLite e num MariaDB 10.5 descartável.
+
+### O que ele mediu
+
+| Colônias | Consultas por tick | SQLite | MariaDB |
+|---|---|---|---|
+| 50 | 2.364 | 2,4 s | 5,0 s |
+| 200 | 8.343 | 8,9 s | 21,1 s |
+| 1000 | 38.667 | 42,3 s | 105,5 s |
+
+- **Nada cresce mais que linearmente.** Cada colônia custa cerca de 36 consultas e uma transação curta,
+  e não há transação longa.
+- **O teto, a um tick por minuto:** cerca de 570 colônias no MariaDB daquela máquina (um i5-4440S já a
+  100% de CPU, então pessimista). A estimativa para o VPS, **não medida**, é de 2.000 a 4.000.
+- **Passar de 60 s não corrompe nada.** O `withoutOverlapping(10)` pula o minuto seguinte; a produção é
+  por delta e fica exata; o que atrasa são os prazos (chegadas, obras, rodadas).
+
+### O que corrigi agora
+
+- **Eventos do mundo:** `Modificadores::vigentes` era consultado uma vez por recurso de cada colônia, a
+  cada minuto (5,5 consultas por colônia, quase sempre com a resposta vazia). A cópia do tick
+  (`comMemoriaDoTick`) pergunta uma vez quando termina o último evento que pode valer; se termina antes
+  do intervalo, nada vale. A memória dura 60 s e mora só na instância do tick: o portão de XP, a trégua
+  e os demais serviços perguntam ao banco toda vez, como antes (três testes pegaram a primeira versão,
+  que memorizava em todo lugar).
+- **Configuração estática:** `building_specs`, `manutencao_estruturas` e `component_recipes` eram
+  relidas a cada colônia. Agora uma vez por tick, com a mesma validade de 60 s.
+- **Pátio da Capital:** abria transação, com lock e releitura, para cada veículo estacionado, a cada
+  minuto, mesmo sem hora devida (1.001 consultas e 500 transações com 500 estacionados). A conta sem
+  lock virou a porta; a de dentro, com lock, continua decidindo.
+- **Dois índices** (migration `2026_10_17_500000_indices_do_tick`): `units(status, arrives_at)`, que a
+  fábrica de unidades e os reforços varriam por inteiro, e `chat_messages(channel, created_at)`, que a
+  purga varria por inteiro duas vezes por minuto (0,85 s cada, com 360 mil mensagens, segurando os
+  INSERTs).
+
+### O que fica para depois, anotado
+
+- **Toda colônia é processada todo minuto, mesmo parada.** É a alavanca maior (divide o laço por 5 a
+  10), mas muda quando os prazos de quem está fora se resolvem: pede desenho, não correção.
+- **Um UPDATE por linha de recurso** (12 por colônia, 34% das consultas). Juntar num só é seguro, mas
+  mexe no coração da produção; fica para uma fatia própria, com medida antes e depois.
+- Releituras menores: as tabelas da colônia lidas várias vezes com a população ligada, a pesquisa e as
+  escavações consultadas em toda colônia, `Operadores` resolvido por zona, `Placas::emitir` lendo todas
+  as placas.
+
+**Verificação:** `DesempenhoDoTickTest`, com 5 testes: os eventos lidos uma vez para duas colônias, a
+configuração lida uma vez, o evento criado valendo no tick seguinte, o Pátio sem transação à toa e os
+dois índices.
+
+**Efeitos colaterais da medição, registrados:** o revisor encerrou com `taskkill /IM php.exe` três
+processos PHP da máquina que não eram dele (servidores locais de desenvolvimento) e deixou 207 linhas
+de erro no `storage/logs/laravel.log` local, de antes de mandar o log para o stderr. Nada disso chega
+ao repositório nem à produção.

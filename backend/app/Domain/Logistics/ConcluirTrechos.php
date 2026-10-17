@@ -161,6 +161,29 @@ class ConcluirTrechos
                 return;
             }
 
+            /*
+             * D-284: chegou a uma zona que deixou de ser do dono no caminho (conquistada, abandonada),
+             * ou à que perdeu a Plataforma de Pouso, no caso da Nave. Não estaciona em terra alheia:
+             * dá meia-volta para casa, como quem chega e não acha onde parar.
+             */
+            if ($v->destination_type === 'zona_neutra') {
+                $zona = NeutralZone::with('zoneStructures')->find($v->destination_id);
+                $semLugar = ! $zona || $zona->owner_colony_id !== $v->colony_id
+                    || ($v->type === Vehicle::NAVE && $zona->nivelDe('plataforma_de_pouso_da_zona') < 1);
+                $casa = $semLugar ? Colony::find($v->colony_id) : null;
+
+                if ($semLugar && $casa) {
+                    $v->forceFill([
+                        'return_distance_slots' => $zona
+                            ? max(1, MapaFertways::distancia($zona->x, $zona->y, $casa->x, $casa->y))
+                            : (int) $v->distance_slots,
+                    ]);
+                    $this->iniciarVolta($v, manterCarga: false, carga: null);
+
+                    return;
+                }
+            }
+
             $local = $v->destination_type === 'zona_neutra' ? Vehicle::NA_ZONA : Vehicle::EM_CASA;
             $this->terminarViagem($v, $local);
 

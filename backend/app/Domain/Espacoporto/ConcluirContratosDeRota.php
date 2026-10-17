@@ -56,7 +56,9 @@ class ConcluirContratosDeRota
 
                 // D-280: a chance travada na partida, já com a escolta. Contrato de antes não a tem.
                 $chance = (int) ($k->risco_chance_bps ?? $k->planeta?->risco_chance_bps ?? 0);
-                $sinistro = $chance > 0 && $this->sorteio->sucesso($chance) ? (int) $k->planeta->risco_perda_bps : 0;
+                // D-284: a perda travada na partida; a do planeta só vale para contrato de antes.
+                $perda = (int) ($k->risco_perda_bps ?? $k->planeta?->risco_perda_bps ?? 0);
+                $sinistro = $chance > 0 && $this->sorteio->sucesso($chance) ? $perda : 0;
                 $chegou = fn (array $perna) => array_map(
                     fn ($p) => ['qtd' => (int) $p['qtd'] - intdiv((int) $p['qtd'] * $sinistro, 10_000), 'preco_micro' => (int) $p['preco_micro']],
                     $perna,

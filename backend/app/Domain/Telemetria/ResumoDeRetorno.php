@@ -351,12 +351,17 @@ class ResumoDeRetorno
     /** O que a colônia produziu na janela, por recurso, do maior para o menor. */
     private function producao(Colony $colonia, Carbon $desde, Carbon $ate): array
     {
-        return Ledger::query()
+        /*
+         * D-285: do acumulado por hora que o tick grava. O ledger nunca recebeu produção (ela é
+         * crédito direto no estoque), e por isso este resumo dizia "nada foi produzido" a toda
+         * colônia que só produziu. A janela é contada em horas inteiras: a primeira hora entra
+         * inteira, o que pode somar até uma hora de antes da visita.
+         */
+        return DB::table('producao_por_hora')
             ->where('colony_id', $colonia->id)
-            ->where('type', 'producao')
-            ->whereBetween('created_at', [$desde, $ate])
-            ->whereNotNull('resource_type')
-            ->select('resource_type', DB::raw('SUM(amount) AS total'))
+            ->where('hora', '>=', $desde->copy()->startOfHour())
+            ->where('hora', '<=', $ate)
+            ->select('resource_type', DB::raw('SUM(quantidade) AS total'))
             ->groupBy('resource_type')
             ->orderByDesc('total')
             ->limit(self::QUANTOS_RECURSOS)

@@ -668,6 +668,8 @@ class AcoesController extends Controller
             'risco_perda' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'marco_exigido' => ['nullable', 'integer', 'min:1', 'max:100'],
             'tecnologia_exigida' => ['nullable', 'string', 'exists:technologies,chave'],
+            // D-283: a demanda diária do planeta, em Fert$. Ausente no formulário, não muda; vazio, sem teto.
+            'demanda_diaria' => ['nullable', 'numeric', 'min:0', 'max:10000000'],
         ]);
 
         $codigos = DB::table('resource_types')->pluck('code')->all();
@@ -708,6 +710,13 @@ class AcoesController extends Controller
                     'marco_exigido' => ($dados['marco_exigido'] ?? null) ?: null,
                     'tecnologia_exigida' => ($dados['tecnologia_exigida'] ?? null) ?: null,
                 ] : []));
+
+                if (array_key_exists('demanda_diaria', $dados)) {
+                    $planeta->forceFill([
+                        'demanda_diaria_micro' => ($dados['demanda_diaria'] ?? null) === null
+                            ? null : (int) round((float) $dados['demanda_diaria'] * Colony::MICRO_POR_FERT),
+                    ])->save();
+                }
 
                 // A tabela de preços é reescrita inteira: o formulário é a lista, e o que saiu dela
                 // deixa de ser negociado. Contrato em viagem não muda — o preço dele foi travado.
@@ -1779,7 +1788,10 @@ class AcoesController extends Controller
             "users:{$a->id},{$b->id}",
         );
 
-        return redirect()->route('admin.chat', ['privada_a' => $a->id, 'privada_b' => $b->id]);
+        // D-284: a liberação é de uso único e vive na sessão. Sem ela, abrir a URL direto mostrava a
+        // conversa sem passar por aqui — e sem auditoria.
+        return redirect()->route('admin.chat', ['privada_a' => $a->id, 'privada_b' => $b->id])
+            ->with('chat_privada_liberada', "{$a->id}:{$b->id}");
     }
 
     /** Liga/desliga um molde de missão do §06 (D-78): o template com defeito sai do baralho sem deploy. */

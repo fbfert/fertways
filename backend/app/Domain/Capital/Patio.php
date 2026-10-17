@@ -56,6 +56,17 @@ class Patio
             ->get();
 
         foreach ($estacionados as $veiculo) {
+            /*
+             * D-286: quem não deve hora cheia não abre transação. Medido com 500 estacionados:
+             * 1.001 consultas e 500 transações por minuto para cobrar quase sempre nada. A conta sem
+             * lock é só a porta: se ela diz que há hora devida, a de dentro, com lock, decide.
+             */
+            if ($this->horasDevidas($veiculo, $agora) <= 0) {
+                $this->avisoDoPatio->lembrarSeDevido($veiculo, $agora);
+
+                continue;
+            }
+
             // Relê com lock e reconta as horas lá dentro: dois crons concorrentes não podem cobrar
             // a mesma hora, e o colono pode ter despachado o veículo entre a varredura e agora.
             $desfecho = DB::transaction(function () use ($veiculo, $agora) {

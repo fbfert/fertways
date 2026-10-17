@@ -35,6 +35,17 @@ class AbrirMissaoPlanetaria
      */
     public function handle(array $resultado, string $setor, string $anomalia, string $faixa, int $vooHoras, ?int $adminId = null): MissaoDeReconhecimento
     {
+        // D-284: as travas e a criação andam juntas, com a linha do Gagarin travada. Um clique duplo
+        // do Dono criava duas missões planetárias, e a segunda quebrava o tick na abertura da rota.
+        return DB::transaction(function () use ($resultado, $setor, $anomalia, $faixa, $vooHoras, $adminId) {
+            DB::table('gagarin_settings')->where('id', 1)->lockForUpdate()->first();
+
+            return $this->abrir($resultado, $setor, $anomalia, $faixa, $vooHoras, $adminId);
+        });
+    }
+
+    private function abrir(array $resultado, string $setor, string $anomalia, string $faixa, int $vooHoras, ?int $adminId): MissaoDeReconhecimento
+    {
         if (! $this->gagarin->ativo()) {
             throw new DomainRuleException('gagarin_inativo', 'O Telescópio Gagarin ainda não entrou em operação.');
         }

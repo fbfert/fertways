@@ -390,6 +390,8 @@ class WarController extends Controller
                 $saqueTotal = $c->tipo === 'invasao'
                     && $emGuerra->entreColonias($c->attacker_colony_id, $c->zone->owner_colony_id);
 
+                $cego = $c->attacker_colony_id === $colony->id && $c->status === 'marchando';
+
                 return [
                     'id' => $c->id,
                     'tipo' => $c->tipo,
@@ -402,12 +404,14 @@ class WarController extends Controller
                     'prazo_at' => $c->prazo_at,
                     'alvo' => $c->alvo,
                     'forca_ofensiva' => $c->resultado['forca_ofensiva'] ?? null,
-                    'forca_defensiva' => $c->resultado['forca_defensiva'] ?? null,
+                    // D-284: o atacante em marcha não vê o depósito nem a força do alvo — isso é
+                    // trabalho do Drone (D-74). Mandar uma Sentinela não pode ser o reconhecimento barato.
+                    'forca_defensiva' => $cego ? null : ($c->resultado['forca_defensiva'] ?? null),
                     // O que está em jogo: só o exposto é saqueável (D-66) — fora da guerra.
-                    'exposto' => $protegido->exposto($c->zone),
+                    'exposto' => $cego ? null : $protegido->exposto($c->zone),
                     'saque_total' => $saqueTotal,
                     // O número que o jogador precisa ler: o que este ataque pode levar de facto.
-                    'em_jogo' => $saqueTotal ? $c->zone->estoqueTotal() : $protegido->exposto($c->zone),
+                    'em_jogo' => $cego ? null : ($saqueTotal ? $c->zone->estoqueTotal() : $protegido->exposto($c->zone)),
                     // Cercada, nada entra nem sai — nem tropa (§28.10). É o que decide se a tela oferece
                     // "reforçar" ou "romper o cerco": sob sítio, reforçar é impossível por desenho (D-70).
                     'cercada' => $c->zone->cercada(),

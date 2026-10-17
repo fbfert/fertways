@@ -9,6 +9,7 @@ use App\Models\Building;
 use App\Models\BuildQueue;
 use App\Models\Colony;
 use App\Models\Ledger;
+use App\Models\ResourceType;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -140,7 +141,7 @@ class EnqueueUpgrade
 
                 throw new DomainRuleException(
                     'recursos_insuficientes',
-                    "Faltam recursos: {$recurso} exige {$qtd}, você tem {$tem}.",
+                    "Faltam recursos: a obra pede {$qtd} de ".(ResourceType::find($recurso)?->nome ?? $recurso).", e você tem {$tem}.",
                 );
             }
         }

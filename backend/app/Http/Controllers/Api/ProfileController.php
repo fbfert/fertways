@@ -124,11 +124,16 @@ class ProfileController extends Controller
 
         $dados = $request->validate([
             'name' => ['required', 'string', 'max:120'],
-            'nickname' => ['required', 'string', 'max:60', Rule::unique('users', 'nickname')->ignore($user->id),
+            // D-284: as MESMAS regras do cadastro (3 a 32, letras, números, _ e -). Antes, a troca aceitava
+            // qualquer texto até 60 — inclusive "Capital (oficial)" com um espaço invisível.
+            'nickname' => ['required', 'string', 'min:3', 'max:32', 'alpha_dash', Rule::unique('users', 'nickname')->ignore($user->id),
                 // §03/D-77: a troca passa pelo MESMO filtro do chat — igual à criação.
                 function ($attr, $value, $fail) {
                     if (\App\Domain\Chat\Filtro::barra($value)) {
                         $fail('Este nickname contém um termo vedado (§03).');
+                    }
+                    if (\App\Domain\Chat\NomesReservados::reservado((string) $value)) {
+                        $fail('Este nickname é de uma conta do sistema.');
                     }
                 }],
             'email' => ['required', 'email', 'max:190', Rule::unique('users', 'email')->ignore($user->id)],

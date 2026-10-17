@@ -213,7 +213,9 @@ class EnduranceController extends Controller
             : $evento->termina_em;
 
         return [
-            'nome' => $evento->segredo ? null : $evento->nome,
+            // D-284: o nome só sai quando o evento é visível ao jogador — o `segredo` sozinho deixava
+            // passar os de visibilidade `secreto` e `parcial`.
+            'nome' => $evento->visivelAoJogador() && $evento->visibilidade !== 'parcial' ? $evento->nome : null,
             'ate' => $ate->toIso8601String(),
         ];
     }

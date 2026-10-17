@@ -128,8 +128,24 @@ class Gagarin
         return $desde ? Carbon::parse($desde)->addHours((int) $c->boletim_intervalo_horas) : null;
     }
 
-    /** @return array{ativou: bool, fases: int, boletim: bool} */
+    /**
+     * D-284: o tick inteiro do Gagarin roda com a linha de `gagarin_settings` travada. Dois
+     * `fertways:tick` ao mesmo tempo (o `withoutOverlapping` expira em 10 min, e o `--colony=` roda as
+     * etapas globais também) publicavam dois boletins e abriam a mesma lua duas vezes.
+     *
+     * @return array{ativou: bool, fases: int, boletim: bool}
+     */
     public function tick(CarbonInterface $agora): array
+    {
+        return DB::transaction(function () use ($agora) {
+            DB::table('gagarin_settings')->where('id', 1)->lockForUpdate()->first();
+
+            return $this->tickTravado($agora);
+        });
+    }
+
+    /** @return array{ativou: bool, fases: int, boletim: bool} */
+    private function tickTravado(CarbonInterface $agora): array
     {
         $ativou = false;
 

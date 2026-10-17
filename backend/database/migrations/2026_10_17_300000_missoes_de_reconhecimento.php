@@ -24,7 +24,7 @@ use Illuminate\Support\Facades\Schema;
  * |----------------------------|---------|------------------------------------------------------------|
  * | `boletim_intervalo_horas`  | 72      | o meio dos "2 a 4 dias"                                     |
  * | `tarefas_por_dia`          | 2       | "até duas tarefas diárias de pesquisa" (§2.2)               |
- * | `xp_por_tarefa`            | 100     | o XP de um nível de obra (`milestone_settings`)             |
+ * | `xp_por_tarefa`            | 25      | D-283: 100 fazia as 8 luas renderem 8.000 XP (o marco 20 é 6.000) |
  * | `meta_de_tarefas`          | 20      | meu: dez colonos com as duas tarefas de um dia              |
  * | `viagens_na_abertura`      | 1       | meu: o "limite de ordem" das primeiras 48 h (§2.2)          |
  */
@@ -55,7 +55,7 @@ return new class extends Migration
             $table->timestamp('ultimo_boletim_em')->nullable();
             $table->unsignedInteger('boletins_desde_a_ultima_rota')->default(0);
             $table->unsignedTinyInteger('tarefas_por_dia')->default(2);
-            $table->unsignedInteger('xp_por_tarefa')->default(100);
+            $table->unsignedInteger('xp_por_tarefa')->default(25);
             $table->unsignedInteger('meta_de_tarefas')->default(20);
             $table->unsignedTinyInteger('viagens_na_abertura')->default(1);
             // Manutenção (§2.1): o painel pode pausar o relógio, nunca editar o resultado.

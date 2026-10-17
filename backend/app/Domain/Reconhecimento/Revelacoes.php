@@ -93,7 +93,25 @@ class Revelacoes
             'abertura_ate' => $agora->copy()->addHours(48),
         ])->save();
 
+        /*
+         * D-284: confere de novo contra o Governo na abertura. A guarda do painel já impede baixar a
+         * oferta do Governo abaixo de um preço lacrado, mas uma oferta pode ter entrado por outro
+         * caminho durante os dias da missão. Pela regra do D-278, sai a compra do planeta, não o
+         * preço do Governo — e o registro público diz o que saiu e por quê.
+         */
+        $governo = DB::table('market_orders')->whereNull('colony_id')->where('side', 'sell')
+            ->whereIn('status', ['aberta', 'parcial'])->pluck('price_micro', 'resource_type');
+
         foreach ($r['precos'] as $recurso => $p) {
+            if (($p['compra_micro'] ?? null) !== null && isset($governo[$recurso]) && (int) $p['compra_micro'] > (int) $governo[$recurso]) {
+                $this->registro->anotar($m, 'compra_retirada', "A compra de {$recurso} saiu da rota: o Governo vende a {$governo[$recurso]} µF$ e o planeta pagaria {$p['compra_micro']}.", $agora);
+                $p['compra_micro'] = null;
+            }
+
+            if (($p['compra_micro'] ?? null) === null && ($p['venda_micro'] ?? null) === null) {
+                continue;
+            }
+
             $planeta->precos()->create([
                 'resource_type' => $recurso,
                 'compra_micro' => $p['compra_micro'] ?? null,

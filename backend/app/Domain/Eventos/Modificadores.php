@@ -5,6 +5,7 @@ namespace App\Domain\Eventos;
 use App\Models\Colony;
 use App\Models\GameEvent;
 use Carbon\CarbonInterface;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 
 /**
@@ -276,6 +277,18 @@ class Modificadores
         CarbonInterface $ate,
         ?string $recurso = null,
     ) {
+        /*
+         * D-286: o tick pergunta isto uma vez por recurso de cada colônia, a cada minuto — 5,5
+         * consultas por colônia, medidas com 1000 colônias, quase sempre com a mesma resposta vazia.
+         * Antes de perguntar o que vale, pergunta UMA vez quando termina o último evento que ainda
+         * pode valer: se ele termina antes do intervalo, nada vale, e não há o que consultar.
+         */
+        $ultimoFim = $this->memorizar ? $this->ultimoFimDosEventos() : PHP_INT_MAX;
+
+        if ($ultimoFim === null || $ultimoFim <= $de->getTimestamp()) {
+            return new \Illuminate\Database\Eloquent\Collection;
+        }
+
         return GameEvent::query()
             // `rascunho` não vale nada no mundo; `cancelado` vale até `cancelado_em`.
             ->whereIn('status', ['ativo', 'cancelado'])
@@ -288,6 +301,46 @@ class Modificadores
             ))
             ->alcanca($colonia)
             ->get();
+    }
+
+    /** @var array{0: int, 1: int|null}|null [quando foi lido, o fim] */
+    private ?array $memoDoFim = null;
+
+    private bool $memorizar = false;
+
+    /**
+     * Uma cópia que lembra, por 60 s, se há evento que possa valer (D-286). Só o tick usa: ele
+     * vive um minuto e pergunta milhares de vezes. Quem vive mais (o portão de XP, a trégua, os
+     * serviços do container) pergunta ao banco toda vez, como sempre.
+     */
+    public function comMemoriaDoTick(): static
+    {
+        $copia = clone $this;
+        $copia->memorizar = true;
+        $copia->memoDoFim = null;
+
+        return $copia;
+    }
+
+    /**
+     * O `termina_em` mais tarde entre os eventos que podem valer (ativos e cancelados), em
+     * timestamp; null se não há nenhum.
+     *
+     * ⚠️ A memória dura 60 s de relógio e mora na cópia do tick (`comMemoriaDoTick`): cada tick
+     * (cada `Artisan::call`) resolve a sua. Um evento ligado no meio de um tick
+     * vale a partir do tick seguinte, um minuto depois — e o cancelado vale até `cancelado_em`,
+     * que nunca passa de `termina_em`, então o máximo de `termina_em` nunca esconde um evento.
+     */
+    private function ultimoFimDosEventos(): ?int
+    {
+        $agora = time();
+
+        if ($this->memoDoFim === null || $agora - $this->memoDoFim[0] >= 60) {
+            $fim = GameEvent::query()->whereIn('status', ['ativo', 'cancelado'])->max('termina_em');
+            $this->memoDoFim = [$agora, $fim === null ? null : Carbon::parse($fim)->getTimestamp()];
+        }
+
+        return $this->memoDoFim[1];
     }
 
     /**

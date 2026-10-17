@@ -72,7 +72,7 @@ class FabricarDrone
                 if (($estoque->get($recurso)?->amount ?? 0) < $qtd) {
                     throw new DomainRuleException(
                         'recursos_insuficientes',
-                        "Faltam recursos: {$recurso} exige {$qtd}, você tem ".($estoque->get($recurso)?->amount ?? 0).'.',
+                        "Faltam recursos: o drone pede {$qtd} de ".(\App\Models\ResourceType::find($recurso)?->nome ?? $recurso).", e você tem ".($estoque->get($recurso)?->amount ?? 0).'.',
                     );
                 }
             }

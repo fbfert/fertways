@@ -4,6 +4,7 @@ namespace App\Domain\Logistics;
 
 use App\Exceptions\DomainRuleException;
 use App\Models\Colony;
+use App\Models\Combat;
 use App\Models\NeutralZone;
 use App\Models\Unit;
 use App\Models\Vehicle;
@@ -75,6 +76,16 @@ class TransportarRobos
                 }
 
                 DespacharVeiculo::exigirPlataformaNaZona($nave, $zona);
+
+                /*
+                 * D-284: zona em batalha não perde nem ganha guarnição pelo céu. Os defensores ficam
+                 * `na_zona` durante o combate; sem esta trava, a Nave os evacuava no meio da invasão e
+                 * o atacante seguia tomando dano de uma força que já não estava lá. A Capitulação já
+                 * recusava zona em combate pelo mesmo motivo.
+                 */
+                if (Combat::where('zone_id', $zona->id)->whereIn('status', ['marchando', 'em_curso'])->exists()) {
+                    throw new DomainRuleException('zona_em_combate', 'Uma das zonas está sob ataque: os robôs não embarcam nem desembarcam no meio da batalha.');
+                }
             }
 
             $robos = Unit::whereIn('id', $unitIds)

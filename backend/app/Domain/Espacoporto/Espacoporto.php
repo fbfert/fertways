@@ -3,6 +3,7 @@
 namespace App\Domain\Espacoporto;
 
 use App\Domain\Marco\Curva;
+use App\Domain\Missoes\Janela;
 use App\Models\Colony;
 use App\Models\ContratoDeRota;
 use App\Models\PlanetaNpc;
@@ -42,6 +43,29 @@ class Espacoporto
             ! $c->cargueiros => 'A frota de Cargueiros do Governo ainda não foi definida.',
             default => null,
         };
+    }
+
+    /**
+     * Quanto o planeta ainda paga hoje, em micro-Fert$, somando todos os colonos (D-283). Nulo: o
+     * planeta não tem teto. O dia é o dia de missão (07h→07h). A venda conta na partida, pelo preço
+     * travado, porque é ali que o planeta se compromete a pagar.
+     */
+    public function demandaRestante(PlanetaNpc $planeta): ?int
+    {
+        $teto = $planeta->demanda_diaria_micro;
+        if ($teto === null) {
+            return null;
+        }
+
+        $usado = ContratoDeRota::where('planeta_npc_id', $planeta->id)
+            ->where('parte_em', '>=', Janela::diaAtual())
+            ->get(['venda'])
+            ->sum(fn (ContratoDeRota $k) => array_sum(array_map(
+                fn ($p) => (int) $p['qtd'] * (int) $p['preco_micro'],
+                $k->venda ?? [],
+            )));
+
+        return max(0, (int) $teto - (int) $usado);
     }
 
     public function cargueirosLivres(): int
@@ -119,6 +143,9 @@ class Espacoporto
                 'risco_chance_bps' => (int) $p->risco_chance_bps,
                 'risco_perda_bps' => (int) $p->risco_perda_bps,
                 'portao' => $this->portao($colonia, $p),
+                // D-283: o planeta compra até um teto por dia, somando todo o servidor.
+                'demanda_diaria_micro' => $p->demanda_diaria_micro !== null ? (int) $p->demanda_diaria_micro : null,
+                'demanda_restante_micro' => $this->demandaRestante($p),
                 'exporta' => $p->exporta,
                 'importa' => $p->importa,
                 'aberto' => $p->aberto,

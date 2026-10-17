@@ -147,6 +147,13 @@ class VehicleController extends Controller
         ]);
 
         $colonia = $this->colonia($request);
+
+        // D-284: o dono primeiro. Contar os robôs antes desta trava revelava a guarnição da zona de
+        // outro jogador na mensagem de erro — exatamente o que a névoa esconde.
+        if ($vehicle->colony_id !== $colonia->id) {
+            throw new DomainRuleException('veiculo_de_outra_colonia', 'Este veículo não é seu.');
+        }
+
         $ids = $vehicle->naZona()
             ? Unit::where('zone_id', $vehicle->destination_id)->where('type', 'robo_minerador')
                 ->where('status', 'na_zona')->whereNull('combat_id')->where('hp_bps', '>', 0)

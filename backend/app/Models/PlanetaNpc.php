@@ -19,6 +19,7 @@ class PlanetaNpc extends Model
         'ordem' => 'integer',
         // D-282: até quando vale o limite de viagens da abertura de uma rota descoberta.
         'abertura_ate' => 'datetime',
+        'demanda_diaria_micro' => 'integer',
         'risco_chance_bps' => 'integer',
         'risco_perda_bps' => 'integer',
         'marco_exigido' => 'integer',

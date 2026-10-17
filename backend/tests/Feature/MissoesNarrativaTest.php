@@ -79,8 +79,9 @@ class MissoesNarrativaTest extends TestCase
             ->whereHas('template', fn ($q) => $q->where('chave', 'end_cap1_primeiro_achado'))->first();
         $this->assertSame('concluida', $cap1->status);
 
-        // O 2º só chega no PRÓXIMO pedido — a mesma preguiça lazy do resto do motor (D-78).
-        $this->assertSame(1, MissionAssignment::where('colony_id', $colonia->id)->where('categoria', 'narrativa')->count());
+        // D-285: o 2º nasce no instante em que o 1º conclui, sem esperar o próximo pedido. E pedir de
+        // novo não duplica.
+        $this->assertSame(2, MissionAssignment::where('colony_id', $colonia->id)->where('categoria', 'narrativa')->count());
 
         app(Atribuir::class)->garantirNarrativa($colonia);
 

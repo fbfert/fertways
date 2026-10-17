@@ -191,7 +191,7 @@ class AdminAuditoriaTest extends TestCase
         $user = $this->colono();
         $colony = $user->colony;
 
-        $this->actingAs($this->operador(), 'admin')
+        $this->actingAs($this->dono(), 'admin') // D-284: corrigir saldo é do Dono
             ->from(route('admin.jogador', $user))
             ->post(route('admin.jogador.corrigir', $user), [
                 'motivo' => 'bug do tick duplicou a produção',
@@ -229,7 +229,7 @@ class AdminAuditoriaTest extends TestCase
     {
         $user = $this->colono();
 
-        $this->actingAs($this->operador(), 'admin')
+        $this->actingAs($this->dono(), 'admin')
             ->from(route('admin.jogador', $user))
             ->post(route('admin.jogador.corrigir', $user), ['fert' => 500])
             ->assertSessionHasErrors('motivo');

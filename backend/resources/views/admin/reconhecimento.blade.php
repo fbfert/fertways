@@ -40,10 +40,10 @@
                     <input type="number" min="1" name="limiar_jogadores" value="{{ $config->limiar_jogadores }}" style="width:80px"></div>
                 <div style="flex:0"><label>Dias p/ ativar</label>
                     <input type="number" min="0" name="limiar_dias" value="{{ $config->limiar_dias }}" style="width:70px"></div>
-                <div style="flex:0"><label>Boletim (h, 48–96)</label>
-                    <input type="number" min="48" max="96" name="boletim_intervalo_horas" value="{{ $config->boletim_intervalo_horas }}" style="width:70px"></div>
+                <div style="flex:0"><label>Boletim (h, 48–72)</label>
+                    <input type="number" min="48" max="72" name="boletim_intervalo_horas" value="{{ $config->boletim_intervalo_horas }}" style="width:70px"></div>
                 <div style="flex:0"><label>Tarefas/dia</label>
-                    <input type="number" min="1" max="10" name="tarefas_por_dia" value="{{ $config->tarefas_por_dia }}" style="width:60px"></div>
+                    <input type="number" min="1" max="2" name="tarefas_por_dia" value="{{ $config->tarefas_por_dia }}" style="width:60px"></div>
                 <div style="flex:0"><label>XP por tarefa</label>
                     <input type="number" min="0" name="xp_por_tarefa" value="{{ $config->xp_por_tarefa }}" style="width:80px"></div>
                 <div style="flex:0"><label>Meta de tarefas</label>

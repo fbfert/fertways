@@ -55,7 +55,19 @@ porta 33106, usuário `fertways_ci`, senha `ci_local`), commit, push, `gh run li
    de Metano/min) e as duas Plataformas de Pouso, a do slot (vagas de nave) e a da zona (pouso).
 3. [x] **D-282** Missões de reconhecimento (aditivo v3.4 §2): Gagarin, boletins, missão planetária e
    missão lunar, com as oito luas.
-4. [ ] **Revisão completa do jogo**, ao fim.
+4. [x] **Revisão completa do jogo**, ao fim. Seis revisores (economia, bugs, segurança, novato,
+   conformidade com o GDD, desempenho do tick em escala) e quatro decisões:
+   - **D-283** economia: demanda finita dos planetas (100 F$/dia), um Cargueiro por colônia, o XP de
+     obra que só paga crescimento, teto diário do XP de Acordo;
+   - **D-284** bugs e segurança (corridas, Nave teletransportando, rotas do painel só para o Dono,
+     nomes reservados no chat, limite de falhas de login por IP, a Torre vazando a marcha);
+   - **D-285** a primeira sessão do novato (o resumo "nada foi produzido" que mentia para todos,
+     validação em português, o próximo passo da tutoria);
+   - **D-286** desempenho: memória de eventos e configuração no tick, Pátio sem transação à toa, dois
+     índices. Teto medido: ~570 colônias por minuto no MariaDB local (máquina lenta, CPU já a 100%);
+     estimado para o VPS: 2.000 a 4.000. Ficou para depois, anotado no D-286: não processar toda
+     colônia parada todo minuto, e o UPDATE por linha de recurso.
+   **Deploy pendente: lote D-279 a D-286**, cinco migrations (`docs/PROMPT_DEPLOY_VPS.md`).
 
 ## (Encerrado) — terminar o que falta do GDD (desde 2026-10-07)
 

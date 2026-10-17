@@ -113,7 +113,14 @@ class MercadoDeUsados
             );
         }
 
-        $anuncio->update(['status' => 'cancelado']);
+        // D-284: condicional ao estado — cancelar durante a compra sobrescrevia o `em_transito`, e o
+        // escrow do comprador nunca era liberado.
+        $mudou = VehicleListing::whereKey($anuncio->id)->where('status', 'aberto')
+            ->update(['status' => 'cancelado', 'updated_at' => now()]);
+
+        if ($mudou === 0) {
+            throw new DomainRuleException('anuncio_nao_aberto', 'Este anúncio acabou de ser comprado — não há mais o que desfazer.');
+        }
     }
 
     /**

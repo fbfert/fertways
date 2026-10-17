@@ -27,6 +27,9 @@
     {{-- ─────────────────────────────────────────── Identidade --}}
     <h2 class="secao">Identidade</h2>
     <div class="cartao">
+        @if (! auth('admin')->user()->ehDono())
+            <p class="mut pequeno">Trocar e-mail, senha e saldos de um jogador é do Dono (D-284): é tomar a conta dele.</p>
+        @else
         <form method="POST" action="{{ route('admin.jogador.dados', $jogador) }}" class="linha-form">
             @csrf
             <div><label>Nome</label><input type="text" name="name" value="{{ $jogador->name }}" required></div>
@@ -40,6 +43,7 @@
             <div><label>Nova senha (mín. 8)</label><input type="password" name="password" required></div>
             <div style="flex:0"><button class="leve">Redefinir senha</button></div>
         </form>
+        @endif
         <p class="mut pequeno">
             Redefinir a senha <b>revoga todos os tokens dele</b>. Sem isso não se recupera conta
             nenhuma: quem tivesse roubado o token continuaria entrando com ele, porque token do
@@ -105,6 +109,7 @@
                 <b>saldos absolutos</b>, não somas.
             </p>
 
+            @if (auth("admin")->user()->ehDono())
             <form method="POST" action="{{ route('admin.jogador.corrigir', $jogador) }}">
                 @csrf
                 <div class="linha-form">
@@ -138,6 +143,9 @@
 
                 <button style="margin-top:12px" data-corrigir>Aplicar correção</button>
             </form>
+            @else
+            <p class="mut pequeno">Corrigir saldos é do Dono (D-284).</p>
+            @endif
         </div>
 
         {{-- ─────────────────────────────────────────── Realocar (só o dono) --}}

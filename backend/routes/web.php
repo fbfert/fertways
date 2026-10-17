@@ -147,9 +147,16 @@ Route::prefix('admin')->group(function () {
         // ── Jogadores (D-61). O operador vê, suspende e corrige; realocar é só do dono. ──
         Route::post('/jogadores/{user}/suspender', [AcoesController::class, 'suspender'])->name('admin.jogador.suspender');
         Route::post('/jogadores/{user}/reintegrar', [AcoesController::class, 'reintegrar'])->name('admin.jogador.reintegrar');
-        Route::post('/jogadores/{user}/corrigir', [AcoesController::class, 'corrigir'])->name('admin.jogador.corrigir');
-        Route::post('/jogadores/{user}/senha', [AcoesController::class, 'redefinirSenha'])->name('admin.jogador.senha');
-        Route::post('/jogadores/{user}/dados', [AcoesController::class, 'editarJogador'])->name('admin.jogador.dados');
+        /*
+         * D-284: trocar e-mail e senha de um jogador é tomar a conta dele, e "corrigir" escreve o Fert$
+         * e os recursos de qualquer colônia. Os três passaram para o Dono — pela mesma linha do D-61:
+         * o que altera o estado de forma difícil de desfazer. O operador continua vendo e suspendendo.
+         */
+        Route::middleware('dono')->group(function () {
+            Route::post('/jogadores/{user}/corrigir', [AcoesController::class, 'corrigir'])->name('admin.jogador.corrigir');
+            Route::post('/jogadores/{user}/senha', [AcoesController::class, 'redefinirSenha'])->name('admin.jogador.senha');
+            Route::post('/jogadores/{user}/dados', [AcoesController::class, 'editarJogador'])->name('admin.jogador.dados');
+        });
         Route::post('/jogadores/{user}/silenciar', [AcoesController::class, 'silenciar'])->name('admin.jogador.silenciar');
 
         // Operação

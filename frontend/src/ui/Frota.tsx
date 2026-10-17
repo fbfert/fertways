@@ -132,7 +132,12 @@ export function Frota() {
                   <PainelDaNave nave={v} colonia={frota.colony.id} zonas={zonas} aoVoar={() => void carregar()} />
                 ) : v.status === 'ocioso' ? (
                   <p className="text-ink-soft mt-2 text-sm">
-                    No pátio. Capacidade de {v.capacity.toLocaleString('pt-BR')} unidades.
+                    {v.local === 'capital'
+                      ? 'Estacionado no Pátio da Capital.'
+                      : v.local === 'zona'
+                        ? 'Estacionado numa zona neutra sua.'
+                        : 'Em casa.'}{' '}
+                    Capacidade de {v.capacity.toLocaleString('pt-BR')} unidades.
                   </p>
                 ) : v.status === 'em_upgrade' ? (
                   /* D-259: sem destino nem carga — está na oficina do Ministério. */
@@ -187,8 +192,9 @@ export function Frota() {
         </ul>
 
         <p className="text-ink-soft/70 mt-5 text-xs">
-          Despachar carga é do Mercado (depósito e retirada) e do Acordo (entrega). A viagem é
-          sempre de ida e volta: o veículo só volta a ficar ocioso ao regressar ao seu slot.
+          Despachar carga é do Mercado (depósito e retirada), do Acordo (entrega) e de cada zona
+          (retirada e material de obra). Quem leva carga ao depósito da Capital fica estacionado no
+          Pátio; as outras viagens voltam para casa.
         </p>
       </div>
     </div>

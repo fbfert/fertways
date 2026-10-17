@@ -444,6 +444,11 @@
                             <input type="number" step="0.1" min="0" max="100" name="risco_chance" value="{{ $p->risco_chance_bps / 100 }}" style="width:60px">
                             <input type="number" step="0.1" min="0" max="100" name="risco_perda" value="{{ $p->risco_perda_bps / 100 }}" style="width:60px">
                         </div>
+                        {{-- D-283: quanto o planeta paga por dia, somando todos os colonos. Vazio: sem teto. --}}
+                        <div style="flex:0">
+                            <label>Demanda/dia (F$)</label>
+                            <input type="number" step="0.01" min="0" name="demanda_diaria" value="{{ $p->demanda_diaria_micro !== null ? $p->demanda_diaria_micro / 1000000 : '' }}" style="width:80px" placeholder="sem teto">
+                        </div>
                         <div style="flex:0">
                             <label>Portão: marco / pesquisa</label>
                             <input type="number" min="1" max="100" name="marco_exigido" value="{{ $p->marco_exigido }}" placeholder="20" style="width:60px">

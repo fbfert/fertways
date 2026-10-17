@@ -23,7 +23,7 @@ class ContratoDeRota extends Model
         'parte_em', 'chega_em', 'concluido_em',
         'sinistro_bps', 'imposto_importacao_micro', 'imposto_venda_micro',
         // D-280: a escolta e o seguro.
-        'risco_chance_bps', 'seguro_premio_micro', 'seguro_cobertura_micro', 'seguro_indenizacao_micro',
+        'risco_chance_bps', 'risco_perda_bps', 'seguro_premio_micro', 'seguro_cobertura_micro', 'seguro_indenizacao_micro',
         'escolta_unit_ids', 'escolta_poder',
     ];
 
@@ -35,6 +35,7 @@ class ContratoDeRota extends Model
         'imposto_importacao_micro' => 'integer',
         'imposto_venda_micro' => 'integer',
         'risco_chance_bps' => 'integer',
+        'risco_perda_bps' => 'integer',
         'seguro_premio_micro' => 'integer',
         'seguro_cobertura_micro' => 'integer',
         'seguro_indenizacao_micro' => 'integer',

@@ -37,11 +37,12 @@ class ComprarItem
          * chama a rota direto, ela não existe.
          */
         if (($item->origem ?? EnduranceItem::LOJA) !== EnduranceItem::LOJA) {
-            throw new DomainRuleException('item_nao_vendido', "«{$item->nome}» não se compra: só se acha escavando.");
+            // D-284: sem o nome — a chave adivinhada não pode revelar a peça de escavação nem a de um evento armado.
+            throw new DomainRuleException('item_nao_vendido', 'Esta peça não se compra: só se acha escavando.');
         }
 
         if (! $item->liberadaEm(now())) {
-            throw new DomainRuleException('item_fora_da_janela', "«{$item->nome}» não está disponível agora.");
+            throw new DomainRuleException('item_fora_da_janela', 'Esta peça não está disponível agora.');
         }
 
         if ($item->marco_minimo !== null) {
@@ -93,12 +94,15 @@ class ComprarItem
                 app(Instancias::class)->descobrir($colonia, $item);
             }
 
-            $posse = ColonyEnduranceItem::firstOrNew([
-                'colony_id' => $colonia->id,
-                'endurance_item_id' => $item->id,
+            // D-284: incremento atômico, como o `FecharLeiloes`. Regravar `quantidade = antiga + 1`
+            // apagava um débito simultâneo (o leilão do mesmo item) e duplicava a peça.
+            DB::table('colony_endurance_items')->insertOrIgnore([
+                'colony_id' => $colonia->id, 'endurance_item_id' => $item->id,
+                'quantidade' => 0, 'created_at' => now(), 'updated_at' => now(),
             ]);
-            $posse->quantidade = ($posse->exists ? $posse->quantidade : 0) + 1;
-            $posse->save();
+            ColonyEnduranceItem::where('colony_id', $colonia->id)->where('endurance_item_id', $item->id)
+                ->increment('quantidade');
+            $posse = ColonyEnduranceItem::where('colony_id', $colonia->id)->where('endurance_item_id', $item->id)->first();
 
             app(Progresso::class)->registrar($colonia->id, 'comprar_item_endurance');
 

@@ -58,6 +58,18 @@ class ResumoDeRetornoTest extends TestCase
 
     private function lancar(Colony $c, string $tipo, int $quanto, ?string $recurso, string $quando): void
     {
+        // D-285: a produção não mora no ledger (nunca morou: era o defeito) — mora no acumulado por
+        // hora que o tick grava. O teste escreve onde o jogo escreve.
+        if ($tipo === 'producao') {
+            \Illuminate\Support\Facades\DB::table('producao_por_hora')->upsert(
+                [['colony_id' => $c->id, 'resource_type' => $recurso, 'hora' => \Illuminate\Support\Carbon::parse($quando)->startOfHour(), 'quantidade' => $quanto]],
+                ['colony_id', 'resource_type', 'hora'],
+                ['quantidade' => \Illuminate\Support\Facades\DB::raw('producao_por_hora.quantidade + '.$quanto)],
+            );
+
+            return;
+        }
+
         Ledger::create([
             'colony_id' => $c->id, 'type' => $tipo, 'amount' => $quanto,
             'resource_type' => $recurso, 'created_at' => $quando,
@@ -240,6 +252,24 @@ class ResumoDeRetornoTest extends TestCase
         $this->assertSame('agua', $r['producao'][0]['recurso']);
         $this->assertSame(100, $r['producao'][0]['quantidade']);
         $this->assertSame('metal_bruto', $r['producao'][1]['recurso']);
+    }
+
+    /**
+     * D-285: de ponta a ponta, com o tick de verdade. Antes, a colônia que só produziu ouvia "ficou
+     * parada: nada foi produzido" — o tick credita no estoque sem lançamento, e o resumo lia o ledger.
+     */
+    public function test_a_producao_do_tick_aparece_no_resumo(): void
+    {
+        [$u, $c] = $this->colonoComColonia();
+        $u->forceFill(['resumo_visto_em' => now()->subHours(3)])->save();
+        $c->forceFill(['last_tick_at' => now()->subHours(2)])->save();
+
+        app(\App\Domain\Production\ColonyTick::class)->handle($c->fresh(), now());
+
+        $r = $this->actingAs($u)->getJson('/resumo')->assertOk()->json();
+
+        $this->assertFalse($r['vazio'], 'a colônia produziu: o resumo não pode dizer que ela ficou parada');
+        $this->assertNotEmpty($r['producao']);
     }
 
     /** O que aconteceu ANTES da marca já foi visto. Repeti-lo seria mentir sobre a janela. */

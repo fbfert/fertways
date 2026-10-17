@@ -231,7 +231,7 @@ class ReconhecimentoTest extends TestCase
             $this->assertSame('tarefas_do_dia', $e->codigo);
         }
 
-        $this->assertSame($xp + 200, (int) $c->fresh()->xp);
+        $this->assertSame($xp + 2 * (int) DB::table('gagarin_settings')->value('xp_por_tarefa'), (int) $c->fresh()->xp);
         $this->assertSame(2, (int) $m->fresh()->tarefas);
 
         // O dia de missão vira às 07h (`Janela`): no dia seguinte, mais duas.

@@ -98,6 +98,10 @@ class CreateColony
                 ),
             ]);
 
+            // D-283: a colônia nasce com os níveis que já tem marcados como pagos — o XP de obra
+            // paga o crescimento a partir daqui.
+            $colony->forceFill(['niveis_de_obra_pagos' => (int) $colony->buildings()->sum('level')])->save();
+
             /*
              * ⚠️ A COLÔNIA NASCE POVOADA — e sem isto ela nasceria estéril (D-225).
              *

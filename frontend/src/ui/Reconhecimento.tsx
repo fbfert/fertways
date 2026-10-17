@@ -64,7 +64,9 @@ export function Reconhecimento() {
             <span className="tabular-nums">
               {gagarin.jogadores} jogadores, {gagarin.dias} dia(s)
             </span>
-            . <span className="text-ink font-bold">Ainda inativo.</span>
+            . <span className="text-ink font-bold">Ainda inativo.</span> Quando ligar, ele lê as oito luas e procura
+            planetas novos para o Espaçoporto — e quem tem Laboratório ajuda com tarefas de pesquisa, que dão XP e
+            entradas no seu Diário do Colono.
           </p>
         ) : (
           <p className="text-ink-soft mt-1 text-sm">
@@ -118,7 +120,8 @@ export function Reconhecimento() {
                     </div>
                   )}
                   <p className="text-ink-soft mt-1 text-micro break-all">
-                    Resultado lacrado · SHA-256 {m.assinatura}
+                    O resultado desta missão já está lacrado: ninguém, nem a equipe, muda o que ela vai revelar.
+                    Assinatura {m.assinatura.slice(0, 12)}…
                   </p>
                 </li>
               ))}

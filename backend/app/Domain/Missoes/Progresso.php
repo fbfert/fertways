@@ -82,6 +82,15 @@ class Progresso
 
             $this->pagar($missao);
 
+            /*
+             * D-285: o degrau seguinte de uma cadeia (tutoria, narrativa da Endurance) nasce AGORA, e
+             * não quando o jogador abrir a tela de Missões. Jogando como novato, a primeira obra
+             * terminava e o "Próximo passo" sumia do HUD até alguém lembrar de abrir Missões.
+             */
+            if (in_array($missao->categoria, ['tutoria', 'narrativa'], true) && ($colonia = Colony::find($missao->colony_id))) {
+                app(Atribuir::class)->garantirEncadeada($colonia, $missao->categoria);
+            }
+
             return;
         }
 

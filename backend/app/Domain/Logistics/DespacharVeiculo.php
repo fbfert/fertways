@@ -337,6 +337,20 @@ class DespacharVeiculo
         self::exigirPlataformaNaZona($veiculo, $zona);
 
         /*
+         * D-284: a viagem sai de onde o veículo ESTÁ. Antes, a ida e a volta eram contadas a partir da
+         * colônia mesmo para quem estava no Pátio ou numa zona: a Nave parada a 180 slots retirava de
+         * uma zona a 10 slots de casa pagando 10 slots. Agora: de casa, como sempre; estacionado nesta
+         * mesma zona, a carga embarca ali e o veículo faz só a volta; de qualquer outro lugar, não.
+         */
+        $nestaZona = $veiculo->naZona() && (int) $veiculo->destination_id === $zona->id;
+        if ($veiculo->local !== Vehicle::EM_CASA && ! $nestaZona) {
+            throw new DomainRuleException(
+                'veiculo_fora_de_casa',
+                'Este veículo não está em casa. Traga-o de volta, ou estacione-o nesta zona, antes de retirar daqui.',
+            );
+        }
+
+        /*
          * Desde o D-67 a zona pode ter até três POTES para levar: o minério que ela extrai, o
          * secundário em que a Refinaria de Campo já o converteu, e (D-82) os minerais eletrônicos
          * que a Indústria Siderúrgica extraiu. Retirar só o bruto tornaria as outras duas uma
@@ -363,7 +377,12 @@ class DespacharVeiculo
         $destino = ['id' => $zona->id, 'x' => $zona->x, 'y' => $zona->y];
         [$distancia, $energia] = $this->idaEVolta($origem, $veiculo, $destino);
 
-        return DB::transaction(function () use ($origem, $veiculo, $zona, $pedido, $distancia, $energia) {
+        if ($nestaZona) {
+            // Só a volta: uma perna, da zona para casa, com o combustível dela.
+            $energia = VeiculoSpecs::energiaDasPernas($veiculo->type, [$distancia]);
+        }
+
+        return DB::transaction(function () use ($origem, $veiculo, $zona, $pedido, $distancia, $energia, $nestaZona) {
             $agora = now();
             $ref = $this->partir($origem, $veiculo, $energia, $agora);
 
@@ -380,7 +399,15 @@ class DespacharVeiculo
             }
 
             // `cargo_json` na retirada é a carga reservada; só embarca de fato ao chegar na zona.
-            return $this->emRota($veiculo, 'zona_neutra', $zona->id, 'retirada', $distancia, $distancia, $pedido, $agora);
+            $emRota = $this->emRota($veiculo, 'zona_neutra', $zona->id, 'retirada', $distancia, $distancia, $pedido, $agora);
+
+            if ($nestaZona) {
+                // Já está na zona: a carga embarca agora e o trecho que roda é a volta. O
+                // `ConcluirTrechos` entrega a `retirada` em casa, com o tributo, como sempre.
+                $emRota->forceFill(['leg' => 'volta'])->save();
+            }
+
+            return $emRota;
         });
     }
 
@@ -579,6 +606,14 @@ class DespacharVeiculo
         $this->validarCarga($veiculo, $carga);
         self::exigirPlataformaNaZona($veiculo, $zona);
 
+        // D-284: o material sai do estoque de casa, então o veículo tem de estar em casa.
+        if ($veiculo->local !== Vehicle::EM_CASA) {
+            throw new DomainRuleException(
+                'veiculo_fora_de_casa',
+                'O material sai do estoque da colônia: traga o veículo para casa antes de despachá-lo.',
+            );
+        }
+
         $destino = ['id' => $zona->id, 'x' => $zona->x, 'y' => $zona->y];
         [$distancia, $energia] = $this->idaEVolta($origem, $veiculo, $destino);
 
@@ -691,6 +726,18 @@ class DespacharVeiculo
      */
     private function partir(Colony $origem, Vehicle $veiculo, int $energia, CarbonInterface $agora): string
     {
+        /*
+         * D-284: o veículo é relido e TRAVADO aqui, dentro da transação de cada despacho. A conferência
+         * de `validarVeiculo` lê o modelo que a rota carregou; duas requisições ao mesmo tempo passavam
+         * as duas por ela, debitavam carga e combustível duas vezes e o veículo levava uma carga só.
+         * `partir` é o primeiro passo de toda transação de despacho, então o segundo pedido para aqui,
+         * antes de qualquer débito.
+         */
+        $travado = Vehicle::whereKey($veiculo->id)->lockForUpdate()->first();
+        if (! $travado || $travado->colony_id !== $origem->id || $travado->status !== 'ocioso') {
+            throw new DomainRuleException('veiculo_ocupado', 'O veículo acabou de sair em outra viagem.');
+        }
+
         $ref = "viagem:{$veiculo->id}:{$agora->getTimestamp()}";
         $combustivel = VeiculoSpecs::combustivel($veiculo->type);
 

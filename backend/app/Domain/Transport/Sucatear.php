@@ -40,8 +40,14 @@ class Sucatear
             );
         }
 
-        DB::transaction(function () use ($veiculo) {
+        DB::transaction(function () use ($veiculo, $colony) {
             $veiculo = Vehicle::whereKey($veiculo->id)->lockForUpdate()->firstOrFail();
+
+            // D-284: as duas conferências de novo, sob a trava. O veículo vendido no instante anterior
+            // já é de outro (e está a caminho dele): sucateá-lo tirava do comprador o Fert$ e a máquina.
+            if ($veiculo->colony_id !== $colony->id || $veiculo->status !== 'ocioso') {
+                throw new DomainRuleException('veiculo_em_rota', 'O veículo acabou de mudar de estado — não dá para sucatear agora.');
+            }
 
             /*
              * Um veículo anunciado no mercado de usados não pode virar sucata pelas costas de quem

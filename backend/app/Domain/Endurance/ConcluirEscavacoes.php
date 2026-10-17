@@ -8,6 +8,7 @@ use App\Models\ColonyEnduranceItem;
 use App\Models\EnduranceEscavacao;
 use App\Models\EnduranceItem;
 use Carbon\CarbonInterface;
+use Illuminate\Support\Facades\DB;
 
 /**
  * A equipe volta da Endurance com o que achou (D-249).
@@ -44,12 +45,13 @@ class ConcluirEscavacoes
         foreach ($vencidas as $escavacao) {
             $item = $escavacao->item;
 
-            $posse = ColonyEnduranceItem::firstOrNew([
-                'colony_id' => $colony->id,
-                'endurance_item_id' => $item->id,
+            // D-284: incremento atômico (ver `ComprarItem`).
+            DB::table('colony_endurance_items')->insertOrIgnore([
+                'colony_id' => $colony->id, 'endurance_item_id' => $item->id,
+                'quantidade' => 0, 'created_at' => now(), 'updated_at' => now(),
             ]);
-            $posse->quantidade = ($posse->exists ? $posse->quantidade : 0) + 1;
-            $posse->save();
+            ColonyEnduranceItem::where('colony_id', $colony->id)->where('endurance_item_id', $item->id)
+                ->increment('quantidade');
 
             if ($item->tipo === EnduranceItem::UNICO) {
                 $this->instancias->descobrir($colony, $item);

@@ -177,11 +177,22 @@ class TickColonies extends Command
         // A unidade que sai da linha de montagem do Quartel (D-272).
         app(ConcluirFabricacaoDeUnidades::class)->handle($agora);
 
-        // O Cargueiro que pousou entrega a venda e a encomenda (D-262).
-        $entregas += app(ConcluirContratosDeRota::class)->handle($agora);
+        /*
+         * O Cargueiro que pousou (D-262) e o Gagarin (D-282). D-284: cada um isolado num try/catch,
+         * como as colônias do laço acima — uma exceção num deles abortava o tick inteiro dali para
+         * baixo (Pátio, reforços, combates, obras), e se repetia a cada minuto.
+         */
+        try {
+            $entregas += app(ConcluirContratosDeRota::class)->handle($agora);
+        } catch (\Throwable $e) {
+            report($e);
+        }
 
-        // O Gagarin: ativação, fases das Missões de Reconhecimento e o boletim orbital (D-282).
-        app(\App\Domain\Reconhecimento\Gagarin::class)->tick($agora);
+        try {
+            app(\App\Domain\Reconhecimento\Gagarin::class)->tick($agora);
+        } catch (\Throwable $e) {
+            report($e);
+        }
 
         /*
          * A hora do Pátio da Capital (D-65). **Depois** das entregas, nunca antes: o veículo que

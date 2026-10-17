@@ -14,7 +14,7 @@ use App\Models\Vehicle;
  * nenhuma das duas coisas. Os números são meus:
  *
  * - **uma nave por nível.** Sem Plataforma, não há onde a Nave pousar em casa, e ela não se compra;
- * - **5% a menos no upgrade da Nave por nível acima do primeiro**, até 45% no nível 10. A Nave não é
+ * - **5% a menos no upgrade da Nave por nível acima do primeiro**: 20% no nível 5, o máximo da Plataforma. A Nave não é
  *   construída pelo colono (vem do Ministério, D-60), então o "tempo de construção" que a Plataforma
  *   encurta é o do serviço de upgrade dela (D-259), que é o tempo de obra que o colono espera.
  *

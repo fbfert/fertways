@@ -78,6 +78,13 @@ class ReconhecimentoController extends Controller
             'tarefas_hoje' => (int) $minhasHoje->sum(),
             'xp_por_tarefa' => (int) $config->xp_por_tarefa,
             'tem_laboratorio' => (int) $colonia->buildings()->where('type', 'laboratorio')->max('level') >= 1,
+            /*
+             * D-284: o registro público (§2.5), que só o painel via. É o que deixa qualquer colono
+             * conferir que o resultado revelado bate com a assinatura lacrada na criação: o evento
+             * `revelado` traz o JSON inteiro, e o SHA-256 dele é a `assinatura` da missão.
+             */
+            'registro' => DB::table('registro_de_reconhecimento')->orderByDesc('id')->limit(30)
+                ->get(['missao_id', 'evento', 'detalhe', 'created_at']),
             'diario' => DB::table('diario_do_colono')->where('colony_id', $colonia->id)
                 ->orderByDesc('id')->limit(20)->get(['id', 'titulo', 'corpo', 'created_at']),
         ]);

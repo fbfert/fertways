@@ -40,7 +40,12 @@ async function req<T>(path: string, init: RequestInit = {}): Promise<T> {
   const corpo = await r.json().catch(() => ({}))
 
   if (!r.ok) {
-    throw new ApiError(r.status, corpo.code ?? null, corpo.message ?? `HTTP ${r.status}`)
+    // D-285: a validação do Laravel resume em `message` só o primeiro erro ("(and 1 more error)").
+    // Quem se cadastra precisa ver todos de uma vez — o da senha ficava escondido atrás do apelido.
+    const erros = corpo.errors && typeof corpo.errors === 'object'
+      ? [...new Set(Object.values(corpo.errors as Record<string, string[]>).flat())]
+      : []
+    throw new ApiError(r.status, corpo.code ?? null, erros.length > 0 ? erros.join(' ') : (corpo.message ?? `HTTP ${r.status}`))
   }
 
   return corpo as T
@@ -1147,6 +1152,9 @@ export type PlanetaNpc = {
   risco_perda_bps: number
   /** D-269: o portão deste planeta, somado ao do Cargueiro. */
   portao: PortaoEspacoporto
+  /** D-283: quanto o planeta paga por dia, somando todo o servidor, e quanto ainda paga hoje. Nulo: sem teto. */
+  demanda_diaria_micro: number | null
+  demanda_restante_micro: number | null
 }
 
 export type PortaoEspacoporto = {

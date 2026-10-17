@@ -1061,7 +1061,10 @@ class PainelController extends Controller
          * auditoria antes de redirecionar (§10.3: "todo acesso interno é registrado"). Abrir esta
          * página sem os parâmetros não mostra privada nenhuma.
          */
-        $privada = ($privadaA && $privadaB)
+        // D-284: só com a liberação que o `chatEspiar` deixa na sessão, depois de auditar — e só uma vez.
+        $liberada = session('chat_privada_liberada') === "{$privadaA}:{$privadaB}";
+
+        $privada = ($privadaA && $privadaB && $liberada)
             ? ChatMessage::where('channel', 'privada')
                 ->where(fn ($q) => $q
                     ->where(fn ($a) => $a->where('user_id', $privadaA)->where('recipient_user_id', $privadaB))
