@@ -15611,3 +15611,257 @@ dois índices.
 processos PHP da máquina que não eram dele (servidores locais de desenvolvimento) e deixou 207 linhas
 de erro no `storage/logs/laravel.log` local, de antes de mandar o log para o stderr. Nada disso chega
 ao repositório nem à produção.
+
+## D-287 — A avaliação de 0 a 5 estrelas do comércio entre colonos
+
+**Data:** 2026-10-17 · **Status:** decidido pelo usuário ("construa o item 1 [...] pelas suas recomendações sem me fazer perguntas")
+
+O GDD descreve a avaliação em quatro lugares (§8.2, §8.4, §25.7, §26.3/§26.4 e a tabela "Regra
+anti-exploração") e nunca a construímos. Era a única funcionalidade inteira que faltava no
+comércio, e o Ministério já esperava por ela: a violação "avaliação injusta" estava catalogada desde
+o D-49, inerte.
+
+### As regras, todas do GDD
+
+- **Só Acordo de Troca se avalia.** "Presentes [...] não geram estrelas, reputação, cargo ou
+  elegibilidade." O acordo tem de ter fechado (`executado` ou `quebrado`): "após a experiência".
+- **Acima do piso:** o mesmo do D-43/D-117 (`AcordoSpecs::PISO_REPUTACAO_MICRO`, 5 F$ desde o D-117;
+  o GDD dava 500 F$ de referência).
+- **Uma avaliação com peso por par de contas a cada 24 h.** A segunda fica pública, mas não mexe no
+  índice ("múltiplos lotes do mesmo acordo não multiplicam reputação").
+- **Pública, no perfil:** "4,7 estrelas · 23 avaliações recebidas", e as últimas notas com comentário.
+  O card do colono (D-81) passou a mostrar isto. Os quatro índices continuam privados.
+- **Contas possivelmente vinculadas** ficam suspeitas, sem efeito, até revisão (§26.4). O vínculo
+  confirmado zera **todo** o histórico de avaliação mútua do par, retroativamente; as avaliações de
+  terceiros ficam.
+- **Avaliação injusta se denuncia** (§8.4) — ver o D-288.
+
+### Os números, meus
+
+| nota | 0 | 1 | 2 | 3 | 4 | 5 |
+|---|---|---|---|---|---|---|
+| Confiança Comercial do avaliado | −12 | −8 | −4 | 0 | +3 | +6 |
+
+Ancorados no que o Acordo já move (D-43: +10 cumprido, −50 quebrado). Cinco estrelas valem pouco mais
+que meio acordo cumprido; a nota zero, um quarto de calote. **A avaliação nunca pesa mais que o fato**:
+quem levou calote já tirou 50 do outro pelo D-43. E a janela para avaliar é de **7 dias** depois que o
+acordo fecha.
+
+### O sinal de vínculo, que não existia
+
+O §26.4 fala do "sistema antifraude (IP, dispositivo, padrão de jogo já definido na seção de
+Economia)". Ele não existia: o jogo não guardava IP de ninguém. Agora o login e o cadastro gravam o
+**HMAC-SHA256 do IP com a chave da aplicação** (`login_ips`), nunca o IP. Sem a chave, o hash não se
+reverte nem por força bruta sobre os 4 bilhões de IPv4. Duas contas que entraram do mesmo IP nos
+últimos 30 dias são "possivelmente vinculadas".
+
+É um sinal, não um veredito: uma casa com dois irmãos também divide o IP. Por isso nada pune
+sozinho; o painel do Ministério ganhou a fila **"Avaliações de comércio suspeitas"**, com
+**Legítima** (libera o efeito) e **Vinculadas** (anula o histórico mútuo), as duas auditadas.
+
+### O que fica de fora
+
+- **dispositivo e padrão de jogo**, os outros dois sinais do §26.4: pedem coleta que o jogo não faz;
+- **a média como gatilho de cargo** (o §14.3 do v30, "nenhuma avaliação menor que 3 estrelas nos
+  últimos 7 dias"): o v32 trocou esse checklist pelos índices do §26.6, e o índice já recebe a
+  avaliação.
+
+**Verificação:** `AvaliacaoDeComercioTest`, 11 testes (a tabela, as recusas, o acordo quebrado, a
+janela, as 24 h, a suspeita, o vínculo retroativo, o IP fora do banco, a API e o perfil, o painel, o
+login).
+
+## D-288 — O Ministério das Reputações alcança o chat, as alianças, os tratados e as avaliações
+
+**Data:** 2026-10-17 · **Status:** decidido pelo usuário (mesma autorização do D-287)
+
+O Ministério (D-44 a D-50) nasceu antes do chat, das alianças, dos tratados e das avaliações. Quatro
+das oito violações ficaram "inertes": gravavam e não mordiam. Os sistemas chegaram depois (o chat no
+D-77, as alianças em A2.5, o tratado de paz no D-207, a avaliação no D-287) e o Ministério não foi
+avisado: **o jogador não conseguia nem denunciar abuso no chat**, porque a única prova aceita era o
+Acordo de Troca quebrado.
+
+### Nenhuma violação é inerte agora
+
+| violação | prova (§26.8) | o que a prova tem de mostrar |
+|---|---|---|
+| abuso em chat, reincidência | a **mensagem do chat** | dita pelo denunciado, num canal público ou na privada com quem denuncia |
+| ataque a aliado | o **combate** | o denunciado atacou quem denuncia, e as federações eram a mesma ou aliadas antes do ataque |
+| quebra de tratado | o **combate** | o ataque partiu na paz que um tratado comprou: do fim da guerra por tratado até o fim do cooldown do par |
+| avaliação injusta | a **avaliação** | dada pelo denunciado a quem denuncia, e ainda de pé |
+| fraude de avaliação | a avaliação, ou o acordo | — |
+| sonegação, calote reincidente | o acordo, como antes | — |
+
+- **A prova de chat não é imagem.** O GDD fala em "upload de screenshots", mas uma imagem se forja e o
+  jogo não tem upload. A mensagem que o servidor guardou não se forja e diz quem a disse. Ela é
+  **copiada para a denúncia**, porque a purga apaga o chat público em 180 dias e a vizinhança em 90 —
+  a prova não pode sumir com ela.
+- **A prova certa para cada violação.** Anexar um acordo a uma denúncia de chat seria evidência de
+  nada; a triagem recusa (`evidencia_incompativel`). A tela só oferece o que serve, e só registros do
+  servidor: nada se digita.
+- **O combate carimba as federações dos dois lados ao nascer** (`combats.atacante_federation_id`,
+  `defensor_federation_id`). Filiação muda: sem o carimbo, um ataque a aliado de ontem viraria ataque
+  a estranho hoje. Combates anteriores a este registro não servem de prova (`sem_federacoes`).
+- **Quebrar um tratado.** O cooldown do par (GDD §10) barra uma nova guerra federativa, mas não o
+  ataque a zona, que continua possível. É esse ataque, dentro da paz que o tratado comprou, que quebra
+  a palavra. Fora da janela, não há tratado vigente.
+- **Avaliação injusta procedente** anula a avaliação (não apaga: é prova) e devolve ao avaliado o que
+  ela tirou. A advertência ao autor vem da tabela, como sempre.
+
+O conciliador passou a ver a prova no caso (§9.2, passo 3: "recebe [...] screenshots, log
+completo"), e os textos de "leilões não existem" e "não há chat" saíram do Ministério.
+
+### Os números não mudaram
+
+O `PunicaoSpecs` diz "não mude um número aqui sem perguntar", e nenhum mudou: só os `inerte` e as
+provas.
+
+### O que fica de fora
+
+- **Reverter na apelação não restaura a avaliação anulada.** O estorno devolve os pontos da pena; a
+  avaliação continua anulada. Restaurá-la pediria guardar o estado anterior, e a avaliação já saiu do
+  perfil público. Fica anotado.
+- **Ataque a aliado não é bloqueado no código.** O GDD o trata como violação a julgar, não como regra
+  do motor: a aliança é confiança, e trair é possível, com custo.
+
+**Verificação:** `MinisterioCompletoTest`, 10 testes (catálogo sem inerte, chat com silêncio que
+morde, mensagem de terceiro e privada alheia, prova incompatível, avaliação injusta anulada, ataque a
+aliado, ataque entre não aliados, quebra de tratado dentro e fora da janela, a API com a prova e as
+candidatas). Um teste antigo (`print_de_chat` recusado "porque não há chat") passou a conferir o novo:
+sem apontar a mensagem, não há prova.
+
+## D-289 — A Embaixada Interplanetária, slot 9 da Capital: a credencial comercial
+
+O GDD reserva o slot 9 para a "Embaixada Interplanetária" (§2.1) e não diz mais nada: nem função,
+nem número. O que o jogo já tem de interplanetário é o Espaçoporto (D-262 a D-283), com cinco
+planetas NPC, cada um com preço, imposto, risco, portão e demanda. Uma embaixada é a relação formal
+com outro governo, e a relação do colono com esses planetas é comercial.
+
+### O que ela faz
+
+A Embaixada emite a **credencial comercial**, por planeta, paga e com prazo. Com ela, aquele planeta
+cobra menos imposto da carga da colônia, **nas duas pernas** (a importação no fechamento do contrato
+e a venda na volta).
+
+| número | partida | onde mora |
+|---|---|---|
+| preço | 40 F$ por planeta (vazio: o planeta não emite) | `planetas_npc.credencial_preco_micro` |
+| desconto | 50% da alíquota | `planetas_npc.credencial_desconto_bps` |
+| prazo | 30 dias | `espacoporto_settings.credencial_dias` |
+
+Os três números são meus e estão no painel (Transportes → Espaçoporto).
+
+- **O preço vai ao Tesouro.** É um dreno de Fert$, como o aluguel do Cargueiro (ledger
+  `embaixada_credencial`, com fluxo de verdade em `DirecaoDoLedger`).
+- **Ela só se paga com volume.** Com a demanda finita do D-283, quem vai a um planeta uma vez por mês
+  não recupera os 40 F$. Quem faz rota fixa com ele, recupera.
+- **O desconto incide por último**, depois dos eventos e da Endurance. É um corte sobre o que sobrou,
+  não uma soma de descontos que pudesse zerar o imposto.
+- **O desconto fica travado na emissão.** O operador mudar o número no painel não mexe numa credencial
+  já paga.
+- **O portão vale para a credencial.** Não se credencia junto a um planeta que ainda não recebe a
+  colônia (`portao_fechado`).
+- **Renovar** só nos últimos 7 dias, e o prazo novo soma ao que resta. Quem renova cedo não perde dia,
+  e ninguém compra um ano de credencial pelo preço de hoje (`credencial_vigente`).
+
+### O slot 9 e o Quartel
+
+O Quartel de Alianças morava no 9 desde o D-114, porque o 8 tinha ido aos Transportes (D-60). Como
+o §2.1 dá o 9 à Embaixada pelo nome, devolvi o 9 a ela, e o Quartel passou ao 10, o primeiro slot da
+expansão. Para quem joga, só muda o número.
+
+### O que fica de fora
+
+- **A cobertura do seguro (D-280) continua calculada com o imposto cheio.** Na perda, o seguro
+  indeniza a venda líquida do imposto sem o desconto da credencial, ou seja, um pouco menos do que a
+  colônia teria recebido. Fica do lado conservador para o Tesouro. Ligar a credencial ao seguro pediria
+  passar o planeta também à proteção.
+
+**Verificação:** `EmbaixadaInterplanetariaTest`, 7 testes (emitir, desconto nas duas pernas, vencida
+não desconta, as quatro recusas, renovar somando o prazo, a API e o painel).
+
+## D-290 — O Cemitério de Robôs e a Estrutura de Extração, as duas últimas inertes da zona
+
+O D-79 ergueu as três últimas estruturas do §17.4 como inertes, "por gosto e futuro". A Central de
+Comunicação ganhou função no D-116, a Plataforma de Pouso no D-281. Faltavam o Cemitério e a
+Estrutura de Extração.
+
+### O Cemitério: sem função, com memória
+
+O GDD é explícito: "Sem função mecânica — apenas visual. Mostra unidades destruídas em combates
+anteriores. Dá peso histórico a zonas muito disputadas". A função continua nenhuma, mas não havia o
+que mostrar, porque o motor apagava a unidade que zerava e não guardava nada. O relatório de batalha
+(D-275) só sabe quantos havia na chegada e quantos sobraram, e um reforço no meio embaralha a conta.
+
+- **Toda morte em combate vira uma linha** em `robos_enterrados`: a zona onde caiu, o combate, o
+  dono, o tipo e o nível. Passam por `Domain\Guerra\Cemiterio::enterrar()` os seis pontos do
+  `ResolverCombates` que apagam mortos: o dano da rodada, a guarnição que cai com a zona, o sitiante
+  destruído pela ruptura, o socorro destruído, o Infiltrador ou Predador visto e as sobras zeradas
+  no recolhimento.
+- **O enterro acontece com ou sem Cemitério.** O cemitério é a lápide, não a cova: quem o ergue
+  numa zona disputada há meses encontra lá todos os mortos dela, desde este registro.
+- **A guarnição conquistada é de quem a perdeu.** A conquista troca o dono da zona antes de apagar a
+  guarnição; o enterro recebe o dono anterior.
+- **A lápide** (aba Histórico da zona) mostra o total, os mortos por tipo, por colônia (as dez que
+  mais perderam) e por batalha (as dez mais recentes).
+- **O peso histórico é público.** O mapa mostra a qualquer um quantos mortos tem cada zona com
+  Cemitério. Uma batalha numa zona não é segredo de ninguém (D-276); a contagem também não.
+- **Fora:** a marcha que some porque a zona deixou de existir (`ChegarReforcos`). Ninguém morreu em
+  combate, e não há onde enterrar.
+
+### A Estrutura de Extração: acelera, não exige
+
+O GDD diz só "varia conforme o tipo de recurso da zona: perfuratriz para minerais, escavadeira para
+cristais". O D-79 a deixou inerte por uma boa razão: a zona extrai sem ela desde a Fatia 1, e travar
+a extração a uma ferramenta puniria as zonas que já rendem. A saída é **somar sem exigir**:
+
+| | número | por quê |
+|---|---|---|
+| nível 1 | +10% da extração | o mesmo degrau pequeno das outras curvas |
+| por nível | × 1,5 (10%, 15%, 22,5%, 33,75%, 50,6%) | a curva do §19.1, como tudo o mais |
+| cópias | cada uma soma (é repetível desde o D-144) | já era a família das produtoras |
+| teto | +100%: a extração no máximo dobra | sem teto, cobrir a zona de perfuratrizes renderia o que quisesse, e o slot de defesa perderia a concorrência |
+
+Os números são meus. O bônus entra em `NeutralZone::extracaoPorHora()`, então o tick, a tela da
+zona e o mapa leem o mesmo número. Sem a estrutura, a zona rende exatamente o que rendia: os testes
+de extração antigos passam sem mudança. Só o `ZonaLugarTest` mudou, em duas linhas que conferiam a
+Extração como inerte.
+
+**O nome segue o mineral.** O jogo não tem zona de cristal; cada mineral ganhou a ferramenta que faz
+sentido: Perfuratriz (Metal Bruto), Bomba de Poço (Água), Condensador Atmosférico (Oxigênio),
+Escavadeira (Biomassa).
+
+**Fora:** a Sabotagem e a Apreensão continuam sem mirar a Estrutura de Extração. Ela é repetível, e
+o ataque identifica o alvo pelo tipo (D-144): mirar "qual cópia" pediria outro desenho.
+
+**Verificação:** `CemiterioDeRobosTest`, 5 testes (a invasão vencida enterra a guarnição com o dono
+anterior e os atacantes que caíram, o repelido enterra só quem morreu, sem cemitério não há lápide
+mas há enterro, a lápide por tipo, dono e batalha, e o mapa só mostra onde há cemitério).
+`EstruturaDeExtracaoTest`, 5 testes (sem ela nada muda, a curva por nível, as cópias até o teto, o
+tick extraindo com o bônus, o nome da ferramenta e o bônus na tela).
+
+## D-291 — O assistente "Vender"
+
+A revisão do novato (D-285) anotou: "vender exige três abas e dois formulários". Era assim: levar a
+carga ao depósito da Capital (Mercado Local → Enviar carga), esperar o veículo chegar, e então
+anunciar (Mercado Central → Ofertar), sem nada dizendo que a primeira coisa era condição da segunda.
+A aba de ofertar só avisava a falta depois de o colono escolher o recurso e digitar a quantidade.
+
+O botão **"Vender, passo a passo"**, no topo dos dois Mercados, abre um assistente em três passos:
+
+1. **O quê:** o recurso (só os que a colônia ou o depósito têm) e a quantidade, com os dois estoques
+   lado a lado.
+2. **Levar à Capital**, só se o depósito não tem tudo: escolhe um veículo seu ocioso em casa, e a
+   viagem leva o que falta, até a capacidade dele e o espaço livre do depósito. Diz quando chega, e
+   que o tributo de entrega come um pouco na chegada. Fechar e voltar depois funciona: o assistente
+   recomeça lendo o depósito.
+3. **Por quanto:** vender agora às três melhores ofertas de compra do recurso, pelo preço delas, ou
+   anunciar pelo seu preço, com a referência do catálogo no campo e o líquido depois da taxa.
+
+**Não há regra nova.** São as mesmas chamadas das abas (`depositar`, `executarOferta`, `ordenar`), e
+quem recusa continua sendo o servidor. As abas continuam lá para quem já sabe o caminho.
+
+**Fora:** o Espaçoporto (vender a planetas NPC) e o mural entre colonos têm fluxos próprios e
+continuam nas telas deles.
+
+**Verificação:** `npm run build` e `npm run lint`; o assistente não tem regra própria para testar no
+backend.

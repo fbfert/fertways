@@ -68,7 +68,8 @@ class ConcluirContratosDeRota
                 $impostoDaVenda = 0;
 
                 if ($colonia) {
-                    $tributos = $this->imposto->sobre($colonia, $venda, $agora);
+                    // D-289: a credencial da Embaixada vale na volta também.
+                    $tributos = $this->imposto->sobre($colonia, $venda, $agora, (int) $k->planeta_npc_id);
                     $receita = array_sum(array_column($tributos, 'base'));
                     $impostoDaVenda = array_sum(array_column($tributos, 'imposto'));
 

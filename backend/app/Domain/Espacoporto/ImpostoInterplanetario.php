@@ -2,6 +2,7 @@
 
 namespace App\Domain\Espacoporto;
 
+use App\Domain\Embaixada\Credenciais;
 use App\Domain\Endurance\EfeitosDaEndurance;
 use App\Domain\Eventos\Modificadores;
 use App\Models\Colony;
@@ -29,15 +30,27 @@ class ImpostoInterplanetario
     public function __construct(
         private readonly Modificadores $eventos,
         private readonly EfeitosDaEndurance $endurance,
+        private readonly Credenciais $credenciais,
     ) {}
 
-    /** A alíquota, em bps, que esta colônia paga sobre este recurso agora. */
-    public function bps(Colony $colonia, string $recurso, CarbonInterface $quando): int
+    /**
+     * A alíquota, em bps, que esta colônia paga sobre este recurso agora.
+     *
+     * D-289: com o planeta, a credencial comercial da Embaixada corta a alíquota pelo desconto dela,
+     * depois dos eventos e da Endurance — é um desconto sobre o que sobrou, não uma soma de descontos.
+     */
+    public function bps(Colony $colonia, string $recurso, CarbonInterface $quando, ?int $planetaId = null): int
     {
         $bps = (int) (ResourceType::find($recurso)?->tax_bps ?? 0);
         $bps = $this->eventos->aplicarEm($colonia, Modificadores::TAXA, $bps, $quando, $recurso);
 
-        return EfeitosDaEndurance::aplicarDesconto($bps, $this->endurance->descontoDeTributo($colonia));
+        $bps = EfeitosDaEndurance::aplicarDesconto($bps, $this->endurance->descontoDeTributo($colonia));
+
+        if ($planetaId !== null && ($desconto = $this->credenciais->descontoBps($colonia, $planetaId, $quando)) > 0) {
+            $bps -= intdiv($bps * min(10_000, $desconto), 10_000);
+        }
+
+        return $bps;
     }
 
     /**
@@ -45,12 +58,12 @@ class ImpostoInterplanetario
      *
      * @return array<string, array{base:int, bps:int, imposto:int}>
      */
-    public function sobre(Colony $colonia, array $perna, CarbonInterface $quando): array
+    public function sobre(Colony $colonia, array $perna, CarbonInterface $quando, ?int $planetaId = null): array
     {
         $linhas = [];
         foreach ($perna as $recurso => $p) {
             $base = (int) $p['qtd'] * (int) $p['preco_micro'];
-            $bps = $this->bps($colonia, (string) $recurso, $quando);
+            $bps = $this->bps($colonia, (string) $recurso, $quando, $planetaId);
             $linhas[$recurso] = ['base' => $base, 'bps' => $bps, 'imposto' => intdiv($base * $bps, 10_000)];
         }
 

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { api, ApiError } from '../api/client'
 import type { JogadorInfo } from '../api/client'
+import { ResumoDeEstrelas } from './Estrelas'
 import { Popup } from './Popup'
 import { nomeRecurso } from './recursos'
 
@@ -9,8 +10,9 @@ import { nomeRecurso } from './recursos'
  * colônias no Mapa.
  *
  * **Mesma régua de privacidade do diretório** (D-37): nome, posição, distância, porte e as zonas
- * que ele ocupa — tudo já público hoje em algum canto do jogo. Recursos, saldo, frota e reputação
- * NUNCA aparecem aqui, porque nunca aparecem a terceiro em lugar nenhum do jogo.
+ * que ele ocupa — tudo já público hoje em algum canto do jogo. Recursos, saldo, frota e os índices
+ * de reputação NUNCA aparecem aqui. A exceção é a nota de comércio (D-287): o §8.4 a quer pública,
+ * "visível para todos" — é ela que o próximo parceiro precisa ver antes de fechar negócio.
  *
  * **Popup, não tela** (D-69): faz sentido olhar de relance, sem sair de onde se estava — do Chat
  * ou do Mapa.
@@ -66,6 +68,11 @@ export function InfoJogador({
                   {info.colony.distance !== null && ` · ${info.colony.distance} slots`} · porte{' '}
                   {info.colony.building_levels_sum}
                 </div>
+              </div>
+
+              <div>
+                <div className="text-ink eyebrow">Comércio</div>
+                <ResumoDeEstrelas resumo={info.avaliacoes} />
               </div>
 
               <div>

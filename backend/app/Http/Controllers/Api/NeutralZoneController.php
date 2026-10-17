@@ -2,12 +2,15 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Domain\Drone\Avistamentos;
+use App\Domain\Guerra\Cemiterio;
 use App\Domain\Logistics\DespacharVeiculo;
 use App\Domain\Logistics\OcuparZonaNeutra;
 use App\Domain\Logistics\RequisitosDeOcupacao;
 use App\Domain\Zona\Estruturas;
 use App\Domain\Zona\SubirNivelDaZona;
 use App\Http\Controllers\Controller;
+use App\Models\Combat;
 use App\Models\FilaSetting;
 use App\Models\NeutralZone;
 use App\Models\Vehicle;
@@ -31,7 +34,7 @@ class NeutralZoneController extends Controller
      * honestidade de não saber. O `intel` diz com que olhos se vê (`dona`/`livre`/`ao_vivo`/`foto`/
      * `nenhuma`), e o `intel_em` data a foto — informação que envelhece é informação honesta.
      */
-    public function index(Request $request, \App\Domain\Drone\Avistamentos $avistamentos): JsonResponse
+    public function index(Request $request, Avistamentos $avistamentos): JsonResponse
     {
         $minha = $request->user()->colony()->first();
 
@@ -40,7 +43,7 @@ class NeutralZoneController extends Controller
          * uma por zona. Só `em_curso`: a marcha a caminho é da Torre de Vigia (D-67), e acendê-la no
          * mapa público entregaria a qualquer curioso o aviso que o dono paga para ter.
          */
-        $emCombate = \App\Models\Combat::where('status', 'em_curso')->whereNotNull('zone_id')
+        $emCombate = Combat::where('status', 'em_curso')->whereNotNull('zone_id')
             ->pluck('zone_id')->flip();
 
         /*
@@ -54,8 +57,11 @@ class NeutralZoneController extends Controller
 
         $vagasDaFila = FilaSetting::singleton()->zona_vagas;
 
+        // D-290: os mortos das zonas que têm Cemitério, numa consulta só.
+        $mortos = app(Cemiterio::class)->mortosNoMapa($zonas->pluck('id')->all());
+
         $zonas = $zonas
-            ->map(function (NeutralZone $z) use ($minha, $avistamentos, $emCombate, $vagasDaFila) {
+            ->map(function (NeutralZone $z) use ($minha, $avistamentos, $emCombate, $vagasDaFila, $mortos) {
                 $visto = $minha
                     ? $avistamentos->de($minha, $z)
                     // Sem colônia não há drone nem direito a interior nenhum — só o público.
@@ -83,6 +89,9 @@ class NeutralZoneController extends Controller
                     // todos, e uma batalha de duas horas numa zona não é segredo de ninguém.
                     'cercada' => $z->cercada(),
                     'em_combate' => $emCombate->has($z->id),
+                    // D-290: o peso histórico (GDD §17.4). Só onde há Cemitério; nulo, sem lápide.
+                    'mortos' => $z->zoneStructures->contains(fn ($s) => $s->type === 'cemiterio_de_robos' && $s->level > 0)
+                        ? ($mortos[$z->id] ?? 0) : null,
                     // Derivados do nível, que é público — esconder seria teatro: qualquer um calcula.
                     'deposit_cap' => $z->capacidadeDeposito(),
                     'extraction_per_hour' => $z->extracaoPorHora(),
@@ -98,11 +107,11 @@ class NeutralZoneController extends Controller
                     'upgrade' => $mine ? [
                         'target' => $z->level_target,
                         'finishes_at' => $z->level_upgrade_finishes_at,
-                        'proximo_custo' => $z->level < \App\Models\NeutralZone::NIVEL_MAXIMO
-                            ? \App\Models\NeutralZone::custoDeUpgrade($z->level + 1)
+                        'proximo_custo' => $z->level < NeutralZone::NIVEL_MAXIMO
+                            ? NeutralZone::custoDeUpgrade($z->level + 1)
                             : null,
-                        'proxima_guarnicao' => $z->level < \App\Models\NeutralZone::NIVEL_MAXIMO
-                            ? \App\Models\NeutralZone::guarnicaoAlvo($z->level + 1)
+                        'proxima_guarnicao' => $z->level < NeutralZone::NIVEL_MAXIMO
+                            ? NeutralZone::guarnicaoAlvo($z->level + 1)
                             : null,
                     ] : null,
                     'manutencao' => $mine ? [

@@ -16,6 +16,7 @@ import type {
 import { IconeCompra, IconeRecurso, IconeVende } from './IconeRecurso'
 import { Popup } from './Popup'
 import { OfertarEntreColonos, VerOfertasDeColonos } from './Acordos'
+import { AssistenteVender } from './AssistenteVender'
 import {
   fert,
   nomeRecurso,
@@ -94,6 +95,8 @@ export function Mercado({
   const [vizinhas, setVizinhas] = useState<ColoniaVizinha[]>([])
   const [zonas, setZonas] = useState<MinhaZona[]>([])
   const [erro, setErro] = useState<string | null>(null)
+  /** D-291: o assistente que junta as três abas de vender num caminho só. */
+  const [vendendo, setVendendo] = useState(false)
 
   const carregar = useCallback(async () => {
     try {
@@ -185,7 +188,24 @@ export function Mercado({
                 : `${conta.distance_slots} slots de distância do seu slot.`}
             </p>
           )}
+          <button
+            onClick={() => setVendendo(true)}
+            data-abrir-vender
+            className="bg-rust text-sand-light hover:bg-rust-bright mt-3 px-4 py-2 text-sm font-bold"
+          >
+            Vender, passo a passo
+          </button>
         </header>
+
+        {vendendo && (
+          <AssistenteVender
+            conta={conta}
+            vitrine={vitrine}
+            emCasa={emCasa}
+            aoMudar={carregar}
+            aoFechar={() => setVendendo(false)}
+          />
+        )}
 
         {/*
           ⚠️ A contagem na aba (A2.V5, D-228) — e ela existe por uma medida, não por enfeite.

@@ -1164,6 +1164,10 @@ function PainelZona({
         {z.mine && <Linha termo="Nível" valor={`${z.level}${z.upgrade?.target ? ` → ${z.upgrade.target}` : ''}`} />}
         {z.mine && <Linha termo="Depósito" valor={`${deposito} / ${z.deposit_cap}`} />}
         {z.mine && <Linha termo="Extração" valor={`${z.extraction_per_hour}/h`} />}
+        {/* D-290: o peso histórico, à vista de todos — só onde há Cemitério de Robôs. */}
+        {z.mortos !== null && z.mortos !== undefined && (
+          <Linha termo="Cemitério" valor={`${z.mortos.toLocaleString('pt-BR')} mortos`} />
+        )}
       </dl>
 
       {/*

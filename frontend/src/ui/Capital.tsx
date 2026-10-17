@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { CapitalCanvas } from '../game/CapitalCanvas'
 import type { AreaId, SlotDaCapital } from '../game/CapitalScene'
+import { Embaixada } from './Embaixada'
 import { Espacoporto } from './Espacoporto'
 import { Federacao } from './Federacao'
 import { Financas } from './Financas'
@@ -25,14 +26,15 @@ import { Transportes } from './Transportes'
  * o D-55. Mercado e Pátio são a mesma área, e os caminhões desenhados ali são **desenho**, não uma
  * segunda porta.
  */
-type Sub = 'tesouro' | 'financas' | 'noticias' | 'transportes' | 'espacoporto' | 'federacao'
+type Sub = 'tesouro' | 'financas' | 'noticias' | 'transportes' | 'espacoporto' | 'federacao' | 'embaixada'
 
 /**
  * Os slots do Governo Central. **O 6 não está aqui**: ele é a área do Leste.
  *
  * Os vagos (10–20) aparecem, apagados e travados. É o que faz a Capital parecer um lugar que vai
- * crescer, e não uma lista — e o GDD publica os 20. O 9 (Quartel de Alianças) saiu de "reservado"
- * pra "ativo" no D-114 — Federação, Fatia 1.
+ * crescer, e não uma lista — e o GDD publica os 20. O Quartel de Alianças saiu de "reservado" pra
+ * "ativo" no D-114 — Federação, Fatia 1 —, no slot 9. Desde o D-289 o 9 é da Embaixada Interplanetária,
+ * como o §2.1 o reservava, e o Quartel passou ao 10, o primeiro da expansão.
  */
 /*
  * ⚠️ O `curto` existe porque a Capital mostrava só NÚMEROS (A2.V5, D-226).
@@ -53,9 +55,10 @@ const SLOTS: SlotDaCapital[] = [
   { n: 5, nome: 'Ministério da Segurança e Guerra', abre: null, estado: 'em_breve' },
   { n: 7, nome: 'Ministério das Reputações', curto: 'Reputações', abre: 'ministerio', estado: 'ativo' },
   { n: 8, nome: 'Ministério dos Transportes', curto: 'Transportes', abre: 'transportes', estado: 'ativo' },
-  { n: 9, nome: 'Quartel de Alianças', curto: 'Alianças', abre: 'federacao', estado: 'ativo' },
-  ...Array.from({ length: 11 }, (_, i) => ({
-    n: 10 + i,
+  { n: 9, nome: 'Embaixada Interplanetária', curto: 'Embaixada', abre: 'embaixada', estado: 'ativo' },
+  { n: 10, nome: 'Quartel de Alianças', curto: 'Alianças', abre: 'federacao', estado: 'ativo' },
+  ...Array.from({ length: 10 }, (_, i) => ({
+    n: 11 + i,
     nome: 'Vago',
     abre: null,
     estado: 'vago' as const,
@@ -69,6 +72,7 @@ const TITULO: Record<Sub, string> = {
   transportes: 'Ministério dos Transportes',
   espacoporto: 'Espaçoporto',
   federacao: 'Quartel de Alianças',
+  embaixada: 'Embaixada Interplanetária',
 }
 
 export function Capital({
@@ -145,6 +149,7 @@ export function Capital({
             {sub === 'transportes' && <Transportes />}
             {sub === 'espacoporto' && <Espacoporto />}
             {sub === 'federacao' && <Federacao />}
+            {sub === 'embaixada' && <Embaixada />}
           </div>
         ) : (
           <>
@@ -166,7 +171,7 @@ export function Capital({
             {/* D-277: `/60` dava contraste 3,6 sobre a areia, abaixo dos 4,5 da AA. */}
             <p className="text-ink-soft mt-3 shrink-0 text-xs">
               O <b>slot 6</b> não aparece no Governo Central porque ele <b>é</b> o Leste: o Mercado
-              Central e o Pátio Logístico são a mesma área. Os slots 10–20 estão vagos.
+              Central e o Pátio Logístico são a mesma área. Os slots 11–20 estão vagos.
             </p>
           </>
         )}

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Domain\Logistics\MapaFertways;
+use App\Domain\Trade\AvaliarComercio;
 use App\Http\Controllers\Controller;
 use App\Models\NeutralZone;
 use App\Models\User;
@@ -39,6 +40,8 @@ class PlayerController extends Controller
                 'distance' => $minha ? MapaFertways::distancia($minha->x, $minha->y, $colony->x, $colony->y) : null,
                 'building_levels_sum' => (int) $colony->buildings()->sum('level'),
             ] : null,
+            // D-287: a nota pública de comércio (§8.4: "visíveis para todos").
+            'avaliacoes' => app(AvaliarComercio::class)->resumo($user),
             'zones' => $colony
                 ? NeutralZone::where('owner_colony_id', $colony->id)
                     ->orderBy('id')

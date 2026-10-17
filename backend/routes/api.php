@@ -8,7 +8,10 @@ use App\Http\Controllers\Api\CargosController;
 use App\Http\Controllers\Api\ChatController;
 use App\Http\Controllers\Api\ColonyController;
 use App\Http\Controllers\Api\DroneController;
+use App\Http\Controllers\Api\DuvidasDoEspacoportoController;
+use App\Http\Controllers\Api\EmbaixadaController;
 use App\Http\Controllers\Api\EnduranceController;
+use App\Http\Controllers\Api\EspacoportoController;
 use App\Http\Controllers\Api\EstatisticasController;
 use App\Http\Controllers\Api\EventosController;
 use App\Http\Controllers\Api\FederationController;
@@ -22,6 +25,7 @@ use App\Http\Controllers\Api\PerfilDaColoniaController;
 use App\Http\Controllers\Api\PesquisaController;
 use App\Http\Controllers\Api\PlayerController;
 use App\Http\Controllers\Api\ProfileController;
+use App\Http\Controllers\Api\ReconhecimentoController;
 use App\Http\Controllers\Api\ResumoController;
 use App\Http\Controllers\Api\TradeController;
 use App\Http\Controllers\Api\TransportController;
@@ -215,18 +219,18 @@ Route::middleware('auth:sanctum')->group(function () {
     // Ministério dos Transportes (§16), slot 8 da Capital. Fabricar caminhão é privativo dele
     // desde o D-60 — a Central de Transportes do colono virou só a vaga.
     // O Espaçoporto e os planetas NPC (D-262): fechado até o operador escrever os números.
-    Route::get('/espacoporto', [\App\Http\Controllers\Api\EspacoportoController::class, 'index']);
-    Route::post('/espacoporto/contratos', [\App\Http\Controllers\Api\EspacoportoController::class, 'contratar']);
-    Route::post('/espacoporto/cotacao', [\App\Http\Controllers\Api\EspacoportoController::class, 'cotacao']);
+    Route::get('/espacoporto', [EspacoportoController::class, 'index']);
+    Route::post('/espacoporto/contratos', [EspacoportoController::class, 'contratar']);
+    Route::post('/espacoporto/cotacao', [EspacoportoController::class, 'cotacao']);
     // D-282: o Gagarin e as Missões de Reconhecimento.
-    Route::get('/reconhecimento', [\App\Http\Controllers\Api\ReconhecimentoController::class, 'index']);
-    Route::post('/reconhecimento/{missao}/tarefa', [\App\Http\Controllers\Api\ReconhecimentoController::class, 'tarefa'])->whereNumber('missao');
+    Route::get('/reconhecimento', [ReconhecimentoController::class, 'index']);
+    Route::post('/reconhecimento/{missao}/tarefa', [ReconhecimentoController::class, 'tarefa'])->whereNumber('missao');
     // D-270: a fila de dúvidas do Atendente do Espaçoporto.
-    Route::get('/espacoporto/duvidas', [\App\Http\Controllers\Api\DuvidasDoEspacoportoController::class, 'index']);
-    Route::post('/espacoporto/duvidas', [\App\Http\Controllers\Api\DuvidasDoEspacoportoController::class, 'perguntar'])->middleware('throttle:10,1');
-    Route::post('/espacoporto/duvidas/{duvida}/responder', [\App\Http\Controllers\Api\DuvidasDoEspacoportoController::class, 'responder'])->whereNumber('duvida');
-    Route::post('/espacoporto/duvidas/{duvida}/encaminhar', [\App\Http\Controllers\Api\DuvidasDoEspacoportoController::class, 'encaminhar'])->whereNumber('duvida');
-    Route::post('/espacoporto/duvidas/{duvida}/avaliar', [\App\Http\Controllers\Api\DuvidasDoEspacoportoController::class, 'avaliar'])->whereNumber('duvida');
+    Route::get('/espacoporto/duvidas', [DuvidasDoEspacoportoController::class, 'index']);
+    Route::post('/espacoporto/duvidas', [DuvidasDoEspacoportoController::class, 'perguntar'])->middleware('throttle:10,1');
+    Route::post('/espacoporto/duvidas/{duvida}/responder', [DuvidasDoEspacoportoController::class, 'responder'])->whereNumber('duvida');
+    Route::post('/espacoporto/duvidas/{duvida}/encaminhar', [DuvidasDoEspacoportoController::class, 'encaminhar'])->whereNumber('duvida');
+    Route::post('/espacoporto/duvidas/{duvida}/avaliar', [DuvidasDoEspacoportoController::class, 'avaliar'])->whereNumber('duvida');
 
     Route::get('/transport', [TransportController::class, 'index']);
     Route::post('/transport/buy', [TransportController::class, 'comprar']);
@@ -261,6 +265,8 @@ Route::middleware('auth:sanctum')->group(function () {
     // e o D-42 (prazo × distância) só pode ser cobrado aí, quando enfim existe um par de verdade.
     Route::get('/trade/board', [TradeController::class, 'mural']);
     Route::post('/trade/agreements/{agreement}/accept', [TradeController::class, 'aceitar']);
+    // D-287: a avaliação de 0 a 5 estrelas do acordo fechado (§8.4).
+    Route::post('/trade/agreements/{agreement}/avaliacao', [TradeController::class, 'avaliar'])->middleware('throttle:30,1');
 
     // Leilões (D-129). Sem seção no GDD — só citado como alvo de uma punição inerte. O mecanismo
     // (lote único, lance em escrow, fechamento por prazo no tick) é desenho nosso sobre o Mercado
@@ -298,6 +304,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/ministry/me', [MinistryController::class, 'eu']);
     Route::get('/ministry/reports', [MinistryController::class, 'index']);
     Route::post('/ministry/reports', [MinistryController::class, 'store']);
+    Route::get('/ministry/provas', [MinistryController::class, 'provas']);
+    // D-289: a Embaixada Interplanetária, slot 9 da Capital.
+    Route::get('/embaixada', [EmbaixadaController::class, 'index']);
+    Route::post('/embaixada/credenciais', [EmbaixadaController::class, 'emitir'])->middleware('throttle:20,1');
     Route::post('/ministry/reports/{report}/decide', [MinistryController::class, 'decidir']);
     Route::post('/ministry/reports/{report}/appeal', [MinistryController::class, 'apelar']);
 

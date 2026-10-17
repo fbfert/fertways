@@ -20,7 +20,7 @@ class AbrirDenuncia
 {
     public function __construct(private Triagem $triagem) {}
 
-    public function handle(Colony $denunciante, Colony $denunciado, string $violacao, string $texto, string $evidencia, ?int $acordoId): Report
+    public function handle(Colony $denunciante, Colony $denunciado, string $violacao, string $texto, string $evidencia, ?int $acordoId, ?int $refId = null): Report
     {
         if ($denunciante->id === $denunciado->id) {
             throw new DomainRuleException('denuncia_contra_si', 'Não se denuncia a própria colônia.');
@@ -34,10 +34,24 @@ class AbrirDenuncia
             throw new DomainRuleException('evidencia_desconhecida', "Tipo de evidência inexistente: {$evidencia}");
         }
 
-        $spec = PunicaoSpecs::violacao($violacao);
-        $acordo = $this->conferirEvidencia($denunciante, $denunciado, $evidencia, $acordoId);
+        if (! in_array($evidencia, PunicaoSpecs::EVIDENCIA_POR_VIOLACAO[$violacao] ?? [], true)) {
+            throw new DomainRuleException(
+                'evidencia_incompativel',
+                'Esta prova não serve para esta violação. Aceitas: '.implode(', ', PunicaoSpecs::EVIDENCIA_POR_VIOLACAO[$violacao] ?? []).'.',
+            );
+        }
 
-        return DB::transaction(function () use ($denunciante, $denunciado, $violacao, $texto, $evidencia, $acordo, $spec) {
+        $spec = PunicaoSpecs::violacao($violacao);
+        $provas = app(ProvasDoMinisterio::class);
+        $extra = match ($evidencia) {
+            'print_de_chat' => $provas->mensagem($denunciante, $denunciado, $refId),
+            'registro_de_combate' => $provas->combate($denunciante, $denunciado, $violacao, $refId),
+            'avaliacao' => $provas->avaliacao($denunciante, $denunciado, $refId),
+            default => [],
+        };
+        $acordo = $extra === [] ? $this->conferirEvidencia($denunciante, $denunciado, $evidencia, $acordoId) : null;
+
+        return DB::transaction(function () use ($denunciante, $denunciado, $violacao, $texto, $evidencia, $acordo, $spec, $extra) {
             $denuncia = Report::create([
                 'reporter_colony_id' => $denunciante->id,
                 'accused_colony_id' => $denunciado->id,
@@ -47,6 +61,7 @@ class AbrirDenuncia
                 'trade_agreement_id' => $acordo?->id,
                 'status' => 'triagem',
                 'grave' => $spec['grave'],
+                ...$extra,
             ]);
 
             return $this->triagem->handle($denuncia);
@@ -61,19 +76,10 @@ class AbrirDenuncia
      * de fato terminado mal ou terminado. Anexar o acordo de terceiros, ou um acordo ainda em vigor,
      * seria evidência de nada — e o §26.8 quer a triagem rejeitando isso sozinha.
      *
-     * `print_de_chat` é inerte: não há upload nem chat. Aceitá-lo como evidência abriria a porta
-     * para denúncia sem prova nenhuma, que é exatamente o que a regra fecha. Fica gravável no
-     * schema, e recusado aqui até existir chat.
+     * As provas de chat, combate e avaliação (D-288) são conferidas em `ProvasDoMinisterio`.
      */
     private function conferirEvidencia(Colony $denunciante, Colony $denunciado, string $evidencia, ?int $acordoId): ?TradeAgreement
     {
-        if ($evidencia === 'print_de_chat') {
-            throw new DomainRuleException(
-                'evidencia_indisponivel',
-                'Não há chat nem upload de imagem em Fertways. Anexe um Acordo de Troca expirado ou um log de transação.',
-            );
-        }
-
         if ($evidencia === 'log_transacao') {
             /*
              * O log de transação par-a-par que o servidor sabe provar é o próprio Acordo de Troca:

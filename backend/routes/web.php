@@ -3,6 +3,7 @@
 use App\Http\Controllers\Admin\AcoesController;
 use App\Http\Controllers\Admin\AuthController as AdminAuth;
 use App\Http\Controllers\Admin\PainelController;
+use App\Http\Controllers\Admin\ReconhecimentoController;
 use Illuminate\Routing\Route as Rota;
 use Illuminate\Support\Facades\Route;
 
@@ -95,11 +96,11 @@ Route::prefix('admin')->group(function () {
         Route::post('/feedback/{feedback}/feito', [AcoesController::class, 'feedbackFeito'])->name('admin.feedback.feito');
 
         // O Gagarin e as Missões de Reconhecimento (D-282). Abrir a planetária é do Dono (no controller).
-        Route::get('/reconhecimento', [\App\Http\Controllers\Admin\ReconhecimentoController::class, 'index'])->name('admin.reconhecimento');
-        Route::post('/reconhecimento/config', [\App\Http\Controllers\Admin\ReconhecimentoController::class, 'config'])->name('admin.reconhecimento.config');
-        Route::post('/reconhecimento/planetaria', [\App\Http\Controllers\Admin\ReconhecimentoController::class, 'planetaria'])->name('admin.reconhecimento.planetaria');
-        Route::post('/reconhecimento/pausa', [\App\Http\Controllers\Admin\ReconhecimentoController::class, 'pausa'])->name('admin.reconhecimento.pausa');
-        Route::post('/reconhecimento/{missao}/reabrir', [\App\Http\Controllers\Admin\ReconhecimentoController::class, 'reabrir'])->name('admin.reconhecimento.reabrir');
+        Route::get('/reconhecimento', [ReconhecimentoController::class, 'index'])->name('admin.reconhecimento');
+        Route::post('/reconhecimento/config', [ReconhecimentoController::class, 'config'])->name('admin.reconhecimento.config');
+        Route::post('/reconhecimento/planetaria', [ReconhecimentoController::class, 'planetaria'])->name('admin.reconhecimento.planetaria');
+        Route::post('/reconhecimento/pausa', [ReconhecimentoController::class, 'pausa'])->name('admin.reconhecimento.pausa');
+        Route::post('/reconhecimento/{missao}/reabrir', [ReconhecimentoController::class, 'reabrir'])->name('admin.reconhecimento.reabrir');
 
         // O catálogo de missões (§06, D-78): aba própria — o CRUD é grande demais para um card.
         Route::get('/missoes', [PainelController::class, 'missoes'])->name('admin.missoes');
@@ -114,6 +115,8 @@ Route::prefix('admin')->group(function () {
         // Conciliadores
         Route::post('/conciliadores/nomear', [AcoesController::class, 'conciliadorNomear'])->name('admin.conciliador.nomear');
         Route::post('/conciliadores/{user}/gerir', [AcoesController::class, 'conciliadorGerir'])->name('admin.conciliador.gerir');
+        // D-287: a revisão das avaliações suspeitas (§26.4).
+        Route::post('/ministerio/avaliacoes/{avaliacao}/revisar', [AcoesController::class, 'avaliacaoRevisar'])->name('admin.avaliacao.revisar');
         // Finanças
         Route::post('/intervencoes', [AcoesController::class, 'intervencao'])->name('admin.intervencao');
         Route::post('/intervencoes/revogar', [AcoesController::class, 'intervencaoRevogar'])->name('admin.intervencao.revogar');

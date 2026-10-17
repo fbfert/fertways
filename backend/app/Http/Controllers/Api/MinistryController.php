@@ -5,10 +5,13 @@ namespace App\Http\Controllers\Api;
 use App\Domain\Ministry\AbrirDenuncia;
 use App\Domain\Ministry\Apelacao;
 use App\Domain\Ministry\DecidirCaso;
+use App\Domain\Ministry\ProvasDoMinisterio;
 use App\Domain\Ministry\PunicaoSpecs;
 use App\Exceptions\DomainRuleException;
 use App\Http\Controllers\Controller;
+use App\Models\AvaliacaoDeComercio;
 use App\Models\Colony;
+use App\Models\Combat;
 use App\Models\Punishment;
 use App\Models\Report;
 use Illuminate\Http\JsonResponse;
@@ -39,7 +42,7 @@ class MinistryController extends Controller
                 'honra_militar_diplomatica' => $usuario->honra_militar_diplomatica,
             ],
             'limiar_mercado' => PunicaoSpecs::PERSONA_NON_GRATA,
-            // §9.4: Persona Non Grata é o mesmo limiar que fecha a doca (D-49). Leilões não existem.
+            // §9.4: Persona Non Grata é o mesmo limiar que fecha a doca e os leilões (D-49).
             'persona_non_grata' => $usuario->confianca_comercial < PunicaoSpecs::PERSONA_NON_GRATA,
             'conciliador' => [
                 'nomeado' => $usuario->conciliador_desde !== null,
@@ -66,6 +69,8 @@ class MinistryController extends Controller
                 'punicoes' => $v['punicoes'],
                 'grave' => $v['grave'],
                 'inerte' => $v['inerte'],
+                // D-288: que provas servem a esta violação.
+                'evidencias' => PunicaoSpecs::EVIDENCIA_POR_VIOLACAO[$chave] ?? [],
                 'fonte' => $v['fonte'],
             ])->values(),
         ]);
@@ -113,6 +118,8 @@ class MinistryController extends Controller
             'texto' => ['required', 'string', 'min:10', 'max:2000'],
             'evidence_type' => ['required', 'string'],
             'trade_agreement_id' => ['nullable', 'integer'],
+            // D-288: o id da mensagem, do combate ou da avaliação que prova o caso.
+            'evidence_ref' => ['nullable', 'integer'],
         ]);
 
         $colonia = $this->colonia($request);
@@ -129,9 +136,23 @@ class MinistryController extends Controller
             $dados['texto'],
             $dados['evidence_type'],
             $dados['trade_agreement_id'] ?? null,
+            $dados['evidence_ref'] ?? null,
         );
 
         return response()->json($this->exibir($denuncia, $colonia->id), 201);
+    }
+
+    /** D-288: as provas que eu tenho contra este colono, para a tela oferecer. */
+    public function provas(Request $request, ProvasDoMinisterio $provas): JsonResponse
+    {
+        $id = (int) $request->validate(['accused_colony_id' => ['required', 'integer']])['accused_colony_id'];
+        $acusado = Colony::find($id);
+
+        if (! $acusado) {
+            throw new DomainRuleException('denunciado_inexistente', 'Colônia denunciada inexistente.');
+        }
+
+        return response()->json($provas->candidatas($this->colonia($request), $acusado));
     }
 
     /** Passo 4 do §9.2. O conciliador julga o fato; a pena está na tabela fixa do §26.8. */
@@ -163,6 +184,8 @@ class MinistryController extends Controller
             'texto' => $r->texto,
             'evidence_type' => $r->evidence_type,
             'trade_agreement_id' => $r->trade_agreement_id,
+            // D-288: o que o conciliador precisa ver para julgar (§9.2, passo 3).
+            'evidencia' => $this->prova($r),
             'status' => $r->status,
             'decision' => $r->decision,
             'grave' => $r->grave,
@@ -175,6 +198,26 @@ class MinistryController extends Controller
             // O que a tabela do §26.8 aplicaria (ou aplicou) se procedente. A pena não é segredo.
             'punicao_tabelada' => ['indice' => $spec['indice'], 'pontos' => $spec['pontos'], 'punicoes' => $spec['punicoes']],
         ];
+    }
+
+    /** A prova anexada, como o conciliador a lê. Só o que o próprio caso já expõe às partes. */
+    private function prova(Report $r): ?array
+    {
+        if ($r->chat_snapshot) {
+            return ['tipo' => 'mensagem', 'mensagem' => $r->chat_snapshot['body'] ?? null,
+                'canal' => $r->chat_snapshot['channel'] ?? null, 'em' => $r->chat_snapshot['created_at'] ?? null];
+        }
+
+        if ($r->combat_id && ($c = Combat::find($r->combat_id))) {
+            return ['tipo' => 'combate', 'combate_id' => $c->id, 'tipo_ataque' => $c->tipo, 'em' => $c->created_at];
+        }
+
+        if ($r->avaliacao_id && ($a = AvaliacaoDeComercio::find($r->avaliacao_id))) {
+            return ['tipo' => 'avaliacao', 'estrelas' => $a->estrelas, 'comentario' => $a->comentario,
+                'acordo_id' => $a->trade_agreement_id, 'anulada' => $a->anulada_em !== null];
+        }
+
+        return null;
     }
 
     private function colonia(Request $request): Colony

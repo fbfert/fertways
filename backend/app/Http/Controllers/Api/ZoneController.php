@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Domain\Building\Demolir;
+use App\Domain\Guerra\Cemiterio;
 use App\Domain\Guerra\Protegido;
 use App\Domain\GuerraFederativa\EmGuerra;
 use App\Domain\Logistics\DespacharVeiculo;
@@ -10,6 +11,7 @@ use App\Domain\Populacao\Parametros;
 use App\Domain\Zona\ConstruirNaZona;
 use App\Domain\Zona\DemolirEstruturaDaZona;
 use App\Domain\Zona\Estruturas;
+use App\Domain\Zona\Extracao;
 use App\Domain\Zona\Operadores;
 use App\Domain\Zona\RepararModulo;
 use App\Domain\Zona\ZonaSlots;
@@ -229,6 +231,10 @@ class ZoneController extends Controller
             ],
 
             'extracao_hora' => $zone->extracaoPorHora(),
+            // D-290: quanto a Estrutura de Extração soma, já com o teto.
+            'extracao_bonus_bps' => Extracao::bonusBps($zone),
+            // D-290: a lápide do Cemitério de Robôs; nula sem Cemitério.
+            'cemiterio' => app(Cemiterio::class)->lapide($zone),
             'refino_hora' => $zone->refinoPorHora(),
 
             'guarnicao' => [
@@ -501,10 +507,14 @@ class ZoneController extends Controller
             $apreendida = in_array($tipo, $zone->modules_offline ?? [], true);
             $nivelSabotagem = ($zone->structures_saboted ?? [])[$tipo] ?? null;
 
+            $extracao = $tipo === 'estrutura_de_extracao';
+
             return [
                 'slot' => $linha->slot,
                 'type' => $tipo,
-                'nome' => $info['nome'],
+                // D-290: a ferramenta segue o mineral da zona (perfuratriz, bomba de poço…).
+                'nome' => $extracao ? $info['nome'].' — '.Extracao::ferramenta($zone->mineral) : $info['nome'],
+                'bonus_bps' => $extracao ? Extracao::bonusDoNivel((int) $nivel) : null,
                 'level' => $nivel,
                 'gdd' => $info['gdd'],
                 'hoje' => $info['hoje'],

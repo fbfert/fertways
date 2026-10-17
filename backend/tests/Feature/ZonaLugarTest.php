@@ -3,19 +3,28 @@
 namespace Tests\Feature;
 
 use App\Domain\Colony\CreateColony;
+use App\Domain\Guerra\Atacar;
+use App\Domain\Guerra\Forcas;
 use App\Domain\Guerra\Protegido;
 use App\Domain\Logistics\ConcluirTrechos;
+use App\Domain\Logistics\DespacharVeiculo;
 use App\Domain\Zona\ConcluirObrasDaZona;
 use App\Domain\Zona\ConstruirNaZona;
 use App\Domain\Zona\Estruturas;
 use App\Domain\Zona\ProcessarSiderurgicaNaZona;
 use App\Domain\Zona\RefinarNaZona;
+use App\Domain\Zona\ZonaSlots;
 use App\Exceptions\DomainRuleException;
 use App\Models\Colony;
+use App\Models\FilaSetting;
 use App\Models\NeutralZone;
+use App\Models\Unit;
 use App\Models\User;
-use App\Models\Vehicle;
 use App\Models\ZoneMaterial;
+use App\Models\ZoneMineral;
+use Database\Seeders\BuildingSpecSeeder;
+use Database\Seeders\ComponentRecipeSeeder;
+use Database\Seeders\ResourceTypeSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Concerns\ErgueEstruturasDaZona;
 use Tests\TestCase;
@@ -31,15 +40,15 @@ use Tests\TestCase;
  */
 class ZonaLugarTest extends TestCase
 {
-    use RefreshDatabase;
     use ErgueEstruturasDaZona;
+    use RefreshDatabase;
 
     protected function setUp(): void
     {
         parent::setUp();
-        $this->seed(\Database\Seeders\ResourceTypeSeeder::class);
-        $this->seed(\Database\Seeders\ComponentRecipeSeeder::class);
-        $this->seed(\Database\Seeders\BuildingSpecSeeder::class);
+        $this->seed(ResourceTypeSeeder::class);
+        $this->seed(ComponentRecipeSeeder::class);
+        $this->seed(BuildingSpecSeeder::class);
     }
 
     private function colono(): Colony
@@ -48,7 +57,7 @@ class ZonaLugarTest extends TestCase
         $c->update(['fert_micro' => 10_000 * 1_000_000]);
 
         foreach (['metal_bruto' => 20000, 'ligas_metalicas' => 20000,
-                  'componentes_eletronicos' => 5000, 'energia' => 20000] as $r => $q) {
+            'componentes_eletronicos' => 5000, 'energia' => 20000] as $r => $q) {
             $c->resources()->where('resource_type', $r)->update(['amount' => $q]);
         }
 
@@ -93,7 +102,7 @@ class ZonaLugarTest extends TestCase
             ...$zona->obras()->pluck('slot')->all(),
         ];
 
-        return collect(\App\Domain\Zona\ZonaSlots::NIVEL1_SLOTS)
+        return collect(ZonaSlots::NIVEL1_SLOTS)
             ->first(fn ($s) => ! in_array($s, $ocupados, true));
     }
 
@@ -136,7 +145,7 @@ class ZonaLugarTest extends TestCase
         $colono = $this->colono();
         $zona = $this->zonaDe($colono);
 
-        $forcas = app(\App\Domain\Guerra\Forcas::class);
+        $forcas = app(Forcas::class);
 
         $this->assertSame(0, $forcas->bonusDeConstrucao($zona), 'sem estruturas, o bônus é zero');
 
@@ -174,7 +183,7 @@ class ZonaLugarTest extends TestCase
 
         $antes = (int) $colono->resources()->where('resource_type', 'metal_bruto')->value('amount');
 
-        app(\App\Domain\Logistics\DespacharVeiculo::class)
+        app(DespacharVeiculo::class)
             ->entregarMaterialNaZona($colono, $veiculo, $zona, ['metal_bruto' => 400]);
 
         // O material saiu do estoque NO DESPACHO — está fisicamente no veículo (§25.3).
@@ -232,7 +241,7 @@ class ZonaLugarTest extends TestCase
      */
     public function test_admin_pode_liberar_mais_de_uma_obra_simultanea_na_zona(): void
     {
-        \App\Models\FilaSetting::singleton()->update(['zona_vagas' => 2]);
+        FilaSetting::singleton()->update(['zona_vagas' => 2]);
 
         $colono = $this->colono();
         $zona = $this->zonaDe($colono);
@@ -256,7 +265,7 @@ class ZonaLugarTest extends TestCase
      */
     public function test_a_ficha_da_zona_lista_a_fila_inteira_de_obras(): void
     {
-        \App\Models\FilaSetting::singleton()->update(['zona_vagas' => 2]);
+        FilaSetting::singleton()->update(['zona_vagas' => 2]);
 
         $colono = $this->colono();
         $zona = $this->zonaDe($colono);
@@ -325,7 +334,7 @@ class ZonaLugarTest extends TestCase
 
         // …nem mandar mais material.
         $this->expectException(DomainRuleException::class);
-        app(\App\Domain\Logistics\DespacharVeiculo::class)->entregarMaterialNaZona(
+        app(DespacharVeiculo::class)->entregarMaterialNaZona(
             $colono, $colono->vehicles()->first(), $zona, ['metal_bruto' => 100],
         );
     }
@@ -398,7 +407,7 @@ class ZonaLugarTest extends TestCase
         $colono = $this->colono();
         $zona = $this->zonaDe($colono, ['refinery_level' => 1, 'refined_amount' => 300]);
 
-        app(\App\Domain\Logistics\DespacharVeiculo::class)->retirarDeZona(
+        app(DespacharVeiculo::class)->retirarDeZona(
             $colono, $colono->vehicles()->first(), $zona, ['ligas_metalicas' => 100],
         );
 
@@ -411,9 +420,9 @@ class ZonaLugarTest extends TestCase
     {
         $colono = $this->colono();
         $zona = $this->zonaDe($colono, ['industry_level' => 1]);
-        \App\Models\ZoneMineral::create(['zone_id' => $zona->id, 'resource_type' => 'ouro', 'amount' => 10]);
+        ZoneMineral::create(['zone_id' => $zona->id, 'resource_type' => 'ouro', 'amount' => 10]);
 
-        app(\App\Domain\Logistics\DespacharVeiculo::class)->retirarDeZona(
+        app(DespacharVeiculo::class)->retirarDeZona(
             $colono, $colono->vehicles()->first(), $zona, ['ouro' => 6],
         );
 
@@ -429,7 +438,7 @@ class ZonaLugarTest extends TestCase
         $this->expectException(DomainRuleException::class);
         $this->expectExceptionMessageMatches('/não há ouro/');
 
-        app(\App\Domain\Logistics\DespacharVeiculo::class)->retirarDeZona(
+        app(DespacharVeiculo::class)->retirarDeZona(
             $colono, $colono->vehicles()->first(), $zona, ['ouro' => 1],
         );
     }
@@ -556,17 +565,17 @@ class ZonaLugarTest extends TestCase
         $zona = $this->zonaDe($defensor);
 
         // Guarnição, para o ataque ter contra o que ir.
-        \App\Models\Unit::create([
+        Unit::create([
             'zone_id' => $zona->id, 'type' => 'robo_minerador',
             'level' => 1, 'hp_bps' => 10000, 'status' => 'na_zona',
         ]);
 
-        $sentinela = \App\Models\Unit::create([
+        $sentinela = Unit::create([
             'colony_id' => $atacante->id, 'type' => 'sentinela',
             'level' => 1, 'hp_bps' => 10000, 'status' => 'casa',
         ]);
 
-        app(\App\Domain\Guerra\Atacar::class)
+        app(Atacar::class)
             ->handle($atacante, $zona, 'invasao', [$sentinela->id]);
 
         // O ATACANTE vê o próprio ataque — ele o mandou.
@@ -603,11 +612,10 @@ class ZonaLugarTest extends TestCase
 
         // O Cemitério é declarado INERTE pelo próprio GDD, e a tela tem de dizê-lo.
         $this->assertTrue($catalogo['cemiterio_de_robos']['inerte']);
-        // Duas das três últimas do §17.4 (D-79) continuam INERTES — nenhuma tem sistema que a
-        // acione (extração já funciona sem ferramenta; sem Nave de Transporte Planetária). A
-        // Central de Comunicação SAIU da lista no D-116/D-118: a Federação existe, e ela já avisa
-        // e mostra a zona ao vivo pros aliados.
-        $this->assertTrue($catalogo['estrutura_de_extracao']['inerte']);
+        // As três últimas do §17.4 (D-79) já não são inertes: a Central de Comunicação desde o
+        // D-116/D-118 (a Federação existe), a Estrutura de Extração desde o D-290 (acelera a
+        // extração, sem ser exigida).
+        $this->assertFalse($catalogo['estrutura_de_extracao']['inerte']);
         $this->assertFalse($catalogo['central_de_comunicacao']['inerte']);
         // A Plataforma de Pouso da zona saiu do grupo no D-281: é onde a Nave pousa.
         $this->assertFalse($catalogo['plataforma_de_pouso_da_zona']['inerte']);
@@ -618,8 +626,8 @@ class ZonaLugarTest extends TestCase
     {
         $colono = $this->colono();
         $zona = $this->zonaDe($colono);
-        \App\Models\ZoneMineral::create(['zone_id' => $zona->id, 'resource_type' => 'ouro', 'amount' => 7]);
-        \App\Models\ZoneMineral::create(['zone_id' => $zona->id, 'resource_type' => 'cobre', 'amount' => 0]);
+        ZoneMineral::create(['zone_id' => $zona->id, 'resource_type' => 'ouro', 'amount' => 7]);
+        ZoneMineral::create(['zone_id' => $zona->id, 'resource_type' => 'cobre', 'amount' => 0]);
 
         $this->actingAs($colono->user)
             ->getJson("/zones/{$zona->id}")
@@ -747,8 +755,9 @@ class ZonaLugarTest extends TestCase
             'metal_bruto' => 1000, 'ligas_metalicas' => 500, 'componentes_eletronicos' => 200,
         ]);
 
-        // D-281: a Plataforma de Pouso da zona deixou de ser inerte — a Nave pousa nela.
-        $inertes = ['estrutura_de_extracao' => true, 'central_de_comunicacao' => false, 'plataforma_de_pouso_da_zona' => false];
+        // D-281: a Plataforma de Pouso da zona deixou de ser inerte — a Nave pousa nela. D-290: a
+        // Estrutura de Extração também — acelera a extração.
+        $inertes = ['estrutura_de_extracao' => false, 'central_de_comunicacao' => false, 'plataforma_de_pouso_da_zona' => false];
 
         foreach ($inertes as $estrutura => $deveSerInerte) {
             $this->assertContains($estrutura, Estruturas::CONSTRUIVEIS);

@@ -51,6 +51,37 @@
     </div>
     @endif
 
+    {{-- ── D-287: avaliações suspeitas (§26.4) ── --}}
+    <h2 class="secao">Avaliações de comércio suspeitas</h2>
+    <div class="cartao">
+        <p class="mut pequeno">
+            Avaliações entre contas que entraram do mesmo IP nos últimos 30 dias. O efeito no índice está
+            congelado até você decidir. <b>Legítima</b> libera a avaliação; <b>Vinculadas</b> confirma o
+            vínculo e anula todas as avaliações entre as duas contas, nos dois sentidos (§26.4).
+            Dividir IP não prova nada sozinho: uma casa com dois irmãos também divide.
+        </p>
+        <table>
+            <tr><th>#</th><th>Autor → avaliado</th><th>Nota</th><th>Comentário</th><th></th></tr>
+            @forelse ($suspeitas as $av)
+                <tr>
+                    <td>{{ $av->id }}</td>
+                    <td>{{ $av->autor?->nickname }} → {{ $av->avaliado?->nickname }}</td>
+                    <td>{{ $av->estrelas }} ★</td>
+                    <td class="pequeno">{{ $av->comentario ?? '—' }}</td>
+                    <td>
+                        <form method="POST" action="{{ route('admin.avaliacao.revisar', $av->id) }}" class="inline">@csrf
+                            <input type="hidden" name="veredito" value="legitima"><button class="leve">Legítima</button></form>
+                        <form method="POST" action="{{ route('admin.avaliacao.revisar', $av->id) }}" class="inline"
+                              onsubmit="return confirm('Confirmar o vínculo anula TODAS as avaliações entre as duas contas. Confirmar?')">@csrf
+                            <input type="hidden" name="veredito" value="vinculadas"><button class="perigo">Vinculadas</button></form>
+                    </td>
+                </tr>
+            @empty
+                <tr><td colspan="5" class="mut pequeno">Nenhuma avaliação suspeita.</td></tr>
+            @endforelse
+        </table>
+    </div>
+
     {{-- ── Conciliadores ── --}}
     <h2 class="secao">Conciliadores</h2>
     <div class="cartao">

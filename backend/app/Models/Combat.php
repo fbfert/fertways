@@ -61,7 +61,25 @@ class Combat extends Model
          * uma guerra sem batalha nenhuma — o defeito que já custou três correções nesta fase.
          */
         'war_id',
+        // D-288: a federação de cada lado, no instante do ataque. Ver `booted()`.
+        'atacante_federation_id', 'defensor_federation_id',
     ];
+
+    /**
+     * D-288: carimba a federação de cada lado no nascimento do combate, venha ele de onde vier
+     * (ataque, ruptura de cerco). É o que o Ministério precisa para julgar "ataque a aliado" e
+     * "quebra de tratado": a filiação de hoje não é a de quando o exército marchou.
+     */
+    protected static function booted(): void
+    {
+        static::creating(function (Combat $c) {
+            $ids = array_filter([$c->attacker_colony_id, $c->defender_colony_id]);
+            $federacoes = Colony::whereIn('id', $ids)->pluck('federation_id', 'id');
+
+            $c->atacante_federation_id ??= $federacoes[$c->attacker_colony_id] ?? null;
+            $c->defensor_federation_id ??= $c->defender_colony_id ? ($federacoes[$c->defender_colony_id] ?? null) : null;
+        });
+    }
 
     protected $casts = [
         'rodada' => 'integer',

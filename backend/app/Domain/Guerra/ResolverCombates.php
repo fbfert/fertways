@@ -57,6 +57,8 @@ class ResolverCombates
         private Sorteio $sorteio,
         private AvisoDeAtaque $avisoDeAtaque,
         private EmGuerra $emGuerra,
+        // D-290: quem morre em combate é enterrado na zona onde caiu.
+        private Cemiterio $cemiterio,
     ) {}
 
     /** @return int quantos combates avançaram */
@@ -290,8 +292,8 @@ class ResolverCombates
             return;
         }
 
-        $this->aplicarDano($defensores, $forcaDef, (int) $r['dano_ao_defensor']);
-        $this->aplicarDano($atacantes, $forcaAtk, (int) $r['dano_ao_atacante']);
+        $this->aplicarDano($defensores, $forcaDef, (int) $r['dano_ao_defensor'], $combate);
+        $this->aplicarDano($atacantes, $forcaAtk, (int) $r['dano_ao_atacante'], $combate);
 
         // Reconta depois de a poeira baixar. Os dois podem cair na mesma rodada: se ambos zeram, o
         // defensor mantém a zona — quem ataca tem de VENCER, e não apenas empatar (§27.8: "o
@@ -372,7 +374,7 @@ class ResolverCombates
         // A guarnição do derrotado que sobreviveu é destruída com a zona: ela não tem para onde
         // recuar. Quem defendia e ainda respira só sobreviveria se o defensor tivesse ABANDONADO
         // (§27.9) — e aí o combate não chega aqui.
-        Unit::where('zone_id', $zona->id)->delete();
+        $this->cemiterio->enterrar(Unit::where('zone_id', $zona->id), $combate, $donoAnterior);
 
         // Histórico da zona (D-86).
         ZoneEvent::create([
@@ -500,8 +502,8 @@ class ResolverCombates
 
         $r = $combate->resultado;
 
-        $this->aplicarDano($sitiantes, $forcaSitio, (int) $r['dano_ao_defensor']);
-        $this->aplicarDano($socorro, $forcaSocorro, (int) $r['dano_ao_atacante']);
+        $this->aplicarDano($sitiantes, $forcaSitio, (int) $r['dano_ao_defensor'], $combate);
+        $this->aplicarDano($socorro, $forcaSocorro, (int) $r['dano_ao_atacante'], $combate);
 
         $sitioRestante = $this->sitiantes($combate)->sum(fn (Unit $u) => $u->defesa());
         $socorroRestante = $this->atacantes($combate)->sum(fn (Unit $u) => $u->ataque());
@@ -532,7 +534,7 @@ class ResolverCombates
         }
 
         // O exército sitiante é destruído: ele estava em campo aberto e perdeu.
-        Unit::where('combat_id', $cerco->id)->delete();
+        $this->cemiterio->enterrar(Unit::where('combat_id', $cerco->id), $cerco);
 
         $cerco->update([
             'status' => 'repelido',
@@ -561,7 +563,7 @@ class ResolverCombates
     private function socorroDestruido(Combat $ruptura): void
     {
         $this->fecharContas($ruptura);
-        Unit::where('combat_id', $ruptura->id)->delete();
+        $this->cemiterio->enterrar(Unit::where('combat_id', $ruptura->id), $ruptura);
 
         $ruptura->status = 'repelido';
         $ruptura->proxima_rodada_at = null;
@@ -866,7 +868,7 @@ class ResolverCombates
     /** O Infiltrador ou o Predador foi visto. Ataque zero: cai em combate e morre (§28.10). */
     private function infiltradorMorto(Combat $combate, string $como): void
     {
-        Unit::where('combat_id', $combate->id)->delete();
+        $this->cemiterio->enterrar(Unit::where('combat_id', $combate->id), $combate);
 
         $combate->status = 'repelido';
         $combate->proxima_rodada_at = null;
@@ -882,7 +884,7 @@ class ResolverCombates
      * É a distribuição proporcional do §27.6, e ela fecha a conta: como a força de cada unidade é
      * `base × hp`, tirar `f` do HP de todas tira exatamente `f × F` da força total.
      */
-    private function aplicarDano(Collection $unidades, int $forca, int $dano): void
+    private function aplicarDano(Collection $unidades, int $forca, int $dano, Combat $combate): void
     {
         if ($forca <= 0 || $dano <= 0) {
             return;
@@ -897,7 +899,7 @@ class ResolverCombates
 
         // Um HP que só decai por fração pode estacionar em 1 e não morrer nunca. Quem chegou ao
         // fundo morre: sem isto, uma carcaça com 0,01% de HP arrastaria a batalha para sempre.
-        Unit::whereIn('id', $unidades->pluck('id'))->where('hp_bps', '<=', 0)->delete();
+        $this->cemiterio->enterrar(Unit::whereIn('id', $unidades->pluck('id'))->where('hp_bps', '<=', 0), $combate);
     }
 
     /**
@@ -923,7 +925,7 @@ class ResolverCombates
                 'arrives_at' => null,
             ]);
 
-        Unit::where('combat_id', $combate->id)->delete();   // os que zeraram, se sobrou algum
+        $this->cemiterio->enterrar(Unit::where('combat_id', $combate->id), $combate);   // os que zeraram, se sobrou algum
     }
 
     // ── O relatório (D-275) ─────────────────────────────────────────────────────────────────────

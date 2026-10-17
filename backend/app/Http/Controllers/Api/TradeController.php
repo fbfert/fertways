@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Api;
 use App\Domain\Logistics\MapaFertways;
 use App\Domain\Trade\AceitarOferta;
 use App\Domain\Trade\AcordoSpecs;
+use App\Domain\Trade\AvaliacaoSpecs;
+use App\Domain\Trade\AvaliarComercio;
 use App\Domain\Trade\ConfirmarAcordo;
 use App\Domain\Trade\ProporAcordo;
 use App\Exceptions\DomainRuleException;
@@ -37,7 +39,8 @@ class TradeController extends Controller
         return response()->json([
             'confianca_comercial' => $request->user()->confianca_comercial,
             'limiar_mercado' => AcordoSpecs::LIMIAR_MERCADO,
-            'agreements' => $acordos->map(fn (TradeAgreement $a) => $this->exibir($a, $colonia->id))->values(),
+            'agreements' => $acordos->map(fn (TradeAgreement $a) => $this->exibir($a, $colonia->id)
+                + app(AvaliarComercio::class)->situacao($request->user(), $a))->values(),
         ]);
     }
 
@@ -166,6 +169,24 @@ class TradeController extends Controller
      * embarcar mais, porque o tributo do §25.2 come a carga na chegada. A UI mostra o número
      * pronto — ninguém deve descobrir que caloteou por três unidades de tributo.
      */
+    /** D-287: a avaliação de 0 a 5 estrelas, depois que o acordo fecha (§8.4, §26.3). */
+    public function avaliar(Request $request, TradeAgreement $agreement, AvaliarComercio $avaliar): JsonResponse
+    {
+        $dados = $request->validate([
+            'estrelas' => ['required', 'integer', 'min:0', 'max:5'],
+            'comentario' => ['nullable', 'string', 'max:'.AvaliacaoSpecs::COMENTARIO_MAX],
+        ]);
+
+        $av = $avaliar->handle($request->user(), $agreement, (int) $dados['estrelas'], $dados['comentario'] ?? null);
+
+        return response()->json([
+            'estrelas' => $av->estrelas,
+            'conta' => $av->conta,
+            'suspeita' => $av->suspeita,
+            'delta' => $av->delta_aplicado,
+        ]);
+    }
+
     private function exibir(TradeAgreement $a, int $euId): array
     {
         $bps = ResourceType::pluck('tax_bps', 'code');

@@ -30,11 +30,14 @@ class Report extends Model
         'evidence_type', 'trade_agreement_id', 'status', 'decision', 'grave',
         'conciliator_user_id', 'assigned_at', 'deadline_at', 'decided_at',
         'appeal_until', 'bonus_paid',
+        // D-288: as provas que os sistemas novos trouxeram.
+        'chat_message_id', 'chat_snapshot', 'combat_id', 'avaliacao_id',
     ];
 
     protected $casts = [
         'grave' => 'boolean',
         'bonus_paid' => 'boolean',
+        'chat_snapshot' => 'array',
         'assigned_at' => 'datetime',
         'deadline_at' => 'datetime',
         'decided_at' => 'datetime',

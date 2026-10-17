@@ -154,7 +154,7 @@ class FecharContratoDeRota
             $aluguel = (int) $config->aluguel_micro;
             $custoDaCompra = array_sum(array_map(fn ($p) => $p['qtd'] * $p['preco_micro'], $pernaCompra));
             $agora = now();
-            $importacao = $this->imposto->sobre($colonia, $pernaCompra, $agora);
+            $importacao = $this->imposto->sobre($colonia, $pernaCompra, $agora, $planeta->id);
             $impostoDaCompra = array_sum(array_column($importacao, 'imposto'));
 
             // D-280: a escolta e o seguro, com a chance de sinistro que fica travada no contrato.

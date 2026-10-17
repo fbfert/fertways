@@ -53,7 +53,7 @@ final class PunicaoSpecs
      * de 0 a 1000 e não tem negativo. Persona Non Grata é Confiança Comercial abaixo do mesmo
      * limiar que já fecha o Mercado Central (D-43, D-49). Um número, um conceito.
      *
-     * Inerte: leilões não existem. `AcessoAoMercado` já usa o mesmo limiar para a doca.
+     * `AcessoAoMercado` usa o mesmo limiar para a doca e para os leilões da Endurance.
      */
     public const PERSONA_NON_GRATA = AcordoSpecs::LIMIAR_MERCADO;
 
@@ -79,10 +79,29 @@ final class PunicaoSpecs
     public const LIMITE_REVERSOES = 5;
 
     /**
-     * §26.8, evidência mínima obrigatória. `print_de_chat` é gravável e inerte: não há chat nem
-     * upload. Denúncia sem evidência é rejeitada automaticamente na triagem.
+     * §26.8, evidência mínima obrigatória. Denúncia sem evidência é rejeitada automaticamente na
+     * triagem.
+     *
+     * D-288: `print_de_chat` passou a valer — não como imagem (não há upload, e uma imagem se forja),
+     * mas como a própria mensagem, que o servidor guardou e sabe provar quem disse. `registro_de_combate`
+     * e `avaliacao` são as provas de quem ataca e de quem avalia.
      */
-    public const EVIDENCIAS = ['acordo_expirado', 'log_transacao', 'print_de_chat'];
+    public const EVIDENCIAS = ['acordo_expirado', 'log_transacao', 'print_de_chat', 'registro_de_combate', 'avaliacao'];
+
+    /**
+     * D-288: que prova serve a que violação. Anexar o acordo a uma denúncia de chat seria evidência
+     * de nada — e o §26.8 quer a triagem recusando isso sozinha.
+     */
+    public const EVIDENCIA_POR_VIOLACAO = [
+        'avaliacao_injusta' => ['avaliacao'],
+        'fraude_de_avaliacao' => ['avaliacao', 'acordo_expirado', 'log_transacao'],
+        'sonegacao' => ['acordo_expirado', 'log_transacao'],
+        'abuso_em_chat' => ['print_de_chat'],
+        'reincidencia_em_chat' => ['print_de_chat'],
+        'ataque_a_aliado' => ['registro_de_combate'],
+        'quebra_de_tratado' => ['registro_de_combate'],
+        'calote_reincidente' => ['acordo_expirado', 'log_transacao'],
+    ];
 
     /**
      * O mapa do D-49. Cada `violacao` vem de um parágrafo; a gravidade é a arbitragem.
@@ -91,7 +110,8 @@ final class PunicaoSpecs
      *   coluna "o que mede" — não há escolha aqui.
      * - `punicoes`: as sentenças do §9.4 que a violação dispara, todas de uma vez.
      * - `grave`: §9.2, "caso grave vai direto para a equipe". Grave é o que custa −250 (D-50).
-     * - `inerte`: depende de sistema que não existe. Grava e não morde. Ver D-44.
+     * - `inerte`: depende de sistema que não existe. Grava e não morde. Ver D-44. Desde o D-288
+     *   nenhuma é: chat, alianças, tratados e avaliações existem.
      *
      * O calote de Acordo de Troca **não** está aqui: ele custa −50 automaticamente, sem juízo nem
      * denúncia (D-43, `Trade\Reputacao`). O que se denuncia é o calote **reincidente**.
@@ -104,7 +124,7 @@ final class PunicaoSpecs
             'pontos' => 0,
             'punicoes' => [self::ADVERTENCIA],
             'grave' => false,
-            'inerte' => true, // avaliações de 0 a 5 estrelas não existem
+            'inerte' => false, // D-288: a avaliação existe (D-287); procedente, ela é anulada
             'fonte' => '§8.4',
         ],
         'fraude_de_avaliacao' => [
@@ -128,7 +148,7 @@ final class PunicaoSpecs
             'pontos' => -self::LEVE,
             'punicoes' => [self::SILENCIO, self::REDUCAO],
             'grave' => false,
-            'inerte' => true, // o silêncio precisa de chat para morder
+            'inerte' => false, // D-288: o chat e o silêncio existem (D-77)
             'fonte' => '§26.2',
         ],
         'reincidencia_em_chat' => [
@@ -136,7 +156,7 @@ final class PunicaoSpecs
             'pontos' => -self::GRAVE,
             'punicoes' => [self::SILENCIO, self::REDUCAO],
             'grave' => false,
-            'inerte' => true,
+            'inerte' => false,
             'fonte' => '§26.2',
         ],
         'ataque_a_aliado' => [
@@ -144,7 +164,7 @@ final class PunicaoSpecs
             'pontos' => -self::GRAVE,
             'punicoes' => [self::REDUCAO],
             'grave' => false,
-            'inerte' => true, // alianças registradas não existem
+            'inerte' => false, // D-288: as alianças existem; a prova é o combate entre aliadas
             'fonte' => '§9.5',
         ],
         'quebra_de_tratado' => [
@@ -152,7 +172,7 @@ final class PunicaoSpecs
             'pontos' => -self::GRAVE,
             'punicoes' => [self::REDUCAO],
             'grave' => false,
-            'inerte' => true, // tratados não existem
+            'inerte' => false, // D-288: o tratado de paz existe; quebrar é atacar na paz que ele comprou
             'fonte' => '§26.2',
         ],
         'calote_reincidente' => [

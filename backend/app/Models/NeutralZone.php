@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Domain\Zona\Estruturas;
+use App\Domain\Zona\Extracao;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -413,9 +414,14 @@ class NeutralZone extends Model
         return intdiv($cheia * $this->fracaoEfetiva('deposito_de_zona_neutra'), 10_000);
     }
 
-    /** Extração por hora, pela curva do §19.1 a partir da base arbitrada. */
+    /**
+     * Extração por hora, pela curva do §19.1 a partir da base arbitrada — e, desde o D-290, com o
+     * bônus da Estrutura de Extração (`Domain\Zona\Extracao`). Sem ela, o número de sempre.
+     */
     public function extracaoPorHora(): int
     {
-        return (int) round(self::EXTRACAO_BASE_HORA * self::CURVA ** ($this->level - 1));
+        $base = (int) round(self::EXTRACAO_BASE_HORA * self::CURVA ** ($this->level - 1));
+
+        return intdiv($base * (10_000 + Extracao::bonusBps($this)), 10_000);
     }
 }

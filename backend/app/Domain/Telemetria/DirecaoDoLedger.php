@@ -118,6 +118,8 @@ class DirecaoDoLedger
         'espacoporto_imposto',
         // D-280: o prêmio sai da colônia para o Tesouro; a indenização volta dele. Fluxo de verdade.
         'espacoporto_seguro',
+        // D-289: a credencial da Embaixada sai da colônia para o Tesouro.
+        'embaixada_credencial',
         'frete_publico',
         // A2.3: destrói recurso de verdade — vira conhecimento, que não é estoque.
         'custo_pesquisa',

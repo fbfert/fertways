@@ -10,10 +10,12 @@ use App\Domain\Chat\ContaSistema;
 use App\Domain\Colony\KitInicial;
 use App\Domain\Drone\DroneSpecs;
 use App\Domain\Endurance\EfeitosDaEndurance;
+use App\Domain\Espacoporto\Espacoporto;
 use App\Domain\Eventos\CondicoesDoMundo;
 use App\Domain\Eventos\EntregarCestas;
 use App\Domain\Eventos\Modificadores;
 use App\Domain\Frete\Garagem;
+use App\Domain\GuerraFederativa\ParesRecorrentes;
 use App\Domain\Logistics\MapaFertways;
 use App\Domain\Logistics\RequisitosDeOcupacao;
 use App\Domain\Marco\Curva;
@@ -32,6 +34,7 @@ use App\Domain\Zona\Estruturas;
 use App\Http\Controllers\Controller;
 use App\Models\Admin;
 use App\Models\AuditEntry;
+use App\Models\AvaliacaoDeComercio;
 use App\Models\Building;
 use App\Models\BuildQueue;
 use App\Models\ChatMessage;
@@ -39,6 +42,7 @@ use App\Models\ChatSetting;
 use App\Models\Colony;
 use App\Models\ColonyEnduranceItem;
 use App\Models\Combat;
+use App\Models\ContratoDeRota;
 use App\Models\EnduranceEscavacaoSetting;
 use App\Models\EnduranceItem;
 use App\Models\Federation;
@@ -59,6 +63,7 @@ use App\Models\MissionAssignment;
 use App\Models\MissionTemplate;
 use App\Models\NeutralZone;
 use App\Models\News;
+use App\Models\PlanetaNpc;
 use App\Models\PriceIntervention;
 use App\Models\Punishment;
 use App\Models\Report;
@@ -271,6 +276,9 @@ class PainelController extends Controller
                 ->where('status', 'atribuido')->orderBy('deadline_at')->get(),
             'emApelacao' => Report::where('status', 'decidido')->orderBy('appeal_until')->get(),
             'especs' => PunicaoSpecs::class,
+            // D-287: as avaliações entre contas que dividiram IP, congeladas até revisão (§26.4).
+            'suspeitas' => AvaliacaoDeComercio::with(['autor:id,nickname', 'avaliado:id,nickname'])
+                ->where('suspeita', true)->whereNull('anulada_em')->orderBy('id')->limit(50)->get(),
         ]);
     }
 
@@ -564,7 +572,7 @@ class PainelController extends Controller
                 ->get(),
             'fotos' => (int) DB::table('drone_sightings')->count(),
             // Decisão 11 (D-261): o jogo aponta o par que guerreia de novo e de novo; o operador decide.
-            'pares' => app(\App\Domain\GuerraFederativa\ParesRecorrentes::class)->listar(),
+            'pares' => app(ParesRecorrentes::class)->listar(),
         ]);
     }
 
@@ -706,12 +714,12 @@ class PainelController extends Controller
          * disponibilidade para aluguel" (D-262). Mora aqui porque o Cargueiro é frota do Ministério.
          */
         if ($aba === 'espacoporto') {
-            $espacoporto = app(\App\Domain\Espacoporto\Espacoporto::class);
+            $espacoporto = app(Espacoporto::class);
             $dados['espacoporto'] = $espacoporto->config();
             $dados['espacoportoMotivo'] = $espacoporto->motivoFechado();
-            $dados['planetas'] = \App\Models\PlanetaNpc::with('precos')->orderBy('ordem')->get();
-            $dados['contratosEmViagem'] = \App\Models\ContratoDeRota::with(['planeta:id,nome', 'colony:id,name'])
-                ->where('status', \App\Models\ContratoDeRota::EM_VIAGEM)->orderBy('chega_em')->get();
+            $dados['planetas'] = PlanetaNpc::with('precos')->orderBy('ordem')->get();
+            $dados['contratosEmViagem'] = ContratoDeRota::with(['planeta:id,nome', 'colony:id,name'])
+                ->where('status', ContratoDeRota::EM_VIAGEM)->orderBy('chega_em')->get();
         }
 
         return view('admin.transportes', $dados);

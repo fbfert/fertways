@@ -218,8 +218,10 @@ class Estruturas
             // O GDD é explícito, e não corrigimos: ele QUER que ela seja inútil.
             'gdd' => 'Sem função mecânica — apenas visual. Mostra unidades destruídas em combates '
                 .'anteriores. Dá peso histórico a zonas muito disputadas.',
-            'hoje' => 'Nada. É a única construção do jogo que se ergue só por gosto — e o próprio GDD a '
-                .'declara assim. Mostra os seus mortos.',
+            // D-290: continua sem função; agora tem o que mostrar (`Domain' + BS + 'Guerra' + BS + 'Cemiterio`).
+            'hoje' => 'Nenhuma função, como o GDD quer. Mostra quem morreu nesta zona — de que tipo, de '
+                .'quem, em que batalha —, inclusive antes de ser erguido, e o mapa mostra a todos '
+                .'quantos mortos a zona tem.',
             'inerte' => true,
         ],
 
@@ -234,9 +236,11 @@ class Estruturas
             'nome' => 'Estrutura de Extração',
             'gdd' => 'Varia conforme o tipo de recurso da zona: perfuratriz para minerais, escavadeira '
                 .'para cristais.',
-            'hoje' => 'Nada. A zona já extrai sem ela desde a Fatia 1 (D-52) — travar a extração a uma '
-                .'ferramenta agora puniria as zonas que já rendem. Ergue-se por gosto, como o Cemitério.',
-            'inerte' => true,
+            // D-290: deixa de ser inerte sem passar a ser exigida (`Domain' + BS + 'Zona' + BS + 'Extracao`).
+            'hoje' => 'Acelera a extração da zona: +10% no nível 1, crescendo pela curva (15%, 22,5%, '
+                .'33,75%, 50,6%). Cada cópia soma, até a extração dobrar. Não é exigida: sem ela a zona '
+                .'rende o que sempre rendeu.',
+            'inerte' => false,
         ],
 
         'central_de_comunicacao' => [

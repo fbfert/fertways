@@ -2,6 +2,8 @@
 
 namespace App\Domain\Ministry;
 
+use App\Domain\Trade\AvaliarComercio;
+use App\Models\AvaliacaoDeComercio;
 use App\Models\Punishment;
 use App\Models\Report;
 
@@ -31,6 +33,16 @@ class AplicarPunicao
         }
 
         $aplicadas = [];
+
+        /*
+         * D-288: a avaliação julgada injusta (ou fraudulenta) deixa de valer — anulada, não apagada,
+         * e o índice do avaliado recebe de volta o que ela tirou. A advertência ao autor vem da tabela,
+         * como sempre.
+         */
+        if ($denuncia->avaliacao_id && in_array($denuncia->violation, ['avaliacao_injusta', 'fraude_de_avaliacao'], true)
+            && ($av = AvaliacaoDeComercio::find($denuncia->avaliacao_id))) {
+            app(AvaliarComercio::class)->anular($av, "denuncia:{$denuncia->id}");
+        }
 
         foreach ($spec['punicoes'] as $punicao) {
             $horas = PunicaoSpecs::duracaoHoras($punicao);

@@ -11,9 +11,11 @@ use App\Domain\Ministry\DecidirCaso;
 use App\Domain\Ministry\ExpirarPrazos;
 use App\Domain\Ministry\PagarConciliadores;
 use App\Domain\Ministry\PunicaoSpecs;
+use App\Domain\Trade\AcordoSpecs;
 use App\Domain\Trade\ProporAcordo;
 use App\Exceptions\DomainRuleException;
 use App\Models\Colony;
+use App\Models\Federation;
 use App\Models\Ledger;
 use App\Models\Punishment;
 use App\Models\Report;
@@ -136,12 +138,13 @@ class MinisterioDasReputacoesTest extends TestCase
     }
 
     #[Test]
-    public function print_de_chat_e_recusado_enquanto_nao_houver_chat(): void
+    public function print_de_chat_sem_a_mensagem_apontada_e_recusado(): void
     {
         [$a, $b] = [$this->colonia('alfa'), $this->colonia('beta')];
 
+        // D-288: o chat existe, e a prova é a própria mensagem. Sem apontá-la, não há prova.
         $this->expectException(DomainRuleException::class);
-        $this->expectExceptionMessage('Não há chat');
+        $this->expectExceptionMessage('Aponte a mensagem');
 
         app(AbrirDenuncia::class)->handle($a, $b, 'abuso_em_chat', 'Ele me xingou.', 'print_de_chat', null);
     }
@@ -217,9 +220,9 @@ class MinisterioDasReputacoesTest extends TestCase
 
         // §26.8, a outra metade do impedimento (D-115): "membros da própria federação" — sem
         // transação nenhuma entre eles, só o vínculo de federação já basta.
-        $fed = \App\Models\Federation::create(['name' => 'Aliança']);
-        $c->update(['federation_id' => $fed->id, 'federation_role' => \App\Models\Federation::LIDER]);
-        $a->update(['federation_id' => $fed->id, 'federation_role' => \App\Models\Federation::MEMBRO]);
+        $fed = Federation::create(['name' => 'Aliança']);
+        $c->update(['federation_id' => $fed->id, 'federation_role' => Federation::LIDER]);
+        $a->update(['federation_id' => $fed->id, 'federation_role' => Federation::MEMBRO]);
 
         $denuncia = $this->denunciar($a, $b, 'calote_reincidente');
 
@@ -232,10 +235,10 @@ class MinisterioDasReputacoesTest extends TestCase
         [$a, $b, $c] = [$this->colonia('alfa'), $this->colonia('beta'), $this->colonia('gama')];
         $conciliador = $this->nomearConciliador($c);
 
-        $fedA = \App\Models\Federation::create(['name' => 'A']);
-        $fedC = \App\Models\Federation::create(['name' => 'C']);
-        $a->update(['federation_id' => $fedA->id, 'federation_role' => \App\Models\Federation::LIDER]);
-        $c->update(['federation_id' => $fedC->id, 'federation_role' => \App\Models\Federation::LIDER]);
+        $fedA = Federation::create(['name' => 'A']);
+        $fedC = Federation::create(['name' => 'C']);
+        $a->update(['federation_id' => $fedA->id, 'federation_role' => Federation::LIDER]);
+        $c->update(['federation_id' => $fedC->id, 'federation_role' => Federation::LIDER]);
 
         $this->assertSame($conciliador->id, $this->denunciar($a, $b, 'calote_reincidente')->conciliator_user_id);
     }
@@ -546,7 +549,7 @@ class MinisterioDasReputacoesTest extends TestCase
     public function persona_non_grata_e_o_mesmo_limiar_que_fecha_a_doca(): void
     {
         // §9.4 fala em "reputação negativa", e a escala do §26.2 não tem negativo. D-49 resolve.
-        $this->assertSame(\App\Domain\Trade\AcordoSpecs::LIMIAR_MERCADO, PunicaoSpecs::PERSONA_NON_GRATA);
+        $this->assertSame(AcordoSpecs::LIMIAR_MERCADO, PunicaoSpecs::PERSONA_NON_GRATA);
     }
 
     #[Test]

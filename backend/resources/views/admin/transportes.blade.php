@@ -401,6 +401,11 @@
                     <label>Corte máximo da escolta (%)</label>
                     <input type="number" step="0.01" min="0" max="100" name="escolta_reducao_max" value="{{ ($espacoporto->escolta_reducao_max_bps ?? 7500) / 100 }}" style="width:80px">
                 </div>
+                {{-- D-289: o prazo da credencial comercial da Embaixada (slot 9). --}}
+                <div style="flex:0">
+                    <label>Credencial (dias)</label>
+                    <input type="number" min="1" max="365" name="credencial_dias" value="{{ $espacoporto->credencial_dias ?? 30 }}" style="width:70px">
+                </div>
                 <div style="flex:0"><label>&nbsp;</label><button data-salvar-espacoporto>Salvar</button></div>
             </form>
             <p class="mut pequeno" style="margin-top:8px">
@@ -448,6 +453,12 @@
                         <div style="flex:0">
                             <label>Demanda/dia (F$)</label>
                             <input type="number" step="0.01" min="0" name="demanda_diaria" value="{{ $p->demanda_diaria_micro !== null ? $p->demanda_diaria_micro / 1000000 : '' }}" style="width:80px" placeholder="sem teto">
+                        </div>
+                        {{-- D-289: a credencial da Embaixada. Preço vazio: o planeta não emite. --}}
+                        <div style="flex:0">
+                            <label>Credencial: F$ / desconto (%)</label>
+                            <input type="number" step="0.01" min="0" name="credencial_preco" value="{{ $p->credencial_preco_micro !== null ? $p->credencial_preco_micro / 1000000 : '' }}" style="width:70px" placeholder="não emite">
+                            <input type="number" step="0.1" min="0" max="100" name="credencial_desconto" value="{{ ($p->credencial_desconto_bps ?? 5000) / 100 }}" style="width:60px">
                         </div>
                         <div style="flex:0">
                             <label>Portão: marco / pesquisa</label>

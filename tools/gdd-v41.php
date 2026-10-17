@@ -106,6 +106,7 @@ use App\Domain\Trade\AcordoSpecs;
 use App\Domain\Transport\Ministerio;
 use App\Domain\Transport\UpgradeVeiculo;
 use App\Domain\Zona\Estruturas;
+use App\Domain\Zona\Extracao;
 use App\Domain\Zona\ZonaSlots;
 use App\Models\Building;
 use App\Models\Colony;
@@ -719,8 +720,9 @@ ob_start();
   <tr><td>5</td><td>Ministério da Segurança e Guerra</td><td>Conflitos, tratados, auditoria de combate</td><td><?= entregue() ?> <span class="d">D-66</span></td></tr>
   <tr><td>7</td><td>Ministério das Reputações</td><td>Denúncias, conciliação, recursos</td><td><?= entregue() ?></td></tr>
   <tr><td>8</td><td><b>Ministério dos Transportes</b></td><td>Fábrica de caminhões, registro de placas, oficina, e a Garagem do frete público</td><td><?= entregue() ?> <span class="d">D-60, D-76</span></td></tr>
-  <tr><td>9</td><td>Embaixada Interplanetária</td><td>—</td><td><?= promessa('Fora do MVP') ?></td></tr>
-  <tr><td>10–20</td><td>Expansão controlada</td><td>—</td><td><?= promessa('Fora do MVP') ?></td></tr>
+  <tr><td>9</td><td><b>Embaixada Interplanetária</b></td><td>A credencial comercial por planeta NPC: 40 F$, 50% a menos de imposto da carga, por 30 dias — números no painel</td><td><?= entregue() ?> <span class="d">D-289</span></td></tr>
+  <tr><td>10</td><td>Quartel de Alianças</td><td>A Federação: criar, convidar, tratados, guerra federativa</td><td><?= entregue() ?> <span class="d">D-114, D-289</span></td></tr>
+  <tr><td>11–20</td><td>Expansão controlada</td><td>—</td><td><?= promessa('Fora do MVP') ?></td></tr>
 </table>
 
 <div class="nota grave">
@@ -730,6 +732,10 @@ ob_start();
   <br><br>
   <b>O slot 6 não aparece no Norte</b> — ele <i>é</i> o Leste. Uma coisa, um lugar: nada aparece
   duas vezes na tela.
+  <br><br>
+  <b>O Quartel de Alianças foi do 9 ao 10.</b> Ele ocupava o 9 desde o D-114, mas o §2.1 dá o 9 à
+  Embaixada pelo nome. Quando a Embaixada chegou, devolvemos o 9 a ela e o Quartel passou ao primeiro
+  slot da expansão — nada muda para quem joga além do número. <span class="d">D-289</span>
 </div>
 
 <!-- ══════════════════════════════════════════════════════════════ 2 -->
@@ -1962,16 +1968,16 @@ $espPlanetas = \App\Models\PlanetaNpc::with('precos')->orderBy('ordem')->get();
 
 <table>
   <tr><th>Índice</th><th>O que mede</th></tr>
-  <tr><td>Confiança Comercial</td><td>Cumprir ou calotear Acordos de Troca</td></tr>
-  <tr><td>Conduta Social</td><td>Comportamento; alimentado pelas denúncias</td></tr>
+  <tr><td>Confiança Comercial</td><td>Cumprir ou calotear Acordos de Troca, e as avaliações de 0 a 5 estrelas <?= entregue('D-287') ?></td></tr>
+  <tr><td>Conduta Social</td><td>Comportamento no chat; a prova é a própria mensagem <?= entregue('D-288') ?></td></tr>
   <tr><td>Status Cívico</td><td>Cargos e serviço público</td></tr>
-  <tr><td>Honra Militar-Diplomática</td><td>Guerra e tratados <?= promessa('a guerra existe (D-66); tratados, não') ?></td></tr>
+  <tr><td>Honra Militar-Diplomática</td><td>Ataque a aliado e quebra de tratado, provados pelo combate <?= entregue('D-288') ?></td></tr>
 </table>
 
 <h3>7.2 O rito <span class="d">D-44, D-49</span></h3>
 
 <ol>
-  <li><b>Denúncia</b>, com evidência mínima conferida (só o Acordo quebrado entre os dois serve).</li>
+  <li><b>Denúncia</b>, com evidência mínima conferida (a prova certa para cada violação: o Acordo quebrado, a mensagem do chat, o combate ou a avaliação — D-288).</li>
   <li><b>Triagem</b>: grave → equipe; simples → conciliador sem impedimento.</li>
   <li><b>48 h</b> para decidir. Venceu, sobe à equipe.</li>
   <li><b>Punição pela tabela fixa</b> — a pena <b>não é escolha do julgador</b>: a tela a publica
@@ -2119,6 +2125,18 @@ todos desde a fundação, e os da zona se abrem conforme ela sobe.</p>
   todas de defesa ou controle, e <b>nenhuma delas é repetível</b> — o ataque continua identificando o
   alvo só pelo tipo, sem a ambiguidade de "qual cópia".
 </p>
+
+<div class="nota">
+  <b>As duas últimas estruturas inertes da zona ganharam o que o §17.4 promete</b> <span class="d">D-290</span>.
+  A <b>Estrutura de Extração</b> acelera a extração sem ser exigida: <b>+<?= Extracao::BONUS_BASE_BPS / 100 ?>%</b>
+  no nível 1, pela curva de 1,5 por nível, cada cópia somando, até a extração
+  <b>dobrar</b> (teto de +<?= Extracao::TETO_BPS / 100 ?>%). O nome segue o mineral:
+  <?= e(implode(', ', array_map(fn ($m, $f) => "$f (".humano($m).')', array_keys(Extracao::FERRAMENTA), Extracao::FERRAMENTA))) ?>.
+  O <b>Cemitério de Robôs</b> continua sem função, como o GDD quer, mas agora tem o que mostrar.
+  Toda unidade que morre em combate é enterrada na zona onde caiu, com ou sem cemitério. Erguido, ele
+  lista os mortos por tipo, por dono e por batalha, e o mapa mostra a todos quantos mortos a zona tem
+  — o "peso histórico a zonas muito disputadas".
+</div>
 
 <h3>8.1 A guerra <span class="d">D-66, D-70</span></h3>
 

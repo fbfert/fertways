@@ -273,6 +273,14 @@ export type JogadorInfo = {
     level: number
     status: string
   }[]
+  /** D-287: a nota pública de comércio (§8.4: "visíveis para todos"). Os índices continuam privados. */
+  avaliacoes: ResumoDeAvaliacoes
+}
+
+export type ResumoDeAvaliacoes = {
+  media: number | null
+  total: number
+  ultimas: { estrelas: number; comentario: string | null; autor: string | null; em: string }[]
 }
 
 /**
@@ -443,6 +451,8 @@ export type ZonaNeutra = {
   cercada: boolean
   /** D-276: há batalha em curso nela agora. Público; a marcha a caminho, não (é da Torre, D-67). */
   em_combate: boolean
+  /** D-290: quantos morreram nela. Só onde há Cemitério de Robôs; nulo sem ele. */
+  mortos: number | null
   /**
    * Os dois únicos segredos do interior (D-74): null = névoa, não zero. Zero é um fato ("está
    * indefesa"); null é a honestidade de não saber. Mande um Drone.
@@ -1038,6 +1048,9 @@ export type Acordo = {
   value_micro: number
   /** Abaixo do piso anti-farming do §26.3 o acordo registra histórico, mas não move o índice (D-43). */
   moves_reputation: boolean
+  /** D-287: o acordo fechou, está acima do piso, dentro de 7 dias, e eu ainda não avaliei. */
+  pode_avaliar: boolean
+  minha_avaliacao: number | null
 }
 
 export type Acordos = {
@@ -1070,9 +1083,18 @@ export type Violacao = {
   punicoes: string[]
   /** §9.2: caso grave não passa por conciliador jogador. */
   grave: boolean
-  /** Depende de chat, leilões ou tratados, que não existem. Grava e não morde (D-44). */
+  /** Grava e não morde (D-44). Desde o D-288, nenhuma violação é inerte. */
   inerte: boolean
+  /** D-288: que provas servem a esta violação. */
+  evidencias: string[]
   fonte: string
+}
+
+/** D-288: o que eu tenho como prova contra um colono — registros do servidor, nunca digitados. */
+export type ProvasContra = {
+  mensagens: { id: number; canal: string; texto: string; em: string }[]
+  combates: { id: number; tipo: string; zona_id: number; em: string; com_federacoes: boolean }[]
+  avaliacoes: { id: number; estrelas: number; comentario: string | null; acordo_id: number; em: string }[]
 }
 
 export type PunicaoVigente = {
@@ -1105,6 +1127,12 @@ export type Denuncia = {
   texto: string
   evidence_type: string
   trade_agreement_id: number | null
+  /** D-288: a prova como o conciliador a lê. */
+  evidencia:
+    | { tipo: 'mensagem'; mensagem: string | null; canal: string | null; em: string | null }
+    | { tipo: 'combate'; combate_id: number; tipo_ataque: string; em: string }
+    | { tipo: 'avaliacao'; estrelas: number; comentario: string | null; acordo_id: number; anulada: boolean }
+    | null
   status: 'triagem' | 'rejeitado' | 'atribuido' | 'na_equipe' | 'decidido' | 'apelado' | 'revertido' | 'encerrado'
   decision: 'procedente' | 'improcedente' | null
   grave: boolean
@@ -1165,6 +1193,21 @@ export type PortaoEspacoporto = {
   dias_exigidos: number
   tecnologia: string | null
   falta: string | null
+}
+
+/** D-289: a Embaixada Interplanetária, slot 9 — a credencial comercial por planeta. */
+export type EstadoEmbaixada = {
+  dias: number
+  renova_nos_ultimos_dias: number
+  planetas: {
+    chave: string
+    nome: string
+    aberto: boolean
+    preco_micro: number | null
+    desconto_bps: number
+    portao: PortaoEspacoporto
+    credencial: { valida_ate: string; desconto_bps: number; pode_renovar: boolean } | null
+  }[]
 }
 
 export type ContratoDeRota = {
@@ -1686,6 +1729,9 @@ export const api = {
    */
   /** D-262: o Espaçoporto — fechado até o operador escrever os números de economia. */
   espacoporto: () => req<EstadoEspacoporto>('/espacoporto'),
+  embaixada: () => req<EstadoEmbaixada>('/embaixada'),
+  emitirCredencial: (planeta: string) =>
+    req<{ valida_ate: string; desconto_bps: number }>('/embaixada/credenciais', { method: 'POST', body: JSON.stringify({ planeta }) }),
   contratarRota: (
     planeta: string,
     venda: Record<string, number>,
@@ -2118,6 +2164,11 @@ export const api = {
 
   /** Só a contraparte fecha o aperto de mão: quem propôs já aderiu ao propor (§26.5). */
   aceitarAcordo: (id: number) => req<Acordo>(`/trade/agreements/${id}/confirm`, { method: 'POST' }),
+  avaliarAcordo: (id: number, estrelas: number, comentario: string) =>
+    req<{ estrelas: number; conta: boolean; suspeita: boolean; delta: number }>(`/trade/agreements/${id}/avaliacao`, {
+      method: 'POST',
+      body: JSON.stringify({ estrelas, comentario: comentario.trim() || null }),
+    }),
 
   /** Recusa ou desistência, enquanto o acordo não foi aceito. Depois de aceito, não há saída. */
   cancelarAcordo: (id: number) => req<Acordo>(`/trade/agreements/${id}`, { method: 'DELETE' }),
@@ -2127,6 +2178,8 @@ export const api = {
 
   /** As que fiz, as que sofri, e — se eu for conciliador — as que devo julgar. */
   denuncias: () => req<{ minhas: Denuncia[]; a_julgar: Denuncia[] }>('/ministry/reports'),
+  provasDoMinisterio: (accusedColonyId: number) =>
+    req<ProvasContra>(`/ministry/provas?accused_colony_id=${accusedColonyId}`),
 
   denunciar: (b: {
     accused_colony_id: number
@@ -2134,6 +2187,7 @@ export const api = {
     texto: string
     evidence_type: string
     trade_agreement_id?: number
+    evidence_ref?: number
   }) => req<Denuncia>('/ministry/reports', { method: 'POST', body: JSON.stringify(b) }),
 
   /**
@@ -2390,6 +2444,8 @@ export type EstruturaDaZona = {
   hoje: string
   /** O Cemitério é declarado "apenas visual" pelo próprio GDD. */
   inerte: boolean
+  /** D-290: o bônus desta cópia da Estrutura de Extração, em bps; nulo nas outras. */
+  bonus_bps: number | null
   /** Só o Posto de Comando (slot fixo) — nasce com a ocupação, não se demole. */
   indemolivel: boolean
   /** Desligada por uma apreensão (§28.10) — mantido por compatibilidade, é o mesmo que `apreendida`. */
@@ -2418,6 +2474,15 @@ export type ErguivelNaZona = {
   disponivel: boolean
   custo_nivel_1: Record<string, number> | null
   segundos_nivel_1: number | null
+}
+
+/** D-290: o que o Cemitério de Robôs mostra — quem morreu na zona, de que tipo, de quem, em que batalha. */
+export type LapideDoCemiterio = {
+  total: number
+  por_tipo: Record<string, number>
+  por_colonia: { colonia: string | null; mortos: number }[]
+  batalhas: { combat_id: number; tipo: string | null; em: string | null; mortos: number }[]
+  desde: string | null
 }
 
 export type ZonaDetalhe = {
@@ -2477,6 +2542,10 @@ export type ZonaDetalhe = {
     saque_total_por_guerra: boolean
   }
   extracao_hora: number
+  /** D-290: o que a Estrutura de Extração soma à extração, em bps (já com o teto). */
+  extracao_bonus_bps: number
+  /** D-290: a lápide do Cemitério de Robôs; nula sem Cemitério. */
+  cemiterio: LapideDoCemiterio | null
   refino_hora: number
   guarnicao: { robos: number; sentinelas: number; defesa: number }
   /**

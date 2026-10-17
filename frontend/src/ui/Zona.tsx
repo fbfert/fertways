@@ -4,6 +4,77 @@ import { api, ApiError } from '../api/client'
 import type { EstadoDaGuerra, EstruturaDaZona, EventoDaZona, Veiculo, ZonaDetalhe } from '../api/client'
 import { dataHumana, nomeRecurso, nomeVeiculo } from './recursos'
 import { Botao } from './sistema'
+import type { LapideDoCemiterio } from '../api/client'
+
+const NOME_DA_UNIDADE: Record<string, string> = {
+  sentinela: 'Sentinela',
+  robo_minerador: 'Robô Minerador',
+  infiltrador: 'Infiltrador',
+  predador: 'Predador',
+}
+
+const NOME_DO_COMBATE: Record<string, string> = {
+  invasao: 'Invasão',
+  cerco: 'Cerco',
+  ruptura: 'Ruptura de cerco',
+  sabotagem: 'Sabotagem',
+  apreensao: 'Apreensão',
+}
+
+/**
+ * O Cemitério de Robôs (D-290): sem função, como o GDD quer — só a memória de quem caiu aqui. Sem
+ * Cemitério erguido, a zona guarda os mortos do mesmo jeito; só não há onde lê-los.
+ */
+function Cemiterio({ lapide }: { lapide: LapideDoCemiterio | null }) {
+  if (!lapide) {
+    return (
+      <p className="text-ink-soft mt-3 text-xs" data-cemiterio="ausente">
+        Erga um Cemitério de Robôs para ver quem morreu nesta zona. Os mortos de antes também aparecem.
+      </p>
+    )
+  }
+
+  return (
+    <div className="border-rust/15 mt-3 border p-3" data-cemiterio>
+      <div className="text-rust eyebrow">Cemitério de Robôs</div>
+      {lapide.total === 0 ? (
+        <p className="text-ink-soft mt-1 text-sm">Ninguém morreu aqui ainda.</p>
+      ) : (
+        <>
+          <p className="text-ink mt-1 text-sm">
+            <strong data-cemiterio-total>{lapide.total.toLocaleString('pt-BR')}</strong> mortos
+            {lapide.desde ? ` desde ${dataHumana(lapide.desde)}` : ''}:{' '}
+            {Object.entries(lapide.por_tipo)
+              .map(([t, n]) => `${NOME_DA_UNIDADE[t] ?? t}: ${n.toLocaleString('pt-BR')}`)
+              .join(', ')}
+            .
+          </p>
+          <div className="mt-2 grid gap-3 text-xs sm:grid-cols-2">
+            <ul>
+              {lapide.por_colonia.map((c, i) => (
+                <li key={i} className="flex justify-between">
+                  <span className="text-ink-soft">{c.colonia ?? 'colônia extinta'}</span>
+                  <span className="text-ink tabular-nums">{c.mortos.toLocaleString('pt-BR')}</span>
+                </li>
+              ))}
+            </ul>
+            <ul>
+              {lapide.batalhas.map((b) => (
+                <li key={b.combat_id} className="flex justify-between">
+                  <span className="text-ink-soft">
+                    {NOME_DO_COMBATE[b.tipo ?? ''] ?? 'Batalha'}
+                    {b.em ? `, ${dataHumana(b.em)}` : ''}
+                  </span>
+                  <span className="text-ink tabular-nums">{b.mortos.toLocaleString('pt-BR')}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
 
 /**
  * A zona neutra como LUGAR (GDD §17.4; docs/decisoes.md D-67, D-84, D-86, D-144).
@@ -506,7 +577,12 @@ export function Zona() {
           <div className="mt-2 grid gap-2 text-sm sm:grid-cols-2">
             <div>
               {nomeRecurso(z.mineral)}: <strong data-bruto>{z.deposito.bruto}</strong>
-              <span className="text-ink-soft text-xs"> · extrai {z.extracao_hora}/h</span>
+              <span className="text-ink-soft text-xs">
+                {' '}
+                · extrai {z.extracao_hora}/h
+                {z.extracao_bonus_bps > 0 &&
+                  ` (+${(z.extracao_bonus_bps / 100).toLocaleString('pt-BR')}% da Estrutura de Extração)`}
+              </span>
             </div>
             {z.deposito.refinado_recurso && (
               <div>
@@ -771,6 +847,7 @@ export function Zona() {
             Posse (ocupação, abandono, conquista), o que a zona custou e o que a guerra fez com ela.
             Só você vê isto.
           </p>
+          <Cemiterio lapide={z.cemiterio} />
 
           {carregandoHistorico && <p className="text-ink-soft mt-2 text-sm">Carregando…</p>}
 

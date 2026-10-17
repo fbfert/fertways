@@ -6,6 +6,7 @@ use App\Domain\Admin\Suspender;
 use App\Domain\Chat\Filtro;
 use App\Domain\Chat\NomesReservados;
 use App\Domain\Telemetria\RegistrarEvento;
+use App\Domain\Trade\VinculoDeContas;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
@@ -45,6 +46,9 @@ class AuthController extends Controller
             'email' => $dados['email'],
             'password' => Hash::make($dados['password']),
         ]);
+
+        // D-287: a conta alternativa costuma nascer do mesmo IP da principal (§26.4).
+        app(VinculoDeContas::class)->registrar($user, $request->ip());
 
         return response()->json([
             'token' => $user->createToken('fertways')->plainTextToken,
@@ -123,6 +127,9 @@ class AuthController extends Controller
          * DAU com gente que não entrou.
          */
         app(RegistrarEvento::class)->handle('login', $user);
+
+        // D-287: o sinal de contas vinculadas do §26.4 (HMAC do IP, nunca o IP).
+        app(VinculoDeContas::class)->registrar($user, $request->ip());
 
         return response()->json([
             'token' => $user->createToken('fertways')->plainTextToken,

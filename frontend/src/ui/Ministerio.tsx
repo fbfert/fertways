@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { api, ApiError } from '../api/client'
-import type { Acordo, ColoniaVizinha, Denuncia, Ministerio as Pasta, Reputacao, Violacao } from '../api/client'
+import type { Acordo, ColoniaVizinha, Denuncia, Ministerio as Pasta, ProvasContra, Reputacao, Violacao } from '../api/client'
 import { dataHumana, fert, prazoHumano, segundosRestantes } from './recursos'
 
 const INTERVALO_MS = 3000
@@ -326,23 +326,63 @@ function Denunciar({
   const [denunciado, setDenunciado] = useState<number | null>(null)
   const [violacao, setViolacao] = useState('')
   const [texto, setTexto] = useState('')
-  const [acordoId, setAcordoId] = useState<number | null>(null)
+  const [provaEscolhida, setProvaEscolhida] = useState<string | null>(null)
+  const [provas, setProvas] = useState<ProvasContra | null>(null)
 
   const alvo = vizinhas.find((c) => c.id === denunciado) ?? vizinhas[0]
   const escolhida = catalogo.find((v) => v.violation === violacao) ?? catalogo[0]
 
+  const alvoId = alvo?.id
+
+  useEffect(() => {
+    if (alvoId === undefined) return
+    let vivo = true
+    setProvas(null)
+    api
+      .provasDoMinisterio(alvoId)
+      .then((p) => vivo && setProvas(p))
+      .catch(() => vivo && setProvas({ mensagens: [], combates: [], avaliacoes: [] }))
+    return () => {
+      vivo = false
+    }
+  }, [alvoId])
+
   /*
-   * §26.8, evidência mínima: só um Acordo de Troca **quebrado, entre você e o denunciado** serve. É
-   * o único registro par-a-par que o servidor guarda — um despacho avulso lança no ledger da
-   * origem, sem o destino. Não há print de chat porque não há chat.
+   * §26.8, evidência mínima — e, desde o D-288, a evidência certa para cada violação: a mensagem do
+   * chat para abuso, o combate para ataque a aliado e quebra de tratado, a avaliação para avaliação
+   * injusta, o Acordo de Troca quebrado para calote. Tudo o que aparece aqui é registro do servidor:
+   * nada se forja nem se digita.
    *
    * Filtrar aqui, e não deixar o backend recusar depois, é a diferença entre uma tela que ensina a
    * regra e uma que a esconde até o colono errar.
    */
-  const evidencias = acordos.filter((a) => a.status === 'quebrado' && a.counterparty_id === alvo?.id)
-  const evidencia = evidencias.find((a) => a.id === acordoId) ?? evidencias[0]
+  const aceitas = escolhida?.evidencias ?? []
+  const opcoes: { chave: string; tipo: string; id: number; rotulo: string }[] = []
 
-  const valido = !!alvo && !!escolhida && !!evidencia && texto.trim().length >= 10
+  if (aceitas.includes('acordo_expirado')) {
+    for (const a of acordos.filter((a) => a.status === 'quebrado' && a.counterparty_id === alvo?.id)) {
+      opcoes.push({ chave: `acordo:${a.id}`, tipo: 'acordo_expirado', id: a.id, rotulo: `Acordo #${a.id}, vencido em ${dataHumana(a.deadline_at)}` })
+    }
+  }
+  if (aceitas.includes('print_de_chat')) {
+    for (const m of provas?.mensagens ?? []) {
+      const trecho = m.texto.length > 60 ? `${m.texto.slice(0, 60)}…` : m.texto
+      opcoes.push({ chave: `msg:${m.id}`, tipo: 'print_de_chat', id: m.id, rotulo: `"${trecho}" (${m.canal}, ${dataHumana(m.em)})` })
+    }
+  }
+  if (aceitas.includes('registro_de_combate')) {
+    for (const c of (provas?.combates ?? []).filter((c) => c.com_federacoes)) {
+      opcoes.push({ chave: `combate:${c.id}`, tipo: 'registro_de_combate', id: c.id, rotulo: `Ataque #${c.id} (${c.tipo}), ${dataHumana(c.em)}` })
+    }
+  }
+  if (aceitas.includes('avaliacao')) {
+    for (const a of provas?.avaliacoes ?? []) {
+      opcoes.push({ chave: `av:${a.id}`, tipo: 'avaliacao', id: a.id, rotulo: `${a.estrelas} ★ no acordo #${a.acordo_id}${a.comentario ? `: "${a.comentario}"` : ''}` })
+    }
+  }
+
+  const prova = opcoes.find((o) => o.chave === provaEscolhida) ?? opcoes[0]
+  const valido = !!alvo && !!escolhida && !!prova && texto.trim().length >= 10
 
   if (vizinhas.length === 0) {
     return <p className="text-ink-soft mt-5 text-sm">Nenhuma outra colônia no servidor.</p>
@@ -360,7 +400,7 @@ function Denunciar({
           value={alvo?.id ?? ''}
           onChange={(e) => {
             setDenunciado(Number(e.target.value))
-            setAcordoId(null)
+            setProvaEscolhida(null)
           }}
         >
           {vizinhas.map((c) => (
@@ -379,7 +419,10 @@ function Denunciar({
           id="violacao"
           className="border-rust/25 bg-sand focus:border-rust mt-1 w-full border px-2 py-1.5 text-sm outline-none"
           value={escolhida?.violation ?? ''}
-          onChange={(e) => setViolacao(e.target.value)}
+          onChange={(e) => {
+            setViolacao(e.target.value)
+            setProvaEscolhida(null)
+          }}
         >
           {catalogo.map((v) => (
             <option key={v.violation} value={v.violation}>
@@ -390,12 +433,6 @@ function Denunciar({
         {escolhida && (
           <div className="mt-1 space-y-1">
             <Pena v={escolhida} />
-            {escolhida.inerte && (
-              <p className="text-ink-soft text-xs">
-                Esta violação depende de um sistema que Fertways ainda não tem. A denúncia fica
-                registrada, e a punição só passa a morder quando ele existir.
-              </p>
-            )}
           </div>
         )}
       </div>
@@ -404,28 +441,29 @@ function Denunciar({
         <label className="text-rust eyebrow" htmlFor="evidencia">
           Evidência
         </label>
-        {evidencias.length === 0 ? (
+        {provas === null ? (
+          <p className="text-ink-soft mt-1 text-sm">Procurando provas…</p>
+        ) : opcoes.length === 0 ? (
           <p className="text-ink-soft mt-1 text-sm">
-            Nenhum Acordo de Troca quebrado entre você e {alvo?.nickname}. Sem evidência, o
-            Ministério rejeita a denúncia na triagem — é a regra.
+            Nada entre você e {alvo?.nickname} serve de prova para esta violação ({aceitas.map((t) => NOME_PROVA[t] ?? t).join(', ')}).
+            Sem evidência, o Ministério rejeita a denúncia na triagem — é a regra.
           </p>
         ) : (
           <>
             <select
               id="evidencia"
               className="border-rust/25 bg-sand focus:border-rust mt-1 w-full border px-2 py-1.5 text-sm outline-none"
-              value={evidencia?.id ?? ''}
-              onChange={(e) => setAcordoId(Number(e.target.value))}
+              value={prova?.chave ?? ''}
+              onChange={(e) => setProvaEscolhida(e.target.value)}
             >
-              {evidencias.map((a) => (
-                <option key={a.id} value={a.id}>
-                  Acordo #{a.id}, vencido em {dataHumana(a.deadline_at)}
+              {opcoes.map((o) => (
+                <option key={o.chave} value={o.chave}>
+                  {o.rotulo}
                 </option>
               ))}
             </select>
             <p className="text-ink-soft mt-1 text-xs">
-              Só um Acordo de Troca quebrado entre vocês dois. É o único log de transação par-a-par
-              que o servidor guarda.
+              São registros do servidor: o conciliador vê exatamente isto, e ninguém consegue forjá-lo.
             </p>
           </>
         )}
@@ -439,7 +477,7 @@ function Denunciar({
           id="texto"
           rows={4}
           className="border-rust/25 bg-sand focus:border-rust mt-1 w-full border px-2 py-1.5 text-sm outline-none"
-          placeholder="Descreva o caso. O conciliador lê isto, com o log do acordo e o histórico de reputação de vocês dois."
+          placeholder="Descreva o caso. O conciliador lê isto, com a prova e o histórico de reputação de vocês dois."
           value={texto}
           onChange={(e) => setTexto(e.target.value)}
         />
@@ -448,14 +486,14 @@ function Denunciar({
       <button
         disabled={!valido}
         onClick={() => {
-          if (!alvo || !escolhida || !evidencia) return
+          if (!alvo || !escolhida || !prova) return
           void agir(() =>
             api.denunciar({
               accused_colony_id: alvo.id,
               violation: escolhida.violation,
               texto,
-              evidence_type: 'acordo_expirado',
-              trade_agreement_id: evidencia.id,
+              evidence_type: prova.tipo,
+              ...(prova.tipo === 'acordo_expirado' ? { trade_agreement_id: prova.id } : { evidence_ref: prova.id }),
             }),
           ).then(() => {
             setTexto('')
@@ -473,6 +511,14 @@ function Denunciar({
       </p>
     </div>
   )
+}
+
+const NOME_PROVA: Record<string, string> = {
+  acordo_expirado: 'Acordo de Troca quebrado',
+  log_transacao: 'log do acordo',
+  print_de_chat: 'mensagem do chat',
+  registro_de_combate: 'combate em que ele atacou você',
+  avaliacao: 'avaliação que ele deu a você',
 }
 
 function Casos({
@@ -579,6 +625,20 @@ function Cartao({
 
       <p className="text-ink-soft mt-2 text-sm">{d.texto}</p>
 
+      {d.evidencia && (
+        <p className="border-rust/20 text-ink mt-2 border-l-2 pl-2 text-xs" data-prova>
+          {d.evidencia.tipo === 'mensagem' && <>Mensagem no {d.evidencia.canal}: "{d.evidencia.mensagem}"</>}
+          {d.evidencia.tipo === 'combate' && <>Ataque #{d.evidencia.combate_id} ({d.evidencia.tipo_ataque})</>}
+          {d.evidencia.tipo === 'avaliacao' && (
+            <>
+              Avaliação de {d.evidencia.estrelas} ★ no acordo #{d.evidencia.acordo_id}
+              {d.evidencia.comentario && `: "${d.evidencia.comentario}"`}
+              {d.evidencia.anulada && ' (anulada)'}
+            </>
+          )}
+        </p>
+      )}
+
       <div className="mt-2">
         <Pena
           v={{
@@ -588,6 +648,7 @@ function Cartao({
             punicoes: d.punicao_tabelada.punicoes,
             grave: d.grave,
             inerte: false,
+            evidencias: [],
             fonte: d.fonte,
           }}
         />

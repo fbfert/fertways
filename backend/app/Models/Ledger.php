@@ -133,6 +133,7 @@ class Ledger extends Model
         'espacoporto_imposto', // D-269: o imposto de importação, na partida
         'espacoporto_seguro', // D-280: o prêmio, na partida (negativo); a indenização, na volta (positivo)
         'combustivel_viagem', // D-281: o Gelo de Metano que a Nave queima (a energia continua em `energia_viagem`)
+        'embaixada_credencial', // D-289: a credencial comercial, paga ao Tesouro (negativo)
     ];
 
     public function colony(): BelongsTo

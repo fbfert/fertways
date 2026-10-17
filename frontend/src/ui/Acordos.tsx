@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { Avaliar, Estrelas } from './Estrelas'
 import { api, ApiError } from '../api/client'
 import type {
   Acordo,
@@ -380,8 +381,8 @@ function Cartao({
 
       {!acordo.moves_reputation && (
         <p className="text-ink-soft mt-2 text-xs">
-          Vale {fert(acordo.value_micro, 2)} Fert$ somando os dois lados: abaixo do piso de 5 Fert$
-, fica registrado mas não move a Confiança Comercial.
+          Vale {fert(acordo.value_micro, 2)} Fert$ somando os dois lados: abaixo do piso de 5 Fert$, fica
+          registrado mas não move a Confiança Comercial nem se avalia.
         </p>
       )}
 
@@ -428,6 +429,16 @@ function Cartao({
       {acordo.status === 'aceito' && devo && !outra && (
         <p className="text-rust mt-3 text-xs">
           A colônia de destino sumiu do diretório. Não há como despachar.
+        </p>
+      )}
+
+      {acordo.pode_avaliar && (
+        <Avaliar nome={nome} aoAvaliar={(n, c) => agir(() => api.avaliarAcordo(acordo.id, n, c))} />
+      )}
+
+      {acordo.minha_avaliacao !== null && (
+        <p className="text-ink-soft mt-3 text-xs">
+          Sua avaliação: <Estrelas nota={acordo.minha_avaliacao} tamanho="text-xs" />
         </p>
       )}
     </div>
