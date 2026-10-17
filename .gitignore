@@ -10,3 +10,6 @@ frontend/dist/
 backend/.env.bak.*
 docs/*.zip
 __pycache__/
+# Trava de sessão do Claude Code: entrou por engano no 79d49d5 e quebrou o pull do deploy.
+.claude/scheduled_tasks.lock
+.claude/worktrees/
