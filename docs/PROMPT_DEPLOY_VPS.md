@@ -45,6 +45,8 @@ CONTEXTO
 
 PASSO 1 — Código e suíte
 - cd /home/fertways/apps/fertways; git status limpo; git pull --ff-only origin main.
+- git log --oneline -1 → 79d49d5 ("D-283 a D-286: a revisão completa do jogo") ou um commit de docs
+  posterior. Se o HEAD for anterior a 79d49d5, PARE.
 - cd backend && sudo -u fertways /usr/bin/php84 /bin/composer install --no-interaction
 - sudo -u fertways /usr/bin/php84 artisan test   → esperado: 1637 verdes, NENHUM vermelho.
 - Frontend: export PATH="/usr/local/lib/nodejs/node-v22.12.0-linux-x64/bin:$PATH";
@@ -54,13 +56,17 @@ PASSO 2 — As cinco migrations no fertwaysdev, nos dois sentidos
 - Confirme que o artisan da árvore de trabalho fala com fertwaysdev. Se não, PARE.
 - migrate --force; migrate:rollback --step=5 --force; migrate --force.
 - Depois: DB::table('luas')->count() → 8; DB::table('gagarin_settings')->first();
-  DB::table('fabrica_veiculos')->where('tipo','nave_de_transporte_planetaria')->exists() → true.
+  DB::table('fabrica_veiculos')->where('tipo','nave_de_transporte_planetaria')->exists() → true;
+  DB::table('planetas_npc')->pluck('demanda_diaria_micro','nome') → 100000000 em todos;
+  Schema::hasIndex('units',['status','arrives_at']) e Schema::hasIndex('chat_messages',['channel','created_at']) → true.
 
 PASSO 3 — A primeira colônia e o Gagarin (só leitura, na PRODUÇÃO, antes do deploy)
 - DB::table('colonies')->min('created_at') e quantos dias faz;
 - quantos usuários humanos:
     DB::table('users')->where('email','not like','%@bots.fertways.local')->where('email','not like','%@fertways.sistema')->count()
-- Me mostre os dois números e diga se o Gagarin vai ativar no primeiro tick. Se for ativar, PARE e me
+- DB::table('chat_messages')->count() (o índice do D-286 é criado sobre ela; acima de 1 milhão, me
+  avise antes do deploy).
+- Me mostre os números e diga se o Gagarin vai ativar no primeiro tick. Se for ativar, PARE e me
   pergunte: ou deixamos ativar, ou eu ponho uma data de abertura no painel depois do deploy.
 
 PASSO 4 — Deploy
@@ -73,6 +79,11 @@ PASSO 5 — Conferir (só leitura)
 - /admin/reconhecimento e /admin/transportes?aba=espacoporto abrem com 200.
 - DB::table('espacoporto_settings')->first(['seguro_carregamento_bps','escolta_poder_pleno','escolta_reducao_max_bps'])
   → 2500, 800, 7500.
+- D-283, ninguém ganhou nem perdeu XP: compare, em 5 colônias quaisquer, colonies.niveis_de_obra_pagos
+  com a soma de buildings.level — têm de ser iguais.
+- D-283: DB::table('milestone_settings')->value('xp_acordo_teto_diario') → 3.
+- D-285: um POST na rota de cadastro (a mesma do frontend, `/register` da API) com apelido inválido e sem senha responde a mensagem em português (só leia a
+  resposta; não crie conta).
 - tail -n 50 backend/storage/logs/laravel.log da cópia de deploy → nada novo depois do deploy.
 - Um minuto depois do deploy: DB::table('gagarin_settings')->value('ativado_em') e
   DB::table('missoes_de_reconhecimento')->count() — e me diga se bate com o que o passo 3 previu.
