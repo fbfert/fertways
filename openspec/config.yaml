@@ -1,0 +1,52 @@
+schema: spec-driven
+
+context: |
+  Language: pt-BR
+  All artifacts must be written in pt-BR.
+  Keep OpenSpec structural headings and SHALL/MUST keywords in English.
+
+  Projeto: FERTWAYS — jogo de estratégia/colônia para navegador (Alpha 2).
+  Stack:
+    - backend/: Laravel 12, PHP 8.4, testes com `php artisan test` (SQLite em teste).
+    - frontend/: React 19 + TypeScript + Vite + Tailwind 4 + Phaser 4; lint com oxlint;
+      e2e com puppeteer via `npm run e2e` (tools/e2e.sh).
+    - CI em .github/workflows/ci.yml (só valida, nunca faz deploy — ver docs/ci.md).
+    - Deploy é manual pelo usuário com tools/deploy.sh (ver docs/deploy.md).
+  Fontes de verdade:
+    - Regra de ouro: toda fórmula, custo e regra vem do GDD; nada se inventa.
+      O GDD canônico do Alpha 2 é o v39 (docs/alpha2/); o v35 só cobre lacunas do v39.
+      GDDs consolidados mais recentes ficam em docs/FERTWAYS_GDD_v*_CONSOLIDADO.html.
+    - Divergências, lacunas e contradições do GDD são registradas em docs/decisoes.md
+      como itens D-NNN numerados (data, status, fonte, justificativa).
+    - docs/RETOMAR.md é o ponto de parada entre sessões; o roadmap das fases fica em docs/alpha2/.
+  Convenções:
+    - Ao propor uma mudança, cite a seção do GDD que a fundamenta e o(s) D-NNN relacionados.
+    - Se a mudança diverge do GDD ou decide uma lacuna, a proposta deve prever um novo D-NNN.
+    - Leia o roadmap do Alpha 2 antes de propor trabalho novo: a ordem das fases não é arbitrária.
+
+rules:
+  tasks:
+    - Inclua tarefas de teste (backend com php artisan test; frontend com build, lint e e2e quando houver UI)
+    - Inclua uma tarefa para atualizar docs/decisoes.md quando houver decisão nova
+
+# Per-artifact rules (optional)
+# Add custom rules for specific artifacts.
+# Example:
+#   rules:
+#     proposal:
+#       - Keep proposals under 500 words
+#       - Always state what is out of scope
+#     tasks:
+#       - Break tasks into chunks of max 2 hours
+
+# Per-operation guidance (optional)
+# Add advisory guidance for how apply and archive work should be conducted.
+# This is separate from artifact rules above.
+# Example:
+#   operations:
+#     apply:
+#       guidance:
+#         - Keep test summaries concise
+#     archive:
+#       guidance:
+#         - Summarize the archive outcome before finishing
