@@ -120,6 +120,46 @@ não era construível sem o usuário — e **foi todo resolvido em 15/10** (D-26
 - ✅ **silício, lítio e tântalo** — Auryn os vende desde o D-263;
 - ✅ as **missões de reconhecimento** — fora, até o primeiro teste com jogadores (D-273).
 
+### ✅ No ar em 16/10/2026 (noite) — o lote D-279 a D-286 inteiro
+
+**Publicado em `7c68bd0`** (`sudo ./tools/deploy.sh`, 23:09 São Paulo; a produção estava em `d7245ad`).
+O "Pendente: corrigir os dois testes" da seção abaixo está **superado** (D-279).
+- **Suíte no servidor: 1637 verdes, nenhum vermelho** (o SQLite 3.34.1 já não derruba ninguém). `npm run build` limpo.
+- **`fertwaysdev`:** as cinco migrations subiram, voltaram e subiram de novo, todas DONE; 8 luas, a Nave na
+  fábrica, `demanda_diaria_micro` = 100000000 nos cinco planetas, os dois índices do D-286.
+- **Passo 3 (antes, por leitura):** primeira colônia em 2026-07-09 → **99 dias**; **9 humanos**; 1.287
+  `chat_messages`. Previsto: o Gagarin ativa no primeiro tick. **O usuário escolheu deixar ativar.**
+- `.env` de deploy: `APP_LOCALE=en` → `APP_LOCALE=pt_BR` (o `APP_FALLBACK_LOCALE` ficou `en`).
+- ⚠️ **A primeira tentativa (23:04) quebrou no meio.** O `79d49d5` tinha levado ao repositório
+  `.claude/scheduled_tasks.lock` (trava de sessão do Claude Code). Na cópia de deploy, `.claude/` é do root,
+  e o `git pull` como `fertways` morreu **depois** de escrever 86 arquivos e criar 25: HEAD em `aa7e9ae`,
+  código novo na árvore, nenhuma migration — e o script **tirou a aplicação da manutenção**. Um tick rodou
+  às 02:05:02 UTC com o código misturado: 9 colônias deram `1146` (`producao_por_hora` não existia) e
+  sofreram rollback; 21 passaram sem erro. Contido com `artisan down` às 23:05:05. Correção, com
+  autorização: o arquivo saiu do repositório e entrou no `.gitignore` (`7c68bd0`); a cópia de deploy voltou
+  a `aa7e9ae` (`reset --hard` + `clean -fd`, poupando a pasta vazia `.claude/worktrees` do root); deploy
+  refeito do zero. As 9 colônias alcançaram as outras no tick seguinte.
+  **Lição:** o `deploy.sh` não sabe desfazer um `git pull` que morre no meio — ele só tira da manutenção.
+  E o `git pull` do passo 1 como root deixou 123 arquivos root na árvore de trabalho (devolvidos ao `fertways`).
+- **Backups:** `/home/fertways/backups/fertwaysbd-antes-7ec1a2c-20261016-230440.sql.gz` (da tentativa
+  quebrada, tirado antes do tick misturado) e `fertwaysbd-antes-7c68bd0-20261016-230934.sql.gz` (4,6 MB,
+  o do deploy que valeu).
+- **Deploy:** banco `[fertwaysbd]`, as **cinco migrations DONE**, `APP_DEBUG` off, opcache na árvore de
+  deploy, bundle `index-C2NrNeAx.js`, fumaça 200/401, `/central/estatisticas` → 200 com
+  `X-RateLimit-Limit: 600`.
+- **Passo 5, por leitura:** `/admin/reconhecimento` e `/admin/transportes?aba=espacoporto` → 200 (renderizados
+  no tinker com o Dono, sessão `array`, zero escritas); `espacoporto_settings` 2500/800/7500;
+  `niveis_de_obra_pagos` = soma dos níveis em **30 de 30** colônias; `xp_acordo_teto_diario` = 3; o
+  `/register` inválido responde 422 em português (o `message` ainda leva o sufixo "(and 3 more errors)" do
+  framework, mas o cliente lê os `errors`); log sem entrada depois do deploy.
+- **O Gagarin ativou às 02:10:03 UTC**, como previsto: notícias "O Telescópio Gagarin entrou em operação"
+  e o primeiro boletim; missão lunar 1, **Armstrong**, em `leitura_orbital` até 19/10 02:10 UTC.
+- **GDD v41** regerado contra o `fertwaysdev` (`c6cf6dc`), saída limpa; a Plataforma de Pouso "abriga".
+  ⚠️ **O `gdd.html` que o site serve ainda é o velho** — o commit veio depois do deploy, e o
+  `--so-frontend` não puxa código: publicar pede o `deploy.sh` completo.
+- **Falta fazer à mão:** nomear o Atendente do Espaçoporto
+  (`fertways:cargo-civico <nick> atendente_espacoporto --nomear`).
+
 ### ✅ No ar em 16/10/2026 — o lote D-263 a D-278 inteiro
 
 **Publicado em `d7245ad`** (`sudo ./tools/deploy.sh`, 15:52 São Paulo; a produção estava em `fa1af6b`).
