@@ -39,7 +39,36 @@
 
 ---
 
-## Pronto e NÃO publicado (17/10/2026) — o lote D-287 a D-291
+## ✅ No ar em 17/10/2026 — o lote D-287 a D-291 inteiro
+
+**Publicado em `1280ade`** (`sudo ./tools/deploy.sh`, 11:46 São Paulo; a produção estava em `7c68bd0`).
+O "NÃO publicado" logo abaixo está **superado**.
+- **Suíte no servidor: 1674 verdes, nenhum vermelho.** `npm run build` limpo. `git ls-files .claude` vazio
+  no HEAD que subiu; nenhum outro arquivo de ferramenta no lote.
+- **`fertwaysdev`:** as quatro migrations subiram, voltaram e subiram de novo, todas DONE; as quatro tabelas
+  novas, credencial 40000000 nos cinco planetas, `credencial_dias` 30, as colunas de federação em `combats`.
+- **Passo 3 (antes, por leitura):** **1** Estrutura de Extração erguida (nível 1), na **zona 1**; `reports` = 0;
+  `combats` = 0 (o `sem_federacoes` dos combates antigos não tem a quem se aplicar).
+- **Backup:** `/home/fertways/backups/fertwaysbd-antes-1280ade-20261017-114647.sql.gz` (4,7 MB).
+- **Deploy:** banco `[fertwaysbd]`, as **quatro migrations DONE**, `APP_DEBUG` off, opcache na árvore de
+  deploy, bundle `index-yFBnyWIK.js`, fumaça 200/401, `/central/estatisticas` → 200 com
+  `X-RateLimit-Limit: 600`.
+- **Passo 5, por leitura:** `/admin/ministerio` e `/admin/transportes?aba=espacoporto` → 200 (Dono no tinker,
+  sessão `array`, zero escritas); o segundo traz "Credencial (dias)" e 5 pares preço/desconto (40 / 50%);
+  `credencial_desconto_bps` 5000 nos cinco; `GET /embaixada` e `/ministry/provas` → 401 sem sessão; log
+  sem entrada depois do deploy (o canal é `daily`: o arquivo é `laravel-AAAA-MM-DD.log`, não `laravel.log`).
+- **Extração:** a zona 1 rende **110/h** (100 + 10%). O tick das 14:47 UTC não mexeu no
+  `last_extraction_at` (28 s < uma unidade de 32,7 s, o resto fica para o seguinte — `ExtrairZonasNeutras:112`);
+  o das 14:48 o levou de 14:46:34 a 14:47:39, os 65 s de duas unidades a 110/h.
+- ⚠️ **Achado à parte, anterior ao deploy:** um deadlock (`1213`) no tick das 10:15:03 UTC, no
+  `lockForUpdate` dos recursos da colônia 11 (`ColonyTick.php:498`). O laço isola a colônia e o tick seguiu;
+  a produção volta por delta. Não investigado.
+- **GDD v41** regerado contra o `fertwaysdev` (`577f07e`), saída limpa. ⚠️ **O `gdd.html` servido ainda é o
+  anterior**: o commit veio depois do deploy, e só o próximo `deploy.sh` completo o publica.
+- **Falta fazer à mão:** nomear o Atendente do Espaçoporto — **ainda não há nenhum** (0 em `civic_posts`):
+  `fertways:cargo-civico <nick> atendente_espacoporto --nomear`.
+
+### O que era "pronto e não publicado" (17/10/2026) — o lote D-287 a D-291
 
 **Pedido do usuário, em 17/10:** construir a avaliação de 0 a 5 estrelas, o Ministério das Reputações
 completo, a Embaixada Interplanetária (slot 9), o Cemitério de Robôs, a Estrutura de Extração e o
