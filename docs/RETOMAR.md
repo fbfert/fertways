@@ -66,8 +66,9 @@ O "NÃO publicado" logo abaixo está **superado**.
 - **GDD v41** regerado contra o `fertwaysdev` (`577f07e`), saída limpa, e **publicado** num segundo
   `deploy.sh` completo em `62d8272` (11:50, nada a migrar; backup
   `fertwaysbd-antes-62d8272-20261017-115036.sql.gz`): o site serve o md5 do commit (`fbae7cb6…`).
-- **Falta fazer à mão:** nomear o Atendente do Espaçoporto — **ainda não há nenhum** (0 em `civic_posts`):
-  `fertways:cargo-civico <nick> atendente_espacoporto --nomear`.
+- ✅ **Atendente do Espaçoporto nomeado em 17/10, 11:54:** FBFERT (user 4), a pedido do usuário
+  (`fertways:cargo-civico FBFERT atendente_espacoporto --nomear`; 50 F$/dia). As linhas "falta nomear" das
+  seções mais antigas estão superadas.
 
 ### O que era "pronto e não publicado" (17/10/2026) — o lote D-287 a D-291
 
