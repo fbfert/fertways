@@ -63,8 +63,9 @@ O "NÃO publicado" logo abaixo está **superado**.
 - ⚠️ **Achado à parte, anterior ao deploy:** um deadlock (`1213`) no tick das 10:15:03 UTC, no
   `lockForUpdate` dos recursos da colônia 11 (`ColonyTick.php:498`). O laço isola a colônia e o tick seguiu;
   a produção volta por delta. Não investigado.
-- **GDD v41** regerado contra o `fertwaysdev` (`577f07e`), saída limpa. ⚠️ **O `gdd.html` servido ainda é o
-  anterior**: o commit veio depois do deploy, e só o próximo `deploy.sh` completo o publica.
+- **GDD v41** regerado contra o `fertwaysdev` (`577f07e`), saída limpa, e **publicado** num segundo
+  `deploy.sh` completo em `62d8272` (11:50, nada a migrar; backup
+  `fertwaysbd-antes-62d8272-20261017-115036.sql.gz`): o site serve o md5 do commit (`fbae7cb6…`).
 - **Falta fazer à mão:** nomear o Atendente do Espaçoporto — **ainda não há nenhum** (0 em `civic_posts`):
   `fertways:cargo-civico <nick> atendente_espacoporto --nomear`.
 
